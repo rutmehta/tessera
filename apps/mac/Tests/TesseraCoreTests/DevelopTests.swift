@@ -53,7 +53,8 @@ final class DevelopTests: XCTestCase {
         XCTAssertEqual(controller.value(.temperature), Double(controller.info.asShotTemperature))
 
         // Surfaces are allocated at the planned level and the first frame lands in one of them.
-        let plan = try controller.attachSurfaces(viewWidth: 640, viewHeight: 480)
+        // A caller asking for one slot still gets a live ring (display lease + writer).
+        let plan = try controller.attachSurfaces(viewWidth: 640, viewHeight: 480, count: 1)
         XCTAssertGreaterThanOrEqual(Int(plan.width), 480)
         let first = try await nextFrame(controller, after: 0)
         let surface = try XCTUnwrap(controller.surface(first.surfaceID), "frame names an attached surface")

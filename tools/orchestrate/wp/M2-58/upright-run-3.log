@@ -1,0 +1,6 @@
+running 1 test
+test bench_upright_setter_boundary ... develop L2 calibration [first, tone, WB] ms: CPU [3194.291625, 1358.705666, 1676.72625]; GPU [1413.424792, 2.343125, 12.120417]
+UPRIGHT_SETTER samples=101 median_ms=0.023417 p95_ms=0.037125 max_ms=0.335167
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.10s

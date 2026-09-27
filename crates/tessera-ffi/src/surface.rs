@@ -58,6 +58,7 @@ unsafe extern "C" {
     fn IOSurfaceGetWidth(buffer: IOSurfaceRef) -> usize;
     fn IOSurfaceGetHeight(buffer: IOSurfaceRef) -> usize;
     fn IOSurfaceGetID(buffer: IOSurfaceRef) -> u32;
+    fn IOSurfaceIsInUse(buffer: IOSurfaceRef) -> bool;
 }
 
 #[cfg(target_os = "macos")]
@@ -81,6 +82,17 @@ unsafe impl Send for Surface {}
 unsafe impl Sync for Surface {}
 
 impl Surface {
+    /// Host mailbox/presenter leases prohibit producer reuse.
+    pub(crate) fn is_in_use(&self) -> bool {
+        #[cfg(target_os = "macos")]
+        {
+            unsafe { IOSurfaceIsInUse(self.raw) }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            false
+        }
+    }
     /// Creates an owned, temporary presentation target for backend calibration.
     #[cfg(target_os = "macos")]
     pub(crate) fn create_rgba8(width: u32, height: u32) -> Result<Self, String> {

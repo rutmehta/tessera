@@ -1,0 +1,25 @@
+{
+  "command": [
+    "open",
+    "-g",
+    "-n",
+    "-a",
+    "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/Tessera.app",
+    "--stdout",
+    "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/drag-retry/app-stdout.log",
+    "--stderr",
+    "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/drag-retry/app-stderr.log",
+    "--args",
+    "--nonactivating",
+    "--timing-output",
+    "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/drag-retry/trace.json",
+    "--app-dir",
+    "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/drag-retry/state",
+    "--folder",
+    "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/drag-retry/fixture",
+    "--timing-selftest",
+    "--develop-selftest"
+  ],
+  "foreground_before": 35860,
+  "frame_logging": "off"
+}

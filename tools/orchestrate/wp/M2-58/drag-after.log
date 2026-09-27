@@ -1,0 +1,64 @@
+Verified release d8e5f432887a2bf36bd2467684c394dc6b46f88f: /Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/Tessera.app
+{
+  "input_updates": 121,
+  "presented_generations": 0,
+  "main_instrumented_span_p95_ms": 0.4058750346302986,
+  "main_instrumented_span_p50_ms": 0.2976665273308754,
+  "main_span_p50_by_name_ms": {
+    "drawable_encode_end": 0.14566630125045776,
+    "callback_drain_end": 0.3453753888607025,
+    "ffi_end": 0.30012521892786026,
+    "flush_end": 0.02408307045698166
+  },
+  "main_span_max_by_name_ms": {
+    "drawable_encode_end": 8.362583350390196,
+    "callback_drain_end": 5.878958385437727,
+    "ffi_end": 0.4058750346302986,
+    "flush_end": 0.49616629257798195
+  },
+  "main_span_p95_by_name_ms": {
+    "drawable_encode_end": 0.552500132471323,
+    "callback_drain_end": 0.42012520134449005,
+    "ffi_end": 0.34504150971770287,
+    "flush_end": 0.408791471272707
+  },
+  "callback_to_present_p50_ms": null,
+  "callback_to_present_p95_ms": null,
+  "input_to_present_p50_ms": null,
+  "input_to_present_p95_ms": null,
+  "causally_presented_inputs": 0,
+  "job_dequeues": 121,
+  "engine_sink_p95_ms": 3.53275,
+  "loupe_resource_spans": [
+    {
+      "durationMs": 1.0720002464950085,
+      "mainThread": false,
+      "name": "loupe_resources_end",
+      "residency": "unavailable",
+      "span": "B5AB7539-C25B-4C1E-9F02-AAC888F447EC",
+      "time": 2559922.471589209
+    }
+  ],
+  "dropped": 0,
+  "p01_complete": false,
+  "limitations": [
+    "Instrumented main spans include nested spans, not all main-thread tasks.",
+    "Occluded background windows may not present. Sink time is not input-to-display."
+  ],
+  "provenance": {
+    "commit": "d8e5f432887a2bf36bd2467684c394dc6b46f88f",
+    "configuration": "release",
+    "source_sha256": "1e28c78ed249f17f1fa5132a3a85ee750bafd723d4d49ac97fcfffa3ffdd0d78",
+    "archive_sha256": "33a6d36f6e8d19ce967420921931cd4812bfc48b535ad5cd5d9e2745432985b5",
+    "bindings": {
+      "CTesseraFFI.h": "6899045a1819b049a79f59c942aab0fd5e7534fb2c27d961e9d0e48531b831ea",
+      "CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "TesseraFFI.swift": "7a792acd235115bc24168f5a2e98ebcc0601e3501c62ab8304c66d03626b842c"
+    }
+  },
+  "foreground_unchanged": true,
+  "selftest_complete": true,
+  "grid_only": false,
+  "grid_appeared": true,
+  "frame_logging_enabled": false
+}

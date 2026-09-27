@@ -30,6 +30,24 @@ def summarize(trace):
             presented.setdefault(key, e['time'])
     delays = [(end - enqueue[key]) * 1000 for key, end in presented.items()
               if key in enqueue and end >= enqueue[key]]
+    inputs = {(e.get('session'), e.get('input')): e['time'] for e in events
+              if e['name'] == 'input' and e.get('input') is not None}
+    dequeues = {(e.get('session'), e.get('generation'), e.get('level')): e for e in events
+                if e['name'] == 'job_dequeue'}
+    causal = {}
+    for e in events:
+        if e['name'] != 'callback_enqueue' or e.get('input') is None:
+            continue
+        key = (e.get('session'), e.get('generation'), e.get('level'))
+        identity = (e.get('session'), e['input'])
+        start, end, dequeue = inputs.get(identity), presented.get(key), dequeues.get(key)
+        if (start is not None and end is not None and dequeue is not None
+                and dequeue.get('input') == e['input']
+                and e.get('residency') in ('resident', 'fallback')
+                and start <= dequeue['time'] <= e['time'] <= end):
+            # First presentation for each input, not every refinement/redraw.
+            causal[identity] = min(causal.get(identity, float('inf')), (end - start) * 1000)
+    input_delays = list(causal.values())
     by_span = {}
     for e in events:
         if e.get('mainThread') and 'durationMs' in e:
@@ -38,18 +56,22 @@ def summarize(trace):
         'input_updates': sum(e['name'] == 'input' for e in events),
         'presented_generations': len({key[:2] for key in presented}),
         'main_instrumented_span_p95_ms': percentile(spans, .95),
+        'main_instrumented_span_p50_ms': percentile(spans, .5),
+        'main_span_p50_by_name_ms': {k: percentile(v, .5) for k, v in by_span.items()},
+        'main_span_max_by_name_ms': {k: max(v) for k, v in by_span.items()},
         'main_span_p95_by_name_ms': {k: percentile(v, .95) for k, v in by_span.items()},
         'callback_to_present_p50_ms': percentile(delays, .5),
         'callback_to_present_p95_ms': percentile(delays, .95),
-        'input_to_present_p50_ms': None,
-        'input_to_present_p95_ms': None,
+        'input_to_present_p50_ms': percentile(input_delays, .5),
+        'input_to_present_p95_ms': percentile(input_delays, .95),
+        'causally_presented_inputs': len(causal),
+        'job_dequeues': len(dequeues),
         'engine_sink_p95_ms': percentile([e['engineSinkMs'] for e in events
                                         if e['name'] == 'callback_enqueue' and 'engineSinkMs' in e], .95),
         'loupe_resource_spans': [e for e in events if e['name'] == 'loupe_resources_end'],
         'dropped': trace['dropped'],
-        'p01_complete': False,
-        'limitations': ['FFI does not expose causal input/generation mapping, job dequeue or actual residency.',
-                        'Instrumented main spans include nested spans, not all main-thread tasks.',
+        'p01_complete': len(causal) >= 100 and not trace['dropped'],
+        'limitations': ['Instrumented main spans include nested spans, not all main-thread tasks.',
                         'Occluded background windows may not present. Sink time is not input-to-display.'],
     }
 
@@ -124,7 +146,7 @@ def main():
         return 1
     if args.grid_only:
         return 0 if not result['loupe_resource_spans'] else 1
-    return 2  # refuse a false P01 pass while its Rust instrumentation seam is unavailable
+    return 0 if result['p01_complete'] else 2
 
 
 if __name__ == '__main__':

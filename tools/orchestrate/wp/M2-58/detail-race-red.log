@@ -1,0 +1,48 @@
+Building for debugging...
+[0/6] Write sources
+[1/6] /Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/detail-check/.build/arm64-apple-macosx/debug/DetailCheckPackageTests.derived/runner.swift
+[2/6] Write sources
+[3/6] Write swift-version--58304C5D6DBC2206.txt
+[5/8] Compiling DetailCheckTests DetailTests.swift
+[6/8] Emitting module DetailCheckTests
+[7/10] Emitting module DetailCheckPackageTests
+[8/10] Compiling DetailCheckPackageTests runner.swift
+[8/10] Write Objects.LinkFileList
+[9/10] Linking DetailCheckPackageTests
+Build complete! (15.65s)
+Test Suite 'All tests' started at 2026-09-27 08:08:37.267.
+Test Suite 'DetailCheckPackageTests.xctest' started at 2026-09-27 08:08:37.268.
+Test Suite 'DetailPreviewSchedulingTests' started at 2026-09-27 08:08:37.268.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' passed (0.002 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' passed (0.001 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' started.
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/detail-check/Tests/DetailTests.swift:43: error: -[DetailCheckTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork] : XCTAssertTrue failed
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/detail-check/Tests/DetailTests.swift:45: error: -[DetailCheckTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork] : XCTAssertNil failed: "5" - a matching viewport completion is not a new edit
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/detail-check/Tests/DetailTests.swift:47: error: -[DetailCheckTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork] : XCTAssertNotNil failed - unwrapped edits must still refresh detail
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' failed (1.071 seconds).
+Test Suite 'DetailPreviewSchedulingTests' failed at 2026-09-27 08:08:38.344.
+	 Executed 6 tests, with 3 failures (0 unexpected) in 1.074 (1.076) seconds
+Test Suite 'DetailCheckPackageTests.xctest' failed at 2026-09-27 08:08:38.344.
+	 Executed 6 tests, with 3 failures (0 unexpected) in 1.074 (1.076) seconds
+Test Suite 'All tests' failed at 2026-09-27 08:08:38.344.
+	 Executed 6 tests, with 3 failures (0 unexpected) in 1.074 (1.077) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+Traceback (most recent call last):
+  File "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/check_detail_schedule.py", line 21, in <module>
+    subprocess.run(['swift', 'test', '--package-path', str(folder)], check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['swift', 'test', '--package-path', '/Users/rutmehta/Developer/tessera/.worktrees/M2-58/tools/orchestrate/wp/M2-58/detail-check']' returned non-zero exit status 1.

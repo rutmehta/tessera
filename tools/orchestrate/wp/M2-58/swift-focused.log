@@ -1,0 +1,166 @@
+Building for production...
+[0/12] /Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/.build/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[11/15] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[11/15] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[12/15] Linking Tessera
+[14/16] Compiling TesseraCoreTests AssistTests.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[15/17] Compiling TesseraPackageTests runner.swift
+[15/17] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[16/17] Linking TesseraPackageTests
+Build complete! (588.91s)
+Test Suite 'Selected tests' started at 2026-09-27 06:58:45.961.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 06:58:45.963.
+Test Suite 'DetailPreviewSchedulingTests' started at 2026-09-27 06:58:45.963.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testModelNotifiesBeforeMutationAndSettlesAfterFinalSetter]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testModelNotifiesBeforeMutationAndSettlesAfterFinalSetter]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' passed (0.000 seconds).
+Test Suite 'DetailPreviewSchedulingTests' passed at 2026-09-27 06:58:45.970.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.006 (0.007) seconds
+Test Suite 'DevelopTests' started at 2026-09-27 06:58:45.970.
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' started.
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/develop-app-rendered-758E297A-431A-476B-B60E-F7CB5374CFBD/shoot/photo.jpg
+  /Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/develop-app-rendered-758E297A-431A-476B-B60E-F7CB5374CFBD/shoot/photo.heic
+develop L2 calibration [first, tone, WB] ms: CPU [0.912666, 0.276916, 0.27141699999999996]; GPU [3.629708, 0.932541, 0.9421670000000001]
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' passed (0.421 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.699666, 0.625708, 0.612542]; GPU [4.711042, 1.674416, 1.776833]
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' passed (0.076 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [1050.304083, 715.516417, 837.191709]; GPU [531.390667, 2.3145000000000002, 9.691042000000001]
+develop L2 calibration [first, tone, WB] ms: CPU [1238.7972499999998, 630.7342500000001, 707.7235410000001]; GPU [644.384208, 4.186, 12.434334]
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' passed (6.971 seconds).
+Test Suite 'DevelopTests' passed at 2026-09-27 06:58:53.438.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 7.468 (7.468) seconds
+Test Suite 'LatestFrameMailboxTests' started at 2026-09-27 06:58:53.438.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testDelayedDrainOnlyTakesNewestAndSchedulesOnce]' started.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testDelayedDrainOnlyTakesNewestAndSchedulesOnce]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testLateOldGenerationCannotReplacePendingOrDeliveredFrame]' started.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testLateOldGenerationCannotReplacePendingOrDeliveredFrame]' passed (0.000 seconds).
+Test Suite 'LatestFrameMailboxTests' passed at 2026-09-27 06:58:53.440.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 06:58:53.440.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 7.474 (7.477) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 06:58:53.440.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 7.474 (7.479) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

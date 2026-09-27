@@ -2554,6 +2554,11 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func setSettings(jsonPatch: String, interactive: Bool) throws 
     
     /**
+     * Like set_settings, carrying the causal host input through coalescing.
+     */
+    func setSettingsIdentified(jsonPatch: String, interactive: Bool, inputId: UInt64?) throws 
+    
+    /**
      * Names the current state (after committing pending changes).
      */
     func snapshot(name: String) throws 
@@ -3181,6 +3186,20 @@ open func setSettings(jsonPatch: String, interactive: Bool)throws   {try rustCal
             self.uniffiCloneHandle(),
         FfiConverterString.lower(jsonPatch),
         FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Like set_settings, carrying the causal host input through coalescing.
+     */
+open func setSettingsIdentified(jsonPatch: String, interactive: Bool, inputId: UInt64?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_settings_identified(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(jsonPatch),
+        FfiConverterBool.lower(interactive),
+        FfiConverterOptionUInt64.lower(inputId),uniffiCallStatus
     )
 }
 }
@@ -15310,6 +15329,22 @@ public func FfiConverterTypeFolderHandle_lower(_ value: FolderHandle) -> RustBuf
 
 public struct FrameInfo: Equatable, Hashable {
     /**
+     * Identity supplied by the host, not the render generation.
+     */
+    public var inputId: UInt64?
+    /**
+     * Actual worker entry in CACurrentMediaTime's monotonic clock (macOS).
+     */
+    public var jobDequeuedTime: Double?
+    /**
+     * True only when render_surface_as actually produced this frame.
+     */
+    public var resident: Bool
+    /**
+     * Histogram for this exact frame; no synchronous host fetch is needed.
+     */
+    public var histogram: Histogram?
+    /**
      * Surface written, or 0 when no surface is attached.
      */
     public var surfaceId: UInt32
@@ -15353,6 +15388,18 @@ public struct FrameInfo: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
+         * Identity supplied by the host, not the render generation.
+         */inputId: UInt64?, 
+        /**
+         * Actual worker entry in CACurrentMediaTime's monotonic clock (macOS).
+         */jobDequeuedTime: Double?, 
+        /**
+         * True only when render_surface_as actually produced this frame.
+         */resident: Bool, 
+        /**
+         * Histogram for this exact frame; no synchronous host fetch is needed.
+         */histogram: Histogram?, 
+        /**
          * Surface written, or 0 when no surface is attached.
          */surfaceId: UInt32, level: UInt8, 
         /**
@@ -15379,6 +15426,10 @@ public struct FrameInfo: Equatable, Hashable {
          * The frame shows a diagnostic overlay (e.g. the sharpening mask), not
          * the developed image; it has no histogram of its own.
          */isOverlay: Bool) {
+        self.inputId = inputId
+        self.jobDequeuedTime = jobDequeuedTime
+        self.resident = resident
+        self.histogram = histogram
         self.surfaceId = surfaceId
         self.level = level
         self.width = width
@@ -15409,6 +15460,10 @@ public struct FfiConverterTypeFrameInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FrameInfo {
         return
             try FrameInfo(
+                inputId: FfiConverterOptionUInt64.read(from: &buf), 
+                jobDequeuedTime: FfiConverterOptionDouble.read(from: &buf), 
+                resident: FfiConverterBool.read(from: &buf), 
+                histogram: FfiConverterOptionTypeHistogram.read(from: &buf), 
                 surfaceId: FfiConverterUInt32.read(from: &buf), 
                 level: FfiConverterUInt8.read(from: &buf), 
                 width: FfiConverterUInt32.read(from: &buf), 
@@ -15425,6 +15480,10 @@ public struct FfiConverterTypeFrameInfo: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: FrameInfo, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt64.write(value.inputId, into: &buf)
+        FfiConverterOptionDouble.write(value.jobDequeuedTime, into: &buf)
+        FfiConverterBool.write(value.resident, into: &buf)
+        FfiConverterOptionTypeHistogram.write(value.histogram, into: &buf)
         FfiConverterUInt32.write(value.surfaceId, into: &buf)
         FfiConverterUInt8.write(value.level, into: &buf)
         FfiConverterUInt32.write(value.width, into: &buf)
@@ -30334,6 +30393,30 @@ fileprivate struct FfiConverterOptionTypeDocRect: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHistogram: FfiConverterRustBuffer {
+    typealias SwiftType = Histogram?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHistogram.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHistogram.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMaskRect: FfiConverterRustBuffer {
     typealias SwiftType = MaskRect?
 
@@ -33566,6 +33649,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_settings() != 54630) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_settings_identified() != 21088) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_snapshot() != 45257) {

@@ -4,6 +4,40 @@ import Observation
 import TesseraCore
 import TesseraFFI
 
+/// Main-actor-owned admission state; kept value-only for deterministic scheduling tests.
+struct DetailPreviewSchedule {
+    private var revision: UInt64 = 0
+    private var interactive = false
+    private var dirty = false
+    private var inFlight: UInt64?
+    private var settingsRevision: UInt64?
+
+    mutating func observeSettings(revision: UInt64) {
+        guard settingsRevision != revision else { return }
+        settingsRevision = revision
+        invalidate()
+    }
+
+    mutating func invalidate(interactive: Bool? = nil) {
+        revision &+= 1
+        dirty = true
+        if let interactive { self.interactive = interactive }
+    }
+
+    mutating func begin() -> UInt64? {
+        guard dirty, !interactive, inFlight == nil else { return nil }
+        dirty = false
+        inFlight = revision
+        return revision
+    }
+
+    mutating func complete(_ request: UInt64) -> Bool {
+        guard inFlight == request else { return false }
+        inFlight = nil
+        return request == revision && !interactive
+    }
+}
+
 /// State and actions of the develop panels and loupe tools (M2-13): generic slider access by
 /// JSON path, the crop & straighten tool, the HSL targeted adjustment, the 1:1 detail preview,
 /// presets and the history list. Every change goes through the open `DevelopController`, i.e. the
@@ -55,9 +89,12 @@ final class DevelopTools: LibraryObserver {
     @ObservationIgnored var detailCenter = (x: 0.5, y: 0.5)
     @ObservationIgnored private(set) var detailSurface: IOSurfaceRef?
     @ObservationIgnored var onDetailPreview: ((IOSurfaceRef?, DetailPreview?) -> Void)?
-    @ObservationIgnored var detailPreviewVisible = false
-    @ObservationIgnored private var detailBusy = false
-    @ObservationIgnored private var detailDirty = false
+    @ObservationIgnored var detailPreviewVisible = false {
+        didSet {
+            if detailPreviewVisible != oldValue { detailSchedule.invalidate() }
+        }
+    }
+    @ObservationIgnored private var detailSchedule = DetailPreviewSchedule()
     @ObservationIgnored private let detailQueue = DispatchQueue(label: "develop.detail-preview", qos: .userInitiated)
 
     init(model: AppModel) {
@@ -85,7 +122,9 @@ final class DevelopTools: LibraryObserver {
 
     func apply(_ patch: [String: Any], final: Bool, label: String) {
         guard let d = develop else { return }
-        d.apply(patch: patch, interactive: !final)
+        model.withDevelopSettingsChange(final: final) {
+            d.apply(patch: patch, interactive: !final)
+        }
         NotificationCenter.default.post(name: Self.valuesChanged, object: nil)
         if final {
             model.commitDevelop(label: label)
@@ -267,12 +306,22 @@ final class DevelopTools: LibraryObserver {
         requestDetailPreview()
     }
 
-    /// Renders the 1:1 crop off the main actor; coalesces requests while one is running.
+    /// Exact L0 work is deferred throughout a settings gesture: interactive viewport frames
+    /// can also be final, so their final flag alone cannot admit detail work.
     func requestDetailPreview() {
+        detailSchedule.invalidate()
+        startDetailPreviewIfNeeded()
+    }
+
+    func developSettingsInteractionChanged(_ interactive: Bool) {
+        detailSchedule.invalidate(interactive: interactive)
+        if !interactive { startDetailPreviewIfNeeded() }
+    }
+
+    private func startDetailPreviewIfNeeded() {
         guard detailPreviewVisible, let d = develop, let surface = detailSurface else { return }
-        if detailBusy { detailDirty = true; return }
-        detailBusy = true
-        detailDirty = false
+        detailSchedule.observeSettings(revision: d.settingsRevision)
+        guard let request = detailSchedule.begin() else { return }
         let session = d.session
         let center = detailCenter
         nonisolated(unsafe) let target = surface
@@ -282,9 +331,14 @@ final class DevelopTools: LibraryObserver {
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard let self else { return }
-                    self.detailBusy = false
-                    if self.develop?.session === session { self.onDetailPreview?(target, result) }
-                    if self.detailDirty { self.requestDetailPreview() }
+                    if self.develop?.session === session, let current = self.develop {
+                        self.detailSchedule.observeSettings(revision: current.settingsRevision)
+                    }
+                    let current = self.detailSchedule.complete(request)
+                    if current, self.detailPreviewVisible, self.develop?.session === session {
+                        self.onDetailPreview?(target, result)
+                    }
+                    self.startDetailPreviewIfNeeded()
                 }
             }
         }
@@ -364,11 +418,13 @@ final class DevelopTools: LibraryObserver {
     func setGroupAmount(_ group: HistoryGroupState, _ amount: Double, final: Bool) {
         guard let d = develop else { return }
         if !final {
-            d.previewGroupAmount(group, amount)
+            model.withDevelopSettingsChange(final: false) { d.previewGroupAmount(group, amount) }
             return
         }
-        model.developHistoryMove(group.name, label: AgentFade.percent(amount)) {
-            try d.commitGroupAmount(group.groupId, amount)
+        model.withDevelopSettingsChange(final: true) {
+            model.developHistoryMove(group.name, label: AgentFade.percent(amount)) {
+                try d.commitGroupAmount(group.groupId, amount)
+            }
         }
         revision += 1
         NotificationCenter.default.post(name: Self.valuesChanged, object: nil)
@@ -414,6 +470,9 @@ final class DevelopTools: LibraryObserver {
 
     func developDidChange() {
         // Tools belong to one image's session.
+        // Keep old work's single-flight ownership until it returns, but never publish it.
+        detailSchedule.invalidate(interactive: false)
+        onDetailPreview?(nil, nil)
         let current = develop.map(ObjectIdentifier.init)
         if cropActive, current != toolSession || crop == nil { cancelCrop() }
         toolSession = current
@@ -438,7 +497,12 @@ final class DevelopTools: LibraryObserver {
             }
         }
         guard frame.isFinal, !frame.isOverlay, controller === develop else { return }
-        requestDetailPreview()
+        // Identified settings are already observed at admission. Do not reject
+        // their settle job just because the viewport finished the same edit.
+        // Direct engine mutations (AI masks, hooks) lack that identity and must
+        // still invalidate detail when their output arrives.
+        if frame.inputID == nil { requestDetailPreview() }
+        else { startDetailPreviewIfNeeded() }
     }
 
     // MARK: Self-test (`--develop-panels-selftest`)
@@ -496,6 +560,7 @@ final class DevelopTools: LibraryObserver {
     }
 
     private func settingsReloaded() {
+        requestDetailPreview()
         revision += 1
         refreshHistory()
         NotificationCenter.default.post(name: Self.valuesChanged, object: nil)

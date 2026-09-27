@@ -1,0 +1,11 @@
+# Reproducible run scratch, not source or measurement evidence.
+/drag-*/fixture/
+/drag-*/state/
+/drag-*/foreground-probe
+/mailbox-check
+/detail-check/
+/__pycache__/
+/TesseraCore.swiftmodule
+/TesseraCore.swiftdoc
+/TesseraCore.swiftsourceinfo
+/TesseraCore.abi.json

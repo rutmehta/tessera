@@ -1,0 +1,29 @@
+{
+  "binary": "/Volumes/betterSSD/tessera-cache/target/M2-58/release/deps/develop-efad53ddbcfb803f",
+  "runs": [
+    {
+      "run": 1,
+      "load": "6:53  up 32 days,  2:52, 12 users, load averages: 30.28 32.79 35.90",
+      "samples": 101,
+      "median_ms": 0.011542,
+      "p95_ms": 0.012,
+      "max_ms": 3.077458
+    },
+    {
+      "run": 2,
+      "load": "6:53  up 32 days,  2:53, 12 users, load averages: 33.47 33.32 36.02",
+      "samples": 101,
+      "median_ms": 0.02275,
+      "p95_ms": 0.031708999999999994,
+      "max_ms": 0.324375
+    },
+    {
+      "run": 3,
+      "load": "6:53  up 32 days,  2:53, 12 users, load averages: 35.34 33.78 36.07",
+      "samples": 101,
+      "median_ms": 0.023417,
+      "p95_ms": 0.037125,
+      "max_ms": 0.335167
+    }
+  ]
+}

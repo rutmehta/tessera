@@ -80,6 +80,8 @@ struct Toast: Identifiable, Equatable {
     func developDidChange()
     /// The engine finished a level into one of the session's surfaces (hot path, main actor).
     func developDidRender(_ frame: DevelopFrame, controller: DevelopController)
+    /// Settings are about to mutate, or the final value has reached the engine.
+    func developSettingsInteractionChanged(_ interactive: Bool)
 }
 
 /// See `LibraryObserver.libraryDidUpdate`.
@@ -101,6 +103,7 @@ extension LibraryObserver {
     func thumbnailsDidChange(_ positions: IndexSet) {}
     func developDidChange() {}
     func developDidRender(_ frame: DevelopFrame, controller: DevelopController) {}
+    func developSettingsInteractionChanged(_ interactive: Bool) {}
 }
 
 /// State of the develop session for the focused image, for the inspector.
@@ -1477,15 +1480,27 @@ final class AppModel {
     /// coalesced per display frame; the final value (mouse-up) becomes one undo step.
     func setAdjustment(_ key: BasicKey, _ value: Double, final: Bool, for itemID: Int) {
         guard let d = develop, d.itemID == itemID, let p = key.parameter else { return }
-        if final, p.isWhiteBalance, value == defaultValue(key) {
-            d.setAsShotWhiteBalance()
-        } else {
-            d.set(p, value, interactive: !final)
+        withDevelopSettingsChange(final: final) {
+            if final, p.isWhiteBalance, value == defaultValue(key) {
+                d.setAsShotWhiteBalance()
+            } else {
+                d.set(p, value, interactive: !final)
+            }
         }
         guard final else { return }
         d.commit(label: key.historyLabel(value))
         undoDomain = .develop
         developHistory = d.history
+    }
+
+    /// Invalidate detail before mutation; settle only after the final setter has flushed.
+    /// No viewport callback or debounce timer is needed for mouse-up.
+    func withDevelopSettingsChange(final: Bool, _ change: () -> Void) {
+        for observer in liveObservers { observer.developSettingsInteractionChanged(true) }
+        change()
+        if final {
+            for observer in liveObservers { observer.developSettingsInteractionChanged(false) }
+        }
     }
 
     /// Records the live develop changes as one undo step (the develop panels and tools).

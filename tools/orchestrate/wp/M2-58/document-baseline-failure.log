@@ -1,0 +1,19 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-09-27 07:06:07.818.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 07:06:07.819.
+Test Suite 'DocumentAdjustmentJSONTests' started at 2026-09-27 07:06:07.819.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips]' started.
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentJSONTests.swift:50: error: -[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips] : XCTAssertNil failed: "$: keys ["data", "kind", "size"] vs ["data", "dither", "kind", "size", "source_filename"]" - Color Lookup
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentJSONTests.swift:50: error: -[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips] : XCTAssertNil failed: "$: keys ["color_intensity", "fade", "kind", "luminance", "source_layer", "source_mean", "source_std", "target_mean", "target_std"] vs ["color_intensity", "fade", "kind", "luminance", "neutralize", "source_layer", "source_mean", "source_std", "target_mean", "target_std"]" - Match Color
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentJSONTests.swift:50: error: -[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips] : XCTAssertNil failed: "$: keys ["black", "gamma", "kind", "mode", "white"] vs ["black", "gamma", "highlight_clip", "kind", "mode", "shadow_clip", "white"]" - Auto
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips]' failed (3.307 seconds).
+Test Suite 'DocumentAdjustmentJSONTests' failed at 2026-09-27 07:06:11.126.
+	 Executed 1 test, with 3 failures (0 unexpected) in 3.307 (3.307) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 07:06:11.126.
+	 Executed 1 test, with 3 failures (0 unexpected) in 3.307 (3.307) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 07:06:11.126.
+	 Executed 1 test, with 3 failures (0 unexpected) in 3.307 (3.309) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

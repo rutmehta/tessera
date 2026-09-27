@@ -1,0 +1,36 @@
+[0/1] Planning build
+Building for debugging...
+[0/3] Write sources
+[1/3] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Emitting module DetailCheckTests
+[4/5] Compiling DetailCheckTests DetailTests.swift
+[4/6] Write Objects.LinkFileList
+[5/6] Linking DetailCheckPackageTests
+Build complete! (1.10s)
+Test Suite 'All tests' started at 2026-09-27 08:11:26.561.
+Test Suite 'DetailCheckPackageTests.xctest' started at 2026-09-27 08:11:26.562.
+Test Suite 'DetailPreviewSchedulingTests' started at 2026-09-27 08:11:26.562.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' passed (0.002 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSettingsChangingBeforeCompletionRejectsOldDetail]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSettingsChangingBeforeCompletionRejectsOldDetail]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' passed (0.000 seconds).
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' started.
+Test Case '-[DetailCheckTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' passed (0.000 seconds).
+Test Suite 'DetailPreviewSchedulingTests' passed at 2026-09-27 08:11:26.566.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'DetailCheckPackageTests.xctest' passed at 2026-09-27 08:11:26.566.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'All tests' passed at 2026-09-27 08:11:26.566.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.003 (0.005) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

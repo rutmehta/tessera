@@ -130,7 +130,9 @@ final class MaskTools: LibraryObserver {
     func setAmount(_ v: Double, final: Bool) {
         guard let id = list.selectedID else { return }
         list.setAmount(v)
-        develop?.updateMaskGroup(id, MaskGroupPatch(name: nil, enabled: nil, amount: Float(v), invert: nil), interactive: !final)
+        model.withDevelopSettingsChange(final: final) {
+            develop?.updateMaskGroup(id, MaskGroupPatch(name: nil, enabled: nil, amount: Float(v), invert: nil), interactive: !final)
+        }
         if final { commit(String(format: "Mask Amount %.0f%%", v)) }
     }
 
@@ -159,7 +161,9 @@ final class MaskTools: LibraryObserver {
     func setParam(_ p: LocalParam, _ v: Double, final: Bool) {
         guard let id = list.selectedID else { return }
         list.setParam(p.name, v)
-        develop?.setMaskParam(id, p.name, v, interactive: !final)
+        model.withDevelopSettingsChange(final: final) {
+            develop?.setMaskParam(id, p.name, v, interactive: !final)
+        }
         if final { commit("\(selected?.name ?? "Mask"): \(p.historyLabel(v))") }
     }
 
@@ -299,7 +303,9 @@ final class MaskTools: LibraryObserver {
 
     func shapeGradient(_ json: String, final: Bool) {
         guard let g = gradient else { return }
-        develop?.setMaskComponent(g.group, g.index, json: json, interactive: !final)
+        model.withDevelopSettingsChange(final: final) {
+            develop?.setMaskComponent(g.group, g.index, json: json, interactive: !final)
+        }
         if final {
             gradient = nil
             commit(g.title)
