@@ -263,7 +263,9 @@ extension FilterSelfTest {
         await pause(3)
         guard let row = filters.smartFilters(doc, layer: photo).first else { check("smart filter available", false); return }
         plog(String(format: "smart filter applied, footprint %.0f MiB", footprintMiB()))
-        for (label, actual) in [("fit", false), ("100% 4K", true)] {
+        // Isolate export lifetime checks from viewport resizing and filter-drag acceptance.
+        let exportOnly = ProcessInfo.processInfo.environment["TESSERA_FILTER_PERF_EXPORT_ONLY"] == "1"
+        for (label, actual) in (exportOnly ? [] : [("fit", false), ("100% 4K", true)]) {
             if actual, let w = model.mainWindow, let v = doc.viewport {
                 // A 3840 × 2160 device-pixel viewport (the window stays where it is, in the back).
                 let scale = w.backingScaleFactor
