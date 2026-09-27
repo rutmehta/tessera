@@ -390,3 +390,16 @@ before allocation; no lock across copy, insert rechecks. Seven tiny tests UNRUN
 and uncompiled; source formatted/diff checked only. FFI-IMAGE-CACHE-BOUND.md has
 exact semantics, validation requirements and non-global memory limits. B hold
 and paused heartbeat remain; A-owned outline source/tests untouched.
+
+## PSD copy operation design — request 92b23b0f (2026-09-27)
+
+Accepted exact B mailbox request after validating target/hold. Published separate
+`PSD-COPY-CANCELLATION-DESIGN.md` with proposed UniFFI operation prepare/cancel/run,
+typed Saved/Cancelled outcome, single-use ownership, close-before-state-lock
+signalling, identity-safe registry cleanup and commit-admission race semantics.
+Source inspection confirms temporary-file replacement preserves destination until
+persist, but PSD conversion contains a second legacy merged-composite render and
+whole-image allocations, followed by an opaque in-memory encoder. Cancellation
+at these boundaries is not internal interruption or a peak-memory bound.
+A must review the contract before product edits and own bindings/validation.
+No B builds/tests/apps/benchmarks or heartbeat restart; all tests remain proposals.
