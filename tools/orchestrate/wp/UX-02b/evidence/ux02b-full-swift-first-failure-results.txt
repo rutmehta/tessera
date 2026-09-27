@@ -1,0 +1,8 @@
+Full current-FFI Swift gate #1 (before fixture isolation correction)
+Frozen candidate: edde5c4c16eb2ea8d6b39e75a9272d4321555ad3
+Current main included: 78492f7f
+Command: MACOSX_DEPLOYMENT_TARGET=15.0 swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/loupe-review-candidate -c release -Xswiftc -enable-testing --jobs 2
+RAW preflight: fixtures/raw symlink resolves to /Users/rutmehta/Developer/tessera/fixtures/raw; sample.dng, fuji-raf.RAF, sony-arw.ARW, nikon-nef.NEF, canon-cr3.CR3 all existed.
+XCTest result from retained log: 493 tests, 1 skipped, 4 assertion failures, all in AgentReviewNavigationTests.testForeignQueueCannotEditAcceptOrAdvanceAndAllReviewedRemainsReachable. Failing expectations treated a newly installed EngineLibrary for the SAME canonical folder as foreign; new contract intentionally rehydrates the queue onto that fresh same-path owner. Initial diagnosis also found those temporary reviewedModel/layout runs used default app support rather than fixture support.
+The shell wrapper's exit file is blank: it queried PIPESTATUS in zsh and printed an empty value, then exited 0. The retained XCTest summary is unambiguously failed; exact swift process exit was not captured by this wrapper. Subsequent full gate will use redirection and `$?` with no pipeline to capture the direct swift exit.
+Build: current FFI release archive `99ba90171889d8b4566377e9939a444f21a953f6cb51667ea791e59736eb628e`; generated bindings unchanged. Test build emitted deployment-target linker warning for a blake3_neon.o object marked macOS 26.5 and unrelated Swift concurrency/style warnings.
