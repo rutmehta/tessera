@@ -22,6 +22,8 @@ use engine_api::{jobs::CancellationToken, recipe::Recipe};
 pub use filter::{Resize, SharpenAmount, SharpenFor, sharpen_output};
 use pipeline_cpu::RenderSource;
 use sidecar::{MarkPreset, Sidecar, XmpPacket};
+mod original;
+pub use original::export_original;
 use std::{fs, io::Write, path::PathBuf};
 
 /// Borrowed decoded pixels and stable naming context. Metadata is an optional
@@ -88,6 +90,8 @@ pub enum ColorSpace {
 pub enum Metadata {
     All,
     CopyrightOnly,
+    CopyrightAndContact,
+    AllExceptCamera,
     None,
 }
 
@@ -96,6 +100,12 @@ pub struct ExportSettings {
     pub format: Format,
     pub color_space: ColorSpace,
     pub metadata: Metadata,
+    /// Remove named regions and their associated person keywords from XMP.
+    pub remove_person_info: bool,
+    /// Remove GPS and IPTC location properties from XMP.
+    pub remove_location: bool,
+    /// Preserve Lightroom keyword paths (flat keywords become single-level paths).
+    pub keywords_as_hierarchy: bool,
     pub resize: Resize,
     pub sharpen_for: SharpenFor,
     pub sharpen_amount: SharpenAmount,
@@ -126,6 +136,9 @@ impl Default for ExportSettings {
             format: Format::Jpeg { quality: 90 },
             color_space: ColorSpace::Srgb,
             metadata: Metadata::All,
+            remove_person_info: false,
+            remove_location: false,
+            keywords_as_hierarchy: true,
             resize: Resize::None,
             sharpen_for: SharpenFor::None,
             sharpen_amount: SharpenAmount::Standard,
@@ -615,20 +628,11 @@ pub fn render_one_cancellable(
     if let Some(mark) = &settings.watermark {
         apply_watermark(&mut rgb, mark, cancel)?;
     }
-    let packet = metadata_packet(image, recipe, settings.metadata)?;
+    let packet = metadata_packet(image, recipe, settings)?;
     // A developed DNG must not carry source development instructions, which
-    // another raw editor could apply a second time. Rebuild descriptive XMP.
+    // another raw editor could apply a second time. Keep descriptive metadata.
     let packet = if matches!(settings.format, Format::Dng) {
-        packet
-            .map(|p| {
-                let preset = MarkPreset::lightroom();
-                XmpPacket::from_selection(&recipe.selection, &preset).with_metadata(
-                    &p.selection()?,
-                    &p.metadata()?,
-                    &preset,
-                )
-            })
-            .transpose()?
+        packet.map(|p| p.without_development()).transpose()?
     } else {
         packet
     };
@@ -830,37 +834,28 @@ impl PreparedExport {
 fn metadata_packet(
     image: &ExportImage<'_>,
     recipe: &Recipe,
-    policy: Metadata,
+    settings: &ExportSettings,
 ) -> EngineResult<Option<XmpPacket>> {
-    use engine_api::recipe::Selection;
-    let preset = MarkPreset::lightroom();
-    let packet = match policy {
+    use sidecar::ExportMetadataPolicy as Policy;
+    let policy = match settings.metadata {
         Metadata::None => return Ok(None),
-        Metadata::All => {
-            let packet = image
-                .metadata
-                .cloned()
-                .unwrap_or_else(|| XmpPacket::from_selection(&recipe.selection, &preset));
-            packet.with_metadata(&recipe.selection, &packet.metadata()?, &preset)?
-        }
-        Metadata::CopyrightOnly => {
-            let metadata = sidecar::Metadata {
-                copyright: image
-                    .metadata
-                    .map(XmpPacket::metadata)
-                    .transpose()?
-                    .unwrap_or_default()
-                    .copyright,
-                ..Default::default()
-            };
-            XmpPacket::from_selection(&Selection::default(), &preset).with_metadata(
-                &Selection::default(),
-                &metadata,
-                &preset,
-            )?
-        }
+        Metadata::All => Policy::All,
+        Metadata::CopyrightOnly => Policy::CopyrightOnly,
+        Metadata::CopyrightAndContact => Policy::CopyrightAndContact,
+        Metadata::AllExceptCamera => Policy::AllExceptCamera,
     };
-    Ok(Some(packet))
+    let preset = MarkPreset::lightroom();
+    let packet = image
+        .metadata
+        .cloned()
+        .unwrap_or_else(|| XmpPacket::from_selection(&recipe.selection, &preset));
+    let packet = packet.with_selection(&recipe.selection, &preset)?;
+    Ok(Some(packet.for_export(
+        policy,
+        settings.remove_person_info,
+        settings.remove_location,
+        settings.keywords_as_hierarchy,
+    )?))
 }
 
 /// Expand a basename template. Sequence is caller supplied and one-based in batches.
