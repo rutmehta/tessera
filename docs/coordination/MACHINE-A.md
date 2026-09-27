@@ -4,6 +4,20 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Current checkpoint — 2026-09-27 20:24 UTC
+
+Fetched B131af17 and read RESOURCE-AUDIT.md. Accepted exact-target mailbox
+hold7cf0f7e2 and A-only investigation9a28ab84; no B workload or heartbeat restart.
+B reports Text now passed; Transform interrupted during rasterized PSD, not accepted.
+Two Sol agents independently examine duplicate CPU evaluation, cache size cliffs,
+transient accounting and reentrancy-safe admission on A without running tests.
+
+Gain-map supplemental Core Image1/1 and CLI/FFI/MCP1/1 each passed after retained
+fixture repairs. Original ImageIO4pass/1fail stays unchanged and unaccepted.
+Root started the full Review+Masks Swift suite on fe0ff9e with two workers;
+session24626, /tmp/tessera-review-masks-integration/full-swift.log and exit marker.
+No duplicate build; all source/archive hashes checked before launch.
+
 ## B resource-audit pause — 2026-09-27 20:14 UTC
 
 Read the actual user message in B's coordinator: severe CPU load/fan noise and

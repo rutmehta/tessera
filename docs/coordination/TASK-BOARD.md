@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 20:14 UTC
+Updated: 2026-09-27 20:24 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -34,6 +34,12 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
+RES-01: A Sol source/regression design for duplicate compositor cold evaluations.
+RES-02: Independent Sol cancellation/admission review. Both read-only while root
+Swift gate runs; next is a tiny two-worker regression and reviewed bounded fix,
+never a large stress rerun. B owns its frontend timer/lifecycle fix.
+
+
 Main fb7c604 now contains the verified export slice and Review ownership/save-order
 safety. Final combined source b82fe333 passed436XCTest cases (one existing skip),
 zero failures, plus5SwiftTesting. The missing-fixture Rust failure and obsolete
@@ -55,12 +61,13 @@ draft text focus and single-entry acceptance. Full combined suite remains pendin
 The user authorizes multiple isolated builds on betterSSD and computer-use tests;
 keep catalogs separate and serialize UI control as well as heavy builds.
 
-Sol gainmap_gate_review now owns A’s heavy slot for supplemental Core Image and
-CLI/FFI/MCP checks, after reconciling that no prior process survived interruption.
-CLI host gate passed1/1. FFI failed before encoding on a sidecar/image-ID fixture
-mismatch; Cargo stopped before MCP. Supplemental test first failed on helper
-JSON numeric-versus-boolean serialization; both failures retained for narrow test
-repair. The original ImageIO four-stop failure remains intact; no package pass claimed.
+Gain-map targeted validation completed: repaired Core Image supplemental1/1,
+CLI1/1, repaired FFI1/1 and MCP1/1 passed. Initial serialization and sidecar-ID
+fixture failures remain preserved. Original ImageIO4pass/1fail remains unresolved.
+Root now owns A's heavy slot for the combined fe0ff9e Swift suite, two workers,
+log /tmp/tessera-review-masks-integration/full-swift.log, session24626.
+Two Sol agents investigate resource regressions/admission from source in parallel;
+no agent builds and no B workloads. Resource request9a28ab84 accepted.
 
 B’s original coordinator received queued messages and completed the Git bootstrap.
 Its previously observed scheduled heartbeat is now paused by B. B paused its heartbeat and load tests for the user-requested resource audit;
@@ -85,14 +92,20 @@ separate evidence; no threshold was weakened or failed sample replaced.
 
 ## Machine B / integration dependencies
 
-Last peer note read: `8e301f0`; latest published A status acknowledged by B:
-`6e1e7b8` via mailbox bd919fed. B reports424XCTest/one skip/zero failures +5SwiftTesting, Xcode and package provenance passed. Runner reconciled: six packaged passes (Document/Tools/Filter/Retouch/Styles/Vector), three failures (Channels/Text timeout despite done0, Transform empty Puppet source). Fresh Channels now passes with exit0; Text/Transform reruns remain active. B found competing new-document startup in Transform harness and retains original failure. No final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
+Last peer note read: `131af17`. B's resource hold supersedes its older queue.
+Channels and Text targeted reruns passed with actual exit0; Transform was stopped
+at rasterized PSD after986%CPU and7.0GiB footprint (7.5GiB peak). Host43GiBswap
+is not all Tessera. B heartbeat and runner remain held. A accepted hold7cf0f7e2
+and bounded A-only resource investigation9a28ab84. Source audit identifies
+concurrent duplicate full-image calculations, omitted transient budgets and
+uncancellable seam work; no blanket leak diagnosis. A owns compositor investigation;
+B retains Document/frontend remediation. Main B5-16 integration stays held.
 
 | ID | Work | State / next action |
 | --- | --- | --- |
-| B5-16 | Tabbed Document inspector / persisted editors | Review fixes published8184da1; strict packaged runner six passes/three failures retained. B repairs Channels/Text termination and investigates Transform. Hold main merge; new-main integration and interactive acceptance remain pending. |
+| B5-16 | Tabbed Document inspector / persisted editors | Original six-pass/three-fail evidence retained; repaired Channels/Text pass. Transform interrupted under resource hold. No new B loads; main integration and interactive acceptance remain pending. |
 | B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
-| B5-12b | Transform acceptance | Incomplete early-exit/failure accounting; B continues. |
+| B5-12b | Transform acceptance | Interrupted for resource hold; not accepted. No rerun. |
 | B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |
 | B5-14 | Post-M2-57 performance measurements | B queued; no inferred pass. |
 | UI-VERIFY | Uncovered-canvas drag checks | A verification responsibility; preserve nonactivating constraints and mark unexecuted checks as pending. |
