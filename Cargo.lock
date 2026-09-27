@@ -2888,7 +2888,9 @@ dependencies = [
 name = "merge"
 version = "0.1.0"
 dependencies = [
+ "compositor",
  "engine-api",
+ "filters",
  "lens",
  "pipeline-cpu",
  "raw-decode",
@@ -3797,6 +3799,7 @@ dependencies = [
  "blake3",
  "engine-api",
  "image",
+ "image-core",
  "pipeline-cpu",
  "raw-decode",
  "tempfile",
@@ -5000,6 +5003,7 @@ dependencies = [
  "kamadak-exif",
  "lcms2",
  "library",
+ "merge",
  "ml-caption",
  "ml-embed",
  "ml-enhance",

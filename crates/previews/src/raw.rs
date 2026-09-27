@@ -18,6 +18,12 @@ impl PreviewStore {
         if max_px == 0 {
             return Err(engine_api::EngineError::invalid("max_px", "must be positive").into());
         }
+        if raw_decode::linear_dng::is_linear_dng(&mut fs::File::open(path)?)? {
+            let recipe = engine_api::recipe::Recipe::default();
+            let key =
+                self.render_linear_dng(path, max_px, &recipe.settings, recipe.recipe_hash().0.0)?;
+            return Ok((key, PreviewSource::Rendered));
+        }
         let mut raw = raw_decode::RawSource::open(path)?;
         let metadata = raw.metadata();
         let mut identity = fs::read(path)?;
@@ -93,6 +99,9 @@ impl PreviewStore {
         if max_px == 0 {
             return Err(engine_api::EngineError::invalid("max_px", "must be positive").into());
         }
+        if raw_decode::linear_dng::is_linear_dng(&mut fs::File::open(path)?)? {
+            return self.render_linear_dng(path, max_px, settings, recipe_hash);
+        }
         let mut raw = raw_decode::RawSource::open(path)?;
         let metadata = raw.metadata();
         let mut identity = fs::read(path)?;
@@ -116,6 +125,33 @@ impl PreviewStore {
             scale,
         )?;
         self.put_image(&key, &img, max_px)?;
+        Ok(key)
+    }
+
+    /// Same calibrated upright working-space boundary as develop ingestion.
+    fn render_linear_dng(
+        &self,
+        path: &Path,
+        max_px: u32,
+        settings: &engine_api::recipe::DevelopSettings,
+        recipe_hash: [u8; 32],
+    ) -> Result<PreviewKey> {
+        let mut identity = fs::read(path)?;
+        identity.extend_from_slice(&max_px.to_le_bytes());
+        let key = PreviewKey::new(&identity, 1, recipe_hash);
+        if self.get(&key, Level::Full).is_some() {
+            return Ok(key);
+        }
+        let source = image_core::RawImage::open(engine_api::id::ImageId(0), path)?;
+        let rgb = source
+            .rgb()
+            .ok_or_else(|| engine_api::EngineError::invalid("LinearRaw", "RGB source required"))?;
+        let pixels = rgb.pixels();
+        let scale = pixels.width().max(pixels.height()).div_ceil(max_px).max(1);
+        self.renders.fetch_add(1, Ordering::Relaxed);
+        let image =
+            pipeline_cpu::render_scaled(settings, &pipeline_cpu::RenderSource::Rgb(pixels), scale)?;
+        self.put_image(&key, &image, max_px)?;
         Ok(key)
     }
 

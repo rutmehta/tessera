@@ -8,6 +8,7 @@ license = "Apache-2.0"
 path = "src/lib.rs"
 
 [dependencies]
+image-core = { path = "../image-core", default-features = false }
 engine-api = { path = "../engine-api" }
 raw-decode = { path = "../raw-decode" }
 pipeline-cpu = { path = "../pipeline-cpu" }
