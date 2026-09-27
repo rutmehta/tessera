@@ -59,11 +59,17 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    (production differs only blank separators), repaired1cb strict passed. Root
    verified25file hashes/exits. Reused clean workspace-redesign with historical
    archive preserved; current FFI0a9b build passed. Generated ABI plus stub-hide
-   source729962d9 now in fullSwift gate. No PSDapp acceptance yet.
+   source729962d9 Debug fullSwift FAILED508/1skip/1failure (Review preview nil);
+   focused failure reproduced. Exact prior65fa Release binary passes same test
+   with userpreview still open. Candidate matched Release focused/full gates now
+   run; Debug failure stays recorded, no PSDapp acceptance yet.
 2. **Luna — source/preparation only:** preview evidence82dc merged mainf09a66ff.
    Stub UI source8dd1e2a9 is included in729962d9 gate, not current openpreview.
    Prepare tinyPSD save/reopen and normal/diagnostic visibility GUI checks after
    fullSwift passes; no activation/compiler overlap. Preserve userpreview.
+Review debug failure remains a separate open investigation: see
+REVIEW-PREVIEW-DEBUG-INVESTIGATION.md. No increased deadline or waived assertion.
+
 3. **Resource Sol — waiting RED slot:** UNRUN102bce66 tests for raw complete
    revision and shared destination gate, only two Engine writer adopters. Uses
    valid equal render hashes and deterministic contention observer. Batch Apply
