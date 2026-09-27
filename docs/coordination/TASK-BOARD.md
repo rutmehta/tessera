@@ -31,13 +31,13 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | ENG-31 | M5-31 source reuse and cold timing | A root; wp/M5-31 `97eb4ca`, product `441da3e` | A local326tests and6timings pass. Direct SSH six-sample repeat on B FAILED first original cold106.084084ms/100ms; remaining5pass. All evidence retained in branch; no main merge. Cold diagnostics did not reproduce the outlier or establish a cause; A root retains the unresolved gate. No threshold changes or replacement samples. B completed receipt confirmed; result7fc92eb5 supersedes benchmark request execution. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A root + B coordinator | DONE verified SSH execution and existing-chat delivery via installed `codex queue`, peer reply, accepted/completed Git receipts. Exact B UUID01a0e323-c018-7fa3-9605-999a2dea6b32. B scheduled wakeup was verified at18:50:41Z (bd919fed); B has since paused its heartbeat for the resource audit. Preserve existing writers, use mailbox receipts and no duplicate enqueues. |
 | RES-01 | Repeated CPU smart-filter evaluation and pass retention | A root; main d2ac1226 | DONE bounded slice. Reviewed/tested e5bfbd5c merged with byte-identical crates/Cargo. 8focused,60library/1ignored (Metal exercised),48integration, strict pass. Full-mask work RES03, cancellation RES02 and global/GPU admission remain separate. B hold stays. |
-| RES-02 | Cancellation inside expensive transform kernels | A Sol implementation in codex/transform-cancellation; B retains Document/FFI integration | Final transform gate66/0 after preserved RED2; product610ca001/evidenced946b460 pushed. Strict check and compositor bridge next; no end-to-end cancellation claim. No B run. |
+| RES-02 | Cancellation inside expensive transform kernels | A Sol implementation in codex/transform-cancellation; B retains Document/FFI integration | Primitive DONE main505c4c29:66tests and strict all-target Clippy pass, exact source matched. Compositor caller bridge in progress; no end-to-end cancellation claim. No B run. |
 | RES-03 | Repeated full-image filter-mask blending | A resource Sol; B report0926ae38 accepted | Count tiny multi-tile masked work/allocation and preserve separate masks sharing unmasked cache key. Existing hotspot remains outside RES01; source analysis next. |
 | OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A coordinator remains active. B paused its heartbeat and load tests following the user’s report of severe responsiveness/resource pressure; no B rebuild, benchmark, runner or heartbeat restart without B/user direction. B audits low-impact resource evidence. A local work stays separate. |
 
 ## Ready / next
 
-A compiler slot: Luna final popover-dismissal focused rebuild/GUI; then transform strict/bridge tests. Resource final checks8focused/60library (Metal exercised,1ignored benchmark)/48integration/strict pass. Root merged/pushed RES01 atd2ac1226. No B builds or heartbeat restart.
+A compiler slot: Sol compositor bridge RED/implementation; Luna explicit popover dismissal focused14/0 passed and owns GUI retest. Resource final checks8focused/60library (Metal exercised,1ignored benchmark)/48integration/strict pass. Root merged/pushed RES01 atd2ac1226. No B builds or heartbeat restart.
 
 Main fb7c604 now contains the verified export slice and Review ownership/save-order
 safety. Final combined source b82fe333 passed436XCTest cases (one existing skip),
@@ -66,7 +66,7 @@ c716460 is pushed on codex/gainmap-restoration; dirty product source remains int
 RES-01 bounded investigation9a28ab84 completed with source/evidence above; this
 closes the requested investigation, not the resource incident. New result
 fbe21798 was published and SSH queue01a0e4a8-4970-7301-90c4-bd96dd3adb83 accepted;
-B completed receipt confirmed with source review673e2a7 and result0926ae38. A accepted residual mask work. Source-only frontend timer requestbac04a31 queued as01a0e4ad-008a-7f31-a8ec-f53e64afee8a; new request receipt still pending. No B workload authorized.
+B completed receipt confirmed with source review673e2a7 and result0926ae38. A accepted residual mask work. Source-only frontend timer requestbac04a31 queued as01a0e4ad-008a-7f31-a8ec-f53e64afee8a; B accepted receipt confirmed; source edits only. No B workload authorized.
 Loupe keyboard correction passed14 focused tests, but GUI Escape left popover open. Local /tmp disposable app-support let same binary start; external-volume mkdirat hang preserved separately. Explicit popover onExitCommand fix is now under test. Both GUI failures and earlier binaries preserved; no Loupe merge yet.
 
 B’s original coordinator received queued messages and completed the Git bootstrap.

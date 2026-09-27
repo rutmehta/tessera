@@ -4,6 +4,20 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Transform primitive integrated — 2026-09-27 21:07 UTC
+
+Main505c4c29 merges transform cancellation primitive;66tests and strict all-target
+Clippy pass. Root verified exact transform/Cargo bytes and unchanged compositor
+bytes; strict follow-up evidence32f4966e is published. Compositor caller bridge
+now has tiny test-first source and owns A compiler. This is not app-level
+cancellation acceptance. Existing validation/preparation scans remain boundaries.
+
+B accepted source-only timer requestbac04a31, confirmed via Git receipt. B hold
+still excludes builds/tests/app launch/heartbeat restart. Luna's explicit popover
+exit handler passed14focused; actual GUI retest continues on tiny local disposable
+catalog. Builds/packages stay on betterSSD (3.2TiB free); local12GiB free, so larger
+bridge compilation uses external target. No user data cleanup performed.
+
 ## RES-01 merged — 2026-09-27 21:04 UTC
 
 Main d2ac1226 contains per-frame smart-filter reuse and retained-result admission.
