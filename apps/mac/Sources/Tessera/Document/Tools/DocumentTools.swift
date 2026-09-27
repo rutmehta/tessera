@@ -246,6 +246,7 @@ final class DocumentTools {
         guard let doc = document else { return }
         DocumentRetouch.shared.toolSelected(tool)   // B5-09: another tool ends the Remove tool
         DocumentTransforms.shared.toolSelected()   // B5-12: another tool ends Warp & co.
+        DocumentContentAware.shared.toolSelected(tool)   // B5-13: and Content-Aware Move
         if transform != nil, tool != doc.tool { commitTransform() }
         if case .polygon = gesture { gesture = nil }
         if case .magnetic = gesture { gesture = nil }
@@ -320,6 +321,7 @@ final class DocumentTools {
         // B5-09 begin: the Remove tool takes the canvas while it is on.
         if DocumentRetouch.shared.removeActive { return DocumentRetouch.shared.mouseDown(e, in: v) }
         // B5-09 end
+        if DocumentContentAware.shared.active { return DocumentContentAware.shared.mouseDown(e, in: v) }   // B5-13
         // ⌃-click with a painting tool: the brush HUD (size ↔, hardness ↕).
         if flags.contains(.control), doc.tool.paints || doc.tool == .quickSelect {
             let b = currentBrush
@@ -381,6 +383,7 @@ final class DocumentTools {
         guard let doc = document else { return }
         if DocumentTransforms.shared.isActive(doc) { _ = DocumentTransforms.shared.mouseDragged(e, in: v); return }   // B5-12
         if gesture == nil, DocumentRetouch.shared.mouseDragged(e, in: v) { return }   // B5-09
+        if gesture == nil, DocumentContentAware.shared.mouseDragged(e, in: v) { return }   // B5-13
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseDragged(e, in: v); return }
         // B5-10 end
@@ -440,6 +443,7 @@ final class DocumentTools {
         guard let doc = document else { gesture = nil; return }
         if DocumentTransforms.shared.isActive(doc) { _ = DocumentTransforms.shared.mouseUp(e, in: v); return }   // B5-12
         if gesture == nil, DocumentRetouch.shared.mouseUp(e, in: v) { return }   // B5-09
+        if gesture == nil, DocumentContentAware.shared.mouseUp(e, in: v) { return }   // B5-13
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseUp(e, in: v); return }
         // B5-10 end
@@ -993,6 +997,7 @@ final class DocumentTools {
         guard let doc = document else { return false }
         if DocumentTransforms.shared.handleKey(event) { return true }   // B5-12: Return / Esc / ⌫ pin
         if DocumentRetouch.shared.handleKey(event) { return true }   // B5-09: ⇧J, and Remove's keys
+        if DocumentContentAware.shared.handleKey(event) { return true }   // B5-13: Return / Esc of a move
         if DocumentVector.shared.handleKey(event) { return true }   // B5-11: Return / Esc / ⌫ of the vector tools
         if event.keyCode == 51 || event.keyCode == 117 {
             let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)

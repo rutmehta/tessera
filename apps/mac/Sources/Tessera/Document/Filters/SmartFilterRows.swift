@@ -79,6 +79,12 @@ final class SmartFilterOutline {
             return
         }
         // B5-09 end
+        // B5-13 begin: a Liquify smart filter re-opens the Liquify workspace on its own stage.
+        if item.row.filterId == "liquify" {
+            DocumentLiquify.shared.editSmartFilter(doc, layer: item.layer, row: item.row)
+            return
+        }
+        // B5-13 end
         filters.editSmartFilter(doc, layer: item.layer, row: item.row)
     }
 
