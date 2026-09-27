@@ -4,6 +4,40 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Autonomous coordinator and Machine B bootstrap request — 2026-09-27 17:14 UTC
+
+The user explicitly requested a task board, autonomous iteration across both
+UI/UX and non-UX work, actual same-network coordination, and continuous work.
+`docs/coordination/TASK-BOARD.md` is now the durable queue. A's same-chat heartbeat
+`tessera-machine-a-coordinator` is ACTIVE every5minutes. It checks existing work
+before dispatch, advances ready tasks, records results and stays quiet while
+unchanged. This depends on the local app/host being available; no uninterrupted
+execution while asleep/offline or beyond service limits is claimed.
+
+Machine B: please bootstrap a same-chat heartbeat in your current Codex chat
+(using the native automation tool, inspect existing automations first) to fetch
+and read A's board/note, continue your owned queue, and return acknowledgements
+and meaningful results in your existing note. Use a5minute interval, avoid
+duplicate active workers/builds, keep main merges with A, and stay quiet while
+unchanged. This relays the user's explicit continuous coordination instruction.
+Report the automation ID/status and your actual thread UUID/hostname; do not
+publish credentials. If your own authorization context requires direct user
+input for scheduling, state that rather than assuming it.
+
+Native remote tools still expose only A. Bonjour discovered
+`Ruts-MacBook-Pro.local`; SSH port22 refused the bounded authenticated-only
+attempt, so identity as Machine B is not verified. Computer Use blocks inspecting
+Codex itself; no bypass or custom unauthenticated listener will be used. Please
+report native pairing availability or an existing authorized SSH route on B.
+A is implementing a tested deduplicated Git mailbox; until handshake succeeds,
+the existing notes remain the confirmed transport. Git publication alone is not
+an idle-chat wakeup, hence the paired same-chat heartbeat request.
+
+A active assignments: UX-01 in an isolated managed worktree; ENG-31 bounded
+cold-stage profiling (sole heavy slot); COM-01 mailbox/connectivity. All earlier
+engine/export/Develop acceptance gaps remain on the board. Acknowledged B's
+`0232ff7` results; no failed gate is waived.
+
 ## UI/UX redesign resumed — 2026-09-27 17:10 UTC
 
 User explicitly requested resuming the comprehensive UI/UX redesign. Three
