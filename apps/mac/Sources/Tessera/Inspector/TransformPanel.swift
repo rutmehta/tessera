@@ -8,6 +8,8 @@ import TesseraCore
 /// The Guided Upright tool: while active the loupe overlay draws and edits up to four guides
 /// (`LoupeUprightGuides.swift`). Guides are kept here as a draft; each finished gesture writes the
 /// recipe as one history step once there are two to four guides (the engine rejects fewer).
+/// While armed the session renders the uncorrected image (M2-51: no lens, Upright, transform or
+/// crop), so guides are placed on the picture the engine analyses; leaving restores the view.
 @MainActor @Observable
 final class UprightGuideTool: LibraryObserver {
     static let shared = UprightGuideTool(model: .shared)
@@ -19,6 +21,11 @@ final class UprightGuideTool: LibraryObserver {
     private(set) var revision = 0
     @ObservationIgnored private var session: ObjectIdentifier?
     @ObservationIgnored private var selfTestRan = false
+    /// The session showing its uncorrected view while the tool is armed.
+    @ObservationIgnored let placement = UncorrectedPlacement()
+
+    /// Guides are drawn over the uncorrected (uncropped) frame while this is on.
+    var showsUncorrected: Bool { placement.isActive }
 
     init(model: AppModel) {
         self.model = model
@@ -37,6 +44,8 @@ final class UprightGuideTool: LibraryObserver {
         tools.hslPicker = nil
         tools.detailPicking = false
         guides = UprightGuides(settings: d.settingsObject)
+        placement.onFailure = { [weak model] in model?.statusMessage = "Guided Upright: \($0)" }
+        placement.enter(d.session)
         active = true
         tools.onLoupeToolChange?()
     }
@@ -45,6 +54,7 @@ final class UprightGuideTool: LibraryObserver {
     func end() {
         guard active else { return }
         active = false
+        placement.exit()
         guides.selected = nil
         revision += 1
         tools.onLoupeToolChange?()
@@ -121,7 +131,11 @@ final class UprightGuideTool: LibraryObserver {
 
     func developDidChange() {
         let current = develop.map(ObjectIdentifier.init)
-        if current != session { end(); guides = UprightGuides() }
+        if current != session {
+            if placement.session !== develop?.session { placement.abandon() }   // the old session has closed
+            end()
+            guides = UprightGuides()
+        }
         session = current
         revision += 1
         // Screenshot aid: TESSERA_SELFTEST_UPRIGHT=guided arms the tool with two committed guides.
@@ -181,6 +195,10 @@ struct TransformPanel: View {
                 }
                 .frame(height: Theme.Height.regular)
                 Hint("Drag in the photo along lines that should be vertical or horizontal (two to four guides). Drag an end to adjust; ⌫ removes the selected guide; Return or Esc when done.")
+                if guideTool.showsUncorrected {
+                    Hint("The loupe shows the uncorrected photo while you place guides; the correction returns when you are done.")
+                        .accessibilityIdentifier("transform-guides-uncorrected")
+                }
             } else {
                 Hint(mode.help)
             }
@@ -192,15 +210,20 @@ struct TransformPanel: View {
                     .frame(height: Theme.Height.slider)
                     .accessibilityIdentifier("transform-" + c.path.last!.replacingOccurrences(of: "_", with: "-"))
             }
+            // Constrain Crop: not rendered by the engine (M2-49 handoff), so it stays disabled
+            // with the reason; a recipe that already has it on can still switch it off.
             Toggle("Constrain Crop", isOn: Binding(get: { constrain }, set: { guideTool.setConstrainCrop($0) }))
                 .font(Theme.Fonts.caption)
                 .controlSize(.small)
-                .help("Keep the crop inside the transformed image (no blank corners)")
+                .disabled(DevelopEngineGaps.constrainCrop != nil && !constrain)
+                .help(DevelopEngineGaps.constrainCrop ?? "Keep the crop inside the transformed image (no blank corners)")
                 .accessibilityIdentifier("transform-constrain-crop")
                 .padding(.top, Theme.Space.xs)
-            if let d = tools.develop, d.ignores("/geometry/upright") || d.ignores("/geometry/transform")
-                || d.ignores("/geometry/constrain_crop") {
-                StatusLine(text: "The loupe does not draw Upright or Transform yet (engine); they are saved and applied on export.",
+            if let gap = DevelopEngineGaps.constrainCrop {
+                StatusLine(text: gap, kind: .warning).accessibilityIdentifier("transform-constrain-crop-unavailable")
+            }
+            if let d = tools.develop, d.ignores("/geometry/upright") || d.ignores("/geometry/transform") {
+                StatusLine(text: "This photo's Upright or Transform is kept in the recipe but not drawn by the loupe.",
                            kind: .warning)
                     .padding(.top, Theme.Space.s)
                     .accessibilityIdentifier("transform-preview-note")
