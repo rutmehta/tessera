@@ -17,6 +17,8 @@ impl Adjustment {
         Ok(Self::ColorLookup {
             size,
             data: lut.values,
+            source_filename: None,
+            dither: false,
         })
     }
 }

@@ -2,6 +2,18 @@
 use super::{Adjustment, AutoMode};
 use engine_api::{EngineError, EngineResult};
 
+pub(super) fn default_clip() -> f32 {
+    0.5
+}
+
+pub(super) fn valid_clips(shadow: f32, highlight: f32) -> bool {
+    shadow.is_finite()
+        && highlight.is_finite()
+        && shadow >= 0.0
+        && highlight >= 0.0
+        && shadow + highlight < 100.0
+}
+
 fn check_histogram(h: &[Vec<u64>; 3]) -> EngineResult<()> {
     if h.iter().any(|v| v.len() < 2 || v.len() != h[0].len()) {
         return Err(EngineError::invalid(
@@ -11,12 +23,12 @@ fn check_histogram(h: &[Vec<u64>; 3]) -> EngineResult<()> {
     }
     Ok(())
 }
-fn endpoints(h: &[f64], clip: f64) -> (f32, f32) {
+fn endpoints(h: &[f64], clips: [f64; 2]) -> (f32, f32) {
     let total = h.iter().sum::<f64>();
     if total == 0.0 {
         return (0.0, 1.0);
     }
-    let cut = total * clip;
+    let cut = total * clips[0];
     let mut sum = 0.0;
     let mut lo = 0;
     for (i, &v) in h.iter().enumerate() {
@@ -28,6 +40,7 @@ fn endpoints(h: &[f64], clip: f64) -> (f32, f32) {
     }
     sum = 0.0;
     let mut hi = h.len() - 1;
+    let cut = total * clips[1];
     for (i, &v) in h.iter().enumerate().rev() {
         sum += v;
         if sum > cut {
@@ -153,6 +166,7 @@ impl Adjustment {
             luminance: 100.0,
             color_intensity: 100.0,
             fade: 0.0,
+            neutralize: false,
         })
     }
 
@@ -167,6 +181,42 @@ impl Adjustment {
                 "expected a fraction in [0,0.5)",
             ));
         }
+        // Preserve the original f32 fraction exactly, including histogram-bin
+        // boundary decisions; metadata conversion must not alter old results.
+        Self::auto_from_histogram_resolved(mode, h, [clip as f64; 2], [clip * 100.0; 2])
+    }
+
+    /// Freeze auto correction using separate shadow/highlight clip percentages.
+    /// Each must be nonnegative and their sum less than 100; use 0.5, 0.5 for
+    /// the standard defaults. Changing stored percentages alone does not rerun
+    /// analysis or change already-frozen endpoints/gamma.
+    pub fn auto_from_histogram_with_clips(
+        mode: AutoMode,
+        h: &[Vec<u64>; 3],
+        shadow_clip: f32,
+        highlight_clip: f32,
+    ) -> EngineResult<Self> {
+        if !valid_clips(shadow_clip, highlight_clip) {
+            return Err(EngineError::invalid(
+                "clip",
+                "expected finite nonnegative percentages totaling less than 100",
+            ));
+        }
+        Self::auto_from_histogram_resolved(
+            mode,
+            h,
+            [shadow_clip as f64 / 100.0, highlight_clip as f64 / 100.0],
+            [shadow_clip, highlight_clip],
+        )
+    }
+
+    fn auto_from_histogram_resolved(
+        mode: AutoMode,
+        h: &[Vec<u64>; 3],
+        clips: [f64; 2],
+        percentages: [f32; 2],
+    ) -> EngineResult<Self> {
+        check_histogram(h)?;
         let hs: [Vec<f64>; 3] = std::array::from_fn(|i| h[i].iter().map(|&v| v as f64).collect());
         let mut black = [0.0; 3];
         let mut white = [1.0; 3];
@@ -175,12 +225,12 @@ impl Adjustment {
             let pooled: Vec<f64> = (0..h[0].len())
                 .map(|i| hs[0][i] + hs[1][i] + hs[2][i])
                 .collect();
-            let (b, w) = endpoints(&pooled, clip as f64);
+            let (b, w) = endpoints(&pooled, clips);
             black = [b; 3];
             white = [w; 3];
         } else {
             for i in 0..3 {
-                (black[i], white[i]) = endpoints(&hs[i], clip as f64);
+                (black[i], white[i]) = endpoints(&hs[i], clips);
                 if mode == AutoMode::Color {
                     let total = hs[i].iter().sum::<f64>();
                     let mean = hs[i]
@@ -204,6 +254,8 @@ impl Adjustment {
             black,
             white,
             gamma,
+            shadow_clip: percentages[0],
+            highlight_clip: percentages[1],
         })
     }
 

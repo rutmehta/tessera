@@ -86,8 +86,15 @@ impl Adjustment {
                 black,
                 white,
                 gamma,
+                shadow_clip,
+                highlight_clip,
                 ..
-            } => finite(black) && finite(white) && finite(gamma),
+            } => {
+                finite(black)
+                    && finite(white)
+                    && finite(gamma)
+                    && statistics::valid_clips(*shadow_clip, *highlight_clip)
+            }
             Self::MatchColor {
                 source_layer,
                 source_mean,
@@ -97,6 +104,7 @@ impl Adjustment {
                 luminance,
                 color_intensity,
                 fade,
+                ..
             } => {
                 *source_layer != 0
                     && finite(source_mean)
@@ -113,7 +121,7 @@ impl Adjustment {
                 saturation,
                 lightness,
             } => finite(color) && finite(&[*fuzziness, *hue, *saturation, *lightness]),
-            Self::ColorLookup { size, data } => lookup::valid(*size, data),
+            Self::ColorLookup { size, data, .. } => lookup::valid(*size, data),
             Self::ShadowsHighlights { settings } => return settings.validate(),
             Self::HdrToning { settings } => return settings.validate(),
             Self::BrightnessContrast {
@@ -369,6 +377,13 @@ pub enum Adjustment {
         white: [f32; 3],
         /// Per-channel midtone gamma.
         gamma: [f32; 3],
+        /// Shadow population clipped during analysis, in percent (default 0.5).
+        /// Frozen endpoints remain authoritative until analysis is run again.
+        #[serde(default = "statistics::default_clip")]
+        shadow_clip: f32,
+        /// Highlight population clipped during analysis, in percent (default 0.5).
+        #[serde(default = "statistics::default_clip")]
+        highlight_clip: f32,
     },
     /// Frozen CIE Lab D65 statistics; source_layer preserves source identity.
     MatchColor {
@@ -388,6 +403,11 @@ pub enum Adjustment {
         color_intensity: f32,
         /// Blend back to original, 0..100 percent.
         fade: f32,
+        /// Remove the transferred population's mean Lab chroma before intensity
+        /// and fade, preserving lightness and chromatic variation. This is a
+        /// gray-world cast correction, not Adobe's proprietary exact algorithm.
+        #[serde(default)]
+        neutralize: bool,
     },
     /// Normalized encoded-RGB distance selection with HSL shifts.
     ReplaceColor {
@@ -408,6 +428,12 @@ pub enum Adjustment {
         size: u32,
         /// Red-fastest finite RGB cube samples.
         data: Vec<[f32; 3]>,
+        /// Original LUT filename, retained as metadata (never opened by rendering).
+        #[serde(default)]
+        source_filename: Option<String>,
+        /// Deterministic document-space sub-byte noise, disabled for old documents.
+        #[serde(default)]
+        dither: bool,
     },
     /// Local tonal operator; requires neighborhood rendering.
     ShadowsHighlights {
@@ -604,7 +630,7 @@ impl Adjustment {
                 stops.dedup_by(|a, b| a[0] == b[0]);
                 Compiled::Gradient(stops, *dither, *reverse, *method)
             }
-            Adjustment::ColorLookup { size, data } => {
+            Adjustment::ColorLookup { size, data, .. } => {
                 assert!(
                     lookup::valid(*size, data),
                     "invalid ColorLookup: use checked constructors or validate before rendering"
@@ -662,6 +688,15 @@ impl Compiled<'_> {
                 })
             }
             Compiled::Channels(ch) => std::array::from_fn(|i| lut_eval(&ch[i], c[i])),
+            Compiled::Direct(Adjustment::ColorLookup {
+                size,
+                data,
+                dither: true,
+                ..
+            }) => {
+                let noise = spatial_dither([x, y]);
+                lookup::sample(*size, data, c).map(|v| (v + noise).clamp(0.0, 1.0))
+            }
             Compiled::Direct(a) => apply_direct(a, c),
             Compiled::Hdr(settings, curve) => settings.map_with_lut(c, hdr::luminance(c), curve),
             Compiled::Gradient(stops, dither, reverse, method) => {
@@ -669,6 +704,17 @@ impl Compiled<'_> {
             }
         }
     }
+}
+
+/// Shared sub-byte noise in absolute mip coordinates. Keep wrapping integer
+/// math identical to the GradientMap resident shader. Lookup adds this to the
+/// sampled output, so even a steep LUT cannot amplify the half-code bound.
+fn spatial_dither(position: [u32; 2]) -> f32 {
+    let mut h = position[0] ^ position[1].wrapping_mul(0x9e3779b9);
+    h = (h ^ (h >> 16)).wrapping_mul(0x7feb352d);
+    h = (h ^ (h >> 15)).wrapping_mul(0x846ca68b);
+    h ^= h >> 16;
+    ((h & 65535) as f32 / 65535.0 - 0.5) / 255.0
 }
 
 fn gradient(
@@ -684,13 +730,7 @@ fn gradient(
         t = 1.0 - t;
     }
     if dither {
-        // Spatial noise, independent of content, tiles and processing order.
-        // Keep wrapping integer math identical to resident/adjustments.wgsl.
-        let mut h = position[0] ^ position[1].wrapping_mul(0x9e3779b9);
-        h = (h ^ (h >> 16)).wrapping_mul(0x7feb352d);
-        h = (h ^ (h >> 15)).wrapping_mul(0x846ca68b);
-        h ^= h >> 16;
-        t = (t + ((h & 65535) as f32 / 65535.0 - 0.5) / 255.0).clamp(0.0, 1.0);
+        t = (t + spatial_dither(position)).clamp(0.0, 1.0);
     }
     if stops.is_empty() {
         return [t; 3];
@@ -746,6 +786,7 @@ fn apply_direct(a: &Adjustment, c: [f32; 3]) -> [f32; 3] {
             luminance,
             color_intensity,
             fade,
+            neutralize,
             ..
         } => {
             let f = (fade / 100.0).clamp(0.0, 1.0);
@@ -757,6 +798,10 @@ fn apply_direct(a: &Adjustment, c: [f32; 3]) -> [f32; 3] {
                 (lab[i] - target_mean[i]) * source_std[i].max(0.0) / target_std[i].max(1e-6)
                     + source_mean[i]
             });
+            if neutralize {
+                mapped[1] -= source_mean[1];
+                mapped[2] -= source_mean[2];
+            }
             mapped[0] *= (luminance / 100.0).clamp(0.0, 2.0);
             mapped[1] *= (color_intensity / 100.0).clamp(0.0, 2.0);
             mapped[2] *= (color_intensity / 100.0).clamp(0.0, 2.0);
@@ -985,7 +1030,7 @@ fn apply_direct(a: &Adjustment, c: [f32; 3]) -> [f32; 3] {
         Adjustment::ShadowsHighlights { .. } => {
             panic!("ShadowsHighlights requires neighborhood execution")
         }
-        Adjustment::ColorLookup { size, ref data } => lookup::sample(size, data, c),
+        Adjustment::ColorLookup { size, ref data, .. } => lookup::sample(size, data, c),
         Adjustment::HdrToning { ref settings } => settings.map_rgb(c, hdr::luminance(c)),
     }
 }

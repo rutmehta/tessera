@@ -199,7 +199,19 @@ fn import_channels(source: &PsdDocument, state: &mut DocState) -> EngineResult<(
                     solidity: info.opacity as f32 / 100.0,
                 }
             }
-            _ => ChannelKind::Alpha,
+            Some(info) => {
+                if info.color_space != 0 {
+                    return Err(error(
+                        "alpha display colors currently require RGB color space",
+                    ));
+                }
+                ChannelKind::AlphaDisplay {
+                    color: std::array::from_fn(|c| info.color[c] as f32 / 65535.0),
+                    opacity: info.opacity as f32 / 100.0,
+                    selected: info.mode == 1,
+                }
+            }
+            None => ChannelKind::Alpha,
         };
         state.channels.push(DocumentChannel {
             id: ChannelId((i + 1) as u64),
@@ -236,6 +248,11 @@ fn export_channels(
     for (i, channel) in channels.iter().enumerate() {
         let (color, solidity, mode) = match &channel.kind {
             ChannelKind::Alpha => ([1.0, 0.0, 0.0], 0.5, 0),
+            ChannelKind::AlphaDisplay {
+                color,
+                opacity,
+                selected,
+            } => (*color, *opacity, u8::from(*selected)),
             ChannelKind::Spot { color, solidity } => (*color, *solidity, 2),
         };
         if color
@@ -1103,7 +1120,7 @@ fn export_adjustment(a: &crate::Adjustment, layer: &mut ::psd::Layer) -> EngineR
     // Remove stale modern brightness data when changing type or legacy mode.
     layer.additional.retain(|b| b.key != *b"CgEd");
     let (key, data) = match a {
-        A::ColorLookup { size, data } => (*b"clrL", lookup_interop::write(*size, data)?),
+        A::ColorLookup { size, data, .. } => (*b"clrL", lookup_interop::write(*size, data)?),
         A::GradientMap {
             stops,
             dither,
