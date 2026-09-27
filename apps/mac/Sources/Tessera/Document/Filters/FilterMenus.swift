@@ -18,6 +18,10 @@ struct FilterMenu: View {
         Button("Convert for Smart Filters") { if let doc { filters.convertForSmartFilters(doc) } }
             .disabled(doc?.primary == nil || doc?.primary?.kind == .smartObject || doc?.primary?.kind == .adjustment || !idle)
         Divider()
+        // B5-09 begin
+        NeuralFiltersMenuItem(doc: doc)
+        Divider()
+        // B5-09 end
         ForEach(FilterCatalogEntry.grouped(catalogue), id: \.group) { section in
             Menu(section.group) {
                 ForEach(section.entries) { e in

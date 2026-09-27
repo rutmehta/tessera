@@ -363,3 +363,18 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   eye (tertiary when off, name tertiary too), a 20 pt mask thumbnail on the checkerboard, 11 pt
   name (with mode and opacity when not Normal 100 %), and a blending-options glyph; double-click
   re-opens the filter dialog. They are not selectable as layers.
+* **Remove tool and neural filters** (WP B5-09) add no colour, size or font. The Remove tool is a 28 pt palette
+  `IconButton` directly under the Healing Brush (⇧J switches between them). Its options bar follows the tools bar:
+  Size and Expand fields, a neutral `SegmentedPicker` for Auto / PatchMatch / LaMa (a tertiary "LaMa not installed"
+  caption when Auto or LaMa cannot use it), borderless Remove Selection and Remove Distractions…; while an apply runs,
+  a small spinner, the elapsed seconds and a bordered Cancel; errors are an inline `StatusLine` (warning for a missing
+  model, error otherwise). On the canvas only the on-image set: the stroke in progress is an `OnImage.reject` band at
+  55 % and brush width; distraction suggestions under review are boxes, accepted ones a 1.5 pt `OnImage.guide` over a
+  3 pt `OnImage.shadow` with a 22 % reject tint inside, kept ones a dashed `OnImage.guideFaint`, each with a scrim
+  chip naming it ("Wire-like line", "Face box"). The review bar says what the detector is: geometric suggestions, not
+  person segmentation. **Neural Filters…** is a `SheetScaffold` sheet: a 220 pt list of filters (the chosen one on
+  `accentSubtle`, an outlined warning chip "No model" where weights are missing), a hairline, then the
+  chosen filter's `ValueSlider` rows, an Output `SegmentedPicker` with only the outputs the layer allows (the others
+  listed in tertiary with the reason), face-box and limitation notes in caption type, and for a missing model a
+  warning `StatusLine` naming the model with its source URL and cache path in selectable text. Footer: Reset, Cancel,
+  Apply (primary, disabled while the model is missing). Nothing offers a download.

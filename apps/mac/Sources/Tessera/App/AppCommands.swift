@@ -252,6 +252,9 @@ struct AppCommands: Commands {
             if docMode {
                 Divider()
                 EditToolsMenuItems(doc: doc, docMode: docMode)
+                // B5-09 begin
+                RetouchEditMenuItems(doc: doc)
+                // B5-09 end
             }
         }
     }

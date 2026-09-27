@@ -40,6 +40,7 @@ struct DocumentView: View {
         .onAppear { DocumentTools.shared.attach(workspace) }
         .modifier(ToolSheetsModifier(tools: DocumentTools.shared))
         .modifier(DocumentFilterSheets(filters: workspace.filters))   // WP B5-05
+        .modifier(RetouchSheets(retouch: DocumentRetouch.shared))   // B5-09
     }
 }
 
@@ -221,7 +222,7 @@ struct DocumentStatusBar: View {
                     Text(DocumentViewportMath.percentText(doc.zoom)).fixedSize()
                         .accessibilityIdentifier("document.status.zoom")
                     separator
-                    Text("\(doc.tool.title) (\(doc.tool.key))").fixedSize()
+                    Text(DocumentRetouch.shared.removeActive ? "Remove (⇧J)" : "\(doc.tool.title) (\(doc.tool.key))").fixedSize()   // B5-09
                     if let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP B5-04
                         separator
                         Text(r).lineLimit(1).truncationMode(.tail).accessibilityIdentifier("document.status.stroke")

@@ -52,6 +52,10 @@ pub use filtering::{
     DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
     SmartFilterEdit, SmartFilterRecord, list_filters,
 };
+// Remove tool, Content-Aware Fill and neural filters for the app (WP B5-09).
+#[path = "document/retouch.rs"]
+mod retouch;
+pub use retouch::*;
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
