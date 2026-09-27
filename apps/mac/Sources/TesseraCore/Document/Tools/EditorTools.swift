@@ -26,6 +26,15 @@ extension DocumentTool {
         case .eyedropper: "Eyedropper"
         case .hand: "Hand"
         case .zoom: "Zoom"
+        // B5-11 begin
+        case .rectangleShape: "Rectangle"
+        case .ellipseShape: "Ellipse"
+        case .polygonShape: "Polygon"
+        case .lineShape: "Line"
+        case .pen: "Pen"
+        case .pathSelect: "Path Selection"
+        case .directSelect: "Direct Selection"
+        // B5-11 end
         }
     }
 
@@ -45,6 +54,9 @@ extension DocumentTool {
         case .eyedropper: "I"
         case .hand: "H"
         case .zoom: "Z"
+        case .rectangleShape, .ellipseShape, .polygonShape, .lineShape: "U"   // B5-11
+        case .pen: "P"   // B5-11
+        case .pathSelect, .directSelect: "A"   // B5-11
         }
     }
 
@@ -69,6 +81,15 @@ extension DocumentTool {
         case .eyedropper: "eyedropper"
         case .hand: "hand.raised"
         case .zoom: "magnifyingglass"
+        // B5-11 begin
+        case .rectangleShape: "rectangle"
+        case .ellipseShape: "circle"
+        case .polygonShape: "hexagon"
+        case .lineShape: "line.diagonal"
+        case .pen: "pencil.tip"
+        case .pathSelect: "cursorarrow"
+        case .directSelect: "cursorarrow.and.square.on.square.dashed"
+        // B5-11 end
         }
     }
 
@@ -78,6 +99,8 @@ extension DocumentTool {
         case .marquee, .ellipseMarquee: [.marquee, .ellipseMarquee]
         case .lasso, .polygonLasso, .magneticLasso: [.lasso, .polygonLasso, .magneticLasso]
         case .quickSelect, .wand, .objectSelect: [.quickSelect, .wand, .objectSelect]
+        case .rectangleShape, .ellipseShape, .polygonShape, .lineShape: [.rectangleShape, .ellipseShape, .polygonShape, .lineShape]   // B5-11
+        case .pathSelect, .directSelect: [.pathSelect, .directSelect]   // B5-11
         default: [self]
         }
     }
@@ -85,7 +108,7 @@ extension DocumentTool {
     /// One tool per palette slot, in Photoshop's order.
     public static let paletteSlots: [DocumentTool] = [
         .move, .marquee, .lasso, .quickSelect, .crop, .eyedropper, .heal, .brush, .cloneStamp, .eraser, .gradient,
-        .type, .hand, .zoom,
+        .type, .pen, .pathSelect, .rectangleShape, .hand, .zoom,   // B5-11: Pen, selection and shape slots
     ]
 
     /// Painting tools (brush options, cursor outline, HUD).
@@ -96,6 +119,12 @@ extension DocumentTool {
     }
     /// Placeholders that explain themselves on click (Type is live since WP B5-10).
     public var isPlaceholder: Bool { [.crop].contains(self) }
+
+    /// Live vector tools (WP B5-11): shape construction, Pen and path selection.
+    public var isVector: Bool {
+        [.rectangleShape, .ellipseShape, .polygonShape, .lineShape, .pen, .pathSelect, .directSelect].contains(self)
+    }
+    public var makesShapes: Bool { [.rectangleShape, .ellipseShape, .polygonShape, .lineShape].contains(self) }
 
     public var strokeKind: BrushToolKind? {
         switch self {

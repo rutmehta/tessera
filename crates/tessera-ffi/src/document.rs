@@ -79,6 +79,14 @@ mod styles;
 pub use styles::{
     GlobalLightRecord, LayerStyleSummary, StyleEffectSummary, style_effects_schema_json,
 };
+// B5-11 begin: live shapes, Pen / Direct Selection and vector masks.
+#[path = "document/vector.rs"]
+mod vector_shapes;
+pub use vector_shapes::{
+    ShapeBounds, ShapeHitPart, ShapeHitRecord, ShapeLayerRecord, ShapePathOperation,
+    VectorMaskRecord, shape_primitive_path,
+};
+// B5-11 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
@@ -133,6 +141,10 @@ pub enum DocLayerKind {
     Group,
     SmartObject,
     Text,
+    // B5-11 begin
+    /// An editable vector shape (`vector::ShapeModel` + affine).
+    Shape,
+    // B5-11 end
 }
 
 /// How a group composites its children.
@@ -673,13 +685,23 @@ enum Pending {
     /// A text draft of a layer, or (`None`) of a layer the draft adds.
     Text(Option<u64>),
     // B5-10 end
+    // B5-11 begin: shape source and vector-mask drafts (document/vector.rs).
+    /// A shape model / transform draft of a layer.
+    Shape(u64),
+    /// A vector-mask draft of a layer.
+    VectorMask(u64),
+    // B5-11 end
 }
 
 // B5-10 begin: live-source drafts (shared by text and, with B5-11, shapes).
 impl Pending {
     /// Drafts of editable live sources: `cancel_source_preview` drops only these.
     fn is_source(self) -> bool {
-        matches!(self, Pending::Text(_))
+        // B5-11: shape and vector-mask drafts are live-source drafts too.
+        matches!(
+            self,
+            Pending::Text(_) | Pending::Shape(_) | Pending::VectorMask(_)
+        )
     }
 }
 
@@ -832,8 +854,7 @@ fn kind_of(l: &Layer) -> DocLayerKind {
         LayerKind::Group { .. } => DocLayerKind::Group,
         LayerKind::SmartObject(_) => DocLayerKind::SmartObject,
         LayerKind::Text { .. } => DocLayerKind::Text,
-        // Compatibility until Machine B introduces the shape-specific host ABI.
-        LayerKind::Shape { .. } => DocLayerKind::Fill,
+        LayerKind::Shape { .. } => DocLayerKind::Shape, // B5-11
     }
 }
 

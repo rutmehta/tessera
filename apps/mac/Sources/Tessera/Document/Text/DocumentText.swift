@@ -44,13 +44,33 @@ final class DocumentText {
         var previewed = false
     }
 
-    private(set) var session: Session?
+    private(set) var session: Session? { didSet { publishHint() } }
+
+    /// B5-10c: the status hint, derived from the session on every change (never a stale message of
+    /// an earlier session): point / area text, a limitation of a layer without a canvas caret, nil idle.
+    var hint: String? {
+        guard let s = session else { return nil }
+        if !s.caretEditable { return "Type: " + (s.limitations.first ?? "canvas editing is unavailable") }
+        return s.edit.model.textBox.isParagraph
+            ? "Area text: type to wrap inside the box; Enter (keypad) or ⌘Return applies, Esc cancels"
+            : "Point text: type, then Enter (keypad) or ⌘Return applies, Esc cancels"
+    }
+    @ObservationIgnored private var shownHint: String?
+
+    /// Shows `hint` when it changed (an error said during the same state stays until the state changes).
+    private func publishHint() {
+        let h = hint
+        guard h != shownHint else { return }
+        shownHint = h
+        if let h { say(h) }
+    }
     /// The engine layout of the draft (the caret oracle).
     @ObservationIgnored private(set) var index: TextLayoutIndex?
     private(set) var layoutError: String?
-    /// "Type: median 9.8 ms · p95 14 ms (42 keys)" (keystroke → presented frame).
+    /// B5-10c: "Keystroke → rendered frame: median 9.8 ms · p95 14.0 ms (42 keys, inactive time excluded)".
     private(set) var latencyReadout: String?
-    @ObservationIgnored private(set) var latencies: [Double] = []
+    @ObservationIgnored private(set) var latency = TypingLatencyMeter(requireActive: ProcessInfo.processInfo.environment["TESSERA_TEXT_SELFTEST"] == nil)
+    @ObservationIgnored private var activityObservers: [NSObjectProtocol] = []
 
     enum Gesture {
         case create(start: CGPoint, current: CGPoint)
@@ -72,8 +92,6 @@ final class DocumentText {
     @ObservationIgnored private var previewInFlight = false
     @ObservationIgnored private var previewDirty = false
     @ObservationIgnored private var busy = 0
-    @ObservationIgnored private var keyAt: Date?
-    @ObservationIgnored private var awaitingEpochs: [(epoch: UInt64, at: Date)] = []
     @ObservationIgnored private var caretOn = true
     @ObservationIgnored private var blink: Timer?
     @ObservationIgnored private var hitCache: [DocLayerID: (revision: UInt64, source: TextLayerSource, layout: TextLayoutInfo)] = [:]
@@ -83,6 +101,7 @@ final class DocumentText {
     func attach(_ workspace: DocumentWorkspace) {
         guard self.workspace !== workspace else { return }
         self.workspace = workspace
+        observeActivity()
         TextSelfTest.startIfRequested(workspace)
     }
 
@@ -141,7 +160,7 @@ final class DocumentText {
         previewInFlight = true
         let (model, transform, parent, index) = (s.edit.model, s.transform, s.parent, s.insertIndex)
         let state = queueState
-        let started = keyAt
+        let key = latency.takePending()
         queue.async {
             let r = Result { () -> DocumentChange in
                 if let layer = state.layer {
@@ -159,7 +178,7 @@ final class DocumentText {
                     switch r {
                     case .success(let c):
                         if me.session?.docID == doc.id { me.session?.previewed = model.utf8Count > 0 || state.layer != nil }
-                        if let started { me.awaitingEpochs.append((c.epoch, started)) }
+                        me.latency.previewAccepted(epoch: c.epoch, key: key)
                     case .failure(let e):
                         me.say("Type: \(e.localizedDescription)")
                     }
@@ -177,6 +196,8 @@ final class DocumentText {
         let (model, transform, parent, index) = (s.edit.model, s.transform, s.parent, s.insertIndex)
         let changed = force || s.edit.isChanged || s.previewed
         if end { endSession() } else { session?.edit.rebase(to: model); session?.previewed = false }
+        // B5-10c: a keystroke no preview carried yet is measured on the committed frame.
+        let key = latency.takePending()
         guard changed else { return }
         let backendRef = doc.backend
         enqueue(label) { state -> DocumentChange? in
@@ -197,6 +218,7 @@ final class DocumentText {
         } done: { [weak doc] c in
             guard let doc else { return }
             let me = DocumentText.shared
+            if let c { me.latency.previewAccepted(epoch: c.epoch, key: key) }
             if c == nil, end == false { me.resync(doc) }
             if let id = c?.created.first {
                 if me.session?.docID == doc.id, me.session?.layer == nil { me.session?.layer = id }
@@ -248,8 +270,6 @@ final class DocumentText {
                           transform: transform, edit: TextEditSession(model: model))
         relayout()
         focus(doc)
-        say(box == nil ? "Point text: type, then Enter (keypad) or ⌘Return applies, Esc cancels"
-                       : "Area text: type to wrap inside the box; Enter (keypad) or ⌘Return applies, Esc cancels")
     }
 
     /// Resumes editing text layer `id`, the caret at local point `local` (nil: at the end).
@@ -271,7 +291,7 @@ final class DocumentText {
                 session?.edit.select(o..<o)
             }
             if doc.selection != [id] { doc.selection = [id] }
-            if src.caretEditable { focus(doc) } else { say("Type: " + (src.limitations.first ?? "canvas editing is unavailable")) }
+            if src.caretEditable { focus(doc) }   // otherwise `hint` names the limitation
             return true
         } catch {
             say("Type: \(error.localizedDescription)")
@@ -293,6 +313,7 @@ final class DocumentText {
     }
 
     private func endSession() {
+        latency.reset()
         session = nil
         index = nil
         gesture = nil
@@ -369,8 +390,8 @@ final class DocumentText {
     }
 
     /// After every draft change: layout, preview, redraw.
-    private func edited() {
-        keyAt = Date()
+    private func edited(keystroke: Bool = false) {
+        if keystroke { syncActivity(); latency.keystroke(at: ProcessInfo.processInfo.systemUptime) }
         relayout()
         if let s = session, let i = index {
             let a = i.snap(s.edit.selection.lowerBound), b = i.snap(s.edit.selection.upperBound, forward: true)
@@ -399,14 +420,14 @@ final class DocumentText {
         guard session?.caretEditable == true else { return }
         let r8 = r16.map { map.utf8Range($0) }
         session?.edit.insert(s, replacing: r8)
-        edited()
+        edited(keystroke: true)
     }
 
     func setMarked(_ s: String, selected: NSRange, replacing r16: NSRange?) {
         guard session?.caretEditable == true else { return }
         let sel = TextIndexMap(s).utf8Range(selected)
         session?.edit.setMarked(s, selected: sel, replacing: r16.map { map.utf8Range($0) })
-        edited()
+        edited(keystroke: true)
     }
 
     func commitComposition() {
@@ -466,13 +487,13 @@ final class DocumentText {
         case "insertNewline:", "insertLineBreak:", "insertParagraphSeparator:": insert("\n"); return
         case "insertTab:": insert("\t"); return
         case "deleteBackward:", "deleteBackwardByDecomposingPreviousCharacter:":
-            e.deleteBackward(); session?.edit = e; edited(); return
-        case "deleteForward:": e.deleteForward(); session?.edit = e; edited(); return
+            e.deleteBackward(); session?.edit = e; edited(keystroke: true); return
+        case "deleteForward:": e.deleteForward(); session?.edit = e; edited(keystroke: true); return
         case "deleteWordBackward:":
             let w = i.wordRange(at: i.previousStop(c)).lowerBound
-            e.insert("", replacing: e.selection.isEmpty ? w..<c : e.selection); session?.edit = e; edited(); return
+            e.insert("", replacing: e.selection.isEmpty ? w..<c : e.selection); session?.edit = e; edited(keystroke: true); return
         case "deleteToBeginningOfLine:":
-            e.insert("", replacing: i.lineBounds(of: c).lowerBound..<c); session?.edit = e; edited(); return
+            e.insert("", replacing: i.lineBounds(of: c).lowerBound..<c); session?.edit = e; edited(keystroke: true); return
         case "cancelOperation:": cancel(); return
         case "moveLeft:": move(e.selection.isEmpty ? i.previousStop(c) : e.selection.lowerBound, extend: false)
         case "moveRight:": move(e.selection.isEmpty ? i.nextStop(c) : e.selection.upperBound, extend: false)
@@ -557,8 +578,24 @@ final class DocumentText {
         }
     }
 
-    /// The topmost visible, caret-editable text layer under canvas point `p`.
-    private func textLayerHit(_ doc: DocumentController, at p: CGPoint) -> (DocLayerID, CGPoint)? {
+    /// Local pixels per view point (`TextHitRegion`'s minimum trailing margin).
+    private func pixelsPerPoint(_ v: DocumentViewportView) -> Double { v.pointsPerPixel > 0 ? 1 / v.pointsPerPixel : 1 }
+
+    /// B5-10c: whether local point `l` is on the edited text (its line boxes plus the trailing margin,
+    /// or the area box), so a click there resumes editing instead of applying and starting new text.
+    private func onSessionText(_ l: CGPoint, in v: DocumentViewportView) -> Bool {
+        guard let s = session else { return false }
+        let box = s.edit.model.textBox.size
+        if box == nil, let layout = index?.layout, !layout.lines.isEmpty {
+            return TextHitRegion.contains(l, layout: layout, box: nil, pixelsPerPoint: pixelsPerPoint(v))
+                || (localFrame?.insetBy(dx: -TextHitRegion.edgeMargin, dy: -TextHitRegion.edgeMargin).contains(l) ?? false)
+        }
+        return localFrame?.insetBy(dx: -TextHitRegion.edgeMargin, dy: -TextHitRegion.edgeMargin).contains(l) ?? false
+    }
+
+    /// The topmost visible, caret-editable text layer under canvas point `p` (B5-10c: line boxes plus
+    /// the trailing margin of `TextHitRegion`, the area box for area text).
+    private func textLayerHit(_ doc: DocumentController, at p: CGPoint, in v: DocumentViewportView) -> (DocLayerID, CGPoint)? {
         guard let t = backend(doc) else { return nil }
         for id in doc.outline.flattened {
             guard let n = doc.node(id), n.kind == .text, n.visible else { continue }
@@ -573,8 +610,9 @@ final class DocumentText {
             }
             guard let inv = entry.source.transform.inverse else { continue }
             let l = inv.apply(p)
-            let frame = entry.source.model.textBox.size.map { CGRect(origin: .zero, size: $0) } ?? entry.layout.bounds
-            if let f = frame?.insetBy(dx: -4, dy: -4), f.contains(l) { return (id, l) }
+            if TextHitRegion.contains(l, layout: entry.layout, box: entry.source.model.textBox.size, pixelsPerPoint: pixelsPerPoint(v)) {
+                return (id, l)
+            }
         }
         return nil
     }
@@ -594,7 +632,7 @@ final class DocumentText {
                 gesture = .resize(handle: h, box: box, base: s.transform, start: l)
                 return
             }
-            let inside = localFrame?.insetBy(dx: -4, dy: -4).contains(l) ?? false
+            let inside = onSessionText(l, in: v)
             if cmd {
                 if s.caretEditable { focus(doc) }
                 if inside {
@@ -629,7 +667,7 @@ final class DocumentText {
             // A click elsewhere applies this text and starts the next.
             apply()
         }
-        if let (id, l) = textLayerHit(doc, at: p) {
+        if let (id, l) = textLayerHit(doc, at: p, in: v) {
             if beginExisting(doc, layer: id, local: l), let o = session?.edit.caret { gesture = .select(anchor: o) }
             return
         }
@@ -700,7 +738,31 @@ final class DocumentText {
             if session?.layer != nil { commitDraft("Resize Text Box", end: false, force: true) }
         default: break
         }
+        // B5-10c: the viewport took the keyboard on mouse-down (handle drags, move, rotate): give it back
+        // to the text so ⌘Return / Enter / Esc and typing reach the session.
+        if let s = session, s.docID == doc.id, s.caretEditable, v.window?.firstResponder !== input { focus(doc) }
         redraw()
+    }
+
+    /// B5-10c: ⌘Return / keypad Enter apply and Esc cancels the text session whichever view of the
+    /// document window has the keyboard (KeyRouter's monitor, before menus and key equivalents).
+    /// `TextInputView` handles its own keys (the input method first); a field editor composing
+    /// marked text keeps them.
+    func routeSessionKey(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, let s = session, let doc = document, doc.id == s.docID,
+              let w = event.window, w === doc.viewport?.window else { return false }
+        if w.firstResponder === input { return false }
+        if let field = w.firstResponder as? NSTextView, field.hasMarkedText() { return false }
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        switch event.keyCode {
+        case 76 where flags.isEmpty, 36 where flags == .command, 76 where flags == .command:
+            apply()
+        case 53 where flags.isEmpty:
+            cancel()
+        default:
+            return false
+        }
+        return true
     }
 
     // MARK: Character / Paragraph (inspector)
@@ -806,22 +868,48 @@ final class DocumentText {
         }
     }
 
-    // MARK: Latency (keystroke → presented frame)
+    // MARK: Latency (keystroke → rendered frame)
 
+    /// B5-10c: the text frame is dashed for point text (layout bounds) and area text (the box), per DESIGN.md.
+    static func frameDashed(_ box: TextBoxModel) -> Bool { true }
+
+    /// Keystrokes the meter has seen: awaiting their frame, measured, or excluded (tests).
+    var latencyKeysSeen: Int { latency.awaiting + latency.samples.count + latency.excluded }
+
+    /// Visible and active: the app is active and the document window is on screen, not occluded.
+    private func syncActivity() {
+        let w = document?.viewport?.window
+        let visible = w.map { $0.isVisible && $0.occlusionState.contains(.visible) && !$0.isMiniaturized } ?? false
+        let active = (NSApp as NSApplication?)?.isActive ?? false
+        latency.setActive(visible && active, at: ProcessInfo.processInfo.systemUptime)
+    }
+
+    private func observeActivity() {
+        guard activityObservers.isEmpty else { return }
+        let nc = NotificationCenter.default
+        let names: [Notification.Name] = [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification,
+                                          NSApplication.didHideNotification, NSApplication.didUnhideNotification,
+                                          NSWindow.didChangeOcclusionStateNotification, NSWindow.didMiniaturizeNotification,
+                                          NSWindow.didDeminiaturizeNotification]
+        activityObservers = names.map { name in
+            nc.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { DocumentText.shared.syncActivity() }
+            }
+        }
+    }
+
+    /// A frame the renderer completed (the listener's `FrameInfo`): measures the keystrokes whose
+    /// previews it contains (B5-10c: keystrokes only, time while hidden or inactive excluded).
     func frameArrived(_ f: DocFrame, doc: DocumentController) {
-        guard !awaitingEpochs.isEmpty else { return }
-        let now = Date()
-        let done = awaitingEpochs.filter { $0.epoch <= f.epoch }
-        awaitingEpochs.removeAll { $0.epoch <= f.epoch }
-        for d in done { latencies.append(now.timeIntervalSince(d.at) * 1000) }
-        if latencies.count > 400 { latencies.removeFirst(latencies.count - 400) }
-        let s = latencies.sorted()
-        guard !s.isEmpty else { return }
-        let median = s[s.count / 2], p95 = s[min(s.count - 1, Int(Double(s.count) * 0.95))]
-        latencyReadout = String(format: "Type: median %.1f ms · p95 %.1f ms (%d keys)", median, p95, s.count)
+        guard latency.awaiting > 0 else { return }
+        syncActivity()
+        let now = ProcessInfo.processInfo.systemUptime
+        let new = latency.frame(epoch: f.epoch, at: now)
+        latencyReadout = latency.readout
         if ProcessInfo.processInfo.environment["TESSERA_TEXT_LATENCY_LOG"] != nil {
-            FileHandle.standardError.write(Data(String(format: "text-latency: %.2f ms epoch %llu\n",
-                                                       done.last.map { now.timeIntervalSince($0.at) * 1000 } ?? 0, f.epoch).utf8))
+            for ms in new {
+                FileHandle.standardError.write(Data(String(format: "text-latency: %.2f ms epoch %llu\n", ms, f.epoch).utf8))
+            }
         }
     }
 
@@ -867,7 +955,7 @@ final class DocumentText {
         }
         guard let s = session, s.docID == doc.id else { return }
         let t = s.transform
-        if let frame = localFrame { stroke(quad(frame, t, in: v), dashed: !s.edit.model.textBox.isParagraph) }
+        if let frame = localFrame { stroke(quad(frame, t, in: v), dashed: Self.frameDashed(s.edit.model.textBox)) }
         if let box = s.edit.model.textBox.size {
             for h in handles(box) {
                 let q = v.viewPoint(canvas: t.apply(h))

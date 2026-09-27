@@ -5040,6 +5040,7 @@ dependencies = [
  "tiff 0.10.3",
  "typography",
  "uniffi",
+ "vector",
  "wgpu",
 ]
 

@@ -328,6 +328,22 @@ struct LayerMenu: View {
         Button("Convert Text to Pixels") { if let doc { DocumentText.shared.convertToPixels(doc) } }
             .disabled(primary?.kind != .text)
         // B5-10 end
+        // B5-11 begin: vector masks, path operations and rasterizing shapes.
+        Menu("Vector Mask") {
+            Button("Reveal All") { DocumentVector.shared.addVectorMask(fromSelection: false) }
+            Button("Current Selection") { DocumentVector.shared.addVectorMask(fromSelection: true) }
+                .disabled(doc?.marquee == nil)
+            Divider()
+            Button("Delete") { DocumentVector.shared.deleteVectorMask() }
+        }
+        .disabled(primary == nil)
+        Menu("Combine Shapes") {
+            ForEach(ShapeOperation.allCases) { op in Button(op.title) { DocumentVector.shared.combineSelected(op) } }
+        }
+        .disabled(!DocumentVector.shared.canCombine)
+        Button("Rasterize Shape") { DocumentVector.shared.convertToPixels() }
+            .disabled(primary?.kind != .shape)
+        // B5-11 end
         Divider()
         Button("Merge Down") { doc?.mergeDown() }
             .shortcut(doc != nil, "e", .command)   // ⌘E is Edit in Layers outside document mode (B5-06)
