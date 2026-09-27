@@ -173,6 +173,102 @@ fn native_policies_and_independent_privacy_flags_in_every_carrier() {
 }
 
 #[test]
+fn explicit_sidecar_keywords_override_native_keywords_in_every_carrier() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("source.jpg");
+    fixture(&input);
+    let original = std::fs::read(&input).unwrap();
+    let pixels = Image::new(16, 16, vec![vec![0.2; 256]; 3]).unwrap();
+    // An absent property inherits source metadata; an empty property is an edit.
+    // Reintroducing native keywords after the sidecar merge breaks these cases.
+    for (body, expected_flat, expected_native, expected_paths) in [
+        (
+            "<xmp:Rating>4</xmp:Rating>",
+            vec!["Alice", "Nature"],
+            vec!["Alice", "Nature"],
+            vec!["Nature", "People|Alice"],
+        ),
+        (
+            "<dc:subject><rdf:Bag/></dc:subject><lr:hierarchicalSubject><rdf:Bag/></lr:hierarchicalSubject>",
+            vec![],
+            vec![],
+            vec![],
+        ),
+        (
+            "<dc:subject><rdf:Bag><rdf:li>Nature</rdf:li><rdf:li>New</rdf:li></rdf:Bag></dc:subject><lr:hierarchicalSubject><rdf:Bag><rdf:li>Places|Nature</rdf:li><rdf:li>New</rdf:li></rdf:Bag></lr:hierarchicalSubject>",
+            vec!["Nature", "New"],
+            vec!["Nature"],
+            vec!["New", "Places|Nature"],
+        ),
+        // Overrides are per expanded property name: clearing only the flat
+        // property must not erase an independently retained source hierarchy.
+        (
+            "<dc:subject/>",
+            vec![],
+            vec![],
+            vec!["Nature", "People|Alice"],
+        ),
+        (
+            "<lr:hierarchicalSubject/>",
+            vec!["Alice", "Nature"],
+            vec!["Alice", "Nature"],
+            vec![],
+        ),
+    ] {
+        let packet = sidecar::XmpPacket::parse(format!(
+            r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:lr="http://ns.adobe.com/lightroom/1.0/" xmlns:xmp="http://ns.adobe.com/xap/1.0/">{body}</rdf:Description></rdf:RDF>"#,
+        ))
+        .unwrap();
+        let image = ExportImage {
+            source: RenderSource::Rgb(&pixels),
+            name: "keywords",
+            sequence: 1,
+            date: "",
+            metadata: Some(&packet),
+        };
+        for format in formats() {
+            let out = tempfile::tempdir().unwrap();
+            let path = export_one(
+                &image,
+                &Default::default(),
+                &ExportSettings {
+                    format,
+                    metadata: Metadata::All,
+                    remove_person_info: false,
+                    keywords_as_hierarchy: true,
+                    output_dir: out.path().into(),
+                    metadata_sources: [(1, input.clone())].into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let all: serde_json::Value =
+                serde_json::from_str(&exiftool(&["-j", "-G", "-s"], &path)).unwrap();
+            for (tag, expected) in [
+                ("XMP:Subject", &expected_flat),
+                ("IPTC:Keywords", &expected_native),
+                ("XMP:HierarchicalSubject", &expected_paths),
+            ] {
+                let mut actual = match &all[0][tag] {
+                    serde_json::Value::Null => vec![],
+                    // ExifTool represents an explicitly empty XMP property as
+                    // an empty string, while an absent property is null.
+                    serde_json::Value::String(v) if v.is_empty() => vec![],
+                    serde_json::Value::String(v) => vec![v.as_str()],
+                    serde_json::Value::Array(v) => v.iter().map(|v| v.as_str().unwrap()).collect(),
+                    other => panic!("unexpected keywords: {other}"),
+                };
+                actual.sort_unstable();
+                assert_eq!(&actual, expected, "{format:?} {tag}: {body}");
+            }
+            assert_eq!(all[0]["IPTC:CopyrightNotice"], "IIM Rights");
+            assert_eq!(all[0]["IPTC:Contact"], "contact@example.test");
+        }
+    }
+    assert_eq!(std::fs::read(input).unwrap(), original);
+}
+
+#[test]
 fn metadata_sources_roundtrip_all_six_formats_and_big_endian_tiff() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("source.jpg");

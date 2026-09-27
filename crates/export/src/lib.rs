@@ -905,12 +905,24 @@ fn metadata_packet(
         Metadata::AllExceptCamera => Policy::AllExceptCamera,
     };
     let preset = MarkPreset::lightroom();
-    let packet = match (native.xmp.as_ref(), image.metadata) {
-        (Some(embedded), Some(sidecar)) => embedded.with_sidecar_overrides(sidecar)?,
-        (Some(packet), None) | (None, Some(packet)) => packet.clone(),
-        (None, None) => XmpPacket::from_selection(&recipe.selection, &preset),
+    // Native fields are source context. Reconcile them before applying edits,
+    // so an explicit empty/replaced sidecar property remains authoritative.
+    let keywords = native.keywords()?;
+    let packet = match image.metadata {
+        // With no native context, preserve the caller's packet structure.
+        Some(sidecar) if native.xmp.is_none() && keywords.is_empty() => sidecar.clone(),
+        sidecar => {
+            let packet = native
+                .xmp
+                .clone()
+                .unwrap_or_else(|| XmpPacket::from_selection(&recipe.selection, &preset))
+                .with_native_keywords(&keywords)?;
+            match sidecar {
+                Some(sidecar) => packet.with_sidecar_overrides(sidecar)?,
+                None => packet,
+            }
+        }
     };
-    let packet = packet.with_native_keywords(&native.keywords()?)?;
     let packet = packet.with_selection(&recipe.selection, &preset)?;
     Ok(Some(packet.for_export_with_person_source(
         policy,

@@ -516,8 +516,10 @@ impl Native {
             let location = matches!(*d, 26 | 27 | 90 | 92 | 95 | 100 | 101);
             policy
                 && !(s.remove_location && location)
-                && !(s.remove_person_info
-                    && *d == 25
+                // XMP already contains source-native keywords followed by
+                // sidecar edits and privacy filtering. Do not preserve a stale
+                // native keyword that an explicit sidecar property removed.
+                && !(*d == 25
                     && !allowed.iter().any(|k| {
                         keyword_texts
                             .get(v)
