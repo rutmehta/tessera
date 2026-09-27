@@ -89,8 +89,12 @@ The SIDD checkpoint is trained/evaluated in sRGB, not arbitrary unbounded camera
 linear RGB. Simply running stock weights over independent linear-RGB patches
 would not establish the requested PSNR/seam guarantees.
 
-The implemented alternative uses a 192-pixel halo, stride-8 alignment and
-fixed display-domain sigma 25/255. Sensor read/shot hints remain advisory.
+The implemented alternative uses a 192-pixel halo and stride-8 alignment.
+Legacy `denoise`/`denoise_masked` keep fixed display-domain sigma 25/255.
+`denoise_automatic` (used by the post-demosaic pipeline fallback) reuses M2-49
+noise estimation on linear RGB and maps variance through the sRGB derivative
+to one bounded display sigma. See DRUNET.md for the mapping and limitations.
+Sensor read/shot hints remain advisory in the legacy API.
 
 `denoise_with` currently provides amount (0..100) and M2-08-style raster mask
 blending in linear light, validates shape/finiteness/ranges, and bypasses the

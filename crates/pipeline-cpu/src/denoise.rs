@@ -9,7 +9,7 @@ use engine_api::{
 /// Pinned contract, checked against ml-enhance by image-core's adapter tests.
 pub const POST_DENOISE_MODEL_ID: &str = "enhance/drunet-color";
 pub const POST_DENOISE_VERSION: &str = "a2b9fccfa27b197f44a3876c567f5e48970c44a7";
-pub const POST_DENOISE_ADAPTER: &str = "linear-srgb-v1-sigma25/camera-residual-v1";
+pub const POST_DENOISE_ADAPTER: &str = "linear-srgb-v2-auto-m249-rms50/camera-residual-v1";
 
 /// Injectable full-image inference. Input/output are bounded linear sRGB,
 /// never camera RGB or Rec.2020. Implementations own runtime/session policy.

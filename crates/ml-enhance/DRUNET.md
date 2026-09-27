@@ -7,11 +7,13 @@ resolves pinned weights (may download). Methods take `&mut self`:
 
 - `denoise(&Tensor, amount: f32, Option<NoiseModelHint>) -> Result<Tensor>`
 - `denoise_masked(&Tensor, amount: f32, Option<NoiseModelHint>, mask: &[f32]) -> Result<Tensor>`
+- `denoise_automatic(&Tensor, amount: f32, mask: Option<&[f32]>) -> Result<Tensor>`
+  estimates noise instead of accepting a sensor hint.
 - `partition_report() -> Result<PartitionReport>` finalizes actual executed-node
   profiling after representative inference, including any CPU fallback.
 
 Input is NCHW **bounded linear sRGB**, not camera-linear or linear Rec.2020.
-Adapter `linear-srgb-v1-sigma25` applies the sRGB transfer function, appends a
+The legacy adapter `linear-srgb-v1-sigma25` applies the sRGB transfer function, appends a
 fourth channel fixed at sigma=25/255, runs DRUNet, clips restored display RGB to
 [0,1], and decodes to linear sRGB. Existing `denoise_with` blends in linear light
 using amount/100 times the H*W raster mask. Amount is **blend**, not sigma.
@@ -22,9 +24,45 @@ Amount zero and all-zero masks bypass inference, returning bit-exact clones even
 for finite out-of-range values and signed zero. Zero-alpha pixels retain their
 bits. `NoiseModelHint` is validated but **ignored** in adapter v1: sensor read/shot
 variance is not display-domain AWGN sigma without calibration and propagation
-through color/transfer transforms. No automatic noise estimation, sensor-quality
-validation, chroma-only or joint CFA inference is claimed. `CfaDenoise` remains
-an explicit extension point for future trained raw models.
+through color/transfer transforms. Sensor-quality validation, chroma-only or
+joint CFA inference is not claimed for this RGB adapter.
+
+### Automatic conditioning (M2-52)
+
+The post-demosaic fallback calls `denoise_automatic`, revision
+`linear-srgb-v2-auto-m249-rms50` (`DENOISE_AUTO_ADAPTER_VERSION`). Legacy
+methods and their `DENOISE_ADAPTER_VERSION` remain unchanged.
+
+`CfaNoise::estimate_rgb` uses the **same** M2-49 independent-plane 8x8 mixed
+second-difference estimator and nonnegative shot/read fit as `estimate`. It
+accepts R,G,B rather than four RGGB planes; there is no synthetic green site
+and no sensor calibration implied. The RGB output coefficients use RGB order.
+At the mean linear signal `mu_c` of each channel, use:
+
+```text
+V_c = read_c + shot_c * mu_c
+f'(mu) = 12.92                              if mu <= 0.0031308
+         (1.055/2.4) * mu^(1/2.4 - 1)        otherwise
+sigma = clamp(sqrt(sum_c(f'(mu_c)^2 * V_c) / 3), 0, 50/255)
+```
+
+This frame-wide RMS display sigma conditions every tile identically. It does
+not depend on amount or mask; both still only blend in linear light. Using
+channel means avoids multiplying individual noisy dark samples by a large
+derivative. Zero estimated noise bypasses inference. Zero amount/all-zero
+masks bypass estimation too. Active automatic input must be at least 8x8;
+smaller inputs return an explicit error, never an invented fixed sigma.
+
+This is a first-order approximation: demosaic/color conversion create
+correlations, texture may bias the estimator, and a single AWGN sigma cannot
+represent every spatially varying noise level. It is not a calibrated physical
+sensor-to-display noise propagation model.
+
+CPU real-weight test on a deterministic 41x33 linear gradient with independent
+uniform noise gave +14.470836 dB at amplitude 0.01 (sigma 0.0048573846) and
++15.735278 dB at amplitude 0.05 (sigma 0.024363143). Mask/amount blend equivalence
+and post-adapter/direct automatic equivalence passed. These are synthetic
+regressions, not natural-photo quality claims.
 
 ## Provenance and spatial contract
 
@@ -80,7 +118,9 @@ revision, amount and mask content/revision in caller cache keys.
 Run from the worktree:
 
 ```sh
-CARGO_TARGET_DIR=/Users/rutmehta/.cache/tessera-target/M3-05 cargo test -p ml-enhance --release -- --nocapture --test-threads=1
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-52 \
+TESSERA_ENHANCE_MODEL_CACHE="$PWD/crates/ml-enhance/.cache" \
+cargo test -p ml-enhance -- --nocapture --test-threads=1
 ```
 
 Weights live in ignored `tools/orchestrate/wp/M3-05/.cache/<sha>.onnx`, or set

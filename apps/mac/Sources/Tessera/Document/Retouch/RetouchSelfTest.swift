@@ -1,7 +1,9 @@
 import AppKit
 import TesseraCore
+import TesseraFFI
 
-/// `--retouch-selftest <dir>` (test aid, WP B5-09): after the library loads, Edit in Layers on `sample.dng`,
+/// `--retouch-selftest <dir>` (test aid, WP B5-09; B5-09b: background-only, add `--new-document` with `open -g`
+/// so it starts without the menu bar, and the download / cancel / menu steps): after the library loads, Edit in Layers on `sample.dng`,
 /// then through the same paths the UI takes: the Remove tool (⇧J) and a synthesized stroke on the viewport
 /// (one "Remove" node, timed), undo / redo, save and reopen the `.tessera-doc`; Edit ▸ Content-Aware Fill on a
 /// marquee; a slow Remove on a large selection cancelled from the options bar (history unchanged); Remove
@@ -70,17 +72,30 @@ final class RetouchSelfTest {
     private func mark(_ name: String, hold h: Double? = nil) async {
         step += 1
         await pause(0.8)
+        // B5-09b: never raise, float or activate the window (the Mac is in use): the step names the window
+        // number for `screencapture -x -o -l <id>` of this window only (sheets are separate windows).
         var frame = ""
-        if let key = model.mainWindow, let screen = NSScreen.screens.first {
+        if let key = window {
             let w = key.sheetParent ?? key
-            w.level = .floating
-            w.orderFrontRegardless()
-            await pause(0.3)
-            let f = w.frame
-            frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
+            frame = " window \(w.windowNumber)" + (w.attachedSheet.map { " sheet \($0.windowNumber)" } ?? "")
         }
         log("step \(step) \(name)\(frame)")
         await pause(h ?? hold)
+    }
+
+    /// The app's document window (key or not: the app may be in the background).
+    private var window: NSWindow? {
+        model.mainWindow ?? NSApp.windows.first { !($0 is NSPanel) && $0.isVisible && $0.contentView != nil }
+    }
+
+    /// A menu bar item as AppKit has it after the menu is brought up to date, the way opening it would
+    /// (`menuNeedsUpdate`, then validation).
+    private func menuItem(_ menu: String, _ title: String) -> (NSMenu, Int)? {
+        guard let m = NSApp.mainMenu?.items.first(where: { $0.title == menu })?.submenu else { return nil }
+        m.delegate?.menuNeedsUpdate?(m)
+        m.update()
+        guard let i = m.items.firstIndex(where: { $0.title == title }) else { return nil }
+        return (m, i)
     }
 
     private func event(_ type: NSEvent.EventType, at canvas: CGPoint, in v: DocumentViewportView) -> NSEvent? {
@@ -116,14 +131,14 @@ final class RetouchSelfTest {
         guard await wait(60, { !model.isLoading && !model.library.items.isEmpty }) else {
             log("FAIL the library did not load"); return finish()
         }
+        // A background launch starts the test from the document view (`--new-document`): close that blank one.
+        while let blank = ws.current { ws.discard(blank) }
         let items = model.library.items
         guard let item = items.first(where: { $0.name == "sample.dng" }) ?? items.first(where: { $0.kind == .raw }) else {
             log("FAIL no RAW in the library"); return finish()
         }
         model.select(id: item.id)
-        // The viewport lives in the key window; bring it forward (a test aid may take focus).
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first { !($0 is NSPanel) && $0.isVisible }?.makeKeyAndOrderFront(nil)
+        // B5-09b: runs in the background (`open -g`): no activation, no key window, nothing raised.
         ws.editInLayers(model.focusedItem)
         guard await wait(180, { ws.current != nil && ws.opening == nil && ws.current?.viewport != nil }), let doc = ws.current,
               let v = doc.viewport else {
@@ -178,20 +193,39 @@ final class RetouchSelfTest {
         _ = await wait(20) { doc2.lastFrame != nil }
         check("reopened", doc2.layers.contains { $0.kind == .pixel }, "\(historyLabels)")
         await mark("reopened")
-        guard let layer = doc2.layers.first(where: { $0.kind == .pixel })?.id, let tools = doc2.backend as? any DocumentToolsBackend else {
+        guard let layer = doc2.layers.first(where: { $0.kind == .pixel })?.id, let tools = doc2.backend as? any DocumentToolsBackend,
+              let v2 = doc2.viewport else {
             return finish()
         }
         doc2.select(layer)
 
-        // 2. Edit ▸ Content-Aware Fill on a marquee.
-        doc2.run("Marquee") {
-            try tools.selectMarquee(.rect, rect: CGRect(x: W * 0.3, y: H * 0.3, width: W * 0.05, height: H * 0.05), feather: 0,
-                                    antialias: true, op: .replace)
+        // 2. Edit ▸ Content-Aware Fill on a marquee drawn with the Rectangular Marquee tool, invoked from the
+        // menu bar item itself (B5-09b: it was disabled with an active marquee).
+        doc2.run("Deselect") { try doc2.backend.clearSelection() }
+        DocumentTools.shared.select(.marquee)
+        await pause(0.3)
+        let noSel = menuItem("Edit", "Content-Aware Fill")
+        log("menu Edit ▸ Content-Aware Fill without a selection: \(noSel.map { $0.0.items[$0.1].isEnabled ? "enabled" : "disabled" } ?? "missing")")
+        check("Content-Aware Fill disabled without a selection", noSel.map { !$0.0.items[$0.1].isEnabled } ?? false)
+        let x0 = W * 0.3, y0 = H * 0.3
+        await drag(stride(from: 0.0, through: 1.0, by: 0.1).map { t in CGPoint(x: x0 + W * 0.05 * t, y: y0 + H * 0.05 * t) }, in: v2)
+        _ = await wait(5) { doc2.marquee != nil }
+        await pause(0.3)
+        if let m = NSApp.mainMenu?.items.first(where: { $0.title == "Edit" })?.submenu,
+           let item = m.items.first(where: { $0.title == "Content-Aware Fill" }) {
+            log("menu Edit ▸ Content-Aware Fill as SwiftUI left it (before the menu is opened): \(item.isEnabled ? "enabled" : "disabled")")
         }
-        DocumentTools.shared.refreshOutline(doc2)
+        let withSel = menuItem("Edit", "Content-Aware Fill")
+        log("menu Edit ▸ Content-Aware Fill with a marquee \(doc2.marquee.map { "\($0)" } ?? "none"): "
+            + "\(withSel.map { $0.0.items[$0.1].isEnabled ? "enabled" : "disabled" } ?? "missing")")
+        check("Content-Aware Fill enabled with a marquee", withSel.map { $0.0.items[$0.1].isEnabled } ?? false)
         let n2 = doc2.history.count
-        r.contentAwareFill()
-        switch await finished(r) {
+        if let (menu, i) = withSel, menu.items[i].isEnabled {
+            menu.performActionForItem(at: i)
+        } else {
+            r.contentAwareFill()
+        }
+        switch await finished(r, timeout: 120) {
         case .success(let o)?:
             log(String(format: "content-aware fill: %.0f ms", o.millis))
             check("Content-Aware Fill is one node", doc2.history.count == n2 + 1 && doc2.history.last?.label == "Content-Aware Fill",
@@ -209,22 +243,39 @@ final class RetouchSelfTest {
         r.activate()
         r.options.engine = .patchMatch
         let n3 = doc2.history.count
-        var cancelled: Result<RetouchOutcome, Error>?
-        r.onFinished = { cancelled = $0 }
+        var late: Result<RetouchOutcome, Error>?
+        r.onDiscarded = { late = $0 }
         r.removeSelection()
         await pause(1.5)
         check("slow job running", r.busy != nil)
-        await mark("slow-job-running", hold: 0.5)
-        r.cancel()
-        _ = await wait(300) { cancelled != nil }
-        r.onFinished = nil
-        if case .failure(let e)? = cancelled {
-            check("cancel leaves history unchanged", e.localizedDescription.contains("cancelled") && doc2.history.count == n3,
-                  "\(e.localizedDescription) \(doc2.history.map(\.label))")
-        } else {
-            check("cancelled", false, "\(String(describing: cancelled))")
+        if let (menu, i) = menuItem("Edit", "Content-Aware Fill") {
+            // While an apply runs the item is disabled; the old Cancel kept this state until the engine returned.
+            check("Content-Aware Fill disabled while a Remove runs", !menu.items[i].isEnabled)
         }
-        await mark("slow-job-cancelled")
+        await mark("slow-job-running", hold: 0.5)
+        // B5-09b: Cancel returns the bar to idle at once, whatever the engine does.
+        let t0 = Date()
+        r.cancel()
+        let back = Date().timeIntervalSince(t0)
+        check("Cancel returns the bar to idle at once", r.busy == nil && back < 0.25, String(format: "%.3f s", back))
+        log(String(format: "cancel returned in %.1f ms; engine still running: %@", back * 1000, r.jobs.abandoned != nil ? "yes" : "no"))
+        await mark("slow-job-cancelled", hold: 0.5)
+        if r.jobs.abandoned != nil, let (menu, i) = menuItem("Edit", "Content-Aware Fill") {
+            // The old Cancel kept the job busy until the engine returned, and busy disabled this item.
+            check("Content-Aware Fill enabled again right after Cancel", menu.items[i].isEnabled)
+        }
+        if r.jobs.abandoned != nil {
+            // A new job while the cancelled one is still stopping: refused with a clear message.
+            r.removeSelection()
+            check("a new job waits for the cancelled one", r.busy == nil && (r.notice?.contains("still stopping") ?? false), r.notice ?? "no notice")
+            await mark("slow-job-refused", hold: 0.5)
+        }
+        _ = await wait(600) { late != nil }
+        r.onDiscarded = nil
+        log(String(format: "the cancelled job returned after %.1f s: %@", Date().timeIntervalSince(t0),
+                   late.map { if case .success = $0 { "a result (reverted)" } else { "cancelled" } } ?? "never"))
+        check("the late result is discarded, history unchanged", late != nil && doc2.history.count == n3 && r.jobs.abandoned == nil,
+              "\(doc2.history.map(\.label))")
         doc2.run("Deselect") { try doc2.backend.clearSelection() }
         DocumentTools.shared.refreshOutline(doc2)
 
@@ -281,11 +332,109 @@ final class RetouchSelfTest {
                   s.error?.detail ?? "\(doc2.history.map(\.label))")
             await mark("neural-skin-new-layer")
         }
+        await downloads(doc2, v2)
         finish()
+    }
+
+    /// 6. Model downloads (B5-09b) through a local stand-in for the engine's `ModelDownloads`: it reports
+    /// queued, bytes and ready over about two seconds and writes nothing (no real weights are fetched), and a
+    /// scratch preference suite stands in for Settings ▸ AI. So the checks are the flow: downloads off → nothing
+    /// requested and the reason shown; allowed → inline progress, then the waiting Remove / Colorize runs by
+    /// itself (and, with no weights actually written, reports the engine's missing-model error).
+    private func downloads(_ doc: DocumentController, _ v: DocumentViewportView) async {
+        let r = DocumentRetouch.shared
+        let suite = "dev.tessera.retouch-selftest"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let fake = SelfTestDownloads()
+        let acquisition = ModelAcquisition(defaults: defaults) { _ in fake }
+        let real = r.downloads
+        r.downloads = RetouchModelDownloads(acquisition: acquisition)
+        defer { r.downloads = real }
+        doc.run("Deselect") { try doc.backend.clearSelection() }
+        r.activate()
+        r.refreshModels()
+        guard r.model("remove/lama")?.installed == false else { log("LaMa is installed here: download steps skipped"); return }
+        r.options.engine = .lama
+        let (W, H) = (Double(doc.info.width), Double(doc.info.height))
+        let stroke = stride(from: 0.0, through: 1.0, by: 0.05).map { t in CGPoint(x: W * (0.2 + 0.08 * t), y: H * 0.8) }
+
+        // Downloads off: nothing requested, the bar says so and links to Settings ▸ AI; no history.
+        acquisition.allowDownloads = false
+        let n0 = doc.history.count
+        await drag(stroke, in: v)
+        await pause(0.3)
+        check("downloads off: nothing requested", fake.requests == 0)
+        check("downloads off: the reason is shown", r.notice?.contains("model downloads are off") ?? false, r.notice ?? "no notice")
+        check("downloads off: stroke dropped, history unchanged", !r.strokeWaitingForModel && doc.history.count == n0)
+        await mark("download-off")
+
+        // Allowed: the stroke waits while LaMa downloads (inline progress), then Remove runs by itself.
+        acquisition.allowDownloads = true
+        r.clearNotice()
+        var result: Result<RetouchOutcome, Error>?
+        r.onFinished = { result = $0 }
+        await drag(stroke, in: v)
+        check("allowed: LaMa requested once", fake.requests == 1, "\(fake.requests)")
+        check("allowed: Remove waits for the download", r.strokeWaitingForModel && r.downloads.waiting["remove/lama"] == "Remove")
+        _ = await wait(5) { if case .downloading(_, let s) = r.downloads.phase(r.model("remove/lama")), s.fraction != nil { true } else { false } }
+        await mark("download-progress", hold: 0.3)
+        _ = await wait(60) { result != nil }
+        r.onFinished = nil
+        switch result {
+        case .failure(let e)?:
+            // The stand-in wrote no weights: the engine's own lookup still reports LaMa missing (the real file
+            // lands in the same cache; see the Rust test `retouch_models_are_looked_up_where_model_downloads_put_them`).
+            log("remove after the download: \(e.localizedDescription)")
+            check("allowed: Remove ran after the download", e.localizedDescription.contains("remove/lama"), e.localizedDescription)
+        case .success(let o)?:
+            check("allowed: Remove ran after the download", o.backend == "LaMa", o.backend)
+        case nil:
+            check("allowed: Remove ran after the download", false, "it never ran")
+        }
+        await mark("download-then-remove")
+        r.options.engine = .auto
+        r.deactivate()
+
+        // Neural Filters ▸ Colorize: Download and Apply, progress in the sheet, then the apply runs.
+        r.openNeuralFilters()
+        if let sheet = r.neuralSheet {
+            sheet.choose(.colorize)
+            sheet.apply()
+            check("Colorize waits for DDColor", sheet.waitingForModel && fake.requests == 2, "\(fake.requests)")
+            _ = await wait(5) { r.downloads.phase(r.model("filters/ddcolor")).isDownloading }
+            await mark("download-neural-progress", hold: 0.3)
+            _ = await wait(60) { !sheet.waitingForModel && !sheet.busy && (sheet.error != nil || r.neuralSheet == nil) }
+            check("Colorize ran after the download", sheet.error?.detail.contains("filters/ddcolor") ?? (r.neuralSheet == nil),
+                  sheet.error?.detail ?? "")
+            await mark("download-neural-applied")
+            sheet.cancel()
+        }
     }
 
     private func finish() {
         log("done, \(failures) failure(s)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
+    }
+}
+
+/// The self-test's stand-in for `ModelDownloads` (B5-09b): queued, ten progress events, ready; writes nothing.
+private final class SelfTestDownloads: ModelDownloadRequesting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var requests: Int { lock.withLock { count } }
+
+    func request(id: String, version: String, listener: ModelDownloadListener) throws {
+        lock.withLock { count += 1 }
+        DispatchQueue.global(qos: .utility).async {
+            listener.onEvent(event: .queued)
+            let total: UInt64 = 208_000_000
+            for i in 1...10 {
+                Thread.sleep(forTimeInterval: 0.2)
+                listener.onEvent(event: .downloading(bytes: total / 10 * UInt64(i), total: total))
+            }
+            listener.onEvent(event: .ready(path: "(self-test: nothing written)"))
+        }
     }
 }

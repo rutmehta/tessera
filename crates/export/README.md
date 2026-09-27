@@ -16,6 +16,33 @@ Processing order: float render including shared `color_mgmt::Transform` (relativ
 
 The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK or HDR export. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
 
+## Output sharpening (M2-45b)
+
+`ExportSettings::sharpen_amount` selects `Low`, `Standard` (default), or `High`
+for every existing screen/matte/glossy medium. `sharpen_output` is the shared
+deterministic Gaussian unsharp-mask implementation. Amount multipliers are
+0.5/1/1.5. The existing sigma/amount pairs above are the standard 300-ppi
+baseline. Paper sigma scales by `ppi / 300`, bounded to 0.3–8 pixels to avoid
+degenerate kernels and unbounded work. Screen sigma is independent of ppi.
+These are Tessera's documented presets, not a claim of Lightroom pixel parity.
+
+Export uses the final output dimensions, after resize (CPU or GPU) and before
+watermarking. `dpi: None` uses 300 ppi for sharpening without adding a density
+tag. Explicit density must be 1–9600 ppi. The legacy `render_pixels` print API
+retains standard/300-ppi behavior; callers needing explicit controls can apply
+`sharpen_output` to an unsharpened render.
+
+CLI adds `--sharpen-amount low|standard|high` and `--ppi 1..9600` alongside
+`--sharpen screen|matte|glossy`. FFI/preset JSON adds `sharpening_amount`, default
+`"standard"`, using the existing `dpi` field for density. No Swift UI or ABI
+change is needed for this JSON extension. MCP's existing minimal export tool
+still has no sharpening controls and continues to export without sharpening.
+
+Tests cover all nine presets, constant preservation, edge enhancement ordered
+by strength, density dependence, repeatability, invalid density, cancellation,
+TIFF16 read-back against resize-then-sharpen, CLI parsing, and FFI JSON/preset
+round trips plus actual exported pixels.
+
 ## Developed DNG (M2-45, partial DNG milestone)
 
 `Format::Dng` writes an uncompressed float32 LinearRaw DNG using

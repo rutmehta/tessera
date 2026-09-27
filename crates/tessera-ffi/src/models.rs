@@ -59,9 +59,23 @@ impl ModelDownloads {
                     id: id.as_str().into(),
                     version,
                 };
-                let result = registry.download(&model, allow_downloads, |bytes, total| {
-                    listener.on_event(ModelDownloadEvent::Downloading { bytes, total });
-                });
+                // Legacy AI Denoise UI requests the research CFA identifier.
+                // Acquisition shares the new-edit policy; recipe replay itself
+                // remains strict and never substitutes an unavailable model.
+                let result = (|| {
+                    let model = if matches!(
+                        model.id.as_str(),
+                        "enhance/cfa-unet-fp32" | "enhance/cfa-unet-fp16"
+                    ) {
+                        registry.resolve_cached_ref(&model)?;
+                        registry.preferred_ai_denoise()?
+                    } else {
+                        model
+                    };
+                    registry.download(&model, allow_downloads, |bytes, total| {
+                        listener.on_event(ModelDownloadEvent::Downloading { bytes, total });
+                    })
+                })();
                 let terminal = match result {
                     Ok(handle) => ModelDownloadEvent::Ready {
                         path: handle.path().to_string_lossy().into_owned(),

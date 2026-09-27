@@ -50,6 +50,59 @@ fn gradient(h: usize, w: usize) -> anyhow::Result<(Tensor, Tensor)> {
 }
 
 #[test]
+fn cached_automatic_drunet_reduces_linear_noise_and_preserves_blend() -> anyhow::Result<()> {
+    let Some(registry) = registry()? else {
+        return Ok(());
+    };
+    let mut denoiser = Denoiser::load_cached(&registry, SessionOptions::cpu())?;
+    let (h, w) = (33, 41);
+    for amplitude in [0.01, 0.05] {
+        let mut seed = 42u32;
+        let mut clean = Vec::new();
+        let mut noisy = Vec::new();
+        for c in 0..3 {
+            for y in 0..h {
+                for x in 0..w {
+                    let signal = 0.2
+                        + 0.2 * x as f32 / w as f32
+                        + 0.05 * y as f32 / h as f32
+                        + 0.02 * c as f32;
+                    seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                    clean.push(signal);
+                    noisy.push(signal + amplitude * (2.0 * (seed >> 8) as f32 / 16777216.0 - 1.0));
+                }
+            }
+        }
+        let noisy = Tensor::new(3, h, w, noisy)?;
+        let sigma = ml_enhance::estimate_drunet_sigma(&noisy)?;
+        let output = denoiser.denoise_automatic(&noisy, 100.0, None)?;
+        let mse = |data: &[f32]| {
+            data.iter()
+                .zip(&clean)
+                .map(|(&a, &b)| (f64::from(a) - f64::from(b)).powi(2))
+                .sum::<f64>()
+                / clean.len() as f64
+        };
+        let gain = 10.0 * (mse(noisy.data()) / mse(output.data())).log10();
+        println!(
+            "Automatic DRUNet amplitude={amplitude}, sigma={sigma}, linear PSNR gain={gain:.6} dB"
+        );
+        assert!(gain >= 3.0, "automatic noise reduction: {gain} dB");
+        let mut mask = vec![0.5; h * w];
+        mask[0] = 0.0;
+        let blended = denoiser.denoise_automatic(&noisy, 50.0, Some(&mask))?;
+        for (i, (&a, &b)) in noisy.data().iter().zip(output.data()).enumerate() {
+            if i % (h * w) == 0 {
+                assert_eq!(blended.data()[i].to_bits(), a.to_bits());
+            } else {
+                assert!((blended.data()[i] - (0.75 * a + 0.25 * b)).abs() < 1e-7);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn cached_drunet_improves_noisy_gradient_by_three_db() -> anyhow::Result<()> {
     let Some(registry) = registry()? else {
         return Ok(());

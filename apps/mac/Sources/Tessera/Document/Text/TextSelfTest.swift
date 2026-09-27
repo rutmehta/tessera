@@ -181,6 +181,7 @@ final class TextSelfTest {
     private var tb: (any DocumentTextBackend)? { doc?.backend as? any DocumentTextBackend }
     private func model(_ id: DocLayerID) -> TextSourceModel? { try? tb?.textLayer(id: id).model }
     private func historyCount() -> Int { doc?.history.count ?? 0 }
+    private var statusMessage: String { workspace.app?.statusMessage ?? "" }
     private func textLayers() -> [DocLayerID] { doc?.layers.filter { $0.kind == .text }.map(\.id) ?? [] }
     /// The text layer added since `before` (ids, not row order: rows are top-first).
     private func added(since before: [DocLayerID]) -> DocLayerID? { textLayers().first { !before.contains($0) } }
@@ -343,6 +344,25 @@ final class TextSelfTest {
                   "\(linesBefore) → \(after?.lines.count ?? 0), overflow \(after?.overflow ?? false)")
             check("347 same glyph size", model(area)?.runs.map(\.size) == runsBefore?.map(\.size))
             await shot("347-resized-box")
+            // B5-10c (1): the handle drag gives the keyboard back to the text; ⌘Return applies.
+            check("B5-10c 347 keyboard back on the text", viewport?.window?.firstResponder === text.input,
+                  "\(String(describing: viewport?.window?.firstResponder))")
+            await type(" ok")
+            let h = historyCount()
+            key("\r", code: 36, flags: .command)
+            await settle()
+            check("B5-10c 347 ⌘Return applies after a handle drag", !text.isEditing && historyCount() == h + 1,
+                  "editing \(text.isEditing), \(historyCount() - h) node(s)")
+            // …and with another view of the window focused.
+            text.beginExisting(doc, layer: area)
+            await settle()
+            await type("!")
+            viewport?.window?.makeFirstResponder(viewport)
+            let h2 = historyCount()
+            key("\r", code: 36, flags: .command)
+            await settle()
+            check("B5-10c ⌘Return applies with the viewport focused", !text.isEditing && historyCount() == h2 + 1,
+                  "editing \(text.isEditing), \(historyCount() - h2) node(s)")
         }
 
         // 348: caret alignment at fit / 100 % / 200 % with pan and a rotated layer.
@@ -351,6 +371,8 @@ final class TextSelfTest {
         if let point {
             text.beginExisting(doc, layer: point)
             await settle()
+            // B5-10c (3): the hint follows the session (not the area text's).
+            check("B5-10c hint for point text", statusMessage.hasPrefix("Point text"), statusMessage)
             let c = tapCenter()
             await drag(CGPoint(x: c.x + W * 0.25, y: c.y), CGPoint(x: c.x + W * 0.25, y: c.y + H * 0.12), flags: .command)
             await settle()
@@ -468,6 +490,8 @@ final class TextSelfTest {
         if let point {
             text.beginExisting(doc, layer: point)
             await settle()
+            // B5-10c (3): after 352's Esc ("Type: cancelled") a new edit shows the editing hint.
+            check("B5-10c hint after a cancel", statusMessage.hasPrefix("Point text"), statusMessage)
             let before = model(point)
             let h353 = historyCount()
             await type(" again")
@@ -481,6 +505,22 @@ final class TextSelfTest {
             doc.redo()
             await settle()
             check("353 redo exact", model(point) == after)
+        }
+
+        // B5-10c (2): a click just right of the last glyph resumes the layer (no new text).
+        if let point, let m = model(point), let layout = try? tb?.layoutText(m), let b = layout.bounds, let line = layout.lines.last,
+           let t = try? tb?.textLayer(id: point).transform {
+            text.apply()
+            await settle()
+            let n = doc.layers.count
+            await click(t.apply(CGPoint(x: b.maxX + Double(line.ascent + line.descent) * 0.3, y: line.baseline - line.ascent * 0.4)))
+            await settle()
+            check("B5-10c click right of the last glyph resumes", text.session?.layer == point,
+                  "\(String(describing: text.session?.layer))")
+            check("B5-10c caret at the end", text.session?.edit.caret == m.utf8Count, "\(String(describing: text.session?.edit.caret))")
+            await escKey()
+            await settle()
+            check("B5-10c no new layer", doc.layers.count == n, "\(doc.layers.count - n)")
         }
 
         // 356: styled and masked text → pixels, undo restores the text (before a document switch).

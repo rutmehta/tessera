@@ -481,6 +481,25 @@ impl SurfaceCursor {
     }
 }
 
+/// The legacy UI sends the CFA ID for "AI Denoise On". Resolve that intent
+/// once, on Off -> Neural, and persist the concrete model in normal history.
+/// Saved edits, slider changes and undo/redo must never consult availability.
+fn pin_new_denoise_edit(
+    registry: &ml_runtime::ModelRegistry,
+    before: &DevelopSettings,
+    next: &mut DevelopSettings,
+) -> Result<()> {
+    use engine_api::recipe::settings::DenoiseMethod;
+    if matches!(before.denoise.method, DenoiseMethod::Off)
+        && pipeline_cpu::cfa_denoise_selected(&next.denoise)
+        && let DenoiseMethod::Neural { model, .. } = &mut next.denoise.method
+    {
+        registry.resolve_cached_ref(model).map_err(failure)?;
+        *model = registry.preferred_ai_denoise().map_err(failure)?;
+    }
+    Ok(())
+}
+
 type SurfaceDestination = Arc<Mutex<Option<Arc<Surface>>>>;
 
 #[derive(Default)]
@@ -1934,7 +1953,8 @@ impl DevelopSession {
             }
             value["white_balance"]["mode"] = Value::String("custom".into());
         }
-        let next: DevelopSettings = serde_json::from_value(value).map_err(failure)?;
+        let mut next: DevelopSettings = serde_json::from_value(value).map_err(failure)?;
+        pin_new_denoise_edit(&self.shared.model_registry, &st.live, &mut next)?;
         if next == st.live && st.rendered.is_some() && !interactive {
             return Ok(());
         }
@@ -3092,6 +3112,52 @@ mod tests {
         assert!(!pipeline_cpu::denoise_active(
             &renderable(&settings).denoise
         ));
+    }
+
+    #[test]
+    fn new_denoise_edit_pins_fallback_but_replay_never_reselects() {
+        use engine_api::recipe::settings::DenoiseMethod;
+        let support = tempfile::tempdir().unwrap();
+        let registry = ml_runtime::ModelRegistry::from_support(support.path()).unwrap();
+        let mut next = DevelopSettings::default();
+        let cfa = registry
+            .models()
+            .iter()
+            .find(|m| m.id == "enhance/cfa-unet-fp32")
+            .unwrap();
+        next.denoise.method = DenoiseMethod::Neural {
+            model: engine_api::id::ModelRef {
+                id: cfa.id.as_str().into(),
+                version: cfa.version.clone(),
+            },
+            joint_demosaic: false,
+        };
+        let saved_cfa = next.clone();
+        pin_new_denoise_edit(&registry, &DevelopSettings::default(), &mut next).unwrap();
+        let DenoiseMethod::Neural { model, .. } = &next.denoise.method else {
+            panic!()
+        };
+        assert_eq!(model.id.as_str(), "enhance/drunet-color");
+        let json = serde_json::to_string(&next).unwrap();
+        let mut replay: DevelopSettings = serde_json::from_str(&json).unwrap();
+        pin_new_denoise_edit(&registry, &next, &mut replay).unwrap();
+        assert_eq!(next, replay);
+        let mut replay_cfa = saved_cfa.clone();
+        pin_new_denoise_edit(&registry, &saved_cfa, &mut replay_cfa).unwrap();
+        assert_eq!(saved_cfa, replay_cfa);
+        let mut recipe = engine_api::recipe::Recipe::new(engine_api::id::ImageId(52));
+        recipe
+            .edit(EditMeta::user("AI Denoise On", 1), |s| *s = next.clone())
+            .unwrap();
+        let path = support.path().join("recipe.json");
+        std::fs::write(&path, serde_json::to_vec(&recipe).unwrap()).unwrap();
+        let mut loaded: engine_api::recipe::Recipe =
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(loaded.settings, next);
+        assert!(loaded.undo().unwrap());
+        assert!(matches!(loaded.settings.denoise.method, DenoiseMethod::Off));
+        assert!(loaded.redo().unwrap());
+        assert_eq!(loaded.settings, next);
     }
 
     #[test]

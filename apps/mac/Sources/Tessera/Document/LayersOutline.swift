@@ -687,6 +687,7 @@ final class LayerRowCell: NSTableCellView, NSTextFieldDelegate {
         case .group: "folder"
         case .smartObject: "square.on.square.dashed"
         case .text: "textformat"
+        case .shape: "square.on.circle"   // B5-11
         }
     }
 

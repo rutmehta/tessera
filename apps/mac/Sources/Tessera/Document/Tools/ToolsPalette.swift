@@ -187,6 +187,8 @@ struct ToolOptionsBar: View {
                 selectionOptions
             } else if document.tool.paints {
                 paintOptions
+            } else if document.tool.isVector {   // B5-11
+                ShapeOptionsBar(document: document, vector: DocumentVector.shared)
             } else {
                 otherOptions
             }

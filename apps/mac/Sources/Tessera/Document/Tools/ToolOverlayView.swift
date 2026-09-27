@@ -123,6 +123,9 @@ final class ToolOverlayView: NSView {
         // B5-10 begin: text frame, box handles, selection, marked text and caret.
         DocumentText.shared.draw(in: v)
         // B5-10 end
+        // B5-11 begin: shape drafts, the Pen path, anchors / handles and Path Selection's box.
+        DocumentVector.shared.draw(in: v)
+        // B5-11 end
 
         // Symmetry guides.
         if doc.tool.paints, tools.currentBrush.symmetry != .none { drawSymmetry(tools.currentBrush, doc: doc, in: v) }

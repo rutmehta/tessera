@@ -21,7 +21,7 @@ public enum RemoveEngine: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .auto: "LaMa when its model is installed, PatchMatch otherwise"
         case .patchMatch: "Patch-based fill on the CPU; no model needed"
-        case .lama: "The LaMa inpainting model (must be installed; never downloaded automatically)"
+        case .lama: "The LaMa inpainting model (downloaded when you ask for it, if Settings ▸ AI allows model downloads)"
         }
     }
 }
@@ -93,10 +93,12 @@ public struct RetouchModelInfo: Equatable, Sendable, Identifiable {
     public var installed: Bool
     public var cachePath: String
     public var sourceURL: String
+    /// Pinned registry version (what the model download asks for; B5-09b).
+    public var version: String
     public var id: String { modelId }
-    public init(modelId: String, usedBy: String, installed: Bool, cachePath: String, sourceURL: String) {
+    public init(modelId: String, usedBy: String, installed: Bool, cachePath: String, sourceURL: String, version: String = "") {
         self.modelId = modelId; self.usedBy = usedBy; self.installed = installed; self.cachePath = cachePath
-        self.sourceURL = sourceURL
+        self.sourceURL = sourceURL; self.version = version
     }
 }
 
