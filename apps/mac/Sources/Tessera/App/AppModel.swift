@@ -252,6 +252,7 @@ final class AppModel {
     /// Develop session for the focused RAW while the loupe shows it (docs/11 §1.2).
     @ObservationIgnored private(set) var develop: DevelopController?
     @ObservationIgnored private var developTask: Task<Void, Never>?
+    @ObservationIgnored private var activeDevelopOpen: UUID?
     /// Captured when opening, before a folder switch can replace `library`.
     @ObservationIgnored private var developLibrary: EngineLibrary?
     private struct DevelopCloseKey: Hashable {
@@ -1465,6 +1466,7 @@ final class AppModel {
             }
         }
         developTask = task
+        activeDevelopOpen = token
         if let owner, let key {
             pendingDevelopOpens[key] = PendingDevelopClose(owner: owner, token: token, task: task)
         }
@@ -1472,6 +1474,7 @@ final class AppModel {
 
     private func install(develop controller: DevelopController, library owner: EngineLibrary?) {
         developTask = nil
+        activeDevelopOpen = nil
         develop = controller
         developLibrary = owner
         developStatus = .ready
@@ -1507,6 +1510,7 @@ final class AppModel {
     func closeDevelop() {
         developTask?.cancel()
         developTask = nil
+        activeDevelopOpen = nil
         if developStatus != .none { developStatus = .none }
         guard let controller = develop else { return }
         let owner = developLibrary
@@ -1546,11 +1550,17 @@ final class AppModel {
         let closes = pendingDevelopCloses.compactMap { key, close in
             key.owner == ownerID && imageIDs.contains(key.imageID) ? close.task : nil
         }
-        let opens = pendingDevelopOpens.compactMap { key, open in
-            key.owner == ownerID && imageIDs.contains(key.imageID) ? open.task : nil
+        let openings = pendingDevelopOpens.filter { key, _ in
+            key.owner == ownerID && imageIDs.contains(key.imageID)
+        }.map(\.value)
+        // Do not cancel another library's currently opening photo or clear its loading state.
+        for open in openings { open.task.cancel() }
+        if let activeDevelopOpen, openings.contains(where: { $0.token == activeDevelopOpen }) {
+            self.activeDevelopOpen = nil
+            developTask = nil
+            if develop == nil { developStatus = .none }
         }
-        // Do not cancel another library's currently opening photo.
-        for open in opens { open.cancel() }
+        let opens = openings.map(\.task)
         return Task {
             for barrier in opens + closes { await barrier.value }
         }
