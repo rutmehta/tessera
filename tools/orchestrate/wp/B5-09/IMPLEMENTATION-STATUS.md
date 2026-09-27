@@ -107,7 +107,7 @@ during the run; it covers part of the options bar in the shots.
 
 ## Deviations and notes
 
-- ACCEPTANCE §Y uses steps 320–333 (B5-09's reserved range).
+- ACCEPTANCE §Z uses steps 320–333 (B5-09's reserved range).
 - Launching the app with a bare directory path after `--retouch-selftest` sometimes produced no main window (the same
   happened with other path-valued flags); `--retouch-selftest=<dir>` avoids it. The self-test starts from the Filter
   menu's Neural Filters item (built at launch), because TesseraApp.swift is outside the allowed paths.
