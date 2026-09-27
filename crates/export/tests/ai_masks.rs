@@ -157,6 +157,10 @@ fn disabled_ai_never_calls_backend_and_matches_default_export() {
         calls: 0,
     };
     let path = export_one_with_segmenter(&input, &recipe, &settings, &mut backend).unwrap();
+    // Each export builds its own LittleCMS profile, whose ICC header records
+    // creation time. Exercise different seconds rather than relying on two
+    // exports happening in the same second for this equality regression.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
     let reference = export_one(
         &input,
         &Recipe::default(),
@@ -166,9 +170,23 @@ fn disabled_ai_never_calls_backend_and_matches_default_export() {
         },
     )
     .unwrap();
+    let without_icc_creation_time = |path| {
+        let mut bytes = std::fs::read(path).unwrap();
+        let marker = bytes
+            .windows(12)
+            .position(|b| b == b"ICC_PROFILE\0")
+            .unwrap();
+        // This small built-in profile occupies one APP2 segment. Confirm the
+        // sequence/count and ICC signature before touching header bytes 24–35.
+        assert_eq!(&bytes[marker + 12..marker + 14], &[1, 1]);
+        let start = marker + 14;
+        assert_eq!(&bytes[start + 36..start + 40], b"acsp");
+        bytes[start + 24..start + 36].fill(0);
+        bytes
+    };
     assert_eq!(
-        std::fs::read(path).unwrap(),
-        std::fs::read(reference).unwrap()
+        without_icc_creation_time(path),
+        without_icc_creation_time(reference)
     );
     assert_eq!(backend.calls, 0);
 }
