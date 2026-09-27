@@ -50,6 +50,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     // Smart filter rows under smart objects (WP B5-05).
     private let smart = SmartFilterOutline()
     private var filters: DocumentFilters? { DocumentFilters.active }
+    private let fx = LayerStyleOutline()   // B5-07: fx glyph and effect rows
     static let thumbnailPx: UInt32 = 64
 
     override init() {
@@ -96,6 +97,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         thumbnailLoader.reset()
         smart.reset()
         if let f = filters { _ = smart.refresh(doc, filters: f) }   // WP B5-05
+        fx.reset(); _ = fx.refresh(doc)   // B5-07
         doc.onLayersReload = { [weak self] old, new in self?.apply(old: old, new: new) }
         doc.onSelectionChange = { [weak self] in self?.syncSelectionFromModel() }
         outline.reloadData()
@@ -119,6 +121,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         guard let changes = DocumentOutline.diff(from: tree, to: new) else {
             tree = new
             if let d = document, let f = filters { _ = smart.refresh(d, filters: f) }   // WP B5-05
+            if let d = document { _ = fx.refresh(d) }   // B5-07
             outline.reloadData()
             outline.expandItem(nil, expandChildren: true)
             syncSelectionFromModel()
@@ -151,6 +154,15 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
                 outline.expandItem(item(id))
             }
         }
+        // B5-07 begin: styled layers whose effects or glyph changed; new effect rows open.
+        if let doc = document {
+            for id in fx.refresh(doc) where new.node(id) != nil {
+                let expand = fx.count(id) > 0 && !outline.isItemExpanded(item(id))
+                outline.reloadItem(item(id), reloadChildren: true)
+                if expand { outline.expandItem(item(id)) }
+            }
+        }
+        // B5-07 end
         // New groups open; rows whose record changed are rebuilt (thumbnails follow `revision`).
         for id in new.flattened {
             let n = new.node(id)
@@ -192,12 +204,17 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     // MARK: Data source
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+        // B5-07 begin: effect rows follow any smart filter rows of a styled non-group layer.
+        if item is StyleEffectItem { return 0 }
+        if let i = item as? LayerItem, tree.node(i.id)?.kind != .group, fx.count(i.id) > 0 { return smart.count(i.id) + fx.count(i.id) }
+        // B5-07 end
         if let i = item as? LayerItem, tree.node(i.id)?.kind == .smartObject { return smart.count(i.id) }   // WP B5-05
         if item is SmartFilterItem { return 0 }
         return tree.children(of: (item as? LayerItem)?.id ?? DocumentOutline.root).count
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+        if let i = item as? LayerItem, index >= smart.count(i.id), let e = fx.item(i.id, index - smart.count(i.id)) { return e }   // B5-07
         if let i = item as? LayerItem, let f = smart.item(i.id, index) { return f }   // WP B5-05
         return self.item(tree.children(of: (item as? LayerItem)?.id ?? DocumentOutline.root)[index])
     }
@@ -205,10 +222,13 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
         guard let i = item as? LayerItem else { return false }
         return tree.node(i.id)?.kind == .group || smart.count(i.id) > 0   // WP B5-05: smart filters
+            || fx.count(i.id) > 0   // B5-07: effect rows
     }
 
     /// Smart filter rows are not layers: they act on click, they are not selected (WP B5-05).
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { !(item is SmartFilterItem) }
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+        !(item is SmartFilterItem) && !(item is StyleEffectItem)   // B5-07: effect rows are not layers either
+    }
 
     func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? { LayerRowView() }
 
@@ -216,6 +236,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         if let f = item as? SmartFilterItem, let doc = document, let filters {   // WP B5-05
             return smart.cell(outlineView, f, doc: doc, filters: filters)
         }
+        if let e = item as? StyleEffectItem, let doc = document { return fx.cell(outlineView, e, doc: doc) }   // B5-07
         guard let i = item as? LayerItem, let n = tree.node(i.id) else { return nil }
         let cell = (outlineView.makeView(withIdentifier: LayerRowCell.identifier, owner: self) as? LayerRowCell) ?? LayerRowCell()
         cell.owner = self
@@ -239,6 +260,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             try? backend.maskThumbnail(id: id, maxPx: px)
         } : nil
         cell.configure(n, thumbnail: thumb, mask: mask)
+        cell.setStyled(fx.isStyled(n.id))   // B5-07
         cell.setRow(row)
     }
 
@@ -292,12 +314,18 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             smart.edit(f, doc: doc, filters: filters)
             return
         }
+        // B5-07 begin: an effect row opens its editor; a layer row away from its name opens Layer Style.
+        if row >= 0, let e = outline.item(atRow: row) as? StyleEffectItem, let doc = document {
+            fx.edit(e, doc: doc)
+            return
+        }
+        // B5-07 end
         guard row >= 0, let cell = outline.view(atColumn: 0, row: row, makeIfNecessary: false) as? LayerRowCell else { return }
         let p = cell.convert(outline.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
-        if cell.nameHit(p) || !(tree.node(cell.layerID ?? 0)?.kind == .group) {
+        if cell.nameHit(p) {
             cell.beginRename()
-        } else if let i = outline.item(atRow: row) {
-            outline.isItemExpanded(i) ? outline.collapseItem(i) : outline.expandItem(i)
+        } else if let id = cell.layerID, let doc = document {   // B5-07 (was: rename, or expand groups)
+            fx.editLayer(id, doc: doc)
         }
     }
 
@@ -316,7 +344,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo, proposedItem item: Any?,
                      proposedChildIndex index: Int) -> NSDragOperation {
-        if item is SmartFilterItem { return [] }   // WP B5-05
+        if item is SmartFilterItem || item is StyleEffectItem { return [] }   // WP B5-05, B5-07
         if let i = item as? LayerItem, tree.node(i.id)?.kind == .smartObject, index != NSOutlineViewDropOnItemIndex { return [] }
         guard let target = dropTarget(item: item, index: index) else { return [] }
         let ids = draggedIDs(info)
@@ -355,6 +383,10 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             smart.menu(menu, f, doc: doc, filters: filters)
             return
         }
+        if row >= 0, let e = outline.item(atRow: row) as? StyleEffectItem {   // B5-07
+            fx.menu(menu, e, doc: doc)
+            return
+        }
         if row >= 0, let i = outline.item(atRow: row) as? LayerItem, !doc.selection.contains(i.id) {
             doc.selection = [i.id]
         }
@@ -389,6 +421,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             add("Add Layer Mask: Hide All", primary != nil) { doc.addMask(.hideAll) }
             add("Add Layer Mask: From Selection", primary != nil && doc.marquee != nil) { doc.addMask(.fromSelection) }
         }
+        fx.layerMenu(menu, doc: doc)   // B5-07
     }
 }
 
@@ -575,6 +608,7 @@ final class LayerRowCell: NSTableCellView, NSTextFieldDelegate {
     private let name = NSTextField(labelWithString: "")
     private let kind = NSImageView()
     private let lock = NSImageView()
+    private let fx = LayerStyleOutline.badge()   // B5-07
     private let stack = NSStackView()
     private var editing = false
 
@@ -617,7 +651,7 @@ final class LayerRowCell: NSTableCellView, NSTextFieldDelegate {
         stack.alignment = .centerY
         stack.spacing = Theme.Space.xs
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: Theme.Space.s)
-        for v in [eye, clip, thumb, glyph, chain, mask, name, kind, lock] as [NSView] { stack.addArrangedSubview(v) }
+        for v in [eye, clip, thumb, glyph, chain, mask, name, fx, kind, lock] as [NSView] { stack.addArrangedSubview(v) }   // B5-07: fx
         stack.setCustomSpacing(Theme.Space.s, after: mask)
         stack.setCustomSpacing(Theme.Space.s, after: thumb)
         for v in [eye, chain] as [NSView] {
@@ -695,6 +729,12 @@ final class LayerRowCell: NSTableCellView, NSTextFieldDelegate {
         if l.pixels { parts.append("image pixels") }
         if l.position { parts.append("position") }
         return "Locked: " + parts.joined(separator: ", ")
+    }
+
+    /// B5-07: the fx glyph of styled layers.
+    func setStyled(_ styled: Bool) {
+        fx.isHidden = !styled
+        fx.setAccessibilityIdentifier(styled ? "document.layers.fx.\(layerID ?? 0)" : nil)
     }
 
     func setRow(_ row: Int) {

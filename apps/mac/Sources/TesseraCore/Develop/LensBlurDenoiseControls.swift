@@ -1,27 +1,17 @@
 import Foundation
 
-// MARK: - Engine gaps (M2-48)
+// MARK: - Engine gaps (M2-48, M2-51)
 
 /// Develop controls whose recipe fields exist but which this engine build cannot render or export
-/// yet. The panels show them disabled with the reason (see tools/orchestrate/wp/M2-48/REPORT.md).
-/// Writing these fields today would make the photo fail to export, so they stay read-only until
-/// the engine lifts the gap; flip the entry to nil then.
+/// yet. The panels show them disabled with the reason. M2-49 closed AI Denoise, Lens Blur, its
+/// depth histogram / Visualize Depth and Subject (tools/orchestrate/wp/M2-49/REPORT.md); what is
+/// left stays here until the engine lifts it.
 public enum DevelopEngineGaps {
-    /// `denoise.method = neural`: the develop session renders it only after
-    /// `DevelopSession.configureCfaDenoise` (a per-camera noise calibration the app cannot supply),
-    /// and export has no denoiser at all, so an enabled AI Denoise fails every export.
-    public static let aiDenoise: String? =
-        "AI Denoise needs an engine denoiser this build does not install (no camera noise calibration, and export has no model backend). Classic noise reduction below still applies."
-    /// `effects.lens_blur`: no depth map in the develop session or export (renders fail with
-    /// "requires depth inference").
-    public static let lensBlur: String? =
-        "Lens Blur needs a depth map the engine does not compute here yet; applying it would make the photo fail to export."
-    /// Depth plane for the focal-range histogram and Visualize Depth.
-    public static let lensBlurDepth: String? = "No depth map from the engine yet"
-    /// The recipe has no subject-aware field.
-    public static let lensBlurSubject: String? = "Not in the recipe schema yet"
     /// No brush API for depth refinement.
     public static let lensBlurRefine: String? = "Focus / Blur refine brushes come later (no engine brush for depth)"
+    /// `geometry.constrain_crop`: the geometry operator does not implement it, so the loupe and
+    /// export ignore it (the develop session reports it in `ignoredSettings`).
+    public static let constrainCrop: String? = "Constrain Crop is not rendered by the engine yet; the crop is not kept inside the transformed image."
 }
 
 // MARK: - AI Denoise
@@ -55,12 +45,36 @@ public enum AIDenoise {
 
 // MARK: - Lens Blur
 
-/// Bokeh shapes the engine's lens blur accepts (`circle`, `hexagon`, `octagon`).
+/// Lens Blur apertures (`effects.lens_blur.bokeh`): the canonical id of every distinct shape the
+/// engine's lens blur accepts (crates/pipeline-cpu/src/lens_blur.rs; `disc`, `pentagon`,
+/// `anamorphic`, … are aliases of these).
 public enum BokehShape: String, CaseIterable, Sendable, Identifiable {
-    case circle, hexagon, octagon
+    case circle, bubble, fiveBlade = "5-blade", hexagon, octagon, ring, catEye = "cat-eye", oval
     public var id: String { rawValue }
-    public var title: String { rawValue.capitalized }
+    public var title: String {
+        switch self {
+        case .circle: "Circle"
+        case .bubble: "Bubble"
+        case .fiveBlade: "5-Blade"
+        case .hexagon: "Hexagon"
+        case .octagon: "Octagon"
+        case .ring: "Ring"
+        case .catEye: "Cat Eye"
+        case .oval: "Oval"
+        }
+    }
     public static let path = ["effects", "lens_blur", "bokeh"]
+
+    /// Reads a stored id, including the engine's aliases.
+    public init?(engineID: String) {
+        switch engineID {
+        case "disc": self = .circle
+        case "five-blade", "pentagon": self = .fiveBlade
+        case "cat_eye", "cat eye": self = .catEye
+        case "anamorphic": self = .oval
+        default: self.init(rawValue: engineID)
+        }
+    }
 }
 
 /// The in-focus depth range (`effects.lens_blur.focus_range`, normalised near → far).
@@ -116,11 +130,16 @@ public enum LensBlurControls {
 
     public static func bokehPatch(_ s: BokehShape) -> [String: Any] { DevelopController.patch(BokehShape.path, s.rawValue) }
 
+    /// Subject: the engine's focal range, as one history step.
+    public static func subjectHistoryLabel(_ r: FocalRange) -> String {
+        String(format: "Focal Range: Subject %.0f–%.0f", r.near * 100, r.far * 100)
+    }
+
     public static func isApplied(in settings: [String: Any]) -> Bool {
         DevelopController.value(in: settings, at: path) is [String: Any]
     }
 
     public static func bokeh(in settings: [String: Any]) -> BokehShape {
-        (DevelopController.value(in: settings, at: BokehShape.path) as? String).flatMap(BokehShape.init(rawValue:)) ?? .circle
+        (DevelopController.value(in: settings, at: BokehShape.path) as? String).flatMap(BokehShape.init(engineID:)) ?? .circle
     }
 }

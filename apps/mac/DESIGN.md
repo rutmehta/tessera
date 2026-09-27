@@ -268,6 +268,17 @@ with the 1 pt shadow and a `textPrimary` dot, the others a `textTertiary` dot (n
 **placement preview** is a 240 × 160 scope well (`plotWell`, radius 4, `plotGuide` hairline frame) with the watermark
 drawn in its own font and colour, or the engine's 480 px render once requested, and an on-image scrim chip naming which.
 
+**Photo Merge and Enhance sheets** (M2-50): no new colour, size or font. Both are `SheetScaffold` sheets. Photo
+Merge puts a 400 × 300 **merge preview well** (`plotWell`, radius 4, `plotGuide` hairline frame while empty, the
+engine's ≤ 512 px JPEG fitted inside, an on-image scrim chip `Engine preview · W × H`, 60 % opacity while re-rendering
+with a small spinner in the header) left of a vertical hairline and the options column: `SubHeader` groups, native
+checkboxes, 24 pt `SegmentedPicker`s for Deghost, Projection and frames per bracket, a sheet `ValueSlider` for Boundary
+Warp. Engine and exposure-spread warnings are warning `StatusLine`s under the preview; the engine's notes (approximate
+preview, chosen projection) are `Hint`s. The footer's leading slot says why Merge is dimmed, else names the output.
+Enhance is a single column in the same grammar; Raw Details is a disabled checkbox with its reason, and the missing
+model error is an error `StatusLine`. A running job is a `ProgressStrip` above the status bar (indeterminate while a
+model downloads, because the engine reports only start and ready).
+
 **Transform / Lens Blur panels** (M2-48): the Upright bar (`UprightModeBar`) is a 20 pt
 `SegmentedPicker`-look track with six icon segments; the chosen segment adds its name (the only way six
 modes fit the 288 pt inspector). Per-group resets are borderless 20 pt **Reset** buttons on the
@@ -276,6 +287,18 @@ modes fit the 288 pt inspector). Per-group resets are borderless 20 pt **Reset**
 set: 1.5 pt `OnImage.guide` over a 3 pt `OnImage.shadow`, dashed (4 / 3) while drawing, the selected
 guide in the accent, 7 pt square ends in `OnImage.text` with an `OnImage.ink` outline, and the
 bottom scrim hint.
+
+**Model acquisition, Lens Blur depth tools** (M2-51) add no colour, size or font. A control that needs pinned
+weights acquires them on first use and shows the state inline under itself (`ModelProgressRow`): a small linear
+`ProgressView` (determinate once the size is known) over a `captionNumeric` line in `textSecondary`
+(`Depth model: Downloading 12 MB of 99 MB`); a missing / unobtainable model is a warning `StatusLine` with the
+reason and a borderless 20 pt **Retry**. The recipe changes only once the model is ready. Settings ▸ AI has a
+**Develop models** section with **Allow model downloads** (default on). Lens Blur's eight apertures use a
+`MenuPicker` pop-up (too many for a `SegmentedPicker`); the depth histogram is drawn in the Focal Range scope well as
+`plotLine` bars at 35 % behind the band; **Subject** is a bordered 20 pt button beside the **Visualize Depth**
+checkbox; a busy estimate is a mini spinner with a caption. While Guided Upright is armed the loupe shows the
+uncorrected frame (session only) with a `Hint` saying so. Remaining gaps (Refine brushes, Constrain Crop) keep the
+disabled-with-`StatusLine` rule above.
 
 ## 6. Motion
 
@@ -399,6 +422,32 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   listed in tertiary with the reason), face-box and limitation notes in caption type, and for a missing model a
   warning `StatusLine` naming the model with its source URL and cache path in selectable text. Footer: Reset, Cancel,
   Apply (primary, disabled while the model is missing). Nothing offers a download.
+* **Layer Style** (WP B5-07) is a floating panel (`NSPanel`, utility style), not a modal sheet: edits apply live
+  and each gesture is one history node, so there is no Cancel. Its content uses `SheetScaffold` (title *Layer
+  Style*, the layer as subtitle, a `Locked` outlined warning chip when Lock All is on; footer: effect count left,
+  **Done** primary right). Left, a 216 pt `panel` column: *Blending Options*, a hairline, then every effect kind
+  in the engine's stacking order (top first) as 24 pt rows (checkbox, 12 pt title; absent kinds in secondary
+  ink, hidden effects in tertiary; the selected row `accentSubtle` at radius 6; repeatable kinds carry a 20 pt
+  "+" `IconButton`), and a 28 pt footer with an `fx` add menu and delete. Right, the editor generated from
+  `style_effects_schema_json()` exactly like filter dialogs: `ValueSlider` rows, the 28 pt angle dial beside
+  angles, colour wells, `ThemeMenuStyle` pop-ups for blend modes and long choices, `SegmentedPicker` up to three.
+  Contour / jitter / texture appear only as `InfoRow`s under a "Kept, not rendered" `SubHeader`, never as
+  controls. The Global Light panel is the same scaffold with the dial and Angle / Altitude sliders.
+* **Styled layer rows**: an `fx` SF Symbol glyph after the name (secondary ink, like the kind glyph); under
+  non-group layers, effect rows as smart filter rows are drawn (eye, 11 pt name, tertiary when hidden), after any
+  smart filter rows. The Properties panel lists effects under a *Layer Style* `SubHeader` (eye glyph, 11 pt name,
+  tertiary size / angle readout) with a bordered *Edit…*. No new colours or sizes.
+* **Type tool and text (WP B5-10)**: on canvas only the on-image set: the text frame (point text: dashed layout bounds;
+  area text: the box, solid) in `OnImage.guide` over `OnImage.shadow`, eight square box handles like the transform
+  handles, the selection as the accent at 35 % over the glyph boxes (content selection), marked IME text underlined in
+  the accent, the caret a 1.5 pt accent line over a 3 pt `OnImage.shadow` line, blinking. The options bar holds the
+  new-text font pop-up, size field and the neutral alignment `SegmentedPicker` (icons), then borderless Cancel and
+  bordered Apply while editing. Properties ▸ Character / Paragraph / Text box are `SubHeader` groups: 72 pt label
+  column rows with `ThemeMenuStyle` pop-ups (font, style), `ValueSlider` rows (units in the value, `(mixed)` in the
+  title when a selection mixes values), the minimal colour well and a kerning checkbox; the alignment segments; the
+  box kind as `InfoRow`s with a borderless convert action. Limitations are `warning` triangle + secondary caption
+  lines at the top. Document mode's detail column has a 384 pt minimum so the sidebar and the inspector (288 pt
+  minimum, unchanged) always fit the window; the status bar's canvas label truncates in the middle.
 * **Shapes, Pen and vector masks (WP B5-11)** add no colour, size or font. Palette: Pen, Path / Direct Selection and a
   shape slot (Rectangle, Ellipse, Polygon, Line) as 28 pt `IconButton`s. Options bar: fill / stroke checkboxes with
   small colour wells, compact fields (Width, Radius, Sides, Inset, Weight), and a tertiary caption with the modifier

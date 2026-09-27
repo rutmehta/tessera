@@ -161,6 +161,9 @@ final class AppModel {
     /// Auto Edit, Settings ▸ AI and the agent's review queue (WP M3-11).
     let agent = AgentController()
     var showAutoEdit = false
+    // M2-50 begin: Photo ▸ Photo Merge / Enhance (Photo/AppModel+Photo.swift)
+    let photoJobs = PhotoJobController()
+    // M2-50 end
     /// File ▸ Tethered Capture… (WP M3-12b): the docked Tether panel and its session.
     let tether = TetherController()
     /// Layered documents (WP B5-02): open documents, tabs, New / Open / Save.

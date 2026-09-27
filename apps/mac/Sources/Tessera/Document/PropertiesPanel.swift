@@ -31,6 +31,7 @@ struct PropertiesPanel: View {
                     InfoRow(label: "Mask", value: (n.maskEnabled ? "On" : "Off") + (n.maskLinked ? " · linked" : " · unlinked"))
                 }
                 editor(n)
+                LayerStylesSummary(document: document, layer: n)   // B5-07
             }
             .onAppear { name = n.name }
             .onChange(of: n.id) { _, _ in name = n.name }
@@ -76,8 +77,10 @@ struct PropertiesPanel: View {
                 .disabled(true)
                 .help("Opens the smart object's document (arrives with smart-object editing)")
                 .accessibilityIdentifier("document.properties.editContents")
+        // B5-10 begin: Character / Paragraph (Document/Text/TextInspector.swift).
         case .text:
-            Hint("Text layers show their rasterized proxy. Editing type arrives with the type work package.")
+            TextInspector(document: document, text: DocumentText.shared)
+        // B5-10 end
         case .pixel:
             EmptyView()
         // B5-11 begin: live shape parameters, paint, stroke and vector mask (Document/Vector/ShapeInspector.swift).

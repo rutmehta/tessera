@@ -117,8 +117,8 @@ extension DocumentTool {
     public var selects: Bool {
         [.marquee, .ellipseMarquee, .lasso, .polygonLasso, .magneticLasso, .quickSelect, .wand, .objectSelect].contains(self)
     }
-    /// Placeholders that explain themselves on click.
-    public var isPlaceholder: Bool { [.crop, .type].contains(self) }
+    /// Placeholders that explain themselves on click (Type is live since WP B5-10).
+    public var isPlaceholder: Bool { [.crop].contains(self) }
 
     /// Live vector tools (WP B5-11): shape construction, Pen and path selection.
     public var isVector: Bool {

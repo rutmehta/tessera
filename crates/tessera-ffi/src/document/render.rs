@@ -149,7 +149,45 @@ struct GpuBackend {
     scratch: Option<wgpu::Texture>,
     /// IOSurface textures by surface id (imported once per attached surface).
     targets: HashMap<u32, wgpu::Texture>,
+    // B5-07 begin: CPU fallback for documents the resident program refuses
+    // (layer styles). Created on first use; `cpu_frames` logs switches.
+    cpu: Option<Box<Compositor>>,
+    cpu_frames: bool,
+    // B5-07 end
 }
+
+// B5-07 begin
+impl GpuBackend {
+    /// Renders `level` on the GPU, or `None` when the resident program does
+    /// not support the document (layer styles need the CPU compositor).
+    fn render_or_refuse(
+        &mut self,
+        doc: &Document,
+        level: u8,
+    ) -> EngineResult<Option<compositor::resident::FrameReport>> {
+        let cpu = match self.resident.render(doc, level) {
+            Ok(report) => Some(report),
+            Err(EngineError::Unsupported { what }) => {
+                if !self.cpu_frames {
+                    eprintln!("document: frames composited on the CPU ({what})");
+                }
+                None
+            }
+            Err(e) => return Err(e),
+        };
+        if cpu.is_some() && self.cpu_frames {
+            eprintln!("document: frames composited on the GPU again");
+        }
+        self.cpu_frames = cpu.is_none();
+        Ok(cpu)
+    }
+
+    fn cpu(&mut self) -> &Compositor {
+        self.cpu
+            .get_or_insert_with(|| Box::new(super::fonts::compositor(256 << 20))) // B5-10b
+    }
+}
+// B5-07 end
 
 impl GpuBackend {
     /// Presents `src` of a rendered level top-left into `surface`, straight
@@ -278,13 +316,20 @@ pub(crate) struct Renderer {
 impl Renderer {
     pub(crate) fn new(gpu: Option<Arc<DocGpu>>) -> Self {
         let (name, backend) = match gpu.map(|g| ResidentRenderer::new(&g.comp).map(|r| (g, r))) {
-            Some(Ok((gpu, resident))) => (
-                gpu.name.clone(),
+            Some(Ok((gpu, mut resident))) => (
+                // B5-10 begin: the shared font snapshot (Type tool layout = rendering).
+                {
+                    super::fonts::install(&mut resident); // B5-10b
+                    gpu.name.clone()
+                },
+                // B5-10 end
                 Backend::Gpu(Box::new(GpuBackend {
                     gpu,
                     resident,
                     scratch: None,
                     targets: HashMap::new(),
+                    cpu: None,         // B5-07
+                    cpu_frames: false, // B5-07
                 })),
             ),
             other => {
@@ -293,7 +338,7 @@ impl Renderer {
                 }
                 (
                     "CPU".to_owned(),
-                    Backend::Cpu(Box::new(Compositor::new(256 << 20))),
+                    Backend::Cpu(Box::new(super::fonts::compositor(256 << 20))), // B5-10: shared fonts
                 )
             }
         };
@@ -354,8 +399,13 @@ impl Renderer {
         let mut backend = self.backend.lock().map_err(failure)?;
         let (e, v) = match &mut *backend {
             Backend::Gpu(g) => {
-                g.resident.render(doc, level)?;
-                g.resident.read_level(level, false)?
+                // B5-07 begin: styled documents read back from the CPU compositor.
+                if g.render_or_refuse(doc, level)?.is_none() {
+                    g.cpu().render_level_rgba(doc, level)?
+                } else {
+                    g.resident.read_level(level, false)?
+                }
+                // B5-07 end
             }
             Backend::Cpu(c) => c.render_level_rgba(doc, level)?,
             Backend::Stopped => return Err(failure("document is closed")),
@@ -440,10 +490,22 @@ fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrame
         match &mut *backend {
             Backend::Gpu(g) => {
                 g.targets.retain(|id, _| attached.contains(id));
-                report = g.resident.render(doc, level)?;
-                drop(st);
-                g.present(level, src, &surface)?;
-                g.resident.wait()?;
+                // B5-07 begin: frames the resident program refuses (layer
+                // styles) are composited on the CPU, as the Cpu arm does.
+                match g.render_or_refuse(doc, level)? {
+                    Some(r) => {
+                        report = r;
+                        drop(st);
+                        g.present(level, src, &surface)?;
+                        g.resident.wait()?;
+                    }
+                    None => {
+                        cpu_present(g.cpu(), doc, level, src, &surface)?;
+                        report.full = true;
+                        drop(st);
+                    }
+                }
+                // B5-07 end
             }
             Backend::Cpu(c) => {
                 cpu_present(c, doc, level, src, &surface)?;
@@ -612,7 +674,8 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
             e.width.max(e.height) <= max_px
         })
         .unwrap_or(MAX_VIEW_LEVEL - 1);
-    let tiles = Compositor::new(64 << 20).render_level(&doc, level, &CancellationToken::new())?;
+    let tiles =
+        super::fonts::compositor(64 << 20).render_level(&doc, level, &CancellationToken::new())?; // B5-10
     let e = canvas.at_level(level);
     let surface = Surface::create_rgba8(e.width, e.height).map_err(failure)?;
     let mask = matches!(kind, ThumbKind::Mask(_));
@@ -658,7 +721,7 @@ pub(crate) fn composite_raster(
 ) -> Result<compositor::Raster> {
     // Smart filters are baked here (the compositor never evaluates them).
     let doc = &super::filtering::for_output(Document::new((**doc.state()).clone()))?;
-    let (e, mut rgba) = Compositor::new(128 << 20).render_level_rgba(doc, 0)?;
+    let (e, mut rgba) = super::fonts::compositor(128 << 20).render_level_rgba(doc, 0)?; // B5-10
     if let Some(bg) = over {
         for p in rgba.as_chunks_mut::<4>().0 {
             let a = p[3];

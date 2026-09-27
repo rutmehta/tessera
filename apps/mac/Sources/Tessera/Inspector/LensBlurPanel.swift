@@ -2,38 +2,41 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
-// MARK: - Detail ▸ AI Denoise (M2-48)
+// MARK: - Detail ▸ AI Denoise (M2-48, M2-51)
 
 /// AI Denoise at the top of Detail ▸ Noise Reduction: the raw-domain neural mode and its amount.
-/// While the engine cannot render or export it (`DevelopEngineGaps.aiDenoise`) the toggle is
-/// disabled, except to switch off an AI Denoise a recipe already carries.
+/// The first time it is switched on the pinned CFA model is acquired through `ModelAcquisition`
+/// (inline progress: queued, bytes, ready or the failure's reason); the recipe changes only once
+/// the model is ready, and the loupe refines then. Off always works.
 struct AIDenoiseSection: View {
     let model: AppModel
     let tools: DevelopTools
+    var models: ModelAcquisition = .shared
     @Environment(\.developRevision) private var revision
 
     var body: some View {
         let settings: [String: Any] = { _ = revision; _ = model.developHistory?.entries; return tools.develop?.settingsObject ?? [:] }()
         let on = AIDenoise.isEnabled(in: settings)
-        let gap = DevelopEngineGaps.aiDenoise
+        let state = models.state(.cfaDenoise)
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
-            Toggle("AI Denoise", isOn: Binding(get: { on }, set: { v in
-                tools.apply(AIDenoise.patch(enabled: v), final: true, label: AIDenoise.historyLabel(v))
-                tools.bump()
+            Toggle("AI Denoise", isOn: Binding(get: { on || state.isBusy }, set: { v in
+                if v { enable() } else { setEnabled(false) }
             }))
             .font(Theme.Fonts.caption)
             .controlSize(.small)
-            .disabled(gap != nil && !on)
-            .help("Raw-domain neural noise reduction before demosaicing (first use loads the model)")
+            .disabled(state.isBusy && !on)
+            .help("Raw-domain neural noise reduction before demosaicing (first use downloads the model)")
             .accessibilityIdentifier("detail-ai-denoise")
             ControlSlider(control: AIDenoise.amount)
                 .frame(height: Theme.Height.slider)
-                .disabled(!on || gap != nil)
+                .disabled(!on)
                 .accessibilityIdentifier("detail-ai-denoise-amount")
-            if let gap {
-                StatusLine(text: gap, kind: .warning).accessibilityIdentifier("detail-ai-denoise-unavailable")
+            if state == .idle || (state.isReady && !on) {
+                Hint(models.allowDownloads
+                     ? "First use downloads the denoise model; the loupe refines when it is ready."
+                     : "Model downloads are off (Settings ▸ AI): only a model already on this Mac is used.")
             } else {
-                Hint("First use downloads or loads the denoise model; the loupe refines when it is ready.")
+                ModelProgressRow(title: ModelRequirement.cfaDenoise.title, state: state, id: "detail-ai-denoise-model") { enable() }
             }
             if on, tools.develop?.ignores("/denoise") == true {
                 StatusLine(text: "This photo's AI Denoise is kept in the recipe but not drawn by the loupe.", kind: .warning)
@@ -41,74 +44,113 @@ struct AIDenoiseSection: View {
             }
         }
         .padding(.bottom, Theme.Space.xs)
+        // A recipe that already carries AI Denoise: fetch the model so the loupe can draw it.
+        .task(id: on) {
+            guard on, models.state(.cfaDenoise) == .idle else { return }
+            if await models.ensure([.cfaDenoise]).isReady { try? tools.develop?.session.refresh() }
+        }
+    }
+
+    private func setEnabled(_ v: Bool) {
+        tools.apply(AIDenoise.patch(enabled: v), final: true, label: AIDenoise.historyLabel(v))
+        tools.bump()
+    }
+
+    /// Acquire first; switch the recipe on only once the weights are cached.
+    private func enable() {
+        let develop = tools.develop
+        models.reset([.cfaDenoise])
+        Task { @MainActor in
+            guard await models.ensure([.cfaDenoise]).isReady, tools.develop === develop else { return }
+            setEnabled(true)
+        }
     }
 }
 
-// MARK: - Lens Blur (M2-48)
+// MARK: - Lens Blur (M2-48, M2-51)
 
-/// Lens Blur (docs/01 §2.16): Apply, amount, bokeh, the focal range over the depth strip, Visualize
-/// Depth, subject-aware focus and the Refine brushes. The recipe fields are wired, but the engine
-/// has no depth map here yet (`DevelopEngineGaps`), so the controls stay disabled with the reason;
-/// Apply still switches off a lens blur a recipe already carries.
+extension LensBlurDepthModel {
+    /// The inspector's instance; it follows the open develop session.
+    @MainActor static let shared = LensBlurDepthModel(models: .shared)
+}
+
+/// Lens Blur (docs/01 §2.16): Apply, amount, the aperture, the focal range over the depth
+/// histogram, Visualize Depth, Subject and the Refine brushes (still disabled: no engine brush).
+/// Apply, Visualize Depth and Subject acquire the depth (and segmentation) weights first, with
+/// inline progress; a failure is an inline error and leaves the recipe unchanged.
 struct LensBlurPanel: View {
     let model: AppModel
     let tools: DevelopTools
+    var depth: LensBlurDepthModel = .shared
     @Environment(\.developRevision) private var revision
 
     var body: some View {
         let ready = model.developStatus == .ready
         let settings: [String: Any] = { _ = revision; _ = model.developHistory?.entries; return tools.develop?.settingsObject ?? [:] }()
         let applied = LensBlurControls.isApplied(in: settings)
-        let gap = DevelopEngineGaps.lensBlur
-        let editable = applied && gap == nil
+        let weights = depth.busy == .subject ? depth.subjectWeights : depth.weights
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
-            if let gap {
-                StatusLine(text: gap, kind: .warning).accessibilityIdentifier("lensblur-unavailable")
+            Toggle("Apply", isOn: Binding(get: { applied }, set: { v in v ? apply() : setApplied(false) }))
+                .font(Theme.Fonts.caption)
+                .controlSize(.small)
+                .disabled(depth.busy != nil && !applied)
+                .accessibilityIdentifier("lensblur-apply")
+            if weights.isBusy {
+                ModelProgressRow(title: depth.busy == .subject ? "Subject models" : ModelRequirement.depth.title,
+                                 state: weights, id: "lensblur-model") {}
+            } else if depth.busy != nil {
+                HStack(spacing: Theme.Space.xs) {
+                    ProgressView().controlSize(.mini)
+                    Text(depth.busy == .subject ? "Finding the subject…" : "Estimating depth…")
+                        .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                }
+                .accessibilityIdentifier("lensblur-busy")
             }
-            Toggle("Apply", isOn: Binding(get: { applied }, set: { v in
-                tools.apply(LensBlurControls.applyPatch(v), final: true, label: v ? "Lens Blur On" : "Lens Blur Off")
-                tools.bump()
-            }))
-            .font(Theme.Fonts.caption)
-            .controlSize(.small)
-            .disabled(gap != nil && !applied)
-            .accessibilityIdentifier("lensblur-apply")
+            if let error = depth.error {
+                // A missing model is a warning (DESIGN.md), anything else an error.
+                StatusLine(text: error, kind: weights.failure != nil || depth.subjectWeights.failure != nil ? .warning : .error)
+                    .accessibilityIdentifier("lensblur-error")
+            }
             ControlSlider(control: LensBlurControls.amount)
                 .frame(height: Theme.Height.slider)
-                .disabled(!editable)
+                .disabled(!applied)
                 .accessibilityIdentifier("lensblur-amount")
             HStack(spacing: Theme.Space.s) {
                 Text("Bokeh").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 Spacer(minLength: 0)
-                SegmentedPicker(selection: Binding(get: { LensBlurControls.bokeh(in: settings) }, set: { s in
+                MenuPicker(selection: Binding(get: { LensBlurControls.bokeh(in: settings) }, set: { s in
                     tools.apply(LensBlurControls.bokehPatch(s), final: true, label: "Bokeh: \(s.title)")
                     tools.bump()
-                }), segments: BokehShape.allCases.map { .init(value: $0, title: $0.title) }, height: Theme.Height.small, fill: false)
-                .fixedSize()
+                }), options: BokehShape.allCases.map { (value: $0, title: $0.title) })
             }
             .frame(height: Theme.Height.regular)
-            .disabled(!editable)
+            .disabled(!applied)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("lensblur-bokeh")
             SubHeader("Focal Range")
-            FocalRangeStrip(range: FocalRange(settings: settings), histogram: nil) { r, final in
+            FocalRangeStrip(range: FocalRange(settings: settings), histogram: depth.histogram) { r, final in
                 tools.apply(r.patch, final: final, label: r.historyLabel)
             }
             .frame(height: Theme.Height.large + Theme.Space.m)
-            .disabled(!editable)
+            .disabled(!applied)
             .accessibilityIdentifier("lensblur-focal-range")
-            Hint(DevelopEngineGaps.lensBlurDepth.map { "\($0): the strip shows near → far without a depth histogram." }
-                 ?? "Drag the handles or the band to choose the in-focus depths.")
-            Toggle("Visualize Depth", isOn: .constant(false))
-                .font(Theme.Fonts.caption).controlSize(.small)
-                .disabled(!editable || DevelopEngineGaps.lensBlurDepth != nil)
-                .help(DevelopEngineGaps.lensBlurDepth ?? "Show the depth map in the loupe (near is light)")
-                .accessibilityIdentifier("lensblur-visualize-depth")
-            Toggle("Subject-aware focus", isOn: .constant(false))
-                .font(Theme.Fonts.caption).controlSize(.small)
-                .disabled(!editable || DevelopEngineGaps.lensBlurSubject != nil)
-                .help(DevelopEngineGaps.lensBlurSubject ?? "Keep the detected subject in focus")
-                .accessibilityIdentifier("lensblur-subject")
+            Hint(depth.histogram == nil && applied
+                 ? "The depth histogram appears under the range once depth is estimated."
+                 : "Drag the handles or the band to choose the in-focus depths.")
+            HStack(spacing: Theme.Space.s) {
+                Toggle("Visualize Depth", isOn: Binding(get: { depth.visualize }, set: { v in Task { await depth.setVisualize(v) } }))
+                    .font(Theme.Fonts.caption).controlSize(.small)
+                    .disabled(!applied || (depth.busy != nil && depth.busy != .visualize))
+                    .help("Show the depth map in the loupe instead of the photo (near is light)")
+                    .accessibilityIdentifier("lensblur-visualize-depth")
+                Spacer(minLength: 0)
+                Button("Subject") { focusOnSubject() }
+                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                    .disabled(!applied || depth.busy != nil)
+                    .help("Set the focal range around the main subject's depth (one undo step)")
+                    .accessibilityIdentifier("lensblur-subject")
+            }
+            .frame(height: Theme.Height.regular)
             HStack(spacing: Theme.Space.xs) {
                 Text("Refine").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 Spacer(minLength: 0)
@@ -121,8 +163,84 @@ struct LensBlurPanel: View {
             .frame(height: Theme.Height.regular)
             .disabled(true)
             .help(DevelopEngineGaps.lensBlurRefine ?? "")
+            if let gap = DevelopEngineGaps.lensBlurRefine {
+                StatusLine(text: gap, kind: .warning).accessibilityIdentifier("lensblur-refine-unavailable")
+            }
         }
         .disabled(!ready)
+        // Follow the open session; a photo that already has Lens Blur gets its histogram.
+        .task(id: tools.develop.map(ObjectIdentifier.init)) {
+            depth.bind(tools.develop?.session)
+            if applied { await depth.refreshHistogram() }
+        }
+    }
+
+    private func setApplied(_ on: Bool) {
+        tools.apply(LensBlurControls.applyPatch(on), final: true, label: on ? "Lens Blur On" : "Lens Blur Off")
+        tools.bump()
+        if !on, depth.visualize { Task { await depth.setVisualize(false) } }
+    }
+
+    /// Acquire the depth weights first; the recipe changes only once they are cached.
+    private func apply() {
+        let develop = tools.develop
+        Task { @MainActor in
+            guard await depth.ensureWeights(), tools.develop === develop else { return }
+            setApplied(true)
+            await depth.refreshHistogram()
+        }
+    }
+
+    private func focusOnSubject() {
+        Task { @MainActor in
+            await depth.focusOnSubject { r in
+                tools.apply(r.patch, final: true, label: LensBlurControls.subjectHistoryLabel(r))
+                tools.bump()
+            }
+        }
+    }
+}
+
+/// Inline model acquisition progress (DESIGN.md: progress sits with the control it gates):
+/// queued, a determinate bar with bytes while downloading, Ready, or the failure with Retry.
+struct ModelProgressRow: View {
+    let title: String
+    let state: ModelAcquisitionState
+    let id: String
+    let retry: () -> Void
+
+    var body: some View {
+        Group {
+            switch state {
+            case .failed(let reason):
+                HStack(alignment: .firstTextBaseline, spacing: Theme.Space.xs) {
+                    StatusLine(text: "\(title): \(reason)", kind: .warning)
+                    Spacer(minLength: 0)
+                    Button("Retry", action: retry)
+                        .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                        .accessibilityIdentifier(id + "-retry")
+                }
+            case .ready:
+                StatusLine(text: "\(title) ready", kind: .success)
+            case .idle:
+                Hint("\(title): \(state.label)")
+            case .queued, .downloading:
+                VStack(alignment: .leading, spacing: Theme.Space.xxs) {
+                    if let f = state.fraction {
+                        ProgressView(value: f).progressViewStyle(.linear).controlSize(.small)
+                    } else {
+                        ProgressView().progressViewStyle(.linear).controlSize(.small)
+                    }
+                    Text("\(title): \(state.label)")
+                        .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                .tint(Theme.accent)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(id)
+        .accessibilityValue(state.label)
     }
 }
 

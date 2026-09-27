@@ -198,6 +198,9 @@ final class DocumentTools {
         if transform != nil, tool != doc.tool { commitTransform() }
         if case .polygon = gesture { gesture = nil }
         if case .magnetic = gesture { gesture = nil }
+        // B5-10 begin: leaving the Type tool applies the text being edited.
+        if tool != .type, DocumentText.shared.isEditing(doc) { DocumentText.shared.apply() }
+        // B5-10 end
         DocumentVector.shared.toolSelected(tool)   // B5-11: finishes a Pen path, drops Path Selection's box
         doc.tool = tool
         if tool.isPlaceholder { say("\(tool.title): a placeholder in this build (arrives with a later work package)") }
@@ -212,6 +215,7 @@ final class DocumentTools {
         case .move: return .arrow
         case .hand: return .openHand
         case .brush, .eraser, .cloneStamp, .heal, .quickSelect: return .crosshair
+        case .type: return .iBeam   // B5-10
         case let t where t.isVector: return DocumentVector.shared.cursor   // B5-11
         default: return .crosshair
         }
@@ -305,7 +309,11 @@ final class DocumentTools {
         case .gradient:
             fillSelection(.color(colors.foreground), opacity: 1)
             say("Gradient: a placeholder that fills the selection with the foreground colour (gradients arrive later)")
-        case .crop, .type:
+        // B5-10 begin: the Type tool (Document/Text/DocumentText.swift).
+        case .type:
+            DocumentText.shared.mouseDown(e, in: v)
+        // B5-10 end
+        case .crop:
             say("\(doc.tool.title): a placeholder in this build (arrives with a later work package)")
         // B5-11 begin: shape tools, Pen, Path / Direct Selection (Document/Vector/DocumentVector.swift).
         case .rectangleShape, .ellipseShape, .polygonShape, .lineShape, .pen, .pathSelect, .directSelect:
@@ -319,6 +327,9 @@ final class DocumentTools {
     func mouseDragged(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { return }
         if gesture == nil, DocumentRetouch.shared.mouseDragged(e, in: v) { return }   // B5-09
+        // B5-10 begin
+        if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseDragged(e, in: v); return }
+        // B5-10 end
         if doc.tool.isVector, gesture == nil, transform == nil { DocumentVector.shared.mouseDragged(e, in: v); return }   // B5-11
         let p = v.canvasPoint(e)
         let c = CanvasPoint(p)
@@ -374,6 +385,9 @@ final class DocumentTools {
     func mouseUp(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { gesture = nil; return }
         if gesture == nil, DocumentRetouch.shared.mouseUp(e, in: v) { return }   // B5-09
+        // B5-10 begin
+        if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseUp(e, in: v); return }
+        // B5-10 end
         if doc.tool.isVector, gesture == nil, transform == nil { DocumentVector.shared.mouseUp(e, in: v); return }   // B5-11
         let p = v.canvasPoint(e)
         switch gesture {
@@ -921,6 +935,13 @@ final class DocumentTools {
         if flags.contains(.control) { mods.insert(.control) }
         guard let action = ToolKeyMap.action(keyCode: event.keyCode, characters: event.charactersIgnoringModifiers ?? "",
                                              mods: mods, current: doc.tool) else { return false }
+        // B5-10 begin: Return / Esc apply or cancel a text session whose keys reach the tools
+        // (focus left the canvas); while the canvas has focus TextInputView owns every key.
+        if DocumentText.shared.isEditing(doc) {
+            if action == .commit { DocumentText.shared.apply(); return true }
+            if action == .cancel { DocumentText.shared.cancel(); return true }
+        }
+        // B5-10 end
         switch action {
         case .tool(let t): select(t)
         case .brushSize(let larger):

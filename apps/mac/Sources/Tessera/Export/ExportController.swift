@@ -45,6 +45,10 @@ final class ExportController {
     /// Non-nil while an export runs (the sheet is closed meanwhile).
     private(set) var progress: ExportProgress?
     private(set) var lastReport: ExportReport?
+    /// Warnings of the last finished run (M2-51), shown in the completion toast.
+    private(set) var lastWarnings = ExportWarnings()
+    /// The last run's report with its warnings, for `ExportReport.toastLines`.
+    static var warningsByReport: (report: ExportReport, warnings: ExportWarnings)?
     private(set) var runningTitle = ""
 
     /// Called with the report when a run ends (toast, statuses, Finder).
@@ -273,6 +277,7 @@ final class ExportController {
         let cancel = CancelFlag()
         cancelFlag = cancel
         lastReport = nil
+        lastWarnings = ExportWarnings()
         runningTitle = target.title
         progress = ExportProgress(done: 0, total: UInt32(target.count), exported: 0, failed: 0, current: "")
         let relay = ExportRelay { [weak self] p in
@@ -282,12 +287,16 @@ final class ExportController {
         let json = settings.json
         Task.detached(priority: .userInitiated) {
             let result = Result { try engine.exportBatch(target: ffiTarget, settingsJson: json, listener: relay, cancel: cancel) }
+            // Recoverable omissions ("Lens Blur skipped: …") the engine wrote beside each file.
+            let warnings = (try? result.get()).map { ExportWarnings.read($0) } ?? ExportWarnings()
             await MainActor.run {
                 self.progress = nil
                 self.cancelFlag = nil
                 switch result {
                 case .success(let report):
                     self.lastReport = report
+                    self.lastWarnings = warnings
+                    Self.warningsByReport = (report, warnings)
                     self.onFinish(report, settings)
                 case .failure(let e):
                     self.error = e.localizedDescription
@@ -310,20 +319,11 @@ final class ExportRelay: ExportProgressListener, @unchecked Sendable {
 }
 
 extension ExportReport {
-    /// Toast headline and detail lines (failures listed by file).
-    var toastLines: (headline: String, details: [String]) {
-        let folder = URL(fileURLWithPath: destination).lastPathComponent
-        let photos = { (n: UInt32) in "\(n) photo\(n == 1 ? "" : "s")" }
-        var headline: String
-        if cancelled {
-            headline = "Export cancelled: \(photos(exported)) written to \(folder)"
-        } else if failed == 0 {
-            headline = "Exported \(photos(exported)) to \(folder) in \(String(format: "%.1f", seconds)) s"
-        } else {
-            headline = "Exported \(photos(exported)) to \(folder); \(failed) failed"
-        }
-        if exported == 0, failed == 0, !cancelled { headline = "Nothing was exported" }
-        let details = items.compactMap { item in item.error.map { "\(item.name): \($0)" } }
-        return (headline, details)
+    /// Toast headline and detail lines: failures listed by file, then the export warnings the
+    /// engine recorded (e.g. `Lens Blur skipped: depth model is not cached`).
+    @MainActor var toastLines: (headline: String, details: [String]) {
+        let warnings = ExportController.warningsByReport.flatMap { $0.report == self ? $0.warnings : nil }
+            ?? ExportWarnings.read(self)
+        return ExportWarnings.toastLines(self, warnings: warnings)
     }
 }

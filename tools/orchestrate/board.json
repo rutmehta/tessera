@@ -1219,15 +1219,15 @@
     "id": "B5-09v",
     "owner": "sol",
     "title": "Verify Remove/CAF/Neural UI with real models",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "4/14 on screen; real: Cancel of large Remove stuck on Cancelling >2 min (PatchMatch cancel granularity -> M5-33); LaMa not installed in app model cache and no download path in the Remove UI (-> Machine B, use ModelDownloads like M2-51); rest verifier-limited"
   },
   {
     "id": "M2-50",
     "owner": "opus",
     "title": "Photo Merge + Enhance UI",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1235,8 +1235,48 @@
     "id": "M2-51",
     "owner": "opus",
     "title": "Enable AI Denoise + Lens Blur, downloads, Guided uncorrected, export warnings",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-52",
+    "owner": "astra",
+    "title": "AI Denoise works on a normal install (DRUNet fallback)",
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-32",
+    "owner": "astra",
+    "title": "Compositor/retouch follow-ups from Machine B",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "B5-07",
+    "owner": "opus",
+    "title": "Layer Style inspector and global light",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-07 merged with main c1f95e1; document/styles.rs + CPU style fallback in render.rs; 254 XCTest; styled frames slow/failing >=16 MP until M5-31"
+  },
+  {
+    "id": "B5-10",
+    "owner": "opus",
+    "title": "Editable Type tool, Character/Paragraph, 1440-pt inspector fix",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-10 merged with main 1cd02b3; document/text.rs; 295 XCTest; typing 1.07 s median at 20 MP until M5-34"
+  },
+  {
+    "id": "B5-10b",
+    "owner": "opus",
+    "title": "One font snapshot for every document compositor; channel thumbnails",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-10b = wp/B5-10 + fonts.rs helper; black thumbnails = missing-font error swallowed by try?; engine font gaps in NEEDS.md"
   }
 ]

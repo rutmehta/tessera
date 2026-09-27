@@ -3930,6 +3930,14 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws 
     
     /**
+     * Drops a pending live-source draft (a text draft, and with B5-11 a shape
+     * draft) with no history change; the viewport returns to the committed
+     * state. Pending drags of other controls, strokes, style and filter
+     * previews are untouched. Without a source draft nothing happens.
+     */
+    func cancelSourcePreview() throws  -> DocumentUpdate
+    
+    /**
      * Jumps to any retained history state.
      */
     func checkoutHistory(id: UInt64) throws  -> DocumentUpdate
@@ -3953,6 +3961,15 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      * The whole composite, like `layer_thumbnail` (cached per document state).
      */
     func compositeThumbnail(maxPx: UInt32) throws  -> UInt32
+    
+    /**
+     * Rasterizes an editable text (or shape) layer into a pixel layer at
+     * document depth as one history node ("Convert to Pixels"), keeping its
+     * id, name, properties, layer styles, raster and vector masks. Undo
+     * restores the exact editable source. Pixel/all locks and other layer
+     * kinds fail without change. A pending draft is committed first.
+     */
+    func convertToPixels(layer: UInt64) throws  -> DocumentUpdate
     
     /**
      * Releases every surface; nothing is rendered until one is attached.
@@ -4413,6 +4430,91 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func retouchModels() throws  -> [RetouchModel]
     
     /**
+     * Whether Copy Layer Style has something to paste.
+     */
+    func canPasteLayerStyles()  -> Bool
+    
+    /**
+     * Clear Layer Style: removes every effect (Scale Effects back to 100 %)
+     * as one history node.
+     */
+    func clearLayerStyles(layer: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Copy Layer Style: remembers the layer's effects and Scale Effects
+     * (application-wide). Records no history.
+     */
+    func copyLayerStyles(from: UInt64) throws 
+    
+    /**
+     * The document's Global Light (live state).
+     */
+    func globalLight() throws  -> GlobalLightRecord
+    
+    /**
+     * Every layer with at least one effect, in `layers()` order.
+     */
+    func layerStyleSummaries() throws  -> [LayerStyleSummary]
+    
+    /**
+     * The layer's styles as `LayerStyles` JSON (live state: shows a drag).
+     */
+    func layerStylesJson(layer: UInt64) throws  -> String
+    
+    /**
+     * Paste Layer Style onto every layer of `to`: one history node.
+     */
+    func pasteLayerStyles(to: [UInt64]) throws  -> DocumentUpdate
+    
+    /**
+     * Layer ▸ Layer Style ▸ Global Light: every effect with Use Global Light
+     * follows it. `interactive` as for `set_layer_styles_json`.
+     */
+    func setGlobalLight(angle: Float, altitude: Float, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Replaces the layer's styles (`LayerStyles` JSON), keeping every other
+     * property. `interactive`: live only, no history node until `commit`
+     * (an inspector slider drag). Refused on locked (Lock All) layers,
+     * adjustment layers and pass-through groups.
+     */
+    func setLayerStylesJson(layer: UInt64, json: String, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Adds a text layer named `name` (empty: the first line of its text) at
+     * bottom-first `index` of `parent` (`None`: root; index `None`: on top).
+     * `interactive`: a draft shown on the scratch, no history, the layer is
+     * provisional until the final call (or `commit`); the final call records
+     * one "Add Text" node whose `created` holds the new id.
+     */
+    func addTextLayer(name: String, parent: UInt64?, index: UInt32?, modelJson: String, transform: TransformMatrix, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Replaces runs `start_run..end_run` (half-open RUN indexes, not text
+     * offsets; an empty range inserts) with `runs_json` (a JSON array of
+     * `typography::TextRun`), as one history node. Paragraph, box, warp and
+     * path are kept. Fails without change for reversed/out-of-range
+     * indexes, a stale `expected_revision`, or while a text draft of the
+     * layer is pending (apply or cancel it first).
+     */
+    func editTextRuns(layer: UInt64, startRun: UInt32, endRun: UInt32, runsJson: String, expectedRevision: UInt64?) throws  -> DocumentUpdate
+    
+    /**
+     * Replaces a text layer's source and transform. `interactive`: a draft
+     * (see the module docs); otherwise one history node — an
+     * `EditTextRuns` splice when only runs changed — or nothing when the
+     * model equals the committed layer. `expected_revision` (from
+     * `text_layer`) rejects edits of a layer that changed meanwhile. Locks:
+     * pixel/all reject content edits, position rejects transform changes.
+     */
+    func setTextLayer(layer: UInt64, modelJson: String, transform: TransformMatrix, interactive: Bool, expectedRevision: UInt64?) throws  -> DocumentUpdate
+    
+    /**
+     * A text layer's live source (the draft while one is pending).
+     */
+    func textLayer(layer: UInt64) throws  -> TextLayerRecord
+    
+    /**
      * Starts a stroke of `tool` on `layer`'s pixels or mask with `brush` and
      * `color` (the foreground colour; a mask takes its luminance). Commits a
      * pending drag first; a stroke already open is committed. The selection
@@ -4794,6 +4896,21 @@ open func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32)throw
 }
     
     /**
+     * Drops a pending live-source draft (a text draft, and with B5-11 a shape
+     * draft) with no history change; the viewport returns to the committed
+     * state. Pending drags of other controls, strokes, style and filter
+     * previews are untouched. Without a source draft nothing happens.
+     */
+open func cancelSourcePreview()throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_source_preview(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Jumps to any retained history state.
      */
 open func checkoutHistory(id: UInt64)throws  -> DocumentUpdate  {
@@ -4851,6 +4968,23 @@ open func compositeThumbnail(maxPx: UInt32)throws  -> UInt32  {
     uniffi_tessera_ffi_fn_method_documentsession_composite_thumbnail(
             self.uniffiCloneHandle(),
         FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Rasterizes an editable text (or shape) layer into a pixel layer at
+     * document depth as one history node ("Convert to Pixels"), keeping its
+     * id, name, properties, layer styles, raster and vector masks. Undo
+     * restores the exact editable source. Pixel/all locks and other layer
+     * kinds fail without change. A pending draft is committed first.
+     */
+open func convertToPixels(layer: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_convert_to_pixels(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
     )
 })
 }
@@ -6043,6 +6177,208 @@ open func retouchModels()throws  -> [RetouchModel]  {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_documentsession_retouch_models(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Whether Copy Layer Style has something to paste.
+     */
+open func canPasteLayerStyles() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_can_paste_layer_styles(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Clear Layer Style: removes every effect (Scale Effects back to 100 %)
+     * as one history node.
+     */
+open func clearLayerStyles(layer: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_clear_layer_styles(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Copy Layer Style: remembers the layer's effects and Scale Effects
+     * (application-wide). Records no history.
+     */
+open func copyLayerStyles(from: UInt64)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_copy_layer_styles(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(from),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * The document's Global Light (live state).
+     */
+open func globalLight()throws  -> GlobalLightRecord  {
+    return try  FfiConverterTypeGlobalLightRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_global_light(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Every layer with at least one effect, in `layers()` order.
+     */
+open func layerStyleSummaries()throws  -> [LayerStyleSummary]  {
+    return try  FfiConverterSequenceTypeLayerStyleSummary.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_layer_style_summaries(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The layer's styles as `LayerStyles` JSON (live state: shows a drag).
+     */
+open func layerStylesJson(layer: UInt64)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_layer_styles_json(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Paste Layer Style onto every layer of `to`: one history node.
+     */
+open func pasteLayerStyles(to: [UInt64])throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_paste_layer_styles(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(to),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Layer ▸ Layer Style ▸ Global Light: every effect with Use Global Light
+     * follows it. `interactive` as for `set_layer_styles_json`.
+     */
+open func setGlobalLight(angle: Float, altitude: Float, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_global_light(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(angle),
+        FfiConverterFloat.lower(altitude),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces the layer's styles (`LayerStyles` JSON), keeping every other
+     * property. `interactive`: live only, no history node until `commit`
+     * (an inspector slider drag). Refused on locked (Lock All) layers,
+     * adjustment layers and pass-through groups.
+     */
+open func setLayerStylesJson(layer: UInt64, json: String, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_layer_styles_json(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(json),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds a text layer named `name` (empty: the first line of its text) at
+     * bottom-first `index` of `parent` (`None`: root; index `None`: on top).
+     * `interactive`: a draft shown on the scratch, no history, the layer is
+     * provisional until the final call (or `commit`); the final call records
+     * one "Add Text" node whose `created` holds the new id.
+     */
+open func addTextLayer(name: String, parent: UInt64?, index: UInt32?, modelJson: String, transform: TransformMatrix, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_add_text_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionUInt64.lower(parent),
+        FfiConverterOptionUInt32.lower(index),
+        FfiConverterString.lower(modelJson),
+        FfiConverterTypeTransformMatrix_lower(transform),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces runs `start_run..end_run` (half-open RUN indexes, not text
+     * offsets; an empty range inserts) with `runs_json` (a JSON array of
+     * `typography::TextRun`), as one history node. Paragraph, box, warp and
+     * path are kept. Fails without change for reversed/out-of-range
+     * indexes, a stale `expected_revision`, or while a text draft of the
+     * layer is pending (apply or cancel it first).
+     */
+open func editTextRuns(layer: UInt64, startRun: UInt32, endRun: UInt32, runsJson: String, expectedRevision: UInt64?)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_edit_text_runs(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(startRun),
+        FfiConverterUInt32.lower(endRun),
+        FfiConverterString.lower(runsJson),
+        FfiConverterOptionUInt64.lower(expectedRevision),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces a text layer's source and transform. `interactive`: a draft
+     * (see the module docs); otherwise one history node — an
+     * `EditTextRuns` splice when only runs changed — or nothing when the
+     * model equals the committed layer. `expected_revision` (from
+     * `text_layer`) rejects edits of a layer that changed meanwhile. Locks:
+     * pixel/all reject content edits, position rejects transform changes.
+     */
+open func setTextLayer(layer: UInt64, modelJson: String, transform: TransformMatrix, interactive: Bool, expectedRevision: UInt64?)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_text_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(modelJson),
+        FfiConverterTypeTransformMatrix_lower(transform),
+        FfiConverterBool.lower(interactive),
+        FfiConverterOptionUInt64.lower(expectedRevision),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A text layer's live source (the draft while one is pending).
+     */
+open func textLayer(layer: UInt64)throws  -> TextLayerRecord  {
+    return try  FfiConverterTypeTextLayerRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_text_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
     )
 })
 }
@@ -14616,6 +14952,64 @@ public func FfiConverterTypeFrameInfo_lower(_ value: FrameInfo) -> RustBuffer {
 }
 
 
+/**
+ * The document's light: `angle` in degrees (0 lights from the right, 90
+ * from above), `altitude` (elevation) in `0…90` degrees.
+ */
+public struct GlobalLightRecord: Equatable, Hashable {
+    public var angle: Float
+    public var altitude: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(angle: Float, altitude: Float) {
+        self.angle = angle
+        self.altitude = altitude
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GlobalLightRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGlobalLightRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GlobalLightRecord {
+        return
+            try GlobalLightRecord(
+                angle: FfiConverterFloat.read(from: &buf), 
+                altitude: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GlobalLightRecord, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.angle, into: &buf)
+        FfiConverterFloat.write(value.altitude, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGlobalLightRecord_lift(_ buf: RustBuffer) throws -> GlobalLightRecord {
+    return try FfiConverterTypeGlobalLightRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGlobalLightRecord_lower(_ value: GlobalLightRecord) -> RustBuffer {
+    return FfiConverterTypeGlobalLightRecord.lower(value)
+}
+
+
 public struct GroupDecision: Equatable, Hashable {
     public var best: String
     public var rejected: UInt32
@@ -16440,6 +16834,64 @@ public func FfiConverterTypeLayerPropsRecord_lift(_ buf: RustBuffer) throws -> L
 #endif
 public func FfiConverterTypeLayerPropsRecord_lower(_ value: LayerPropsRecord) -> RustBuffer {
     return FfiConverterTypeLayerPropsRecord.lower(value)
+}
+
+
+/**
+ * The effects of one styled layer in the engine's stacking order, **top
+ * first** (the order the Layers panel and the inspector list them).
+ */
+public struct LayerStyleSummary: Equatable, Hashable {
+    public var layer: UInt64
+    public var effects: [StyleEffectSummary]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(layer: UInt64, effects: [StyleEffectSummary]) {
+        self.layer = layer
+        self.effects = effects
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LayerStyleSummary: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLayerStyleSummary: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LayerStyleSummary {
+        return
+            try LayerStyleSummary(
+                layer: FfiConverterUInt64.read(from: &buf), 
+                effects: FfiConverterSequenceTypeStyleEffectSummary.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LayerStyleSummary, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterSequenceTypeStyleEffectSummary.write(value.effects, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerStyleSummary_lift(_ buf: RustBuffer) throws -> LayerStyleSummary {
+    return try FfiConverterTypeLayerStyleSummary.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerStyleSummary_lower(_ value: LayerStyleSummary) -> RustBuffer {
+    return FfiConverterTypeLayerStyleSummary.lower(value)
 }
 
 
@@ -22348,6 +22800,79 @@ public func FfiConverterTypeStrokeSample_lower(_ value: StrokeSample) -> RustBuf
 }
 
 
+/**
+ * One effect of a styled layer, for the Layers panel's effect rows.
+ */
+public struct StyleEffectSummary: Equatable, Hashable {
+    /**
+     * Index into the layer's `effects` (the JSON array).
+     */
+    public var index: UInt32
+    /**
+     * Serde kind name (`drop_shadow`, `stroke`, …).
+     */
+    public var kind: String
+    public var enabled: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Index into the layer's `effects` (the JSON array).
+         */index: UInt32, 
+        /**
+         * Serde kind name (`drop_shadow`, `stroke`, …).
+         */kind: String, enabled: Bool) {
+        self.index = index
+        self.kind = kind
+        self.enabled = enabled
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension StyleEffectSummary: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStyleEffectSummary: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StyleEffectSummary {
+        return
+            try StyleEffectSummary(
+                index: FfiConverterUInt32.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StyleEffectSummary, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStyleEffectSummary_lift(_ buf: RustBuffer) throws -> StyleEffectSummary {
+    return try FfiConverterTypeStyleEffectSummary.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStyleEffectSummary_lower(_ value: StyleEffectSummary) -> RustBuffer {
+    return FfiConverterTypeStyleEffectSummary.lower(value)
+}
+
+
 public struct StyleProfileStatus: Equatable, Hashable {
     public var libraryId: String
     /**
@@ -22750,6 +23275,543 @@ public func FfiConverterTypeTetherFrame_lift(_ buf: RustBuffer) throws -> Tether
 #endif
 public func FfiConverterTypeTetherFrame_lower(_ value: TetherFrame) -> RustBuffer {
     return FfiConverterTypeTetherFrame.lower(value)
+}
+
+
+/**
+ * One installed font face.
+ */
+public struct TextFontFace: Equatable, Hashable {
+    public var postScriptName: String
+    public var weight: UInt16
+    public var italic: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(postScriptName: String, weight: UInt16, italic: Bool) {
+        self.postScriptName = postScriptName
+        self.weight = weight
+        self.italic = italic
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextFontFace: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextFontFace: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextFontFace {
+        return
+            try TextFontFace(
+                postScriptName: FfiConverterString.read(from: &buf), 
+                weight: FfiConverterUInt16.read(from: &buf), 
+                italic: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextFontFace, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.postScriptName, into: &buf)
+        FfiConverterUInt16.write(value.weight, into: &buf)
+        FfiConverterBool.write(value.italic, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextFontFace_lift(_ buf: RustBuffer) throws -> TextFontFace {
+    return try FfiConverterTypeTextFontFace.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextFontFace_lower(_ value: TextFontFace) -> RustBuffer {
+    return FfiConverterTypeTextFontFace.lower(value)
+}
+
+
+/**
+ * One installed family (the Character panel's font menu).
+ */
+public struct TextFontFamily: Equatable, Hashable {
+    public var family: String
+    public var faces: [TextFontFace]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(family: String, faces: [TextFontFace]) {
+        self.family = family
+        self.faces = faces
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextFontFamily: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextFontFamily: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextFontFamily {
+        return
+            try TextFontFamily(
+                family: FfiConverterString.read(from: &buf), 
+                faces: FfiConverterSequenceTypeTextFontFace.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextFontFamily, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.family, into: &buf)
+        FfiConverterSequenceTypeTextFontFace.write(value.faces, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextFontFamily_lift(_ buf: RustBuffer) throws -> TextFontFamily {
+    return try FfiConverterTypeTextFontFamily.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextFontFamily_lower(_ value: TextFontFamily) -> RustBuffer {
+    return FfiConverterTypeTextFontFamily.lower(value)
+}
+
+
+/**
+ * A positioned glyph of [`layout_text`], in local level-0 pixels.
+ */
+public struct TextGlyphRecord: Equatable, Hashable {
+    /**
+     * Run index in the model.
+     */
+    public var run: UInt32
+    /**
+     * UTF-8 byte offset of the glyph's shaping cluster in the concatenated
+     * run text. Ligatures and combining sequences share one cluster.
+     */
+    public var cluster: UInt32
+    /**
+     * Pen origin (x) and baseline position (y, positive down).
+     */
+    public var x: Float
+    public var y: Float
+    public var advance: Float
+    /**
+     * Clockwise rotation in radians (non-zero on path text only).
+     */
+    public var angle: Float
+    /**
+     * The glyph belongs to a right-to-left bidi run (visual order runs
+     * right to left through its clusters).
+     */
+    public var rtl: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Run index in the model.
+         */run: UInt32, 
+        /**
+         * UTF-8 byte offset of the glyph's shaping cluster in the concatenated
+         * run text. Ligatures and combining sequences share one cluster.
+         */cluster: UInt32, 
+        /**
+         * Pen origin (x) and baseline position (y, positive down).
+         */x: Float, y: Float, advance: Float, 
+        /**
+         * Clockwise rotation in radians (non-zero on path text only).
+         */angle: Float, 
+        /**
+         * The glyph belongs to a right-to-left bidi run (visual order runs
+         * right to left through its clusters).
+         */rtl: Bool) {
+        self.run = run
+        self.cluster = cluster
+        self.x = x
+        self.y = y
+        self.advance = advance
+        self.angle = angle
+        self.rtl = rtl
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextGlyphRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextGlyphRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextGlyphRecord {
+        return
+            try TextGlyphRecord(
+                run: FfiConverterUInt32.read(from: &buf), 
+                cluster: FfiConverterUInt32.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                advance: FfiConverterFloat.read(from: &buf), 
+                angle: FfiConverterFloat.read(from: &buf), 
+                rtl: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextGlyphRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.run, into: &buf)
+        FfiConverterUInt32.write(value.cluster, into: &buf)
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.advance, into: &buf)
+        FfiConverterFloat.write(value.angle, into: &buf)
+        FfiConverterBool.write(value.rtl, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextGlyphRecord_lift(_ buf: RustBuffer) throws -> TextGlyphRecord {
+    return try FfiConverterTypeTextGlyphRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextGlyphRecord_lower(_ value: TextGlyphRecord) -> RustBuffer {
+    return FfiConverterTypeTextGlyphRecord.lower(value)
+}
+
+
+/**
+ * A text layer's live source.
+ */
+public struct TextLayerRecord: Equatable, Hashable {
+    public var id: UInt64
+    /**
+     * `typography::TextModel` JSON of the live state (the draft while one
+     * is pending).
+     */
+    public var modelJson: String
+    /**
+     * Local level-0 pixels → document pixels.
+     */
+    public var transform: TransformMatrix
+    /**
+     * Content revision of the COMMITTED layer: pass it back as
+     * `expected_revision` so an edit fails if the layer changed meanwhile.
+     */
+    public var revision: UInt64
+    /**
+     * A text draft of this layer is pending (not yet in history).
+     */
+    public var draftPending: Bool
+    /**
+     * Point or paragraph text without warp or path: canvas caret placement
+     * is supported. Warped/path text keeps its data and rendering and edits
+     * through the labelled source editor only; vertical text is unsupported.
+     */
+    public var caretEditable: Bool
+    /**
+     * Human-readable limitations that apply to this layer (missing fonts,
+     * warp/path/vertical caret, colour interpretation).
+     */
+    public var limitations: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, 
+        /**
+         * `typography::TextModel` JSON of the live state (the draft while one
+         * is pending).
+         */modelJson: String, 
+        /**
+         * Local level-0 pixels → document pixels.
+         */transform: TransformMatrix, 
+        /**
+         * Content revision of the COMMITTED layer: pass it back as
+         * `expected_revision` so an edit fails if the layer changed meanwhile.
+         */revision: UInt64, 
+        /**
+         * A text draft of this layer is pending (not yet in history).
+         */draftPending: Bool, 
+        /**
+         * Point or paragraph text without warp or path: canvas caret placement
+         * is supported. Warped/path text keeps its data and rendering and edits
+         * through the labelled source editor only; vertical text is unsupported.
+         */caretEditable: Bool, 
+        /**
+         * Human-readable limitations that apply to this layer (missing fonts,
+         * warp/path/vertical caret, colour interpretation).
+         */limitations: [String]) {
+        self.id = id
+        self.modelJson = modelJson
+        self.transform = transform
+        self.revision = revision
+        self.draftPending = draftPending
+        self.caretEditable = caretEditable
+        self.limitations = limitations
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextLayerRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextLayerRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextLayerRecord {
+        return
+            try TextLayerRecord(
+                id: FfiConverterUInt64.read(from: &buf), 
+                modelJson: FfiConverterString.read(from: &buf), 
+                transform: FfiConverterTypeTransformMatrix.read(from: &buf), 
+                revision: FfiConverterUInt64.read(from: &buf), 
+                draftPending: FfiConverterBool.read(from: &buf), 
+                caretEditable: FfiConverterBool.read(from: &buf), 
+                limitations: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextLayerRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterString.write(value.modelJson, into: &buf)
+        FfiConverterTypeTransformMatrix.write(value.transform, into: &buf)
+        FfiConverterUInt64.write(value.revision, into: &buf)
+        FfiConverterBool.write(value.draftPending, into: &buf)
+        FfiConverterBool.write(value.caretEditable, into: &buf)
+        FfiConverterSequenceString.write(value.limitations, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayerRecord_lift(_ buf: RustBuffer) throws -> TextLayerRecord {
+    return try FfiConverterTypeTextLayerRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayerRecord_lower(_ value: TextLayerRecord) -> RustBuffer {
+    return FfiConverterTypeTextLayerRecord.lower(value)
+}
+
+
+public struct TextLayoutRecord: Equatable, Hashable {
+    public var glyphs: [TextGlyphRecord]
+    public var lines: [TextLineRecord]
+    /**
+     * Paragraph text whose lines do not fit the box (hidden lines are not
+     * listed) or an unbreakable token wider than the box.
+     */
+    public var overflow: Bool
+    /**
+     * UTF-8 length of the concatenated source.
+     */
+    public var textLen: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(glyphs: [TextGlyphRecord], lines: [TextLineRecord], 
+        /**
+         * Paragraph text whose lines do not fit the box (hidden lines are not
+         * listed) or an unbreakable token wider than the box.
+         */overflow: Bool, 
+        /**
+         * UTF-8 length of the concatenated source.
+         */textLen: UInt32) {
+        self.glyphs = glyphs
+        self.lines = lines
+        self.overflow = overflow
+        self.textLen = textLen
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextLayoutRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextLayoutRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextLayoutRecord {
+        return
+            try TextLayoutRecord(
+                glyphs: FfiConverterSequenceTypeTextGlyphRecord.read(from: &buf), 
+                lines: FfiConverterSequenceTypeTextLineRecord.read(from: &buf), 
+                overflow: FfiConverterBool.read(from: &buf), 
+                textLen: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextLayoutRecord, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeTextGlyphRecord.write(value.glyphs, into: &buf)
+        FfiConverterSequenceTypeTextLineRecord.write(value.lines, into: &buf)
+        FfiConverterBool.write(value.overflow, into: &buf)
+        FfiConverterUInt32.write(value.textLen, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayoutRecord_lift(_ buf: RustBuffer) throws -> TextLayoutRecord {
+    return try FfiConverterTypeTextLayoutRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayoutRecord_lower(_ value: TextLayoutRecord) -> RustBuffer {
+    return FfiConverterTypeTextLayoutRecord.lower(value)
+}
+
+
+/**
+ * A laid-out line: `glyph_start..glyph_end` index `glyphs` in visual order.
+ */
+public struct TextLineRecord: Equatable, Hashable {
+    /**
+     * UTF-8 source range of the line, including a trailing separator.
+     */
+    public var sourceStart: UInt32
+    public var sourceEnd: UInt32
+    public var glyphStart: UInt32
+    public var glyphEnd: UInt32
+    public var x: Float
+    public var baseline: Float
+    public var width: Float
+    /**
+     * `None` for point text (unbounded).
+     */
+    public var availableWidth: Float?
+    /**
+     * Caret extent above / below the baseline (0.9 / 0.25 of the largest
+     * run size on the line; caret metrics, not font ascenders).
+     */
+    public var ascent: Float
+    public var descent: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * UTF-8 source range of the line, including a trailing separator.
+         */sourceStart: UInt32, sourceEnd: UInt32, glyphStart: UInt32, glyphEnd: UInt32, x: Float, baseline: Float, width: Float, 
+        /**
+         * `None` for point text (unbounded).
+         */availableWidth: Float?, 
+        /**
+         * Caret extent above / below the baseline (0.9 / 0.25 of the largest
+         * run size on the line; caret metrics, not font ascenders).
+         */ascent: Float, descent: Float) {
+        self.sourceStart = sourceStart
+        self.sourceEnd = sourceEnd
+        self.glyphStart = glyphStart
+        self.glyphEnd = glyphEnd
+        self.x = x
+        self.baseline = baseline
+        self.width = width
+        self.availableWidth = availableWidth
+        self.ascent = ascent
+        self.descent = descent
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextLineRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextLineRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextLineRecord {
+        return
+            try TextLineRecord(
+                sourceStart: FfiConverterUInt32.read(from: &buf), 
+                sourceEnd: FfiConverterUInt32.read(from: &buf), 
+                glyphStart: FfiConverterUInt32.read(from: &buf), 
+                glyphEnd: FfiConverterUInt32.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf), 
+                baseline: FfiConverterFloat.read(from: &buf), 
+                width: FfiConverterFloat.read(from: &buf), 
+                availableWidth: FfiConverterOptionFloat.read(from: &buf), 
+                ascent: FfiConverterFloat.read(from: &buf), 
+                descent: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextLineRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.sourceStart, into: &buf)
+        FfiConverterUInt32.write(value.sourceEnd, into: &buf)
+        FfiConverterUInt32.write(value.glyphStart, into: &buf)
+        FfiConverterUInt32.write(value.glyphEnd, into: &buf)
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.baseline, into: &buf)
+        FfiConverterFloat.write(value.width, into: &buf)
+        FfiConverterOptionFloat.write(value.availableWidth, into: &buf)
+        FfiConverterFloat.write(value.ascent, into: &buf)
+        FfiConverterFloat.write(value.descent, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLineRecord_lift(_ buf: RustBuffer) throws -> TextLineRecord {
+    return try FfiConverterTypeTextLineRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLineRecord_lower(_ value: TextLineRecord) -> RustBuffer {
+    return FfiConverterTypeTextLineRecord.lower(value)
 }
 
 
@@ -29793,6 +30855,31 @@ fileprivate struct FfiConverterSequenceTypeLayerNode: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeLayerStyleSummary: FfiConverterRustBuffer {
+    typealias SwiftType = [LayerStyleSummary]
+
+    public static func write(_ value: [LayerStyleSummary], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLayerStyleSummary.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LayerStyleSummary] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LayerStyleSummary]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLayerStyleSummary.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeLibraryChange: FfiConverterRustBuffer {
     typealias SwiftType = [LibraryChange]
 
@@ -30593,6 +31680,31 @@ fileprivate struct FfiConverterSequenceTypeStrokeSample: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeStyleEffectSummary: FfiConverterRustBuffer {
+    typealias SwiftType = [StyleEffectSummary]
+
+    public static func write(_ value: [StyleEffectSummary], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeStyleEffectSummary.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [StyleEffectSummary] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [StyleEffectSummary]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeStyleEffectSummary.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTetherDevice: FfiConverterRustBuffer {
     typealias SwiftType = [TetherDevice]
 
@@ -30635,6 +31747,106 @@ fileprivate struct FfiConverterSequenceTypeTetherFrame: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeTetherFrame.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTextFontFace: FfiConverterRustBuffer {
+    typealias SwiftType = [TextFontFace]
+
+    public static func write(_ value: [TextFontFace], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTextFontFace.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TextFontFace] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TextFontFace]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTextFontFace.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTextFontFamily: FfiConverterRustBuffer {
+    typealias SwiftType = [TextFontFamily]
+
+    public static func write(_ value: [TextFontFamily], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTextFontFamily.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TextFontFamily] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TextFontFamily]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTextFontFamily.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTextGlyphRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [TextGlyphRecord]
+
+    public static func write(_ value: [TextGlyphRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTextGlyphRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TextGlyphRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TextGlyphRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTextGlyphRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTextLineRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [TextLineRecord]
+
+    public static func write(_ value: [TextLineRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTextLineRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TextLineRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TextLineRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTextLineRecord.read(from: &buf))
         }
         return seq
     }
@@ -30771,6 +31983,49 @@ public func neuralFilters() -> [NeuralFilterInfo]  {
 })
 }
 /**
+ * The effect kinds `LayerStyles` JSON may hold, their fields (JSON keys of
+ * `settings`) with UI ranges, defaults and flags, top first in the engine's
+ * stacking order. Field `type`s: `number` (`min`/`max` in stored units,
+ * shown × `display_scale` with `unit`), `angle` (degrees), `bool`, `color`
+ * (straight RGBA), `blend_mode` (a `blend_mode_names()` name), `enum`
+ * (`options`), `fill` (`compositor::Fill` JSON). `metadata` fields are
+ * preserved but not rendered. `repeatable` kinds may appear more than once;
+ * `global_light` kinds follow Use Global Light; `psd` kinds survive a PSD
+ * save (solid fills only, one of each).
+ */
+public func styleEffectsSchemaJson() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_style_effects_schema_json(uniffiCallStatus
+    )
+})
+}
+/**
+ * Installed font families of the shared snapshot, sorted by family name
+ * (the Character panel's font menu). Faces are sorted by weight, upright
+ * first.
+ */
+public func availableTextFonts() -> [TextFontFamily]  {
+    return try!  FfiConverterSequenceTypeTextFontFamily.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_available_text_fonts(uniffiCallStatus
+    )
+})
+}
+/**
+ * The engine's layout of a text model (local level-0 pixels) over the shared
+ * font snapshot: the host's caret, selection and hit-test oracle. Path text
+ * is laid out on its path (glyph angles set). Missing fonts fail.
+ */
+public func layoutText(modelJson: String)throws  -> TextLayoutRecord  {
+    return try  FfiConverterTypeTextLayoutRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_layout_text(
+        FfiConverterString.lower(modelJson),uniffiCallStatus
+    )
+})
+}
+/**
  * A preview of tip `id` (or the computed round tip of `hardness` for
  * `round:<hardness>`) at most `max_px` on the long edge.
  */
@@ -30899,6 +32154,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_neural_filters() != 17162) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_style_effects_schema_json() != 46429) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_available_text_fonts() != 13851) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_layout_text() != 33596) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_brush_tip_preview() != 21691) {
@@ -31420,6 +32684,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_attach_surface() != 28001) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_source_preview() != 7203) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_checkout_history() != 36125) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -31433,6 +32700,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_composite_thumbnail() != 25656) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_convert_to_pixels() != 48748) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_detach_surfaces() != 37376) {
@@ -31694,6 +32964,45 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_retouch_models() != 9959) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_can_paste_layer_styles() != 15469) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_layer_styles() != 11243) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_copy_layer_styles() != 40526) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_global_light() != 15945) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_layer_style_summaries() != 13617) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_layer_styles_json() != 13000) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_paste_layer_styles() != 44262) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_global_light() != 38883) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_layer_styles_json() != 39086) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_add_text_layer() != 4190) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_edit_text_runs() != 950) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_text_layer() != 56309) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_text_layer() != 61416) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_begin_stroke() != 7153) {

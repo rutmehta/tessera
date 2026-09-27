@@ -49,6 +49,7 @@ struct AISettingsView: View {
                 }
             }
             KeywordsCaptionsSettingsSection(model: model)
+            ModelDownloadsSettingsSection()
             StyleProfileSection(agent: agent, model: model)
         }
         .formStyle(.grouped)

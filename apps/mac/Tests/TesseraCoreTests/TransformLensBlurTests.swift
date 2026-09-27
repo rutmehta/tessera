@@ -101,7 +101,9 @@ final class TransformLensBlurTests: XCTestCase {
         XCTAssertEqual(json(AIDenoise.amount.patch(140)), #"{"denoise":{"amount":100}}"#)
         XCTAssertEqual(AIDenoise.amount.defaultValue, 50)
         XCTAssertEqual(AIDenoise.historyLabel(true), "AI Denoise On")
-        XCTAssertNotNil(DevelopEngineGaps.aiDenoise, "enable the toggle (and update ACCEPTANCE X) once the engine renders and exports it")
+        // M2-51: the engine renders and exports it (M2-49); the toggle acquires the model first.
+        XCTAssertEqual(ModelRequirement.cfaDenoise.id, AIDenoise.modelID)
+        XCTAssertEqual(ModelRequirement.cfaDenoise.version, AIDenoise.modelVersion)
     }
 
     // MARK: Lens Blur
@@ -115,7 +117,15 @@ final class TransformLensBlurTests: XCTestCase {
         settings = DevelopController.merge(settings, LensBlurControls.bokehPatch(.hexagon), keepNulls: false)
         XCTAssertEqual(LensBlurControls.bokeh(in: settings), .hexagon)
         XCTAssertEqual(json(LensBlurControls.amount.patch(30)), #"{"effects":{"lens_blur":{"amount":30}}}"#)
-        XCTAssertEqual(BokehShape.allCases.map(\.rawValue), ["circle", "hexagon", "octagon"], "the engine's supported ids")
+        XCTAssertEqual(BokehShape.allCases.map(\.rawValue), ["circle", "bubble", "5-blade", "hexagon", "octagon", "ring", "cat-eye", "oval"],
+                       "every distinct aperture crates/pipeline-cpu/src/lens_blur.rs accepts")
+        XCTAssertEqual(BokehShape.allCases.map(\.title), ["Circle", "Bubble", "5-Blade", "Hexagon", "Octagon", "Ring", "Cat Eye", "Oval"])
+        XCTAssertEqual(json(LensBlurControls.bokehPatch(.catEye)), #"{"effects":{"lens_blur":{"bokeh":"cat-eye"}}}"#)
+        for (alias, shape) in [("disc", BokehShape.circle), ("pentagon", .fiveBlade), ("five-blade", .fiveBlade),
+                               ("cat_eye", .catEye), ("cat eye", .catEye), ("anamorphic", .oval), ("ring", .ring)] {
+            XCTAssertEqual(LensBlurControls.bokeh(in: ["effects": ["lens_blur": ["bokeh": alias]]]), shape, alias)
+        }
+        XCTAssertEqual(LensBlurControls.bokeh(in: ["effects": ["lens_blur": ["bokeh": "bogus"]]]), .circle)
 
         XCTAssertEqual(FocalRange(settings: settings), .standard)
         var r = FocalRange(near: 0.6, far: 0.2)
@@ -133,7 +143,11 @@ final class TransformLensBlurTests: XCTestCase {
         let settled = DevelopController.merge(settings, FocalRange(near: 0.25, far: 0.5).patch, keepNulls: false)
         XCTAssertEqual(FocalRange(settings: settled), FocalRange(near: 0.25, far: 0.5))
         XCTAssertEqual(FocalRange(near: 1, far: 1).near, 0.98, accuracy: 1e-12)
-        XCTAssertNotNil(DevelopEngineGaps.lensBlur, "enable the Lens Blur panel once the engine renders it")
+        XCTAssertEqual(LensBlurControls.subjectHistoryLabel(FocalRange(near: 0.3, far: 0.45)), "Focal Range: Subject 30–45")
+        // M2-51: Lens Blur, its depth histogram, Visualize Depth and Subject are enabled; the
+        // Refine brushes and Constrain Crop stay engine gaps.
+        XCTAssertNotNil(DevelopEngineGaps.lensBlurRefine, "no engine brush for depth refinement yet")
+        XCTAssertNotNil(DevelopEngineGaps.constrainCrop, "the engine still does not render Constrain Crop")
     }
 }
 
