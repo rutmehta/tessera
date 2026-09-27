@@ -53,6 +53,15 @@ mod filtering;
 mod channels;
 pub use channels::{ChannelRecord, ChannelUpdate, DocChannelKind};
 // B5-08 end
+// B5-10 begin: editable text layers (Type tool).
+#[path = "document/text.rs"]
+mod text;
+pub use text::{
+    TextFontFace, TextFontFamily, TextGlyphRecord, TextLayerRecord, TextLayoutRecord,
+    TextLineRecord, TextRunSplice, available_text_fonts, layout_text, load_text_fonts_for_tests,
+    text_run_splice,
+};
+// B5-10 end
 pub use filtering::{
     DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
     SmartFilterEdit, SmartFilterRecord, list_filters,
@@ -647,7 +656,29 @@ enum Pending {
     Props(u64),
     Adjustment(u64),
     Fill(u64),
+    // B5-10 begin: a live-source draft (text; B5-11 adds its shape keys).
+    /// A text draft of a layer, or (`None`) of a layer the draft adds.
+    Text(Option<u64>),
+    // B5-10 end
 }
+
+// B5-10 begin: live-source drafts (shared by text and, with B5-11, shapes).
+impl Pending {
+    /// Drafts of editable live sources: `cancel_source_preview` drops only these.
+    fn is_source(self) -> bool {
+        matches!(self, Pending::Text(_))
+    }
+}
+
+/// A live-source draft's ops: `preview` is the COMPLETE draft (idempotent,
+/// applied to a scratch rebuilt from the committed base on every call, so
+/// relative run edits are never replayed against moved indexes); `commit`
+/// is the one op the final call records (`None`: the draft equals its base).
+pub(crate) struct SourceOps {
+    pub(crate) preview: DocOp,
+    pub(crate) commit: Option<DocOp>,
+}
+// B5-10 end
 
 pub(crate) struct State {
     doc: Document,
@@ -1091,6 +1122,70 @@ impl DocumentSession {
             .clone()
             .ok_or_else(|| failure(format!("layer {id} has no mask")))
     }
+
+    // B5-10 begin: live-source draft lifecycle (text now, shapes with B5-11).
+
+    /// A live-source draft under `key`. Only one gesture owns the scratch:
+    /// pending edits of other keys are committed first (their own node).
+    /// `make` sees the committed base and validates before anything changes.
+    ///
+    /// * `interactive`: the scratch is rebuilt from the committed document
+    ///   plus the complete `preview`; nothing is recorded. A draft equal to
+    ///   its base drops the pending entry.
+    /// * final: the `commit` op is recorded as one history node (none when
+    ///   the draft equals its base); the scratch goes. A failing final op
+    ///   restores the previous draft.
+    fn source_edit(
+        &self,
+        key: Pending,
+        interactive: bool,
+        make: impl FnOnce(&DocState) -> Result<SourceOps>,
+    ) -> Result<DocumentUpdate> {
+        let mut st = self.shared.lock()?;
+        st.open()?;
+        let before = st.live().state().clone();
+        if st.pending.iter().any(|(k, _)| *k != key) {
+            // Another control's drag is its own node; this draft is rebuilt
+            // from the new base below (every call carries the full draft).
+            st.pending.retain(|(k, _)| *k != key);
+            self.commit_pending(&mut st, None)?;
+        }
+        let ops = make(st.doc.state())?;
+        let had = st.pending.iter().any(|(k, _)| *k == key);
+        if interactive {
+            let Some(commit) = ops.commit else {
+                if had {
+                    st.pending.retain(|(k, _)| *k != key);
+                    st.scratch = None;
+                }
+                return Ok(self.update(&mut st, &before, None, false));
+            };
+            let mut scratch = st.doc.clone();
+            scratch.set_max_states(2);
+            let applied = scratch.apply(ops.preview)?;
+            st.scratch = Some(scratch);
+            st.pending.retain(|(k, _)| *k != key);
+            st.pending.push((key, commit));
+            let mut update = self.update(&mut st, &before, Some(&applied), false);
+            // A provisional layer id of the scratch is not a created layer.
+            update.created.clear();
+            return Ok(update);
+        }
+        let saved_scratch = st.scratch.take();
+        let saved_pending = std::mem::take(&mut st.pending);
+        let Some(op) = ops.commit else {
+            return Ok(self.update(&mut st, &before, None, had));
+        };
+        match st.doc.apply(op) {
+            Ok(applied) => Ok(self.update(&mut st, &before, Some(&applied), true)),
+            Err(e) => {
+                st.scratch = saved_scratch;
+                st.pending = saved_pending;
+                Err(e.into())
+            }
+        }
+    }
+    // B5-10 end
 }
 
 #[uniffi::export]
@@ -1605,6 +1700,66 @@ impl DocumentSession {
         }
         Ok(update)
     }
+
+    // B5-10 begin: live-source drafts and conversion.
+
+    /// Drops a pending live-source draft (a text draft, and with B5-11 a shape
+    /// draft) with no history change; the viewport returns to the committed
+    /// state. Pending drags of other controls, strokes, style and filter
+    /// previews are untouched. Without a source draft nothing happens.
+    pub fn cancel_source_preview(&self) -> Result<DocumentUpdate> {
+        let mut st = self.shared.lock()?;
+        st.open()?;
+        if !st.pending.iter().any(|(k, _)| k.is_source()) {
+            return Ok(DocumentUpdate {
+                layers_changed: Vec::new(),
+                created: Vec::new(),
+                history_head: st.doc.history().current(),
+                dirty_rect: None,
+                epoch: st.epoch,
+                dirty: st.dirty(),
+            });
+        }
+        let before = st.live().state().clone();
+        st.pending.retain(|(k, _)| !k.is_source());
+        st.scratch = None;
+        if !st.pending.is_empty() {
+            // Other keys' ops are absolute (whole props / parameters): rebuild them.
+            let mut scratch = st.doc.clone();
+            scratch.set_max_states(2);
+            let mut kept = Vec::new();
+            for (k, op) in std::mem::take(&mut st.pending) {
+                if scratch.apply(op.clone()).is_ok() {
+                    kept.push((k, op));
+                }
+            }
+            st.pending = kept;
+            st.scratch = Some(scratch);
+        }
+        Ok(self.update(&mut st, &before, None, false))
+    }
+
+    /// Rasterizes an editable text (or shape) layer into a pixel layer at
+    /// document depth as one history node ("Convert to Pixels"), keeping its
+    /// id, name, properties, layer styles, raster and vector masks. Undo
+    /// restores the exact editable source. Pixel/all locks and other layer
+    /// kinds fail without change. A pending draft is committed first.
+    pub fn convert_to_pixels(&self, layer: u64) -> Result<DocumentUpdate> {
+        {
+            let st = self.shared.lock()?;
+            let l = find(st.live().state(), layer)?;
+            if !matches!(l.kind, LayerKind::Text { .. } | LayerKind::Shape { .. }) {
+                return Err(failure(format!(
+                    "layer {layer} is not an editable text or shape layer"
+                )));
+            }
+        }
+        self.edit(
+            DocOp::ConvertToPixels { id: LayerId(layer) },
+            Some("Convert to Pixels"),
+        )
+    }
+    // B5-10 end
 
     // ───────────────────────────── history ─────────────────────────────
 

@@ -278,8 +278,13 @@ pub(crate) struct Renderer {
 impl Renderer {
     pub(crate) fn new(gpu: Option<Arc<DocGpu>>) -> Self {
         let (name, backend) = match gpu.map(|g| ResidentRenderer::new(&g.comp).map(|r| (g, r))) {
-            Some(Ok((gpu, resident))) => (
-                gpu.name.clone(),
+            Some(Ok((gpu, mut resident))) => (
+                // B5-10 begin: the shared font snapshot (Type tool layout = rendering).
+                {
+                    resident.set_text_renderer(super::text::shared_text_renderer());
+                    gpu.name.clone()
+                },
+                // B5-10 end
                 Backend::Gpu(Box::new(GpuBackend {
                     gpu,
                     resident,
@@ -293,7 +298,7 @@ impl Renderer {
                 }
                 (
                     "CPU".to_owned(),
-                    Backend::Cpu(Box::new(Compositor::new(256 << 20))),
+                    Backend::Cpu(Box::new(text_compositor(256 << 20))), // B5-10: shared fonts
                 )
             }
         };
@@ -612,7 +617,7 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
             e.width.max(e.height) <= max_px
         })
         .unwrap_or(MAX_VIEW_LEVEL - 1);
-    let tiles = Compositor::new(64 << 20).render_level(&doc, level, &CancellationToken::new())?;
+    let tiles = text_compositor(64 << 20).render_level(&doc, level, &CancellationToken::new())?; // B5-10
     let e = canvas.at_level(level);
     let surface = Surface::create_rgba8(e.width, e.height).map_err(failure)?;
     let mask = matches!(kind, ThumbKind::Mask(_));
@@ -658,7 +663,7 @@ pub(crate) fn composite_raster(
 ) -> Result<compositor::Raster> {
     // Smart filters are baked here (the compositor never evaluates them).
     let doc = &super::filtering::for_output(Document::new((**doc.state()).clone()))?;
-    let (e, mut rgba) = Compositor::new(128 << 20).render_level_rgba(doc, 0)?;
+    let (e, mut rgba) = text_compositor(128 << 20).render_level_rgba(doc, 0)?; // B5-10
     if let Some(bg) = over {
         for p in rgba.as_chunks_mut::<4>().0 {
             let a = p[3];
@@ -670,3 +675,12 @@ pub(crate) fn composite_raster(
     }
     raster_from_rgba(e, doc.state().depth, &rgba, skip_transparent)
 }
+
+// B5-10 begin: every compositor constructed here renders live text with the
+// shared font snapshot (document/text.rs), the one the Type tool lays out with.
+fn text_compositor(budget: usize) -> Compositor {
+    let c = Compositor::new(budget);
+    c.set_text_renderer(super::text::shared_text_renderer());
+    c
+}
+// B5-10 end

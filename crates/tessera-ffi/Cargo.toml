@@ -57,6 +57,8 @@ kamadak-exif.workspace = true
 half.workspace = true
 # Filters and smart filters in document mode (WP B5-05).
 filters = { path = "../filters" }
+# Editable text layers: layout for the Type tool's caret (WP B5-10).
+typography = { path = "../typography" }
 
 [dev-dependencies]
 import-lrcat = { path = "../import-lrcat", features = ["fixture"] }

@@ -1314,6 +1314,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_documentsession_add_mask(uint64_t ptr, u
 void uniffi_tessera_ffi_fn_method_documentsession_attach_surface(uint64_t ptr, uint32_t iosurface_id, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_CANCEL_SOURCE_PREVIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_CANCEL_SOURCE_PREVIEW
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_cancel_source_preview(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_CHECKOUT_HISTORY
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_CHECKOUT_HISTORY
 RustBuffer uniffi_tessera_ffi_fn_method_documentsession_checkout_history(uint64_t ptr, uint64_t id, RustCallStatus *_Nonnull out_status
@@ -1337,6 +1342,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_documentsession_commit(uint64_t ptr, Rus
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_COMPOSITE_THUMBNAIL
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_COMPOSITE_THUMBNAIL
 uint32_t uniffi_tessera_ffi_fn_method_documentsession_composite_thumbnail(uint64_t ptr, uint32_t max_px, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_CONVERT_TO_PIXELS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_CONVERT_TO_PIXELS
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_convert_to_pixels(uint64_t ptr, uint64_t layer, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_DETACH_SURFACES
@@ -1707,6 +1717,26 @@ uint32_t uniffi_tessera_ffi_fn_method_documentsession_smart_filter_mask_thumbnai
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SMART_FILTERS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SMART_FILTERS
 RustBuffer uniffi_tessera_ffi_fn_method_documentsession_smart_filters(uint64_t ptr, uint64_t layer, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_ADD_TEXT_LAYER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_ADD_TEXT_LAYER
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_add_text_layer(uint64_t ptr, RustBuffer name, RustBuffer parent, RustBuffer index, RustBuffer model_json, RustBuffer transform, int8_t interactive, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_EDIT_TEXT_RUNS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_EDIT_TEXT_RUNS
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_edit_text_runs(uint64_t ptr, uint64_t layer, uint32_t start_run, uint32_t end_run, RustBuffer runs_json, RustBuffer expected_revision, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SET_TEXT_LAYER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SET_TEXT_LAYER
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_set_text_layer(uint64_t ptr, uint64_t layer, RustBuffer model_json, RustBuffer transform, int8_t interactive, RustBuffer expected_revision, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_TEXT_LAYER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_TEXT_LAYER
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_text_layer(uint64_t ptr, uint64_t layer, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_BEGIN_STROKE
@@ -2312,6 +2342,17 @@ RustBuffer uniffi_tessera_ffi_fn_func_list_filters(RustCallStatus *_Nonnull out_
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_AVAILABLE_TEXT_FONTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_AVAILABLE_TEXT_FONTS
+RustBuffer uniffi_tessera_ffi_fn_func_available_text_fonts(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_LAYOUT_TEXT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_LAYOUT_TEXT
+RustBuffer uniffi_tessera_ffi_fn_func_layout_text(RustBuffer model_json, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_BRUSH_TIP_PREVIEW
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_BRUSH_TIP_PREVIEW
 RustBuffer uniffi_tessera_ffi_fn_func_brush_tip_preview(RustBuffer id, uint32_t max_px, RustCallStatus *_Nonnull out_status
@@ -2623,6 +2664,18 @@ uint16_t uniffi_tessera_ffi_checksum_func_blend_mode_names(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_LIST_FILTERS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_LIST_FILTERS
 uint16_t uniffi_tessera_ffi_checksum_func_list_filters(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_AVAILABLE_TEXT_FONTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_AVAILABLE_TEXT_FONTS
+uint16_t uniffi_tessera_ffi_checksum_func_available_text_fonts(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_LAYOUT_TEXT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_LAYOUT_TEXT
+uint16_t uniffi_tessera_ffi_checksum_func_layout_text(void
     
 );
 #endif
@@ -3604,6 +3657,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_attach_surface(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_CANCEL_SOURCE_PREVIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_CANCEL_SOURCE_PREVIEW
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_cancel_source_preview(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_CHECKOUT_HISTORY
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_CHECKOUT_HISTORY
 uint16_t uniffi_tessera_ffi_checksum_method_documentsession_checkout_history(void
@@ -3631,6 +3690,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_commit(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_COMPOSITE_THUMBNAIL
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_COMPOSITE_THUMBNAIL
 uint16_t uniffi_tessera_ffi_checksum_method_documentsession_composite_thumbnail(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_CONVERT_TO_PIXELS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_CONVERT_TO_PIXELS
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_convert_to_pixels(void
     
 );
 #endif
@@ -4075,6 +4140,30 @@ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_smart_filter_mask_th
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SMART_FILTERS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SMART_FILTERS
 uint16_t uniffi_tessera_ffi_checksum_method_documentsession_smart_filters(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_ADD_TEXT_LAYER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_ADD_TEXT_LAYER
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_add_text_layer(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_EDIT_TEXT_RUNS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_EDIT_TEXT_RUNS
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_edit_text_runs(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SET_TEXT_LAYER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SET_TEXT_LAYER
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_set_text_layer(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_TEXT_LAYER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_TEXT_LAYER
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_text_layer(void
     
 );
 #endif
