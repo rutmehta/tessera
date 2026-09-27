@@ -241,6 +241,9 @@ struct AppCommands: Commands {
             Button("Export Flat…") { docs.showExportFlat = true }
                 .shortcut(docMode, "e", [.command, .shift])
                 .disabled(doc == nil)
+            // B5-12: PSD refuses native-only transform / smart filter stacks; this copy rasterizes them.
+            Button("Save Rasterized PSD Copy…") { if let doc { DocumentTransforms.shared.saveRasterizedPSD(doc) } }
+                .disabled(doc == nil)
         }
         CommandMenu("Layer") { LayerMenu(doc: doc) }
         // Image ▸ Adjustments and Filter (WP B5-05).

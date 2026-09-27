@@ -67,6 +67,12 @@ final class SmartFilterOutline {
     }
 
     func edit(_ item: SmartFilterItem, doc: DocumentController, filters: DocumentFilters) {
+        // B5-12 begin: transform stages re-open their editor (neighbours, order and blending kept).
+        if item.row.filterId == "transform" {
+            DocumentTransforms.shared.editStage(doc, layer: item.layer, index: item.row.index)
+            return
+        }
+        // B5-12 end
         // B5-09 begin: neural smart filters re-edit in the Neural Filters sheet.
         if NeuralKind(filterId: item.row.filterId) != nil {
             DocumentRetouch.shared.editNeuralSmartFilter(doc, layer: item.layer, row: item.row)
