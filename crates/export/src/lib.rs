@@ -668,13 +668,11 @@ pub fn render_one_cancellable(
     if let Some(mark) = &settings.watermark {
         apply_watermark(&mut rgb, mark, cancel)?;
     }
-    // A developed DNG must not carry source development instructions, which
-    // another raw editor could apply a second time. Keep descriptive metadata.
-    let packet = if matches!(settings.format, Format::Dng) {
-        packet.map(|p| p.without_development()).transpose()?
-    } else {
-        packet
-    };
+    // Every rendered output already contains these adjustments. If CRS
+    // instructions survive in embedded or adjacent XMP, reopening the output
+    // as a new source applies them again. Keep descriptive metadata; original
+    // source-copy export has its own path and retains editable instructions.
+    let packet = packet.map(|p| p.without_development()).transpose()?;
     gpu::trace("CPU render/orient/resize/sharpen", started);
     Ok(RenderedExport {
         warnings,

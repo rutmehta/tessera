@@ -144,20 +144,24 @@ impl XmpPacket {
         )
     }
 
-    /// Remove baked development instructions without dropping camera or contact
-    /// metadata. Used by developed DNG, not original-raw copy exports.
+    /// Remove baked development instructions without dropping descriptive,
+    /// camera, contact, or exact custom-mark selection metadata. Original-raw
+    /// copy exports retain their editable development instructions.
     pub fn without_development(&self) -> EngineResult<Self> {
         let tree = Tree::parse(&self.xml)?;
         let mut owned = Vec::new();
+        let development = |ns: &str, local: &str| {
+            ns == CRS || (ns == PRIVATE && !matches!(local, "Mark" | "MarkLabel"))
+        };
         for desc in tree.descriptions() {
             for a in &desc.attrs {
-                if matches!(a.ns.as_str(), CRS | PRIVATE) {
+                if development(&a.ns, &a.local) {
                     owned.push((a.ns.as_str(), a.local.as_str()));
                 }
             }
             for &i in &desc.children {
                 let n = &tree.nodes[i];
-                if matches!(n.ns.as_str(), CRS | PRIVATE) {
+                if development(&n.ns, &n.local) {
                     owned.push((n.ns.as_str(), n.local.as_str()));
                 }
             }
