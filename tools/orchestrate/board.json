@@ -1147,7 +1147,7 @@
     "id": "M2-47",
     "owner": "astra",
     "title": "FFI: Photo Merge + Enhance",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1171,7 +1171,7 @@
     "id": "M2-49",
     "owner": "astra",
     "title": "Engine: Upright in loupe, AI Denoise + Lens Blur end to end",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1220,6 +1220,14 @@
     "owner": "sol",
     "title": "Verify Remove/CAF/Neural UI with real models",
     "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-50",
+    "owner": "opus",
+    "title": "Photo Merge + Enhance UI",
+    "status": "todo",
     "attempts": 0,
     "notes": ""
   }
