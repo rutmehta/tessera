@@ -2,7 +2,7 @@
 
 This is a durable transport for the existing Machine A and Machine B Codex chats.
 It never evaluates message text, launches Codex, wakes a chat, or installs a service.
-The existing same-chat heartbeat on each Mac supplies the wakeup. A successful
+A same-chat heartbeat on each Mac must supply the wakeup; B is not yet confirmed. A successful
 `send` means published; `accepted` means the receiving chat began handling it;
 `completed` means it reported a result. None substitutes for review or passing gates.
 
