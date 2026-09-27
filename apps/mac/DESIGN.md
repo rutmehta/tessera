@@ -438,7 +438,7 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   smart filter rows. The Properties panel lists effects under a *Layer Style* `SubHeader` (eye glyph, 11 pt name,
   tertiary size / angle readout) with a bordered *Edit…*. No new colours or sizes.
 * **Type tool and text (WP B5-10)**: on canvas only the on-image set: the text frame (point text: dashed layout bounds;
-  area text: the box, solid) in `OnImage.guide` over `OnImage.shadow`, eight square box handles like the transform
+  area text: the box, dashed too since B5-10c) in `OnImage.guide` over `OnImage.shadow`, eight square box handles like the transform
   handles, the selection as the accent at 35 % over the glyph boxes (content selection), marked IME text underlined in
   the accent, the caret a 1.5 pt accent line over a 3 pt `OnImage.shadow` line, blinking. The options bar holds the
   new-text font pop-up, size field and the neutral alignment `SegmentedPicker` (icons), then borderless Cancel and
@@ -448,6 +448,25 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   box kind as `InfoRow`s with a borderless convert action. Limitations are `warning` triangle + secondary caption
   lines at the top. Document mode's detail column has a 384 pt minimum so the sidebar and the inspector (288 pt
   minimum, unchanged) always fit the window; the status bar's canvas label truncates in the middle.
+* **Type tool fixes (WP B5-10c)**: the text frame is dashed 4 / 3 (1 pt `OnImage.guide` over a 2 pt `OnImage.shadow`)
+  for point and area text alike; box handles stay solid squares. The selection highlight covers each cluster's
+  **advance box** (origin to advance, ascent to descent of the line), not the ink: it extends past the glyph ink by
+  the side bearings (≈ 2–3 canvas px each side for 48 px Helvetica, ~5 device px at 200 %). This is intended and
+  matches Photoshop; verifiers should not flag it. A click resumes an existing point text within its line boxes
+  widened by a trailing margin of half the line height (at least 12 pt on screen) on both horizontal ends and 4 px
+  vertically (`TextHitRegion`); area text within its box + 4 px. The status bar hint is derived from the session
+  (`Point text: …` / `Area text: …` / the limitation) whenever it changes. The options-bar latency readout reads
+  `Keystroke → rendered frame: median … · p95 … (n keys, inactive time excluded)`.
+* **Shapes, Pen and vector masks (WP B5-11)** add no colour, size or font. Palette: Pen, Path / Direct Selection and a
+  shape slot (Rectangle, Ellipse, Polygon, Line) as 28 pt `IconButton`s. Options bar: fill / stroke checkboxes with
+  small colour wells, compact fields (Width, Radius, Sides, Inset, Weight), and a tertiary caption with the modifier
+  keys; Path Selection adds the "Move vector mask with shape" checkbox and a Combine pull-down. On the canvas only the
+  on-image set: paths and the affine box as `OnImage.guide` over `OnImage.shadow`, anchors as 7 pt squares (hollow
+  `OnImage.text`, filled `OnImage.guide` when selected, `OnImage.ink` outline), direction points as 6 pt circles on
+  guide lines, the vector mask outline dashed in `OnImage.guideFaint`. Properties for a shape: `SubHeader` groups
+  (Live <kind> or Custom Path, Fill, Stroke, Vector Mask, Interchange) of `DocSlider` rows, neutral `SegmentedPicker`s
+  (paint kind, alignment, caps, fill rule), `ThemeMenuStyle` pop-ups (gradient style, corners), a dash field, `Hint`s
+  for behaviour and warning `StatusLine`s for the engine's interchange and colour limitations.
 * **Warp, Perspective Warp, Puppet Warp, Content-Aware Scale (WP B5-12)** add no colour, size or font. On canvas only
   the on-image set: the child canvas the stage clips to as a dashed `OnImage.guideFaint` rectangle; the warp net's
   iso-curves, perspective planes and the content-aware box as 1 pt `OnImage.guide` over a 3 pt `OnImage.shadow`;

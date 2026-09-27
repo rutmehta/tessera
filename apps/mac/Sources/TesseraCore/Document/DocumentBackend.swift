@@ -75,6 +75,7 @@ public enum LayerKindTag: String, CaseIterable, Sendable, Codable {
     case pixel, adjustment, fill, group
     case smartObject = "smart_object"
     case text
+    case shape   // B5-11: editable vector shape (was reported as .fill)
 
     public var title: String {
         switch self {
@@ -84,6 +85,7 @@ public enum LayerKindTag: String, CaseIterable, Sendable, Codable {
         case .group: "Group"
         case .smartObject: "Smart Object"
         case .text: "Text"
+        case .shape: "Shape"   // B5-11
         }
     }
 }

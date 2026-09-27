@@ -202,6 +202,7 @@ final class DocumentTools {
         // B5-10 begin: leaving the Type tool applies the text being edited.
         if tool != .type, DocumentText.shared.isEditing(doc) { DocumentText.shared.apply() }
         // B5-10 end
+        DocumentVector.shared.toolSelected(tool)   // B5-11: finishes a Pen path, drops Path Selection's box
         doc.tool = tool
         if tool.isPlaceholder { say("\(tool.title): a placeholder in this build (arrives with a later work package)") }
         doc.viewport?.cursorDidChange()
@@ -216,6 +217,7 @@ final class DocumentTools {
         case .hand: return .openHand
         case .brush, .eraser, .cloneStamp, .heal, .quickSelect: return .crosshair
         case .type: return .iBeam   // B5-10
+        case let t where t.isVector: return DocumentVector.shared.cursor   // B5-11
         default: return .crosshair
         }
     }
@@ -229,6 +231,7 @@ final class DocumentTools {
 
     func mouseMoved(_ e: NSEvent, in v: DocumentViewportView) {
         pointer = v.convert(e.locationInWindow, from: nil)
+        DocumentVector.shared.mouseMoved(e, in: v)   // B5-11: the Pen's rubber band
         let c = CanvasPoint(v.canvasPoint(e))
         switch gesture {
         case .polygon(let pts, let op, _): gesture = .polygon(points: pts, op: op, hover: c)
@@ -315,6 +318,10 @@ final class DocumentTools {
         // B5-10 end
         case .crop:
             say("\(doc.tool.title): a placeholder in this build (arrives with a later work package)")
+        // B5-11 begin: shape tools, Pen, Path / Direct Selection (Document/Vector/DocumentVector.swift).
+        case .rectangleShape, .ellipseShape, .polygonShape, .lineShape, .pen, .pathSelect, .directSelect:
+            DocumentVector.shared.mouseDown(e, in: v)
+        // B5-11 end
         }
         v.toolOverlay.needsDisplay = true
         return true
@@ -327,6 +334,7 @@ final class DocumentTools {
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseDragged(e, in: v); return }
         // B5-10 end
+        if doc.tool.isVector, gesture == nil, transform == nil { DocumentVector.shared.mouseDragged(e, in: v); return }   // B5-11
         let p = v.canvasPoint(e)
         let c = CanvasPoint(p)
         pointer = v.convert(e.locationInWindow, from: nil)
@@ -385,6 +393,7 @@ final class DocumentTools {
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseUp(e, in: v); return }
         // B5-10 end
+        if doc.tool.isVector, gesture == nil, transform == nil { DocumentVector.shared.mouseUp(e, in: v); return }   // B5-11
         let p = v.canvasPoint(e)
         switch gesture {
         case .marquee(let start, _, let op, let ellipse, let s, let o):
@@ -779,6 +788,7 @@ final class DocumentTools {
 
     /// ⌘T.
     func beginFreeTransform() {
+        if DocumentVector.shared.beginFreeTransform() { return }   // B5-11: a shape layer gets its affine handles
         guard let d = document, let t = backend(d), transform == nil else { return }
         let ids = transformable
         guard !ids.isEmpty else { say("Free Transform: select a pixel layer"); return }
@@ -918,6 +928,7 @@ final class DocumentTools {
         guard let doc = document else { return false }
         if DocumentTransforms.shared.handleKey(event) { return true }   // B5-12: Return / Esc / ⌫ pin
         if DocumentRetouch.shared.handleKey(event) { return true }   // B5-09: ⇧J, and Remove's keys
+        if DocumentVector.shared.handleKey(event) { return true }   // B5-11: Return / Esc / ⌫ of the vector tools
         if event.keyCode == 51 || event.keyCode == 117 {
             let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             return mods.isEmpty && clearSelection()

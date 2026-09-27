@@ -5041,6 +5041,7 @@ dependencies = [
  "transform",
  "typography",
  "uniffi",
+ "vector",
  "wgpu",
 ]
 

@@ -4195,74 +4195,6 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
     
     /**
-     * Starts a Warp / Perspective / Puppet / Content-Aware Scale session on
-     * `layer`: re-editing stage `index`, or (`None`) a new stage on top of
-     * the stack. Commits another control's pending drag and ends an older
-     * transform session (its preview dropped). Locks and layer kinds are
-     * checked here; nothing changes on error.
-     */
-    func beginAdvancedTransform(layer: UInt64, index: UInt32?, kind: AdvancedTransformKind) throws  -> AdvancedTransformInfo
-    
-    /**
-     * Ends the session with no history change; the viewport returns to the
-     * committed document. A stale token fails without effect.
-     */
-    func cancelAdvancedTransform(token: UInt64) throws  -> DocumentUpdate
-    
-    /**
-     * Records the last previewed operation as ONE history node ("Warp",
-     * "Perspective Warp", …) and ends the session. A layer that is not a
-     * smart object is wrapped in the same node, only with
-     * `convert_to_smart_object`; without it the call fails and the session
-     * stays open. Nothing previewed: the session ends with no node.
-     */
-    func commitAdvancedTransform(token: UInt64, convertToSmartObject: Bool) throws  -> DocumentUpdate
-    
-    /**
-     * Previews content-aware scale to `target_width × target_height` child
-     * pixels at `amount` (0: plain resize … 1: all seam carving), protecting
-     * saved alpha channel `channel_id` (`None`: no protection; replaces an
-     * inherited mask). The mask is sampled Rust-side on the evaluation grid.
-     */
-    func contentAwareScaleFromChannel(token: UInt64, targetWidth: UInt32, targetHeight: UInt32, amount: Float, channelId: UInt64?, draft: Bool) throws  -> AdvancedTransformPreview
-    
-    /**
-     * Shows `transform_json` (a `transform::TransformOp`) on the layer,
-     * recorded nowhere. Invalid geometry (crossing or degenerate quads, a
-     * collapsed mesh, bad pins) fails with the previous preview intact.
-     * `draft`: render on the reduced proxy when the session has one.
-     */
-    func previewAdvancedTransform(token: UInt64, transformJson: String, draft: Bool) throws  -> AdvancedTransformPreview
-    
-    /**
-     * A pin-less puppet mesh over the alpha of `layer`'s source (the child
-     * of a smart object, or the layer itself), in child pixels. `density`:
-     * `Sparse` / `Normal` / `Dense` (8 / 4 / 2-pixel cells); `expansion`
-     * 0…64 px. Large opaque sources are meshed from a coarser level so the
-     * mesh stays within the engine's 16,384-vertex limit (`level`, `note`).
-     */
-    func puppetMeshFromLayer(layer: UInt64, density: String, expansion: UInt32) throws  -> PuppetMeshRecord
-    
-    /**
-     * Writes a PSD / PSB copy with every smart object that has an enabled
-     * transform stage or smart filter rasterized to pixels (its whole stack
-     * applied; PSD export refuses these native-only stacks), the explicit
-     * alternative to losing a nonlinear edit. The session document (path,
-     * dirty state, history) is unchanged.
-     */
-    func savePsdRasterizingTransforms(path: String) throws 
-    
-    /**
-     * Transform stage `index` of smart object `layer` (committed state).
-     */
-    func transformStage(layer: UInt64, index: UInt32) throws  -> TransformStageRecord
-    
-    /**
-     * Every transform stage of `layer` (none for other layer kinds).
-     */
-    func transformStages(layer: UInt64) throws  -> [TransformStageRecord]
-    
-    /**
      * Channel `id` as a grey RGBA8 IOSurface (white = selected / full ink),
      * at most `max_px` on the long edge (box-filtered). Cached per channel
      * samples: the id stays valid until a newer thumbnail of the same
@@ -4768,6 +4700,84 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      * shows the result (one frame). Returns the pixels that changed.
      */
     func strokePoints(points: [StrokeSample]) throws  -> StrokeFrame
+    
+    /**
+     * Adds a shape layer (one node, "<Kind> Tool"): `model_json` is a
+     * `vector::ShapeModel`; with `live_shape` its path is regenerated from
+     * the construction parameters. `name` empty: "Rectangle 1", …;
+     * `parent` `None`: the root; `index` bottom-first, `None`: on top. The
+     * new id is `DocumentUpdate.created[0]`.
+     */
+    func addShapeLayer(name: String, parent: UInt64?, index: UInt32?, modelJson: String, transform: TransformMatrix) throws  -> DocumentUpdate
+    
+    /**
+     * Combines the paths of `operands` into `layer` (Combine, Subtract
+     * Front, Intersect, Exclude Overlapping, applied in order) and removes
+     * the operand layers: ONE history node. Operand geometry is mapped
+     * through its own affine and the inverse of the target's. The result is
+     * canonical nonzero contours (holes wind opposite); it clears
+     * `live_shape` and keeps the target's paint, stroke and transform.
+     */
+    func booleanShapePaths(layer: UInt64, operands: [UInt64], operation: ShapePathOperation) throws  -> DocumentUpdate
+    
+    /**
+     * A Pen / Direct Selection edit of the shape's path in local pixels:
+     * one command object or an array of them (`{"op":"move_anchor",
+     * "subpath":0,"anchor":2,"x":10,"y":4}`, `set_handle` with `handle`
+     * `incoming`/`outgoing` and `mirror`, `insert_anchor` with `segment`
+     * and `t`, `delete_anchor`, `add_subpath`, `set_closed`,
+     * `set_fill_rule`, `set_path`). Commands apply to the committed path, so
+     * an interactive drag sends absolute positions. The edit clears
+     * `live_shape`: the primitive no longer regenerates over it.
+     */
+    func editShapePath(layer: UInt64, commandJson: String, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Replaces a shape's model and transform. `interactive`: a live draft
+     * (inspector slider, affine handle drag) with no history until the
+     * final call of the same layer, which records the net change as one
+     * node. A draft equal to the committed source records nothing. The
+     * layer's vector mask stays where it is in the document.
+     */
+    func setShapeLayer(layer: UInt64, modelJson: String, transform: TransformMatrix, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Adds, replaces (`Some`) or deletes (`None`) the document-space vector
+     * mask of any layer, next to its raster mask (which is untouched).
+     * `interactive` as for `set_shape_layer` (density / feather drags).
+     */
+    func setVectorMask(layer: UInt64, mask: VectorMaskRecord?, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * The topmost visible shape layer whose geometry contains document
+     * point `(x, y)`: its stroke outline (when `include_stroke`, within
+     * `tolerance` document pixels of it) and then its fill under the path's
+     * fill rule. Geometric only: masks and opacity are not considered.
+     */
+    func shapeHitTest(x: Double, y: Double, includeStroke: Bool, tolerance: Double) throws  -> ShapeHitRecord?
+    
+    /**
+     * The shape source of `layer` (the live draft while one is pending).
+     */
+    func shapeLayer(layer: UInt64) throws  -> ShapeLayerRecord
+    
+    /**
+     * [`shape_hit_test`](Self::shape_hit_test) of one layer (hidden or not).
+     */
+    func shapeLayerHitTest(layer: UInt64, x: Double, y: Double, includeStroke: Bool, tolerance: Double) throws  -> ShapeHitPart?
+    
+    /**
+     * The explicit linked-mask gesture: the new shape `transform` AND the
+     * layer's vector mask moved by the same document-space change
+     * (`new ∘ old⁻¹`), as ONE atomic `Batch` node (or draft). Without a
+     * vector mask this is `set_shape_layer` with the same model.
+     */
+    func transformShapeWithMask(layer: UInt64, transform: TransformMatrix, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * The document-space vector mask of any layer.
+     */
+    func vectorMask(layer: UInt64) throws  -> VectorMaskRecord?
     
 }
 open class DocumentSession: DocumentSessionProtocol, @unchecked Sendable {
@@ -5572,158 +5582,6 @@ open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
     uniffi_tessera_ffi_fn_method_documentsession_ungroup_layer(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(id),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Starts a Warp / Perspective / Puppet / Content-Aware Scale session on
-     * `layer`: re-editing stage `index`, or (`None`) a new stage on top of
-     * the stack. Commits another control's pending drag and ends an older
-     * transform session (its preview dropped). Locks and layer kinds are
-     * checked here; nothing changes on error.
-     */
-open func beginAdvancedTransform(layer: UInt64, index: UInt32?, kind: AdvancedTransformKind)throws  -> AdvancedTransformInfo  {
-    return try  FfiConverterTypeAdvancedTransformInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_begin_advanced_transform(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterOptionUInt32.lower(index),
-        FfiConverterTypeAdvancedTransformKind_lower(kind),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Ends the session with no history change; the viewport returns to the
-     * committed document. A stale token fails without effect.
-     */
-open func cancelAdvancedTransform(token: UInt64)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_cancel_advanced_transform(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(token),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Records the last previewed operation as ONE history node ("Warp",
-     * "Perspective Warp", …) and ends the session. A layer that is not a
-     * smart object is wrapped in the same node, only with
-     * `convert_to_smart_object`; without it the call fails and the session
-     * stays open. Nothing previewed: the session ends with no node.
-     */
-open func commitAdvancedTransform(token: UInt64, convertToSmartObject: Bool)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_commit_advanced_transform(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(token),
-        FfiConverterBool.lower(convertToSmartObject),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Previews content-aware scale to `target_width × target_height` child
-     * pixels at `amount` (0: plain resize … 1: all seam carving), protecting
-     * saved alpha channel `channel_id` (`None`: no protection; replaces an
-     * inherited mask). The mask is sampled Rust-side on the evaluation grid.
-     */
-open func contentAwareScaleFromChannel(token: UInt64, targetWidth: UInt32, targetHeight: UInt32, amount: Float, channelId: UInt64?, draft: Bool)throws  -> AdvancedTransformPreview  {
-    return try  FfiConverterTypeAdvancedTransformPreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_content_aware_scale_from_channel(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(token),
-        FfiConverterUInt32.lower(targetWidth),
-        FfiConverterUInt32.lower(targetHeight),
-        FfiConverterFloat.lower(amount),
-        FfiConverterOptionUInt64.lower(channelId),
-        FfiConverterBool.lower(draft),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Shows `transform_json` (a `transform::TransformOp`) on the layer,
-     * recorded nowhere. Invalid geometry (crossing or degenerate quads, a
-     * collapsed mesh, bad pins) fails with the previous preview intact.
-     * `draft`: render on the reduced proxy when the session has one.
-     */
-open func previewAdvancedTransform(token: UInt64, transformJson: String, draft: Bool)throws  -> AdvancedTransformPreview  {
-    return try  FfiConverterTypeAdvancedTransformPreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_preview_advanced_transform(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(token),
-        FfiConverterString.lower(transformJson),
-        FfiConverterBool.lower(draft),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * A pin-less puppet mesh over the alpha of `layer`'s source (the child
-     * of a smart object, or the layer itself), in child pixels. `density`:
-     * `Sparse` / `Normal` / `Dense` (8 / 4 / 2-pixel cells); `expansion`
-     * 0…64 px. Large opaque sources are meshed from a coarser level so the
-     * mesh stays within the engine's 16,384-vertex limit (`level`, `note`).
-     */
-open func puppetMeshFromLayer(layer: UInt64, density: String, expansion: UInt32)throws  -> PuppetMeshRecord  {
-    return try  FfiConverterTypePuppetMeshRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_puppet_mesh_from_layer(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterString.lower(density),
-        FfiConverterUInt32.lower(expansion),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Writes a PSD / PSB copy with every smart object that has an enabled
-     * transform stage or smart filter rasterized to pixels (its whole stack
-     * applied; PSD export refuses these native-only stacks), the explicit
-     * alternative to losing a nonlinear edit. The session document (path,
-     * dirty state, history) is unchanged.
-     */
-open func savePsdRasterizingTransforms(path: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_save_psd_rasterizing_transforms(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(path),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * Transform stage `index` of smart object `layer` (committed state).
-     */
-open func transformStage(layer: UInt64, index: UInt32)throws  -> TransformStageRecord  {
-    return try  FfiConverterTypeTransformStageRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_transform_stage(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterUInt32.lower(index),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Every transform stage of `layer` (none for other layer kinds).
-     */
-open func transformStages(layer: UInt64)throws  -> [TransformStageRecord]  {
-    return try  FfiConverterSequenceTypeTransformStageRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_transform_stages(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),uniffiCallStatus
     )
 })
 }
@@ -6976,6 +6834,186 @@ open func strokePoints(points: [StrokeSample])throws  -> StrokeFrame  {
 })
 }
     
+    /**
+     * Adds a shape layer (one node, "<Kind> Tool"): `model_json` is a
+     * `vector::ShapeModel`; with `live_shape` its path is regenerated from
+     * the construction parameters. `name` empty: "Rectangle 1", …;
+     * `parent` `None`: the root; `index` bottom-first, `None`: on top. The
+     * new id is `DocumentUpdate.created[0]`.
+     */
+open func addShapeLayer(name: String, parent: UInt64?, index: UInt32?, modelJson: String, transform: TransformMatrix)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_add_shape_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionUInt64.lower(parent),
+        FfiConverterOptionUInt32.lower(index),
+        FfiConverterString.lower(modelJson),
+        FfiConverterTypeTransformMatrix_lower(transform),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Combines the paths of `operands` into `layer` (Combine, Subtract
+     * Front, Intersect, Exclude Overlapping, applied in order) and removes
+     * the operand layers: ONE history node. Operand geometry is mapped
+     * through its own affine and the inverse of the target's. The result is
+     * canonical nonzero contours (holes wind opposite); it clears
+     * `live_shape` and keeps the target's paint, stroke and transform.
+     */
+open func booleanShapePaths(layer: UInt64, operands: [UInt64], operation: ShapePathOperation)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_boolean_shape_paths(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterSequenceUInt64.lower(operands),
+        FfiConverterTypeShapePathOperation_lower(operation),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A Pen / Direct Selection edit of the shape's path in local pixels:
+     * one command object or an array of them (`{"op":"move_anchor",
+     * "subpath":0,"anchor":2,"x":10,"y":4}`, `set_handle` with `handle`
+     * `incoming`/`outgoing` and `mirror`, `insert_anchor` with `segment`
+     * and `t`, `delete_anchor`, `add_subpath`, `set_closed`,
+     * `set_fill_rule`, `set_path`). Commands apply to the committed path, so
+     * an interactive drag sends absolute positions. The edit clears
+     * `live_shape`: the primitive no longer regenerates over it.
+     */
+open func editShapePath(layer: UInt64, commandJson: String, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_edit_shape_path(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(commandJson),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces a shape's model and transform. `interactive`: a live draft
+     * (inspector slider, affine handle drag) with no history until the
+     * final call of the same layer, which records the net change as one
+     * node. A draft equal to the committed source records nothing. The
+     * layer's vector mask stays where it is in the document.
+     */
+open func setShapeLayer(layer: UInt64, modelJson: String, transform: TransformMatrix, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_shape_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(modelJson),
+        FfiConverterTypeTransformMatrix_lower(transform),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds, replaces (`Some`) or deletes (`None`) the document-space vector
+     * mask of any layer, next to its raster mask (which is untouched).
+     * `interactive` as for `set_shape_layer` (density / feather drags).
+     */
+open func setVectorMask(layer: UInt64, mask: VectorMaskRecord?, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_vector_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterOptionTypeVectorMaskRecord.lower(mask),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The topmost visible shape layer whose geometry contains document
+     * point `(x, y)`: its stroke outline (when `include_stroke`, within
+     * `tolerance` document pixels of it) and then its fill under the path's
+     * fill rule. Geometric only: masks and opacity are not considered.
+     */
+open func shapeHitTest(x: Double, y: Double, includeStroke: Bool, tolerance: Double)throws  -> ShapeHitRecord?  {
+    return try  FfiConverterOptionTypeShapeHitRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_shape_hit_test(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(x),
+        FfiConverterDouble.lower(y),
+        FfiConverterBool.lower(includeStroke),
+        FfiConverterDouble.lower(tolerance),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The shape source of `layer` (the live draft while one is pending).
+     */
+open func shapeLayer(layer: UInt64)throws  -> ShapeLayerRecord  {
+    return try  FfiConverterTypeShapeLayerRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_shape_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * [`shape_hit_test`](Self::shape_hit_test) of one layer (hidden or not).
+     */
+open func shapeLayerHitTest(layer: UInt64, x: Double, y: Double, includeStroke: Bool, tolerance: Double)throws  -> ShapeHitPart?  {
+    return try  FfiConverterOptionTypeShapeHitPart.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_shape_layer_hit_test(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterDouble.lower(x),
+        FfiConverterDouble.lower(y),
+        FfiConverterBool.lower(includeStroke),
+        FfiConverterDouble.lower(tolerance),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The explicit linked-mask gesture: the new shape `transform` AND the
+     * layer's vector mask moved by the same document-space change
+     * (`new ∘ old⁻¹`), as ONE atomic `Batch` node (or draft). Without a
+     * vector mask this is `set_shape_layer` with the same model.
+     */
+open func transformShapeWithMask(layer: UInt64, transform: TransformMatrix, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_transform_shape_with_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterTypeTransformMatrix_lower(transform),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The document-space vector mask of any layer.
+     */
+open func vectorMask(layer: UInt64)throws  -> VectorMaskRecord?  {
+    return try  FfiConverterOptionTypeVectorMaskRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_vector_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
 
     
 }
@@ -7192,11 +7230,25 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func exportBatch(target: ExportTarget, settingsJson: String, listener: ExportProgressListener?, cancel: CancelFlag?) throws  -> ExportReport
     
     /**
+     * Run 1–32 preset settings documents over the same resolved selection.
+     * JSON and destination paths are validated before any output. Execution
+     * is serial by preset, with a per-preset progress stream and report.
+     * Cancellation stops before the next preset; already published files stay.
+     */
+    func exportMultiple(target: ExportTarget, settingsJsons: [String], listener: ExportProgressListener?, cancel: CancelFlag?) throws  -> [ExportReport]
+    
+    /**
      * Export presets: the shipped ones (installed into the app directory on
      * first use, then editable like any other) in their order, then the
      * user's alphabetically.
      */
     func exportPresets() throws  -> [ExportPreset]
+    
+    /**
+     * Reuses the last fully successful export's settings on a NEW selection.
+     * The saved document contains settings only, never source IDs or recipes.
+     */
+    func exportWithPrevious(target: ExportTarget, listener: ExportProgressListener?, cancel: CancelFlag?) throws  -> [ExportReport]
     
     func renameExportPreset(name: String, newName: String) throws 
     
@@ -7826,6 +7878,25 @@ open func exportBatch(target: ExportTarget, settingsJson: String, listener: Expo
 }
     
     /**
+     * Run 1–32 preset settings documents over the same resolved selection.
+     * JSON and destination paths are validated before any output. Execution
+     * is serial by preset, with a per-preset progress stream and report.
+     * Cancellation stops before the next preset; already published files stay.
+     */
+open func exportMultiple(target: ExportTarget, settingsJsons: [String], listener: ExportProgressListener?, cancel: CancelFlag?)throws  -> [ExportReport]  {
+    return try  FfiConverterSequenceTypeExportReport.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_export_multiple(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeExportTarget_lower(target),
+        FfiConverterSequenceString.lower(settingsJsons),
+        FfiConverterOptionTypeExportProgressListener.lower(listener),
+        FfiConverterOptionTypeCancelFlag.lower(cancel),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Export presets: the shipped ones (installed into the app directory on
      * first use, then editable like any other) in their order, then the
      * user's alphabetically.
@@ -7835,6 +7906,22 @@ open func exportPresets()throws  -> [ExportPreset]  {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_engine_export_presets(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Reuses the last fully successful export's settings on a NEW selection.
+     * The saved document contains settings only, never source IDs or recipes.
+     */
+open func exportWithPrevious(target: ExportTarget, listener: ExportProgressListener?, cancel: CancelFlag?)throws  -> [ExportReport]  {
+    return try  FfiConverterSequenceTypeExportReport.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_export_with_previous(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeExportTarget_lower(target),
+        FfiConverterOptionTypeExportProgressListener.lower(listener),
+        FfiConverterOptionTypeCancelFlag.lower(cancel),uniffiCallStatus
     )
 })
 }
@@ -10799,230 +10886,6 @@ public func FfiConverterTypeTetherEventListener_lower(_ value: TetherEventListen
 }
 
 
-
-
-/**
- * What `begin_advanced_transform` captured.
- */
-public struct AdvancedTransformInfo: Equatable, Hashable {
-    public var token: UInt64
-    public var layer: UInt64
-    public var layerKind: DocLayerKind
-    public var kind: AdvancedTransformKind
-    /**
-     * The stage being re-edited, or `None` for a new stage.
-     */
-    public var editingIndex: UInt32?
-    /**
-     * Where a new stage goes (top of the stack).
-     */
-    public var insertIndex: UInt32
-    /**
-     * Apply wraps the layer in a smart object (needs the user's consent).
-     */
-    public var needsConversion: Bool
-    /**
-     * Fixed child canvas: stage output is clipped to it.
-     */
-    public var childWidth: UInt32
-    public var childHeight: UInt32
-    public var childToDocument: TransformMatrix
-    /**
-     * Content bounds in child pixels (`None`: empty).
-     */
-    public var contentBounds: DocRect?
-    public var existing: TransformStageRecord?
-    /**
-     * Committed content revision captured at `begin`.
-     */
-    public var revision: UInt64
-    /**
-     * Pyramid level of the draft proxy (0: drafts are exact).
-     */
-    public var draftLevel: UInt8
-    /**
-     * Enabled stages of the stack other than this one.
-     */
-    public var otherStages: UInt32
-    public var limitations: [String]
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(token: UInt64, layer: UInt64, layerKind: DocLayerKind, kind: AdvancedTransformKind, 
-        /**
-         * The stage being re-edited, or `None` for a new stage.
-         */editingIndex: UInt32?, 
-        /**
-         * Where a new stage goes (top of the stack).
-         */insertIndex: UInt32, 
-        /**
-         * Apply wraps the layer in a smart object (needs the user's consent).
-         */needsConversion: Bool, 
-        /**
-         * Fixed child canvas: stage output is clipped to it.
-         */childWidth: UInt32, childHeight: UInt32, childToDocument: TransformMatrix, 
-        /**
-         * Content bounds in child pixels (`None`: empty).
-         */contentBounds: DocRect?, existing: TransformStageRecord?, 
-        /**
-         * Committed content revision captured at `begin`.
-         */revision: UInt64, 
-        /**
-         * Pyramid level of the draft proxy (0: drafts are exact).
-         */draftLevel: UInt8, 
-        /**
-         * Enabled stages of the stack other than this one.
-         */otherStages: UInt32, limitations: [String]) {
-        self.token = token
-        self.layer = layer
-        self.layerKind = layerKind
-        self.kind = kind
-        self.editingIndex = editingIndex
-        self.insertIndex = insertIndex
-        self.needsConversion = needsConversion
-        self.childWidth = childWidth
-        self.childHeight = childHeight
-        self.childToDocument = childToDocument
-        self.contentBounds = contentBounds
-        self.existing = existing
-        self.revision = revision
-        self.draftLevel = draftLevel
-        self.otherStages = otherStages
-        self.limitations = limitations
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension AdvancedTransformInfo: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeAdvancedTransformInfo: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AdvancedTransformInfo {
-        return
-            try AdvancedTransformInfo(
-                token: FfiConverterUInt64.read(from: &buf), 
-                layer: FfiConverterUInt64.read(from: &buf), 
-                layerKind: FfiConverterTypeDocLayerKind.read(from: &buf), 
-                kind: FfiConverterTypeAdvancedTransformKind.read(from: &buf), 
-                editingIndex: FfiConverterOptionUInt32.read(from: &buf), 
-                insertIndex: FfiConverterUInt32.read(from: &buf), 
-                needsConversion: FfiConverterBool.read(from: &buf), 
-                childWidth: FfiConverterUInt32.read(from: &buf), 
-                childHeight: FfiConverterUInt32.read(from: &buf), 
-                childToDocument: FfiConverterTypeTransformMatrix.read(from: &buf), 
-                contentBounds: FfiConverterOptionTypeDocRect.read(from: &buf), 
-                existing: FfiConverterOptionTypeTransformStageRecord.read(from: &buf), 
-                revision: FfiConverterUInt64.read(from: &buf), 
-                draftLevel: FfiConverterUInt8.read(from: &buf), 
-                otherStages: FfiConverterUInt32.read(from: &buf), 
-                limitations: FfiConverterSequenceString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: AdvancedTransformInfo, into buf: inout [UInt8]) {
-        FfiConverterUInt64.write(value.token, into: &buf)
-        FfiConverterUInt64.write(value.layer, into: &buf)
-        FfiConverterTypeDocLayerKind.write(value.layerKind, into: &buf)
-        FfiConverterTypeAdvancedTransformKind.write(value.kind, into: &buf)
-        FfiConverterOptionUInt32.write(value.editingIndex, into: &buf)
-        FfiConverterUInt32.write(value.insertIndex, into: &buf)
-        FfiConverterBool.write(value.needsConversion, into: &buf)
-        FfiConverterUInt32.write(value.childWidth, into: &buf)
-        FfiConverterUInt32.write(value.childHeight, into: &buf)
-        FfiConverterTypeTransformMatrix.write(value.childToDocument, into: &buf)
-        FfiConverterOptionTypeDocRect.write(value.contentBounds, into: &buf)
-        FfiConverterOptionTypeTransformStageRecord.write(value.existing, into: &buf)
-        FfiConverterUInt64.write(value.revision, into: &buf)
-        FfiConverterUInt8.write(value.draftLevel, into: &buf)
-        FfiConverterUInt32.write(value.otherStages, into: &buf)
-        FfiConverterSequenceString.write(value.limitations, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAdvancedTransformInfo_lift(_ buf: RustBuffer) throws -> AdvancedTransformInfo {
-    return try FfiConverterTypeAdvancedTransformInfo.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAdvancedTransformInfo_lower(_ value: AdvancedTransformInfo) -> RustBuffer {
-    return FfiConverterTypeAdvancedTransformInfo.lower(value)
-}
-
-
-/**
- * A preview's frame request plus, for puppet warp, the solved mesh.
- */
-public struct AdvancedTransformPreview: Equatable, Hashable {
-    public var update: DocumentUpdate
-    /**
-     * Puppet: deformed vertex positions `[[x, y], …]` in child pixels.
-     */
-    public var deformedJson: String?
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(update: DocumentUpdate, 
-        /**
-         * Puppet: deformed vertex positions `[[x, y], …]` in child pixels.
-         */deformedJson: String?) {
-        self.update = update
-        self.deformedJson = deformedJson
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension AdvancedTransformPreview: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeAdvancedTransformPreview: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AdvancedTransformPreview {
-        return
-            try AdvancedTransformPreview(
-                update: FfiConverterTypeDocumentUpdate.read(from: &buf), 
-                deformedJson: FfiConverterOptionString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: AdvancedTransformPreview, into buf: inout [UInt8]) {
-        FfiConverterTypeDocumentUpdate.write(value.update, into: &buf)
-        FfiConverterOptionString.write(value.deformedJson, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAdvancedTransformPreview_lift(_ buf: RustBuffer) throws -> AdvancedTransformPreview {
-    return try FfiConverterTypeAdvancedTransformPreview.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAdvancedTransformPreview_lower(_ value: AdvancedTransformPreview) -> RustBuffer {
-    return FfiConverterTypeAdvancedTransformPreview.lower(value)
-}
 
 
 public struct AgentAcceptResult: Equatable, Hashable {
@@ -14353,19 +14216,27 @@ public struct ExportReport: Equatable, Hashable {
     public var failed: UInt32
     public var cancelled: Bool
     public var seconds: Double
+    /**
+     * Host action / last-settings persistence failures. Exported files remain valid.
+     */
+    public var workflowErrors: [String]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(destination: String, 
         /**
          * Input order. Images not reached after a cancel have neither path nor error.
-         */items: [ExportItemResult], exported: UInt32, failed: UInt32, cancelled: Bool, seconds: Double) {
+         */items: [ExportItemResult], exported: UInt32, failed: UInt32, cancelled: Bool, seconds: Double, 
+        /**
+         * Host action / last-settings persistence failures. Exported files remain valid.
+         */workflowErrors: [String]) {
         self.destination = destination
         self.items = items
         self.exported = exported
         self.failed = failed
         self.cancelled = cancelled
         self.seconds = seconds
+        self.workflowErrors = workflowErrors
     }
 
     
@@ -14389,7 +14260,8 @@ public struct FfiConverterTypeExportReport: FfiConverterRustBuffer {
                 exported: FfiConverterUInt32.read(from: &buf), 
                 failed: FfiConverterUInt32.read(from: &buf), 
                 cancelled: FfiConverterBool.read(from: &buf), 
-                seconds: FfiConverterDouble.read(from: &buf)
+                seconds: FfiConverterDouble.read(from: &buf), 
+                workflowErrors: FfiConverterSequenceString.read(from: &buf)
         )
     }
 
@@ -14400,6 +14272,7 @@ public struct FfiConverterTypeExportReport: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.failed, into: &buf)
         FfiConverterBool.write(value.cancelled, into: &buf)
         FfiConverterDouble.write(value.seconds, into: &buf)
+        FfiConverterSequenceString.write(value.workflowErrors, into: &buf)
     }
 }
 
@@ -21154,99 +21027,6 @@ public func FfiConverterTypePrinterProfile_lower(_ value: PrinterProfile) -> Rus
 
 
 /**
- * `puppet_mesh_from_layer`: a pin-less `transform::puppet::PuppetWarp`.
- */
-public struct PuppetMeshRecord: Equatable, Hashable {
-    /**
-     * `PuppetWarp` JSON, rest vertices in child pixels.
-     */
-    public var meshJson: String
-    public var vertexCount: UInt32
-    public var triangleCount: UInt32
-    /**
-     * Grid cell size in child pixels (8 / 4 / 2 × 2^level).
-     */
-    public var cellPx: UInt32
-    /**
-     * Level of the alpha the mesh was built from (> 0: coarsened to stay
-     * within the engine's 16,384-vertex limit).
-     */
-    public var level: UInt8
-    public var note: String?
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * `PuppetWarp` JSON, rest vertices in child pixels.
-         */meshJson: String, vertexCount: UInt32, triangleCount: UInt32, 
-        /**
-         * Grid cell size in child pixels (8 / 4 / 2 × 2^level).
-         */cellPx: UInt32, 
-        /**
-         * Level of the alpha the mesh was built from (> 0: coarsened to stay
-         * within the engine's 16,384-vertex limit).
-         */level: UInt8, note: String?) {
-        self.meshJson = meshJson
-        self.vertexCount = vertexCount
-        self.triangleCount = triangleCount
-        self.cellPx = cellPx
-        self.level = level
-        self.note = note
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension PuppetMeshRecord: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypePuppetMeshRecord: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PuppetMeshRecord {
-        return
-            try PuppetMeshRecord(
-                meshJson: FfiConverterString.read(from: &buf), 
-                vertexCount: FfiConverterUInt32.read(from: &buf), 
-                triangleCount: FfiConverterUInt32.read(from: &buf), 
-                cellPx: FfiConverterUInt32.read(from: &buf), 
-                level: FfiConverterUInt8.read(from: &buf), 
-                note: FfiConverterOptionString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: PuppetMeshRecord, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.meshJson, into: &buf)
-        FfiConverterUInt32.write(value.vertexCount, into: &buf)
-        FfiConverterUInt32.write(value.triangleCount, into: &buf)
-        FfiConverterUInt32.write(value.cellPx, into: &buf)
-        FfiConverterUInt8.write(value.level, into: &buf)
-        FfiConverterOptionString.write(value.note, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePuppetMeshRecord_lift(_ buf: RustBuffer) throws -> PuppetMeshRecord {
-    return try FfiConverterTypePuppetMeshRecord.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePuppetMeshRecord_lower(_ value: PuppetMeshRecord) -> RustBuffer {
-    return FfiConverterTypePuppetMeshRecord.lower(value)
-}
-
-
-/**
  * Catalog changes applied to the open queue in place (`sync_changes`). The
  * cursor, undo/redo history and unaffected groups are kept.
  */
@@ -22313,6 +22093,271 @@ public func FfiConverterTypeSessionImage_lift(_ buf: RustBuffer) throws -> Sessi
 #endif
 public func FfiConverterTypeSessionImage_lower(_ value: SessionImage) -> RustBuffer {
     return FfiConverterTypeSessionImage.lower(value)
+}
+
+
+/**
+ * Axis-aligned bounds in document pixels (fractional).
+ */
+public struct ShapeBounds: Equatable, Hashable {
+    public var x0: Double
+    public var y0: Double
+    public var x1: Double
+    public var y1: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x0: Double, y0: Double, x1: Double, y1: Double) {
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ShapeBounds: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeBounds: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeBounds {
+        return
+            try ShapeBounds(
+                x0: FfiConverterDouble.read(from: &buf), 
+                y0: FfiConverterDouble.read(from: &buf), 
+                x1: FfiConverterDouble.read(from: &buf), 
+                y1: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShapeBounds, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.x0, into: &buf)
+        FfiConverterDouble.write(value.y0, into: &buf)
+        FfiConverterDouble.write(value.x1, into: &buf)
+        FfiConverterDouble.write(value.y1, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeBounds_lift(_ buf: RustBuffer) throws -> ShapeBounds {
+    return try FfiConverterTypeShapeBounds.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeBounds_lower(_ value: ShapeBounds) -> RustBuffer {
+    return FfiConverterTypeShapeBounds.lower(value)
+}
+
+
+/**
+ * The topmost shape under a document point.
+ */
+public struct ShapeHitRecord: Equatable, Hashable {
+    public var layer: UInt64
+    public var part: ShapeHitPart
+    /**
+     * The point in the layer's local coordinates.
+     */
+    public var localX: Double
+    public var localY: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(layer: UInt64, part: ShapeHitPart, 
+        /**
+         * The point in the layer's local coordinates.
+         */localX: Double, localY: Double) {
+        self.layer = layer
+        self.part = part
+        self.localX = localX
+        self.localY = localY
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ShapeHitRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeHitRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeHitRecord {
+        return
+            try ShapeHitRecord(
+                layer: FfiConverterUInt64.read(from: &buf), 
+                part: FfiConverterTypeShapeHitPart.read(from: &buf), 
+                localX: FfiConverterDouble.read(from: &buf), 
+                localY: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShapeHitRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterTypeShapeHitPart.write(value.part, into: &buf)
+        FfiConverterDouble.write(value.localX, into: &buf)
+        FfiConverterDouble.write(value.localY, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitRecord_lift(_ buf: RustBuffer) throws -> ShapeHitRecord {
+    return try FfiConverterTypeShapeHitRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitRecord_lower(_ value: ShapeHitRecord) -> RustBuffer {
+    return FfiConverterTypeShapeHitRecord.lower(value)
+}
+
+
+/**
+ * An editable shape layer as the inspector and overlays read it.
+ */
+public struct ShapeLayerRecord: Equatable, Hashable {
+    public var layer: UInt64
+    /**
+     * `vector::ShapeModel` JSON (`path`, `fill`, `stroke`, `live_shape`).
+     */
+    public var modelJson: String
+    /**
+     * Local-to-document map.
+     */
+    public var transform: TransformMatrix
+    /**
+     * The layer's thumbnail revision (changes with the source or a mask).
+     */
+    public var revision: UInt64
+    /**
+     * `rectangle`, `ellipse`, `polygon`, `line` or `custom` while live
+     * construction parameters exist; `None` after a custom path edit.
+     */
+    public var liveKind: String?
+    /**
+     * Document-space bounds of the fill path (stroke outline included).
+     */
+    public var bounds: ShapeBounds?
+    /**
+     * Some subpath is open (Inside / Outside strokes need closed paths).
+     */
+    public var hasOpenSubpaths: Bool
+    public var vectorMask: VectorMaskRecord?
+    /**
+     * Interchange and colour limitations that apply to this layer.
+     */
+    public var notes: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(layer: UInt64, 
+        /**
+         * `vector::ShapeModel` JSON (`path`, `fill`, `stroke`, `live_shape`).
+         */modelJson: String, 
+        /**
+         * Local-to-document map.
+         */transform: TransformMatrix, 
+        /**
+         * The layer's thumbnail revision (changes with the source or a mask).
+         */revision: UInt64, 
+        /**
+         * `rectangle`, `ellipse`, `polygon`, `line` or `custom` while live
+         * construction parameters exist; `None` after a custom path edit.
+         */liveKind: String?, 
+        /**
+         * Document-space bounds of the fill path (stroke outline included).
+         */bounds: ShapeBounds?, 
+        /**
+         * Some subpath is open (Inside / Outside strokes need closed paths).
+         */hasOpenSubpaths: Bool, vectorMask: VectorMaskRecord?, 
+        /**
+         * Interchange and colour limitations that apply to this layer.
+         */notes: [String]) {
+        self.layer = layer
+        self.modelJson = modelJson
+        self.transform = transform
+        self.revision = revision
+        self.liveKind = liveKind
+        self.bounds = bounds
+        self.hasOpenSubpaths = hasOpenSubpaths
+        self.vectorMask = vectorMask
+        self.notes = notes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ShapeLayerRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeLayerRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeLayerRecord {
+        return
+            try ShapeLayerRecord(
+                layer: FfiConverterUInt64.read(from: &buf), 
+                modelJson: FfiConverterString.read(from: &buf), 
+                transform: FfiConverterTypeTransformMatrix.read(from: &buf), 
+                revision: FfiConverterUInt64.read(from: &buf), 
+                liveKind: FfiConverterOptionString.read(from: &buf), 
+                bounds: FfiConverterOptionTypeShapeBounds.read(from: &buf), 
+                hasOpenSubpaths: FfiConverterBool.read(from: &buf), 
+                vectorMask: FfiConverterOptionTypeVectorMaskRecord.read(from: &buf), 
+                notes: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShapeLayerRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterString.write(value.modelJson, into: &buf)
+        FfiConverterTypeTransformMatrix.write(value.transform, into: &buf)
+        FfiConverterUInt64.write(value.revision, into: &buf)
+        FfiConverterOptionString.write(value.liveKind, into: &buf)
+        FfiConverterOptionTypeShapeBounds.write(value.bounds, into: &buf)
+        FfiConverterBool.write(value.hasOpenSubpaths, into: &buf)
+        FfiConverterOptionTypeVectorMaskRecord.write(value.vectorMask, into: &buf)
+        FfiConverterSequenceString.write(value.notes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeLayerRecord_lift(_ buf: RustBuffer) throws -> ShapeLayerRecord {
+    return try FfiConverterTypeShapeLayerRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeLayerRecord_lower(_ value: ShapeLayerRecord) -> RustBuffer {
+    return FfiConverterTypeShapeLayerRecord.lower(value)
 }
 
 
@@ -23979,101 +24024,6 @@ public func FfiConverterTypeTransformMatrix_lower(_ value: TransformMatrix) -> R
 }
 
 
-/**
- * One `transform` stage of a smart object's stack.
- */
-public struct TransformStageRecord: Equatable, Hashable {
-    public var layer: UInt64
-    /**
-     * Index in the smart filter stack (input first).
-     */
-    public var index: UInt32
-    public var kind: AdvancedTransformKind
-    /**
-     * `transform::TransformOp` JSON; a content-aware protect mask is
-     * replaced by `null` (see `has_protection`).
-     */
-    public var transformJson: String
-    public var hasProtection: Bool
-    public var enabled: Bool
-    public var blendMode: String
-    public var opacity: Float
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(layer: UInt64, 
-        /**
-         * Index in the smart filter stack (input first).
-         */index: UInt32, kind: AdvancedTransformKind, 
-        /**
-         * `transform::TransformOp` JSON; a content-aware protect mask is
-         * replaced by `null` (see `has_protection`).
-         */transformJson: String, hasProtection: Bool, enabled: Bool, blendMode: String, opacity: Float) {
-        self.layer = layer
-        self.index = index
-        self.kind = kind
-        self.transformJson = transformJson
-        self.hasProtection = hasProtection
-        self.enabled = enabled
-        self.blendMode = blendMode
-        self.opacity = opacity
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension TransformStageRecord: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTransformStageRecord: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransformStageRecord {
-        return
-            try TransformStageRecord(
-                layer: FfiConverterUInt64.read(from: &buf), 
-                index: FfiConverterUInt32.read(from: &buf), 
-                kind: FfiConverterTypeAdvancedTransformKind.read(from: &buf), 
-                transformJson: FfiConverterString.read(from: &buf), 
-                hasProtection: FfiConverterBool.read(from: &buf), 
-                enabled: FfiConverterBool.read(from: &buf), 
-                blendMode: FfiConverterString.read(from: &buf), 
-                opacity: FfiConverterFloat.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: TransformStageRecord, into buf: inout [UInt8]) {
-        FfiConverterUInt64.write(value.layer, into: &buf)
-        FfiConverterUInt32.write(value.index, into: &buf)
-        FfiConverterTypeAdvancedTransformKind.write(value.kind, into: &buf)
-        FfiConverterString.write(value.transformJson, into: &buf)
-        FfiConverterBool.write(value.hasProtection, into: &buf)
-        FfiConverterBool.write(value.enabled, into: &buf)
-        FfiConverterString.write(value.blendMode, into: &buf)
-        FfiConverterFloat.write(value.opacity, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformStageRecord_lift(_ buf: RustBuffer) throws -> TransformStageRecord {
-    return try FfiConverterTypeTransformStageRecord.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformStageRecord_lower(_ value: TransformStageRecord) -> RustBuffer {
-    return FfiConverterTypeTransformStageRecord.lower(value)
-}
-
-
 public struct UnderstandingJobInfo: Equatable, Hashable {
     public var id: UInt64
     public var tasks: [UnderstandingTask]
@@ -24316,88 +24266,69 @@ public func FfiConverterTypeUpdatedImage_lower(_ value: UpdatedImage) -> RustBuf
 
 
 /**
- * The operation of a transform stage.
+ * A layer's document-space vector mask.
  */
+public struct VectorMaskRecord: Equatable, Hashable {
+    /**
+     * `vector::Path` JSON in level-zero document pixels.
+     */
+    public var pathJson: String
+    public var enabled: Bool
+    /**
+     * Level-zero pixel radius, finite and ≥ 0.
+     */
+    public var feather: Float
+    /**
+     * 0…1: the effective mask is `1 − density · (1 − coverage)`.
+     */
+    public var density: Float
 
-public enum AdvancedTransformKind: Equatable, Hashable {
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `vector::Path` JSON in level-zero document pixels.
+         */pathJson: String, enabled: Bool, 
+        /**
+         * Level-zero pixel radius, finite and ≥ 0.
+         */feather: Float, 
+        /**
+         * 0…1: the effective mask is `1 − density · (1 − coverage)`.
+         */density: Float) {
+        self.pathJson = pathJson
+        self.enabled = enabled
+        self.feather = feather
+        self.density = density
+    }
+
     
-    case warp
-    case perspective
-    case puppet
-    case contentAwareScale
-    /**
-     * A projective Free Transform stage (listed, not edited here).
-     */
-    case free
-    /**
-     * A displacement field (Adaptive Wide Angle; listed, not edited here).
-     */
-    case displacement
 
-
-
-
-
+    
 }
 
 #if compiler(>=6)
-extension AdvancedTransformKind: Sendable {}
+extension VectorMaskRecord: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeAdvancedTransformKind: FfiConverterRustBuffer {
-    typealias SwiftType = AdvancedTransformKind
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AdvancedTransformKind {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .warp
-        
-        case 2: return .perspective
-        
-        case 3: return .puppet
-        
-        case 4: return .contentAwareScale
-        
-        case 5: return .free
-        
-        case 6: return .displacement
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
+public struct FfiConverterTypeVectorMaskRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VectorMaskRecord {
+        return
+            try VectorMaskRecord(
+                pathJson: FfiConverterString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf), 
+                feather: FfiConverterFloat.read(from: &buf), 
+                density: FfiConverterFloat.read(from: &buf)
+        )
     }
 
-    public static func write(_ value: AdvancedTransformKind, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .warp:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .perspective:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .puppet:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .contentAwareScale:
-            writeInt(&buf, Int32(4))
-        
-        
-        case .free:
-            writeInt(&buf, Int32(5))
-        
-        
-        case .displacement:
-            writeInt(&buf, Int32(6))
-        
-        }
+    public static func write(_ value: VectorMaskRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.pathJson, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterFloat.write(value.feather, into: &buf)
+        FfiConverterFloat.write(value.density, into: &buf)
     }
 }
 
@@ -24405,17 +24336,16 @@ public struct FfiConverterTypeAdvancedTransformKind: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeAdvancedTransformKind_lift(_ buf: RustBuffer) throws -> AdvancedTransformKind {
-    return try FfiConverterTypeAdvancedTransformKind.lift(buf)
+public func FfiConverterTypeVectorMaskRecord_lift(_ buf: RustBuffer) throws -> VectorMaskRecord {
+    return try FfiConverterTypeVectorMaskRecord.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeAdvancedTransformKind_lower(_ value: AdvancedTransformKind) -> RustBuffer {
-    return FfiConverterTypeAdvancedTransformKind.lower(value)
+public func FfiConverterTypeVectorMaskRecord_lower(_ value: VectorMaskRecord) -> RustBuffer {
+    return FfiConverterTypeVectorMaskRecord.lower(value)
 }
-
 
 
 /**
@@ -25280,6 +25210,10 @@ public enum DocLayerKind: Equatable, Hashable {
     case group
     case smartObject
     case text
+    /**
+     * An editable vector shape (`vector::ShapeModel` + affine).
+     */
+    case shape
 
 
 
@@ -25313,6 +25247,8 @@ public struct FfiConverterTypeDocLayerKind: FfiConverterRustBuffer {
         
         case 6: return .text
         
+        case 7: return .shape
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -25343,6 +25279,10 @@ public struct FfiConverterTypeDocLayerKind: FfiConverterRustBuffer {
         
         case .text:
             writeInt(&buf, Int32(6))
+        
+        
+        case .shape:
+            writeInt(&buf, Int32(7))
         
         }
     }
@@ -28260,6 +28200,159 @@ public func FfiConverterTypeSelectionOp_lower(_ value: SelectionOp) -> RustBuffe
 
 
 /**
+ * Which part of a shape a hit landed on.
+ */
+
+public enum ShapeHitPart: Equatable, Hashable {
+    
+    case fill
+    case stroke
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ShapeHitPart: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeHitPart: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeHitPart
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeHitPart {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .fill
+        
+        case 2: return .stroke
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ShapeHitPart, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .fill:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .stroke:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitPart_lift(_ buf: RustBuffer) throws -> ShapeHitPart {
+    return try FfiConverterTypeShapeHitPart.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitPart_lower(_ value: ShapeHitPart) -> RustBuffer {
+    return FfiConverterTypeShapeHitPart.lower(value)
+}
+
+
+
+/**
+ * Path operations (Photoshop's Combine / Subtract Front / Intersect /
+ * Exclude Overlapping).
+ */
+
+public enum ShapePathOperation: Equatable, Hashable {
+    
+    case combine
+    case subtract
+    case intersect
+    case exclude
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ShapePathOperation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapePathOperation: FfiConverterRustBuffer {
+    typealias SwiftType = ShapePathOperation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapePathOperation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .combine
+        
+        case 2: return .subtract
+        
+        case 3: return .intersect
+        
+        case 4: return .exclude
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ShapePathOperation, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .combine:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .subtract:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .intersect:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .exclude:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapePathOperation_lift(_ buf: RustBuffer) throws -> ShapePathOperation {
+    return try FfiConverterTypeShapePathOperation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapePathOperation_lower(_ value: ShapePathOperation) -> RustBuffer {
+    return FfiConverterTypeShapePathOperation.lower(value)
+}
+
+
+
+/**
  * What [`DocumentSession::set_smart_filter`] changes.
  */
 
@@ -29589,6 +29682,54 @@ fileprivate struct FfiConverterOptionTypeRuleDiagnostic: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeShapeBounds: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeBounds?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeShapeBounds.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeShapeBounds.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeShapeHitRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeHitRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeShapeHitRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeShapeHitRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeSoftProofLut: FfiConverterRustBuffer {
     typealias SwiftType = SoftProofLut?
 
@@ -29637,8 +29778,8 @@ fileprivate struct FfiConverterOptionTypeSoftProofOptions: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionTypeTransformStageRecord: FfiConverterRustBuffer {
-    typealias SwiftType = TransformStageRecord?
+fileprivate struct FfiConverterOptionTypeVectorMaskRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VectorMaskRecord?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
         guard let value = value else {
@@ -29646,13 +29787,13 @@ fileprivate struct FfiConverterOptionTypeTransformStageRecord: FfiConverterRustB
             return
         }
         writeInt(&buf, Int8(1))
-        FfiConverterTypeTransformStageRecord.write(value, into: &buf)
+        FfiConverterTypeVectorMaskRecord.write(value, into: &buf)
     }
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
-        case 1: return try FfiConverterTypeTransformStageRecord.read(from: &buf)
+        case 1: return try FfiConverterTypeVectorMaskRecord.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -29701,6 +29842,30 @@ fileprivate struct FfiConverterOptionTypeDocGroupMode: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeDocGroupMode.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeShapeHitPart: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeHitPart?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeShapeHitPart.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeShapeHitPart.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -30298,6 +30463,31 @@ fileprivate struct FfiConverterSequenceTypeExportPreset: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeExportPreset.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeExportReport: FfiConverterRustBuffer {
+    typealias SwiftType = [ExportReport]
+
+    public static func write(_ value: [ExportReport], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeExportReport.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ExportReport] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ExportReport]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeExportReport.read(from: &buf))
         }
         return seq
     }
@@ -31731,31 +31921,6 @@ fileprivate struct FfiConverterSequenceTypeToolPoint: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeTransformStageRecord: FfiConverterRustBuffer {
-    typealias SwiftType = [TransformStageRecord]
-
-    public static func write(_ value: [TransformStageRecord], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeTransformStageRecord.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TransformStageRecord] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [TransformStageRecord]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeTransformStageRecord.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypeUnderstandingJobInfo: FfiConverterRustBuffer {
     typealias SwiftType = [UnderstandingJobInfo]
 
@@ -31835,63 +32000,6 @@ public func blendModeNames() -> [String]  {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_func_blend_mode_names(uniffiCallStatus
-    )
-})
-}
-/**
- * A preset warp mesh (`transform::warp::WarpMesh` JSON) of a `width ×
- * height` child. Bend is signed [-1, 1]; zero is the identity mesh.
- */
-public func warpPreset(width: Double, height: Double, preset: String, bend: Double)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_warp_preset(
-        FfiConverterDouble.lower(width),
-        FfiConverterDouble.lower(height),
-        FfiConverterString.lower(preset),
-        FfiConverterDouble.lower(bend),uniffiCallStatus
-    )
-})
-}
-/**
- * The warp presets (`Arc`, `ArcLower`, … `Twist`), menu order.
- */
-public func warpPresetNames() -> [String]  {
-    return try!  FfiConverterSequenceString.lift(try! rustCall() {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_warp_preset_names(uniffiCallStatus
-    )
-})
-}
-/**
- * Splits the warp surface through child point `(x, y)` — a vertical split
- * (`split_u`), a horizontal one (`split_v`) or both — using exact de
- * Casteljau subdivision, so the warped image does not move. A point outside
- * the mesh, or on an existing split, fails with the mesh unchanged.
- */
-public func warpSplit(meshJson: String, x: Double, y: Double, splitU: Bool, splitV: Bool)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_warp_split(
-        FfiConverterString.lower(meshJson),
-        FfiConverterDouble.lower(x),
-        FfiConverterDouble.lower(y),
-        FfiConverterBool.lower(splitU),
-        FfiConverterBool.lower(splitV),uniffiCallStatus
-    )
-})
-}
-/**
- * A regular `columns × rows` grid on the warp (existing splits kept, the
- * surface unchanged).
- */
-public func warpSubdivide(meshJson: String, columns: UInt32, rows: UInt32)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_warp_subdivide(
-        FfiConverterString.lower(meshJson),
-        FfiConverterUInt32.lower(columns),
-        FfiConverterUInt32.lower(rows),uniffiCallStatus
     )
 })
 }
@@ -31994,6 +32102,18 @@ public func importAbr(path: String)throws  -> [BrushTipInfo]  {
 })
 }
 /**
+ * The path a live shape primitive generates (`vector::Shape` JSON →
+ * `vector::Path` JSON), for host overlays drawn before a layer exists.
+ */
+public func shapePrimitivePath(shapeJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_shape_primitive_path(
+        FfiConverterString.lower(shapeJson),uniffiCallStatus
+    )
+})
+}
+/**
  * Describes one profile file (for "Other…"); fails unless it is an output profile.
  */
 public func describePrinterProfile(path: String)throws  -> PrinterProfile  {
@@ -32071,18 +32191,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_blend_mode_names() != 47688) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_func_warp_preset() != 23938) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_func_warp_preset_names() != 22480) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_func_warp_split() != 20441) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_func_warp_subdivide() != 37794) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_tessera_ffi_checksum_func_list_filters() != 15632) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -32105,6 +32213,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_import_abr() != 46665) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_shape_primitive_path() != 10866) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_describe_printer_profile() != 56173) {
@@ -32212,7 +32323,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_export_batch() != 38114) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_export_multiple() != 12163) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_export_presets() != 10384) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_export_with_previous() != 1109) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_rename_export_preset() != 64111) {
@@ -32776,33 +32893,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_advanced_transform() != 47434) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_advanced_transform() != 59616) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_commit_advanced_transform() != 54512) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_content_aware_scale_from_channel() != 11603) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_advanced_transform() != 24013) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_puppet_mesh_from_layer() != 38502) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_save_psd_rasterizing_transforms() != 55535) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_transform_stage() != 45645) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_transform_stages() != 11546) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_channel_thumbnail() != 33848) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -33053,6 +33143,36 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_stroke_points() != 28255) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_add_shape_layer() != 64988) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_boolean_shape_paths() != 18956) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_edit_shape_path() != 62412) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_shape_layer() != 10165) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_vector_mask() != 40421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_shape_hit_test() != 58520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_shape_layer() != 54754) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_shape_layer_hit_test() != 53989) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_transform_shape_with_mask() != 1308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_vector_mask() != 64949) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cancelflag_cancel() != 15413) {

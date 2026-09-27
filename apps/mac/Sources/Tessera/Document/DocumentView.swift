@@ -42,6 +42,12 @@ struct DocumentView: View {
         .modifier(DocumentFilterSheets(filters: workspace.filters))   // WP B5-05
         // B5-08 begin: Channels (sheets, Quick Mask, preview overlay).
         .onAppear { DocumentChannels.shared.attach(workspace) }
+        // B5-11 begin: shapes, Pen and vector masks; `--vector-selftest=<dir>` starts here.
+        .onAppear {
+            DocumentVector.shared.attach(workspace)
+            VectorSelfTest.startIfRequested()
+        }
+        // B5-11 end
         .modifier(ChannelSheetsModifier(channels: DocumentChannels.shared))
         // B5-08 end
         .modifier(RetouchSheets(retouch: DocumentRetouch.shared))   // B5-09

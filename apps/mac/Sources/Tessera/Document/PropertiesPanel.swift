@@ -83,6 +83,10 @@ struct PropertiesPanel: View {
         // B5-10 end
         case .pixel:
             EmptyView()
+        // B5-11 begin: live shape parameters, paint, stroke and vector mask (Document/Vector/ShapeInspector.swift).
+        case .shape:
+            ShapeInspector(document: document, vector: DocumentVector.shared, layer: n.id)
+        // B5-11 end
         }
     }
 }
