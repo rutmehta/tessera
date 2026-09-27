@@ -44,6 +44,7 @@ struct DocumentView: View {
         .onAppear { DocumentChannels.shared.attach(workspace) }
         .modifier(ChannelSheetsModifier(channels: DocumentChannels.shared))
         // B5-08 end
+        .onAppear { DocumentText.shared.attach(workspace) }   // B5-10: the Type tool
     }
 }
 

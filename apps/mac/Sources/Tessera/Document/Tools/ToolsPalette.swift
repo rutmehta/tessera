@@ -323,6 +323,10 @@ struct ToolOptionsBar: View {
         case .gradient:
             Text("Placeholder: a click fills the selection with the foreground colour").font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.textTertiary).fixedSize()
+        // B5-10 begin: Type tool options (Document/Text/TextOptionsBar.swift).
+        case .type:
+            TextOptionsBar(document: document, text: DocumentText.shared)
+        // B5-10 end
         default:
             Text("Placeholder in this build").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
         }

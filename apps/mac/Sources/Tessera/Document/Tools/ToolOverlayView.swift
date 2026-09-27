@@ -120,6 +120,10 @@ final class ToolOverlayView: NSView {
 
         if let t = tools.transform { drawTransform(t, in: v) }
 
+        // B5-10 begin: text frame, box handles, selection, marked text and caret.
+        DocumentText.shared.draw(in: v)
+        // B5-10 end
+
         // Symmetry guides.
         if doc.tool.paints, tools.currentBrush.symmetry != .none { drawSymmetry(tools.currentBrush, doc: doc, in: v) }
 

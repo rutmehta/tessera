@@ -76,8 +76,10 @@ struct PropertiesPanel: View {
                 .disabled(true)
                 .help("Opens the smart object's document (arrives with smart-object editing)")
                 .accessibilityIdentifier("document.properties.editContents")
+        // B5-10 begin: Character / Paragraph (Document/Text/TextInspector.swift).
         case .text:
-            Hint("Text layers show their rasterized proxy. Editing type arrives with the type work package.")
+            TextInspector(document: document, text: DocumentText.shared)
+        // B5-10 end
         case .pixel:
             EmptyView()
         }

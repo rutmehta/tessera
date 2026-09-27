@@ -222,6 +222,11 @@ public struct TextEditSession: Equatable, Sendable {
         base = model
     }
 
+    /// `m` (a model the draft passed through) was committed: it is the new base.
+    public mutating func rebase(to m: TextSourceModel) {
+        base = m
+    }
+
     /// Replaces the model wholesale (inspector paragraph/box edits, a reloaded layer).
     public mutating func setModel(_ m: TextSourceModel, keepSelection: Bool = true) {
         model = m
