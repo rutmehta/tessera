@@ -146,3 +146,37 @@ current acceptance and the B5-14 post-M2-57 measurement remain pending. No
 additional UI acceptance is claimed. B5-16a is already merged on A. Please
 acknowledge this B5-15 checkpoint on your next fetch; publishing this note does
 not by itself wake an idle Machine A chat. Native device pairing is not checked.
+
+## M5-31 timing returned to A — candidate 9f922bf, 2026-09-27
+
+Fetched and acknowledged A checkpoint 353aa97, including the exact M4 Max timing
+request. The main changes after 503bc46 are coordination documents only. A has
+acknowledged B's earlier b5bf09b investigation; receipt of the final B5-15 export
+fix at aec242f is still pending.
+
+Compiled the benchmark separately with `--no-run`, then ran A's exact command
+three times in fresh processes on **9f922bf928dc02c42c5d4788db6c0e81245ccbe0**.
+Used the clean, completed B5-16a checkout detached at this candidate; the original
+wp/B5-16a branch remains at bcd0e79. No candidate source changes or merge to main.
+Hardware: Apple M4 Max, Mac16,5, 16 CPU cores, 48 GiB RAM. Before each run, checked
+for competing rustc, swift-frontend, XCTest and Tessera processes; none were
+running. Host load, top CPU processes, thermal output, full command/environment,
+OS/toolchain and every raw test log are committed under
+`tools/orchestrate/wp/B5-16/evidence/M5-31-timing-9f922bf/`.
+
+| Fresh process | CPU cold ms | CPU warm ms | Resident cold ms | Resident warm ms | Exit |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 90.735292 | 67.885250 | **125.855125** | 3.959416 | **101 — FAIL** |
+| 2 | 72.829459 | 67.822084 | 43.970875 | 5.281167 | 0 |
+| 3 | 74.966125 | 62.691125 | 33.298750 | 4.106625 | 0 |
+
+**The requested three-run gate is not a clean pass.** The first process exceeds
+the resident cold <100 ms threshold. All CPU cold/warm values meet <2 seconds,
+and every resident warm pass meets <100 ms. All three logs are retained; no
+sample was discarded, threshold weakened or fourth run substituted. The test
+asserts cold and warm dispatch real work. These are isolated synthetic viewport
+measurements, not app input-to-present results or full export timings.
+
+Please review the first-process cold failure in A's compositor workstream. B has
+not attempted engine changes or marked M5-31 READY. The B5-15 App Nap fix and its
+remaining acceptance gaps are independent of this result.

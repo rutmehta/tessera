@@ -1,0 +1,17 @@
+UTC 2026-09-27T15:41:54.978517+00:00
+11:41  up 5 days, 15:30, 1 user, load averages: 14.44 81.79 89.80
+
+Top CPU processes:
+12741 141.2 /usr/libexec/PerfPowerServices
+27454 100.0 yes
+ 1677  62.6 /usr/libexec/sysmond
+24589  51.5 /System/Library/PrivateFrameworks/StorageManagement.framework/PlugIns/ApplicationsStorageExtension.appex/Contents/MacOS/ApplicationsStorageExtension
+24569  47.4 /System/Library/PrivateFrameworks/StorageManagement.framework/PlugIns/StorageManagementService
+  399  38.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+18187  12.1 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)
+ 1128   9.4 /Applications/Spotify.app/Contents/Frameworks/Spotify Helper.app/Contents/MacOS/Spotify Helper
+90549   9.4 /usr/sbin/coreaudiod
+18100   5.6 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded

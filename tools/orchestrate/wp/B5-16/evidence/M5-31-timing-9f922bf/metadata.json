@@ -1,0 +1,44 @@
+{
+  "sha": "9f922bf928dc02c42c5d4788db6c0e81245ccbe0",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "compositor",
+    "--release",
+    "--test",
+    "resident_styles_large",
+    "twenty_mp_five_styles_1368x912_l1_timing",
+    "--",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "hardware": "machdep.cpu.brand_string: Apple M4 Max\nhw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\n",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.1\nBuildVersion:\t\t25B78\n",
+  "rust": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "runs": [
+    {
+      "run": 1,
+      "utc": "2026-09-27T15:41:54.978517+00:00",
+      "exit_code": 101
+    },
+    {
+      "run": 2,
+      "utc": "2026-09-27T15:41:57.317227+00:00",
+      "exit_code": 0
+    },
+    {
+      "run": 3,
+      "utc": "2026-09-27T15:41:58.235030+00:00",
+      "exit_code": 0
+    }
+  ]
+}

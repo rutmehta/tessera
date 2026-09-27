@@ -1,0 +1,17 @@
+UTC 2026-09-27T15:41:58.235030+00:00
+11:41  up 5 days, 15:30, 1 user, load averages: 14.00 80.58 89.32
+
+Top CPU processes:
+12741 119.2 /usr/libexec/PerfPowerServices
+27454  98.5 yes
+24569  68.0 /System/Library/PrivateFrameworks/StorageManagement.framework/PlugIns/StorageManagementService
+ 1677  65.2 /usr/libexec/sysmond
+24589  45.7 /System/Library/PrivateFrameworks/StorageManagement.framework/PlugIns/ApplicationsStorageExtension.appex/Contents/MacOS/ApplicationsStorageExtension
+  399  30.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 1128   9.7 /Applications/Spotify.app/Contents/Frameworks/Spotify Helper.app/Contents/MacOS/Spotify Helper
+90549   9.6 /usr/sbin/coreaudiod
+  674   7.1 /Applications/Adobe Lightroom Classic/Adobe Lightroom Classic.app/Contents/MacOS/Adobe Lightroom Classic
+53104   6.9 /Applications/DaisyDisk.app/Contents/MacOS/DaisyDisk
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
