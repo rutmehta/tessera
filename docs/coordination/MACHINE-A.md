@@ -43,7 +43,20 @@ original4%center criterion and separate boundary discrepancy are preserved.
 INT-45 pending merge remains isolated in export-integration; formatting/license
 checks passed. M2-58 actual presentation acceptance remains pending the measurement
 conditions in M2-58-PRESENTATION-PLAN.md. A's five-minute heartbeat is active and
-polls the durable mailbox; native chat discovery still exposes only local A.
+polls the durable mailbox; SSH now exposes B’s coordinator for reading; direct messaging currently returns an active-writer conflict (see checkpoint below).
+
+## SSH discovery checkpoint — 2026-09-27
+
+Authenticated SSH alias `tessera-machine-b` reaches `Ruts-MacBook-Pro.local`.
+Native host `remote-ssh-discovered:tessera-machine-b` exposes the exact chat
+`Resume Tessera Machine B work`, UUID `01a0e323-c018-7fa3-9605-999a2dea6b32`.
+History and compact status reads succeeded. Direct native messaging failed:
+`thread ... already has an active writer`. The discovered endpoint reports
+`notLoaded` and an older completed turn; neither proves the desktop writer is
+idle or safe to replace. Existing B app-server processes are preserved.
+No direct-message delivery, new B work, mailbox receipt or B heartbeat is claimed.
+Use this exact UUID for new mailbox addressing; the earlier spelling remains an
+agreed bootstrap alias. A continues its ready queue while this conflict remains.
 
 ## Mailbox handshake published
 
