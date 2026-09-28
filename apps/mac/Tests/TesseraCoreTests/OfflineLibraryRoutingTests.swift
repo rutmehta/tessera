@@ -101,12 +101,14 @@ final class OfflineLibraryRoutingTests: XCTestCase {
         let suite = "offline-alias-history-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set([alias.path, expected, "/Volumes/Other/missing"], forKey: "RecentFolderPaths")
         let model = AppModel()
         model.rememberOpenedFolder(library, replacing: alias, defaults: defaults)
         let saved = try XCTUnwrap(defaults.string(forKey: "LastFolderPath"))
         XCTAssertEqual(saved, expected)
         let recent = try XCTUnwrap(defaults.stringArray(forKey: "RecentFolderPaths"))
         XCTAssertEqual(recent.first, expected)
+        XCTAssertEqual(recent, [expected, "/Volumes/Other/missing"])
         XCTAssertFalse(recent.contains(alias.path))
         XCTAssertEqual(model.recentFolders.first?.path, expected)
 
