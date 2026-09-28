@@ -39,30 +39,6 @@ private final class DocumentLoadSettlement {
     }
 }
 
-/// A save result is distinct from permission to continue a cancelled close intent.
-enum DocumentSaveOutcome: Equatable {
-    case saved(URL?, continuationCancelled: Bool)
-    case cancelled
-    case failed(String)
-}
-
-@MainActor
-private final class DocumentSaveOperation {
-    enum Phase { case choosing, replacing, writing }
-    let id: UUID
-    let document: DocumentController
-    let requiresWindow: Bool
-    var phase: Phase = .choosing
-    var continuationCancelled = false
-    var completion: ((DocumentSaveOutcome) -> Void)?
-    var windowObserver: NSObjectProtocol?
-    init(id: UUID, document: DocumentController, requiresWindow: Bool,
-         completion: @escaping (DocumentSaveOutcome) -> Void) {
-        self.id = id; self.document = document; self.requiresWindow = requiresWindow
-        self.completion = completion
-    }
-}
-
 /// Document mode's open documents (WP B5-02): the tab switcher, New / Open / Edit in Layers,
 /// Save / Save As / Export Flat, close with a save prompt, panels (Tab) and screen modes (F).
 @MainActor @Observable
@@ -305,84 +281,40 @@ final class DocumentWorkspace {
 
     // MARK: Saving
 
-    @ObservationIgnored private var saveOperations: [UUID: DocumentSaveOperation] = [:]
-    @ObservationIgnored private var activeSavePrompt: UUID?
-    @ObservationIgnored private var latestSaveRequest: UUID?
-    private var presentedSaveAs: SaveAsRequest?
-    // The Shell binding's nil setter carries no request identity. Dismissal is
-    // settled by SaveAsSheet.onDisappear with its captured ID, never this setter.
-    var saveAsRequest: SaveAsRequest? {
-        get { presentedSaveAs }
-        set { /* Identity-bearing sheet callbacks own settlement. */ }
-    }
-    @ObservationIgnored var lastSaveFolder: URL?
-
-    // Injected only by deterministic tests; production uses native prompts/backend.
-    @ObservationIgnored var saveHasWindow: (() -> Bool)?
-    @ObservationIgnored var saveFileExists: ((URL) -> Bool)?
-    @ObservationIgnored var saveReplacePrompt: ((URL, @escaping @MainActor (Bool) -> Void) -> Void)?
-    @ObservationIgnored var saveWriter: ((DocumentController, URL?, @escaping @MainActor (Result<Void, Error>) -> Void) -> Void)?
-
-    /// Preparation-facing seam only: does not close, finalize drafts or enable Quit.
-    @discardableResult
-    func saveForPreparation(_ doc: DocumentController, saveAs: Bool = false,
-                            completion: @escaping (DocumentSaveOutcome) -> Void) -> UUID {
-        beginDocumentSave(doc, saveAs: saveAs, requiresWindow: true, completion: completion)
-    }
-
-    /// Explicit compatibility wrapper: only this legacy entry permits headless Save As.
+    /// Save; a document without a .tessera-doc path asks where (Save As). `then` runs after a
+    /// successful save.
     func save(_ doc: DocumentController? = nil, then: (@MainActor () -> Void)? = nil) {
         guard let doc = doc ?? current else { return }
-        beginDocumentSave(doc, saveAs: false, requiresWindow: false) { outcome in
-            if case .saved(_, continuationCancelled: false) = outcome { then?() }
+        if let path = doc.info.path, path.hasSuffix(".tessera-doc") {
+            do {
+                try doc.backend.save()
+                doc.reloadHistory()
+                say("Saved \(doc.title)")
+                then?()
+            } catch { say("Save: \(error.localizedDescription)") }
+        } else {
+            saveAs(doc, then: then)
         }
     }
 
+    /// File ▸ Save As…: our own sheet (`SaveAsSheet`), so the name field is scriptable
+    /// (`document.saveAs.name`, B5-v step 140); the system save panel runs out of process.
     func saveAs(_ doc: DocumentController? = nil, then: (@MainActor () -> Void)? = nil) {
         guard let doc = doc ?? current else { return }
-        beginDocumentSave(doc, saveAs: true, requiresWindow: false) { outcome in
-            if case .saved(_, continuationCancelled: false) = outcome { then?() }
+        let request = SaveAsRequest(doc: doc, name: SaveAsRequest.defaultName(doc.title, path: doc.info.path),
+                                    folder: saveFolder(for: doc), then: then)
+        guard window != nil else {
+            // No window (unit tests): save straight into the default folder.
+            if write(doc, to: request.url) { then?() }
+            return
         }
+        saveAsRequest = request
     }
 
-    @discardableResult
-    private func beginDocumentSave(_ doc: DocumentController, saveAs: Bool, requiresWindow: Bool,
-                                   completion: @escaping (DocumentSaveOutcome) -> Void) -> UUID {
-        let id = UUID()
-        guard !doc.isClosed else { completion(.failed("Document is closed")); return id }
-        guard !saveOperations.values.contains(where: { $0.document === doc && $0.phase == .writing }) else {
-            completion(.failed("A save for this document is still running")); return id
-        }
-        let old = activeSavePrompt
-        let operation = DocumentSaveOperation(id: id, document: doc, requiresWindow: requiresWindow, completion: completion)
-        saveOperations[id] = operation
-        latestSaveRequest = id
-        activeSavePrompt = id
-        if let old { cancelDocumentSave(old) }
-        // Cancelling the old prompt may synchronously start another request.
-        guard saveOperations[id] === operation, activeSavePrompt == id else { return id }
-        let hasWindow = saveHasWindow?() ?? (window != nil)
-        guard !requiresWindow || hasWindow else {
-            settleDocumentSave(id, .failed("Save requires a document window")); return id
-        }
-        if let window {
-            operation.windowObserver = NotificationCenter.default.addObserver(
-                forName: NSWindow.willCloseNotification, object: window, queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.documentSaveWindowLost(id) }
-            }
-        }
-        if !saveAs, let path = doc.info.path, path.hasSuffix(".tessera-doc") {
-            admitDocumentWrite(operation, url: nil, folder: nil)
-        } else {
-            let request = SaveAsRequest(id: id, doc: doc,
-                name: SaveAsRequest.defaultName(doc.title, path: doc.info.path), folder: saveFolder(for: doc))
-            if !hasWindow { // Explicit legacy-only automatic destination.
-                admitDocumentWrite(operation, url: request.url, folder: request.folder)
-            } else { presentedSaveAs = request }
-        }
-        return id
-    }
+    /// The Save As sheet on screen.
+    var saveAsRequest: SaveAsRequest?
+    /// The folder of the last Save As (the sheet's default for documents without a path).
+    @ObservationIgnored var lastSaveFolder: URL?
 
     private func saveFolder(for doc: DocumentController) -> URL {
         if let p = doc.info.path { return URL(fileURLWithPath: p).deletingLastPathComponent() }
@@ -391,97 +323,22 @@ final class DocumentWorkspace {
             ?? FileManager.default.homeDirectoryForCurrentUser
     }
 
-    func cancelDocumentSave(_ id: UUID) {
-        guard let operation = saveOperations[id] else { return }
-        if operation.phase == .writing {
-            operation.continuationCancelled = true
-        } else { settleDocumentSave(id, .cancelled) }
-    }
-
-    func saveAsSheetDidDisappear(_ id: UUID) {
-        // Choosing -> replacing/writing hides the sheet deliberately.
-        guard saveOperations[id]?.phase == .choosing else { return }
-        cancelDocumentSave(id)
-    }
-
-    func documentSaveWindowLost(_ id: UUID) {
-        guard let operation = saveOperations[id] else { return }
-        if operation.phase == .writing { operation.continuationCancelled = true }
-        else { settleDocumentSave(id, .failed("Document window closed before save")) }
-    }
-
+    /// The sheet's Save: asks before replacing an existing file, then writes.
     func finishSaveAs(_ request: SaveAsRequest) {
-        guard let operation = saveOperations[request.id], operation.document === request.doc,
-              operation.phase == .choosing, activeSavePrompt == request.id else { return }
-        guard request.isValid else { settleDocumentSave(request.id, .failed("Invalid file name")); return }
-        operation.phase = .replacing
-        if presentedSaveAs?.id == request.id { presentedSaveAs = nil }
-        let proceed: @MainActor (Bool) -> Void = { [weak self] accepted in
-            guard let self, self.saveOperations[request.id] === operation,
-                  operation.phase == .replacing else { return }
-            guard accepted else { self.settleDocumentSave(request.id, .cancelled); return }
-            self.admitDocumentWrite(operation, url: request.url, folder: request.folder)
+        saveAsRequest = nil
+        let url = request.url
+        let go = { [weak self] in
+            guard let self else { return }
+            self.lastSaveFolder = request.folder
+            if self.write(request.doc, to: url) { request.then?() }
         }
-        let exists = saveFileExists?(request.url) ?? FileManager.default.fileExists(atPath: request.url.path)
-        guard exists else { proceed(true); return }
-        if let saveReplacePrompt { saveReplacePrompt(request.url, proceed); return }
-        guard let window else {
-            // Even legacy UI requests may not overwrite after losing their window.
-            settleDocumentSave(request.id, .failed("Document window closed before save")); return
-        }
+        guard FileManager.default.fileExists(atPath: url.path), let window = self.window else { go(); return }
         let alert = NSAlert()
-        alert.messageText = "Replace “\(request.url.lastPathComponent)”?"
-        alert.informativeText = "A file already exists at this destination. Replacing it will overwrite its contents."
+        alert.messageText = "“\(url.lastPathComponent)” already exists. Do you want to replace it?"
+        alert.informativeText = "A file with the same name already exists in “\(request.folder.lastPathComponent)”. Replacing it will overwrite its current contents."
         alert.addButton(withTitle: "Replace")
         alert.addButton(withTitle: "Cancel")
-        alert.beginSheetModal(for: window) { response in
-            MainActor.assumeIsolated { proceed(response == .alertFirstButtonReturn) }
-        }
-    }
-
-    private func admitDocumentWrite(_ operation: DocumentSaveOperation, url: URL?, folder: URL?) {
-        guard saveOperations[operation.id] === operation, operation.phase != .writing else { return }
-        guard !operation.document.isClosed else { settleDocumentSave(operation.id, .failed("Document is closed")); return }
-        if operation.requiresWindow, !(saveHasWindow?() ?? (window != nil)) {
-            settleDocumentSave(operation.id, .failed("Document window closed before save")); return
-        }
-        operation.phase = .writing
-        if activeSavePrompt == operation.id { activeSavePrompt = nil }
-        if presentedSaveAs?.id == operation.id { presentedSaveAs = nil }
-        // Strong self/operation ownership lasts until an admitted writer settles.
-        let done: @MainActor (Result<Void, Error>) -> Void = { [self, operation] result in
-            guard saveOperations[operation.id] === operation, operation.phase == .writing else { return }
-            switch result {
-            case .success:
-                operation.document.reloadModel()
-                operation.document.reloadHistory()
-                if latestSaveRequest == operation.id {
-                    if let folder { lastSaveFolder = folder }
-                    say("Saved \(operation.document.title)")
-                }
-                settleDocumentSave(operation.id, .saved(url ?? operation.document.info.path.map { URL(fileURLWithPath: $0) },
-                    continuationCancelled: operation.continuationCancelled))
-            case .failure(let error): settleDocumentSave(operation.id, .failed(error.localizedDescription))
-            }
-        }
-        if let saveWriter { saveWriter(operation.document, url, done) }
-        else {
-            done(Result {
-                if let url { try operation.document.backend.saveAs(path: url.path) }
-                else { try operation.document.backend.save() }
-            })
-        }
-    }
-
-    private func settleDocumentSave(_ id: UUID, _ outcome: DocumentSaveOutcome) {
-        guard let operation = saveOperations.removeValue(forKey: id) else { return }
-        if let observer = operation.windowObserver { NotificationCenter.default.removeObserver(observer) }
-        if activeSavePrompt == id { activeSavePrompt = nil }
-        if presentedSaveAs?.id == id { presentedSaveAs = nil }
-        let completion = operation.completion
-        operation.completion = nil // Latch before reentrant observers.
-        if latestSaveRequest == id, case .failed(let message) = outcome { say("Save: \(message)") }
-        completion?(outcome)
+        alert.beginSheetModal(for: window) { r in MainActor.assumeIsolated { if r == .alertFirstButtonReturn { go() } } }
     }
 
     /// Save As to `url` (`.tessera-doc`, `.psd`, `.psb`); the document takes that path.

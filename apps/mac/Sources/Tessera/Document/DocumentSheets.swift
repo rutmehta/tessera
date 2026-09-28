@@ -128,10 +128,11 @@ struct SaveAsRequest: Identifiable {
         }
     }
 
-    var id = UUID()
+    let id = UUID()
     let doc: DocumentController
     var name: String
     var folder: URL
+    var then: (@MainActor () -> Void)?
 
     /// The format the name's extension asks for (`.tessera-doc` when it has none).
     var format: Format { Self.format(of: name) }
@@ -212,7 +213,7 @@ struct SaveAsSheet: View {
         } leading: {
             EmptyView()
         } actions: {
-            Button("Cancel") { workspace.cancelDocumentSave(request.id) }
+            Button("Cancel") { workspace.saveAsRequest = nil }
                 .keyboardShortcut(.cancelAction).sheetButton()
                 .accessibilityIdentifier("document.saveAs.cancel")
             Button("Save") { save() }
@@ -222,7 +223,6 @@ struct SaveAsSheet: View {
                 .accessibilityIdentifier("document.saveAs.save")
         }
         .frame(width: 520, height: 330)
-        .onDisappear { workspace.saveAsSheetDidDisappear(request.id) }
         .onAppear {
             // The field takes the keyboard as the sheet opens (after SwiftUI installs it).
             DispatchQueue.main.async { MainActor.assumeIsolated { nameFocused = true } }
