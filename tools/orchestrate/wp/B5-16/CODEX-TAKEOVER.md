@@ -489,3 +489,14 @@ Proposes versioned immutable source descriptor, independent resolver/render/even
 contracts, A engine/compositor/persistence versus B FFI/UI split, and first tiny
 pinned persistence/resolver gate. No product capability approved or implemented.
 Open in Layers remains rendered copy. B hold/paused heartbeat preserved.
+
+## Develop close caller review — 651c9cf1 (2026-09-28 UTC)
+
+Validated/accepted source-only contract review against main435211b2 and retry
+candidate85de2860. DEVELOP-CLOSE-CALLER-REVIEW.md confirms failed close still
+stops native session; adds mask queue retention, cancelled-open cleanup ownership,
+pre-scan/recent-folder gating, durable Agent intent cleanup and last-window quit
+recovery gaps. Proposes native/Core -> owner-keyed AppModel -> consumer/UI split,
+with B reviewing Document handoff only as assigned. No product edits or workloads;
+source tests proposed/unrun. A owns compilation/main and desktop writer remains
+untouched; B hold and paused heartbeat preserved.
