@@ -60,7 +60,10 @@ final class DevelopCloseResultTests: XCTestCase {
         controller.set(.exposure, 1.25, interactive: true)
         session.rejectNextSettings()
 
-        await controller.close()
+        let firstResult = await controller.close()
+        if case .failure(let error) = firstResult {
+            XCTAssertTrue(error.localizedDescription.contains("injected settings rejection"))
+        } else { XCTFail("close must return the host error") }
         XCTAssertEqual(session.closeCount, 0, "a rejected host patch must stop native close")
         XCTAssertFalse(controller.closed, "the pending patch must remain retryable")
         XCTAssertEqual(session.listenerDetachCount, 0)
@@ -68,7 +71,8 @@ final class DevelopCloseResultTests: XCTestCase {
         XCTAssertEqual(failures.count, 1)
         XCTAssertEqual(failures.first?.contains("injected settings rejection"), true)
 
-        await controller.close() // Explicit retry, without another edit.
+        let retryResult = await controller.close() // Explicit retry, without another edit.
+        if case .failure(let error) = retryResult { XCTFail("retry failed: \(error)") }
         XCTAssertEqual(session.settingsAttempts, 2, "the failed patch must be retained")
         XCTAssertEqual(session.closeCount, 1)
         XCTAssertTrue(controller.closed)
@@ -100,8 +104,14 @@ final class DevelopCloseResultTests: XCTestCase {
         await fulfillment(of: [secondJoined], timeout: 5)
         // Release only after the second caller crossed Core's join boundary.
         session.releaseClose()
-        await first.value
-        await second.value
+        let firstResult = await first.value
+        let secondResult = await second.value
+        if case .failure(let error) = firstResult {
+            XCTAssertTrue(error.localizedDescription.contains("injected native close rejection"))
+        } else { XCTFail("first caller must receive native close failure") }
+        if case .failure(let error) = secondResult {
+            XCTAssertTrue(error.localizedDescription.contains("injected native close rejection"))
+        } else { XCTFail("joined caller must receive the same failure") }
         XCTAssertEqual(session.closeCount, 1)
         XCTAssertFalse(controller.closed, "a rejected native close must leave Core retryable")
         XCTAssertEqual(session.listenerDetachCount, 0)
@@ -109,7 +119,8 @@ final class DevelopCloseResultTests: XCTestCase {
         XCTAssertEqual(failures.count, 1)
 
         session.releaseClose()
-        await controller.close() // Only this new, explicit call may retry.
+        let retryResult = await controller.close() // Only this new, explicit call may retry.
+        if case .failure(let error) = retryResult { XCTFail("retry failed: \(error)") }
         XCTAssertEqual(session.closeCount, 2)
         XCTAssertTrue(controller.closed)
         let reopened = try f.library.engine.openDevelopSession(imageId: f.imageID)
@@ -130,14 +141,18 @@ final class DevelopCloseResultTests: XCTestCase {
         var failures: [String] = []
         controller.onFailure = { failures.append($0) }
 
-        await controller.close()
+        let firstResult = await controller.close()
+        if case .failure(let error) = firstResult {
+            XCTAssertTrue(error.localizedDescription.contains("injected mask rejection"))
+        } else { XCTFail("close must return the mask error") }
         XCTAssertEqual(session.closeCount, 0)
         XCTAssertFalse(controller.closed)
         XCTAssertEqual(controller.pendingMaskParams[.init(group: group, name: "exposure")], Float(0.7))
         XCTAssertEqual(failures.first?.contains("injected mask rejection"), true)
 
         session.releaseClose()
-        await controller.close()
+        let retryResult = await controller.close()
+        if case .failure(let error) = retryResult { XCTFail("retry failed: \(error)") }
         XCTAssertEqual(session.maskParamAttempts, 2)
         XCTAssertEqual(session.closeCount, 1)
         let reopened = try f.library.engine.openDevelopSession(imageId: f.imageID)
@@ -167,19 +182,30 @@ final class DevelopCloseResultTests: XCTestCase {
         controller.set(.exposure, 2, interactive: true)
         controller.relink(itemID: 99)
         controller.setMaskParam(group, "exposure", 1, interactive: true)
+        controller.setMaskParam(group, "exposure", 2, interactive: false)
+        XCTAssertFalse(controller.commit(label: "blocked while closing"))
+        XCTAssertThrowsError(try controller.undo())
+        XCTAssertThrowsError(try controller.attachSurfaces(viewWidth: 32, viewHeight: 24))
+        controller.updateDisplay(nil)
+        controller.setCropEditing(true)
+        controller.setMaskingPreview(true)
         XCTAssertEqual(DevelopController.encode(controller.settingsObject), settingsBefore)
         XCTAssertEqual(controller.itemID, itemBefore)
         XCTAssertEqual(controller.pendingMaskParams, maskBefore)
         XCTAssertEqual(session.settingsAttempts, 1, "closing must not send a new patch")
+        XCTAssertEqual(session.maskParamAttempts, 0)
+        XCTAssertNil(controller.plan)
         XCTAssertGreaterThanOrEqual(failures.count, 1)
 
         session.releaseClose()
-        await first.value
+        let firstResult = await first.value
+        if case .success = firstResult { XCTFail("injected native close failure was lost") }
         XCTAssertFalse(controller.closed)
         controller.set(.exposure, 1.25, interactive: true)
         XCTAssertEqual(controller.value(.exposure), 1.25, "failure reopens edit admission")
         session.releaseClose()
-        await controller.close()
+        let retryResult = await controller.close()
+        if case .failure(let error) = retryResult { XCTFail("retry failed: \(error)") }
         XCTAssertEqual(session.closeCount, 2)
     }
 
@@ -189,13 +215,15 @@ final class DevelopCloseResultTests: XCTestCase {
         controller.onNeedsFlush = {}
         controller.set(.exposure, 1.25, interactive: true)
         session.releaseClose()
-        await controller.close()
+        let firstResult = await controller.close()
+        if case .failure(let error) = firstResult { XCTFail("close failed: \(error)") }
         XCTAssertTrue(controller.closed)
         XCTAssertEqual(session.settingsAttempts, 1)
         XCTAssertEqual(session.closeCount, 1)
         XCTAssertEqual(session.listenerDetachCount, 1)
         XCTAssertFalse(controller.flushPending())
-        await controller.close()
+        let secondResult = await controller.close()
+        if case .failure(let error) = secondResult { XCTFail("idempotent close failed: \(error)") }
         XCTAssertEqual(session.closeCount, 1)
     }
 
@@ -205,19 +233,90 @@ final class DevelopCloseResultTests: XCTestCase {
         controller.onNeedsFlush = {}
         controller.set(.exposure, 1.25, interactive: true)
         session.rejectNextSettings()
-        var callbackClose: Task<Void, Never>?
+        var callbackClose: Task<Result<Void, Error>, Never>?
         var failureCount = 0
-        controller.onFailure = {
+        controller.onFailure = { _ in
             failureCount += 1
             if callbackClose == nil { callbackClose = Task { await controller.close() } }
         }
         session.releaseClose()
-        await controller.close()
-        await callbackClose?.value
+        let firstResult = await controller.close()
+        let callbackResult = await callbackClose?.value
+        if case .success = firstResult { XCTFail("host rejection was lost") }
+        if case .some(.success) = callbackResult { XCTFail("callback-triggered close retried automatically") }
         XCTAssertEqual(failureCount, 1)
         XCTAssertEqual(session.settingsAttempts, 1)
         XCTAssertEqual(session.closeCount, 0)
         XCTAssertFalse(controller.closed)
+    }
+
+    func testPatchCallbackCloseJoinsPublishedAttempt() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        defer {
+            controller.onCloseWaiterJoined = nil
+            session.releaseClose()
+        }
+        controller.onNeedsFlush = {}
+        controller.set(.exposure, 1.25, interactive: true)
+        let joined = expectation(description: "callback close joined published attempt")
+        controller.onCloseWaiterJoined = { joined.fulfill() }
+        var callbackClose: Task<Result<Void, Error>, Never>?
+        controller.onPatchSent = { _ in callbackClose = Task { await controller.close() } }
+        let first = Task { await controller.close() }
+        let entered = await session.waitForCloseEntry()
+        XCTAssertTrue(entered)
+        await fulfillment(of: [joined], timeout: 5)
+        session.releaseClose()
+        let firstResult = await first.value
+        let joinedResult = await callbackClose?.value
+        if case .failure(let error) = firstResult { XCTFail("first close failed: \(error)") }
+        if case .some(.failure(let error)) = joinedResult { XCTFail("joined close failed: \(error)") }
+        XCTAssertEqual(session.settingsAttempts, 1)
+        XCTAssertEqual(session.closeCount, 1)
+    }
+
+    func testCancelingOneWaiterDoesNotCancelSharedNativeClose() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        defer {
+            controller.onCloseWaiterJoined = nil
+            session.releaseClose()
+        }
+        let first = Task { await controller.close() }
+        let entered = await session.waitForCloseEntry()
+        XCTAssertTrue(entered)
+        let joined = expectation(description: "second caller joined native close")
+        controller.onCloseWaiterJoined = { joined.fulfill() }
+        let second = Task { await controller.close() }
+        await fulfillment(of: [joined], timeout: 5)
+        first.cancel()
+        session.releaseClose()
+        let secondResult = await second.value
+        _ = await first.value
+        if case .failure(let error) = secondResult { XCTFail("joined waiter lost close: \(error)") }
+        XCTAssertTrue(controller.closed)
+        XCTAssertEqual(session.closeCount, 1)
+    }
+
+    func testAdmissionFailureCallbackCannotReenterIndefinitely() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        defer { session.releaseClose() }
+        let first = Task { await controller.close() }
+        let entered = await session.waitForCloseEntry()
+        XCTAssertTrue(entered)
+        var failures = 0
+        controller.onFailure = { _ in
+            failures += 1
+            controller.set(.exposure, 5, interactive: true)
+        }
+        controller.set(.exposure, 2, interactive: true)
+        XCTAssertEqual(failures, 1)
+        XCTAssertNotEqual(controller.value(.exposure), 2)
+        session.releaseClose()
+        let result = await first.value
+        if case .failure(let error) = result { XCTFail("close failed: \(error)") }
     }
 }
 
@@ -268,6 +367,19 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
         wrapped.setListener(listener: listener)
     }
     override func setMaskListener(listener: MaskListener?) { wrapped.setMaskListener(listener: listener) }
+    override func planSurface(width: UInt32, height: UInt32) -> SurfacePlan {
+        wrapped.planSurface(width: width, height: height)
+    }
+    override func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws {
+        try wrapped.attachSurface(iosurfaceId: iosurfaceId, width: width, height: height)
+    }
+    override func setDisplayHeadroom(headroom: Float) throws {
+        try wrapped.setDisplayHeadroom(headroom: headroom)
+    }
+    override func setCropEditing(editing: Bool) throws { try wrapped.setCropEditing(editing: editing) }
+    override func setMaskingPreview(enabled: Bool) throws { try wrapped.setMaskingPreview(enabled: enabled) }
+    override func commit(label: String) throws -> Bool { try wrapped.commit(label: label) }
+    override func undo() throws -> Bool { try wrapped.undo() }
     override func setSettings(jsonPatch: String, interactive: Bool) throws {
         let fail = lock.withLock {
             settingsCalls += 1

@@ -3,6 +3,27 @@ import Foundation
 import IOSurface
 import TesseraFFI
 
+@MainActor
+private final class DevelopCloseAttemptContext: @unchecked Sendable {
+    weak var controller: DevelopController?
+    var result: Result<Void, Error>?
+    init(controller: DevelopController) { self.controller = controller }
+}
+
+private enum DevelopCloseCallbackContext {
+    @TaskLocal static var attempt: DevelopCloseAttemptContext?
+}
+
+private enum DevelopCloseAdmissionError: LocalizedError {
+    case closing, closed
+    var errorDescription: String? {
+        switch self {
+        case .closing: "Develop is closing; wait for the save result before editing."
+        case .closed: "Develop is closed."
+        }
+    }
+}
+
 /// One finished level of an engine render, written into an attached IOSurface.
 public struct DevelopFrame: Sendable, Equatable {
     public let surfaceID: UInt32
@@ -114,7 +135,9 @@ public final class DevelopController {
     public let timingSession = UUID().uuidString
     private var timingInput: UInt64 = 0
     private(set) var closed = false
-    private var closeTask: Task<Void, Never>?
+    private(set) var closing = false
+    private var closeTask: Task<Result<Void, Error>, Never>?
+    private var reportingAdmissionFailure = false
     /// Internal observation point for a caller joining an in-flight close. Nil in production.
     /// Tests use it to release a backend gate only after the second caller has joined.
     var onCloseWaiterJoined: (() -> Void)?
@@ -137,7 +160,10 @@ public final class DevelopController {
 
     /// Opens the session off the main actor (the RAW is decoded there).
     /// The library renumbered its items in place; the session is unchanged.
-    public func relink(itemID: Int) { self.itemID = itemID }
+    public func relink(itemID: Int) {
+        guard admitsMutation() else { return }
+        self.itemID = itemID
+    }
 
     public static func open(_ ref: EngineImageReference, itemID: Int) async throws -> DevelopController {
         let session = try await Task.detached(priority: .userInitiated) {
@@ -159,28 +185,94 @@ public final class DevelopController {
         try reloadSettings()
     }
 
-    /// Stops rendering and writes pending edits (off the main actor). Idempotent.
-    public func close() async {
+    /// Stops rendering and writes pending edits (off the main actor). A failed attempt
+    /// leaves the controller and native session available for an explicit retry.
+    @discardableResult
+    public func close() async -> Result<Void, Error> {
+        // A child task created by a synchronous close callback belongs to that
+        // attempt, even if it first runs after the failing attempt has completed.
+        if let inherited = DevelopCloseCallbackContext.attempt,
+           inherited.controller === self, let result = inherited.result {
+            return result
+        }
         if let closeTask {
             onCloseWaiterJoined?()
-            await closeTask.value
-            return
+            return await closeTask.value
         }
-        guard !closed else { return }
+        guard !closed else { return .success(()) }
+        closing = true
         invalidateDeferredSettingsFlush()
-        // The pending flush itself rejects closed controllers. Finish submitting
-        // their coalesced patches before closing the backend session.
-        _ = flushPending()
+        invalidateDeferredMaskFlush()
+        let attempt = DevelopCloseAttemptContext(controller: self)
+        let task = Task { @MainActor [self] in
+            await DevelopCloseCallbackContext.$attempt.withValue(attempt) {
+                await performClose(attempt: attempt)
+            }
+        }
+        closeTask = task
+        let result = await task.value
+        closeTask = nil
+        return result
+    }
+
+    private func performClose(attempt: DevelopCloseAttemptContext) async -> Result<Void, Error> {
+        if let error = drainPendingForClose() {
+            let result: Result<Void, Error> = .failure(error)
+            attempt.result = result
+            closing = false
+            return result
+        }
+        let session = session
+        do {
+            try await Task.detached(priority: .utility) { try session.close() }.value
+        } catch {
+            reportCloseFailure(error)
+            let result: Result<Void, Error> = .failure(error)
+            attempt.result = result
+            closing = false
+            return result
+        }
         closed = true
         session.setListener(listener: nil)
         session.setMaskListener(listener: nil)
-        let session = session
-        let task = Task.detached(priority: .utility) { () -> Void in
-            try? session.close()
+        onFrame = nil
+        onSaved = nil
+        onFailure = nil
+        onNeedsFlush = nil
+        onPatchSent = nil
+        onSettingsReloaded = nil
+        onMaskOverlay = nil
+        onMaskJob = nil
+        onPresentationChange = nil
+        attempt.result = .success(())
+        return .success(())
+    }
+
+    private func drainPendingForClose() -> Error? {
+        let mask = flushMaskPendingResult(allowClosing: true)
+        if let error = mask.error { return error }
+        return flushSettingsPendingResult().error
+    }
+
+    /// Admission errors are reported once across synchronous callback reentry.
+    @discardableResult
+    func admitsMutation() -> Bool {
+        guard closing || closed else { return true }
+        guard !reportingAdmissionFailure else { return false }
+        reportingAdmissionFailure = true
+        defer { reportingAdmissionFailure = false }
+        reportCloseFailure(closed ? DevelopCloseAdmissionError.closed : .closing)
+        return false
+    }
+
+    func requireMutation() throws {
+        guard admitsMutation() else {
+            throw closed ? DevelopCloseAdmissionError.closed : .closing
         }
-        closeTask = task
-        await task.value
-        closeTask = nil
+    }
+
+    private func reportCloseFailure(_ error: Error) {
+        onFailure?(error.localizedDescription)
     }
 
     // MARK: Surfaces
@@ -190,6 +282,7 @@ public final class DevelopController {
     /// size and the format are unchanged. Returns the plan.
     @discardableResult
     public func attachSurfaces(viewWidth: Int, viewHeight: Int, count: Int = 3) throws -> SurfacePlan {
+        try requireMutation()
         lastView = (viewWidth, viewHeight)
         let swap = info.orientation >= 5
         let w = UInt32(max(swap ? viewHeight : viewWidth, 1))
@@ -231,6 +324,7 @@ public final class DevelopController {
     /// current headroom follows the display brightness). Switches the ring format when the
     /// presentation changes and tells the engine the display's current headroom.
     public func updateDisplay(_ screen: EDRScreen?) {
+        guard admitsMutation() else { return }
         self.screen = screen.map(EDRScreenValues.init)
         syncPresentation()
     }
@@ -244,6 +338,7 @@ public final class DevelopController {
 
     /// Re-resolves the presentation from the last screen and the live HDR toggle.
     func syncPresentation() {
+        guard admitsMutation() else { return }
         let next = EDRPresentation.resolve(screen: screen, hdrEnabled: hdrEnabled)
         let old = presentation
         presentation = next
@@ -292,6 +387,7 @@ public final class DevelopController {
     /// Records a slider value. Interactive values are coalesced to one engine call per display
     /// frame; a final value is sent at once (call `commit` to make it an undo step).
     public func set(_ p: DevelopParameter, _ value: Double, interactive: Bool) {
+        guard admitsMutation() else { return }
         var patch: [String: Any] = [p.field: value]
         if p.isWhiteBalance {
             // Moving either slider leaves As Shot: pin the other to its displayed value.
@@ -320,12 +416,14 @@ public final class DevelopController {
 
     /// Sets one member. Interactive values are coalesced like `set(_:_:interactive:)`.
     public func set(path: [String], _ value: Any, interactive: Bool) {
+        guard admitsMutation() else { return }
         apply(patch: Self.patch(path, value), interactive: interactive)
     }
 
     /// Merges an RFC 7386 patch (nested objects merge, arrays and scalars replace, `NSNull`
     /// removes) into the live settings and queues it for the engine.
     public func apply(patch: [String: Any], interactive: Bool) {
+        guard admitsMutation() else { return }
         timingInput &+= 1
         PerformanceTrace.shared.record("input", session: timingSession, input: timingInput, backend: info.backend)
         pending = Self.merge(pending, patch, keepNulls: true)
@@ -377,6 +475,7 @@ public final class DevelopController {
 
     /// White balance back to the camera's as-shot values.
     public func setAsShotWhiteBalance() {
+        guard admitsMutation() else { return }
         pending["white_balance"] = ["mode": "as_shot"]
         pendingInteractive = false
         _ = flushPending()
@@ -387,13 +486,19 @@ public final class DevelopController {
     /// engine writes are reported through `onFailure`.
     @discardableResult
     public func flushPending() -> Bool {
+        guard !closing, !closed else { return false }
+        let masks = flushMaskPendingResult(allowClosing: false)
+        let settings = flushSettingsPendingResult()
+        return masks.attempted || settings.attempted
+    }
+
+    private func flushSettingsPendingResult() -> (attempted: Bool, error: Error?) {
         let span = PerformanceTrace.shared.begin("flush", session: timingSession, input: timingInput)
         defer { PerformanceTrace.shared.end(span) }
-        let masks = flushMaskPending()
-        guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return masks }
+        guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return (false, nil) }
         guard !settingsFlushInFlight else {
             settingsFlushRequested = true
-            return masks
+            return (false, nil)
         }
         invalidateDeferredSettingsFlush()
         let patch = pending
@@ -405,10 +510,12 @@ public final class DevelopController {
         let ffiSpan = PerformanceTrace.shared.begin("ffi", session: timingSession, input: timingInput)
         defer { PerformanceTrace.shared.end(ffiSpan) }
         var accepted = false
+        var failure: Error?
         do {
             try session.setSettings(jsonPatch: json, interactive: interactive)
             accepted = true
         } catch {
+            failure = error
             let newerPending = !pending.isEmpty
             let newerInteractive = pendingInteractive
             pending = Self.merge(patch, pending, keepNulls: true)
@@ -421,7 +528,7 @@ public final class DevelopController {
         if accepted, shouldFlushNewerSettings, !pending.isEmpty {
             scheduleDeferredSettingsFlush()
         }
-        return true
+        return (true, failure)
     }
 
     private func invalidateDeferredSettingsFlush() {
@@ -440,7 +547,7 @@ public final class DevelopController {
         deferredSettingsFlush = Task { @MainActor [weak self] in
             await Task.yield()
             guard let self, !Task.isCancelled,
-                  self.deferredSettingsFlushID == generation, !self.closed else { return }
+                  self.deferredSettingsFlushID == generation, !self.closed, !self.closing else { return }
             self.deferredSettingsFlush = nil
             if let onNeedsFlush = self.onNeedsFlush {
                 onNeedsFlush()
@@ -453,6 +560,7 @@ public final class DevelopController {
     /// Makes everything since the last commit one undo step labelled `label`.
     @discardableResult
     public func commit(label: String) -> Bool {
+        guard admitsMutation() else { return false }
         flushPending()
         let recorded = (try? session.commit(label: label)) ?? false
         if recorded { ignoredSettings = (try? session.ignoredSettings()) ?? ignoredSettings }
@@ -460,11 +568,12 @@ public final class DevelopController {
         return recorded
     }
 
-    public func undo() throws -> Bool { try historyMove { try session.undo() } }
-    public func redo() throws -> Bool { try historyMove { try session.redo() } }
-    public func reset() throws -> Bool { try historyMove { try session.reset() } }
+    public func undo() throws -> Bool { try requireMutation(); return try historyMove { try session.undo() } }
+    public func redo() throws -> Bool { try requireMutation(); return try historyMove { try session.redo() } }
+    public func reset() throws -> Bool { try requireMutation(); return try historyMove { try session.reset() } }
 
     public func snapshot(named name: String) throws {
+        try requireMutation()
         flushPending()
         try session.snapshot(name: name)
         refreshHistory()
@@ -479,11 +588,13 @@ public final class DevelopController {
 
     /// Moves to the state after history step `id` (nil: the original state).
     public func checkoutHistory(_ id: UInt64?) throws -> Bool {
+        try requireMutation()
         try historyMove { try session.checkoutHistory(id: id) }
     }
 
     /// Turns a step's changes off or back on (recorded as a new step).
     public func setHistoryStep(_ id: UInt64, enabled: Bool) throws -> Bool {
+        try requireMutation()
         try historyMove { try session.setHistoryStepEnabled(id: id, enabled: enabled) }
     }
 
@@ -492,6 +603,7 @@ public final class DevelopController {
 
     /// Amount slider drag: previews `amount` of `group` through the coalesced patch path.
     public func previewGroupAmount(_ group: HistoryGroupState, _ amount: Double) {
+        guard admitsMutation() else { return }
         guard let patch = AgentFade.patch(current: settings, withoutJSON: group.withoutJson,
                                           withJSON: group.withJson, amount: amount), !patch.isEmpty else { return }
         apply(patch: patch, interactive: true)
@@ -500,12 +612,14 @@ public final class DevelopController {
     /// Amount slider release: the engine records the amount as one undo step.
     @discardableResult
     public func commitGroupAmount(_ groupID: UInt32, _ amount: Double) throws -> Bool {
+        try requireMutation()
         try historyMove { try session.commitGroupAmount(groupId: groupID, amount: min(max(amount, 0), 1)) }
     }
 
     /// Applies a partial recipe (preset) as one undo step labelled `label`.
     @discardableResult
     public func applyPreset(_ patch: [String: Any], label: String) -> Bool {
+        guard admitsMutation() else { return false }
         apply(patch: patch, interactive: false)
         let recorded = commit(label: label)
         onSettingsReloaded?()
@@ -516,12 +630,14 @@ public final class DevelopController {
 
     /// Crop tool: the engine renders the whole frame while on.
     public func setCropEditing(_ on: Bool) {
+        guard admitsMutation() else { return }
         flushPending()
         do { try session.setCropEditing(editing: on) } catch { onFailure?(error.localizedDescription) }
     }
 
     /// ⌥ on the Masking slider: frames show the sharpening mask while on.
     public func setMaskingPreview(_ on: Bool) {
+        guard admitsMutation() else { return }
         do { try session.setMaskingPreview(enabled: on) } catch { onFailure?(error.localizedDescription) }
     }
 
@@ -539,6 +655,7 @@ public final class DevelopController {
     }
 
     private func historyMove(_ body: () throws -> Bool) throws -> Bool {
+        try requireMutation()
         flushPending()
         let moved = try body()
         try reloadSettings()
