@@ -67,3 +67,15 @@ With Original selected but a valid preview present offline, routing reports the 
 Rationale supplied by A (not measured or rerun on B): matched 2460×1638 warm edit proxy CPU 384.7 ms vs original Metal resident including readback 33.07 ms (roughly 11.6× slower); CPU original 818.2 ms does not justify automatic proxy selection on the existing Metal path. This single measurement is not a universal camera/performance claim. UI makes no compression or speed promise.
 
 Native API unchanged. Source/whitespace review only. A must compile and execute all 15 tests, confirm persisted preference behavior and the actual offline menu/reopen/save flow, and own integration/main. No B workloads, apps, benchmarks, heartbeat or writer changes.
+
+## Review bcf6cb50 — keep local proxy-save presentation through invalidation
+
+Validated exact target and accepted before changes. Tests-first `2c51982c`/`d2fa3526`; production `8d35e9f6`. Combined suite now **18 methods, all UNRUN on B**. A reports only the initial eight at c6d05aa3 passed; that does not validate the later 15- or 18-test candidates.
+
+AppModel's successful save callback now forwards the actual completing controller's immutable source route, under its existing owner/image guards. SmartPreviewController stores a separate presentation-only local-save record for Smart Preview saves. Native routing snapshots still clear and their generations/revisions invalidate exactly as before; autosave launches no native read.
+
+Library thumbnail/AX and selected menu warning retain “Smart Preview · Local edits saved · Status needs refresh · Thumbnail: last synchronized image”. Historical offline evidence is explicitly labeled “Original last checked offline”; it is not current availability. Original saves do not fabricate proxy-save evidence. Ordinary status invalidation does not erase the record; fresh dirty/offline/conflicting status retains it, while validated clean online-ready or clean removal retires it. Current native status remains the display source when available.
+
+Opening uses only a newly available validated routing snapshot, never presentation state. Regression asserts warning survives proxy-save invalidation with no extra reads, opener performs a new read, clean fresh result replaces the warning, failed validation cannot open using presentation, and Original save does not invent a proxy badge. Existing status coalescing, default Original, explicit saved preference, offline action and native revalidation contracts remain unchanged.
+
+Source/whitespace inspection only; no builds/tests/apps/benchmarks or heartbeat/writer changes on B. A owns native compilation, all current tests and integrated GUI validation, including actual autosave callback source identity and thumbnail/AX/menu warning persistence.
