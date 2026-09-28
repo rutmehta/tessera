@@ -639,3 +639,14 @@ DOCUMENT-CHECKBOX-IRGEN-HANDOFF.md records failed09 evidence and limits.
 Thumbnail51e0cfb6/other source branches preserved; A sole compiler/main.
 No B workloads/apps/heartbeat/writer changes. Accepted receipt retried after
 first mailbox push timeout and then confirmed before source edits.
+
+### Thumbnail retry dfb80e63 — bounded source follow-up
+
+codex/smart-preview-thumbnailsd40354e4 from preserved51e0cfb6;
+testsc1644605/32d19363, product262b6c1f. Proxy request errors get3additional
+attempts at250/500/1000ms cancellable backoff within same flight/slot. No strings,
+Original fallback, globalqueue, fakepending or event-path polling. Exhaustion
+retires flight; cancellation rechecked after injected wait. Five new tests UNRUN
+and pending/Original negatives retained. A native8-pressure/compiler/GUI/main gates.
+Compiler wrapper10c59dea already completed separately; no Document/generated/
+native/AppModel edits or B workloads/heartbeat/writer changes in this slice.
