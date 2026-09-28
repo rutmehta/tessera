@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Smart Preview persistence and UI ownership — 2026-09-28 16:15 UTC
+
+Export/Adobe compile repair is integrated mainfa7372b9, exact088cc261;11 export tests passed/1 existing ignored,33 Adobe tests passed, strict/fmt/direct0. Root independently rehashed1102 inputs; clean review and23 portable evidence payloads preserved. This resolves the three exhaustive-match failure; original failure remains retained.
+
+Journal/admission candidate3cff7441 passed13 store +6 admission tests and full156 FFI library Release tests. Review then required retry-safe directory publication and first-create symlink support: correction1fd63563 passed13 focused Release tests +strict/fmt. The156 full-suite result belongs to3cff7441, not a repeat on1fd. Final scoped review pending; no offline-editor acceptance yet. Codec now owns sole compiler lane for bounded compressed persistent camera-linear format and existing Sony ARW fixture validation; image-core route patch is source-reviewed but still UNRUN. FFI offline integration patch is being prepared separately; no active compiler inputs changed by that preparation.
+
+B accepted new Swift Smart Preview UI requestd7764a2f at GitB7f0bc4c. SSH queue01a0e8c7-a96e-7813-8927-f9d78c4cefb1 reached the existing writer, verified by peer commentary and accepted Git receipt. B owns bounded Library/Develop Swift source on codex/smart-preview-ui; A retains Rust/tests/main. Frozen methods: build_smart_preview, smart_preview_info, discard_smart_preview, synchronize_smart_preview, open_smart_preview_develop_session. B Save As3ca3e9c9 remains preserved/pending A runtime gates. No duplicate queue or writer reset. No full-quality proxy export, speedup or complete-feature claim.
+
 ## Export integration gate failed — 2026-09-28
 
 The first broader FFI compile after the accepted CPU-only gate failed: three export exhaustive RenderSource matches did not handle CameraLinear. CPU component tests remain147pass/1ignored, but this is NOT a passing application integration. Failure preserved at /Volumes/betterSSD/tessera-validation/smart-previews/storage/smart-preview-store.log; no concurrent tracked-source change. Original engine implementer owns immediate export admission repair and explicit proxy/full-quality-export refusal tests, plus Adobe-route refusal. Storage tests paused to serialize compilation; codec and image-core work are source-only preparations. Do not treat main's CPU component merge as build-ready application acceptance until repair is validated.
