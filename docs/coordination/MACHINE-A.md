@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Current Develop gates and display capability — 2026-09-28 12:19 UTC
+
+M2 native source remains c1c3b6cc; generated-only checkpoint abe317c0 records actual bindgen output. The native arm64 archive SHA256 is 07d924df6866bdf5404452dcdf54a21976d88322b5858c9c0cb3a91191027414, relocated with verified bytes/mode to BetterSSD. Existing accepted archive4a45 remains unchanged. The original broader image-core/pipeline-gpu/tessera-ffi Release test command is compiling optimized dependencies in the sole lane; no result is claimed. Bounded139+3, fmt and strict gates remain verified separately.
+
+Read-only P11 preflight compiled/executed direct0. This process has screen-capture access and CACurrentMediaTime falls inside a7.709µs Mach sampling bracket. It requested no permission and started no capture. Exact raw result remains `/Volumes/betterSSD/tessera-validation/m258-current/p11-clock-preflight-c1c3/result.json`. A future helper must check its own access. The source-only filtered-window helper tests API/pixels/timestamps, not actual-visible P11 acceptance.
+
+Three agents are active: native gates, visible harness hardening, independent source review. Root/Astra found and requested correction of process replacement/PID-reuse identity in harness825f62a1 before Swift validation. Python checks11pass; Swift/GUI remains unrun. No normal preview changes. Fetch/mailbox unchanged with no incoming messages/in-progress work or receipt for8638c362; native B status unavailable, not evidence of peer execution. B source ownership/hold remains reserved; no duplicate dispatch. A alone integrates main.
+
+
 ## HDR context control complete; Develop validation advancing — 2026-09-28 11:55 UTC
 
 Phase10 sourceb501cc96/evidencef5893c0f completed nine native processes and runner/direct0. Root/Astra independently verified18 float buffers, raw profiles/provider bytes and frozen inputs; root verified218 portable payloads. Uniform target8 responds16→8, while A/split stay8 at default/8/16. See EXP45-CONTEXT-HEADROOM-REVIEW.md. Original acceptance remains4pass/1fail. Failed ICC-hash and pre-launch attempts remain preserved; no further HDR runtime selected.
