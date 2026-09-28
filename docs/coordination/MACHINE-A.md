@@ -1,5 +1,15 @@
 # Machine A recovery status
 
+## Swift offline workflow passed; thumbnail implementation in native testing — 2026-09-28 18:38 UTC
+
+Feature checkpoint `4b5f9c70` passes the actual Swift cached Library → proxy IOSurface edit/save → offline reopen → reconnect/synchronize workflow (run13). Original photo and hidden sidecar hashes are unchanged. This creates new Engine objects, not a separate-process restart or a packaged-app GUI acceptance. Root verified 7,014 immutable Git inputs and four generated/archive artifacts for runs13/15/16. Portable evidence is committed in `d6ac99fc`, under `swift-4b5f9c70`.
+
+The desktop Auto Edit regression also passes (run10, two tests). Document transform tests pass (run15, 19 tests), and strict optimized app product compilation passes (run16). Main now integrates B's bounded Document warning/shortcut fixes and synchronous checkbox wrapper through `4c07e5eb`; all five affected product/test files match the tested feature checkpoint. Completed receipts were published for B results `874d59b4` and `87e9de81`. The initial optimized Swift IR crash09 and hash-map alias oracle failures11/12 are retained. The final relative-name test helper fixes only the oracle; no source hash checks were weakened.
+
+The separate offline thumbnail test14 remains FAILED after waiting60 seconds. A codec worker now owns the sole compiler lane for the source-reviewed native proxy thumbnail implementation and 13 authored tests. B thumbnail source `51e0cfb6` has clean independent review, seven tests still UNRUN, and awaits the native binding. B accepted follow-up `dfb80e63` for bounded retry: ordinary scrolling can cancel Swift flights while old native jobs still occupy the eight-job limit. No false pending response or Original fallback is permitted. B's existing writer and branch ownership remain preserved.
+
+In parallel, the FFI worker prepares only a temporary source harness for future actual Engine/IOSurface GPU qualification. No GPU candidate has been applied or run; Original remains default. Full current Swift suite, thumbnail runtime, visible GUI and acceleration acceptance remain open. Main merges remain A-only; other UI/UX and engine work is preserved.
+
 ## Native batch repair integrated; desktop qualification continues — 2026-09-28 18:13 UTC
 
 Main8c962911 integrates bounded native repair1a958076; evidence65317e03 preserves all attempts22–29. Final focused3, related index/agent/Console161 (3 ignored), FFI175, strict all-target Clippy and actual Sony offline/edit/reconnect/full original JPEG workflow passed. Root verified19 scoped source hashes per final run against immutable Git candidate and before/after equality. This repairs batch handling without weakening generic Original write guards; no full Swift or feature acceptance is implied.
