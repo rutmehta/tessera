@@ -298,7 +298,7 @@ final class DocumentWorkspace {
     @ObservationIgnored private var activeSavePrompt: UUID?
     @ObservationIgnored private var latestSaveRequest: UUID?
     private var presentedSaveAs: SaveAsRequest?
-    private(set) var saveAsPresentationID: UUID?
+    @ObservationIgnored private(set) var saveAsPresentationID: UUID?
     @ObservationIgnored private var queuedSaveAs: SaveAsRequest?
     // The Shell binding's nil setter carries no request identity. Dismissal is
     // settled by SaveAsSheet.onDisappear with its captured ID, never this setter.
@@ -410,9 +410,24 @@ final class DocumentWorkspace {
             queuedSaveAs = request
             presentedSaveAs = nil
         } else {
-            saveAsPresentationID = request.id
+            // A requested item is not yet a native presentation. Only the sheet
+            // content boundary may claim the dismissal barrier below.
             presentedSaveAs = request
         }
+    }
+
+    /// Called when SwiftUI consumes a captured sheet item, before onAppear.
+    /// Idempotent content evaluations share one presentation claim. A late claim
+    /// for a cancelled item must drain before a newer requested sheet can appear.
+    @discardableResult
+    func saveAsPresentationWillPresent(_ id: UUID) -> Bool {
+        if let current = saveAsPresentationID { return current == id }
+        saveAsPresentationID = id
+        if presentedSaveAs?.id != id {
+            if let requested = presentedSaveAs { queuedSaveAs = requested }
+            presentedSaveAs = nil
+        }
+        return true
     }
 
     /// Native SwiftUI sheet completion, not content onDisappear. ID remains owned
@@ -439,6 +454,9 @@ final class DocumentWorkspace {
         guard let operation = saveOperations[request.id], operation.document === request.doc,
               operation.phase == .choosing, activeSavePrompt == request.id else { return }
         guard request.isValid else { settleDocumentSave(request.id, .failed("Invalid file name")); return }
+        guard saveAsPresentationID == request.id else {
+            settleDocumentSave(request.id, .failed("Save As presentation is not active")); return
+        }
         let exists = saveFileExists?(request.url) ?? FileManager.default.fileExists(atPath: request.url.path)
         if exists {
             operation.phase = .waitingForDismissal
