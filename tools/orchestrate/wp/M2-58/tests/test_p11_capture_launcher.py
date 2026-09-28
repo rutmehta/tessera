@@ -154,7 +154,7 @@ class CaptureLauncherTests(unittest.TestCase):
         self.assertEqual(record["launcher_exit"], 124)
         child_pid = int(marker.read_text())
         self.assertEqual(record["helper_pid"], child_pid)
-        self.assertEqual(record["timeout_action"], "killed_owned_helper_process_only")
+        self.assertEqual(record["timeout_action"], "kill_requested_for_owned_helper_only")
         with self.assertRaises(ProcessLookupError):
             os.kill(child_pid, 0)
         self.assertFalse(self.output.exists(), "timeout must cover helper startup before output-directory creation")

@@ -335,7 +335,7 @@ def execute(
                 direct_exit = None
                 outcome = "timeout"
                 if kill_requested:
-                    timeout_action = "killed_owned_helper_process_only"
+                    timeout_action = "kill_requested_for_owned_helper_only"
                 elif helper_reaped:
                     timeout_action = "owned_helper_already_exited"
                 else:
