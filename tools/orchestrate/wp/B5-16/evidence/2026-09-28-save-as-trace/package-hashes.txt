@@ -1,0 +1,4 @@
+29b28903cc7dce138c0799d1618098d833d79c801cf94268f487a4a70d4abd6c  /Volumes/betterSSD/tessera-cache/swift/document-save-settlement/scratch/arm64-apple-macosx/release/Tessera
+6757da771032df329f5d0efc7cb8722b656941a7c108d61be49efedd2500de05  /Volumes/betterSSD/tessera-validation/document-save-settlement/trace-23a1947e/gui/Tessera Save Trace 23a.app/Contents/MacOS/Tessera
+ea7c0dc520b70718cba6a88b8954e13e468ecc78a4d53f01ff06d94eab8607ad  /Volumes/betterSSD/tessera-validation/document-save-settlement/trace-23a1947e/gui/Tessera Save Trace 23a.app/Contents/Info.plist
+8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03  /Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a

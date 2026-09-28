@@ -1,0 +1,37 @@
+2026-09-28 01:02:27.241 Tessera[32128:98127383] Sparkle updates not configured for this build
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 32, y1: 32 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 32, y1: 32 })
+[save-as] t=2625201.510022 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=presentation.request queued=false
+[save-as] t=2625201.510640 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.contentClaim captureExists=false matching=false
+[save-as] t=2625201.510676 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625201.542423 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.refresh window=0 parent=0 attached=0
+[save-as] t=2625201.542661 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.update window=0 parent=0 attached=0
+[save-as] t=2625201.542679 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.refresh window=0 parent=0 attached=0
+[save-as] t=2625201.546092 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.windowCallback owner=true window=40737044864 parent=0 attached=0
+[save-as] t=2625201.546118 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.capture.attempt matching=true window=40737044864 parent=0 attached=0
+[save-as] t=2625201.546129 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.capture.accepted window=40737044864 parent=0 attached=0
+[save-as] t=2625224.975692 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=finish.request phase=choosing
+[save-as] t=2625224.976324 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=finish.exists exists=false phase=choosing
+[save-as] t=2625224.976431 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=write.admission phase=choosing
+[save-as] t=2625224.979349 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=settlement outcome=saved continuationCancelled=false matching=true
+[save-as] t=2625225.022666 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.onDismiss.callback 
+[save-as] t=2625225.022700 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.onDismiss.received matching=true nativeRecord=false
+[save-as] t=2625225.022708 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625225.297982 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.contentDisappear 
+[save-as] t=2625247.567872 request=F470D414-9CE4-4528-9F0C-141D73428369 event=presentation.request queued=false
+[save-as] t=2625247.568618 request=F470D414-9CE4-4528-9F0C-141D73428369 event=swift.contentClaim captureExists=false matching=false
+[save-as] t=2625247.568630 request=F470D414-9CE4-4528-9F0C-141D73428369 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625247.580266 request=F470D414-9CE4-4528-9F0C-141D73428369 event=probe.refresh window=0 parent=0 attached=0
+[save-as] t=2625247.580332 request=F470D414-9CE4-4528-9F0C-141D73428369 event=probe.update window=0 parent=0 attached=0
+[save-as] t=2625247.580339 request=F470D414-9CE4-4528-9F0C-141D73428369 event=probe.refresh window=0 parent=0 attached=0
+[save-as] t=2625247.582204 request=F470D414-9CE4-4528-9F0C-141D73428369 event=probe.windowCallback owner=true window=40688229248 parent=0 attached=0
+[save-as] t=2625247.582215 request=F470D414-9CE4-4528-9F0C-141D73428369 event=probe.capture.attempt matching=true window=40688229248 parent=0 attached=0
+[save-as] t=2625247.582222 request=F470D414-9CE4-4528-9F0C-141D73428369 event=probe.capture.accepted window=40688229248 parent=0 attached=0
+[save-as] t=2625258.093079 request=F470D414-9CE4-4528-9F0C-141D73428369 event=finish.request phase=choosing
+[save-as] t=2625258.093363 request=F470D414-9CE4-4528-9F0C-141D73428369 event=finish.exists exists=true phase=choosing
+[save-as] t=2625258.093408 request=F470D414-9CE4-4528-9F0C-141D73428369 event=observer.registration.begin parent{window=4423776896 parent=0 attached=40688229248} sheet{window=40688229248 parent=4423776896 attached=0}
+[save-as] t=2625258.093575 request=F470D414-9CE4-4528-9F0C-141D73428369 event=observer.registration.complete 
+[save-as] t=2625258.097515 request=F470D414-9CE4-4528-9F0C-141D73428369 event=swift.onDismiss.callback 
+[save-as] t=2625258.097596 request=F470D414-9CE4-4528-9F0C-141D73428369 event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625258.097620 request=F470D414-9CE4-4528-9F0C-141D73428369 event=join.check matching=true native=false swift=true
+[save-as] t=2625258.368449 request=F470D414-9CE4-4528-9F0C-141D73428369 event=native.didEndSheet parent{window=4423776896 parent=0 attached=0} sheet{window=40688229248 parent=4423776896 attached=0}
