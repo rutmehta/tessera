@@ -109,3 +109,9 @@ Use isolated app/test-owned tiny 32x32 documents. Repeated Cancel -> immediate e
 - https://developer.apple.com/documentation/appkit/nswindow/willclosenotification — about-to-close event, not proof of detachment.
 
 This proposal is ready for independent review, not implementation authorization or evidence of fixed behavior.
+
+## Machine A independent review and implementation condition
+
+Root and Luna reviewed this design on 2026-09-28. Implementation request `be627c0e-b85b-4f4f-8b07-88ee651038c1` adds a mandatory host-binding generation: a fresh bridge instance gets its own UUID alongside the window identity. Attach/update/detach/shutdown must compare both. An old representable dismantling after a new binding to the same NSWindow must be inert, not shut down the new presenter or clear its parent. Add that deterministic regression. B accepted the request through the existing desktop queue; this confirms receipt, not implementation or validation.
+
+Root independently retrieved Apple's beginSheet, sheets and endSheet API documentation. The completion is associated with the supplied modal sheet; sheets includes queued membership but excludes nested sheets. Keep queued-sheet cancellation and owned nested chooser cases in the native acceptance matrix. No lifecycle timing assumption or generic parent notification substitutes for the owned completion. Current known-gap tests remain unsuppressed until the replacement demonstrates the same required outcome. Product acceptance is still pending A's focused/full gates and actual GUI.
