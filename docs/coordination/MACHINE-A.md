@@ -2,6 +2,28 @@
 
 
 
+
+## Verified focused gates; GUI validation active — 2026-09-28 03:50 UTC
+
+- **Coordinator component gate passed:** exact `6a03d66b`, nine tests/zero
+  failures, direct exit0. Root read raw logs/exits and verified all 22 portable
+  evidence files after correcting a self-referential checksum list. Evidence
+  commits `bc57a859` + `456d1fde` are on main `144c911f`; this is evidence-only,
+  not an AppModel product merge. Actor compile failure and fixture semaphore
+  hang/sample remain preserved. FFI stays `8ab43f64`.
+- **Document candidate focused gates passed:** exact `5ad1cbcc`, nine save +
+  four Layers completion + three adjacent regressions, all zero failures/direct0.
+  Root read result JSON and logs. B results `e9fe1c57` / `12d64cdd` remain accepted
+  pending final evidence/GUI acceptance; no main product merge yet.
+- Validator Sol owns the single desktop/GPU lane for a new isolated betterSSD
+  package, real Save As Cancel/Esc/save/Replace Cancel/reopen checks. Existing
+  preview PID57591 is protected. No overlapping build authorized during GUI.
+- Resource Sol extends caller recovery, output lifetime and physical-source alias
+  reservations. Coordinator `13523cbd` extends the tested component and is UNRUN.
+  Luna owns new independent alias tests, then AppModel navigation tests after
+  stable source freeze. All AppModel integration/quit/output claims remain pending.
+
+
 ## Focused validation and Document handoff — 2026-09-28 03:45 UTC
 
 - Coordinator nine-test source accepted at `a19d7997`; first gate failed compile
