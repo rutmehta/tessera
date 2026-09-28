@@ -265,7 +265,7 @@ final class InspectorFocusTrace {
 
 /// Public semantic objects may be virtual SwiftUI accessibility elements, not NSViews.
 @MainActor
-private final class AppKitFocusNode: InspectorFocusTraceNode {
+final class AppKitFocusNode: InspectorFocusTraceNode {
     private let object: AnyObject
     init(_ object: AnyObject) { self.object = object }
     static func wrap(_ value: Any?) -> AppKitFocusNode? { value.map { AppKitFocusNode($0 as AnyObject) } }
@@ -279,15 +279,35 @@ private final class AppKitFocusNode: InspectorFocusTraceNode {
     }
     var parent: (any InspectorFocusTraceNode)? { Self.wrap(ax?.accessibilityParent()) }
     func children(limit: Int) -> InspectorFocusTraceChildren {
-        guard let ax else { return .init(nodes: [], truncated: true) }
-        // Getter materialization cost is framework-controlled; iteration and retention are bounded.
-        if let ordered = ax.accessibilityChildrenInNavigationOrder() {
-            return .init(nodes: ordered.prefix(limit).map { AppKitFocusNode($0 as AnyObject) },
-                         truncated: ordered.count > limit)
+        guard ax != nil, let native = object as? NSObject else { return .init(nodes: [], truncated: true) }
+        return Self.nativeChildren(of: native, limit: limit)
+    }
+
+    /// Keep the public Objective-C getter's result untyped until each element is
+    /// checked. SwiftUI's navigation-order NSArray can contain objects that do
+    /// not meet its declared element protocol; importing that typed Swift Array
+    /// traps during iteration, before a conditional element cast could help.
+    /// No navigation-order accessor or Swift collection bridge is used here.
+    static func nativeChildren(of native: NSObject, limit: Int) -> InspectorFocusTraceChildren {
+        let budget = min(max(limit, 0), 64)
+        let selector = #selector(NSAccessibilityProtocol.accessibilityChildren)
+        guard budget > 0, native.responds(to: selector),
+              let result = native.perform(selector)?.takeUnretainedValue(),
+              let array = result as? NSArray else { return .init(nodes: [], truncated: true) }
+        // Getter materialization remains framework-controlled. Only this bounded
+        // prefix of the Objective-C collection is read; opaque entries fail closed.
+        let count = array.count
+        var incomplete = count > budget
+        var nodes: [any InspectorFocusTraceNode] = []
+        for index in 0..<min(count, budget) {
+            let child = array.object(at: index) as AnyObject
+            guard child is any NSAccessibilityProtocol else {
+                incomplete = true
+                continue
+            }
+            nodes.append(AppKitFocusNode(child))
         }
-        let raw = ax.accessibilityChildren() ?? []
-        return .init(nodes: raw.prefix(limit).map { AppKitFocusNode($0 as AnyObject) },
-                     truncated: raw.count > limit)
+        return .init(nodes: nodes, truncated: incomplete)
     }
 }
 
