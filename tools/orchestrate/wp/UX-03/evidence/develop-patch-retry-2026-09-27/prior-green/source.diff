@@ -1,0 +1,106 @@
+diff --git a/apps/mac/Sources/TesseraCore/DevelopController.swift b/apps/mac/Sources/TesseraCore/DevelopController.swift
+index a8d65feb..e6c0e763 100644
+--- a/apps/mac/Sources/TesseraCore/DevelopController.swift
++++ b/apps/mac/Sources/TesseraCore/DevelopController.swift
+@@ -381,13 +381,19 @@ public final class DevelopController {
+         defer { PerformanceTrace.shared.end(span) }
+         let masks = flushMaskPending()
+         guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return masks }
+-        pending.removeAll()
++        let patch = pending
++        let interactive = pendingInteractive
++        pending.removeAll(keepingCapacity: true)
++        pendingInteractive = false
+         onPatchSent?(json)
+         let ffiSpan = PerformanceTrace.shared.begin("ffi", session: timingSession, input: timingInput)
+         defer { PerformanceTrace.shared.end(ffiSpan) }
+         do {
+-            try session.setSettings(jsonPatch: json, interactive: pendingInteractive)
++            try session.setSettings(jsonPatch: json, interactive: interactive)
+         } catch {
++            let newerPending = !pending.isEmpty
++            pending = Self.merge(patch, pending, keepNulls: true)
++            if !newerPending { pendingInteractive = interactive }
+             onFailure?(error.localizedDescription)
+         }
+         return true
+diff --git a/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift b/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift
+index 351d965b..babbd763 100644
+--- a/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift
++++ b/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift
+@@ -265,6 +265,37 @@ final class AgentReviewOwnershipTests: XCTestCase {
+         XCTAssertNil(try f.b.engine.agentProvenance(imageId: f.b.imageIDs[0]))
+     }
+ 
++    func testRejectedDevelopPatchRemainsPendingForRetry() async throws {
++        let f = try fixture()
++        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
++        defer { session.resume.signal() }
++        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
++        controller.onNeedsFlush = {} // Keep the patch queued until each explicit attempt.
++        var sentPatches: [String] = []
++        var failures: [String] = []
++        controller.onPatchSent = { sentPatches.append($0) }
++        controller.onFailure = { failures.append($0) }
++        controller.set(.exposure, 1.25, interactive: true)
++        session.rejectNextSettings()
++
++        _ = controller.flushPending()
++        XCTAssertEqual(failures, [InjectedDevelopSessionFailure.settings.localizedDescription])
++        XCTAssertEqual(sentPatches.count, 1)
++        session.clearSettingsRejection()
++        XCTAssertTrue(controller.flushPending(), "Retry sends the retained coalesced patch")
++        XCTAssertEqual(sentPatches.count, 2)
++        XCTAssertEqual(sentPatches.dropFirst().first, sentPatches.first,
++                       "Retry must resend the retained coalesced patch")
++        XCTAssertEqual(session.settingsInteractive, [true, true],
++                       "A retry keeps the original interactive preview semantics")
++
++        session.resume.signal()
++        await controller.close()
++        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
++        XCTAssertEqual(reopened.value(.exposure), 1.25, "The retried patch is durable")
++        await reopened.close()
++    }
++
+     func testConcurrentCloseWaitsForOneActualSessionFlush() async throws {
+         let f = try fixture()
+         let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+@@ -669,7 +700,13 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
+     let resume = DispatchSemaphore(value: 0)
+     private let lock = NSLock()
+     private var closes = 0
++    private var settingsRejections = 0
++    private var sentInteractive: [Bool] = []
+     var closeCount: Int { lock.withLock { closes } }
++    var settingsInteractive: [Bool] { lock.withLock { sentInteractive } }
++
++    func rejectNextSettings() { lock.withLock { settingsRejections += 1 } }
++    func clearSettingsRejection() { lock.withLock { settingsRejections = 0 } }
+ 
+     init(_ wrapped: DevelopSession) {
+         self.wrapped = wrapped
+@@ -683,6 +720,13 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
+     override func setListener(listener: DevelopListener?) { wrapped.setListener(listener: listener) }
+     override func setMaskListener(listener: MaskListener?) { wrapped.setMaskListener(listener: listener) }
+     override func setSettings(jsonPatch: String, interactive: Bool) throws {
++        let reject = lock.withLock {
++            sentInteractive.append(interactive)
++            guard settingsRejections > 0 else { return false }
++            settingsRejections -= 1
++            return true
++        }
++        if reject { throw InjectedDevelopSessionFailure.settings }
+         try wrapped.setSettings(jsonPatch: jsonPatch, interactive: interactive)
+     }
+     override func close() throws {
+@@ -691,3 +735,9 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
+         try wrapped.close()
+     }
+ }
++
++private enum InjectedDevelopSessionFailure: LocalizedError {
++    case settings
++
++    var errorDescription: String? { "injected set_settings rejection" }
++}

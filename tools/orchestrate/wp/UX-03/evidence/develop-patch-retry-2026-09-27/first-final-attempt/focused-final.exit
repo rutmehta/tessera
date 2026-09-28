@@ -1,0 +1,1 @@
+hung/interrupted after sample: close blocked in BlockingCloseSession.close at test line 938; direct harness termination, not a test result

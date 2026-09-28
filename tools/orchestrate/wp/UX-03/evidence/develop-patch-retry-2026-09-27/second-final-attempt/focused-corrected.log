@@ -1,0 +1,136 @@
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[3/5] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/5] Linking TesseraPackageTests
+Build complete! (30.21s)
+Test Suite 'Selected tests' started at 2026-09-27 22:01:42.904.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 22:01:42.905.
+Test Suite 'AgentReviewOwnershipTests' started at 2026-09-27 22:01:42.905.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary]' passed (0.577 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptWaitsForAlreadyClosingDevelopSave]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.05125, 0.636375, 0.700542]; GPU [33.772917, 2.5037499999999997, 1.2458339999999999]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptWaitsForAlreadyClosingDevelopSave]' passed (0.891 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAlreadyClosingDevelopSavePrecedesCapturedRun]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.727833999999998, 0.550167, 0.656708]; GPU [32.028959, 0.837334, 0.9929159999999999]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAlreadyClosingDevelopSavePrecedesCapturedRun]' passed (0.482 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCancelledRunReleasesMutationExclusion]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.721167, 0.535958, 0.78025]; GPU [28.536584, 0.689625, 5.081542]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCancelledRunReleasesMutationExclusion]' passed (0.126 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCapturedOwnerBarrierDoesNotCancelNewLibraryPendingOpen]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.690833, 0.527208, 0.718791]; GPU [29.681958, 0.873167, 0.779084]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCapturedOwnerBarrierDoesNotCancelNewLibraryPendingOpen]' passed (0.099 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testClosePersistsCoalescedMaskParametersAndAmount]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.485959, 0.541292, 0.654416]; GPU [28.916833999999998, 0.852959, 0.800959]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testClosePersistsCoalescedMaskParametersAndAmount]' passed (0.127 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCompletedQueueRestoresRecipeStatusAndCursorWithFreshOwner]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCompletedQueueRestoresRecipeStatusAndCursorWithFreshOwner]' passed (0.744 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testConcurrentCloseWaitsForOneActualSessionFlush]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.260375, 0.5735, 0.8031670000000001]; GPU [28.664292, 5.59075, 4.184208]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testConcurrentCloseWaitsForOneActualSessionFlush]' passed (0.180 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentOwnerAcceptCompletesAndPreservesQueuePosition]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentOwnerAcceptCompletesAndPreservesQueuePosition]' passed (0.730 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentPhotoContextWorksWhileQueueBelongsToAnotherLibrary]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentPhotoContextWorksWhileQueueBelongsToAnotherLibrary]' passed (1.271 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCursorUpdateDuringRedoIsMergedIntoCompletionRevision]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCursorUpdateDuringRedoIsMergedIntoCompletionRevision]' passed (1.335 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testDevelopFailureCallbackCanQueueAnotherPatchForExplicitRetry]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.654875, 0.767958, 0.763666]; GPU [33.868083, 4.233, 1.076958]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testDevelopFailureCallbackCanQueueAnotherPatchForExplicitRetry]' passed (0.136 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testDirtyDevelopSavePrecedesCapturedRunAfterFolderSwitch]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.716291, 0.613333, 0.616542]; GPU [33.318541, 1.315917, 0.903417]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testDirtyDevelopSavePrecedesCapturedRunAfterFolderSwitch]' passed (0.444 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testExplicitRejectedRetryCancelsAnOlderDeferredFlush]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.457792, 0.579125, 0.6810419999999999]; GPU [30.084417, 0.911625, 0.865667]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testExplicitRejectedRetryCancelsAnOlderDeferredFlush]' passed (0.124 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testFailedFinalPatchKeepsFinalRenderModeWhenNewerInteractivePatchArrives]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.373791, 0.49104200000000003, 0.6073339999999999]; GPU [34.677875, 1.002208, 0.991708]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testFailedFinalPatchKeepsFinalRenderModeWhenNewerInteractivePatchArrives]' passed (0.131 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testForeignRedoAndShowRejectCapturedQueueTarget]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testForeignRedoAndShowRejectCapturedQueueTarget]' passed (0.889 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testInterruptedIntentRestoresUnknownTargetWithoutReplaying]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testInterruptedIntentRestoresUnknownTargetWithoutReplaying]' passed (0.018 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testMissingAndSupersededTargetsStayVisibleButDisabledAfterRestore]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testMissingAndSupersededTargetsStayVisibleButDisabledAfterRestore]' passed (0.571 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeAcceptAndRevert]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeAcceptAndRevert]' passed (0.762 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeRun]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeRun]' passed (0.538 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRedoInvalidatesOldTargetAndCurrentRevertStillWorks]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRedoInvalidatesOldTargetAndCurrentRevertStillWorks]' passed (0.885 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRejectedDevelopPatchPreservesReentrantNewerSettings]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.838833, 0.619583, 0.64125]; GPU [28.881959, 0.924041, 0.774667]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRejectedDevelopPatchPreservesReentrantNewerSettings]' passed (0.124 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRejectedDevelopPatchRemainsPendingForRetry]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.46025, 0.491084, 0.588791]; GPU [32.383458, 1.080583, 0.8352080000000001]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRejectedDevelopPatchRemainsPendingForRetry]' passed (0.130 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReopenedOwnerAndFileAliasesCannotOpenAcrossCapturedMutation]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.381667, 0.482584, 0.684292]; GPU [32.119292, 1.2336669999999998, 0.9514159999999999]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReopenedOwnerAndFileAliasesCannotOpenAcrossCapturedMutation]' passed (0.607 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testResumeSaveFailureKeepsInMemoryQueueAndExposesWarningState]' error: Process '/Applications/Xcode.app/Contents/Developer/usr/bin/xctest -XCTest TesseraCoreTests.AgentReviewOwnershipTests/testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary,TesseraCoreTests.AgentReviewOwnershipTests/testAcceptWaitsForAlreadyClosingDevelopSave,TesseraCoreTests.AgentReviewOwnershipTests/testAlreadyClosingDevelopSavePrecedesCapturedRun,TesseraCoreTests.AgentReviewOwnershipTests/testCancelledRunReleasesMutationExclusion,TesseraCoreTests.AgentReviewOwnershipTests/testCapturedOwnerBarrierDoesNotCancelNewLibraryPendingOpen,TesseraCoreTests.AgentReviewOwnershipTests/testClosePersistsCoalescedMaskParametersAndAmount,TesseraCoreTests.AgentReviewOwnershipTests/testCompletedQueueRestoresRecipeStatusAndCursorWithFreshOwner,TesseraCoreTests.AgentReviewOwnershipTests/testConcurrentCloseWaitsForOneActualSessionFlush,TesseraCoreTests.AgentReviewOwnershipTests/testCurrentOwnerAcceptCompletesAndPreservesQueuePosition,TesseraCoreTests.AgentReviewOwnershipTests/testCurrentPhotoContextWorksWhileQueueBelongsToAnotherLibrary,TesseraCoreTests.AgentReviewOwnershipTests/testCursorUpdateDuringRedoIsMergedIntoCompletionRevision,TesseraCoreTests.AgentReviewOwnershipTests/testDevelopFailureCallbackCanQueueAnotherPatchForExplicitRetry,TesseraCoreTests.AgentReviewOwnershipTests/testDirtyDevelopSavePrecedesCapturedRunAfterFolderSwitch,TesseraCoreTests.AgentReviewOwnershipTests/testExplicitRejectedRetryCancelsAnOlderDeferredFlush,TesseraCoreTests.AgentReviewOwnershipTests/testFailedFinalPatchKeepsFinalRenderModeWhenNewerInteractivePatchArrives,TesseraCoreTests.AgentReviewOwnershipTests/testForeignRedoAndShowRejectCapturedQueueTarget,TesseraCoreTests.AgentReviewOwnershipTests/testInterruptedIntentRestoresUnknownTargetWithoutReplaying,TesseraCoreTests.AgentReviewOwnershipTests/testMissingAndSupersededTargetsStayVisibleButDisabledAfterRestore,TesseraCoreTests.AgentReviewOwnershipTests/testPendingDevelopOpenSettlesBeforeAcceptAndRevert,TesseraCoreTests.AgentReviewOwnershipTests/testPendingDevelopOpenSettlesBeforeRun,TesseraCoreTests.AgentReviewOwnershipTests/testRedoInvalidatesOldTargetAndCurrentRevertStillWorks,TesseraCoreTests.AgentReviewOwnershipTests/testRejectedDevelopPatchPreservesReentrantNewerSettings,TesseraCoreTests.AgentReviewOwnershipTests/testRejectedDevelopPatchRemainsPendingForRetry,TesseraCoreTests.AgentReviewOwnershipTests/testReopenedOwnerAndFileAliasesCannotOpenAcrossCapturedMutation,TesseraCoreTests.AgentReviewOwnershipTests/testResumeSaveFailureKeepsInMemoryQueueAndExposesWarningState,TesseraCoreTests.AgentReviewOwnershipTests/testRetainedQueueAcceptCannotTrainNewLibraryProfile,TesseraCoreTests.AgentReviewOwnershipTests/testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe,TesseraCoreTests.AgentReviewOwnershipTests/testRevertWaitsForAlreadyClosingDevelopSave,TesseraCoreTests.AgentReviewOwnershipTests/testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion,TesseraCoreTests.AgentReviewOwnershipTests/testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary,TesseraCoreTests.AgentReviewOwnershipTests/testRunningOwnerDoesNotBlockAnotherLibraryDevelopOpen,TesseraCoreTests.AgentReviewOwnershipTests/testRunOnAnotherPhotoWaitsForAcceptAndRevertCompletion,TesseraCoreTests.AgentReviewOwnershipTests/testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe,TesseraCoreTests.AgentReviewOwnershipTests/testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted,TesseraCoreTests.AgentReviewOwnershipTests/testSuccessfulReentrantNoninteractivePatchFlushesAfterCurrentAttempt,TesseraCoreTests.AgentReviewOwnershipTests/testSynchronousNeedsFlushHandlerDoesNotReenterBackendCall,TesseraCoreTests.DevelopTests/testAppModelOpensRenderedJpegAndHeic,TesseraCoreTests.DevelopTests/testJpegIsDevelopable,TesseraCoreTests.DevelopTests/testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure /Volumes/betterSSD/tessera-cache/swift/develop-close-be02edf9-red/scratch/arm64-apple-macosx/release/TesseraPackageTests.xctest' exited with unexpected signal code 11
+started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testResumeSaveFailureKeepsInMemoryQueueAndExposesWarningState]' passed (0.535 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile]' passed (0.549 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe]' passed (0.648 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRevertWaitsForAlreadyClosingDevelopSave]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.447667000000003, 0.531333, 0.693583]; GPU [33.497167000000005, 5.897959, 0.952334]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRevertWaitsForAlreadyClosingDevelopSave]' passed (0.738 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [28.738625, 0.48812500000000003, 0.615125]; GPU [29.779166999999998, 0.94625, 0.809]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion]' passed (0.850 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary]' passed (0.533 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunningOwnerDoesNotBlockAnotherLibraryDevelopOpen]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.925042, 0.571708, 0.6335419999999999]; GPU [36.212624999999996, 2.286292, 2.489]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunningOwnerDoesNotBlockAnotherLibraryDevelopOpen]' passed (0.579 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunOnAnotherPhotoWaitsForAcceptAndRevertCompletion]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunOnAnotherPhotoWaitsForAcceptAndRevertCompletion]' passed (0.776 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.292291, 0.49624999999999997, 0.611334]; GPU [30.164832999999998, 1.052583, 0.9853749999999999]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe]' passed (0.634 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted]' passed (0.544 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testSuccessfulReentrantNoninteractivePatchFlushesAfterCurrentAttempt]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.365083, 0.5886669999999999, 0.635292]; GPU [30.982333, 0.6794159999999999, 0.814125]
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

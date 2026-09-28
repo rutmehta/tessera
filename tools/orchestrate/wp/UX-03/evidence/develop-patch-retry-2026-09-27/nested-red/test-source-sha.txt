@@ -1,0 +1,1 @@
+test_sha256=8780629f5b69bc6bd67acbdfdd3ea2d5c31ebd7cac96c0852f4ae90e24489056  apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift
