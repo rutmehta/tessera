@@ -1,0 +1,54 @@
+{
+  "package-exact.py": {
+    "bytes": 4625,
+    "sha256": "b05d30fa1c27cb9171b3df8f4ef2d1055e6a495cb513b5b59ce3caf8cca9d30e"
+  },
+  "load-commands-before.txt": {
+    "bytes": 22791,
+    "sha256": "ca3cdffe7bda8edd4d9d06c910a081201cb85a0421bf6d49c685063ab9f88231"
+  },
+  "Tessera-adhoc.entitlements": {
+    "bytes": 257,
+    "sha256": "548ce59af3e0a7d436073f9ce427bff7164c9389ebfeecbc47eaff3c2b758c8f"
+  },
+  "preferences-small-clamp.json": {
+    "bytes": 121,
+    "sha256": "e816ff12ece763895759b6027792c04ec3abae0bc073839d515a69ce16ebf13e"
+  },
+  "commands.json": {
+    "bytes": 62994,
+    "sha256": "951c8c3ed50e483bef7ec58e2eaee7d4bc845ef2ac706064183a7fa019b36823"
+  },
+  "dependencies-before.txt": {
+    "bytes": 4274,
+    "sha256": "97f98cc2c893c5eb300ce90e7d3aaced32b1a8956195ee4d42bb2a0ecbcca4d8"
+  },
+  "checkpoint-files.json": {
+    "bytes": 15585,
+    "sha256": "be5d43f5cc08cfe9b319730c97f6d5d76bd5f0074343092bbdb97c3a9a9f04ed"
+  },
+  "dependencies-after.txt": {
+    "bytes": 4274,
+    "sha256": "97f98cc2c893c5eb300ce90e7d3aaced32b1a8956195ee4d42bb2a0ecbcca4d8"
+  },
+  "manifest.json": {
+    "bytes": 36199,
+    "sha256": "89e4a1d6e7170a78c359b85dfb36fd96c32595b3f4b92e2c983a94cd675ac4dd"
+  },
+  "source-Info.plist": {
+    "bytes": 3315,
+    "sha256": "06d5a7a3f008330d122e4d6ac89b648003ae6a30a0444dcbf61187f40f294c0c"
+  },
+  "GUI-CHECKPOINT.md": {
+    "bytes": 6414,
+    "sha256": "540fb7c14de757c3b4d5a937ebc8508bb60c8b4fa4e22261fbdfe839e4cea938"
+  },
+  "load-commands-after.txt": {
+    "bytes": 22904,
+    "sha256": "fc49079100f03fc9f1f15b0c8a94dd27404dc08978861765b2e845b715347e47"
+  },
+  "fixture-before.json": {
+    "bytes": 379,
+    "sha256": "820955bcc1d126a7ea26652cf63e120b507dd6e472304d3778683c64f3aca062"
+  }
+}
