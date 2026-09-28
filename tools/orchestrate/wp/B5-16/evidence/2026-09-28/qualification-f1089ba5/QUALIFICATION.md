@@ -1,0 +1,7 @@
+# B5-16 inspector compiler qualification
+
+Frozen combined HEAD f1089ba52fb565a101e2aa0985f1d87a112f81f9. All five gate subprocesses exit0; source8372 files/HEAD/ignored native archive+bindings/fixture equal before-after and prepared baseline. No production or test repairs. No native regeneration or duplicate archive build. Prior Save As scratch/artifacts untouched.
+
+01 models/analysis45 passed, including exact five inspector model and three Neutralize regressions.02 dedicated ShellLayout4 passed79.478s:24 dark inspector tab/history/size combinations, eight-document overflow, shortcuts, whole-shell dark/light containment; former document expected-failure allowance removed and no waiver used.03 adjacent84 passed.04 full714 XCTest cases,1 opted-out20k library test,0 failures plus5 Swift Testing cases passed. Both Sony actual workflows passed5.060s/5.318s.05 strict Release product complete-concurrency/warnings-as-errors passed122.71s. Exact required pass lines retained per gate in required-tests.json. All commands jobs2/deployment15/separate scratch with explicit preserved Sony fixture.
+
+final-artifacts.json distinguishes full-suite executable from strict final relink. Root independently owns runner Python evidence; no broad app selftest was launched. GUI remains UNRUN on candidate, including real persisted editor/History/compact/AX acceptance. Transform full workflow remains separate/unqualified by these gates. Compiler/runtime lane explicitly released after05 complete; no process/workload remains from this agent.

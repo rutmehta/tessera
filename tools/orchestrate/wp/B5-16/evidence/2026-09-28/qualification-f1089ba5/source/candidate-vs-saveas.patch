@@ -1,0 +1,2086 @@
+diff --git a/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift b/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift
+index 06370c3f..4b13905c 100644
+--- a/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift
++++ b/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift
+@@ -34,7 +34,7 @@ struct ExtendedAdjustmentEditor: View {
+         case .auto(let m): auto(m)
+         case .matchColor(let m): matchColor(m)
+         case .replaceColor(let c, let fz, let h, let s, let l): replaceColor(c, fz, h, s, l)
+-        case .colorLookup(let size, let data, _, _): colorLookup(size, data)
++        case .colorLookup(let size, let data, let file, let dither): colorLookup(size, data, file, dither)
+         case .shadowsHighlights(let m): shadowsHighlights(m)
+         case .hdrToning(let m): hdrToning(m)
+         default: EmptyView()
+@@ -251,18 +251,26 @@ struct ExtendedAdjustmentEditor: View {
+     }
+ 
+     @ViewBuilder private func auto(_ m: AutoAdjustmentModel) -> some View {
+-        let clip = state.autoClip[id] ?? AdjustmentEditorState.defaultAutoClip
+         SegmentedPicker(selection: Binding(get: { m.mode }, set: { mode in
+             var n = m
+             n.mode = mode
+-            set(document.analyzed(.auto(n), samples: samples(), clip: clip), true)
++            set(document.analyzed(.auto(n), samples: samples()), true)
+         }), segments: AutoModeModel.allCases.map { .init(value: $0, title: $0.title.replacingOccurrences(of: "Auto ", with: "")) },
+                         height: Theme.Height.small)
+             .padding(.bottom, Theme.Space.xs)
+             .accessibilityIdentifier("document.properties.auto.mode")
+-        slider("Clip", clip * 100, 0...9.99, 0.1, "%.2f %%", 0.01, "auto.clip") { v, f in
+-            state.autoClip[id] = v / 100
+-            if f { set(document.analyzed(.auto(m), samples: samples(), clip: v / 100), true) }
++        // M5-32: the clips are persisted fields (`shadow_clip` / `highlight_clip`); a change re-analyses on release.
++        slider("Shadows Clip", m.shadowClip, 0...9.99, AutoAdjustmentModel.photoshopClip, "%.2f %%", 0.01, "auto.shadowClip") { v, f in
++            guard f else { return }
++            var n = m
++            n.shadowClip = v
++            set(document.analyzed(.auto(n), samples: samples()), true)
++        }
++        slider("Highlights Clip", m.highlightClip, 0...9.99, AutoAdjustmentModel.photoshopClip, "%.2f %%", 0.01, "auto.highlightClip") { v, f in
++            guard f else { return }
++            var n = m
++            n.highlightClip = v
++            set(document.analyzed(.auto(n), samples: samples()), true)
+         }
+         InfoRow(label: "Black", value: m.black.map { String(format: "%.0f", $0 * 255) }.joined(separator: " · "))
+             .accessibilityIdentifier("document.properties.auto.black")
+@@ -272,7 +280,7 @@ struct ExtendedAdjustmentEditor: View {
+             .accessibilityIdentifier("document.properties.auto.gamma")
+         HStack {
+             button("Analyze Again", "auto.analyze", help: "Measure the image as it is now") {
+-                set(document.analyzed(.auto(m), samples: samples(), clip: clip), true)
++                set(document.analyzed(.auto(m), samples: samples()), true)
+             }
+             Spacer()
+         }
+@@ -311,9 +319,12 @@ struct ExtendedAdjustmentEditor: View {
+             set(.matchColor(n), f)
+         }
+         checkbox("Neutralize", m.neutralized, "matchColor.neutralize") { on in
+-            if sources.contains(where: { $0.id == m.sourceLayer }) { rematch(m.sourceLayer, on) }
++            if let n = document.matchColorSettingNeutralize(m, to: on, target: samples()) {
++                set(.matchColor(n), true)
++            } else {
++                document.report?("Match Color: the source has no visible pixels; Neutralize is unchanged")
++            }
+         }
+-        .disabled(!sources.contains { $0.id == m.sourceLayer })
+         .help("Remove the source's colour cast from the match")
+     }
+ 
+@@ -345,38 +356,39 @@ struct ExtendedAdjustmentEditor: View {
+ 
+     // MARK: Color Lookup
+ 
+-    @ViewBuilder private func colorLookup(_ size: Int, _ data: [Double]) -> some View {
+-        let key = "\(document.id):\(id)"
++    /// M5-32: the file name and Dither are persisted fields (`source_filename`, `dither`).
++    @ViewBuilder private func colorLookup(_ size: Int, _ data: [Double], _ file: String?, _ dither: Bool) -> some View {
+         let identity = size == 2 && data == ColorLookupFile.identity(size: 2)
+-        InfoRow(label: "3D LUT", value: identity ? "None (identity)" : (state.lookupFile[key].map { ($0 as NSString).lastPathComponent }
+-            ?? "Embedded \(size)³ table"))
+-            .help(state.lookupFile[key] ?? "The table's samples are stored in the document")
++        InfoRow(label: "3D LUT", value: identity ? "None (identity)" : (file ?? "Embedded \(size)³ table"))
++            .help(file.map { "Loaded from \($0); the table's samples are stored in the document" }
++                  ?? "The table's samples are stored in the document")
+             .accessibilityIdentifier("document.properties.colorLookup.file")
+         HStack(spacing: Theme.Space.xs) {
+             button("Load 3D LUT…", "colorLookup.load", help: "Load a .cube or .3dl file; its samples are stored in the document") {
+-                loadLookup(key)
++                loadLookup(dither: dither)
+             }
+             button("Reset", "colorLookup.reset", help: "Back to the identity") {
+-                state.lookupFile[key] = nil
+-                set(.colorLookup(size: 2, data: ColorLookupFile.identity(size: 2)), true)
++                set(.colorLookup(size: 2, data: ColorLookupFile.identity(size: 2), sourceFilename: nil, dither: dither), true)
+             }
+             .disabled(identity)
+             Spacer()
+         }
++        checkbox("Dither", dither, "colorLookup.dither") { on in
++            set(.colorLookup(size: size, data: data, sourceFilename: file, dither: on), true)
++        }
++        .help("Add fine noise so smooth gradients do not band")
+         Hint("Unit-domain 3D .cube and uniform-grid .3dl files, up to 256 knots per axis.")
+     }
+ 
+-    private func loadLookup(_ key: String) {
++    private func loadLookup(dither: Bool) {
+         let panel = NSOpenPanel()
+         panel.title = "Load 3D LUT"
+         panel.allowedContentTypes = ["cube", "3dl"].compactMap { UTType(filenameExtension: $0) }
+         panel.allowsMultipleSelection = false
+-        if let path = state.lookupFile[key] { panel.directoryURL = URL(fileURLWithPath: path).deletingLastPathComponent() }
+         guard panel.runModal() == .OK, let url = panel.url else { return }
+         do {
+             let lut = try ColorLookupFile.load(url)
+-            state.lookupFile[key] = url.path
+-            set(.colorLookup(size: lut.size, data: lut.data), true)
++            set(.colorLookup(size: lut.size, data: lut.data, sourceFilename: url.lastPathComponent, dither: dither), true)
+             document.report?("Color Lookup: loaded \(url.lastPathComponent) (\(lut.size)³)")
+         } catch {
+             document.report?("Color Lookup: \(url.lastPathComponent): \(error.localizedDescription)")
+diff --git a/apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift b/apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift
+index 649d830f..6dc70b84 100644
+--- a/apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift
++++ b/apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift
+@@ -25,10 +25,12 @@ struct ChannelsPanel: View {
+                 }
+             }
+             .scrollIndicators(.automatic)
+-            .frame(height: rowHeight * CGFloat(min(rows.count, 8)))
++            // B5-16 (H3): the Channels tab gives the list the column's height (at least four rows).
++            .frame(minHeight: rowHeight * CGFloat(min(rows.count, 4)), maxHeight: .infinity, alignment: .top)
+             .accessibilityIdentifier("document.channels.list")
+             Hairline()
+             footer
++                .inspectorProbe("channelsFooter")
+         }
+         .task(id: RefreshKey(doc: document.id, epoch: document.info.epoch, head: document.info.historyHead)) {
+             channels.reload(document)
+diff --git a/apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift b/apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift
+index df2710ef..6d6f2d19 100644
+--- a/apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift
++++ b/apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift
+@@ -40,11 +40,28 @@ extension DocumentController {
+         return candidates.last?.id
+     }
+ 
++    /// The same Neutralize edit used by the Properties panel and adjustment sheet.
++    func matchColorSettingNeutralize(_ model: MatchColorModel, to enabled: Bool,
++                                    target: @autoclosure () -> [SIMD3<Float>]) -> MatchColorModel? {
++        // Pre-M5-32 documents encoded Neutralize by zeroing the frozen source chroma.
++        // Only disabling that legacy representation needs the original source pixels.
++        // Loading a document and toggling modern flags must retain their frozen statistics.
++        if !enabled, !model.neutralize, model.neutralized {
++            return AdjustmentAnalysis.matchColor(sourceLayer: model.sourceLayer,
++                source: layerSamples(model.sourceLayer), target: target(), neutralize: false, keeping: model)
++        }
++        var result = model
++        result.neutralize = enabled
++        return result
++    }
++
+     /// A new adjustment layer's parameters: neutral, or analysed from the composite for the image-dependent kinds.
+     func initialAdjustment(_ kind: AdjustmentModel.Kind) -> AdjustmentModel {
+         switch kind {
+-        case .equalize, .auto:
++        case .equalize:
+             return analyzed(kind.neutral, samples: compositeSamples())
++        case .auto:
++            return analyzed(.auto(.fresh(.tone)), samples: compositeSamples())
+         case .matchColor:
+             guard let source = defaultMatchSource() else { return kind.neutral }
+             return AdjustmentAnalysis.matchColor(sourceLayer: source, source: layerSamples(source),
+@@ -55,14 +72,16 @@ extension DocumentController {
+         }
+     }
+ 
+-    /// `model` with its frozen parameters recomputed from `samples` (Auto keeps its mode, `clip` is its tail).
+-    func analyzed(_ model: AdjustmentModel, samples: [SIMD3<Float>], clip: Double = AdjustmentEditorState.defaultAutoClip) -> AdjustmentModel {
++    /// `model` with its frozen parameters recomputed from `samples` (Auto keeps its mode and its persisted
++    /// shadow / highlight clips, M5-32).
++    func analyzed(_ model: AdjustmentModel, samples: [SIMD3<Float>]) -> AdjustmentModel {
+         guard !samples.isEmpty else { return model }
+         switch model {
+         case .equalize:
+             return .equalize(maps: AdjustmentAnalysis.equalizeMaps(AdjustmentAnalysis.histograms(samples)))
+         case .auto(let m):
+-            return .auto(AdjustmentAnalysis.auto(m.mode, histograms: AdjustmentAnalysis.histograms(samples), clip: clip))
++            return .auto(AdjustmentAnalysis.auto(m.mode, histograms: AdjustmentAnalysis.histograms(samples),
++                                                 shadowClip: m.shadowClip, highlightClip: m.highlightClip))
+         case .hdrToning(let m):
+             return m.method == .equalizeHistogram ? .hdrToning(AdjustmentAnalysis.hdrEqualize(samples, base: m)) : model
+         default:
+@@ -72,16 +91,11 @@ extension DocumentController {
+ }
+ 
+ /// Editor state that outlives an editor view (the Image ▸ Adjustments sheet rebuilds its editor on every
+-/// committed change): tone range, colour row, Auto clip and the file a Color Lookup was loaded from, per layer.
++/// committed change): tone range and colour row, per layer. (B5-16: Auto clips, Match Color Neutralize and the
++/// Color Lookup file name are adjustment fields since M5-32, so they persist with the document.)
+ @MainActor @Observable
+ final class AdjustmentEditorState {
+     static let shared = AdjustmentEditorState()
+-    /// Photoshop's Auto default: 0.1 % from each end.
+-    nonisolated static let defaultAutoClip = 0.001
+     var colorBalanceRange: [DocLayerID: Int] = [:]
+     var selectiveColorRow: [DocLayerID: Int] = [:]
+-    var autoClip: [DocLayerID: Double] = [:]
+-    /// The `.cube` / `.3dl` each Color Lookup layer was loaded from this session (the engine stores samples,
+-    /// not a file name; COMPOSITOR.md §4).
+-    var lookupFile: [String: String] = [:]
+ }
+diff --git a/apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift b/apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift
+index ed54b302..1e164e9f 100644
+--- a/apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift
++++ b/apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift
+@@ -2,11 +2,16 @@ import SwiftUI
+ import TesseraCore
+ 
+ /// History panel: the document's states (the current one highlighted, click = checkout), the
+-/// snapshots with New Snapshot and restore, and the memory the states hold.
++/// snapshots with New Snapshot and restore, and the memory the states hold. B5-16 (H2): states and
++/// snapshots share one scroller that takes the pane's height; New Snapshot and the memory line stay
++/// below it.
+ struct DocumentHistoryPanel: View {
+     let document: DocumentController
+     let workspace: DocumentWorkspace
+ 
++    /// Two rows of the scroller plus the New Snapshot row.
++    static let minimumHeight: CGFloat = Theme.Height.row * 2 + Theme.Height.large + Theme.Space.xs
++
+     var body: some View {
+         let items = document.history
+         let atBase = document.info.historyHead == 0
+@@ -21,36 +26,42 @@ struct DocumentHistoryPanel: View {
+                                 dimmed: !onPath.contains(item.id), index: i + 1) { document.checkout(item.id) }
+                                 .id(item.id)
+                         }
++                        SubHeader("Snapshots")
++                        if document.snapshots.isEmpty {
++                            Hint("None yet")
++                        }
++                        ForEach(Array(document.snapshots.enumerated()), id: \.element) { i, snap in
++                            HStack(spacing: Theme.Space.s) {
++                                Image(systemName: "camera").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
++                                Text(snap).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary)
++                                    .lineLimit(1).truncationMode(.middle).help(snap)
++                                Spacer(minLength: 0)
++                                Button("Restore") { document.restoreSnapshot(snap) }
++                                    .buttonStyle(.theme(.borderless, height: Theme.Height.small))
++                                    .accessibilityIdentifier("document.history.snapshot.\(i).restore")
++                            }
++                            .frame(height: Theme.Height.row)
++                            .accessibilityIdentifier("document.history.snapshot.\(i)")
++                        }
+                     }
++                    .padding(.bottom, Theme.Space.xs)
+                 }
+-                .frame(height: Theme.Height.row * 6)
++                .scrollIndicators(.automatic)
++                .frame(minHeight: Theme.Height.row * 2, maxHeight: .infinity)
+                 .onChange(of: document.info.historyHead) { _, head in if head != 0 { proxy.scrollTo(head) } }
+             }
+-            SubHeader("Snapshots")
+-            if document.snapshots.isEmpty {
+-                Hint("None yet")
+-            }
+-            ForEach(Array(document.snapshots.enumerated()), id: \.element) { i, snap in
+-                HStack(spacing: Theme.Space.s) {
+-                    Image(systemName: "camera").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+-                    Text(snap).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).lineLimit(1)
+-                    Spacer(minLength: 0)
+-                    Button("Restore") { document.restoreSnapshot(snap) }
+-                        .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+-                        .accessibilityIdentifier("document.history.snapshot.\(i).restore")
+-                }
+-                .frame(height: Theme.Height.row)
+-                .accessibilityIdentifier("document.history.snapshot.\(i)")
+-            }
+             HStack(spacing: Theme.Space.s) {
+                 Button("New Snapshot…") { workspace.promptSnapshot() }
+                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                     .accessibilityIdentifier("document.history.newSnapshot")
+                 Spacer(minLength: 0)
+                 Text(memoryText).font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
++                    .lineLimit(1)
+                     .accessibilityIdentifier("document.history.memory")
+             }
+-            .padding(.top, Theme.Space.s)
++            .frame(height: Theme.Height.large)
++            .padding(.bottom, Theme.Space.xs)
++            .inspectorProbe("historyFooter")
+         }
+     }
+ 
+diff --git a/apps/mac/Sources/Tessera/Document/DocumentView.swift b/apps/mac/Sources/Tessera/Document/DocumentView.swift
+index dbe86ebf..0307c5e9 100644
+--- a/apps/mac/Sources/Tessera/Document/DocumentView.swift
++++ b/apps/mac/Sources/Tessera/Document/DocumentView.swift
+@@ -10,18 +10,20 @@ struct DocumentView: View {
+         ZStack {
+             if let doc = workspace.current {
+                 DocumentViewportRepresentable(workspace: workspace, document: doc)
+-                VStack(spacing: 0) {
+-                    // WP B5-04: tools palette (left) and the options bar (top).
+-                    HStack(alignment: .top, spacing: Theme.Space.s) {
+-                        ToolsPalette(document: doc, tools: DocumentTools.shared)
+-                        ToolOptionsBar(document: doc, tools: DocumentTools.shared)
+-                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
++                    // B5-16 (H10): the zoom chip floats over the viewport; it takes no layout height.
++                    .overlay(alignment: .bottom) {
++                        ZoomHUD(document: doc)
++                            .padding(.bottom, Theme.Space.l)
+                     }
+-                    .padding(Theme.Space.m)
+-                    Spacer()
+-                    ZoomHUD(document: doc)
+-                        .padding(.bottom, Theme.Space.l)
++                // WP B5-04: tools palette (left) and the options bar (top). B5-16 (H11): the palette
++                // scrolls when the canvas is shorter than it (see `ToolsPalette`).
++                HStack(alignment: .top, spacing: Theme.Space.s) {
++                    ToolsPalette(document: doc, tools: DocumentTools.shared)
++                    ToolOptionsBar(document: doc, tools: DocumentTools.shared)
++                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                 }
++                .padding(Theme.Space.m)
++                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+             } else {
+                 EmptyStateContent(symbol: "square.3.layers.3d", title: "No document",
+                                   message: "Create a layered document, open a .tessera-doc or PSD, or choose a photo and Library ▸ Edit in Layers (⌘E).") {
+@@ -101,66 +103,239 @@ struct ZoomHUD: View {
+     }
+ }
+ 
+-/// The inspector in document mode: Properties, Layers, Channels (B5-08), History.
++/// The inspector in document mode (WP B5-16, M2-56 handoff H1–H3, H6): a segmented header with the
++/// sub-tabs Stack (the Layers panel) · Properties (the selected layer and the tool sections) ·
++/// Channels, each scrolling its own content, over a collapsible History pane with a resizable body
++/// (states and snapshots in one scroller). ⌃1 / ⌃2 / ⌃3 switch the tabs. The column's minimum
++/// (`budget`) fits the 548 pt column of a 960 × 600 window, so nothing is clipped at its bottom.
+ struct DocumentInspector: View {
+-    let workspace: DocumentWorkspace
++    @Bindable var workspace: DocumentWorkspace
++    /// The same key the stacked inspector's History section used (self-tests set it).
++    @AppStorage("InspectorPanel.History") private var historyExpanded = true
++    @AppStorage("DocumentInspector.historyHeight") private var historyRequested: Double = Double(Self.historyDefault)
++    @State private var dragBase: CGFloat?
++    @State private var headerHover = false
++
++    static let historyDefault: CGFloat = Theme.Height.row * 7
++    static let budget = DocumentInspectorBudget(
++        tabBar: Theme.Height.sectionHeader,
++        separators: Theme.Space.hairline * 2,
++        tabMinimum: LayersPanel.minimumHeight,
++        historyHeader: Theme.Height.sectionHeader,
++        historyMinimum: DocumentHistoryPanel.minimumHeight)
+ 
+     var body: some View {
+-        VStack(spacing: 0) {
++        Group {
+             if let doc = workspace.current {
+-                ScrollView {
+-                    PanelSection("Properties") { PropertiesPanel(document: doc) }
+-                    // WP B5-04: Color and Brushes.
+-                    ToolInspectorSections(tools: DocumentTools.shared, document: doc)
+-                }
+-                .scrollIndicators(.never)
+-                .frame(minHeight: Theme.Height.sectionHeader * 6, maxHeight: .infinity)
+-                .layoutPriority(0)
+-                .accessibilityIdentifier("document.properties")
+-                VStack(alignment: .leading, spacing: 0) {
+-                    panelHeader("Layers")
+-                    LayersPanel(document: doc)
++                GeometryReader { column in
++                    VStack(spacing: 0) {
++                        tabBar
++                            .inspectorProbe("tabBar")
++                        Hairline()
++                        tabContent(doc)
++                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
++                            .clipped()
++                            .inspectorProbe("tabContent")
++                        historyPane(doc, column: column.size.height)
++                    }
+                 }
+-                .frame(minHeight: Theme.Height.sectionHeader * 8, maxHeight: .infinity)
+-                .layoutPriority(1)
+-                Hairline()
+-                // B5-08 begin: saved alpha and spot channels.
+-                PanelSection("Channels", expanded: false) { ChannelsPanel(document: doc, channels: DocumentChannels.shared) }
+-                    .accessibilityIdentifier("document.channels")
+-                // B5-08 end
+-                PanelSection("History") { DocumentHistoryPanel(document: doc, workspace: workspace) }
+-                    .accessibilityIdentifier("document.history")
+             } else {
+-                PanelSection("Layers") { Hint("No document is open.") }
+-                Spacer()
++                VStack(spacing: 0) {
++                    PanelSection("Layers") { Hint("No document is open.") }
++                    Spacer()
++                }
+             }
+         }
+         .background(Theme.panel)
+         .tint(Theme.accent)
+     }
+ 
+-    private func panelHeader(_ title: String) -> some View {
+-        HStack {
+-            Text(title).font(Theme.Fonts.labelSemibold).foregroundStyle(Theme.textPrimary)
+-            Spacer()
++    // MARK: Tabs
++
++    private var tabBar: some View {
++        SegmentedPicker(selection: $workspace.inspectorTab,
++                        segments: DocumentInspectorTab.allCases.map { .init(value: $0, title: $0.title, help: $0.help) },
++                        height: Theme.Height.small)
++            .accessibilityLabel("Inspector")
++            .accessibilityIdentifier("document.inspector.tabs")
++            .padding(.horizontal, Theme.Space.gutter)
++            .frame(height: Theme.Height.sectionHeader)
++            .background(shortcuts)
++    }
++
++    /// ⌃1 / ⌃2 / ⌃3: invisible buttons carrying the key equivalents (the segments are plain buttons of
++    /// the shared control, which takes no shortcuts).
++    private var shortcuts: some View {
++        ZStack {
++            ForEach(DocumentInspectorTab.allCases) { tab in
++                Button(tab.title) { workspace.inspectorTab = tab }
++                    .keyboardShortcut(KeyEquivalent(tab.shortcutDigit), modifiers: .control)
++                    .accessibilityIdentifier("document.inspector.shortcut.\(tab.rawValue)")
++            }
++        }
++        .frame(width: 0, height: 0)
++        .opacity(0)
++        .allowsHitTesting(false)
++        .accessibilityHidden(true)
++    }
++
++    @ViewBuilder private func tabContent(_ doc: DocumentController) -> some View {
++        switch workspace.inspectorTab {
++        case .stack:
++            // The outline scrolls itself; the controls above it and the footer stay put.
++            LayersPanel(document: doc)
++                .accessibilityElement(children: .contain)
++                .accessibilityIdentifier("document.inspector.stack")
++        case .properties:
++            ScrollView {
++                VStack(alignment: .leading, spacing: 0) {
++                    PropertiesPanel(document: doc)
++                        .padding(.horizontal, Theme.Space.gutter)
++                        .padding(.top, Theme.Space.m)
++                        .padding(.bottom, Theme.Space.l)
++                    Hairline()
++                    // WP B5-04: Color and Brushes.
++                    ToolInspectorSections(tools: DocumentTools.shared, document: doc)
++                }
++                .frame(maxWidth: .infinity, alignment: .leading)
++            }
++            .scrollIndicators(.automatic)
++            .accessibilityIdentifier("document.properties")
++        case .channels:
++            // B5-08: saved alpha and spot channels (the list scrolls, the footer stays).
++            ChannelsPanel(document: doc, channels: DocumentChannels.shared)
++                .accessibilityElement(children: .contain)
++                .accessibilityIdentifier("document.channels")
++        }
++    }
++
++    // MARK: History
++
++    private func historyPane(_ doc: DocumentController, column: CGFloat) -> some View {
++        let height = Self.budget.historyHeight(requested: CGFloat(historyRequested), column: column)
++        return VStack(spacing: 0) {
++            Hairline()
++                .overlay {
++                    if historyExpanded { resizeHandle(current: height, column: column) }
++                }
++                .zIndex(1)
++            historyHeader
++                .inspectorProbe("historyHeader")
++            if historyExpanded {
++                DocumentHistoryPanel(document: doc, workspace: workspace)
++                    .padding(.horizontal, Theme.Space.gutter)
++                    .frame(height: height)
++                    .inspectorProbe("historyBody")
++            }
++        }
++        .accessibilityElement(children: .contain)
++        .accessibilityIdentifier("document.history")
++    }
++
++    private var historyHeader: some View {
++        Button {
++            historyExpanded.toggle()
++        } label: {
++            HStack(spacing: Theme.Space.s) {
++                Text("History")
++                    .font(Theme.Fonts.labelSemibold)
++                    .foregroundStyle(historyExpanded ? Theme.textPrimary : Theme.textSecondary)
++                Spacer(minLength: 0)
++                Image(systemName: "chevron.right")
++                    .font(Theme.Fonts.iconSmall)
++                    .foregroundStyle(headerHover ? Theme.textSecondary : Theme.textTertiary)
++                    .rotationEffect(.degrees(historyExpanded ? 90 : 0))
++            }
++            .padding(.horizontal, Theme.Space.gutter)
++            .frame(height: Theme.Height.sectionHeader)
++            .contentShape(Rectangle())
++        }
++        .buttonStyle(.plain)
++        .onHover { headerHover = $0 }
++        .help(historyExpanded ? "Collapse History" : "Expand History")
++        .accessibilityLabel("History")
++        .accessibilityValue(historyExpanded ? "expanded" : "collapsed")
++        .accessibilityIdentifier("document.history.toggle")
++    }
++
++    /// Drag the hairline above History to give it more or less of the column (the tab content keeps
++    /// its minimum); double-click restores the default height.
++    private func resizeHandle(current: CGFloat, column: CGFloat) -> some View {
++        Color.clear
++            .frame(height: Theme.Space.s)
++            .contentShape(Rectangle())
++            .pointerStyle(.rowResize)
++            .gesture(DragGesture(minimumDistance: 1)
++                .onChanged { g in
++                    let base = dragBase ?? current
++                    dragBase = base
++                    historyRequested = Double(Self.budget.historyHeight(requested: base - g.translation.height, column: column))
++                }
++                .onEnded { _ in dragBase = nil })
++            .onTapGesture(count: 2) { historyRequested = Double(Self.historyDefault) }
++            .help("Drag to resize History")
++            .accessibilityIdentifier("document.history.resize")
++    }
++}
++
++/// B5-16: the inspector regions' frames (root coordinates, y down) for the layout tests. Off unless
++/// a test turns it on; `inspectorProbe(_:)` records a region.
++@MainActor
++enum DocumentInspectorProbe {
++    static var isEnabled = false
++    static var frames: [String: CGRect] = [:]
++}
++
++extension View {
++    func inspectorProbe(_ name: String) -> some View {
++        onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { rect in
++            if DocumentInspectorProbe.isEnabled { DocumentInspectorProbe.frames[name] = rect }
+         }
+-        .padding(.horizontal, Theme.Space.gutter)
+-        .frame(height: Theme.Height.sectionHeader)
+-        .accessibilityAddTraits(.isHeader)
+     }
+ }
+ 
+ /// Toolbar document switcher: one tab per open document (the segmented style of DESIGN.md §5,
+ /// neutral: the chosen tab is raised), a dirty dot, and a close button on the chosen tab.
++/// B5-16 (H8): at most `DocumentTabStrip.cap` tabs (one in a compact toolbar), always including the
++/// current document; the others are in a "+n" overflow menu, so many documents never widen the toolbar item without limit.
+ struct DocumentTabs: View {
+     let workspace: DocumentWorkspace
++    @Environment(\.toolbarCompact) private var compact
+ 
+     var body: some View {
++        let docs = workspace.documents
++        let current = docs.firstIndex { $0 === workspace.current }
++        let cap = compact ? DocumentTabStrip.compactCap : DocumentTabStrip.cap
++        let shown = DocumentTabStrip.visible(count: docs.count, current: current, cap: cap)
++        let hidden = DocumentTabStrip.overflow(count: docs.count, current: current, cap: cap)
+         HStack(spacing: Theme.Space.xxs) {
+-            ForEach(Array(workspace.documents.enumerated()), id: \.element.id) { i, doc in
++            ForEach(Array(docs.enumerated()).filter { shown.contains($0.offset) }, id: \.element.id) { i, doc in
+                 DocumentTab(doc: doc, selected: workspace.current === doc, index: i,
+                             select: { workspace.select(doc) }, close: { workspace.close(doc) })
+             }
++            if !hidden.isEmpty {
++                Menu {
++                    ForEach(hidden, id: \.self) { i in
++                        Button(docs[i].title + (docs[i].isDirty ? " (edited)" : "")) { workspace.select(docs[i]) }
++                    }
++                } label: {
++                    HStack(spacing: Theme.Space.xxs) {
++                        Text("+\(hidden.count)").font(Theme.Fonts.captionNumeric)
++                        Image(systemName: "chevron.down").font(Theme.Fonts.iconSmall).imageScale(.small)
++                    }
++                    .foregroundStyle(Theme.textSecondary)
++                    .padding(.horizontal, Theme.Space.xs)
++                    .frame(height: Theme.Height.regular - Theme.Space.xs)
++                    .contentShape(Rectangle())
++                }
++                .menuStyle(.button)
++                .buttonStyle(.plain)
++                .menuIndicator(.hidden)
++                .fixedSize()
++                .help("\(hidden.count) more open document\(hidden.count == 1 ? "" : "s")")
++                .accessibilityLabel("\(hidden.count) more documents")
++                .accessibilityIdentifier("document.tabs.overflow")
++            }
+             Button { workspace.showNewDocument = true } label: {
+                 Image(systemName: "plus").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textSecondary)
+                     .frame(width: Theme.Height.regular - Theme.Space.xs, height: Theme.Height.regular - Theme.Space.xs)
+@@ -174,7 +349,8 @@ struct DocumentTabs: View {
+         .frame(height: Theme.Height.regular)
+         .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(Theme.well))
+         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(Theme.hairline, lineWidth: Theme.Space.hairline))
+-        .fixedSize()
++        // B5-16: no `fixedSize()`: the strip is capped by its tab count, and titles truncate when the
++        // toolbar gives it less than its ideal width.
+         .accessibilityElement(children: .contain)
+         .accessibilityIdentifier("document.tabs")
+     }
+@@ -205,6 +381,8 @@ private struct DocumentTab: View {
+                 Image(systemName: "xmark").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+             }
+             .buttonStyle(.plain)
++            // B5-16 (H9): the one kept `opacity(0)` slot (DESIGN.md §10): the close glyph keeps its
++            // place on unselected tabs so the title does not shift when the pointer enters the tab.
+             .opacity(selected || hovering ? 1 : 0)
+             .help("Close (⌘W)")
+             .accessibilityIdentifier("document.tabs.\(index).close")
+@@ -225,6 +403,9 @@ private struct DocumentTab: View {
+ }
+ 
+ /// The status bar in document mode: document facts, zoom, tool and marquee, then the message.
++/// B5-16 (H7, M2-56 L3): the full row when it fits, else a compact one (canvas size without depth and
++/// profile, the tool without its key, the selection size, no stroke or render readouts; the full
++/// strings stay in help). The message never decides which fits: its ideal width is 0.
+ struct DocumentStatusBar: View {
+     let model: AppModel
+     let workspace: DocumentWorkspace
+@@ -232,46 +413,63 @@ struct DocumentStatusBar: View {
+     var body: some View {
+         VStack(spacing: 0) {
+             Hairline()
+-            HStack(spacing: Theme.Space.m) {
+-                if let doc = workspace.current {
+-                    let i = doc.info
+-                    Text("\(i.width) × \(i.height) px · \(i.depth.title) · \(i.profileName ?? "Untagged (sRGB)")")
+-                        .foregroundStyle(Theme.textPrimary)
+-                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)   // B5-10: truncates in narrow windows
+-                        .accessibilityIdentifier("document.status.canvas")
++            ViewThatFits(in: .horizontal) {
++                row(compact: false)
++                row(compact: true)
++            }
++            .font(Theme.Fonts.captionNumeric)
++            .foregroundStyle(Theme.textSecondary)
++            .padding(.horizontal, Theme.Space.gutter)
++            .frame(height: Theme.Height.statusBar)
++        }
++        .background(Theme.panel)
++    }
++
++    private func row(compact: Bool) -> some View {
++        HStack(spacing: Theme.Space.m) {
++            if let doc = workspace.current {
++                let i = doc.info
++                let canvas = "\(i.width) × \(i.height) px · \(i.depth.title) · \(i.profileName ?? "Untagged (sRGB)")"
++                Text(compact ? "\(i.width) × \(i.height) px" : canvas)
++                    .foregroundStyle(Theme.textPrimary)
++                    .lineLimit(1).truncationMode(.middle).layoutPriority(1)   // B5-10: truncates in narrow windows
++                    .help(canvas)
++                    .accessibilityIdentifier("document.status.canvas")
++                separator
++                Text(DocumentViewportMath.percentText(doc.zoom)).fixedSize()
++                    .accessibilityIdentifier("document.status.zoom")
++                separator
++                let tool = DocumentRetouch.shared.removeActive ? "Remove (⇧J)" : "\(doc.tool.title) (\(doc.tool.key))"   // B5-09
++                Text(compact ? (DocumentRetouch.shared.removeActive ? "Remove" : doc.tool.title) : tool).fixedSize()
++                    .help(tool)
++                if !compact, let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP B5-04
+                     separator
+-                    Text(DocumentViewportMath.percentText(doc.zoom)).fixedSize()
+-                        .accessibilityIdentifier("document.status.zoom")
++                    Text(r).lineLimit(1).truncationMode(.tail).accessibilityIdentifier("document.status.stroke")
++                }
++                if let m = doc.marquee {
+                     separator
+-                    Text(DocumentRetouch.shared.removeActive ? "Remove (⇧J)" : "\(doc.tool.title) (\(doc.tool.key))").fixedSize()   // B5-09
+-                    if let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP B5-04
+-                        separator
+-                        Text(r).lineLimit(1).truncationMode(.tail).accessibilityIdentifier("document.status.stroke")
+-                    }
+-                    if let m = doc.marquee {
+-                        separator
+-                        Text("Selection \(m.width) × \(m.height)").fixedSize()
+-                            .accessibilityIdentifier("document.status.selection")
+-                    }
++                    Text(compact ? "\(m.width) × \(m.height)" : "Selection \(m.width) × \(m.height)").fixedSize()
++                        .help("Selection \(m.width) × \(m.height)")
++                        .accessibilityIdentifier("document.status.selection")
++                }
++                if !compact, model.showRenderReadout, let readout = doc.renderReadout {
+                     separator
+-                    if model.showRenderReadout, let readout = doc.renderReadout {
+-                        Text(readout).fixedSize().accessibilityIdentifier("document.status.render")
+-                        separator
+-                    }
++                    Text(readout).fixedSize().accessibilityIdentifier("document.status.render")
+                 }
++                separator
++            }
++            // Ideal width 0: the message fills what is left and truncates; it never makes a row "not fit".
++            Group {
+                 if let msg = model.statusMessage {
+                     Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary).help(msg)
+                         .accessibilityIdentifier("document.status.message")
++                } else {
++                    Color.clear
+                 }
+-                Spacer(minLength: Theme.Space.s)
+-                Text("\(workspace.documents.count) open").fixedSize()
+             }
+-            .font(Theme.Fonts.captionNumeric)
+-            .foregroundStyle(Theme.textSecondary)
+-            .padding(.horizontal, Theme.Space.gutter)
+-            .frame(height: Theme.Height.statusBar)
++            .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
++            Text("\(workspace.documents.count) open").fixedSize()
+         }
+-        .background(Theme.panel)
+     }
+ 
+     private var separator: some View { Hairline(vertical: true).frame(height: Theme.Space.m) }
+diff --git a/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift b/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift
+index 5b0bbd96..c199df03 100644
+--- a/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift
++++ b/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift
+@@ -143,6 +143,14 @@ final class DocumentWorkspace {
+     var exportSettings = ExportFlatSettings()
+     /// Filter menu, Image ▸ Adjustments and smart filters (WP B5-05).
+     let filters = DocumentFilters()
++    /// B5-16: the inspector's sub-tab (Stack · Properties · Channels; ⌃1 / ⌃2 / ⌃3), remembered.
++    var inspectorTab: DocumentInspectorTab = DocumentWorkspace.storedInspectorTab {
++        didSet { UserDefaults.standard.set(inspectorTab.rawValue, forKey: Self.inspectorTabKey) }
++    }
++    static let inspectorTabKey = "DocumentInspector.tab"
++    private static var storedInspectorTab: DocumentInspectorTab {
++        UserDefaults.standard.string(forKey: inspectorTabKey).flatMap(DocumentInspectorTab.init(rawValue:)) ?? .stack
++    }
+ 
+     static let documentTypes: [UTType] = [
+         UTType(exportedAs: "dev.tessera.document", conformingTo: .data),
+diff --git a/apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift b/apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift
+index 634ebdd9..0c43c3ad 100644
+--- a/apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift
++++ b/apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift
+@@ -177,8 +177,7 @@ final class DocumentFilters {
+             doc.report?("\(mode.title): select a pixel layer (use an Auto adjustment layer for other layers)")
+             return
+         }
+-        let model = doc.analyzed(.auto(AutoAdjustmentModel(mode: mode, black: [0, 0, 0], white: [1, 1, 1], gamma: [1, 1, 1])),
+-                                 samples: doc.layerSamples(p.id))
++        let model = doc.analyzed(.auto(.fresh(mode)), samples: doc.layerSamples(p.id))
+         applyAdjustment(model, layer: p.id, doc, title: mode.title)
+     }
+ 
+diff --git a/apps/mac/Sources/Tessera/Document/LayersPanel.swift b/apps/mac/Sources/Tessera/Document/LayersPanel.swift
+index 2aab585b..27d15dcc 100644
+--- a/apps/mac/Sources/Tessera/Document/LayersPanel.swift
++++ b/apps/mac/Sources/Tessera/Document/LayersPanel.swift
+@@ -4,58 +4,108 @@ import TesseraCore
+ 
+ /// Layers panel: blend mode, Opacity and Fill (ValueSlider: live drag, one history entry on
+ /// release), lock buttons and a filter row placeholder over the AppKit outline, and a footer with
+-/// add layer, add mask, add adjustment, group and delete.
++/// add layer, add mask, add adjustment, group and delete. B5-16: the inspector's Stack tab; Opacity
++/// and Fill share a row only when the interior is at least 300 pt wide (H4), and the filter field
++/// shrinks to 48 pt, then moves into an overflow menu (H5).
+ struct LayersPanel: View {
+     let document: DocumentController
++    @State private var interior: CGFloat = 0
++
++    /// Outline rows always visible (the outline scrolls the rest).
++    static let outlineMinimum: CGFloat = Theme.Height.sectionHeader * 4
++    private static let filterMinimum: CGFloat = Theme.Width.labelWide / 2
++    private static let filterHelp = "Filter by kind, name, mode or attribute (arrives with the next document work package)"
++
++    /// The panel's minimum height (sliders stacked, the narrow case): the Stack tab's minimum in the
++    /// inspector budget. Top padding, blend row, two slider rows, lock row, bottom padding, hairline,
++    /// outline minimum, hairline, footer.
++    static var minimumHeight: CGFloat {
++        let controls = Theme.Space.s + Theme.Height.small + Theme.Height.slider * 2 + Theme.Height.small + Theme.Space.xs * 3
++        return controls + Theme.Space.s + Theme.Space.hairline + outlineMinimum + Theme.Space.hairline + Theme.Height.large
++    }
+ 
+     var body: some View {
+         let primary = document.primary
+-        let revision = document.revision
+         VStack(spacing: 0) {
+             VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                 HStack(spacing: Theme.Space.s) {
+                     BlendModeMenu(document: document, node: primary)
+                     Spacer(minLength: 0)
+                 }
+-                HStack(spacing: Theme.Space.m) {
+-                    DocSlider(title: "Opacity", value: Double(primary?.opacity ?? 1) * 100, range: 0...100, defaultValue: 100,
+-                              format: "%.0f %%", enabled: primary != nil, identifier: "document.layers.opacity",
+-                              revision: revision) { v, final in document.setOpacity(v, final: final) }
+-                        .frame(height: Theme.Height.slider)
+-                    DocSlider(title: "Fill", value: Double(primary?.fillOpacity ?? 1) * 100, range: 0...100, defaultValue: 100,
+-                              format: "%.0f %%", enabled: primary != nil && primary?.kind != .group,
+-                              identifier: "document.layers.fill", revision: revision) { v, final in
+-                        document.setFillOpacity(v, final: final)
++                if DocumentLayersRow.slidersSideBySide(interiorWidth: interior) {
++                    HStack(spacing: Theme.Space.m) {
++                        opacitySlider(primary)
++                        fillSlider(primary)
+                     }
+-                    .frame(height: Theme.Height.slider)
++                } else {
++                    opacitySlider(primary)
++                    fillSlider(primary)
+                 }
+-                HStack(spacing: Theme.Space.xxs) {
+-                    Text("Lock").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+-                        .padding(.trailing, Theme.Space.xs)
+-                    lockButton(.transparency, "checkerboard.rectangle", "Lock transparent pixels")
+-                    lockButton(.pixels, "paintbrush.pointed", "Lock image pixels")
+-                    lockButton(.position, "arrow.up.and.down.and.arrow.left.and.right", "Lock position")
+-                    lockButton(.all, "lock", "Lock all")
+-                    Spacer(minLength: Theme.Space.s)
+-                    FieldContainer(symbol: "line.3.horizontal.decrease") {
+-                        Text("Filter").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
+-                        Spacer(minLength: 0)
+-                    }
+-                    .frame(width: Theme.Width.labelWide)
+-                    .opacity(Theme.Opacity.disabled)
+-                    .help("Filter by kind, name, mode or attribute (arrives with the next document work package)")
+-                    .accessibilityIdentifier("document.layers.filter")
++                ViewThatFits(in: .horizontal) {
++                    lockRow(filterField: true)
++                    lockRow(filterField: false)
+                 }
+                 .disabled(primary == nil)
+             }
++            .frame(maxWidth: .infinity, alignment: .leading)
++            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { interior = $0 }
+             .padding(.horizontal, Theme.Space.gutter)
++            .padding(.top, Theme.Space.s)
+             .padding(.bottom, Theme.Space.s)
+             Hairline()
+             LayersOutline(document: document)
+-                .frame(minHeight: Theme.Height.sectionHeader * 4)
++                .frame(minHeight: Self.outlineMinimum, maxHeight: .infinity)
+                 .accessibilityIdentifier("document.layers")
+             Hairline()
+             footer
++                .inspectorProbe("layersFooter")
++        }
++    }
++
++    private func opacitySlider(_ primary: LayerRecord?) -> some View {
++        DocSlider(title: "Opacity", value: Double(primary?.opacity ?? 1) * 100, range: 0...100, defaultValue: 100,
++                  format: "%.0f %%", enabled: primary != nil, identifier: "document.layers.opacity",
++                  revision: document.revision) { v, final in document.setOpacity(v, final: final) }
++            .frame(height: Theme.Height.slider)
++    }
++
++    private func fillSlider(_ primary: LayerRecord?) -> some View {
++        DocSlider(title: "Fill", value: Double(primary?.fillOpacity ?? 1) * 100, range: 0...100, defaultValue: 100,
++                  format: "%.0f %%", enabled: primary != nil && primary?.kind != .group,
++                  identifier: "document.layers.fill", revision: document.revision) { v, final in
++            document.setFillOpacity(v, final: final)
++        }
++        .frame(height: Theme.Height.slider)
++    }
++
++    private func lockRow(filterField: Bool) -> some View {
++        HStack(spacing: Theme.Space.xxs) {
++            Text("Lock").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
++                .padding(.trailing, Theme.Space.xs)
++                .fixedSize()
++            lockButton(.transparency, "checkerboard.rectangle", "Lock transparent pixels")
++            lockButton(.pixels, "paintbrush.pointed", "Lock image pixels")
++            lockButton(.position, "arrow.up.and.down.and.arrow.left.and.right", "Lock position")
++            lockButton(.all, "lock", "Lock all")
++            Spacer(minLength: Theme.Space.s)
++            if filterField {
++                FieldContainer(symbol: "line.3.horizontal.decrease") {
++                    Text("Filter").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
++                    Spacer(minLength: 0)
++                }
++                .frame(minWidth: Self.filterMinimum, idealWidth: Theme.Width.labelWide, maxWidth: Theme.Width.labelWide)
++                .opacity(Theme.Opacity.disabled)
++                .help(Self.filterHelp)
++                .accessibilityIdentifier("document.layers.filter")
++            } else {
++                Menu {
++                    Button("Filter Layers…") {}.disabled(true)
++                    Text(Self.filterHelp)
++                } label: { Image(systemName: "line.3.horizontal.decrease") }
++                    .menuStyle(IconMenuStyle())
++                    .help(Self.filterHelp)
++                    .accessibilityIdentifier("document.layers.filter")
++            }
+         }
+     }
+ 
+diff --git a/apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift b/apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift
+index b4bbad6a..335598b5 100644
+--- a/apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift
++++ b/apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift
+@@ -9,7 +9,22 @@ struct ToolsPalette: View {
+     @Bindable var document: DocumentController
+     @Bindable var tools: DocumentTools
+ 
++    /// B5-16 (H11): the column as is when the canvas is tall enough; otherwise it scrolls vertically
++    /// (indicators hidden) inside the canvas height, so progress strips or the tether panel never
++    /// push the swatches out of reach.
+     var body: some View {
++        ViewThatFits(in: .vertical) {
++            column
++            ScrollView(.vertical) { column }
++                .scrollIndicators(.hidden)
++                .fixedSize(horizontal: true, vertical: false)
++        }
++        .background(HUDBackground())
++        .accessibilityElement(children: .contain)
++        .accessibilityIdentifier("document.tools")
++    }
++
++    private var column: some View {
+         VStack(spacing: Theme.Space.xxs) {
+             ForEach(DocumentTool.paletteSlots, id: \.self) { slot in
+                 let shown = slot.group.contains(document.tool) ? document.tool : slot
+@@ -30,9 +45,6 @@ struct ToolsPalette: View {
+             ColorSwatches(tools: tools)
+         }
+         .padding(Theme.Space.xxs)
+-        .background(HUDBackground())
+-        .accessibilityElement(children: .contain)
+-        .accessibilityIdentifier("document.tools")
+     }
+ }
+ 
+diff --git a/apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift b/apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift
+new file mode 100644
+index 00000000..956c0903
+--- /dev/null
++++ b/apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift
+@@ -0,0 +1,114 @@
++import CoreGraphics
++import Foundation
++
++/// WP B5-16: the document inspector's sub-tabs (Stack · Properties · Channels). History is a
++/// collapsible pane under whichever tab is showing, not a tab.
++public enum DocumentInspectorTab: String, CaseIterable, Identifiable, Sendable {
++    /// The Layers panel: blend mode, Opacity / Fill, locks, the outline and its footer.
++    case stack
++    /// The selected layer's properties, then the tool sections (Color, Brushes).
++    case properties
++    /// The Channels panel.
++    case channels
++
++    public var id: String { rawValue }
++
++    public var title: String {
++        switch self {
++        case .stack: "Stack"
++        case .properties: "Properties"
++        case .channels: "Channels"
++        }
++    }
++
++    /// ⌃1 / ⌃2 / ⌃3.
++    public var shortcutDigit: Character {
++        switch self {
++        case .stack: "1"
++        case .properties: "2"
++        case .channels: "3"
++        }
++    }
++
++    public var help: String {
++        let what: String = switch self {
++        case .stack: "Layers: blend mode, opacity, locks and the layer list"
++        case .properties: "The selected layer's properties, colour and brushes"
++        case .channels: "Colour, alpha and spot channels"
++        }
++        return "\(what) (⌃\(shortcutDigit))"
++    }
++}
++
++/// WP B5-16: the inspector column's height budget (M2-56 handoff H1–H3, H6). Pure, so the arithmetic
++/// is unit tested without a window. The column is: the tab bar, a hairline, the tab's content (which
++/// scrolls itself), then the History pane (header, and when expanded a resizable body that scrolls
++/// the states and snapshots). The sum of the minimums must fit the smallest column (960 × 600 window
++/// content minus the toolbar: 548 pt).
++public struct DocumentInspectorBudget: Equatable, Sendable {
++    /// Tab bar row (segmented header).
++    public var tabBar: CGFloat
++    /// Separators between the regions (hairlines), counted together.
++    public var separators: CGFloat
++    /// Smallest useful tab content (the Stack tab's: layer controls, four outline rows, footer).
++    public var tabMinimum: CGFloat
++    /// History pane header.
++    public var historyHeader: CGFloat
++    /// Smallest expanded History body (two rows plus the New Snapshot row).
++    public var historyMinimum: CGFloat
++
++    public init(tabBar: CGFloat, separators: CGFloat, tabMinimum: CGFloat, historyHeader: CGFloat, historyMinimum: CGFloat) {
++        self.tabBar = tabBar
++        self.separators = separators
++        self.tabMinimum = tabMinimum
++        self.historyHeader = historyHeader
++        self.historyMinimum = historyMinimum
++    }
++
++    /// The smallest column height every part fits in, History expanded or collapsed.
++    public func minimumColumn(historyExpanded: Bool) -> CGFloat {
++        tabBar + separators + tabMinimum + historyHeader + (historyExpanded ? historyMinimum : 0)
++    }
++
++    /// The History body's height for a column of `column` points when the person asked for
++    /// `requested`: at least `historyMinimum`, and never so tall that the tab content drops below its
++    /// minimum (the tab content keeps priority when both cannot fit).
++    public func historyHeight(requested: CGFloat, column: CGFloat) -> CGFloat {
++        let room = column - tabBar - separators - tabMinimum - historyHeader
++        return max(0, min(max(requested, historyMinimum), room))
++    }
++}
++
++/// WP B5-16 (H4): the Layers panel's Opacity and Fill sliders sit side by side only when the
++/// panel's interior is at least this wide; below it each gets its own row.
++public enum DocumentLayersRow {
++    public static let sideBySideMinimum: CGFloat = 300
++
++    public static func slidersSideBySide(interiorWidth: CGFloat) -> Bool {
++        interiorWidth >= sideBySideMinimum
++    }
++}
++
++/// WP B5-16 (H8): the toolbar's document tab strip shows at most `cap` tabs (`compactCap` in a compact toolbar); the others are in an
++/// overflow menu. The visible window always contains the current document and keeps the documents'
++/// order; it starts as early as possible (the first `cap` tabs while the current one is among them).
++public enum DocumentTabStrip {
++    public static let cap = 3
++    /// In a compact toolbar (window narrower than 1280 pt) only the current document is a tab, so the
++    /// strip still fits beside the view picker instead of dropping into the toolbar's overflow.
++    public static let compactCap = 1
++
++    public static func visible(count: Int, current: Int?, cap: Int = DocumentTabStrip.cap) -> Range<Int> {
++        guard count > 0, cap > 0 else { return 0..<0 }
++        guard count > cap else { return 0..<count }
++        let c = min(max(current ?? 0, 0), count - 1)
++        let start = max(0, min(c - cap + 1, count - cap))
++        return start..<(start + cap)
++    }
++
++    /// Documents not shown as tabs.
++    public static func overflow(count: Int, current: Int?, cap: Int = DocumentTabStrip.cap) -> [Int] {
++        let shown = visible(count: count, current: current, cap: cap)
++        return (0..<count).filter { !shown.contains($0) }
++    }
++}
+diff --git a/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift b/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift
+index bba2a224..421227c0 100644
+--- a/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift
++++ b/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift
+@@ -1,4 +1,5 @@
+ import Foundation
++import ImageIO
+ import XCTest
+ import TesseraFFI
+ @testable import Tessera
+@@ -194,6 +195,90 @@ final class DocumentAdjustmentAnalysisTests: XCTestCase {
+         XCTAssertEqual(doc.primary?.name, "Equalize 1")
+     }
+ 
++    func testLegacyMatchColorNeutralizeReopenDisableUndoAndSave() throws {
++        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("legacy-match-\(UUID().uuidString)")
++        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
++        defer { try? FileManager.default.removeItem(at: dir) }
++        let png = dir.appendingPathComponent("warm.png")
++        let bytes: [UInt8] = (0..<16).flatMap { _ in [230, 128, 77, 255] }
++        let provider = try XCTUnwrap(CGDataProvider(data: Data(bytes) as CFData))
++        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
++        let image = try XCTUnwrap(CGImage(width: 4, height: 4, bitsPerComponent: 8, bitsPerPixel: 32,
++            bytesPerRow: 16, space: colorSpace, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
++            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
++        let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(png as CFURL, "public.png" as CFString, 1, nil))
++        CGImageDestinationAddImage(destination, image, nil)
++        XCTAssertTrue(CGImageDestinationFinalize(destination))
++        let engine = try Engine.open(appSupportDir: dir.appendingPathComponent("support").path)
++        let documents = EngineDocumentEngine.for(engine)
++        let original = try DocumentController(backend: documents.openDocument(path: png.path))
++        let source = try XCTUnwrap(original.layers.first(where: { $0.kind == .pixel })?.id)
++        let sourcePixels = original.layerSamples(source)
++        XCTAssertFalse(sourcePixels.isEmpty)
++        var legacy = try XCTUnwrap(AdjustmentAnalysis.matchColor(sourceLayer: source, source: sourcePixels,
++            target: sourcePixels, neutralize: false))
++        legacy.sourceMean[1] = 0
++        legacy.sourceMean[2] = 0
++        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(AdjustmentModel.matchColor(legacy).json.utf8)) as? [String: Any])
++        object.removeValue(forKey: "neutralize")
++        let legacyJSON = String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
++        original.addLayer(.adjustment(json: legacyJSON))
++        let adjustment = try XCTUnwrap(original.primary?.id)
++        let path = dir.appendingPathComponent("legacy.tessera-doc").path
++        try original.backend.saveAs(path: path)
++        original.close()
++        let reopened = try DocumentController(backend: documents.openDocument(path: path))
++        defer { reopened.close() }
++        func match(_ doc: DocumentController) throws -> MatchColorModel {
++            guard case .matchColor(let model) = try XCTUnwrap(doc.adjustment(of: adjustment)) else {
++                throw NSError(domain: "ExpectedMatchColor", code: 1)
++            }
++            return model
++        }
++        let before = try match(reopened)
++        XCTAssertTrue(before.neutralized, "legacy checkbox must reopen enabled")
++        XCTAssertFalse(before.neutralize, "loading must not rewrite frozen parameters")
++        XCTAssertEqual(before.sourceMean, legacy.sourceMean)
++        let off = try XCTUnwrap(reopened.matchColorSettingNeutralize(before, to: false,
++            target: reopened.compositeSamples(neutralizing: adjustment)))
++        XCTAssertFalse(off.neutralized)
++        XCTAssertGreaterThan(abs(off.sourceMean[1]) + abs(off.sourceMean[2]), 1, "disabling recovers warm source chroma")
++        reopened.setAdjustment(adjustment, .matchColor(off), final: true)
++        reopened.undo()
++        XCTAssertEqual(try match(reopened), before, "undo restores the frozen legacy model")
++        reopened.setAdjustment(adjustment, .matchColor(off), final: true)
++        try reopened.backend.save()
++        reopened.close()
++        let saved = try DocumentController(backend: documents.openDocument(path: path))
++        defer { saved.close() }
++        XCTAssertEqual(try match(saved), off)
++        XCTAssertFalse(try match(saved).neutralized)
++    }
++
++    func testLegacyMatchColorMissingSourceDoesNotPretendToDisable() throws {
++        let doc = try engineController()
++        var legacy = MatchColorModel()
++        legacy.sourceLayer = 9999
++        legacy.sourceMean = [45, 0, 0]
++        XCTAssertNil(doc.matchColorSettingNeutralize(legacy, to: false, target: [SIMD3(repeating: 0.5)]))
++        XCTAssertTrue(legacy.neutralized)
++    }
++
++    func testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels() throws {
++        let doc = try engineController()
++        var modern = MatchColorModel()
++        modern.sourceLayer = 9999
++        modern.sourceMean = [45, 12, 18]
++        modern.neutralize = true
++        func unexpectedRead() -> [SIMD3<Float>] { XCTFail("modern toggle must not reanalyze"); return [] }
++        let off = try XCTUnwrap(doc.matchColorSettingNeutralize(modern, to: false, target: unexpectedRead()))
++        XCTAssertFalse(off.neutralized)
++        XCTAssertEqual(off.sourceMean, modern.sourceMean)
++        XCTAssertEqual(off.targetMean, modern.targetMean)
++        let on = try XCTUnwrap(doc.matchColorSettingNeutralize(off, to: true, target: unexpectedRead()))
++        XCTAssertEqual(on, modern)
++    }
++
+     // MARK: Save As sheet
+ 
+     func testSaveAsNames() {
+diff --git a/apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift b/apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift
+new file mode 100644
+index 00000000..fe8dce34
+--- /dev/null
++++ b/apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift
+@@ -0,0 +1,62 @@
++import XCTest
++@testable import TesseraCore
++
++/// WP B5-16: the document inspector's pure layout policy (tabs, height budget, the Layers row rule,
++/// the document tab strip cap).
++final class DocumentInspectorTabsTests: XCTestCase {
++    private let budget = DocumentInspectorBudget(tabBar: 32, separators: 2, tabMinimum: 290, historyHeader: 32, historyMinimum: 80)
++
++    func testTabsAndShortcuts() {
++        XCTAssertEqual(DocumentInspectorTab.allCases.map(\.title), ["Stack", "Properties", "Channels"])
++        XCTAssertEqual(DocumentInspectorTab.allCases.map(\.shortcutDigit), ["1", "2", "3"])
++        XCTAssertTrue(DocumentInspectorTab.properties.help.hasSuffix("(⌃2)"))
++    }
++
++    func testBudgetFitsTheSmallestColumn() {
++        XCTAssertEqual(budget.minimumColumn(historyExpanded: false), 356)
++        XCTAssertEqual(budget.minimumColumn(historyExpanded: true), 436)
++        XCTAssertLessThanOrEqual(budget.minimumColumn(historyExpanded: true), 548)
++    }
++
++    func testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum() {
++        // Plenty of room: the request stands.
++        XCTAssertEqual(budget.historyHeight(requested: 200, column: 848), 200)
++        // Below the minimum: the minimum.
++        XCTAssertEqual(budget.historyHeight(requested: 10, column: 848), 80)
++        // Too tall for the column: the tab content keeps its minimum.
++        XCTAssertEqual(budget.historyHeight(requested: 900, column: 548), 548 - 32 - 2 - 290 - 32)
++        // A column too short for both: the tab content wins.
++        XCTAssertEqual(budget.historyHeight(requested: 200, column: 400), 44)
++        XCTAssertEqual(budget.historyHeight(requested: 200, column: 300), 0)
++    }
++
++    func testOpacityAndFillShareARowFrom300Points() {
++        XCTAssertFalse(DocumentLayersRow.slidersSideBySide(interiorWidth: 264))   // 288 pt inspector
++        XCTAssertFalse(DocumentLayersRow.slidersSideBySide(interiorWidth: 299.5))
++        XCTAssertTrue(DocumentLayersRow.slidersSideBySide(interiorWidth: 300))
++        XCTAssertTrue(DocumentLayersRow.slidersSideBySide(interiorWidth: 356))    // 380 pt inspector
++    }
++
++    func testTabStripShowsAtMostThreeIncludingTheCurrentOne() {
++        XCTAssertEqual(DocumentTabStrip.visible(count: 0, current: nil), 0..<0)
++        XCTAssertEqual(DocumentTabStrip.visible(count: 2, current: 1), 0..<2)
++        XCTAssertEqual(DocumentTabStrip.visible(count: 3, current: 2), 0..<3)
++        XCTAssertEqual(DocumentTabStrip.visible(count: 8, current: 0), 0..<3)
++        XCTAssertEqual(DocumentTabStrip.visible(count: 8, current: 2), 0..<3)
++        XCTAssertEqual(DocumentTabStrip.visible(count: 8, current: 3), 1..<4)
++        XCTAssertEqual(DocumentTabStrip.visible(count: 8, current: 7), 5..<8)
++        XCTAssertEqual(DocumentTabStrip.visible(count: 8, current: nil), 0..<3)
++        XCTAssertEqual(DocumentTabStrip.overflow(count: 5, current: 4), [0, 1])
++        XCTAssertEqual(DocumentTabStrip.overflow(count: 3, current: 0), [])
++        XCTAssertEqual(DocumentTabStrip.visible(count: 8, current: 5, cap: DocumentTabStrip.compactCap), 5..<6)
++        XCTAssertEqual(DocumentTabStrip.overflow(count: 3, current: 1, cap: DocumentTabStrip.compactCap), [0, 2])
++        for count in 1...10 {
++            for current in 0..<count {
++                let shown = DocumentTabStrip.visible(count: count, current: current)
++                XCTAssertTrue(shown.contains(current))
++                XCTAssertEqual(shown.count, min(count, DocumentTabStrip.cap))
++                XCTAssertEqual(shown.count + DocumentTabStrip.overflow(count: count, current: current).count, count)
++            }
++        }
++    }
++}
+diff --git a/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift b/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift
+index 541e69dd..42728555 100644
+--- a/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift
++++ b/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift
+@@ -28,7 +28,6 @@ final class ShellLayoutTests: XCTestCase {
+         let captureDir = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"].map { URL(fileURLWithPath: $0) }
+         var failures: [String] = []
+         var checked = 0
+-        var documentColumnOverflow: [String] = []
+         for state in ShellHarness.State.allCases {
+             let model = try ShellHarness.model(state, scratch: try scratch())
+             for dark in [true, false] {
+@@ -39,11 +38,11 @@ final class ShellLayoutTests: XCTestCase {
+                     XCTAssertFalse(NSApp.isActive, "the harness never activates")
+                     // 1. Root containment: no split / hosting subtree outside the window's content.
+                     for v in ShellLayoutAudit.containmentViolations(in: host) { failures.append("\(tag) containment: \(v)") }
+-                    // Column content (scroll views inside a column) too, except the document inspector,
+-                    // whose stacked panels are Machine B's (tools/orchestrate/wp/M2-56/DOCUMENT-HANDOFF.md).
+-                    let inner = ShellLayoutAudit.containmentViolations(in: host, columnContent: true)
+-                    if state == .document { documentColumnOverflow += inner.map { "\(tag): \($0)" } }
+-                    else { for v in inner { failures.append("\(tag) column content: \(v)") } }
++                    // Column content (scroll views inside a column) too, the document inspector included
++                    // (the reconciled B5-16 candidate must pass the former expected failure).
++                    for v in ShellLayoutAudit.containmentViolations(in: host, columnContent: true) {
++                        failures.append("\(tag) column content: \(v)")
++                    }
+                     // 2. The window keeps the requested size (clamped only to the declared minimum
+                     //    content size): content never forces it larger.
+                     let top = ShellHarness.toolbarInset(window)
+@@ -87,11 +86,169 @@ final class ShellLayoutTests: XCTestCase {
+             }
+         }
+         XCTAssertEqual(checked, ShellHarness.State.allCases.count * 8)
+-        if !documentColumnOverflow.isEmpty {
+-            XCTExpectFailure("document inspector panels overflow their column (handed off to Machine B, L1)", strict: false) {
+-                XCTFail(documentColumnOverflow.joined(separator: "\n"))
++        XCTAssert(failures.isEmpty, "\(failures.count) layout failures:\n" + failures.joined(separator: "\n"))
++    }
++
++    /// WP B5-16: the document window at every size with every inspector sub-tab (Stack · Properties ·
++    /// Channels) and History expanded and collapsed, with snapshots and history rows present: root and
++    /// column containment, no overlapping actionable siblings, nothing under the toolbar, and the
++    /// inspector's regions (tab bar, tab content, History header / body / New Snapshot row, the Layers
++    /// and Channels footers) stacked in order inside the window with the budget's minimums.
++    func testDocumentInspectorEveryTabAndHistoryStateAtEverySize() throws {
++        let captureDir = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"].map { URL(fileURLWithPath: $0) }
++        let model = try ShellHarness.model(.document, scratch: try scratch())
++        let ws = model.documents
++        let doc = try XCTUnwrap(ws.current)
++        for i in 0..<12 { doc.addAdjustment(i.isMultiple(of: 2) ? .exposure : .curves) }   // history rows and layers
++        for n in 1...6 { doc.snapshot(named: "Snapshot \(n)") }
++        let savedTab = ws.inspectorTab
++        let historyKey = "InspectorPanel.History"
++        let savedHistory = UserDefaults.standard.object(forKey: historyKey)
++        DocumentInspectorProbe.isEnabled = true
++        defer {
++            DocumentInspectorProbe.isEnabled = false
++            ws.inspectorTab = savedTab
++            if let savedHistory { UserDefaults.standard.set(savedHistory, forKey: historyKey) }
++            else { UserDefaults.standard.removeObject(forKey: historyKey) }
++        }
++        let budget = DocumentInspector.budget
++        XCTAssertLessThanOrEqual(budget.minimumColumn(historyExpanded: true), 548, "fits a 960 × 600 window's column")
++        var failures: [String] = []
++        var checked = 0
++        for size in ShellHarness.sizes {
++            for tab in DocumentInspectorTab.allCases {
++                for history in [true, false] {
++                    ws.inspectorTab = tab
++                    UserDefaults.standard.set(history, forKey: historyKey)
++                    DocumentInspectorProbe.frames = [:]
++                    let (window, host) = ShellHarness.window(model, size: size, dark: true)
++                    defer { window.orderOut(nil); window.contentViewController = nil }
++                    let tag = "document-\(Int(size.width))x\(Int(size.height))-\(tab.rawValue)-history-\(history ? "open" : "closed")"
++                    XCTAssertFalse(NSApp.isActive, "the harness never activates")
++                    for v in ShellLayoutAudit.containmentViolations(in: host, columnContent: true) { failures.append("\(tag) containment: \(v)") }
++                    let top = ShellHarness.toolbarInset(window)
++                    let all = ShellHarness.actionables(window.contentView?.superview ?? host, in: host)
++                    let content = all.filter { $0.view.isDescendant(of: host) }
++                    for e in content where !(e.view is NSTableView) && e.frame.minY < top - 1 && e.frame.maxY > 0 {
++                        failures.append("\(tag) under the toolbar: \(e.role) '\(e.label)' \(NSStringFromRect(e.frame))")
++                    }
++                    for e in content where e.frame.maxX > host.bounds.width + 1 || e.frame.minX < -1 || e.frame.maxY > host.bounds.height + 1 {
++                        failures.append("\(tag) outside the window: \(e.role) '\(e.label)' \(NSStringFromRect(e.frame))")
++                    }
++                    let visible = CGRect(x: 0, y: top, width: host.bounds.width, height: host.bounds.height - top)
++                    for o in ShellHarness.overlaps(content, within: visible) { failures.append("\(tag) overlap: \(o)") }
++                    // The inspector's own regions, top to bottom.
++                    let f = DocumentInspectorProbe.frames
++                    var order = ["tabBar", "tabContent", "historyHeader"]
++                    if history { order += ["historyBody"] }
++                    for name in order where f[name] == nil { failures.append("\(tag) region \(name) not laid out") }
++                    let regions = order.compactMap { name in f[name].map { (name, $0) } }
++                    for (name, r) in regions {
++                        if r.minY < top - 1 { failures.append("\(tag) \(name) under the toolbar: \(NSStringFromRect(r)) top=\(top)") }
++                        if r.maxY > host.bounds.height + 1 || r.maxX > host.bounds.width + 1 {
++                            failures.append("\(tag) \(name) outside the window: \(NSStringFromRect(r)) in \(NSStringFromSize(host.bounds.size))")
++                        }
++                    }
++                    for (a, b) in zip(regions, regions.dropFirst()) where b.1.minY < a.1.maxY - 1 {
++                        failures.append("\(tag) \(b.0) overlaps \(a.0): \(NSStringFromRect(b.1)) / \(NSStringFromRect(a.1))")
++                    }
++                    if let c = f["tabContent"], c.height < budget.tabMinimum - 1 {
++                        failures.append("\(tag) tab content \(c.height) below its minimum \(budget.tabMinimum)")
++                    }
++                    if history, let body = f["historyBody"] {
++                        if body.height < budget.historyMinimum - 1 {
++                            failures.append("\(tag) History body \(body.height) below its minimum \(budget.historyMinimum)")
++                        }
++                        // The New Snapshot row sits whole at the bottom of the History body.
++                        if let footer = f["historyFooter"], footer.maxY > body.maxY + 1 || footer.minY < body.minY - 1 {
++                            failures.append("\(tag) New Snapshot row \(NSStringFromRect(footer)) outside History \(NSStringFromRect(body))")
++                        } else if f["historyFooter"] == nil {
++                            failures.append("\(tag) New Snapshot row not laid out")
++                        }
++                    }
++                    // The tab's own footer is whole inside the tab content.
++                    let footerName: String? = switch tab { case .stack: "layersFooter"; case .channels: "channelsFooter"; case .properties: nil }
++                    if let footerName, let c = f["tabContent"] {
++                        if let footer = f[footerName] {
++                            if footer.maxY > c.maxY + 1 || footer.minY < c.minY - 1 {
++                                failures.append("\(tag) \(footerName) \(NSStringFromRect(footer)) clipped by the tab \(NSStringFromRect(c))")
++                            }
++                        } else {
++                            failures.append("\(tag) \(footerName) not laid out")
++                        }
++                    }
++                    // Required controls of the tab are present (Stack: Opacity and Fill; the outline).
++                    if tab == .stack {
++                        for id in ["document.layers.opacity", "document.layers.fill"] where !content.contains(where: { $0.view.accessibilityIdentifier() == id }) {
++                            failures.append("\(tag) \(id) not visible")
++                        }
++                    }
++                    if let captureDir {
++                        try ShellHarness.capture(window, to: captureDir.appendingPathComponent("inspector-\(tag).png"))
++                    }
++                    checked += 1
++                }
+             }
+         }
+-        XCTAssert(failures.isEmpty, "\(failures.count) layout failures:\n" + failures.joined(separator: "\n"))
++        XCTAssertEqual(checked, ShellHarness.sizes.count * DocumentInspectorTab.allCases.count * 2)
++        XCTAssert(failures.isEmpty, "\(failures.count) inspector layout failures:\n" + failures.joined(separator: "\n"))
++    }
++
++    /// WP B5-16 (H8): the toolbar's tab strip shows at most three tabs; more documents only add the
++    /// "+n" overflow menu, so its width stops growing. Checks 960 × 600 and 1280 × 800 with eight
++    /// documents open (root containment and the toolbar checks of the main test still apply).
++    func testManyDocumentTabsStayCapped() throws {
++        let captureDir = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"].map { URL(fileURLWithPath: $0) }
++        let model = try ShellHarness.model(.document, scratch: try scratch())
++        let ws = model.documents
++        func stripWidth(compact: Bool = false) -> CGFloat {
++            NSHostingController(rootView: DocumentTabs(workspace: ws).environment(\.toolbarCompact, compact))
++                .sizeThatFits(in: CGSize(width: 4000, height: 40)).width
++        }
++        var widths: [Int: CGFloat] = [1: stripWidth()]
++        let compactOne = stripWidth(compact: true)
++        while ws.documents.count < 8 {
++            ws.newDocument(ws.newSettings)
++            widths[ws.documents.count] = stripWidth()
++        }
++        // A compact toolbar (below 1280 pt) keeps one tab plus the menu.
++        XCTAssertLessThan(stripWidth(compact: true) - compactOne, Theme.Height.large * 2, "compact: one tab and the menu")
++        XCTAssertGreaterThan(widths[3]!, widths[2]!, "a third tab still adds width")
++        let menu = widths[4]! - widths[3]!
++        XCTAssertGreaterThan(menu, 0, "the overflow menu appears with a fourth document")
++        XCTAssertLessThan(menu, Theme.Height.large * 2, "the overflow menu is small")
++        for n in 5...8 { XCTAssertEqual(widths[n]!, widths[4]!, accuracy: 8, "\(n) documents: the strip stops growing") }
++        // The current document is always a visible tab, including the first after switching back.
++        if let first = ws.documents.first { ws.select(first) }
++        XCTAssertEqual(DocumentTabStrip.visible(count: ws.documents.count, current: 0), 0..<3)
++        for size in [CGSize(width: 960, height: 600), CGSize(width: 1280, height: 800)] {
++            let (window, host) = ShellHarness.window(model, size: size, dark: true)
++            defer { window.orderOut(nil); window.contentViewController = nil }
++            XCTAssertEqual(ShellLayoutAudit.containmentViolations(in: host, columnContent: true), [])
++            if let captureDir {
++                try ShellHarness.capture(window, to: captureDir.appendingPathComponent("tabs-8-documents-\(Int(size.width))x\(Int(size.height)).png"))
++            }
++        }
++    }
++
++    /// WP B5-16: ⌃1 / ⌃2 / ⌃3 reach the inspector's tabs through the window's key equivalents.
++    func testInspectorTabShortcuts() throws {
++        let model = try ShellHarness.model(.document, scratch: try scratch())
++        let ws = model.documents
++        let saved = ws.inspectorTab
++        defer { ws.inspectorTab = saved }
++        let (window, _) = ShellHarness.window(model, size: CGSize(width: 1280, height: 800), dark: true)
++        defer { window.orderOut(nil); window.contentViewController = nil }
++        let codes: [Character: UInt16] = ["1": 18, "2": 19, "3": 20]
++        for tab in [DocumentInspectorTab.properties, .channels, .stack] {
++            let c = String(tab.shortcutDigit)
++            let e = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .control,
++                                                   timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
++                                                   context: nil, characters: c, charactersIgnoringModifiers: c, isARepeat: false,
++                                                   keyCode: codes[tab.shortcutDigit] ?? 0))
++            XCTAssertTrue(window.performKeyEquivalent(with: e), "⌃\(c) handled")
++            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
++            XCTAssertEqual(ws.inspectorTab, tab, "⌃\(c)")
++        }
+     }
+ }
+diff --git a/tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-HANDOFF.md b/tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-HANDOFF.md
+new file mode 100644
+index 00000000..30026ea6
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-HANDOFF.md
+@@ -0,0 +1,119 @@
++# B5-16 bounded current-base reconciliation
++
++Request `5d86ed1a-53ad-40eb-a8db-dca97e44f94e`, source-only on B, 2026-09-28.
++Branch `codex/b5-16-current-main`; frozen base `1e45baaead70b1bcd208afba800bcacd92213ee8` from
++origin/codex/save-destination-a-qualification. Source checkpoint `374ea0ede8ef9fc8ca0206e8d33dbefafefffcdf`.
++**All combined compile, tests and interactions UNRUN. No main acceptance.**
++A reports native/full Swift703 (1 skip, 0 failures) +5 and strict for the BASE;
++that evidence does not qualify this inspector source. Actual checked Save As GUI
++remains A-owned and pending. A owns sole compiler/runtime/main integration.
++
++## Commits and bounded scope
++
++- `787f935ac2754df239602bbfd0dbbeb4db2bc4ca`: targeted layout/tab source and authored layout tests from 5d456ad9
++- `3953e730fa84e7d55a4fce10382d5318ed9d1f4e`: persisted Auto/LUT editor deltas from 3f81f55b; no model duplicate
++- `f17bc349717f792d9c4547780a7856c215949c7d`: 8184da17 Neutralize implementation/three regressions and runner/seven regressions
++- `374ea0ede8ef9fc8ca0206e8d33dbefafefffcdf`: current shell matrix count reconciliation and honest runner isolation comment
++
++Only sixteen source/test/harness files differ from the frozen base:
++
++- `apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift`
++- `apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift`
++- `apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift`
++- `apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift`
++- `apps/mac/Sources/Tessera/Document/DocumentView.swift`
++- `apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift`
++- `apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift`
++- `apps/mac/Sources/Tessera/Document/LayersPanel.swift`
++- `apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift`
++- `apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift`
++- `apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift`
++- `apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift`
++- `apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift`
++- `tools/orchestrate/wp/B5-16/run-selftests.sh`
++- `tools/orchestrate/wp/B5-16/selftest_runner.py`
++- `tools/orchestrate/wp/B5-16/test_selftest_runner.py`
++
++`CURRENT-MAIN-INSPECTOR-SOURCE.sha256` pins all sixteen file bytes. The original
++5d456ad9/3f81f55b/8184da17 and all old branches remain unchanged. Reused the clean
++completed B5-16 checkout; no active build/runtime process was found using it.
++No B builds, compiler, tests (including Python), apps, GPU, benchmarks, heartbeat
++restart or writer replacement occurred. Source inspection and diff-check only.
++
++## Reconciliation findings
++
++- Stack/Properties/Channels sub-tabs and remembered selection; budgeted History
++  with its own scroller/footer and persistent requested height; compact document
++  tab overflow/status; bounded Layers controls and scrollable Tools palette.
++- Auto uses persisted independent shadow/highlight clips for changes and analysis;
++  LUT source filename/dither are model fields instead of ephemeral editor state.
++- Legacy Match Color disabling Neutralize reanalyses only the legacy zero-chroma
++  representation, fails honestly with missing source, and retains modern frozen
++  statistics when flipping the persisted flag.
++- Only conflict: ShellLayoutTests near old fixed24 case count/expected-failure
++  block. Kept current Masks assertions, CI rule and dynamic whole-shell count;
++  inspector-only count is sizes × tabs ×2. Former Document overflow now fails
++  normally in the candidate, rather than being hidden as an expected failure.
++  This is a stronger authored assertion, NOT evidence it passes.
++- DocumentWorkspace diff is only eight lines for inspector-tab preference.
++  Save/load/status/activation/ownership/cancellation implementations are untouched.
++- Checked Save As presenter, sheets, backend protocols/adapters/commit helper,
++  Stub backend, models, AppModel and generated Smart Preview binding bytes match
++  the frozen base. No Rust or generated/archive updates; no stale replacement.
++- DocumentView/ToolsPalette retain the later Transform attachment/ownership/options
++  integration. AdjustmentEditors retains the inline synchronous MainActor
++  Sendable checkbox setter (no direct isolated-function conversion).
++- No duplicated B5-16a model fixes. Deliberately excluded old sheet-size changes,
++  background window-host fallback and activation changes, historical screenshots,
++  acceptance claims, broad old shared-file replacement and old runtime evidence.
++
++## Authored tests (all UNRUN on this combination)
++
++- DocumentInspectorTabsTests: five pure tests for labels/shortcuts, height budget,
++  History clamping, opacity/fill width threshold and capped document strip.
++- ShellLayoutTests: three restored inspector-specific tests (every tab/History
++  state/size with region/footer bounds; eight-document overflow; key equivalents),
++  plus stricter existing whole-shell containment preserving current Masks checks.
++- DocumentAdjustmentAnalysisTests: three restored8184da17 regressions: real native
++  legacy reopen/disable/undo/save; missing source refusal; modern frozen statistics
++  without pixel read. Existing base Auto unequal-tail/model tests are preserved.
++- test_selftest_runner.py: seven restored tests for exact completion, hidden FAIL,
++  missing/duplicate/wrong summaries, exit/timeout, Transform inclusion, alternate
++  checkout routing and direct-child ownership. NO Python test was executed.
++
++Runner limitation: --nonactivating requests accessory launch, but current app
++self-tests can independently raise windows. The runner does not enforce desktop
++isolation. Old self-tests may assume Properties/Channels are simultaneously
++visible; this bounded reconciliation does not transplant their broader legacy
++background window/timeout/navigation changes. A must review/adapt that harness or
++use its isolated GUI procedure; do not run the default heavy suite blindly.
++Neither runner inclusion nor a zero-failure summary proves Transform completion.
++
++## Interaction acceptance matrix — every row UNRUN
++
++| Area | Required observed scenario | Status |
++| --- | --- | --- |
++| History sizing | Expand/collapse all tabs at960×600,1280×800,1440×900,1728×1117; drag both extremes, preserve usable tab minimum | UNRUN |
++| History reset | Double-click resize boundary restores default requested height; no overlap or accidental collapse | UNRUN |
++| History persistence | Change height and expanded state, switch document/tab, quit/relaunch; stored request survives while current window clamps rendered height | UNRUN |
++| Scrolling/footer | Long layer/channel/history/snapshot lists; scroll Properties/Tools; New Snapshot and Layers/Channels actions stay reachable and outside scrollers | UNRUN |
++| Compact overflow | Eight documents, long/dirty names, current first/middle/last at960/1280; open overflow, switch/close; toolbar and compact status remain inside window | UNRUN |
++| Selected editor/tab continuity | Switch tabs and documents during normal edits; preserve selected layer, correct editor/value and global remembered tab; no stale controller write | UNRUN |
++| Auto clips | Distinct shadow/highlight values, reanalyse/mode change, undo/redo, save/reopen; values and frozen statistics remain coherent | UNRUN |
++| LUT editor | Load named LUT, toggle dither, reset, undo/redo, save/reopen; filename embedded provenance and dither persist; cancelled picker makes no edit | UNRUN |
++| Neutralize | Legacy reopen/on/off and missing source, modern on/off without resampling; undo and actual saved reopen | UNRUN |
++| Shortcuts | Control1/2/3 with each tab and focused editor, document shortcuts and tool shortcuts; no text-field leakage or newer Transform ownership regression | UNRUN |
++| VoiceOver | Tab names/selected state, History expanded value/resize discoverability, footer and overflow navigation; actual keyboard/AX usability not inferred from identifiers | UNRUN |
++| Checked Save As compatibility | Existing typed collision/Replace, cancel/queued successor and window ownership continue to satisfy A GUI gates | UNRUN; A-owned |
++| Transform completion | Separate tiny-fixture start/apply/cancel/PSD completion and clean process drain under A resource admission; preserve historical timeout/missing-start failures | UNRUN; not cleared by inspector work |
++
++## A handoff gates and limits
++
++Review source/hash manifest; use coherent artifacts from pinned base as a starting
++point (no FFI API change here), but record exact source/artifact inputs for fresh
++strict compiler, focused inspector/analysis/adjustment tests, adjacent Document
++save/load/resource tests and full Swift. Python runner regression tests also
++remain UNRUN. Actual small-window/footer/History/AX and Transform acceptance are
++separate gates above. Preserve original failed evidence and skips; do not infer
++performance, large-image, cross-camera or whole-package completion. A alone may
++integrate main after its fresh gates.
+diff --git a/tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-SOURCE.sha256 b/tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-SOURCE.sha256
+new file mode 100644
+index 00000000..c712cdff
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-SOURCE.sha256
+@@ -0,0 +1,16 @@
++4b43980b55a1a3c60f01767c7bceafbbb8a89951749241e9ad2d88d695dc0c4a  apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift
++397cec24f139a20158ffdd4738da24cb7389c22fffe8fb2f1d8c7a8ecefbb928  apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift
++463cd8bbee76f41097eaaf605a1ceebcfcf67458d8d6a14368152ded4f3c6cda  apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift
++c7424b154cf9fde3f23017660983974ec8b5d2d780b2e25b5c502c1072ad84d3  apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift
++48d116494e8b944015d919578ec6176550e782fc054243019afe184060b463f9  apps/mac/Sources/Tessera/Document/DocumentView.swift
++b3eb8e0080355b3eb3c07f4467acad35572f8ea9a047e173fe3d23e356d962f6  apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift
++9e66424ddd297039898aa5e68ad3b86e340289a26ae4c74ae4e8a7047dca6e47  apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift
++7c0c904700c20702271631930aa1d64281e125b3955b2b6926ba9b9d6c4edc92  apps/mac/Sources/Tessera/Document/LayersPanel.swift
++fd0ea8d1b96b8de2bd97de098daa2bfa133dd0816f09df92c6a5ed95278563dc  apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift
++a725f7a9707d1bf95feef09cd47793f2d78bef46a5b807d8006f8c82e9937889  apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift
++921f00652aa56dea35e1e430ae8e2b8177ce40edc88d6a86d70eda8ab9a43597  apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift
++6a723a8665e1905ce07518edba955c65f7568e05ea36eda643f8f68d30bd6168  apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift
++2fcf2c34d0705006d44f8cb852bbdfd539af8d046faa24838011d91e511fdda7  apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift
++e9d0faa8535e5be417045c6ab377fd535be8aef0ad1be2f6b75da75c434b3f37  tools/orchestrate/wp/B5-16/run-selftests.sh
++ab3631f61d0f50bb59b4143c0398fcf5096facc545087d629c97f11b36d373e6  tools/orchestrate/wp/B5-16/selftest_runner.py
++1350bb5cf070687cedaae0fcc56c18cd2c04a94962e829e305f2349117d321b6  tools/orchestrate/wp/B5-16/test_selftest_runner.py
+diff --git a/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/metadata.json b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/metadata.json
+new file mode 100644
+index 00000000..0c0488e0
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/metadata.json
+@@ -0,0 +1,18 @@
++{
++  "candidate": "ddb2810196d5492c9258840af9a431e706d9318f",
++  "sha256": {
++    "selftest_runner.py": "ab3631f61d0f50bb59b4143c0398fcf5096facc545087d629c97f11b36d373e6",
++    "test_selftest_runner.py": "1350bb5cf070687cedaae0fcc56c18cd2c04a94962e829e305f2349117d321b6"
++  },
++  "exit": 0,
++  "elapsed_seconds": 1.1298716659657657,
++  "command": [
++    "python3",
++    "-m",
++    "unittest",
++    "-v",
++    "test_selftest_runner.py"
++  ],
++  "source_unchanged": true,
++  "scope": "Seven Python runner regressions with owned stub subprocesses; no app/compiler/GPU/GUI selftests."
++}
+\ No newline at end of file
+diff --git a/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/run.log b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/run.log
+new file mode 100644
+index 00000000..72306402
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/run.log
+@@ -0,0 +1,12 @@
++test_default_suite_and_failure_exit_from_another_checkout (test_selftest_runner.SelfTestRunnerTests.test_default_suite_and_failure_exit_from_another_checkout) ... ok
++test_exact_success (test_selftest_runner.SelfTestRunnerTests.test_exact_success) ... ok
++test_failures_cannot_hide_behind_zero_summary (test_selftest_runner.SelfTestRunnerTests.test_failures_cannot_hide_behind_zero_summary) ... ok
++test_missing_duplicate_nonzero_and_wrong_prefix (test_selftest_runner.SelfTestRunnerTests.test_missing_duplicate_nonzero_and_wrong_prefix) ... ok
++test_process_failure_or_timeout_cannot_pass (test_selftest_runner.SelfTestRunnerTests.test_process_failure_or_timeout_cannot_pass) ... ok
++test_real_child_success_crash_and_timeout_preserve_other_process (test_selftest_runner.SelfTestRunnerTests.test_real_child_success_crash_and_timeout_preserve_other_process) ... ok
++test_transform_is_in_default_suite (test_selftest_runner.SelfTestRunnerTests.test_transform_is_in_default_suite) ... ok
++
++----------------------------------------------------------------------
++Ran 7 tests in 0.966s
++
++OK
+diff --git a/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/selftest_runner.py b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/selftest_runner.py
+new file mode 100644
+index 00000000..87cdef37
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/selftest_runner.py
+@@ -0,0 +1,145 @@
++#!/usr/bin/env python3
++"""Document acceptance runner. Owns only its direct child process."""
++import argparse
++import os
++from pathlib import Path
++import re
++import shutil
++import subprocess
++import tempfile
++import time
++
++TESTS = {
++    'document': (900, ['--new-document', '--document-selftest', '@OUT@', '--document-selftest-hold', '0.3']),
++    'tools': (900, ['--new-document', '--tools-selftest', '@OUT@', '--tools-selftest-hold', '0.3']),
++    'filter': (900, ['--new-document', '--filter-selftest', '@OUT@', '--filter-selftest-hold', '0.3']),
++    'retouch': (1500, ['--new-document', '--retouch-selftest=@OUT@', '--retouch-selftest-hold', '0.3']),
++    'styles': (900, ['--new-document', '--styles-selftest', '@OUT@', '--styles-selftest-hold', '0.3']),
++    'channels': (900, ['--new-document', 'ENV:TESSERA_CHANNELS_SELFTEST=@OUT@', 'ENV:TESSERA_CHANNELS_SELFTEST_HOLD=0.3']),
++    'text': (1500, ['--new-document', 'ENV:TESSERA_TEXT_SELFTEST=@OUT@']),
++    'vector': (1800, ['--new-document', '--vector-selftest=@OUT@']),
++    'transform': (1800, ['--new-document', '--transform-selftest=@OUT@']),
++}
++
++
++def validate_log(text, prefix, returncode, timed_out=False):
++    errors = []
++    if timed_out:
++        errors.append('timeout: child did not finish within its deadline')
++    if returncode != 0:
++        errors.append(f'child exit {returncode}')
++    lines = text.splitlines()
++    done = [line for line in lines if line.startswith(prefix + ': done')]
++    if done != [prefix + ': done, 0 failure(s)']:
++        errors.append('missing, duplicate, malformed or failing completion line')
++    for line in lines:
++        if re.search(r'\bFAIL(?:ED)?\b', line) or (
++            line.startswith(prefix + ':') and 'did not start' in line.lower()
++        ):
++            errors.append(line)
++    return errors
++
++
++def stop_owned_child(child):
++    # Popen retains this child's identity; no pgrep, process-name matching or group kill.
++    if child.poll() is None:
++        child.terminate()
++        try:
++            child.wait(timeout=3)
++        except subprocess.TimeoutExpired:
++            child.kill()
++            child.wait()
++
++
++def capture_steps(text, prefix, output, evidence, seen):
++    errors = []
++    pattern = re.compile(re.escape(prefix) + r': step ([0-9]+[^ ]*) .*?(?:window-id|sheet) ([0-9]+)(?:\s|$)')
++    for step, window in pattern.findall(text):
++        if step in seen:
++            continue
++        seen.add(step)
++        image = evidence / f'{step}.png'
++        result = subprocess.run(['screencapture', '-x', '-o', '-l', window, str(image)],
++                                capture_output=True, text=True, timeout=15)
++        if result.returncode:
++            errors.append(f'capture {step}: {result.stderr.strip()}')
++        else:
++            (output / ('ack-' + step.split('-')[0])).touch()
++    return errors
++
++
++def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
++    prefix = name + '-selftest'
++    folder = scratch / name
++    folder.mkdir()
++    for part in ['app', 'folder', 'out']:
++        (folder / part).mkdir()
++    for fixture in fixtures:
++        shutil.copy2(fixture, folder / 'folder' / fixture.name)
++    evidence.mkdir(parents=True)
++    environment = os.environ.copy()
++    args = []
++    for argument in arguments:
++        argument = argument.replace('@OUT@', str(folder / 'out'))
++        if argument.startswith('ENV:'):
++            key, value = argument[4:].split('=', 1)
++            environment[key] = value
++        else:
++            args.append(argument)
++    log = evidence / 'stderr.log'
++    timed_out = False
++    capture_errors = []
++    seen = set()
++    # Direct bundle executable gives us the actual child PID and exit status.
++    # --nonactivating requests accessory launch; individual app self-tests may still
++    # raise windows. Use only an authorized isolated desktop validation session.
++    with log.open('w') as stderr, (evidence / 'stdout.log').open('w') as stdout:
++        child = subprocess.Popen([str(binary), '--nonactivating', '--app-dir', str(folder / 'app'),
++                                  '--folder', str(folder / 'folder'), *args],
++                                 env=environment, stdout=stdout, stderr=stderr)
++        deadline = time.monotonic() + timeout
++        try:
++            while child.poll() is None:
++                text = log.read_text(errors='replace')
++                capture_errors.extend(capture_steps(text, prefix, folder / 'out', evidence, seen))
++                if time.monotonic() >= deadline:
++                    timed_out = True
++                    break
++                time.sleep(0.1)
++        finally:
++            stop_owned_child(child)
++    errors = validate_log(log.read_text(errors='replace'), prefix, child.returncode, timed_out)
++    errors.extend(capture_errors)
++    (evidence / 'result.txt').write_text(('FAIL\n' + '\n'.join(errors) if errors else 'PASS') + '\n')
++    return errors
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
++    parser.add_argument('tests', nargs='*', choices=list(TESTS))
++    args = parser.parse_args(argv)
++    root = args.root.resolve()
++    binary = root / 'apps/mac/build/Tessera.app/Contents/MacOS/Tessera'
++    if not binary.is_file():
++        parser.error(f'build the intended app first: {binary}')
++    fixtures = [p for p in (root / 'fixtures/raw').glob('*') if p.is_file()]
++    if not (root / 'fixtures/raw/sample.dng').is_file():
++        parser.error('missing fixtures/raw/sample.dng')
++    parent = Path(os.environ.get('SP', tempfile.gettempdir()))
++    parent.mkdir(parents=True, exist_ok=True)
++    scratch = Path(tempfile.mkdtemp(prefix='tessera-b516-selftests-', dir=parent))
++    evidence = Path(os.environ.get('EV', str(root / 'tools/orchestrate/wp/B5-16/evidence/selftests'))) / scratch.name
++    failed = False
++    for name in args.tests or TESTS:
++        timeout, arguments = TESTS[name]
++        errors = run_test(binary, name, arguments, timeout, scratch, evidence / name, fixtures)
++        print(f'[{name}] {"FAIL" if errors else "PASS"}: {evidence / name}', flush=True)
++        for error in errors:
++            print(error, flush=True)
++        failed = failed or bool(errors)
++    return int(failed)
++
++
++if __name__ == '__main__':
++    raise SystemExit(main())
+diff --git a/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/test_selftest_runner.py b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/test_selftest_runner.py
+new file mode 100644
+index 00000000..35cec410
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/evidence/2026-09-28/current-ddb28101-python/test_selftest_runner.py
+@@ -0,0 +1,70 @@
++#!/usr/bin/env python3
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++import unittest
++from unittest.mock import patch
++from selftest_runner import validate_log, run_test, TESTS, main
++
++
++class SelfTestRunnerTests(unittest.TestCase):
++    def test_exact_success(self):
++        self.assertEqual(validate_log('document-selftest: check opened ok\ndocument-selftest: done, 0 failure(s)\n', 'document-selftest', 0), [])
++
++    def test_failures_cannot_hide_behind_zero_summary(self):
++        for failure in ['check saved FAIL', 'FAIL library did not load', 'Warp did not start']:
++            with self.subTest(failure=failure):
++                self.assertTrue(validate_log(f'document-selftest: {failure}\ndocument-selftest: done, 0 failure(s)\n', 'document-selftest', 0))
++
++    def test_missing_duplicate_nonzero_and_wrong_prefix(self):
++        for text in ['', 'document-selftest: done, 1 failure(s)',
++                     'tools-selftest: done, 0 failure(s)',
++                     'document-selftest: done, 0 failure(s)\ndocument-selftest: done, 0 failure(s)']:
++            self.assertTrue(validate_log(text, 'document-selftest', 0))
++
++    def test_process_failure_or_timeout_cannot_pass(self):
++        done = 'document-selftest: done, 0 failure(s)'
++        self.assertTrue(validate_log(done, 'document-selftest', 9))
++        self.assertTrue(validate_log(done, 'document-selftest', 0, timed_out=True))
++
++    def test_transform_is_in_default_suite(self):
++        self.assertIn('transform', TESTS)
++
++    def test_default_suite_and_failure_exit_from_another_checkout(self):
++        with tempfile.TemporaryDirectory() as temp:
++            root = Path(temp)
++            binary = root / 'apps/mac/build/Tessera.app/Contents/MacOS/Tessera'
++            binary.parent.mkdir(parents=True); binary.touch()
++            fixture = root / 'fixtures/raw/sample.dng'
++            fixture.parent.mkdir(parents=True); fixture.touch()
++            with patch.dict(os.environ, {'SP': str(root / 'scratch'), 'EV': str(root / 'evidence')}), \
++                 patch('selftest_runner.run_test', return_value=['fixture failure']) as run, patch('builtins.print'):
++                self.assertEqual(main(['--root', str(root)]), 1)
++                self.assertEqual(run.call_count, len(TESTS))
++                self.assertEqual(run.call_args.args[0], binary.resolve())
++
++    def test_real_child_success_crash_and_timeout_preserve_other_process(self):
++        with tempfile.TemporaryDirectory() as temp:
++            root = Path(temp)
++            unrelated = subprocess.Popen(['sleep', '15'])
++            try:
++                for index, (code, timeout, failed) in enumerate([
++                    ('import sys; print("document-selftest: done, 0 failure(s)", file=sys.stderr)', 3, False),
++                    ('import sys; print("document-selftest: done, 0 failure(s)", file=sys.stderr); sys.exit(7)', 3, True),
++                    ('import time; time.sleep(15)', 0.2, True),
++                    ('pass', 3, True),
++                ]):
++                    binary = root / f'fake-{index}'
++                    binary.write_text('#!/usr/bin/env python3\n' + code + '\n')
++                    binary.chmod(0o755)
++                    scratch = root / f'scratch-{index}'; scratch.mkdir()
++                    errors = run_test(binary, 'document', [], timeout, scratch, root / f'evidence-{index}', [])
++                    self.assertEqual(bool(errors), failed, errors)
++                    self.assertIsNone(unrelated.poll(), 'runner must not terminate another process')
++            finally:
++                unrelated.terminate(); unrelated.wait()
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tools/orchestrate/wp/B5-16/run-selftests.sh b/tools/orchestrate/wp/B5-16/run-selftests.sh
+new file mode 100755
+index 00000000..48eaba30
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/run-selftests.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++# Runs this checkout's document self-tests; preserves each run's logs and screenshots.
++# Optional SP/EV override scratch/evidence parents. --root explicitly selects another checkout.
++set -euo pipefail
++exec python3 -B "$(cd "$(dirname "$0")" && pwd)/selftest_runner.py" "$@"
+diff --git a/tools/orchestrate/wp/B5-16/selftest_runner.py b/tools/orchestrate/wp/B5-16/selftest_runner.py
+new file mode 100755
+index 00000000..87cdef37
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/selftest_runner.py
+@@ -0,0 +1,145 @@
++#!/usr/bin/env python3
++"""Document acceptance runner. Owns only its direct child process."""
++import argparse
++import os
++from pathlib import Path
++import re
++import shutil
++import subprocess
++import tempfile
++import time
++
++TESTS = {
++    'document': (900, ['--new-document', '--document-selftest', '@OUT@', '--document-selftest-hold', '0.3']),
++    'tools': (900, ['--new-document', '--tools-selftest', '@OUT@', '--tools-selftest-hold', '0.3']),
++    'filter': (900, ['--new-document', '--filter-selftest', '@OUT@', '--filter-selftest-hold', '0.3']),
++    'retouch': (1500, ['--new-document', '--retouch-selftest=@OUT@', '--retouch-selftest-hold', '0.3']),
++    'styles': (900, ['--new-document', '--styles-selftest', '@OUT@', '--styles-selftest-hold', '0.3']),
++    'channels': (900, ['--new-document', 'ENV:TESSERA_CHANNELS_SELFTEST=@OUT@', 'ENV:TESSERA_CHANNELS_SELFTEST_HOLD=0.3']),
++    'text': (1500, ['--new-document', 'ENV:TESSERA_TEXT_SELFTEST=@OUT@']),
++    'vector': (1800, ['--new-document', '--vector-selftest=@OUT@']),
++    'transform': (1800, ['--new-document', '--transform-selftest=@OUT@']),
++}
++
++
++def validate_log(text, prefix, returncode, timed_out=False):
++    errors = []
++    if timed_out:
++        errors.append('timeout: child did not finish within its deadline')
++    if returncode != 0:
++        errors.append(f'child exit {returncode}')
++    lines = text.splitlines()
++    done = [line for line in lines if line.startswith(prefix + ': done')]
++    if done != [prefix + ': done, 0 failure(s)']:
++        errors.append('missing, duplicate, malformed or failing completion line')
++    for line in lines:
++        if re.search(r'\bFAIL(?:ED)?\b', line) or (
++            line.startswith(prefix + ':') and 'did not start' in line.lower()
++        ):
++            errors.append(line)
++    return errors
++
++
++def stop_owned_child(child):
++    # Popen retains this child's identity; no pgrep, process-name matching or group kill.
++    if child.poll() is None:
++        child.terminate()
++        try:
++            child.wait(timeout=3)
++        except subprocess.TimeoutExpired:
++            child.kill()
++            child.wait()
++
++
++def capture_steps(text, prefix, output, evidence, seen):
++    errors = []
++    pattern = re.compile(re.escape(prefix) + r': step ([0-9]+[^ ]*) .*?(?:window-id|sheet) ([0-9]+)(?:\s|$)')
++    for step, window in pattern.findall(text):
++        if step in seen:
++            continue
++        seen.add(step)
++        image = evidence / f'{step}.png'
++        result = subprocess.run(['screencapture', '-x', '-o', '-l', window, str(image)],
++                                capture_output=True, text=True, timeout=15)
++        if result.returncode:
++            errors.append(f'capture {step}: {result.stderr.strip()}')
++        else:
++            (output / ('ack-' + step.split('-')[0])).touch()
++    return errors
++
++
++def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
++    prefix = name + '-selftest'
++    folder = scratch / name
++    folder.mkdir()
++    for part in ['app', 'folder', 'out']:
++        (folder / part).mkdir()
++    for fixture in fixtures:
++        shutil.copy2(fixture, folder / 'folder' / fixture.name)
++    evidence.mkdir(parents=True)
++    environment = os.environ.copy()
++    args = []
++    for argument in arguments:
++        argument = argument.replace('@OUT@', str(folder / 'out'))
++        if argument.startswith('ENV:'):
++            key, value = argument[4:].split('=', 1)
++            environment[key] = value
++        else:
++            args.append(argument)
++    log = evidence / 'stderr.log'
++    timed_out = False
++    capture_errors = []
++    seen = set()
++    # Direct bundle executable gives us the actual child PID and exit status.
++    # --nonactivating requests accessory launch; individual app self-tests may still
++    # raise windows. Use only an authorized isolated desktop validation session.
++    with log.open('w') as stderr, (evidence / 'stdout.log').open('w') as stdout:
++        child = subprocess.Popen([str(binary), '--nonactivating', '--app-dir', str(folder / 'app'),
++                                  '--folder', str(folder / 'folder'), *args],
++                                 env=environment, stdout=stdout, stderr=stderr)
++        deadline = time.monotonic() + timeout
++        try:
++            while child.poll() is None:
++                text = log.read_text(errors='replace')
++                capture_errors.extend(capture_steps(text, prefix, folder / 'out', evidence, seen))
++                if time.monotonic() >= deadline:
++                    timed_out = True
++                    break
++                time.sleep(0.1)
++        finally:
++            stop_owned_child(child)
++    errors = validate_log(log.read_text(errors='replace'), prefix, child.returncode, timed_out)
++    errors.extend(capture_errors)
++    (evidence / 'result.txt').write_text(('FAIL\n' + '\n'.join(errors) if errors else 'PASS') + '\n')
++    return errors
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
++    parser.add_argument('tests', nargs='*', choices=list(TESTS))
++    args = parser.parse_args(argv)
++    root = args.root.resolve()
++    binary = root / 'apps/mac/build/Tessera.app/Contents/MacOS/Tessera'
++    if not binary.is_file():
++        parser.error(f'build the intended app first: {binary}')
++    fixtures = [p for p in (root / 'fixtures/raw').glob('*') if p.is_file()]
++    if not (root / 'fixtures/raw/sample.dng').is_file():
++        parser.error('missing fixtures/raw/sample.dng')
++    parent = Path(os.environ.get('SP', tempfile.gettempdir()))
++    parent.mkdir(parents=True, exist_ok=True)
++    scratch = Path(tempfile.mkdtemp(prefix='tessera-b516-selftests-', dir=parent))
++    evidence = Path(os.environ.get('EV', str(root / 'tools/orchestrate/wp/B5-16/evidence/selftests'))) / scratch.name
++    failed = False
++    for name in args.tests or TESTS:
++        timeout, arguments = TESTS[name]
++        errors = run_test(binary, name, arguments, timeout, scratch, evidence / name, fixtures)
++        print(f'[{name}] {"FAIL" if errors else "PASS"}: {evidence / name}', flush=True)
++        for error in errors:
++            print(error, flush=True)
++        failed = failed or bool(errors)
++    return int(failed)
++
++
++if __name__ == '__main__':
++    raise SystemExit(main())
+diff --git a/tools/orchestrate/wp/B5-16/test_selftest_runner.py b/tools/orchestrate/wp/B5-16/test_selftest_runner.py
+new file mode 100755
+index 00000000..35cec410
+--- /dev/null
++++ b/tools/orchestrate/wp/B5-16/test_selftest_runner.py
+@@ -0,0 +1,70 @@
++#!/usr/bin/env python3
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++import unittest
++from unittest.mock import patch
++from selftest_runner import validate_log, run_test, TESTS, main
++
++
++class SelfTestRunnerTests(unittest.TestCase):
++    def test_exact_success(self):
++        self.assertEqual(validate_log('document-selftest: check opened ok\ndocument-selftest: done, 0 failure(s)\n', 'document-selftest', 0), [])
++
++    def test_failures_cannot_hide_behind_zero_summary(self):
++        for failure in ['check saved FAIL', 'FAIL library did not load', 'Warp did not start']:
++            with self.subTest(failure=failure):
++                self.assertTrue(validate_log(f'document-selftest: {failure}\ndocument-selftest: done, 0 failure(s)\n', 'document-selftest', 0))
++
++    def test_missing_duplicate_nonzero_and_wrong_prefix(self):
++        for text in ['', 'document-selftest: done, 1 failure(s)',
++                     'tools-selftest: done, 0 failure(s)',
++                     'document-selftest: done, 0 failure(s)\ndocument-selftest: done, 0 failure(s)']:
++            self.assertTrue(validate_log(text, 'document-selftest', 0))
++
++    def test_process_failure_or_timeout_cannot_pass(self):
++        done = 'document-selftest: done, 0 failure(s)'
++        self.assertTrue(validate_log(done, 'document-selftest', 9))
++        self.assertTrue(validate_log(done, 'document-selftest', 0, timed_out=True))
++
++    def test_transform_is_in_default_suite(self):
++        self.assertIn('transform', TESTS)
++
++    def test_default_suite_and_failure_exit_from_another_checkout(self):
++        with tempfile.TemporaryDirectory() as temp:
++            root = Path(temp)
++            binary = root / 'apps/mac/build/Tessera.app/Contents/MacOS/Tessera'
++            binary.parent.mkdir(parents=True); binary.touch()
++            fixture = root / 'fixtures/raw/sample.dng'
++            fixture.parent.mkdir(parents=True); fixture.touch()
++            with patch.dict(os.environ, {'SP': str(root / 'scratch'), 'EV': str(root / 'evidence')}), \
++                 patch('selftest_runner.run_test', return_value=['fixture failure']) as run, patch('builtins.print'):
++                self.assertEqual(main(['--root', str(root)]), 1)
++                self.assertEqual(run.call_count, len(TESTS))
++                self.assertEqual(run.call_args.args[0], binary.resolve())
++
++    def test_real_child_success_crash_and_timeout_preserve_other_process(self):
++        with tempfile.TemporaryDirectory() as temp:
++            root = Path(temp)
++            unrelated = subprocess.Popen(['sleep', '15'])
++            try:
++                for index, (code, timeout, failed) in enumerate([
++                    ('import sys; print("document-selftest: done, 0 failure(s)", file=sys.stderr)', 3, False),
++                    ('import sys; print("document-selftest: done, 0 failure(s)", file=sys.stderr); sys.exit(7)', 3, True),
++                    ('import time; time.sleep(15)', 0.2, True),
++                    ('pass', 3, True),
++                ]):
++                    binary = root / f'fake-{index}'
++                    binary.write_text('#!/usr/bin/env python3\n' + code + '\n')
++                    binary.chmod(0o755)
++                    scratch = root / f'scratch-{index}'; scratch.mkdir()
++                    errors = run_test(binary, 'document', [], timeout, scratch, root / f'evidence-{index}', [])
++                    self.assertEqual(bool(errors), failed, errors)
++                    self.assertIsNone(unrelated.poll(), 'runner must not terminate another process')
++            finally:
++                unrelated.terminate(); unrelated.wait()
++
++
++if __name__ == '__main__':
++    unittest.main()

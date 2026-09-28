@@ -1,0 +1,25 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.22s)
+Test Suite 'Selected tests' started at 2026-09-28 17:02:05.896.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 17:02:05.897.
+Test Suite 'ShellLayoutTests' started at 2026-09-28 17:02:05.897.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (29.093 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (1.854 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (2.322 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (46.208 seconds).
+Test Suite 'ShellLayoutTests' passed at 2026-09-28 17:03:25.375.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 79.478 (79.478) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 17:03:25.375.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 79.478 (79.478) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 17:03:25.375.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 79.478 (79.479) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

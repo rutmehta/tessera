@@ -1,0 +1,87 @@
+{
+  "refs": {
+    "main": "1496ebc9b204ca50fe3b37a0d898513c9d51b9c3",
+    "b516": "d572d0953a76129b2dd2d5ef3f821cb556c60864",
+    "save": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+    "b516a": "a6e63615ed446655787563eabebf08284dc485f2",
+    "b516_layout": "5d456ad9bc89130c13289e0ada3a272ed4e7abab",
+    "b516_review_fix": "8184da175d30c6b8d39de19baf363c4ee84dbfe9"
+  },
+  "blobs": {
+    "apps/mac/Sources/TesseraCore/Document/AdjustmentAnalysis.swift": {
+      "main": "37fab307a1eac545e9cc005b60481e6427b2f24c",
+      "b516": "37fab307a1eac545e9cc005b60481e6427b2f24c",
+      "save": "37fab307a1eac545e9cc005b60481e6427b2f24c"
+    },
+    "apps/mac/Sources/TesseraCore/Document/DocumentAdjustmentModels.swift": {
+      "main": "89d00e7118dfe2e628b1468108a2c016f3e2a15b",
+      "b516": "89d00e7118dfe2e628b1468108a2c016f3e2a15b",
+      "save": "89d00e7118dfe2e628b1468108a2c016f3e2a15b"
+    },
+    "apps/mac/Sources/TesseraCore/Document/DocumentAdjustments.swift": {
+      "main": "354b8a048fa0912038cca9ffde809d307c812e2a",
+      "b516": "354b8a048fa0912038cca9ffde809d307c812e2a",
+      "save": "354b8a048fa0912038cca9ffde809d307c812e2a"
+    },
+    "apps/mac/Sources/TesseraCore/Document/StubCompositor.swift": {
+      "main": "0efd434ee91482d9d24732b072c23b0d0f39c9a5",
+      "b516": "0efd434ee91482d9d24732b072c23b0d0f39c9a5",
+      "save": "0efd434ee91482d9d24732b072c23b0d0f39c9a5"
+    },
+    "apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift": {
+      "main": null,
+      "b516": "956c0903cc7c448b7455d7d9cc6eebd400079e6a",
+      "save": null
+    },
+    "apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift": {
+      "main": "06370c3fde5120410f75d918927f02933672f685",
+      "b516": "62bcaa38f18767c1ace824c920d96c7a1b7d8e9e",
+      "save": "06370c3fde5120410f75d918927f02933672f685"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentView.swift": {
+      "main": "dbe86ebfc2319ae6a1f7560ccd669adbd6d092ab",
+      "b516": "0307c5e9c6f76fe18826f183d71b1c3100c70db6",
+      "save": "dbe86ebfc2319ae6a1f7560ccd669adbd6d092ab"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift": {
+      "main": "df2710ef8e0081cb386013b8095dea2cf05d8aba",
+      "b516": "6d6f2d19efe4cea2470c7ab082fbff56ff5da823",
+      "save": "df2710ef8e0081cb386013b8095dea2cf05d8aba"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": {
+      "main": "9954e7ad112b7a2df9c2dea025dfcd8c9b976338",
+      "b516": "47766cc6d7f3afddc69c1e4c89677d51a345810c",
+      "save": "5b0bbd96021808ef0add84cac89d8707ec9cc490"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentSavePresenter.swift": {
+      "main": "bfda7b9297922b86e149abe65c28e2a8249926e3",
+      "b516": null,
+      "save": "bfda7b9297922b86e149abe65c28e2a8249926e3"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift": {
+      "main": null,
+      "b516": "fe8dce34b10fbe6a362a1a1fdf8715e77b601ca3",
+      "save": null
+    },
+    "tools/orchestrate/wp/B5-16/selftest_runner.py": {
+      "main": null,
+      "b516": "47fca0d7277359f0eaaee342174d4d79bace89c5",
+      "save": null
+    }
+  },
+  "ancestor_main": {
+    "a6e63615": true,
+    "8184da17": false,
+    "5d456ad9": false,
+    "261a585f": true,
+    "5fa0faea": true,
+    "1c0f36b8": true,
+    "1fb7e983": true,
+    "78492f7f": true,
+    "11b31be6": true,
+    "4c07e5eb": true,
+    "89b78881": true,
+    "8e100b80": true,
+    "1e45baae": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "DocumentInspectorTabsTests.testTabsAndShortcuts": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testBudgetFitsTheSmallestColumn": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testOpacityAndFillShareARowFrom300Points": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testTabStripShowsAtMostThreeIncludingTheCurrentOne": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' passed (0.000 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorNeutralizeReopenDisableUndoAndSave": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' passed (0.036 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorMissingSourceDoesNotPretendToDisable": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' passed (0.013 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' passed (0.015 seconds)."
+  ]
+}

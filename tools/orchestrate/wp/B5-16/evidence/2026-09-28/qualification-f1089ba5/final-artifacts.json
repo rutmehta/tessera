@@ -1,0 +1,22 @@
+{
+  "head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+  "source_manifest": "05-strict-01/after.json",
+  "ffi": {
+    "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+    "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+  },
+  "strict_swift_outputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-ddb28101/swift-build/release/Tessera": "d5a45d5fec186d1eb950c051d2ecd5af409be7ef3a984d92300893273ca3ca7b",
+    "/Volumes/betterSSD/tessera-validation/b5-16-ddb28101/swift-build/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests": "cde49a8f33dd052d6196fa248b94fc8917fa31d758a7a55771e641ab10d522b3"
+  },
+  "full_swift_outputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-ddb28101/swift-build/release/Tessera": "0ae0c194cfd7eef2744cca9c996d1db36262fea41113755b88ee3a3b04511a23",
+    "/Volumes/betterSSD/tessera-validation/b5-16-ddb28101/swift-build/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests": "cde49a8f33dd052d6196fa248b94fc8917fa31d758a7a55771e641ab10d522b3"
+  },
+  "fixture": {
+    "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+  }
+}

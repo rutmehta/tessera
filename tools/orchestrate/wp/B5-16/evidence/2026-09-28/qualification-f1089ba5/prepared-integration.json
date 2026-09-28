@@ -1,0 +1,11 @@
+{
+  "head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+  "ignored_ffi": {
+    "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+    "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+  },
+  "matches_qualified_base": true,
+  "product_bytes_match_b_candidate": true
+}

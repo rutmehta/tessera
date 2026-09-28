@@ -1,0 +1,44 @@
+{
+  "DocumentInspectorTabsTests.testTabsAndShortcuts": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testBudgetFitsTheSmallestColumn": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testOpacityAndFillShareARowFrom300Points": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testTabStripShowsAtMostThreeIncludingTheCurrentOne": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' passed (0.000 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorNeutralizeReopenDisableUndoAndSave": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' passed (0.032 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorMissingSourceDoesNotPretendToDisable": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' passed (0.017 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' passed (0.016 seconds)."
+  ],
+  "ShellLayoutTests.testShellContainedAtEverySizeStateAndAppearance": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (45.812 seconds)."
+  ],
+  "ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (27.428 seconds)."
+  ],
+  "ShellLayoutTests.testManyDocumentTabsStayCapped": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (2.294 seconds)."
+  ],
+  "ShellLayoutTests.testInspectorTabShortcuts": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (1.842 seconds)."
+  ],
+  "SmartPreviewNativeWorkflowTests.testActualCachedThumbnailAfterOriginalDisconnect": [
+    "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' passed (5.060 seconds)."
+  ],
+  "SmartPreviewNativeWorkflowTests.testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect": [
+    "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (5.318 seconds)."
+  ]
+}

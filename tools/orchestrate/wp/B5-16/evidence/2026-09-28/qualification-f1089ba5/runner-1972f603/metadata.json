@@ -1,0 +1,12 @@
+{
+  "candidate": "1972f6030e392852041d9915eb91bfda426a1d19",
+  "sha256": {
+    "selftest_runner.py": "79cddba47552e92670d16874bbdf99f885d1703b92307c4a55533c5ab44af6a5",
+    "test_selftest_runner.py": "17ad31549b639eae3cdf17eb8d873adcce5f7587ff8af4736eb3207406855a53",
+    "RUNNER-ADMISSION-HANDOFF.md": "8bfa016610170466f190d94d60a1daaecbf37733bdf36680e7bec20d3d12feb8"
+  },
+  "exit": 0,
+  "elapsed_seconds": 1.0953413746319711,
+  "source_unchanged": true,
+  "scope": "Source review plus12 exact-source Python tests with isolated temporary homes and owned stub subprocesses. No app/Swift/compiler/real Transform/global hold mutation."
+}

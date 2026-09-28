@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Inspector automated gates verified; actual GUI active — 2026-09-28
+
+Frozenf1089ba5 passes45focused,4layout,84adjacent,714XCTest/1existing opt-in skip/0fail plus5 Swift Testing and strict Release. Both actual Sony workflows and all new inspector/Neutralize tests explicitly passed. Former overflow expected-failure waiver removed; dedicated layout covers24 dark inspector combinations plus whole-shell dark/light containment. Independent8372Git-input/source/archive/fixture proof and exact strict executable recorded in portable qualification-f1089ba5. No new main inspector merge yet. GUI worker owns isolated app/profile/fixtures and sole runtime now; all broader interaction claims await observed evidence.
+
+Runner1972f603 returned from B and accepted before review. Root source review and12exact-source Python regressions pass; corrected Transform setup and existing hold checks remain separate from actual Transform completion, which is unrun. Runner integration waits for frozen inspector qualification; no broad selftest launch.
+
+RAWTask2 reviewed23synthetic contracts compiled then failed against Unsupported as expected. Codec now implements bounded copy/sealing/hash SOURCE-ONLY; no GREEN or capture completion claim. Inspector GUI holds runtime; all other agents avoid build/GPU/app work. Save As main3bad015a and its completed B receipts remain accepted.
+
+
 ## Inspector compilation active; RAW ownership reviewed — 2026-09-28 21:00 UTC
 
 Save As remains accepted main3bad015a, evidence c3263fa1/f5dc7308 and three completed B receipts published. Remaining B inspector candidate ddb28101 passed independent16-file review; A prepared clean combinedf1089ba5 in reused render-resource-bounds checkout. Product bytes equal B; four inherited FFI artifacts match accepted SaveAs archive5b7e5eba. Inspector worker now owns compiler lane for focused/model/layout/adjacent/full/strict; GUI remains unrun. Exact-source Python runner regressions7pass. Broader runner remains excluded: Transform setup and resource-hold policy reconciliation requested source-only from B as cf3510b8, SSH queue01a0e9d0 accepted; no duplicate writer or app workloads.

@@ -1,0 +1,110 @@
+{
+  "candidate": "ddb2810196d5492c9258840af9a431e706d9318f",
+  "base": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+  "manifest": [
+    {
+      "path": "apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift",
+      "sha256": "4b43980b55a1a3c60f01767c7bceafbbb8a89951749241e9ad2d88d695dc0c4a",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift",
+      "sha256": "397cec24f139a20158ffdd4738da24cb7389c22fffe8fb2f1d8c7a8ecefbb928",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift",
+      "sha256": "463cd8bbee76f41097eaaf605a1ceebcfcf67458d8d6a14368152ded4f3c6cda",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift",
+      "sha256": "c7424b154cf9fde3f23017660983974ec8b5d2d780b2e25b5c502c1072ad84d3",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/DocumentView.swift",
+      "sha256": "48d116494e8b944015d919578ec6176550e782fc054243019afe184060b463f9",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift",
+      "sha256": "b3eb8e0080355b3eb3c07f4467acad35572f8ea9a047e173fe3d23e356d962f6",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift",
+      "sha256": "9e66424ddd297039898aa5e68ad3b86e340289a26ae4c74ae4e8a7047dca6e47",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/LayersPanel.swift",
+      "sha256": "7c0c904700c20702271631930aa1d64281e125b3955b2b6926ba9b9d6c4edc92",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift",
+      "sha256": "fd0ea8d1b96b8de2bd97de098daa2bfa133dd0816f09df92c6a5ed95278563dc",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift",
+      "sha256": "a725f7a9707d1bf95feef09cd47793f2d78bef46a5b807d8006f8c82e9937889",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift",
+      "sha256": "921f00652aa56dea35e1e430ae8e2b8177ce40edc88d6a86d70eda8ab9a43597",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift",
+      "sha256": "6a723a8665e1905ce07518edba955c65f7568e05ea36eda643f8f68d30bd6168",
+      "matches": true
+    },
+    {
+      "path": "apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift",
+      "sha256": "2fcf2c34d0705006d44f8cb852bbdfd539af8d046faa24838011d91e511fdda7",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrate/wp/B5-16/run-selftests.sh",
+      "sha256": "e9d0faa8535e5be417045c6ab377fd535be8aef0ad1be2f6b75da75c434b3f37",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrate/wp/B5-16/selftest_runner.py",
+      "sha256": "ab3631f61d0f50bb59b4143c0398fcf5096facc545087d629c97f11b36d373e6",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrate/wp/B5-16/test_selftest_runner.py",
+      "sha256": "1350bb5cf070687cedaae0fcc56c18cd2c04a94962e829e305f2349117d321b6",
+      "matches": true
+    }
+  ],
+  "changed": [
+    "apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift",
+    "apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentView.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift",
+    "apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift",
+    "apps/mac/Sources/Tessera/Document/LayersPanel.swift",
+    "apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift",
+    "apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift",
+    "apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift",
+    "tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-HANDOFF.md",
+    "tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-SOURCE.sha256",
+    "tools/orchestrate/wp/B5-16/run-selftests.sh",
+    "tools/orchestrate/wp/B5-16/selftest_runner.py",
+    "tools/orchestrate/wp/B5-16/test_selftest_runner.py"
+  ],
+  "outside_manifest": [
+    "tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-HANDOFF.md",
+    "tools/orchestrate/wp/B5-16/CURRENT-MAIN-INSPECTOR-SOURCE.sha256"
+  ]
+}

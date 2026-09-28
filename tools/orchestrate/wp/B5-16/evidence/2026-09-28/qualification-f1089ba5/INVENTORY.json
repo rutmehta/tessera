@@ -1,0 +1,387 @@
+[
+  {
+    "path": "01-models-analysis-01/after.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "01-models-analysis-01/before.json",
+    "bytes": 1351503,
+    "sha256": "723df11a87857b859d0a190d2c9b9b104e3e931d8a89c10eb4b9038b57ae098f"
+  },
+  {
+    "path": "01-models-analysis-01/command.json",
+    "bytes": 800,
+    "sha256": "180c8c439a2ce9a531a8e99058ff6911b7dea3fa0d78cd65710d96e5895e1dbb"
+  },
+  {
+    "path": "01-models-analysis-01/exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "01-models-analysis-01/freeze.json",
+    "bytes": 173,
+    "sha256": "179932791d747d2a66e1693ebe7a13b77959ddd4ee80f1b6b8ce4318bfce1ab1"
+  },
+  {
+    "path": "01-models-analysis-01/required-tests.json",
+    "bytes": 1816,
+    "sha256": "e64b9860f801d16c7701b97df6a77f3ce0d784e31255358dd953764604272f54"
+  },
+  {
+    "path": "01-models-analysis-01/run.log",
+    "bytes": 15689,
+    "sha256": "34a675df83e895a073f70697c5b608d1352211ca322dbfff7f123880c4c53775"
+  },
+  {
+    "path": "02-layout-01/after.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "02-layout-01/before.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "02-layout-01/command.json",
+    "bytes": 730,
+    "sha256": "6d0179d6d20e4421762c6c471ca63823bfd6447e0b7de4d06982f726d454e4ca"
+  },
+  {
+    "path": "02-layout-01/exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "02-layout-01/freeze.json",
+    "bytes": 171,
+    "sha256": "62814319cf0385c10035918f9bce9908535ea2a03c655e6107ee5e1fa02a74eb"
+  },
+  {
+    "path": "02-layout-01/required-tests.json",
+    "bytes": 758,
+    "sha256": "13b48ba492e9a2d6ed9fb978da381598da8b480928f72773a1b1a65e639606b8"
+  },
+  {
+    "path": "02-layout-01/run.log",
+    "bytes": 1777,
+    "sha256": "49a96a65b654f908ea2ee2dbe0527e123f245686f4b571890e97a64df11a82df"
+  },
+  {
+    "path": "03-adjacent-01/after.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "03-adjacent-01/before.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "03-adjacent-01/command.json",
+    "bytes": 968,
+    "sha256": "a86ce6c734320c688629130481cfbdae9f566483cf658ca1df165a6c7d6d1bc0"
+  },
+  {
+    "path": "03-adjacent-01/exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "03-adjacent-01/freeze.json",
+    "bytes": 173,
+    "sha256": "b720e840eff003b149d4e4f380c31ae9e574846a14f373176897467b6dd17788"
+  },
+  {
+    "path": "03-adjacent-01/required-tests.json",
+    "bytes": 2,
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "path": "03-adjacent-01/run.log",
+    "bytes": 25109,
+    "sha256": "c73547cda4c17644505d510cee5275fc85870fb6f650455c852c1dd715aad7a4"
+  },
+  {
+    "path": "04-full-01/after.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "04-full-01/before.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "04-full-01/command.json",
+    "bytes": 690,
+    "sha256": "c286107c90d922468118c272de28ddff9f2638aa7cb4633a822cfbc7d0a1db05"
+  },
+  {
+    "path": "04-full-01/exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "04-full-01/freeze.json",
+    "bytes": 173,
+    "sha256": "a858138ae2fe554a3b9dccff50ea34261151788b5d88f760b26950316c20febf"
+  },
+  {
+    "path": "04-full-01/required-tests.json",
+    "bytes": 3074,
+    "sha256": "bb201a9c494c5f212240aa0ae4ae390c017bc2762a361ead83af02bc7136bede"
+  },
+  {
+    "path": "04-full-01/run.log",
+    "bytes": 215199,
+    "sha256": "6622f042e9129e2c601636c56acfe02aa783319d4e6cdff7e532f536fca853ff"
+  },
+  {
+    "path": "05-strict-01/after.json",
+    "bytes": 1351871,
+    "sha256": "e32036483c23f733eeeb3631657264be68f3ae4fb01a0139b73bcde22701c5e4"
+  },
+  {
+    "path": "05-strict-01/before.json",
+    "bytes": 1351871,
+    "sha256": "b14b366232e7cf5ef2791e70187198f4611e30020546a54ceefcfa914c603582"
+  },
+  {
+    "path": "05-strict-01/command.json",
+    "bytes": 689,
+    "sha256": "038a90eff3fb1c2b7dc0c6014204be029a557dc74478316ca0289b25929808c4"
+  },
+  {
+    "path": "05-strict-01/exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "05-strict-01/freeze.json",
+    "bytes": 173,
+    "sha256": "09d596503a7eadff053e44d7fba5cbd529624491a5baa45ba182822a6e3eb53b"
+  },
+  {
+    "path": "05-strict-01/run.log",
+    "bytes": 342,
+    "sha256": "864c21d98190caca60caf9b54c0a8e23a3c101f5bf3d0e6135c010d90646f955"
+  },
+  {
+    "path": "PLAN.md",
+    "bytes": 10974,
+    "sha256": "ff87d33567f6aea0869c76fa8479117cc1c4b48a3967216eb9490969537ae3fe"
+  },
+  {
+    "path": "QUALIFICATION.md",
+    "bytes": 1537,
+    "sha256": "2fbe0447438be2651e5146e366d78c052160299aeb52b085eb05d2be92ea4b5c"
+  },
+  {
+    "path": "README.md",
+    "bytes": 1523,
+    "sha256": "2e2ebb2b215b72f3e246365eb5701ca6b6aa88afa0138dc4c849a213e1dcc5e5"
+  },
+  {
+    "path": "ROOT-FINAL-VERIFICATION.json",
+    "bytes": 9560,
+    "sha256": "aee1fa6aa1106a99b6ae68b551cca466e8fc3d2a34a7df723968fab30b612b74"
+  },
+  {
+    "path": "ROOT-FINAL-VERIFICATION.md",
+    "bytes": 2772,
+    "sha256": "c94074e8eec13bb59c3be3dbd050730ba1ff53af6454d67c4343238e9682a5ff"
+  },
+  {
+    "path": "final-artifacts.json",
+    "bytes": 1568,
+    "sha256": "7463cc19a111e26f29d74db111852376a780814efdf8dde9bc4b0ce745e1e607"
+  },
+  {
+    "path": "gate-summary.json",
+    "bytes": 1119,
+    "sha256": "0982490f8b00da653b8c0f9a15bb0c28d00d2f8a7d2ff21471c8523515cdecf4"
+  },
+  {
+    "path": "gates.json",
+    "bytes": 5375,
+    "sha256": "10c49f45212d9e2041b29f50a57bd6216ffcc60f7d3d224a75daf47c8077a20f"
+  },
+  {
+    "path": "prepared-integration.json",
+    "bytes": 602,
+    "sha256": "62fc27beea2f9a8eb2aa403af3c02116deb948461802a225a6bc3d5995742297"
+  },
+  {
+    "path": "prepared-source-and-artifacts.json",
+    "bytes": 1351503,
+    "sha256": "723df11a87857b859d0a190d2c9b9b104e3e931d8a89c10eb4b9038b57ae098f"
+  },
+  {
+    "path": "python-runner/metadata.json",
+    "bytes": 566,
+    "sha256": "ed835108c514a797e0daf3db8fab895a90e9225a7e0dfd3cb7b0674b3cdea9f2"
+  },
+  {
+    "path": "python-runner/run.log",
+    "bytes": 1078,
+    "sha256": "e1c448a8ac243a084a7f2d00ab5f0a782e0d10430d7cb15fe268b2a6e3533e15"
+  },
+  {
+    "path": "python-runner/selftest_runner.py",
+    "bytes": 6303,
+    "sha256": "ab3631f61d0f50bb59b4143c0398fcf5096facc545087d629c97f11b36d373e6"
+  },
+  {
+    "path": "python-runner/test_selftest_runner.py",
+    "bytes": 3656,
+    "sha256": "1350bb5cf070687cedaae0fcc56c18cd2c04a94962e829e305f2349117d321b6"
+  },
+  {
+    "path": "reviews/tessera-b516-current-comparison.json",
+    "bytes": 3443,
+    "sha256": "99b08199e4ad8f1c752ee0056e736a7b7e08da1e19c5a2830b4b1ad24b0e10a0"
+  },
+  {
+    "path": "reviews/tessera-b516-current-review.md",
+    "bytes": 7768,
+    "sha256": "07d2f84127f24be6a898da2e158a6bcf63c6b1291a8212b3a1f605be6cf2bd20"
+  },
+  {
+    "path": "reviews/tessera-b516-ddb28101-source-review.json",
+    "bytes": 4625,
+    "sha256": "1097125714cef6f3eaa32b91ec2c6e399b5147b5f03530c6769c49f39fd58526"
+  },
+  {
+    "path": "reviews/tessera-b516-ddb28101-source-review.md",
+    "bytes": 6546,
+    "sha256": "2398bbe4f91c395a95a22de5b1adcb8b5163e57753c60bccb661753216685aae"
+  },
+  {
+    "path": "run.py",
+    "bytes": 6366,
+    "sha256": "2fcc7eaad8d0262c341676fceac063976ca30501664402429e8ebaf5d70f0c5e"
+  },
+  {
+    "path": "runner-1972f603/RUNNER-ADMISSION-HANDOFF.md",
+    "bytes": 3706,
+    "sha256": "8bfa016610170466f190d94d60a1daaecbf37733bdf36680e7bec20d3d12feb8"
+  },
+  {
+    "path": "runner-1972f603/metadata.json",
+    "bytes": 636,
+    "sha256": "9b6993d69f95d47e7ece0d916bcb7230990f67da7e4cc77c85d1779e4f61d1fb"
+  },
+  {
+    "path": "runner-1972f603/run.log",
+    "bytes": 1871,
+    "sha256": "be27a4cad11ba1264ca749e1a36174930c35367077979e2b6a1b938cb58470ba"
+  },
+  {
+    "path": "runner-1972f603/selftest_runner.py",
+    "bytes": 7249,
+    "sha256": "79cddba47552e92670d16874bbdf99f885d1703b92307c4a55533c5ab44af6a5"
+  },
+  {
+    "path": "runner-1972f603/test_selftest_runner.py",
+    "bytes": 9280,
+    "sha256": "17ad31549b639eae3cdf17eb8d873adcce5f7587ff8af4736eb3207406855a53"
+  },
+  {
+    "path": "source/CURRENT-MAIN-INSPECTOR-HANDOFF.md",
+    "bytes": 8954,
+    "sha256": "a14d954cf25f49746043e7bacbfe6b7890ad534128be411cab7baefbeedbb7eb"
+  },
+  {
+    "path": "source/SOURCE.sha256",
+    "bytes": 1994,
+    "sha256": "7e59245598a622969d542894eec35018e0a1fe596f371aa0c6e063dd2dd79209"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift",
+    "bytes": 30185,
+    "sha256": "4b43980b55a1a3c60f01767c7bceafbbb8a89951749241e9ad2d88d695dc0c4a"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift",
+    "bytes": 9531,
+    "sha256": "397cec24f139a20158ffdd4738da24cb7389c22fffe8fb2f1d8c7a8ecefbb928"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift",
+    "bytes": 5505,
+    "sha256": "463cd8bbee76f41097eaaf605a1ceebcfcf67458d8d6a14368152ded4f3c6cda"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift",
+    "bytes": 5593,
+    "sha256": "c7424b154cf9fde3f23017660983974ec8b5d2d780b2e25b5c502c1072ad84d3"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/DocumentView.swift",
+    "bytes": 23000,
+    "sha256": "48d116494e8b944015d919578ec6176550e782fc054243019afe184060b463f9"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift",
+    "bytes": 36697,
+    "sha256": "b3eb8e0080355b3eb3c07f4467acad35572f8ea9a047e173fe3d23e356d962f6"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift",
+    "bytes": 18947,
+    "sha256": "9e66424ddd297039898aa5e68ad3b86e340289a26ae4c74ae4e8a7047dca6e47"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/LayersPanel.swift",
+    "bytes": 9560,
+    "sha256": "7c0c904700c20702271631930aa1d64281e125b3955b2b6926ba9b9d6c4edc92"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift",
+    "bytes": 20278,
+    "sha256": "fd0ea8d1b96b8de2bd97de098daa2bfa133dd0816f09df92c6a5ed95278563dc"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift",
+    "bytes": 5037,
+    "sha256": "a725f7a9707d1bf95feef09cd47793f2d78bef46a5b807d8006f8c82e9937889"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Tests/TesseraCoreTests/DocumentAdjustmentAnalysisTests.swift",
+    "bytes": 17717,
+    "sha256": "921f00652aa56dea35e1e430ae8e2b8177ce40edc88d6a86d70eda8ab9a43597"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Tests/TesseraCoreTests/DocumentInspectorTabsTests.swift",
+    "bytes": 3607,
+    "sha256": "6a723a8665e1905ce07518edba955c65f7568e05ea36eda643f8f68d30bd6168"
+  },
+  {
+    "path": "source/candidate-files/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift",
+    "bytes": 17770,
+    "sha256": "2fcf2c34d0705006d44f8cb852bbdfd539af8d046faa24838011d91e511fdda7"
+  },
+  {
+    "path": "source/candidate-files/tools/orchestrate/wp/B5-16/run-selftests.sh",
+    "bytes": 294,
+    "sha256": "e9d0faa8535e5be417045c6ab377fd535be8aef0ad1be2f6b75da75c434b3f37"
+  },
+  {
+    "path": "source/candidate-files/tools/orchestrate/wp/B5-16/selftest_runner.py",
+    "bytes": 6303,
+    "sha256": "ab3631f61d0f50bb59b4143c0398fcf5096facc545087d629c97f11b36d373e6"
+  },
+  {
+    "path": "source/candidate-files/tools/orchestrate/wp/B5-16/test_selftest_runner.py",
+    "bytes": 3656,
+    "sha256": "1350bb5cf070687cedaae0fcc56c18cd2c04a94962e829e305f2349117d321b6"
+  },
+  {
+    "path": "source/candidate-vs-saveas.patch",
+    "bytes": 117966,
+    "sha256": "7456d4a4ed80bd89352e2735a38a50cbcf45926325f638b0eee6980e47592538"
+  }
+]

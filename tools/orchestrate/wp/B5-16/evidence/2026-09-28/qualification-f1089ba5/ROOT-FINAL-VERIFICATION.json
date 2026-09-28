@@ -1,0 +1,165 @@
+{
+  "ref": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+  "git_source_count": 8372,
+  "gates": {
+    "01-models-analysis-01": {
+      "direct_exit": 0,
+      "before_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "after_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "source_equal": true,
+      "git_mismatches": [],
+      "artifacts_equal": true,
+      "artifacts": {
+        "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+        "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+        "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+      },
+      "fixture_equal": true,
+      "log_sha256": "34a675df83e895a073f70697c5b608d1352211ca322dbfff7f123880c4c53775",
+      "totals": [
+        "\t Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds",
+        "\t Executed 45 tests, with 0 failures (0 unexpected) in 0.644 (0.647) seconds",
+        "\t Executed 45 tests, with 0 failures (0 unexpected) in 0.644 (0.649) seconds"
+      ],
+      "required_matches": {
+        "DocumentInspectorTabsTests.testTabsAndShortcuts": [
+          "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' passed (0.000 seconds)."
+        ],
+        "DocumentInspectorTabsTests.testBudgetFitsTheSmallestColumn": [
+          "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' passed (0.000 seconds)."
+        ],
+        "DocumentInspectorTabsTests.testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum": [
+          "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' passed (0.000 seconds)."
+        ],
+        "DocumentInspectorTabsTests.testOpacityAndFillShareARowFrom300Points": [
+          "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' passed (0.000 seconds)."
+        ],
+        "DocumentInspectorTabsTests.testTabStripShowsAtMostThreeIncludingTheCurrentOne": [
+          "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' passed (0.000 seconds)."
+        ],
+        "DocumentAdjustmentAnalysisTests.testLegacyMatchColorNeutralizeReopenDisableUndoAndSave": [
+          "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' passed (0.036 seconds)."
+        ],
+        "DocumentAdjustmentAnalysisTests.testLegacyMatchColorMissingSourceDoesNotPretendToDisable": [
+          "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' passed (0.013 seconds)."
+        ],
+        "DocumentAdjustmentAnalysisTests.testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels": [
+          "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' passed (0.015 seconds)."
+        ]
+      }
+    },
+    "02-layout-01": {
+      "direct_exit": 0,
+      "before_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "after_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "source_equal": true,
+      "git_mismatches": [],
+      "artifacts_equal": true,
+      "artifacts": {
+        "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+        "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+        "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+      },
+      "fixture_equal": true,
+      "log_sha256": "49a96a65b654f908ea2ee2dbe0527e123f245686f4b571890e97a64df11a82df",
+      "totals": [
+        "\t Executed 4 tests, with 0 failures (0 unexpected) in 79.478 (79.478) seconds",
+        "\t Executed 4 tests, with 0 failures (0 unexpected) in 79.478 (79.478) seconds",
+        "\t Executed 4 tests, with 0 failures (0 unexpected) in 79.478 (79.479) seconds"
+      ],
+      "required_matches": {
+        "ShellLayoutTests.testShellContainedAtEverySizeStateAndAppearance": [
+          "Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (46.208 seconds)."
+        ],
+        "ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize": [
+          "Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (29.093 seconds)."
+        ],
+        "ShellLayoutTests.testManyDocumentTabsStayCapped": [
+          "Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (2.322 seconds)."
+        ],
+        "ShellLayoutTests.testInspectorTabShortcuts": [
+          "Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (1.854 seconds)."
+        ]
+      }
+    },
+    "03-adjacent-01": {
+      "direct_exit": 0,
+      "before_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "after_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "source_equal": true,
+      "git_mismatches": [],
+      "artifacts_equal": true,
+      "artifacts": {
+        "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+        "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+        "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+      },
+      "fixture_equal": true,
+      "log_sha256": "c73547cda4c17644505d510cee5275fc85870fb6f650455c852c1dd715aad7a4",
+      "totals": [
+        "\t Executed 11 tests, with 0 failures (0 unexpected) in 0.176 (0.177) seconds",
+        "\t Executed 84 tests, with 0 failures (0 unexpected) in 0.348 (0.353) seconds",
+        "\t Executed 84 tests, with 0 failures (0 unexpected) in 0.348 (0.354) seconds"
+      ],
+      "required_matches": {}
+    },
+    "04-full-01": {
+      "direct_exit": 0,
+      "before_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "after_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "source_equal": true,
+      "git_mismatches": [],
+      "artifacts_equal": true,
+      "artifacts": {
+        "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+        "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+        "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+      },
+      "fixture_equal": true,
+      "log_sha256": "6622f042e9129e2c601636c56acfe02aa783319d4e6cdff7e532f536fca853ff",
+      "totals": [
+        "\t Executed 714 tests, with 1 test skipped and 0 failures (0 unexpected) in 234.437 (234.497) seconds",
+        "\t Executed 714 tests, with 1 test skipped and 0 failures (0 unexpected) in 234.437 (234.498) seconds",
+        "\u2714 Test run with 5 tests in 2 suites passed after 0.023 seconds."
+      ],
+      "required_matches": {
+        "SmartPreviewNativeWorkflowTests.testActualCachedThumbnailAfterOriginalDisconnect": [
+          "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' passed (5.060 seconds)."
+        ],
+        "SmartPreviewNativeWorkflowTests.testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect": [
+          "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (5.318 seconds)."
+        ]
+      }
+    },
+    "05-strict-01": {
+      "direct_exit": 0,
+      "source_count": 8372,
+      "before_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "after_head": "f1089ba52fb565a101e2aa0985f1d87a112f81f9",
+      "source_equal": true,
+      "git_mismatches": [],
+      "artifacts_equal": true,
+      "artifacts": {
+        "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+        "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+        "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+      },
+      "fixture_equal": true,
+      "log_sha256": "864c21d98190caca60caf9b54c0a8e23a3c101f5bf3d0e6135c010d90646f955",
+      "log_tail": "Build of product 'Tessera' complete! (122.71s)"
+    }
+  },
+  "product_diff_vs_B": [],
+  "current_artifacts_match_final": {
+    "apps/mac/build/ffi/CTesseraFFI.h": true,
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": true,
+    "apps/mac/build/ffi/TesseraFFI.swift": true,
+    "apps/mac/build/ffi/libtessera_ffi.a": true
+  },
+  "fixture_current_match": true
+}

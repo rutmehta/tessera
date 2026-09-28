@@ -1,0 +1,47 @@
+{
+  "01-models-analysis-01": {
+    "exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 178.14722183300182,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "02-layout-01": {
+    "exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 83.0661727078259,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "03-adjacent-01": {
+    "exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 2.0763710839673877,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "04-full-01": {
+    "exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 238.11745233274996,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "05-strict-01": {
+    "exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 126.26596841728315,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  }
+}
