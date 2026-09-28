@@ -18,6 +18,21 @@ final class DevelopRecoveryCoordinator {
 
     struct SessionID: Hashable { let value: UUID }
 
+    /// Both names are kept: a symlink or hard link can name the same source,
+    /// while replacement at the same path must remain conservatively blocked.
+    private struct SourceIdentity {
+        struct FileID: Equatable {
+            let device: UInt64
+            let inode: UInt64
+        }
+        let path: URL
+        let fileID: FileID?
+
+        func overlaps(_ other: SourceIdentity) -> Bool {
+            path == other.path || (fileID != nil && fileID == other.fileID)
+        }
+    }
+
     enum Outcome {
         case saved
         case failed(sessionID: SessionID, message: String)
@@ -62,6 +77,7 @@ final class DevelopRecoveryCoordinator {
     @MainActor private final class Record {
         let id: SessionID
         let key: Key?
+        let source: SourceIdentity?
         let owner: EngineLibrary?
         let controller: DevelopController
         let displayName: String
@@ -75,6 +91,9 @@ final class DevelopRecoveryCoordinator {
             self.owner = owner
             self.controller = controller
             self.key = owner.map { Key(owner: $0, imageID: controller.imageID) }
+            self.source = owner.flatMap {
+                DevelopRecoveryCoordinator.sourceIdentity(owner: $0, imageID: controller.imageID)
+            }
             self.displayName = displayName
         }
     }
@@ -82,12 +101,15 @@ final class DevelopRecoveryCoordinator {
     private struct GateRecord {
         let owner: EngineLibrary
         let imageIDs: Set<String>
+        let sources: [SourceIdentity]
         let initiate: Bool
+        let order: UInt64
     }
 
     private struct OpenTicket {
         let owner: EngineLibrary
         let key: Key
+        let source: SourceIdentity?
         let token: UUID
         let task: Task<Void, Never>
         var produced: DevelopController?
@@ -106,8 +128,33 @@ final class DevelopRecoveryCoordinator {
     @ObservationIgnored private var opens: [UUID: OpenTicket] = [:]
     @ObservationIgnored private var closedSessions: [ClosedSession] = []
     @ObservationIgnored private var generation: UInt64 = 0
+    @ObservationIgnored private var nextGateOrder: UInt64 = 0
 
     var hasUnresolvedSessions: Bool { !records.isEmpty || !opens.isEmpty }
+    var hasActiveReservations: Bool { !gates.isEmpty }
+
+    private static func sourceIdentity(owner: EngineLibrary, imageID: String) -> SourceIdentity? {
+        guard let index = owner.itemOfImage[imageID], owner.items.indices.contains(index),
+              let url = owner.items[index].url else { return nil }
+        let canonical = url.standardizedFileURL.resolvingSymlinksInPath()
+        let attributes = try? FileManager.default.attributesOfItem(atPath: canonical.path)
+        let fileID: SourceIdentity.FileID?
+        if let device = attributes?[.systemNumber] as? NSNumber,
+           let inode = attributes?[.systemFileNumber] as? NSNumber {
+            fileID = .init(device: device.uint64Value, inode: inode.uint64Value)
+        } else { fileID = nil }
+        return SourceIdentity(path: canonical, fileID: fileID)
+    }
+
+    private static func overlaps(_ source: SourceIdentity?, _ sources: [SourceIdentity]) -> Bool {
+        guard let source else { return false }
+        return sources.contains { source.overlaps($0) }
+    }
+
+    private static func overlaps(_ lhs: SourceIdentity?, _ rhs: SourceIdentity?) -> Bool {
+        guard let lhs, let rhs else { return false }
+        return lhs.overlaps(rhs)
+    }
 
     func register(owner: EngineLibrary?, controller: DevelopController, displayName: String) -> SessionID {
         let id = SessionID(value: UUID())
@@ -123,20 +170,29 @@ final class DevelopRecoveryCoordinator {
 
     func canOpen(owner: EngineLibrary, imageID: String) -> Bool {
         let key = Key(owner: owner, imageID: imageID)
-        guard !records.values.contains(where: { $0.key == key || $0.key == nil }) else { return false }
-        guard !opens.values.contains(where: { $0.key == key }) else { return false }
+        let source = Self.sourceIdentity(owner: owner, imageID: imageID)
+        guard !records.values.contains(where: {
+            $0.key == key || $0.key == nil || Self.overlaps(source, $0.source)
+        }) else { return false }
+        guard !opens.values.contains(where: {
+            $0.key == key || Self.overlaps(source, $0.source)
+        }) else { return false }
         return !gates.values.contains {
-            $0.owner === owner && $0.imageIDs.contains(imageID)
+            ($0.owner === owner && $0.imageIDs.contains(imageID)) || Self.overlaps(source, $0.sources)
         }
     }
 
     /// Only checks an in-app scoped gate. It is not a global writer permission.
     func isUnreservedForHostMutation(owner: EngineLibrary, imageID: String) -> Bool {
-        !gates.values.contains { $0.owner === owner && $0.imageIDs.contains(imageID) }
+        let source = Self.sourceIdentity(owner: owner, imageID: imageID)
+        return !gates.values.contains {
+            ($0.owner === owner && $0.imageIDs.contains(imageID)) || Self.overlaps(source, $0.sources)
+        }
     }
 
     func beginOpen(owner: EngineLibrary, imageID: String, token: UUID, task: Task<Void, Never>) {
         opens[token] = OpenTicket(owner: owner, key: Key(owner: owner, imageID: imageID),
+                                  source: Self.sourceIdentity(owner: owner, imageID: imageID),
                                   token: token, task: task, produced: nil)
         changed()
     }
@@ -184,7 +240,10 @@ final class DevelopRecoveryCoordinator {
 
     func cancelOpen(owner: EngineLibrary, imageID: String) {
         let key = Key(owner: owner, imageID: imageID)
-        for ticket in opens.values where ticket.key == key { ticket.task.cancel() }
+        let source = Self.sourceIdentity(owner: owner, imageID: imageID)
+        for ticket in opens.values where ticket.key == key || Self.overlaps(source, ticket.source) {
+            ticket.task.cancel()
+        }
     }
 
     func requestClose(_ id: SessionID) -> Task<Outcome, Never> {
@@ -249,7 +308,10 @@ final class DevelopRecoveryCoordinator {
 
     private func reserve(owner: EngineLibrary, imageIDs: Set<String>, initiate: Bool) -> Gate {
         let id = UUID()
-        gates[id] = GateRecord(owner: owner, imageIDs: imageIDs, initiate: initiate)
+        nextGateOrder &+= 1
+        gates[id] = GateRecord(owner: owner, imageIDs: imageIDs,
+                               sources: imageIDs.compactMap { Self.sourceIdentity(owner: owner, imageID: $0) },
+                               initiate: initiate, order: nextGateOrder)
         changed()
         return Gate(id: id, coordinator: self)
     }
@@ -257,6 +319,18 @@ final class DevelopRecoveryCoordinator {
     private func evaluate(_ id: UUID) async -> BarrierOutcome {
         guard let gate = gates[id] else { return .blocked([]) }
         let ownerID = ObjectIdentifier(gate.owner)
+        func matches(_ key: Key?, source: SourceIdentity?) -> Bool {
+            key.map { $0.owner == ownerID && gate.imageIDs.contains($0.imageID) } == true
+                || Self.overlaps(source, gate.sources)
+        }
+        // A later gate may be queued while another consumer still owns the
+        // saved pixels. It must fail closed before starting a close attempt.
+        let precedingConflict = gates.contains { otherID, other in
+            guard otherID != id, other.order < gate.order else { return false }
+            if other.owner === gate.owner && !other.imageIDs.isDisjoint(with: gate.imageIDs) { return true }
+            return other.sources.contains { source in gate.sources.contains { source.overlaps($0) } }
+        }
+        if precedingConflict { return .blocked([]) }
         if gate.initiate {
             for imageID in gate.imageIDs { cancelOpen(owner: gate.owner, imageID: imageID) }
         }
@@ -264,16 +338,16 @@ final class DevelopRecoveryCoordinator {
         // the registry after draining rather than trusting one captured task list.
         while true {
             if gate.initiate {
-                for record in records.values where record.key.map({ $0.owner == ownerID && gate.imageIDs.contains($0.imageID) }) ?? false {
+                for record in records.values where matches(record.key, source: record.source) {
                     if case .active = record.phase { _ = requestClose(record.id) }
                 }
             }
             let seen = generation
             let pendingOpens = opens.values.filter {
-                $0.key.owner == ownerID && gate.imageIDs.contains($0.key.imageID)
+                matches($0.key, source: $0.source)
             }.map(\.task)
             let pendingCloses = records.values.compactMap { record -> Task<Outcome, Never>? in
-                guard record.key.map({ $0.owner == ownerID && gate.imageIDs.contains($0.imageID) }) ?? false else { return nil }
+                guard matches(record.key, source: record.source) else { return nil }
                 return record.task
             }
             for task in pendingOpens { await task.value }
@@ -281,7 +355,7 @@ final class DevelopRecoveryCoordinator {
             guard gates[id] != nil else { return .blocked([]) }
             if seen != generation { continue }
             let blocked = records.values.filter { record in
-                record.key == nil || record.key.map { $0.owner == ownerID && gate.imageIDs.contains($0.imageID) } == true
+                record.key == nil || matches(record.key, source: record.source)
             }.map(\.id)
             return blocked.isEmpty ? .saved : .blocked(blocked)
         }
