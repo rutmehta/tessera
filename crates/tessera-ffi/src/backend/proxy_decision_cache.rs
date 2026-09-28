@@ -245,11 +245,13 @@ impl Cache {
         if !self.allowed(policy) {
             return false;
         }
+        #[cfg(test)]
         let samples = match outcome {
             SelectionOutcome::Measured(samples) => samples,
-            #[cfg(test)]
             _ => return false,
         };
+        #[cfg(not(test))]
+        let SelectionOutcome::Measured(samples) = outcome;
         if !samples
             .cpu
             .iter()
