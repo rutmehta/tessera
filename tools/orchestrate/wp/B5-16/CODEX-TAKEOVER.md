@@ -628,3 +628,14 @@ loupe first paint and Compare source/revision handling updated. Native pending
 API/bindings/validation all A. SMART-PREVIEW-THUMBNAIL-HANDOFF.md has limits/gates.
 Document strict186559ce/SmartPreviewUI775f39b0/SaveAs3ca3e9c9 preserved.
 No B builds/tests/apps/benchmarks/heartbeat/writer changes. A compiler/main.
+
+### Checkbox IRGen6c298945 — uncompiled source candidate
+
+codex/document-checkbox-irgen2711296e from Document strict186559ce;
+product10c59dea wraps Binding setter inline, retaining MainActor Sendable
+callback/synchronous invocation. No unsafe/scheduling/suppression changes.
+A must verify optimized compiler crash resolution; no B reproduction or tests.
+DOCUMENT-CHECKBOX-IRGEN-HANDOFF.md records failed09 evidence and limits.
+Thumbnail51e0cfb6/other source branches preserved; A sole compiler/main.
+No B workloads/apps/heartbeat/writer changes. Accepted receipt retried after
+first mailbox push timeout and then confirmed before source edits.
