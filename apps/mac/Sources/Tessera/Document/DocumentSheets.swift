@@ -167,20 +167,36 @@ struct SaveAsRequest: Identifiable {
     }
 }
 
-/// Keeps native dismissal paired with the identity of the sheet that appeared.
-/// A successor is queued by DocumentWorkspace until this onDismiss completes.
+/// Non-observable identity latch: capturing sheet content must not rely on an
+/// onAppear state update, which may never occur after a synchronous cancellation.
+@MainActor
+private final class DocumentSavePresentationCapture {
+    var id: UUID?
+    func claim(_ request: SaveAsRequest, in workspace: DocumentWorkspace) -> Bool {
+        if let id, id != request.id { return false }
+        guard workspace.saveAsPresentationWillPresent(request.id) else { return false }
+        id = request.id
+        return true
+    }
+}
+
+/// Keeps native dismissal paired with the item SwiftUI actually consumed.
 struct DocumentSaveAsPresentation: ViewModifier {
     @Bindable var workspace: DocumentWorkspace
-    @State private var presentedID: UUID?
+    @State private var capture = DocumentSavePresentationCapture()
 
     func body(content: Content) -> some View {
         content.sheet(item: Binding(get: { workspace.saveAsRequest }, set: { _ in }), onDismiss: {
-            guard let id = presentedID else { return }
-            presentedID = nil
+            guard let id = capture.id else { return }
+            capture.id = nil
             workspace.saveAsPresentationDidDismiss(id)
         }) { request in
-            SaveAsSheet(workspace: workspace, request: request)
-                .onAppear { presentedID = request.id }
+            // Capture synchronously at the content boundary, including the
+            // appearing-but-not-yet-onAppear interval. Merely setting the item
+            // in the workspace does not claim this presentation identity.
+            if capture.claim(request, in: workspace) {
+                SaveAsSheet(workspace: workspace, request: request)
+            }
         }
     }
 }
