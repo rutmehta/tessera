@@ -1,0 +1,4 @@
+imageio exit 0 stdout_bytes 9705 stderr_bytes 0
+imageio records 3
+coreimage exit 0 stdout_bytes 5894 stderr_bytes 0
+coreimage records 3

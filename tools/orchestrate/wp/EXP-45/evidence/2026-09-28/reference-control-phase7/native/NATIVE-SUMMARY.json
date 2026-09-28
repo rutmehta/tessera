@@ -1,0 +1,26 @@
+[
+  {
+    "file": "reference-16-bright255-explicit.jpg",
+    "iso_aux_present": true,
+    "sdr_peak": 1,
+    "hdr_peak": 15.951576232910156,
+    "headroom": 16,
+    "coreimage_peak": 16.000003814697266
+  },
+  {
+    "file": "reference-16-split-explicit.jpg",
+    "iso_aux_present": true,
+    "sdr_peak": 1,
+    "hdr_peak": 7.983762741088867,
+    "headroom": 8,
+    "coreimage_peak": 16.000003814697266
+  },
+  {
+    "file": "headroom-4-stops.jpg",
+    "iso_aux_present": true,
+    "sdr_peak": 1,
+    "hdr_peak": 7.983762264251709,
+    "headroom": 8,
+    "coreimage_peak": 16.000003814697266
+  }
+]

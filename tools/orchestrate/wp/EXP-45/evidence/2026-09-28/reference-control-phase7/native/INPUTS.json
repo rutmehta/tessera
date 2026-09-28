@@ -1,0 +1,26 @@
+{
+  "files": [
+    {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/reference-16-bright255-explicit.jpg",
+      "sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/reference-16-split-explicit.jpg",
+      "sha256": "eaeb9524ddfd2cee2d98c34512103ee7e06819471223de9caf1a8642c69c8968"
+    },
+    {
+      "path": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+      "sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b"
+    }
+  ],
+  "binaries": [
+    {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/imageio-probe",
+      "sha256": "950c42f9c93943d2ee252dad1a24abf0459b112a43e1b2bd92b575e3f3aa5619"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/coreimage-probe",
+      "sha256": "156d559589f1fe693cf6bdea0a04ef89472e6f2224528052059579380b3a13f3"
+    }
+  ]
+}

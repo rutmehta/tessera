@@ -1,0 +1,15 @@
+{
+  "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/fixtures/gain.pgm",
+  "source_sha256": "9d9293b6cf23f44eb580d7a9066cd2439457310efcd3e6af3f323ddaa88050ab",
+  "copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/gain-split.pgm",
+  "copy_sha256": "9bf96ebb0b0f99632f21dd63f81e42cd78efaf4eef32e61be38370c26e079a55",
+  "header_sha256": "6d77c583d85df9e7ea943c2d07911e2982b1ffdb4dfe1f4a91541ee0a21d4a83",
+  "header_bytes": 13,
+  "changed_samples": 640,
+  "unchanged_samples": 640,
+  "sample_counts": {
+    "0": 640,
+    "255": 640
+  },
+  "all_rows_step_x40": true
+}
