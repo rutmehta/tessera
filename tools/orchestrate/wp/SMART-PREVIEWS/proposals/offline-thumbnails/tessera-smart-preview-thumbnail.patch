@@ -1,0 +1,1193 @@
+--- a/crates/previews/src/lib.rs
++++ b/crates/previews/src/lib.rs
+@@ -110,6 +110,64 @@
+     }
+     pub fn get(&self, key: &PreviewKey, level: Level) -> Option<Bytes> {
+         self.disk.get(&self.path(key, level))
++    }
++    /// Bounded local-cache lookup for explicit offline consumers. Reject links and
++    /// oversized cache files without falling back to source I/O. Ordinary get is unchanged.
++    pub fn get_bounded(&self, key: &PreviewKey, level: Level, max_bytes: usize) -> Option<Bytes> {
++        use std::io::Read;
++        let path = self.path(key, level);
++        for directory in [self.root.as_path(), path.parent()?] {
++            if !fs::symlink_metadata(directory).ok()?.file_type().is_dir() {
++                return None;
++            }
++        }
++        if !fs::symlink_metadata(&path).ok()?.file_type().is_file() {
++            return None;
++        }
++        let mut bytes = Vec::new();
++        fs::File::open(path)
++            .ok()?
++            .take(u64::try_from(max_bytes).ok()?.checked_add(1)?)
++            .read_to_end(&mut bytes)
++            .ok()?;
++        (!bytes.is_empty() && bytes.len() <= max_bytes).then_some(bytes)
++    }
++    /// Restricted cache publication for explicit local-only consumers. A linked
++    /// directory/file or pre-existing temporary leaf is an error, never followed.
++    pub fn put_image_local_cancellable(
++        &self,
++        key: &PreviewKey,
++        image: &RgbImage,
++        max_px: u32,
++        check: &dyn Fn() -> engine_api::EngineResult<()>,
++    ) -> Result<()> {
++        let guarded = || -> engine_api::EngineResult<()> {
++            check()?;
++            let reject = || std::io::Error::other("unsafe local preview cache path");
++            if !fs::symlink_metadata(&self.root)?.file_type().is_dir() {
++                return Err(reject().into());
++            }
++            let directory = self.root.join(key.directory());
++            match fs::symlink_metadata(&directory) {
++                Ok(metadata) if metadata.file_type().is_dir() => {}
++                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
++                _ => return Err(reject().into()),
++            }
++            for level in Level::ALL {
++                let path = self.path(key, level);
++                match fs::symlink_metadata(&path) {
++                    Ok(metadata) if metadata.file_type().is_file() => {}
++                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
++                    _ => return Err(reject().into()),
++                }
++                match fs::symlink_metadata(path.with_extension("tmp")) {
++                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
++                    _ => return Err(reject().into()),
++                }
++            }
++            Ok(())
++        };
++        self.put_image_cancellable(key, image, max_px, &guarded)
+     }
+     pub fn put(&self, key: &PreviewKey, level: Level, bytes: &[u8]) -> Result<()> {
+         self.disk.put(&self.path(key, level), bytes, self.cap)
+@@ -401,4 +459,36 @@
+         assert!(elapsed.as_millis() < 400);
+         let _ = fs::remove_dir_all(p);
+     }
+-}
++    #[test]
++    fn bounded_lookup_rejects_oversized_empty_and_linked_cache_files() {
++        let (root, store) = store(u64::MAX);
++        let key = PreviewKey::new(b"bounded-offline", 1, [0; 32]);
++        store.put(&key, Level::Full, b"12345").unwrap();
++        assert_eq!(
++            store.get_bounded(&key, Level::Full, 5),
++            Some(b"12345".to_vec())
++        );
++        assert!(store.get_bounded(&key, Level::Full, 4).is_none());
++        let path = store.path(&key, Level::Full);
++        fs::write(&path, []).unwrap();
++        assert!(store.get_bounded(&key, Level::Full, 5).is_none());
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::symlink;
++            let target = root.join("untouched-source");
++            fs::write(&target, b"secret").unwrap();
++            fs::remove_file(&path).unwrap();
++            symlink(&target, &path).unwrap();
++            assert!(store.get_bounded(&key, Level::Full, 100).is_none());
++            assert_eq!(fs::read(&target).unwrap(), b"secret");
++            fs::remove_file(&path).unwrap();
++            let directory = path.parent().unwrap();
++            let moved = root.join("moved-key");
++            fs::rename(directory, &moved).unwrap();
++            fs::write(moved.join("1.jpg"), b"linked").unwrap();
++            symlink(&moved, directory).unwrap();
++            assert!(store.get_bounded(&key, Level::Full, 100).is_none());
++        }
++        let _ = fs::remove_dir_all(root);
++    }
++}
+--- a/crates/tessera-ffi/src/lib.rs
++++ b/crates/tessera-ffi/src/lib.rs
+@@ -27,6 +27,7 @@
+ mod recipe_write_tests;
+ mod session;
+ mod smart_preview;
++mod smart_preview_thumbnail;
+ #[allow(
+     dead_code,
+     reason = "journal storage awaits Smart Preview caller integration"
+@@ -212,6 +213,7 @@
+     segmenter: develop::SegmenterSlot,
+     /// Face detector + recognizer (downloaded and loaded on first face analysis).
+     faces: Mutex<Option<ml_faces::FaceModels>>,
++    smart_thumbnail_states: Mutex<smart_preview_thumbnail::States>,
+     preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
+     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
+     /// Keyword suggestions, captions and OCR: models and background jobs.
+@@ -347,6 +349,7 @@
+             renderer: std::sync::OnceLock::new(),
+             segmenter: Default::default(),
+             faces: Mutex::new(None),
++            smart_thumbnail_states: Mutex::new(Default::default()),
+             preview_states: Mutex::new(std::collections::HashMap::new()),
+             listener: Mutex::new(None),
+             understanding: Default::default(),
+--- a/crates/tessera-ffi/src/smart_preview_store.rs
++++ b/crates/tessera-ffi/src/smart_preview_store.rs
+@@ -87,7 +87,50 @@
+     pub dirty: bool,
+ }
+ 
++/// Existing generated-store files only. Reject links before any content read.
++/// Callers hold image read admission against participating in-process writers.
++pub(crate) fn local_regular_file(root: &Path, id: ImageId, name: &str) -> StoreResult<PathBuf> {
++    let previews = fs::canonicalize(root)?.join("smart-previews");
++    let directory = previews.join(id.to_string());
++    for path in [&previews, &directory] {
++        if !fs::symlink_metadata(path)?.file_type().is_dir() {
++            return Err(StoreError::Corrupt(
++                "Smart Preview directory must not be a symlink".into(),
++            ));
++        }
++    }
++    let path = directory.join(name);
++    if !fs::symlink_metadata(&path)?.file_type().is_file() {
++        return Err(StoreError::Corrupt(
++            "Smart Preview file must be a regular non-symlink file".into(),
++        ));
++    }
++    Ok(path)
++}
++
+ impl SmartPreviewJournal {
++    /// Read-only admission: never creates store directories and never touches originals.
++    pub(crate) fn read_local_snapshot(
++        root: &Path,
++        id: ImageId,
++    ) -> StoreResult<([u8; 32], JournalSnapshot)> {
++        let path = local_regular_file(root, id, "journal.json")?;
++        // Same canonical per-record process lock as writers, without directory creation.
++        let guard = {
++            let mut table = LOCKS
++                .get_or_init(|| Mutex::new(HashMap::new()))
++                .lock()
++                .map_err(|_| StoreError::LockPoisoned)?;
++            table
++                .entry(path.clone())
++                .or_insert_with(|| Arc::new(Mutex::new(())))
++                .clone()
++        };
++        let _lock = lock_guard(&guard)?;
++        let record = read_record(&path, id)?;
++        Ok((record.incarnation, record.snapshot()))
++    }
++
+     /// Create a clean journal from the recipe owner and exact original sidecar baseline.
+     /// `root` must be an existing application-support directory; generated store
+     /// entries are synchronized beneath it before this call succeeds.
+--- /dev/null
++++ b/crates/tessera-ffi/src/smart_preview_thumbnail/tests.rs
+@@ -0,0 +1,584 @@
++use super::*;
++use engine_api::{
++    color::ColorMatrix3,
++    id::JobId,
++    jobs::CancellationToken,
++    recipe::{DevelopSettings, ProcessVersion, Recipe},
++};
++use pipeline_cpu::LensContext;
++use raw_decode::{CfaImage, CfaLayout, RawMetadata};
++use std::time::{Duration, Instant};
++
++fn fixture(w: u32, h: u32) -> (CfaImage, RawMetadata) {
++    let m = RawMetadata {
++        make: "synthetic".into(),
++        model: "camera".into(),
++        lens: None,
++        iso: 100.,
++        shutter_s: 0.01,
++        aperture: 4.,
++        focal_mm: 50.,
++        capture_time: 0,
++        orientation: 6,
++        width: w,
++        height: h,
++        cfa_layout: CfaLayout::Bayer([[0, 1], [1, 2]]),
++        black_levels: [0.; 4],
++        white_level: 65535,
++        as_shot_wb: [2., 1., 1.5, 1.],
++        camera_to_xyz: ColorMatrix3::IDENTITY,
++        cam_xyz: [[0.7, 0.2, 0.1], [0.1, 0.8, 0.1], [0.1, 0.2, 0.7], [0.; 3]],
++        rgb_cam: [[0.; 4]; 3],
++        default_crop: [0, 0, w, h],
++        has_gain_map: false,
++        has_opcode_list: false,
++        opcode_lists: [None, None, None],
++    };
++    let c = CfaImage::from_linear(
++        w,
++        h,
++        (0..w * h)
++            .map(|i| 0.1 + (i % w) as f32 / (w as f32) * 0.15 + ((i / w) % 2) as f32 * 0.1)
++            .collect(),
++    )
++    .unwrap();
++    (c, m)
++}
++
++struct Fixture {
++    dir: tempfile::TempDir,
++    engine: Arc<Engine>,
++    id: ImageId,
++    original: PathBuf,
++}
++impl Fixture {
++    fn new() -> Self {
++        let dir = tempfile::tempdir().unwrap();
++        let support = dir.path().join("support");
++        let original = dir.path().join("disconnected/photo.arw");
++        let engine = Engine::open(support.to_string_lossy().into()).unwrap();
++        let id = ImageId(501);
++        let db = rusqlite::Connection::open(&engine.db).unwrap();
++        db.execute(
++            "INSERT INTO root(id,path) VALUES(1,?)",
++            [original.parent().unwrap().to_str().unwrap()],
++        )
++        .unwrap();
++        db.execute(
++            "INSERT INTO folder(id,root_id,path) VALUES(1,1,?)",
++            [original.parent().unwrap().to_str().unwrap()],
++        )
++        .unwrap();
++        db.execute(
++            "INSERT INTO file(id,folder_id,path,name,size,mtime) VALUES(1,1,?,'photo.arw',100,1)",
++            [original.to_str().unwrap()],
++        )
++        .unwrap();
++        db.execute(
++            "INSERT INTO image(id,file_id) VALUES(?,1)",
++            [id.to_string()],
++        )
++        .unwrap();
++        let recipe = Recipe::new(id);
++        let (cfa, metadata) = fixture(32, 24);
++        let proxy = CameraLinearProxy::generate(
++            &cfa,
++            &metadata,
++            &recipe.settings,
++            ProcessVersion::NATIVE_CURRENT,
++            [7; 32],
++            &LensContext::default(),
++        )
++        .unwrap();
++        let bytes = proxy.encode_persistent(100).unwrap();
++        let recipe = serde_json::to_vec(&sidecar::RecipeDocument {
++            recipe,
++            ..Default::default()
++        })
++        .unwrap();
++        SmartPreviewJournal::create(&support, id, [7; 32], 100, recipe, None, None).unwrap();
++        fs::write(
++            support
++                .join("smart-previews")
++                .join(id.to_string())
++                .join("pixels.tsp"),
++            bytes,
++        )
++        .unwrap();
++        Self {
++            dir,
++            engine,
++            id,
++            original,
++        }
++    }
++    fn bytes(&self) -> Vec<u8> {
++        let deadline = Instant::now() + Duration::from_secs(10);
++        loop {
++            let response = self
++                .engine
++                .clone()
++                .smart_preview_thumbnail(self.id.to_string(), 32)
++                .unwrap();
++            if let Some(bytes) = response.bytes {
++                return bytes;
++            }
++            assert!(response.pending && Instant::now() < deadline);
++            std::thread::sleep(Duration::from_millis(5));
++        }
++    }
++    fn job(&self) -> Box<ThumbnailJob> {
++        let identity = self.engine.thumbnail_local(self.id).unwrap().identity;
++        self.engine
++            .smart_thumbnail_states
++            .lock()
++            .unwrap()
++            .entries
++            .insert(
++                (self.id, 32),
++                Entry {
++                    identity: identity.clone(),
++                    state: State::Pending,
++                },
++            );
++        Box::new(ThumbnailJob {
++            engine: Arc::downgrade(&self.engine),
++            slot: (self.id, 32),
++            identity,
++            completed: false,
++        })
++    }
++}
++#[test]
++fn offline_thumbnail_renders_orientation_and_survives_new_engine_without_original() {
++    let f = Fixture::new();
++    let bytes = f.bytes();
++    let image = image::load_from_memory(&bytes).unwrap();
++    assert_eq!((image.width(), image.height()), (24, 32));
++    assert!(!f.original.parent().unwrap().exists());
++    let fresh = Engine::open(f.engine.support_dir().unwrap().to_string_lossy().into()).unwrap();
++    let start = Instant::now();
++    loop {
++        let response = fresh
++            .clone()
++            .smart_preview_thumbnail(f.id.to_string(), 32)
++            .unwrap();
++        if let Some(other) = response.bytes {
++            assert_eq!(other, bytes);
++            break;
++        }
++        assert!(start.elapsed() < Duration::from_secs(10));
++        std::thread::sleep(Duration::from_millis(5));
++    }
++    assert!(!f.original.parent().unwrap().exists());
++}
++#[test]
++fn saved_edit_invalidates_ready_bytes_and_changes_render() {
++    let f = Fixture::new();
++    let before = f.bytes();
++    let (mut journal, snapshot) =
++        SmartPreviewJournal::open(f.engine.support_dir().unwrap(), f.id).unwrap();
++    let mut doc: sidecar::RecipeDocument = serde_json::from_slice(&snapshot.recipe).unwrap();
++    let previous = doc.recipe.settings.clone();
++    doc.recipe.settings.tone.exposure = 1.25;
++    doc.recipe
++        .history
++        .record(
++            &previous,
++            &doc.recipe.settings,
++            engine_api::recipe::EditMeta::user("edit", 1),
++        )
++        .unwrap();
++    journal
++        .save_recipe(serde_json::to_vec(&doc).unwrap())
++        .unwrap();
++    assert_ne!(before, f.bytes());
++    assert!(!f.original.parent().unwrap().exists());
++}
++#[test]
++fn corrupt_asset_cannot_reuse_ready_cache_and_missing_store_creates_nothing() {
++    let f = Fixture::new();
++    f.bytes();
++    let local = f.engine.thumbnail_local(f.id).unwrap();
++    fs::write(&local.path, b"corrupt").unwrap();
++    let deadline = Instant::now() + Duration::from_secs(10);
++    loop {
++        match f
++            .engine
++            .clone()
++            .smart_preview_thumbnail(f.id.to_string(), 32)
++        {
++            Err(_) => break,
++            Ok(response) => {
++                assert!(response.bytes.is_none());
++                assert!(Instant::now() < deadline);
++            }
++        }
++        std::thread::sleep(Duration::from_millis(5));
++    }
++    fs::remove_dir_all(local.path.parent().unwrap()).unwrap();
++    assert!(
++        f.engine
++            .clone()
++            .smart_preview_thumbnail(f.id.to_string(), 32)
++            .is_err()
++    );
++    assert!(!local.path.parent().unwrap().exists());
++    assert!(!f.original.parent().unwrap().exists());
++}
++#[test]
++fn replacement_incarnation_cannot_publish_old_job_even_with_equal_generation_and_recipe() {
++    let f = Fixture::new();
++    let mut job = f.job();
++    let ctx = JobContext::new(JobId(0), CancellationToken::new(), None);
++    let result = job.render(&f.engine, &ctx);
++    assert!(result.is_ok());
++    let (journal, snapshot) =
++        SmartPreviewJournal::open(f.engine.support_dir().unwrap(), f.id).unwrap();
++    journal.discard_clean().unwrap();
++    SmartPreviewJournal::create(
++        f.engine.support_dir().unwrap(),
++        f.id,
++        snapshot.source_digest,
++        snapshot.source_len,
++        snapshot.recipe,
++        None,
++        None,
++    )
++    .unwrap();
++    let now = f.engine.thumbnail_local(f.id).unwrap().identity;
++    assert_eq!(now.generation, job.identity.generation);
++    assert_ne!(now.incarnation, job.identity.incarnation);
++    job.finish(&f.engine, result, false);
++    assert!(matches!(
++        f.engine.smart_thumbnail_states.lock().unwrap().entries[&(f.id, 32)].state,
++        State::Failed(_)
++    ));
++    assert!(!f.bytes().is_empty());
++}
++#[test]
++fn cancellation_and_drop_make_pending_terminal_and_size_bounds_fail() {
++    let f = Fixture::new();
++    let job = f.job();
++    let cancel = CancellationToken::new();
++    cancel.cancel();
++    assert!(job.run(&JobContext::new(JobId(0), cancel, None)).is_err());
++    assert!(matches!(
++        f.engine.smart_thumbnail_states.lock().unwrap().entries[&(f.id, 32)].state,
++        State::Interrupted
++    ));
++    drop(f.job());
++    assert!(matches!(
++        f.engine.smart_thumbnail_states.lock().unwrap().entries[&(f.id, 32)].state,
++        State::Interrupted
++    ));
++    assert!(
++        !f.bytes().is_empty(),
++        "Cancellation must permit an unchanged-identity retry"
++    );
++    for size in [0, 2561, u32::MAX] {
++        assert!(
++            f.engine
++                .clone()
++                .smart_preview_thumbnail(f.id.to_string(), size)
++                .is_err()
++        );
++    }
++    assert!(!f.original.parent().unwrap().exists());
++    assert!(f.dir.path().exists());
++}
++
++#[test]
++fn incompatible_prefix_is_rejected_without_rendering_or_original_fallback() {
++    let f = Fixture::new();
++    let (mut journal, snapshot) =
++        SmartPreviewJournal::open(f.engine.support_dir().unwrap(), f.id).unwrap();
++    let mut doc: sidecar::RecipeDocument = serde_json::from_slice(&snapshot.recipe).unwrap();
++    let previous = doc.recipe.settings.clone();
++    doc.recipe.settings.demosaic.method = engine_api::recipe::settings::DemosaicMethod::Bilinear;
++    doc.recipe
++        .history
++        .record(
++            &previous,
++            &doc.recipe.settings,
++            engine_api::recipe::EditMeta::user("incompatible prefix", 1),
++        )
++        .unwrap();
++    journal
++        .save_recipe(serde_json::to_vec(&doc).unwrap())
++        .unwrap();
++    let job = f.job();
++    let ctx = JobContext::new(JobId(0), CancellationToken::new(), None);
++    assert!(job.render(&f.engine, &ctx).is_err());
++    assert!(!f.original.parent().unwrap().exists());
++}
++
++#[test]
++fn source_identity_mismatch_is_rejected_even_for_a_well_formed_container() {
++    let f = Fixture::new();
++    let (journal, snapshot) =
++        SmartPreviewJournal::open(f.engine.support_dir().unwrap(), f.id).unwrap();
++    journal.discard_clean().unwrap();
++    SmartPreviewJournal::create(
++        f.engine.support_dir().unwrap(),
++        f.id,
++        [8; 32],
++        snapshot.source_len,
++        snapshot.recipe,
++        None,
++        None,
++    )
++    .unwrap();
++    let job = f.job();
++    let ctx = JobContext::new(JobId(0), CancellationToken::new(), None);
++    assert!(
++        job.render(&f.engine, &ctx)
++            .unwrap_err()
++            .to_string()
++            .contains("source identity mismatch")
++    );
++    assert!(!f.original.parent().unwrap().exists());
++}
++
++#[test]
++fn completed_job_drop_does_not_clobber_reentrant_replacement_and_events_are_terminal() {
++    use std::sync::atomic::{AtomicUsize, Ordering};
++    struct Replace {
++        engine: Weak<Engine>,
++        slot: Slot,
++        count: AtomicUsize,
++    }
++    impl crate::EngineEventListener for Replace {
++        fn on_event(&self, _: EngineEvent) {
++            self.count.fetch_add(1, Ordering::SeqCst);
++            let engine = self.engine.upgrade().unwrap();
++            engine
++                .smart_thumbnail_states
++                .lock()
++                .unwrap()
++                .entries
++                .get_mut(&self.slot)
++                .unwrap()
++                .state = State::Pending;
++        }
++    }
++    let f = Fixture::new();
++    let listener = Arc::new(Replace {
++        engine: Arc::downgrade(&f.engine),
++        slot: (f.id, 32),
++        count: AtomicUsize::new(0),
++    });
++    f.engine.set_event_listener(Some(listener.clone()));
++    let job = f.job();
++    job.run(&JobContext::new(JobId(0), CancellationToken::new(), None))
++        .unwrap();
++    assert_eq!(listener.count.load(Ordering::SeqCst), 1);
++    assert!(matches!(
++        f.engine.smart_thumbnail_states.lock().unwrap().entries[&(f.id, 32)].state,
++        State::Pending
++    ));
++    drop(f.job());
++    assert_eq!(listener.count.load(Ordering::SeqCst), 2);
++}
++
++#[test]
++fn pending_jobs_are_bounded_and_repeated_edit_requests_do_not_add_work() {
++    let f = Fixture::new();
++    let identity = f.engine.thumbnail_local(f.id).unwrap().identity;
++    {
++        let mut states = f.engine.smart_thumbnail_states.lock().unwrap();
++        for size in 1..=MAX_PENDING as u32 {
++            states.entries.insert(
++                (f.id, size),
++                Entry {
++                    identity: identity.clone(),
++                    state: State::Pending,
++                },
++            );
++        }
++    }
++    assert!(
++        f.engine
++            .clone()
++            .smart_preview_thumbnail(f.id.to_string(), 1)
++            .unwrap()
++            .pending
++    );
++    assert!(
++        f.engine
++            .clone()
++            .smart_preview_thumbnail(f.id.to_string(), 32)
++            .unwrap_err()
++            .to_string()
++            .contains("queue is full")
++    );
++    assert_eq!(
++        f.engine
++            .smart_thumbnail_states
++            .lock()
++            .unwrap()
++            .entries
++            .len(),
++        MAX_PENDING
++    );
++}
++
++#[test]
++fn active_proxy_lease_allows_thumbnail_reads_and_corrupt_journal_blocks_warm_delivery() {
++    let f = Fixture::new();
++    let gate = crate::image_edit_admission::gate_for(f.id).unwrap();
++    let _lease = gate
++        .reserve_develop(crate::image_edit_admission::EditSource::SmartPreview)
++        .unwrap();
++    assert!(!f.bytes().is_empty());
++    let local = f.engine.thumbnail_local(f.id).unwrap();
++    fs::write(
++        local.path.parent().unwrap().join("journal.json"),
++        b"broken journal",
++    )
++    .unwrap();
++    assert!(
++        f.engine
++            .clone()
++            .smart_preview_thumbnail(f.id.to_string(), 32)
++            .is_err()
++    );
++    assert!(!f.original.parent().unwrap().exists());
++}
++
++#[cfg(unix)]
++#[test]
++fn symlinked_asset_journal_and_store_directories_are_rejected_before_content_read() {
++    use std::os::unix::fs::symlink;
++    for name in [
++        "pixels.tsp",
++        "journal.json",
++        "image-directory",
++        "store-directory",
++    ] {
++        let f = Fixture::new();
++        f.bytes(); // Even a warm validated entry cannot bypass new local path admission.
++        let source = f.dir.path().join("untouched-original.arw");
++        fs::write(&source, b"private source bytes must remain untouched").unwrap();
++        let before = fs::read(&source).unwrap();
++        let directory = f
++            .engine
++            .support_dir()
++            .unwrap()
++            .join("smart-previews")
++            .join(f.id.to_string());
++        match name {
++            "pixels.tsp" | "journal.json" => {
++                let path = directory.join(name);
++                fs::remove_file(&path).unwrap();
++                symlink(&source, path).unwrap();
++            }
++            _ => {
++                let path = if name == "image-directory" {
++                    directory.clone()
++                } else {
++                    directory.parent().unwrap().to_path_buf()
++                };
++                let renamed = f.dir.path().join("relocated-store");
++                fs::rename(&path, &renamed).unwrap();
++                symlink(renamed, path).unwrap();
++            }
++        }
++        let error = f
++            .engine
++            .clone()
++            .smart_preview_thumbnail(f.id.to_string(), 32)
++            .unwrap_err();
++        assert!(error.to_string().contains("symlink"), "{name}: {error}");
++        assert_eq!(fs::read(&source).unwrap(), before);
++        assert!(!f.original.parent().unwrap().exists());
++    }
++}
++
++#[cfg(unix)]
++#[test]
++fn unsafe_cache_paths_fail_without_external_writes_and_recover_without_identity_change() {
++    use std::os::unix::fs::symlink;
++    for kind in ["directory", "temporary", "jpeg"] {
++        let f = Fixture::new();
++        f.bytes();
++        let key = {
++            let states = f.engine.smart_thumbnail_states.lock().unwrap();
++            match &states.entries[&(f.id, 32)].state {
++                State::Ready(key) => key.clone(),
++                _ => panic!("not ready"),
++            }
++        };
++        let hex = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
++        let directory = f
++            .engine
++            .support_dir()
++            .unwrap()
++            .join("previews")
++            .join(format!(
++                "{}-{}-{}",
++                hex(&key.file_hash),
++                key.orientation,
++                hex(&key.recipe_hash)
++            ));
++        let source_dir = f.dir.path().join("external-originals");
++        fs::create_dir(&source_dir).unwrap();
++        let source = source_dir.join("1.jpg");
++        fs::write(&source, b"original target must never be overwritten").unwrap();
++        let baseline = fs::read(&source).unwrap();
++        let moved = f.dir.path().join("saved-cache");
++        let bad_path = match kind {
++            "directory" => {
++                fs::rename(&directory, &moved).unwrap();
++                symlink(&source_dir, &directory).unwrap();
++                directory.clone()
++            }
++            "temporary" => {
++                fs::remove_file(directory.join("1.jpg")).unwrap();
++                let p = directory.join("8.tmp");
++                symlink(&source, &p).unwrap();
++                p
++            }
++            _ => {
++                let p = directory.join("1.jpg");
++                fs::remove_file(&p).unwrap();
++                symlink(&source, &p).unwrap();
++                p
++            }
++        };
++        let deadline = Instant::now() + Duration::from_secs(10);
++        loop {
++            match f
++                .engine
++                .clone()
++                .smart_preview_thumbnail(f.id.to_string(), 32)
++            {
++                Err(error) => {
++                    assert!(
++                        error
++                            .to_string()
++                            .contains("unsafe local preview cache path"),
++                        "{error}"
++                    );
++                    break;
++                }
++                Ok(response) => {
++                    assert!(response.bytes.is_none());
++                    assert!(Instant::now() < deadline);
++                }
++            }
++            std::thread::sleep(Duration::from_millis(5));
++        }
++        assert_eq!(fs::read(&source).unwrap(), baseline);
++        assert_eq!(fs::read_dir(&source_dir).unwrap().count(), 1);
++        fs::remove_file(bad_path).unwrap();
++        if kind == "directory" {
++            fs::rename(&moved, &directory).unwrap();
++        }
++        assert!(
++            !f.bytes().is_empty(),
++            "An observed transient cache-write failure must be retryable"
++        );
++        assert_eq!(fs::read(&source).unwrap(), baseline);
++    }
++}
+--- /dev/null
++++ b/crates/tessera-ffi/src/smart_preview_thumbnail.rs
+@@ -0,0 +1,419 @@
++//! Explicit thumbnails rendered from validated local camera-linear pixels.
++//! No original source/sidecar I/O and no changes to ordinary preview admission.
++use crate::smart_preview_store::{JournalSnapshot, SmartPreviewJournal};
++use crate::{Engine, EngineEvent, PreviewResponse, Result, failure, parse_id};
++use engine_api::{
++    id::ImageId,
++    jobs::{Job, JobContext, Priority, Scheduler},
++    tile::{TILE_SIZE, TileCoord},
++};
++use image_core::{RawImage, RenderOutput, Renderer, RendererConfig};
++use pipeline_cpu::CameraLinearProxy;
++use std::{
++    collections::HashMap,
++    fs,
++    io::Read,
++    path::PathBuf,
++    sync::{Arc, Weak},
++};
++
++const MAX_ASSET_BYTES: u64 = 256 * 1024 * 1024;
++const MAX_JPEG_BYTES: usize = 32 * 1024 * 1024;
++const MAX_PENDING: usize = 8;
++const MAX_STATES: usize = 128;
++type Slot = (ImageId, u32);
++
++#[derive(Clone, Debug, PartialEq, Eq)]
++struct Identity {
++    incarnation: [u8; 32],
++    generation: u64,
++    asset: [u8; 32],
++    recipe: [u8; 32],
++}
++struct Local {
++    identity: Identity,
++    snapshot: JournalSnapshot,
++    path: PathBuf,
++}
++enum State {
++    Pending,
++    Interrupted,
++    Ready(previews::PreviewKey),
++    Failed(String),
++}
++struct Entry {
++    identity: Identity,
++    state: State,
++}
++#[derive(Default)]
++pub(crate) struct States {
++    entries: HashMap<Slot, Entry>,
++}
++
++fn asset_hash(path: &std::path::Path) -> Result<[u8; 32]> {
++    let file = fs::File::open(path)?;
++    if !file.metadata()?.is_file() {
++        return Err(failure("Smart Preview asset is not a regular file"));
++    }
++    let mut reader = file.take(MAX_ASSET_BYTES + 1);
++    let mut hash = blake3::Hasher::new();
++    let mut size = 0;
++    let mut buffer = [0; 65536];
++    loop {
++        let n = reader.read(&mut buffer)?;
++        if n == 0 {
++            break;
++        }
++        size += n as u64;
++        if size > MAX_ASSET_BYTES {
++            return Err(failure("Smart Preview asset exceeds limit"));
++        }
++        hash.update(&buffer[..n]);
++    }
++    if size == 0 {
++        return Err(failure("Smart Preview asset is empty"));
++    }
++    Ok(*hash.finalize().as_bytes())
++}
++impl Engine {
++    fn thumbnail_local(&self, id: ImageId) -> Result<Local> {
++        // Catalog ownership only. Self::path is a SQL lookup, not a filesystem probe.
++        {
++            let catalog = self.lock()?;
++            Self::path(&catalog, &id.to_string())?;
++        }
++        let root = self.support_dir()?;
++        let (incarnation, snapshot) =
++            SmartPreviewJournal::read_local_snapshot(root, id).map_err(failure)?;
++        let path = crate::smart_preview_store::local_regular_file(root, id, "pixels.tsp")
++            .map_err(failure)?;
++        let asset = asset_hash(&path)?;
++        Ok(Local {
++            identity: Identity {
++                incarnation,
++                generation: snapshot.generation,
++                asset,
++                recipe: snapshot.recipe_digest,
++            },
++            snapshot,
++            path,
++        })
++    }
++}
++
++#[uniffi::export]
++impl Engine {
++    /// Explicit Smart Preview pixels, including saved offline edits. Never falls back
++    /// to originals. Dispatch this bounded local read off the UI thread, as for previews.
++    /// A cold request returns pending; PreviewReady also signals terminal failures.
++    pub fn smart_preview_thumbnail(
++        self: Arc<Self>,
++        image_id: String,
++        max_px: u32,
++    ) -> Result<PreviewResponse> {
++        if !(1..=2560).contains(&max_px) {
++            return Err(failure("max_px must be 1...2560"));
++        }
++        let id = parse_id(&image_id)?;
++        let gate = crate::image_edit_admission::gate_for(id)?;
++        let read = gate.begin_read()?;
++        let local = self.thumbnail_local(id)?;
++        let slot = (id, max_px);
++        let mut states = self.smart_thumbnail_states.lock().map_err(failure)?;
++        if let Some(entry) = states.entries.get(&slot) {
++            // Keep at most one queued/running job per owner+tier, including across edits.
++            // Its terminal event causes the next request to admit the latest identity.
++            if matches!(entry.state, State::Pending) {
++                return Ok(PreviewResponse {
++                    bytes: None,
++                    pending: true,
++                });
++            }
++            if entry.identity == local.identity {
++                match &entry.state {
++                    State::Ready(key) => {
++                        if let Some(bytes) =
++                            self.previews
++                                .get_bounded(key, previews::Level::Full, MAX_JPEG_BYTES)
++                        {
++                            drop(states);
++                            if self.thumbnail_local(id)?.identity != local.identity {
++                                return Err(failure("Smart Preview thumbnail changed; retry"));
++                            }
++                            return Ok(PreviewResponse {
++                                bytes: Some(bytes),
++                                pending: false,
++                            });
++                        }
++                    }
++                    State::Failed(message) => {
++                        // Terminal errors are observed once, not a permanent negative cache.
++                        // A later request may retry unchanged pixels after transient I/O recovers.
++                        let error = failure(message);
++                        states.entries.remove(&slot);
++                        return Err(error);
++                    }
++                    State::Interrupted => {}
++                    State::Pending => unreachable!(),
++                }
++            }
++        }
++        if states
++            .entries
++            .values()
++            .filter(|entry| matches!(entry.state, State::Pending))
++            .count()
++            >= MAX_PENDING
++        {
++            return Err(failure(
++                "Smart Preview thumbnail queue is full; retry later",
++            ));
++        }
++        if states.entries.len() >= MAX_STATES && !states.entries.contains_key(&slot) {
++            let evict = states
++                .entries
++                .iter()
++                .find(|(_, entry)| !matches!(entry.state, State::Pending))
++                .map(|(slot, _)| *slot);
++            if let Some(evict) = evict {
++                states.entries.remove(&evict);
++            }
++        }
++        states.entries.insert(
++            slot,
++            Entry {
++                identity: local.identity.clone(),
++                state: State::Pending,
++            },
++        );
++        drop(states);
++        drop(read);
++        self.jobs.submit(
++            Box::new(ThumbnailJob {
++                engine: Arc::downgrade(&self),
++                slot,
++                identity: local.identity,
++                completed: false,
++            }),
++            None,
++        );
++        Ok(PreviewResponse {
++            bytes: None,
++            pending: true,
++        })
++    }
++}
++struct ThumbnailJob {
++    engine: Weak<Engine>,
++    slot: Slot,
++    identity: Identity,
++    completed: bool,
++}
++impl ThumbnailJob {
++    fn render(&self, engine: &Engine, ctx: &JobContext) -> Result<previews::PreviewKey> {
++        ctx.check_cancelled()?;
++        let local = {
++            let gate = crate::image_edit_admission::gate_for(self.slot.0)?;
++            let _read = gate.begin_read()?;
++            engine.thumbnail_local(self.slot.0)?
++        };
++        if local.identity != self.identity {
++            return Err(failure("Smart Preview thumbnail changed; retry"));
++        }
++        let mut bytes = Vec::new();
++        let path = crate::smart_preview_store::local_regular_file(
++            engine.support_dir()?,
++            self.slot.0,
++            "pixels.tsp",
++        )
++        .map_err(failure)?;
++        if path != local.path {
++            return Err(failure("Smart Preview asset path changed"));
++        }
++        fs::File::open(path)?
++            .take(MAX_ASSET_BYTES + 1)
++            .read_to_end(&mut bytes)?;
++        if bytes.len() as u64 > MAX_ASSET_BYTES
++            || *blake3::hash(&bytes).as_bytes() != self.identity.asset
++        {
++            return Err(failure("Smart Preview asset changed during read"));
++        }
++        let decoded = CameraLinearProxy::decode_persistent(&bytes)?;
++        drop(bytes);
++        if decoded.original_byte_length != local.snapshot.source_len
++            || decoded.proxy.original_content_digest() != local.snapshot.source_digest
++        {
++            return Err(failure("Smart Preview source identity mismatch"));
++        }
++        let document = crate::smart_preview::validate_local_document(&local.snapshot.recipe)?;
++        let mut render_identity = [0; 16];
++        render_identity.copy_from_slice(&decoded.container_digest[..16]);
++        let mut render_id = ImageId(u128::from_le_bytes(render_identity));
++        if render_id == self.slot.0 {
++            render_id.0 ^= 1;
++        }
++        let source =
++            RawImage::from_camera_linear_proxy(self.slot.0, render_id, Arc::new(decoded.proxy))?;
++        crate::smart_preview::validate_proxy_recipe(&source, &document.recipe)?;
++        // The renderer enforces the same unsupported dependency rules as Develop.
++        let renderer = Renderer::new(RendererConfig {
++            threads: 1,
++            cache_budget_bytes: 0,
++            process_version: document.recipe.process_version,
++            ..Default::default()
++        });
++        let key = cache_key(
++            self.slot,
++            &self.identity,
++            source.metadata().orientation as u8,
++        );
++        // Empty tile admission runs the complete dependency/settings validator.
++        renderer.render_tiles(
++            &source,
++            &document.recipe.settings,
++            &[],
++            RenderOutput::Display,
++            &ctx.cancellation,
++            &mut |_| {},
++        )?;
++        if engine
++            .previews
++            .get_bounded(&key, previews::Level::Full, MAX_JPEG_BYTES)
++            .is_some()
++        {
++            return Ok(key);
++        }
++        let extent = Renderer::output_extent(&source, &document.recipe.settings, 0)?;
++        let grid = extent.tile_grid(TILE_SIZE);
++        let coords: Vec<_> = (0..grid.1)
++            .flat_map(|y| (0..grid.0).map(move |x| TileCoord::new(0, x, y)))
++            .collect();
++        let mut image = image::RgbImage::new(extent.width, extent.height);
++        let mut tile_error = None;
++        renderer.render_tiles(
++            &source,
++            &document.recipe.settings,
++            &coords,
++            RenderOutput::Display,
++            &ctx.cancellation,
++            &mut |tile| {
++                let data = match tile.samples::<u8>() {
++                    Ok(data) => data,
++                    Err(error) => {
++                        tile_error = Some(error);
++                        return;
++                    }
++                };
++                let layout = tile.layout();
++                let n = layout.plane_len();
++                let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
++                for y in 0..layout.extent.height {
++                    for x in 0..layout.extent.width {
++                        let i = (y * layout.extent.width + x) as usize;
++                        image.put_pixel(
++                            ox + x,
++                            oy + y,
++                            image::Rgb([data[i], data[n + i], data[2 * n + i]]),
++                        );
++                    }
++                }
++            },
++        )?;
++        if let Some(error) = tile_error {
++            return Err(error.into());
++        }
++        ctx.check_cancelled()?;
++        // Old immutable cache entries may exist, but cannot be delivered for a new identity.
++        engine
++            .previews
++            .put_image_local_cancellable(&key, &image, self.slot.1, &|| ctx.check_cancelled())
++            .map_err(failure)?;
++        Ok(key)
++    }
++    fn finish(&mut self, engine: &Engine, result: Result<previews::PreviewKey>, interrupted: bool) {
++        // Serialize the last freshness check and state publication against participating
++        // edit/discard/rebuild operations, while allowing an active proxy editor.
++        let gate = crate::image_edit_admission::gate_for(self.slot.0);
++        let read = gate.as_ref().ok().and_then(|gate| gate.begin_read().ok());
++        let current = if read.is_some() {
++            engine
++                .thumbnail_local(self.slot.0)
++                .map(|local| local.identity)
++        } else {
++            Err(failure("Smart Preview read admission failed"))
++        };
++        let state = match (current, result) {
++            (Ok(identity), Ok(key)) if identity == self.identity => State::Ready(key),
++            (Ok(identity), Err(_)) if identity == self.identity && interrupted => {
++                State::Interrupted
++            }
++            (Ok(identity), Err(error)) if identity == self.identity => {
++                State::Failed(error.to_string())
++            }
++            _ => State::Failed("Smart Preview thumbnail changed; retry".into()),
++        };
++        let mut states = engine
++            .smart_thumbnail_states
++            .lock()
++            .unwrap_or_else(|e| e.into_inner());
++        if let Some(entry) = states.entries.get_mut(&self.slot) {
++            if entry.identity == self.identity && matches!(entry.state, State::Pending) {
++                entry.state = state;
++            }
++        }
++        drop(states);
++        drop(read);
++        self.completed = true;
++        engine.emit(EngineEvent::PreviewReady {
++            image_id: self.slot.0.to_string(),
++            max_px: self.slot.1,
++        });
++    }
++}
++fn cache_key(slot: Slot, identity: &Identity, orientation: u8) -> previews::PreviewKey {
++    let mut hash = blake3::Hasher::new();
++    hash.update(b"tessera-smart-preview-thumbnail-v1\0");
++    hash.update(&slot.0.0.to_le_bytes());
++    hash.update(&slot.1.to_le_bytes());
++    hash.update(&identity.incarnation);
++    hash.update(&identity.generation.to_le_bytes());
++    hash.update(&identity.asset);
++    previews::PreviewKey {
++        file_hash: *hash.finalize().as_bytes(),
++        orientation,
++        recipe_hash: identity.recipe,
++    }
++}
++impl Drop for ThumbnailJob {
++    fn drop(&mut self) {
++        if !self.completed {
++            if let Some(engine) = self.engine.upgrade() {
++                self.finish(
++                    &engine,
++                    Err(failure("Smart Preview thumbnail cancelled or interrupted")),
++                    true,
++                );
++            }
++        }
++    }
++}
++impl Job for ThumbnailJob {
++    fn label(&self) -> &str {
++        "Smart Preview thumbnail"
++    }
++    fn priority(&self) -> Priority {
++        Priority::Preview
++    }
++    fn run(mut self: Box<Self>, ctx: &JobContext) -> engine_api::EngineResult<()> {
++        ctx.check_cancelled()?;
++        if let Some(engine) = self.engine.upgrade() {
++            let result = self.render(&engine, ctx);
++            ctx.check_cancelled()?;
++            self.finish(&engine, result, false);
++        }
++        Ok(())
++    }
++}
++
++#[cfg(test)]
++mod tests;
