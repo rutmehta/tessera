@@ -31,6 +31,112 @@ final class SmartPreviewThumbnailTests: XCTestCase {
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return data as Data
     }
+    func testTransientProxyErrorRetriesWithinSameFlightThenDelivers() async throws {
+        let (engine, events) = try fixture()
+        let bytes = try png()
+        let calls = ThumbnailCallLog()
+        let waiting = expectation(description: "retry backoff entered")
+        let clock = ThumbnailRetryClock(waiting: waiting)
+        let api = EngineThumbnailAPI(original: { _, _ in XCTFail("No Original fallback"); throw ThumbnailProbeError.failed },
+            smartPreview: { _, _ in
+                if calls.append("proxy") == 1 { throw ThumbnailProbeError.failed }
+                return PreviewResponse(bytes: bytes, pending: false)
+            })
+        let photo = item(engine, events, .smartPreview, api)
+        let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
+                                     proxyRetryWait: { await clock.pause($0) })
+        let ready = expectation(description: "retried thumbnail")
+        let request = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in ready.fulfill() })
+        await fulfillment(of: [waiting], timeout: 5)
+        XCTAssertEqual(calls.values.count, 1)
+        XCTAssertEqual(loader.queueSnapshot.active, 1, "backoff retains the existing flight slot")
+        XCTAssertFalse(request.isFlightDrained)
+        await clock.resume()
+        await fulfillment(of: [ready], timeout: 5)
+        await request.waitForFlightDrain()
+        XCTAssertEqual(calls.values.count, 2)
+        XCTAssertNotNil(loader.cached(photo, tier: .thumbnail))
+    }
+
+    func testPersistentProxyFailureHasBoundedCallsAndNoPendingPlaceholderFlight() async throws {
+        let (engine, events) = try fixture()
+        let calls = ThumbnailCallLog()
+        let waits = ThumbnailCallLog()
+        let api = EngineThumbnailAPI(original: { _, _ in XCTFail("No Original fallback"); throw ThumbnailProbeError.failed },
+            smartPreview: { _, _ in calls.append("proxy"); throw ThumbnailProbeError.failed })
+        let photo = item(engine, events, .smartPreview, api)
+        let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
+                                     proxyRetryWait: { waits.append(String($0)) })
+        let request = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in XCTFail("Failure has no pixels") })
+        await request.waitForFlightDrain()
+        XCTAssertEqual(calls.values.count, 4)
+        XCTAssertEqual(waits.values, ["250000000", "500000000", "1000000000"])
+        XCTAssertEqual(loader.queueSnapshot.active, 0)
+        XCTAssertEqual(loader.queueSnapshot.pending, 0)
+        XCTAssertNil(loader.cached(photo, tier: .thumbnail))
+    }
+
+    func testSupersessionDuringRetrySuppressesOldRetryAndDeliversReplacement() async throws {
+        let (engine, events) = try fixture()
+        let bytes = try png()
+        let calls = ThumbnailCallLog()
+        let waiting = expectation(description: "old flight is in retry backoff")
+        let clock = ThumbnailRetryClock(waiting: waiting)
+        let api = EngineThumbnailAPI(original: { _, _ in XCTFail("No Original fallback"); throw ThumbnailProbeError.failed },
+            smartPreview: { _, _ in
+                if calls.append("proxy") == 1 { throw ThumbnailProbeError.failed }
+                return PreviewResponse(bytes: bytes, pending: false)
+            })
+        let photo = item(engine, events, .smartPreview, api)
+        let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
+                                     proxyRetryWait: { await clock.pause($0) })
+        let old = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in XCTFail("stale subscriber") })
+        await fulfillment(of: [waiting], timeout: 5)
+        loader.invalidate(photo)
+        await old.waitForCompletion()
+        XCTAssertTrue(old.isCancelled)
+        XCTAssertFalse(old.isFlightDrained)
+        let ready = expectation(description: "replacement only")
+        let replacement = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in ready.fulfill() })
+        XCTAssertEqual(calls.values.count, 1)
+        // Deliberately non-cancellation-aware test clock: production must recheck
+        // cancellation after even an injected wait returns normally.
+        await clock.resume()
+        await fulfillment(of: [ready], timeout: 5)
+        await old.waitForFlightDrain()
+        await replacement.waitForFlightDrain()
+        XCTAssertEqual(calls.values.count, 2, "old flight must not issue another native call")
+        XCTAssertNotNil(loader.cached(photo, tier: .thumbnail))
+    }
+
+    func testCancelledRetryWaitTerminatesWithoutAnotherNativeCall() async throws {
+        let (engine, events) = try fixture()
+        let calls = ThumbnailCallLog()
+        let api = EngineThumbnailAPI(original: { _, _ in throw ThumbnailProbeError.failed },
+            smartPreview: { _, _ in calls.append("proxy"); throw ThumbnailProbeError.failed })
+        let photo = item(engine, events, .smartPreview, api)
+        let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
+                                     proxyRetryWait: { _ in throw CancellationError() })
+        let request = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in XCTFail("cancelled wait") })
+        await request.waitForFlightDrain()
+        XCTAssertEqual(calls.values.count, 1)
+        XCTAssertNil(loader.cached(photo, tier: .thumbnail))
+    }
+
+    func testOriginalErrorsRemainTerminalWithoutRetry() async throws {
+        let (engine, events) = try fixture()
+        let calls = ThumbnailCallLog()
+        let api = EngineThumbnailAPI(original: { _, _ in calls.append("original"); throw ThumbnailProbeError.failed },
+            smartPreview: { _, _ in XCTFail("No proxy fallback"); throw ThumbnailProbeError.failed })
+        let photo = item(engine, events, .original, api)
+        let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
+                                     proxyRetryWait: { _ in XCTFail("Original must not retry") })
+        let request = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in XCTFail("failed original") })
+        await request.waitForFlightDrain()
+        XCTAssertEqual(calls.values, ["original"])
+        XCTAssertNil(loader.cached(photo, tier: .thumbnail))
+    }
+
     func testExplicitRoleChoosesExactlyOneAPIAndNeverFallsBack() throws {
         let (engine, events) = try fixture()
         let bytes = try png()
@@ -81,7 +187,8 @@ final class SmartPreviewThumbnailTests: XCTestCase {
                 return PreviewResponse(bytes: bytes, pending: false)
             })
         let photo = item(engine, events, .smartPreview, api)
-        let loader = ThumbnailLoader()
+        let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
+                                     proxyRetryWait: { _ in XCTFail("Successful pending path must use events") })
         let ready = expectation(description: "proxy ready")
         let request = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in ready.fulfill() })
         await fulfillment(of: [ready], timeout: 5)
@@ -165,4 +272,18 @@ private final class ThumbnailReadGate: @unchecked Sendable {
             }
         }
     }
+}
+
+/// Ordering uses a continuation, not elapsed time; production receives Task.sleep.
+private actor ThumbnailRetryClock {
+    let waiting: XCTestExpectation
+    private var continuation: CheckedContinuation<Void, Never>?
+    init(waiting: XCTestExpectation) { self.waiting = waiting }
+    func pause(_ nanoseconds: UInt64) async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            waiting.fulfill()
+        }
+    }
+    func resume() { continuation?.resume(); continuation = nil }
 }
