@@ -1,0 +1,1 @@
+-rw-r--r--@ 1 rutmehta  staff  298484480 Sep 27 22:12 apps/mac/build/ffi/libtessera_ffi.a

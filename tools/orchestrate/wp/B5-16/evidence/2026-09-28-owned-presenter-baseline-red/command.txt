@@ -1,0 +1,1 @@
+swift test --scratch-path /Volumes/betterSSD/tessera-validation/document-save-settlement/baseline-red-010617b8-20260928-attempt1/scratch --jobs 2 -c release -Xswiftc -enable-testing --filter DocumentSaveDismissAttachmentTests/testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress

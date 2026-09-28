@@ -1,0 +1,1 @@
+No external fixture: test constructs in-memory ParentWindow/NSWindow and StubDocumentBackend.

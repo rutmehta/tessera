@@ -1,0 +1,4 @@
+pid=85087
+pgid=85087
+started_utc=2026-09-28T07:47:15.096066+00:00
+command=swift test --scratch-path /Volumes/betterSSD/tessera-validation/document-save-settlement/baseline-red-010617b8-20260928-attempt1/scratch --jobs 2 -c release -Xswiftc -enable-testing --filter DocumentSaveDismissAttachmentTests/testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress
