@@ -502,6 +502,7 @@ struct WindowToolbarConfigurator: NSViewRepresentable {
             MainActor.assumeIsolated {
                 guard let window = view.window else { return }
                 window.titlebarSeparatorStyle = .line
+                RecoveryWindowCloseGuard.install(on: window)
             }
         }
     }
