@@ -1,0 +1,10 @@
+{
+  "commit": "1fd635638f50b38776a69bb1c02374ccdbf6057b",
+  "manifest": "relevant-after-dirretry-fix.sha256",
+  "verified_git_blob_count": 5,
+  "excluded_untracked": [
+    "crates/pipeline-cpu/src/smart_preview_codec.rs",
+    "crates/pipeline-cpu/tests/smart_preview_codec.rs"
+  ],
+  "mismatches": []
+}

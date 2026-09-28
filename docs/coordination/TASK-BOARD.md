@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Smart Preview codec and journal accepted — 2026-09-28 16:26 UTC
+
+Main 2db82c7f integrates reviewed codec61e4f4f5 and journal/admission1fd63563. Codec full Release159 passed/2ignored, strict/fmt0; root verified6933 immutable source hashes. Journal final helper13 Release passed/strict/fmt0; earlier full156 FFI belongs3cff7441. Portable evidence is under tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/storage-1fd63563 and codec-61e4f4f5, with preserved failed attempts.
+
+Real Sony fixture produced2460x1638 F16 camera-linear proxy,16632169 bytes versus16646144-byte original: only0.084% smaller. Generation529ms, encoding172ms, reopening45.5ms; custom WB/exposure renders from decoded proxy, max sample error0.00012207. Original SHA256 unchanged. Useful storage savings and comparative interactive speedup remain UNPROVEN. This is not a completed offline editing feature.
+
+Image-core route6c057641 has initial focused6/6 Release passed; new codec reopen regression and final full gate pending, sole A compiler lane. Independent reviewer audits FFI integration while another worker prepares remaining writer guards. B Smart Preview UI requestd7764a2f remains accepted; actual peer commentary reports batch reservation and source switching work, tests UNRUN. Save As source results0a6d71e8/7d8f8c4c remain accepted/pending runtime, not duplicate tasks. Next: validated image-core, FFI offline save/reconnect/export gates, generated bindings and B UI integration.
+
 ## Smart Preview persistence and UI ownership — 2026-09-28 16:15 UTC
 
 Export/Adobe compile repair is integrated mainfa7372b9, exact088cc261;11 export tests passed/1 existing ignored,33 Adobe tests passed, strict/fmt/direct0. Root independently rehashed1102 inputs; clean review and23 portable evidence payloads preserved. This resolves the three exhaustive-match failure; original failure remains retained.

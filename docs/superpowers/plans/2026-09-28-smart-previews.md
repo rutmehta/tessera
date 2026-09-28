@@ -36,16 +36,16 @@ Files: crates/pipeline-cpu/src/render.rs, new camera-linear source module as nee
 
 File: new crates/tessera-ffi/src/smart_preview_store.rs; integrate module only after Task 1 compiler lane release.
 
-- [ ] Define versioned records keyed by original ImageId, exact recipe bytes, original content identity, captured sidecar baseline, monotonic journal revision and dirty state.
-- [ ] Atomic create/update and reopen with bounded lengths, digest validation and revision preconditions. No original-path writes. Refuse dirty discard.
-- [ ] Test stale revision, wrong owner/version/corruption/oversize, unknown-member preservation, crash-safe published record and edit/reopen.
-- [ ] Compile and run focused tests in A's serialized lane; independent review before caller integration.
+- [x] Define versioned records keyed by original ImageId, exact recipe bytes, original content identity, captured sidecar baseline, monotonic journal revision and dirty state.
+- [x] Atomic create/update and reopen with bounded lengths, digest validation and revision preconditions. No original-path writes. Refuse dirty discard.
+- [x] Test stale revision, wrong owner/version/corruption/oversize, unknown-member preservation, crash-safe published record and edit/reopen.
+- [x] Compile and run focused tests in A's serialized lane; independent review before caller integration.
 
 ## Task 3 — persistent proxy codec and image-core routing
 
 Files: new bounded codec/store module near image-core or previews, image-core/src/source.rs, render.rs, rgb_render.rs and resident routing guards; Cargo only when codec needs it.
 
-- [ ] Persist the qualified Task 1 source, including validated camera/prefix data and exact source/payload identities; use a measured compressed representation without clipping HDR or negative values.
+- [x] Persist the qualified Task 1 source, including validated camera/prefix data and exact source/payload identities; use a measured compressed representation without clipping HDR or negative values.
 - [ ] Add explicit camera-linear accessor/source-kind and source-discriminated memo keys. Route all CPU/M2 entry points consistently; deny unsupported resident/export routes.
 - [ ] Round-trip pixels/calibration/prefix; reject corrupt/oversize input before allocation; test original/proxy cache-switch isolation.
 

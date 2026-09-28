@@ -1,0 +1,1 @@
+rustfmt --edition 2024 --check crates/tessera-ffi/src/smart_preview_store.rs crates/tessera-ffi/src/image_edit_admission.rs
