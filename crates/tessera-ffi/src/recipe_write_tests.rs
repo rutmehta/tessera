@@ -71,6 +71,15 @@ fn stale_or_wrong_destination_authority_cannot_write_or_clear_new_owner() {
             .to_string()
             .contains("different destination")
     );
+    let wrong_key_error = match first_gate.begin_develop_write(&current_authority, &second_image) {
+        Ok(_guard) => panic!("authority unexpectedly wrote through another image key"),
+        Err(error) => error,
+    };
+    assert!(
+        wrong_key_error
+            .to_string()
+            .contains("does not use this recipe destination")
+    );
     assert!(
         first_gate
             .begin_develop_write(&current_authority, &first_image)

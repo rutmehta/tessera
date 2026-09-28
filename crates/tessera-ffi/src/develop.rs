@@ -4025,18 +4025,27 @@ mod tests {
         first.flush().unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let first_bytes = std::fs::read(&recipe_path).unwrap();
+        let first_id = first.shared.image_id.clone();
         let stale_first = first.clone();
         first.close().unwrap();
         let reopened = second_engine.clone().open_develop_session(id).unwrap();
         stale_first.close().unwrap();
+        stale_first.close().unwrap();
+        assert_eq!(
+            serde_json::from_str::<Recipe>(&first_engine.get_recipe(first_id.clone()).unwrap())
+                .unwrap()
+                .settings
+                .tone
+                .exposure,
+            0.8
+        );
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), first_bytes);
         drop(stale_first);
-        let still_owned = match second_engine
-            .clone()
-            .open_develop_session(first.shared.image_id.clone())
-        {
+        drop(first);
+        let still_owned = match second_engine.clone().open_develop_session(first_id) {
             Ok(opened) => {
                 opened.close().unwrap();
-                panic!("stale closed editor released the current owner's lease");
+                panic!("stale closed editor release cleared the current owner's lease");
             }
             Err(error) => error,
         };
@@ -4044,19 +4053,6 @@ mod tests {
             still_owned.to_string(),
             "conflict: Develop destination already has an active editor"
         );
-        assert_eq!(
-            serde_json::from_str::<Recipe>(
-                &first_engine
-                    .get_recipe(first.shared.image_id.clone())
-                    .unwrap()
-            )
-            .unwrap()
-            .settings
-            .tone
-            .exposure,
-            0.8
-        );
-        assert_eq!(std::fs::read(&recipe_path).unwrap(), first_bytes);
         reopened.close().unwrap();
     }
 
@@ -4134,6 +4130,10 @@ mod tests {
             Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         let (entered_tx, entered_rx) = std::sync::mpsc::channel();
         let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let mut release_callback = ReleaseWorkerCallback {
+            ack: None,
+            release: Some(release_tx),
+        };
         session.set_listener(Some(Arc::new(BlockingSaved {
             entered: entered_tx,
             release: Mutex::new(release_rx),
@@ -4145,18 +4145,28 @@ mod tests {
         let (close_tx, close_rx) = std::sync::mpsc::channel();
         let close_thread = thread::spawn(move || close_tx.send(closing.close()).unwrap());
         entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-        let error = match second_engine.clone().open_develop_session(id.clone()) {
-            Ok(opened) => {
-                opened.close().unwrap();
-                panic!("lease released before close completed");
-            }
-            Err(error) => error,
-        };
+        let contender_engine = second_engine.clone();
+        let (contender_tx, contender_rx) = std::sync::mpsc::channel();
+        let contender = thread::spawn(move || {
+            let outcome = match contender_engine.open_develop_session(id) {
+                Ok(opened) => {
+                    opened.close().unwrap();
+                    Ok(())
+                }
+                Err(error) => Err(error.to_string()),
+            };
+            let _ = contender_tx.send(outcome);
+        });
+        let admission_error = contender_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap_err();
+        contender.join().unwrap();
         assert_eq!(
-            error.to_string(),
+            admission_error,
             "conflict: Develop destination already has an active editor"
         );
-        release_tx.send(()).unwrap();
+        release_callback.release();
         close_rx
             .recv_timeout(Duration::from_secs(5))
             .unwrap()
@@ -4252,6 +4262,8 @@ mod tests {
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let good_recipe = std::fs::read(&recipe_path).unwrap();
         std::fs::write(&recipe_path, b"{ malformed").unwrap();
+        let writer_count_before_snapshot =
+            engine.develop_writer_constructions.load(Ordering::Relaxed);
         let (tx, rx) = std::sync::mpsc::channel();
         let snapshot_engine = engine.clone();
         let snapshot_id = id.clone();
@@ -4271,6 +4283,10 @@ mod tests {
             snapshot_error.to_string().contains("key must be a string"),
             "unexpected snapshot error: {snapshot_error}"
         );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count_before_snapshot
+        );
         snapshot_thread.join().unwrap();
         std::fs::write(&recipe_path, &good_recipe).unwrap();
         let snapshot_reopen = engine.clone().open_develop_session(id.clone()).unwrap();
@@ -4289,6 +4305,12 @@ mod tests {
         assert!(
             !decode_error.to_string().contains("active editor"),
             "decode failure was masked by stale lease: {decode_error}"
+        );
+        assert!(
+            decode_error
+                .to_string()
+                .contains(&photo.display().to_string()),
+            "missing-image I/O failure did not identify fixture: {decode_error}"
         );
         assert_eq!(
             engine.develop_writer_constructions.load(Ordering::Relaxed),
@@ -4364,7 +4386,7 @@ mod tests {
             .unwrap()
             .id;
         let gate = crate::recipe_write::gate_for(&photo).unwrap();
-        let held = gate.begin_write().unwrap();
+        let held = gate.begin_read().unwrap();
         let contended = gate.observe_next_contended_gate_attempt();
         session
             .set_settings(r#"{"tone":{"exposure":0.4}}"#.into(), false)
