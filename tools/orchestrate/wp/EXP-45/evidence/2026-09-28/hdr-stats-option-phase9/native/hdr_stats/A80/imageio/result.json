@@ -1,0 +1,346 @@
+{
+  "apple_aux_present": 0,
+  "iso_aux_present": 1,
+  "image_count": 1,
+  "hdr": {
+    "context_target_before": 0,
+    "input_color_space_components": 3,
+    "provider_bytes": 5120,
+    "decode_request_options": {
+      "compute_hdr_stats": true
+    },
+    "rgb_min": 0,
+    "alpha_min": 1,
+    "alpha_max": 1,
+    "input_icc_sha256": "f7947012e177fb92ceb9af5d66e48a890f5d50c15806682c1d11e7d2660d799d",
+    "context_target_after": 0,
+    "context_target_set": false,
+    "input_color_space_present": 1,
+    "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+    "headroom": 8,
+    "rgb_mean": 3.9927808134816587,
+    "pixels_decoded": 1,
+    "image_created": true,
+    "color_space": "unknown",
+    "bits_per_component": 10,
+    "nonfinite_rgb": 0,
+    "height": 16,
+    "samples_above_one": 1920,
+    "width": 80,
+    "bits_per_pixel": 32,
+    "patch_centers": [
+      {
+        "y": 8,
+        "fraction": 0.1,
+        "x": 8,
+        "rgba": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.3,
+        "x": 24,
+        "rgba": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.5,
+        "x": 40,
+        "rgba": [
+          7.983762264251709,
+          7.983762264251709,
+          7.983762264251709,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.7,
+        "x": 56,
+        "rgba": [
+          7.983762264251709,
+          7.983762264251709,
+          7.983762264251709,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.9,
+        "x": 72,
+        "rgba": [
+          7.983762264251709,
+          7.983762264251709,
+          7.983762264251709,
+          1
+        ]
+      }
+    ],
+    "input_icc_bytes": 26620,
+    "bitmap_info": 204806,
+    "rgb_max": 7.983762264251709,
+    "input_color_space_model": 1,
+    "nonzero_rgb_samples": 1968,
+    "bytes_per_row": 320
+  },
+  "path": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+  "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/hdr_stats/A80/imageio/source-properties.plist",
+  "sdr": {
+    "context_target_before": 0,
+    "input_color_space_components": 3,
+    "provider_bytes": 5120,
+    "decode_request_options": {
+      "compute_hdr_stats": false
+    },
+    "rgb_min": 0,
+    "alpha_min": 1,
+    "alpha_max": 1,
+    "input_icc_sha256": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+    "context_target_after": 0,
+    "context_target_set": false,
+    "input_color_space_present": 1,
+    "provider_sha256": "cd7ea07100f775c17d4b0385428ed2a750442ce93b7358d032e6f0c43422d205",
+    "headroom": 1,
+    "rgb_mean": 0.5009033203125,
+    "pixels_decoded": 1,
+    "image_created": true,
+    "color_space": "kCGColorSpaceSRGB",
+    "bits_per_component": 8,
+    "nonfinite_rgb": 0,
+    "height": 16,
+    "samples_above_one": 0,
+    "width": 80,
+    "bits_per_pixel": 32,
+    "patch_centers": [
+      {
+        "y": 8,
+        "fraction": 0.1,
+        "x": 8,
+        "rgba": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.3,
+        "x": 24,
+        "rgba": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.5,
+        "x": 40,
+        "rgba": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.7,
+        "x": 56,
+        "rgba": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.9,
+        "x": 72,
+        "rgba": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "input_icc_bytes": 3144,
+    "bitmap_info": 5,
+    "rgb_max": 1,
+    "input_color_space_model": 1,
+    "nonzero_rgb_samples": 1968,
+    "bytes_per_row": 320
+  },
+  "max_sdr_hdr_delta": 6.983762264251709,
+  "source_properties_sha256": "a11b2e8def471823be27cf3ba1afab51751d8dbef577416644f4adaec6c722d1",
+  "source_properties_bytes": 594,
+  "source_property_keys": [
+    "ColorModel",
+    "Depth",
+    "Headroom",
+    "Orientation",
+    "PixelHeight",
+    "PixelWidth",
+    "ProfileName",
+    "{TIFF}"
+  ],
+  "payloads": {
+    "sdr": {
+      "provider_bytes": 5120,
+      "provider_sha256": "cd7ea07100f775c17d4b0385428ed2a750442ce93b7358d032e6f0c43422d205",
+      "drawn_rgba_f32_bytes": 20480,
+      "drawn_rgba_f32_sha256": "3806b53d7f9c46650fcb8ccf638eb815a4b35903ab34527be07393ac48a258da",
+      "returned_icc_bytes": 3144,
+      "returned_icc_sha256": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+      "headroom": 1,
+      "rgb_min": 0,
+      "rgb_max": 1,
+      "rgb_mean": 0.5009033203125,
+      "samples_above_one": 0,
+      "nonfinite_rgb": 0,
+      "patch_centers": [
+        {
+          "y": 8,
+          "fraction": 0.1,
+          "x": 8,
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.3,
+          "x": 24,
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.5,
+          "x": 40,
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.7,
+          "x": 56,
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.9,
+          "x": 72,
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "color_space": "kCGColorSpaceSRGB"
+    },
+    "hdr": {
+      "provider_bytes": 5120,
+      "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+      "drawn_rgba_f32_bytes": 20480,
+      "drawn_rgba_f32_sha256": "251345c4350cded78817df16d9d5289531175ed3afff28572be132f53881642c",
+      "returned_icc_bytes": 26620,
+      "returned_icc_sha256": "f7947012e177fb92ceb9af5d66e48a890f5d50c15806682c1d11e7d2660d799d",
+      "headroom": 8,
+      "rgb_min": 0,
+      "rgb_max": 7.983762264251709,
+      "rgb_mean": 3.9927808134816587,
+      "samples_above_one": 1920,
+      "nonfinite_rgb": 0,
+      "patch_centers": [
+        {
+          "y": 8,
+          "fraction": 0.1,
+          "x": 8,
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.3,
+          "x": 24,
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.5,
+          "x": 40,
+          "rgba": [
+            7.983762264251709,
+            7.983762264251709,
+            7.983762264251709,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.7,
+          "x": 56,
+          "rgba": [
+            7.983762264251709,
+            7.983762264251709,
+            7.983762264251709,
+            1
+          ]
+        },
+        {
+          "y": 8,
+          "fraction": 0.9,
+          "x": 72,
+          "rgba": [
+            7.983762264251709,
+            7.983762264251709,
+            7.983762264251709,
+            1
+          ]
+        }
+      ],
+      "color_space": "unknown"
+    }
+  }
+}

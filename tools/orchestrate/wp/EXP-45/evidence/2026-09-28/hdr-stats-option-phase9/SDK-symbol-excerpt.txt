@@ -1,0 +1,11 @@
+# ImageIO SDK declarations used by phase 9
+
+SDK header path: `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/ImageIO.framework/Headers/CGImageSource.h`
+SDK header SHA-256: `1c6b86cd4f49cfd618e90739c72cd7d9610aaf8d44734ef1ede191aafdc9667b`
+
+
+/* kCGImageSourceDecodeRequestOptions - CFDictionaryRef to specify additional options
+ */
+IMAGEIO_EXTERN const CFStringRef kCGImageSourceDecodeRequestOptions     IMAGEIO_AVAILABLE_STARTING(14.0, 17.0, 17.0, 10.0);
+// HDR statistics
+IMAGEIO_EXTERN const CFStringRef kCGComputeHDRStats                     IMAGEIO_AVAILABLE_STARTING(16.0, 19.0, 19.0, 12.0);

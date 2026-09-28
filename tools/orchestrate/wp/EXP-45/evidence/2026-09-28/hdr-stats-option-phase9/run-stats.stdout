@@ -1,0 +1,74 @@
+{
+  "uniform80": {
+    "default": 16,
+    "enabled": 16,
+    "deltas": {
+      "sdr": {
+        "provider_identical": true,
+        "draw_identical": true,
+        "returned_icc_identical": true,
+        "same_headroom": true,
+        "rgb_max_delta": 0,
+        "rgb_mean_delta": 0.0,
+        "same_samples_above_one": true
+      },
+      "hdr": {
+        "provider_identical": true,
+        "draw_identical": true,
+        "returned_icc_identical": true,
+        "same_headroom": true,
+        "rgb_max_delta": 0.0,
+        "rgb_mean_delta": 0.0,
+        "same_samples_above_one": true
+      }
+    }
+  },
+  "split80": {
+    "default": 8,
+    "enabled": 8,
+    "deltas": {
+      "sdr": {
+        "provider_identical": true,
+        "draw_identical": true,
+        "returned_icc_identical": true,
+        "same_headroom": true,
+        "rgb_max_delta": 0,
+        "rgb_mean_delta": 0.0,
+        "same_samples_above_one": true
+      },
+      "hdr": {
+        "provider_identical": true,
+        "draw_identical": true,
+        "returned_icc_identical": true,
+        "same_headroom": true,
+        "rgb_max_delta": 0.0,
+        "rgb_mean_delta": 0.0,
+        "same_samples_above_one": true
+      }
+    }
+  },
+  "A80": {
+    "default": 8,
+    "enabled": 8,
+    "deltas": {
+      "sdr": {
+        "provider_identical": true,
+        "draw_identical": true,
+        "returned_icc_identical": true,
+        "same_headroom": true,
+        "rgb_max_delta": 0,
+        "rgb_mean_delta": 0.0,
+        "same_samples_above_one": true
+      },
+      "hdr": {
+        "provider_identical": true,
+        "draw_identical": true,
+        "returned_icc_identical": true,
+        "same_headroom": true,
+        "rgb_max_delta": 0.0,
+        "rgb_mean_delta": 0.0,
+        "same_samples_above_one": true
+      }
+    }
+  }
+}
