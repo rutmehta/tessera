@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current coordinator checkpoint — 2026-09-28 02:39 UTC
+## Current coordinator checkpoint — 2026-09-28 02:53 UTC
 
 - **DONE native save retry** main `d4274a68`, tested `85de2860`: 21 Develop
   plus two adjacent tests, strict/fmt passed; repair reads current disk recipe.
@@ -18,21 +18,25 @@
 - **Core close behavioral RED confirmed** at `7cc7d39d` against `8ab43f64`:
   two tests, ten expected state/persistence assertion failures, direct exit 1.
   Failed host/native close marks the controller closed, drops listeners and cannot
-  retry. Root inspected raw outcomes. Initial `e96781ac` test-harness compile
-  failure is separately preserved; corrected synchronous wait keeps a five-second
-  bound. Compiler released. Resource Sol now implements the reviewed Core result
-  contract and extends deterministic admission tests; independent review precedes
-  its next gate. No product acceptance or main integration yet.
-- **Next:** make host drains return actual errors, retain a failed shared close
-  attempt and reject mutations during close. Independent reviewer audits all
-  admission entry points. Then implement AppModel strong recovery ownership and
-  navigation/Review/Layers/Agent/export/print/quit barriers. Discard and Stage C
-  lease/CAS remain blocked. Existing callers that ignore close failure are unsafe.
-- **B source-only planning:** request `3efd98f3` asks for concrete AppModel recovery
-  slices and deterministic tests. SSH queue `01a0e5e1-4676-7cd1-b874-89d4a06dc690`
-  accepted transport; exact-target accepted peer receipt verified at 02:39 UTC.
-  Existing B chat also reports active planning. No B workloads, main merges
-  or heartbeat restart. A alone owns main merges.
+  retry. Initial `e96781ac` harness compile failure is separately preserved.
+- **Resource Sol owns compiler** for candidate `25281354`: typed shared close
+  outcome, error-aware settings/mask drain, admission guards, deferred task
+  cancellation and 13 deterministic close tests. Root and independent review
+  found/fixed unencodable-patch false success and missing returns before this gate.
+  Source review now has no blocker; no runtime acceptance or main product merge.
+  Callback-descendant tasks retain their originating attempt outcome; independent
+  user Retry may create a new attempt. No AppModel recovery implementation yet.
+- **B recovery plan accepted**: revised `d4793913` integrated as main `26884965`.
+  Shared save outcome is separate from caller cancellation; Quit late veto restores
+  the prior editor, folder callbacks settle exactly once, and output admission
+  lasts through actual capture/completion. First plan's ambiguous contracts have
+  a failed receipt; revised result `3aa90667` has a completed source-plan receipt.
+  Requests `3efd98f3` and `58434c0c` reached B through existing-chat SSH queues
+  and received peer acknowledgements/results. No product/runtime claim follows.
+- **Next:** finish the Core gate, then implement the accepted AppModel recovery
+  registry and navigation/Review/Layers/Agent/output/termination barriers. Discard
+  and Stage C lease/CAS remain blocked. B keeps Document ownership and its workload
+  hold; no builds/tests/apps/benchmarks or heartbeat restart. A alone merges main.
 - Normal user preview PID57591 remains untouched on older65fa build; merging
   main does not update that package. No new performance acceptance claimed.
 
