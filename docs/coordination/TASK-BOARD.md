@@ -1,16 +1,16 @@
 # Tessera task board — Machine A coordinator
 
-## Current blockers and active lanes — 2026-09-28 05:39 UTC
+## Current blockers and active lanes — 2026-09-28 05:51 UTC
 
 | Lane | Owner | Verified outcome / next action |
 | --- | --- | --- |
-| Recovery Layers handoff | Luna tests; reviewer Sol product; B Document API | `f24534ca` passed 56 focused but full Release FAILED 589 XCTest/1 skip/2 assertions in one Layers cancellation case; five Swift Testing passed. Evidence on main `de30e940`, 27 payloads verified (packaging correction documented). Explicit selection/library navigation invalidation `4e7b28f0` + `4dea6e77` is UNRUN. Three held-close/backend regressions being frozen for a bounded RED check. |
-| Layers mode/status ownership | B source author; A review/test | Internal Document install assigns Document mode while the recipe-read reservation is active, overwriting newer status through rejected navigation. Explicit default-true activation option requested as `90f54b3e-453e-4cf5-9e63-0741aeb11e2c`; SSH queue `01a0e685-9e8c-7ec1-9687-d4deca2b4c6e` accepted, peer receipt pending. A will opt in false and publish mode only after matching completion. |
-| Save As choosing-sheet cancellation | B source; A isolated candidate | Passed 2a94 evidence on main `096c805c`, 22 portable payloads and 12 inputs verified. Product still held. B correction `2cc48419` integrated trace-free as `51de5e8e` with tests `2b902627`/`a1d23830`, UNRUN. Claimed-but-never-attached liveness remains unresolved; follow-up `776e287a` via queue `01a0e680-fa74-77d2-b6ab-8a42477853a4` has verified B accepted receipt. |
-| Staged filter composition | Resource Sol | Separate source-only branch: product `86838901`, final real-person fixture tests `df9fbfd7`, tests-only RED checkpoint `e05a609b`. Seven cases await serial RED/green gates; not included in recovery candidate. |
-| Recovery GUI | Reviewer Sol | Source reviewed and isolated package script prepared only. Must wait for corrected focused/full passes; no recovery app launched. |
+| Recovery navigation / Layers | Luna tests; Resource Sol preview fix | `5a82058d` passed 58 + 7 focused checks with unchanged inputs, but full Release FAILED: 597 XCTest/1 skip/1 Review preview failure, plus five Swift Testing passed. Sole failure is AgentReviewLayoutTests line141 missing preview after33.161s. Prior Layers cancellation/status failures are fixed in scoped gates; no overall acceptance or recovery GUI yet. |
+| Review preview transient admission | Resource Sol product; Luna deterministic test | Concrete source path: new Review preview receives `.blocked([])` while cancelled prior view retains read gate through actual native flight drain, then never reloads on drain alone. Consistent with observed timeout; deterministic held-flight regression pending. No timeout waiver, early native release, or automatic failed-save retry. Source-only while Document owns heavy lane. |
+| Save As terminal ownership | Reviewer Sol; B source author | Frozen trace-free `88de50ea` includes choosing-sheet drain plus terminal probe leases/dismissal/clear-parent fallback. Independent review found no blocker; 43-test gate running, actual cancellation/queued-successor/Replace GUI follows if green. Prior 2a94 scoped full569+5/GUI passes remain on main `096c805c`; new candidate UNRUN until direct gate results. |
+| Layers activation API | B source complete; A tests | Explicit activateDocument default true from B `e38caf11`, tests `153d7653`, A caller false in `5a82058d`. Real c4ba four-case RED reproduced status clobber; corrected scoped tests passed. Result `c73b8d12` accepted pending completed validation/evidence. |
+| Staged filters / facets | Resource Sol separate branch | Original seven-test RED `e05a609b`, product+tests `df9fbfd7`; newer Layers/filter cancellation RED `c15b8ce8`, final source `0d584a71`. Nine tests await serial gates; not included in recovery candidate. Real seeded person IDs and preserved cleanup required. |
 
-A alone merges main. These latest main commits publish evidence/docs, not recovery or Save As product. Preserve original failures, current user preview PID57591, and B source-only workload hold/paused heartbeat. Queue publication is distinguished from peer receipt.
+Main contains evidence/docs only for this wave. Earlier expanded recovery evidence is on `de30e940` (27 payloads verified; packaging correction documented). B accepted/completed source requests through Git mailbox and existing SSH queue; terminal-probe result `5018e46b` and choosing result `6b02b287` remain accepted pending runtime gates. A alone merges main. User preview PID57591 untouched; B source-only hold and paused heartbeat unchanged.
 
 ## Validation and review update — 2026-09-28 05:26 UTC
 
