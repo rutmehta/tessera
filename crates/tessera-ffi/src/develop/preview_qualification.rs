@@ -576,18 +576,32 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
         let output_kind = if float { RenderOutput::DisplayLinear(Headroom::new(4.)) }
             else { RenderOutput::Display };
         let resident = RESIDENT.lock().unwrap().contains(&(frame.generation, frame.level, output_kind));
+        let pixel_file = format!("cycle-{cycle}.rgb32f");
+        let settings: serde_json::Value = serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+        let mut row = json!({"cycle":cycle,"initial_open":cycle==0,"route":route,"backend":info.backend,
+            "format":format,"viewport":[640,426],"settings":settings,"plan_level":plan.level,
+            "level":frame.level,"dimensions":[frame.width,frame.height],
+            "display_dimensions":[frame.display_width,frame.display_height],"generation":frame.generation,
+            "open_ms":returned.duration_since(start).as_secs_f64()*1000.,
+            "post_open_delivery_ms":delivered.duration_since(returned).as_secs_f64()*1000.,
+            "open_to_final_callback_ms":delivered.duration_since(start).as_secs_f64()*1000.,
+            "resident":resident,"submissions":after.submissions-before.submissions,
+            "pixel_readback_bytes":after.pixel_readback_bytes-before.pixel_readback_bytes,
+            "released":false,"release_ms":null,"phase":"measured",
+            "release_deadline_ms":5000,"pixel_file":pixel_file});
+        // Persist measured evidence before route/pixel/lifecycle assertions can fail.
+        fs::write(output.join(format!("cycle-{cycle}-measured.json")),
+            serde_json::to_vec_pretty(&row).unwrap()).unwrap();
         assert_eq!(resident, metal, "selected backend is not proof of this frame's route");
         assert_eq!(after.submissions > before.submissions, metal);
         assert_eq!(after.pixel_readback_bytes, before.pixel_readback_bytes);
         if metal { assert!(after.last_resident_dispatches > 0); }
         // All readback, file IO, settings comparison and lifecycle waits are AFTER delivery.
-        let pixel_file = format!("cycle-{cycle}.rgb32f");
         let pixel_bytes = pixels(ring.iter().find(|s| s.id() == frame.surface_id).unwrap(), &frame, float);
         if float {
             assert!(pixel_bytes.as_chunks::<4>().0.iter().any(|v| f32::from_le_bytes(*v) > 1.));
         }
         fs::write(output.join(&pixel_file), pixel_bytes).unwrap();
-        let settings: serde_json::Value = serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
         assert_eq!(settings, serde_json::to_value(&recipe.settings).unwrap());
         session.set_listener(None);
         session.close().unwrap();
@@ -609,17 +623,10 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
         assert_eq!(digest(&pixels_path), proxy_hash);
         assert_eq!(digest(&fixture), fixture_hash);
         assert_eq!(digest(&original), fixture_hash);
-        rows.push(json!({"cycle":cycle,"initial_open":cycle==0,"route":route,"backend":info.backend,
-            "format":format,"viewport":[640,426],"settings":settings,"plan_level":plan.level,
-            "level":frame.level,"dimensions":[frame.width,frame.height],
-            "display_dimensions":[frame.display_width,frame.display_height],"generation":frame.generation,
-            "open_ms":returned.duration_since(start).as_secs_f64()*1000.,
-            "post_open_delivery_ms":delivered.duration_since(returned).as_secs_f64()*1000.,
-            "open_to_final_callback_ms":delivered.duration_since(start).as_secs_f64()*1000.,
-            "resident":resident,"submissions":after.submissions-before.submissions,
-            "pixel_readback_bytes":after.pixel_readback_bytes-before.pixel_readback_bytes,
-            "released":true,"release_ms":release_start.elapsed().as_secs_f64()*1000.,
-            "release_deadline_ms":5000,"pixel_file":pixel_file}));
+        row["released"] = json!(true);
+        row["release_ms"] = json!(release_start.elapsed().as_secs_f64()*1000.);
+        row["phase"] = json!("validated_and_released");
+        rows.push(row);
         // Incremental evidence survives any later cycle failure.
         fs::write(output.join("reopen-results.json"), serde_json::to_vec_pretty(&json!({
             "metric":"public open to matching final IOSurface callback (not physical display)",
