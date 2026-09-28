@@ -1,5 +1,15 @@
 # Tessera task board — Machine A coordinator
 
+## Parallel work and Save As design decision — 2026-09-28 07:05 UTC
+
+- Luna owns sole compiler lane: staged-filter tests-only `eb15a6e0` on accepted status source291857e1, then narrow AppModel implementation if genuine RED. Resource explicitly released idle compiler while revising source; no overlapping build.
+- Develop writer tests `546c19c1` reproduced stale flush returning success after newer settings (direct101); selection and legacy RGB controls passed. Initial fixtures78b failed for invalid history/Engine lifetime and are retained. Product28a hit compile error and source review found typed comparisons lose nested unknown JSON; unaccepted. Resource adds raw owner projection, fail-closed unknown handling and no-sidecar/selection equivalence; reviewer Sol checks source. No lease/batch Apply.
+- Save As owned-presenter design9af7fb8b independently reviewed by root/Luna. Mandatory correction: distinct bridge binding generation so old teardown on the same NSWindow cannot invalidate the newer binding. Root checked Apple beginSheet/sheets contracts; no polling or parent-notification-as-identity shortcut. B implementation request `be627c0e-b85b-4f4f-8b07-88ee651038c1`, queue `01a0e6d4-d870-7190-bc68-d5b7331e6214` accepted; peer receipt pending at this publication. Source only; actual GUI/full acceptance remains required.
+- Existing Save As candidate010617b8 retains five non-gap tests plus one explicit fully-unseen-lifetime RED, all UNRUN. No product merge or expected-failure waiver. Earlier actual Cancel/repeat failure remains evidence. Recovery-status fix291857e1 is already integrated, 19 tests/direct0 and23 payloads verified.
+
+A alone merges main. B resource hold/paused heartbeat remains; user preview57591 is untouched.
+
+
 ## Current execution queue — 2026-09-28 06:56 UTC
 
 | Task | Owner | State | Next action / acceptance |
