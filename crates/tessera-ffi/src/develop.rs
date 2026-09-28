@@ -3607,13 +3607,16 @@ mod tests {
         }
         drop(attempt_state);
         let before = session.get_settings_json().unwrap();
+        assert!(session.shared.save.lock().unwrap().due.is_none());
         assert!(
             session
                 .set_settings(r#"{"tone":{"exposure":1.2}}"#.into(), false)
                 .is_err()
         );
+        assert!(session.commit("Closing edit".into()).is_err());
         assert!(session.flush().is_err());
         assert_eq!(session.get_settings_json().unwrap(), before);
+        assert!(session.shared.save.lock().unwrap().due.is_none());
         let mut state = pause_state.lock().unwrap();
         state.1 = true;
         pause_cv.notify_all();
@@ -3672,6 +3675,50 @@ mod tests {
         assert!(results[1].contains("cannot flush itself"));
         drop(results);
         session.close().unwrap();
+    }
+
+    #[test]
+    fn temporary_depth_histogram_session_coexists_with_editor_and_closed_editor() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([120, 80, 40]))
+            .save(photos.join("depth.jpg"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let mut rows = engine.list_images(crate::ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 1);
+        let id = rows.remove(0).id;
+        let editor = engine.clone().open_develop_session(id.clone()).unwrap();
+        let input = editor.shared.depth_input().unwrap();
+        let rgb = image_core::depth::model_input(&input).unwrap();
+        let depth = image_core::ml_depth::DepthMap::from_prediction(
+            input.width(),
+            input.height(),
+            vec![0.; input.width() as usize * input.height() as usize],
+        )
+        .unwrap();
+        let store = image_core::ml_depth::DepthStore::new(
+            engine.db.parent().unwrap().join("previews/depth-cache"),
+            1 << 20,
+        )
+        .unwrap();
+        depth
+            .store(
+                &store,
+                &image_core::ml_depth::cache_key(&rgb, image_core::ml_depth::MODEL_VERSION),
+            )
+            .unwrap();
+
+        let while_open = engine.clone().depth_histogram(id.clone()).unwrap();
+        assert_eq!(while_open.len(), 256);
+        assert!(!editor.shared.lock().unwrap().closed);
+        editor.close().unwrap();
+        let after_close = engine.depth_histogram(id).unwrap();
+        assert_eq!(after_close, while_open);
     }
 
     #[test]
