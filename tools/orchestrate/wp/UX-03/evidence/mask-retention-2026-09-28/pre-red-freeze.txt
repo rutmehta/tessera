@@ -1,0 +1,10 @@
+Frozen before baseline RED run
+Branch: codex/mask-retention-red-validation
+HEAD: 36f5845d03104e60ea55008857819a56120920cd
+Test SHA-256: 236f1e318465c9dd3db426862f5cb0ffc1090a2a1805aaa71b83a882279780b1
+FFI archive SHA-256: 8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03
+TesseraFFI.swift SHA-256: b78ca980fa0ed7997ad3f65c17a7ea3b509758ebf466679f130702d83f25bca4
+CTesseraFFI.h SHA-256: e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703
+module.modulemap SHA-256: efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd
+Command: swift test --jobs 2 --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/mask-retention-red-validation/scratch -c release -Xswiftc -enable-testing --filter DevelopMaskPendingRetentionTests/testRejectedComponentAndUnattemptedGroupsParamsSurvive
+Scope: ONLY the baseline component/unattempted-groups test; bounded 600-second watchdog; no GUI activation.

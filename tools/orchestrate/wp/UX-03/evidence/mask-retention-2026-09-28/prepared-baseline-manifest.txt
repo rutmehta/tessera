@@ -1,0 +1,10 @@
+Prepared test-only baseline snapshot; no build or test run performed.
+Branch: codex/mask-retention-red-validation
+Prepared HEAD: 36f5845d03104e60ea55008857819a56120920cd
+Base integration commit: 40d3054e0e4f4563bbc5b4ec09eca29e014d1959
+Only tracked change from base: apps/mac/Tests/TesseraCoreTests/DevelopMaskPendingRetentionTests.swift copied byte-for-byte from 9ee4957df8bcfe5765e47157bfefbebd278d599d
+Test file SHA-256: 236f1e318465c9dd3db426862f5cb0ffc1090a2a1805aaa71b83a882279780b1
+Baseline filter for later behavioral RED: DevelopMaskPendingRetentionTests/testRejectedComponentAndUnattemptedGroupsParamsSurvive only.
+Do not use the four later liveness tests as baseline RED; they depend on APIs absent from this baseline. Do not run until root releases full-suite compiler slot.
+Preserved original FFI archive byte-for-byte at input-backup/libtessera_ffi.a.0a9; SHA-256 0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae.
+Prepared matching integration 40d inputs in apps/mac/build/ffi (ignored local build artifacts): archive 8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03; generated TesseraFFI.swift b78ca980fa0ed7997ad3f65c17a7ea3b509758ebf466679f130702d83f25bca4; C header e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703; module map efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd. Generated files match tracked source inputs from commit 40d3054e.
