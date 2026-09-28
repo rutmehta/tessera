@@ -1,5 +1,11 @@
 # Tessera task board — Machine A coordinator
 
+## Smart Preview implementation and B handoff — 2026-09-28 15:43 UTC
+
+User explicitly authorized implementation. Clean managed checkout export-integration is reused as codex/smart-previews from main7f98ab79. Astra implements the camera-linear CPU boundary with sole compiler lane; Luna independently prepares local journal storage source without builds; a second Astra reviews B Save As source. Plan: docs/superpowers/plans/2026-09-28-smart-previews.md. End-to-end Smart Previews are NOT implemented/accepted yet. Original photos remain untouched; existing Sony ARW fixture suffices to start, optional camera/sample-folder question is not blocking.
+
+B source result0a6d71e8 and status426c3a04 target this chat UUID and have accepted receipts. origin/codex/save-destination-swift0f820dff contains tests7b7a5dcb/8976f2fe and product3d4b34f4 on81cc08eb; all B runtime UNRUN. Takeover now92a7cb4e. B confirms queue01a0e8a7-e244-72d0-8145-4e331243a383 reached its existing writer and that the tests-only checkpoint had already advanced. This supersedes the earlier interruption/usage blocker; no duplicate resume. Source result remains pending A review/tests and main merge. B retains Document ownership.
+
 ## Peer interruption reconciled and proxy source boundary checked — 2026-09-28 15:30 UTC
 
 Fetch/takeover unchangedcd8445349; mailboxBcbad4852 still has accepted request8638c362, with no result/new incoming or in-progress A work. Native compact snapshot now exposes B's actual latest turn01a0e898-9700-7622-b781-08019f6c758d: failed with usage-limit error after source work. This conclusion comes from the turn error and saved commands, not its separate notLoaded host status. A single recent-turn read confirms B created codex/save-destination-swift at81cc08eb and committed tests-only7b7a5dcb in /Users/rutmehta/Developer/lightroom/.worktrees/B5-16. Three test files,257 insertions/13 deletions; explicitly UNRUN. No completed product or published handoff is claimed. Preserve B's branch/reservation and accepted receipt; do not ACK, resend or launch a duplicate writer.
