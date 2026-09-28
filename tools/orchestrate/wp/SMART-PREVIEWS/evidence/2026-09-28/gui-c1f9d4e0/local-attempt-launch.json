@@ -1,0 +1,19 @@
+{
+  "prior_pid": 70776,
+  "verified_command": "/Volumes/betterSSD/tessera-validation/smart-previews/gui-c1f9d4e0/Tessera Smart Preview c1f9d4e0.app/Contents/MacOS/Tessera --app-dir /Volumes/betterSSD/tessera-validation/smart-previews/gui-c1f9d4e0/profile --folder /Volumes/betterSSD/tessera-validation/smart-previews/gui-c1f9d4e0/photos",
+  "signal": "SIGTERM",
+  "prior_exited": true,
+  "argv": [
+    "open",
+    "-n",
+    "/Volumes/betterSSD/tessera-validation/smart-previews/gui-c1f9d4e0/Tessera Smart Preview c1f9d4e0.app",
+    "--args",
+    "--app-dir",
+    "/tmp/tessera-smart-preview-gui-c1-local/profile",
+    "--folder",
+    "/tmp/tessera-smart-preview-gui-c1-local/photos"
+  ],
+  "exit": 0,
+  "stdout": "",
+  "stderr": ""
+}

@@ -23,7 +23,7 @@ def run(argv):
 A=E/'Tessera Smart Preview c1f9d4e0.app'
 for d in ['Contents/MacOS','Contents/Resources','Contents/Frameworks']:(A/d).mkdir(parents=True,exist_ok=True)
 for d in ['profile','photos','exports']:(E/d).mkdir()
-shutil.copyfile(S/'Tessera',A/'Contents/MacOS/Tessera')
+shutil.copy2(S/'Tessera',A/'Contents/MacOS/Tessera')
 shutil.copyfile(F,E/'photos/sony-arw.ARW')
 for rel,name in [('apps/mac/Support/Info.plist','source-Info.plist'),('apps/mac/Support/release/Tessera-adhoc.entitlements','Tessera-adhoc.entitlements')]:
  (E/name).write_bytes(subprocess.check_output(['git','show',C+':'+rel],cwd=R))

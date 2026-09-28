@@ -1,0 +1,21 @@
+# Actual native GUI checkpoint — final08 c1f9d4e0
+
+The initial BetterSSD-profile attempt remains a startup failure, documented separately in GUI-ATTEMPT.md. With root authorization, verified PID70776's exact executable/arguments, sent SIGTERM only to it, and confirmed exit. No SIGKILL or other-app action occurred. Created a fresh local profile and regular fixture copy at /tmp/tessera-smart-preview-gui-c1-local; original source bytes preserved. Same signed final08 app was used without rebuild. This narrower local-profile success does not qualify external-volume profile startup.
+
+## Observed real UI flow
+
+All menus, editor actions and quit commands below used native CUA on dev.tessera.smart-preview-gui.c1f9d4e0, not test-only shortcuts. Initial/restart open commands used explicit approved arguments; only owned photo directory moves used filesystem operations while the owned process was stopped.
+
+1. Local launch opened one RAW in photos, original preference default; Smart Preview menu showed No Smart Preview. Build Selected RAW completed with `1/1 succeeded`, result `sony-arw.ARW: Succeeded · Smart Preview`.
+2. Ordinary Cmd-Q and process-exit check preceded moving owned photos -> photos-held. Relaunched same profile without --folder: remembered canonical path opened one-photo `Cached Smart Preview Library · Catalog read-only · Subfolders unavailable`. Selection controls disabled. Screenshot visibly showed rendered cube in grid and filmstrip despite absent original path.
+3. Library > Smart Previews > Use Smart Preview, then Edit photo opened a rendered proxy with histogram. Actual slider drags changed Exposure from+0.00 to+1.00 and Temperature4632K->5700K. AX reported History: Temperature5700K. Back to Library closed the editor; pending local edits/Smart Preview thumbnail labels appeared.
+4. Attempted Discard via menu. It refused, displaying `Pending Smart Preview edits must be synchronized before discard`, `0/1 succeeded`, and a per-photo Not completed result. No discard occurred.
+5. Ordinary quit/relaunch while original remained absent reopened pending edits. New process PID78308 was recorded; Edit photo displayed Exposure+1.00 and Temperature5700K, with the brightened/warmed cube visibly rendered in screenshot. This verifies actual separate-process offline edit persistence. An early Cmd-Q while editor operation drained was correctly refused with `Finish the current photo save or operation before quitting`; Back to Library then Cmd-Q exited normally.
+6. After confirmed exit, restored photos-held -> photos. Relaunch opened normal Library showing pending edits. GUI Sync completed `1/1 succeeded`; photo status became Edited and Smart Preview no longer pending. Turned Use Smart Previews preference off, opened Edit photo, confirmed loaded +1.00/5700K settings. Menu explicitly reported `Editing source: Original`.
+7. Returned to Library, ordinary Cmd-Q; anchored pgrep confirmed owned app absent. Runtime lane released to root. Source RAW hash and local RAW hash equal initial fixture hash; final local file hashes retained.
+
+## Evidence and limits
+
+Native AX trees and two visible screenshots (offline grid and persisted offline editor) are in the agent tool conversation; no on-disk screenshot was produced. This report transcribes exact observed labels rather than fabricating a screenshot file. Commands/provenance: package manifest, local-attempt-launch.json, startup sample, local-gui-final-hashes.json. Initial local and reconnect process IDs were not captured; PID78308 identifies the verified offline-edit reopen. Cmd-Q/app process checks establish ordinary process exits between directory moves. One attempted exit assertion accidentally matched its own shell command text; subsequent anchored pgrep was used instead; no concurrent owned app remains.
+
+Full GUI export, offline export refusal, and Compare-specific thumbnail inspection were deferred at root's runtime-lane checkpoint request. Conflict and multi-photo GUI workflows were not exercised. No claim of pixel parity/performance, protected-prompt access, or external-volume profile acceptance. Existing apps/globalsettings/M258 surfaces were untouched. Original fixture and local RAW preserved; copied photo sidecars and owned profile naturally contain build/edit/sync changes. Local folder is restored and final preference is Original.

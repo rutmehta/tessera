@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Actual GUI offline editing and reconnect verified — 2026-09-28 19:18 UTC
+
+The isolated final08 app now passes the observed local-profile workflow: build preview; ordinary quit; hold only copied original folder; new process opens cached read-only Library with visible thumbnail; explicitly edit proxy to exposure+1.00/temperature5700K; save; quit/relaunch offline with the edited rendering/settings preserved; refuse dirty discard; quit/restore copied original; Sync succeeds1/1; Original editor retains both settings. Owned app is closed. Root independently verified all47 final owned-file hashes; original/source RAW bytes remain unchanged. Native CUA AX/screenshots were observed in the agent tool transcript; no screenshot files are fabricated.
+
+Evidence: `tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/gui-c1f9d4e0/GUI-LOCAL-CHECKPOINT.md`. The initial external-volume profile startup failure remains separate evidence; local-profile success does not qualify that configuration. GUI full export, offline export refusal and Compare remain deferred. Functional desktop process-restart acceptance is now supported for this single copied Sony fixture; cross-camera, multi-photo and performance claims remain open.
+
+Runtime lane returned to FFI for diagnostic07 and subsequent GPU fidelity qualification. GPU remains unaccepted/unmerged, Originaldefault unchanged. In parallel, checked Save As source review is complete in `SAVE-DESTINATION-INTEGRATION-REVIEW.md`: no new Swift blocker, but native75a1b9a6/test2a22145b dependency is not yet on main; future integration must regenerate combined bindings rather than overwrite Smart Preview APIs with old81cc08eb output. No new Save As runtime acceptance.
+
 ## Active qualification follow-up — 2026-09-28 19:12 UTC
 
 The accepted desktop implementation remains main `89b78881` with full evidence `62e4ee5b`. Nine B Smart Preview result receipts are completed. Additional Git status `16770a81` is published; no new peer receipt or wakeup is claimed.

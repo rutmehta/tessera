@@ -1,0 +1,1 @@
+Initial open failed RBSRequestErrorDomain5/POSIX111: packaging copyfile omitted executable mode (0644). Corrected only owned executable mode to0755; reproducible script now copy2. Bytes unchanged.
