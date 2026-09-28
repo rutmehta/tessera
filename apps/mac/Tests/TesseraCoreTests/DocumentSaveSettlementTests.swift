@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import XCTest
 @testable import Tessera
 @testable import TesseraCore
@@ -493,6 +494,9 @@ final class DocumentSaveSettlementTests: XCTestCase {
         XCTAssertTrue(w.saveAsProbeBegan(old, probe: probe))
         let next = w.saveForPreparation(d, saveAs: true) { _ in }
         w.saveAsParentSheetDidEnd(old) // No captured/observed attachment yet.
+        let lateWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                                  styleMask: [], backing: .buffered, defer: true)
+        w.captureSaveAsSheetWindow(old, window: lateWindow) // Probe first reports after end.
         w.saveAsPresentationDidDismiss(old)
         XCTAssertNil(w.saveAsRequest)
         w.saveAsProbeEnded(old, probe: probe)
