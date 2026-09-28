@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Narrow CPU feasibility probe prepared — 2026-09-28 14:28 UTC
+
+No new B mailbox work or receipts; takeover remains cd8445349. The next UX05 render-admission design is deliberately narrow: schema3/Native2, synthetic Bayer CFA, explicit Bilinear demosaic, neutral lens settings, orientation1 and no external hooks. Source review found Display output is dithered U8; proposed U16 route must use L0 SceneLinear and display_float, retaining admitted tone/detail, active crop and one quantization. Exact native artifact/runtime/profile identity is a conservative proposed reopening gate, not cross-build pixel equality.
+
+Writer owns tests-only preparation in the released export-integration worktree on codex/ux05-cpu-profile-probe from eafa129c. Astra reviews before compilation. No production code, real RAW decode, app or capture is authorized by this probe. Heavy lane remains idle until source clearance; normal preview and protected-dialog process are preserved. Existing archived/dirty worktrees and B reservations remain untouched.
+
 ## Pinned RAW descriptor and capture proposal — 2026-09-28 14:20 UTC
 
 The heartbeat fetched origin and read B's unchanged takeover note. Mailbox has no new messages, invalid/expired entries or in-progress receipts; native B snapshot is unavailable and SSH still cannot resolve its hostname. No duplicate request or queue delivery was attempted. Latest status a27b5fd4-c4ca-473a-b209-dbb3338223b2 is publication only.
