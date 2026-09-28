@@ -1,6 +1,6 @@
 # Machine A recovery status
 
-## Measured Smart Preview default decision — 2026-09-28 16:42 UTC
+## Measured Smart Preview default decision — 2026-09-28 16:32 UTC
 
 Matched Sony2460x1638 encoded-display test at6c057641,2 fresh renderers per route/18 rows: originalCPU cold1101/warm794.5/edited818.2ms; proxyCPU385.8/380.9/384.7ms; originalMetal resident tiles including readback332.6/10.05/33.07ms. Proxy improves CPU route but is11.6x slower than originalMetal for warm edits. Keep Original default; explicit/offline Smart Preview choice remains. No appzero-copy or input-to-present claim. Root checked raw rows, source/harness freeze, direct0 and unchanged original. Evidence: matched-sony-6c057641. Initial wrong resident entry-point failure retained.
 

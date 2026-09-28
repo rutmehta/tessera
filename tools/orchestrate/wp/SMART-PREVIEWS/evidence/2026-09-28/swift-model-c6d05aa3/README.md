@@ -1,0 +1,1 @@
+Exact Bc6d05aa3 SmartPreviewController.swift and8 authored SmartPreviewUITests compiled/tested in isolated Swift6 Release package:8passed0failed,directexit0. Exact source hashes before/after match. This is a model-only gate; excludes live nativeadapter, fullTesseraCore/AppModel/App/FFI bindings andGUI. LaterBfollowups not covered. Fullapp/nativeintegration remainpending.

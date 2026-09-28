@@ -1,0 +1,9 @@
+# Smart Preview UI source review — c6d05aa3
+
+Root inspected SmartPreviewController, SmartPreviewNative, menu, AppModel diff, DevelopController diff and eight authored model tests against fa7372b9. Used SwiftUI expert guidance for state ownership, identity and off-main native work. No Swift compilation/runtime or GUI claims.
+
+No blocking source finding in the reviewed first handoff. Explicit route is captured on the actual native controller; proxy opener failure does not retry original. MainActor controller owns cached snapshots, selections use generation+mutation revision invalidation; native blocking calls use detached tasks. Batch is serial and drains the current operation on cancel, preserves per-photo failure, and retains existing recipe reservation through native completion. Menu rows use stable target IDs and cached values. Source switch releases the completed save barrier before opening and rechecks owner/load/selection.
+
+Integration constraints remain: generated native API/bindings absent at this checkpoint, so eight tests UNRUN. Existing recovery/navigation tests must verify added status lookup does not bypass injected opener/cleanup assumptions. Initial selection reads were uncoalesced; B is already implementing accepted follow-up cd101ed1 to avoid repeated expensive native hashing and disclose stale offline thumbnails. Need review that follow-up before final acceptance. Native offline writes must fix all four FFI review findings independently. Preference currently defaults true; no automatic existing original-to-proxy replacement without an explicit built preview, but final default must be decided using measured route performance. Full-quality export remains existing native original route, not proxy upscaling.
+
+No complete-feature, speed, dirty synchronization, cancellation latency or GUI acceptance. Actual app workflow remains required after native/API integration.

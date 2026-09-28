@@ -1,0 +1,5 @@
+{
+  "Package.swift": "45303d24b2eba1a3e0b2a1a22c0373d2aa374274b7dee1cc03a3d94143313467",
+  "Sources/TesseraCore/SmartPreviewController.swift": "a1a0c2987fa2458f674112e99b8fb6edd6ec290ab37d88bd4d876ae034f2f22f",
+  "Tests/TesseraCoreTests/SmartPreviewUITests.swift": "41550ede0fc966a508ee6d61f715c3fe0dcfff8aa10e687616bf8c05aa81474f"
+}

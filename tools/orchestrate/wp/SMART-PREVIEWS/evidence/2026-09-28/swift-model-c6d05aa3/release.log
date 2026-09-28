@@ -1,0 +1,40 @@
+Building for production...
+[0/7] Write sources
+[2/7] /Volumes/betterSSD/tessera-validation/smart-previews/swift-model-c6d05aa3/build/arm64-apple-macosx/release/SmartPreviewModelGatePackageTests.derived/runner.swift
+[3/7] Write sources
+[4/7] Write swift-version--58304C5D6DBC2206.txt
+[6/8] Compiling TesseraCore SmartPreviewController.swift
+[7/9] Compiling TesseraCoreTests SmartPreviewUITests.swift
+[8/10] Compiling SmartPreviewModelGatePackageTests runner.swift
+[8/10] Write Objects.LinkFileList
+[9/10] Linking SmartPreviewModelGatePackageTests
+Build complete! (10.38s)
+Test Suite 'Selected tests' started at 2026-09-28 12:32:38.205.
+Test Suite 'SmartPreviewModelGatePackageTests.xctest' started at 2026-09-28 12:32:38.207.
+Test Suite 'SmartPreviewUITests' started at 2026-09-28 12:32:38.207.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBadgesDescribeOfflinePendingConflictAndActualRoute]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBadgesDescribeOfflinePendingConflictAndActualRoute]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBatchCancelDrainsCurrentPhotoThenStopsAndRetainsOutcome]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBatchCancelDrainsCurrentPhotoThenStopsAndRetainsOutcome]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testClearedSelectionAndSeparateOwnerIgnoreOldCompletion]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testClearedSelectionAndSeparateOwnerIgnoreOldCompletion]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testConflictFailedAndDirtySyncAreNotSuccessAndDirtyDiscardNeverCallsNative]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testConflictFailedAndDirtySyncAreNotSuccessAndDirtyDiscardNeverCallsNative]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOnlyCleanMissingPreviewFallsBackToAvailableOriginal]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOnlyCleanMissingPreviewFallsBackToAvailableOriginal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRouteUsesRequestedSessionAndNeverFallsBackAfterProxyFailure]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRouteUsesRequestedSessionAndNeverFallsBackAfterProxyFailure]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionGenerationSuppressesOldInfoCompletion]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionGenerationSuppressesOldInfoCompletion]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionReadStartedBeforeBatchCannotOverwriteNewOutcome]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionReadStartedBeforeBatchCannotOverwriteNewOutcome]' passed (0.000 seconds).
+Test Suite 'SmartPreviewUITests' passed at 2026-09-28 12:32:38.212.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+Test Suite 'SmartPreviewModelGatePackageTests.xctest' passed at 2026-09-28 12:32:38.212.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 12:32:38.212.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.004 (0.006) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
