@@ -5,6 +5,12 @@ import TesseraCore
 import TesseraFFI
 import UniformTypeIdentifiers
 
+/// Typed handoff callers may own status through their own owner/intent guards.
+enum DocumentLoadStatusPublication: Sendable {
+    case workspace
+    case caller
+}
+
 /// Terminal settlement of backend source capture and optional workspace install.
 enum DocumentLoadOutcome: Equatable, Sendable {
     case installed
@@ -106,7 +112,9 @@ final class DocumentWorkspace {
     }
 
     /// Engine vs stub, per library and policy (the `engine` getter without an override).
-    var resolvedEngine: any DocumentEngine {
+    var resolvedEngine: any DocumentEngine { resolveEngine(statusPublication: .workspace) }
+
+    private func resolveEngine(statusPublication: DocumentLoadStatusPublication) -> any DocumentEngine {
         Self.selectEngine(library: app?.library, policy: policy) { [weak self] in
             if let e = self?.standaloneEngine { return e.engine }
             do {
@@ -114,7 +122,7 @@ final class DocumentWorkspace {
                 self?.standaloneEngine = EngineDocumentEngine.for(e)
                 return e
             } catch {
-                self?.say("Documents: the engine did not open (\(error.localizedDescription)); using the stub backend")
+                self?.publishDocumentLoadStatus("Documents: the engine did not open (\(error.localizedDescription)); using the stub backend", policy: statusPublication)
                 return nil
             }
         }
@@ -198,6 +206,10 @@ final class DocumentWorkspace {
         }
     }
 
+    private func publishDocumentLoadStatus(_ message: String, policy: DocumentLoadStatusPublication) {
+        if case .workspace = policy { say(message) }
+    }
+
     // Tests hold backend completion without native decode, disk or GPU work.
     @ObservationIgnored var documentLoadExecutor: ((any DocumentEngine,
         @escaping @Sendable (any DocumentEngine) throws -> any DocumentBackend,
@@ -207,12 +219,13 @@ final class DocumentWorkspace {
     /// Completion retains the captured engine until actual backend return and
     /// installation/orphan cleanup, even if the workspace no longer exists.
     private func load(_ what: String, engine: any DocumentEngine, done: String,
+                      statusPublication: DocumentLoadStatusPublication = .workspace,
                       completion: @escaping @MainActor (DocumentLoadOutcome) -> Void = { _ in },
                       _ body: @escaping @Sendable (any DocumentEngine) throws -> any DocumentBackend) {
         let token = UUID()
         openingToken = token
         opening = what
-        say("\(what)…")
+        publishDocumentLoadStatus("\(what)…", policy: statusPublication)
         let settlement = DocumentLoadSettlement(engine: engine, completion: completion)
         let receive: @MainActor (Result<any DocumentBackend, Error>) -> Void = { [weak self, settlement] result in
             guard settlement.claim() else { return }
@@ -228,15 +241,15 @@ final class DocumentWorkspace {
             case .success(let backend):
                 do {
                     try self.install(backend)
-                    self.say(done)
+                    self.publishDocumentLoadStatus(done, policy: statusPublication)
                     settlement.finish(.installed)
                 } catch {
                     backend.close()
-                    self.say("\(what): \(error.localizedDescription)")
+                    self.publishDocumentLoadStatus("\(what): \(error.localizedDescription)", policy: statusPublication)
                     settlement.finish(.failed(error.localizedDescription))
                 }
             case .failure(let error):
-                self.say("\(what): \(error.localizedDescription)")
+                self.publishDocumentLoadStatus("\(what): \(error.localizedDescription)", policy: statusPublication)
                 settlement.finish(.failed(error.localizedDescription))
             }
         }
@@ -281,33 +294,34 @@ final class DocumentWorkspace {
     /// Rejections/stub loads may settle synchronously. There is no early cancellation
     /// signal: completion follows backend return, including when the UI disappears.
     func editInLayers(_ item: PhotoItem?,
+                      statusPublication: DocumentLoadStatusPublication = .workspace,
                       completion: @escaping @MainActor (DocumentLoadOutcome) -> Void = { _ in }) {
         guard let item else {
             let message = "Edit in Layers: select a photo first"
-            say(message); completion(.rejected(message)); return
+            publishDocumentLoadStatus(message, policy: statusPublication); completion(.rejected(message)); return
         }
         let what = "Edit \(item.name) in Layers", done = "Editing \(item.name) in layers"
         if !(engineOverride is StubDocumentEngine), let ref = item.engineImage {
             let id = ref.imageID
-            load(what, engine: EngineDocumentEngine.for(ref.engine), done: done, completion: completion) {
+            load(what, engine: EngineDocumentEngine.for(ref.engine), done: done, statusPublication: statusPublication, completion: completion) {
                 try $0.openDocumentFromImage(imageId: id, developed: true)
             }
             return
         }
-        let engine = self.engine
+        let engine = engineOverride ?? resolveEngine(statusPublication: statusPublication)
         guard let url = item.url else {
             let message = "Edit in Layers needs a photo file (stub items have none)"
-            say(message); completion(.rejected(message)); return
+            publishDocumentLoadStatus(message, policy: statusPublication); completion(.rejected(message)); return
         }
         if engine is StubDocumentEngine {
             let id = "file:\(url.path)"
-            load(what, engine: engine, done: done, completion: completion) { try $0.openDocumentFromImage(imageId: id, developed: true) }
+            load(what, engine: engine, done: done, statusPublication: statusPublication, completion: completion) { try $0.openDocumentFromImage(imageId: id, developed: true) }
         } else if item.kind == .raw {
             let message = "Edit in Layers: open the photo's folder to edit a RAW on the engine"
-            say(message); completion(.rejected(message))
+            publishDocumentLoadStatus(message, policy: statusPublication); completion(.rejected(message))
         } else {
             let path = url.path
-            load(what, engine: engine, done: done, completion: completion) { try $0.openDocument(path: path) }
+            load(what, engine: engine, done: done, statusPublication: statusPublication, completion: completion) { try $0.openDocument(path: path) }
         }
     }
 
