@@ -1,5 +1,29 @@
 # Tessera task board — Machine A coordinator
 
+## Current coordinator checkpoint — 2026-09-28 01:41 UTC
+
+- **Stage A native save retry DONE**, main `d4274a68`, tested product `85de2860`.
+  Root verified all 113 source hashes and direct exits; independent Sol review
+  found no blocker. Develop 21/0, adjacent JPEG 1/0 and recipe/history 1/0,
+  formatting and strict Clippy passed. Partial-save retry repairs XMP/index from
+  current disk recipe; concurrent flush callers retain the failed outcome.
+  Portable evidence: `tools/orchestrate/wp/UX-03/evidence/develop-save-retry-2026-09-27/`.
+  Earlier failures and raw-log trailing blank lines remain preserved.
+- **Luna owns the compiler** for rejected Swift settings-patch retention and
+  reentrant callback regressions in `codex/develop-patch-retry`. Prior 33-test
+  Swift gate passed; added regression and final candidate still pending. Its old
+  FFI archive does not establish current-native combined app acceptance.
+- **Stage B close recovery remains pending**, Stage C lease/CAS blocked behind it.
+  No failed-close recovery, all-writer exclusion or multi-file atomicity claim.
+- **B source review requested**: mailbox `651c9cf1-1f4b-41d2-a2b8-3a1befacb5ac`,
+  SSH queue `01a0e5ab-efbd-7030-832c-197eb1659ba9` accepted by transport;
+  peer receipt not yet observed. Review caller boundaries in the close recovery
+  contract. B workload hold and paused heartbeat remain unchanged.
+- Normal user preview PID57591 remains untouched. A alone merges main.
+
+This checkpoint supersedes older in-progress ownership entries below.
+
+
 Updated: 2026-09-28 00:58 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
