@@ -66,7 +66,7 @@ final class SmartPreviewThumbnailTests: XCTestCase {
             smartPreview: { _, _ in calls.append("proxy"); throw ThumbnailProbeError.failed })
         let photo = item(engine, events, .smartPreview, api)
         let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
-                                     proxyRetryWait: { waits.append(String($0)) })
+                                     proxyRetryWait: { _ = waits.append(String($0)) })
         let request = try XCTUnwrap(loader.request(photo, tier: .thumbnail) { _ in XCTFail("Failure has no pixels") })
         await request.waitForFlightDrain()
         XCTAssertEqual(calls.values.count, 4)
@@ -160,7 +160,8 @@ final class SmartPreviewThumbnailTests: XCTestCase {
             smartPreview: { _, _ in throw ThumbnailProbeError.failed })
         let original = item(engine, events, .original, api)
         let proxy = item(engine, events, .smartPreview, api)
-        let loader = ThumbnailLoader()
+        let loader = ThumbnailLoader(thumbnailCostLimit: 1024, previewCostLimit: 1024,
+                                     proxyRetryWait: { _ in })
         let ready = expectation(description: "original cached")
         let first = try XCTUnwrap(loader.request(original, tier: .thumbnail) { _ in ready.fulfill() })
         await fulfillment(of: [ready], timeout: 5)
@@ -278,12 +279,14 @@ private final class ThumbnailReadGate: @unchecked Sendable {
 private actor ThumbnailRetryClock {
     let waiting: XCTestExpectation
     private var continuation: CheckedContinuation<Void, Never>?
+    private var released = false
     init(waiting: XCTestExpectation) { self.waiting = waiting }
     func pause(_ nanoseconds: UInt64) async {
+        guard !released else { return }
         await withCheckedContinuation { continuation in
             self.continuation = continuation
             waiting.fulfill()
         }
     }
-    func resume() { continuation?.resume(); continuation = nil }
+    func resume() { released = true; continuation?.resume(); continuation = nil }
 }
