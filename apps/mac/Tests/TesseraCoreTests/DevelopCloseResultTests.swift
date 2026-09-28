@@ -117,6 +117,108 @@ final class DevelopCloseResultTests: XCTestCase {
         XCTAssertEqual(restored.value(.exposure), 1.25)
         try reopened.close()
     }
+
+    func testMaskFlushFailurePreventsNativeCloseAndRetainsPendingValue() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        session.releaseClose()
+        controller.onNeedsFlush = {}
+        let group = try XCTUnwrap(controller.addMask(
+            LinearGradientShape(start: (0.2, 0.2), end: (0.8, 0.8)).json))
+        controller.setMaskParam(group, "exposure", 0.7, interactive: true)
+        session.rejectNextMaskParam()
+        var failures: [String] = []
+        controller.onFailure = { failures.append($0) }
+
+        await controller.close()
+        XCTAssertEqual(session.closeCount, 0)
+        XCTAssertFalse(controller.closed)
+        XCTAssertEqual(controller.pendingMaskParams[.init(group: group, name: "exposure")], Float(0.7))
+        XCTAssertEqual(failures.first?.contains("injected mask rejection"), true)
+
+        session.releaseClose()
+        await controller.close()
+        XCTAssertEqual(session.maskParamAttempts, 2)
+        XCTAssertEqual(session.closeCount, 1)
+        let reopened = try f.library.engine.openDevelopSession(imageId: f.imageID)
+        let groups = try reopened.maskGroups()
+        XCTAssertEqual(groups.first?.params.first { $0.name == "exposure" }?.value, Float(0.7))
+        try reopened.close()
+    }
+
+    func testClosingRejectsMutationsBeforeChangingHostState() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        defer { session.releaseClose() }
+        controller.onNeedsFlush = {}
+        controller.set(.exposure, 0.5, interactive: true)
+        let group = try XCTUnwrap(controller.addMask(
+            LinearGradientShape(start: (0.2, 0.2), end: (0.8, 0.8)).json))
+        session.rejectNextClose()
+        var failures: [String] = []
+        controller.onFailure = { failures.append($0) }
+        let first = Task { await controller.close() }
+        let entered = await session.waitForCloseEntry()
+        XCTAssertTrue(entered)
+
+        let settingsBefore = try XCTUnwrap(DevelopController.encode(controller.settingsObject))
+        let itemBefore = controller.itemID
+        let maskBefore = controller.pendingMaskParams
+        controller.set(.exposure, 2, interactive: true)
+        controller.relink(itemID: 99)
+        controller.setMaskParam(group, "exposure", 1, interactive: true)
+        XCTAssertEqual(DevelopController.encode(controller.settingsObject), settingsBefore)
+        XCTAssertEqual(controller.itemID, itemBefore)
+        XCTAssertEqual(controller.pendingMaskParams, maskBefore)
+        XCTAssertEqual(session.settingsAttempts, 1, "closing must not send a new patch")
+        XCTAssertGreaterThanOrEqual(failures.count, 1)
+
+        session.releaseClose()
+        await first.value
+        XCTAssertFalse(controller.closed)
+        controller.set(.exposure, 1.25, interactive: true)
+        XCTAssertEqual(controller.value(.exposure), 1.25, "failure reopens edit admission")
+        session.releaseClose()
+        await controller.close()
+        XCTAssertEqual(session.closeCount, 2)
+    }
+
+    func testSuccessfulCloseDrainsOnceAndIsIdempotent() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        controller.onNeedsFlush = {}
+        controller.set(.exposure, 1.25, interactive: true)
+        session.releaseClose()
+        await controller.close()
+        XCTAssertTrue(controller.closed)
+        XCTAssertEqual(session.settingsAttempts, 1)
+        XCTAssertEqual(session.closeCount, 1)
+        XCTAssertEqual(session.listenerDetachCount, 1)
+        XCTAssertFalse(controller.flushPending())
+        await controller.close()
+        XCTAssertEqual(session.closeCount, 1)
+    }
+
+    func testFailureCallbackCloseDoesNotStartAutomaticRetry() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        controller.onNeedsFlush = {}
+        controller.set(.exposure, 1.25, interactive: true)
+        session.rejectNextSettings()
+        var callbackClose: Task<Void, Never>?
+        var failureCount = 0
+        controller.onFailure = {
+            failureCount += 1
+            if callbackClose == nil { callbackClose = Task { await controller.close() } }
+        }
+        session.releaseClose()
+        await controller.close()
+        await callbackClose?.value
+        XCTAssertEqual(failureCount, 1)
+        XCTAssertEqual(session.settingsAttempts, 1)
+        XCTAssertEqual(session.closeCount, 0)
+        XCTAssertFalse(controller.closed)
+    }
 }
 
 /// A real session wrapper that fails before delegation, leaving native retry possible.
@@ -129,11 +231,14 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
     private var closes = 0
     private var settingsCalls = 0
     private var settingsFailures = 0
+    private var maskParamCalls = 0
+    private var maskParamFailures = 0
     private var closeFailures = 0
     private var listenerDetaches = 0
 
     var closeCount: Int { lock.withLock { closes } }
     var settingsAttempts: Int { lock.withLock { settingsCalls } }
+    var maskParamAttempts: Int { lock.withLock { maskParamCalls } }
     var listenerDetachCount: Int { lock.withLock { listenerDetaches } }
 
     init(_ wrapped: DevelopSession) {
@@ -143,6 +248,7 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
     required init(unsafeFromHandle: UInt64) { fatalError("Use the wrapped real session initializer") }
 
     func rejectNextSettings() { lock.withLock { settingsFailures += 1 } }
+    func rejectNextMaskParam() { lock.withLock { maskParamFailures += 1 } }
     func rejectNextClose() { lock.withLock { closeFailures += 1 } }
     func releaseClose() { release.signal() }
     func waitForCloseEntry() async -> Bool {
@@ -172,6 +278,20 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
         if fail { throw CloseFaultError.settings }
         try wrapped.setSettings(jsonPatch: jsonPatch, interactive: interactive)
     }
+    override func addMask(definitionJson: String, interactive: Bool) throws -> UInt32 {
+        try wrapped.addMask(definitionJson: definitionJson, interactive: interactive)
+    }
+    override func maskGroups() throws -> [MaskGroupInfo] { try wrapped.maskGroups() }
+    override func setMaskParam(groupId: UInt32, name: String, value: Float, interactive: Bool) throws {
+        let fail = lock.withLock {
+            maskParamCalls += 1
+            guard maskParamFailures > 0 else { return false }
+            maskParamFailures -= 1
+            return true
+        }
+        if fail { throw CloseFaultError.mask }
+        try wrapped.setMaskParam(groupId: groupId, name: name, value: value, interactive: interactive)
+    }
     override func close() throws {
         let fail = lock.withLock {
             closes += 1
@@ -189,10 +309,11 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
 }
 
 private enum CloseFaultError: LocalizedError {
-    case settings, close, gateTimeout
+    case settings, mask, close, gateTimeout
     var errorDescription: String? {
         switch self {
         case .settings: "injected settings rejection"
+        case .mask: "injected mask rejection"
         case .close: "injected native close rejection"
         case .gateTimeout: "close gate timed out"
         }
