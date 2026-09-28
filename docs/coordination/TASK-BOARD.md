@@ -19,11 +19,15 @@
   two tests, ten expected state/persistence assertion failures, direct exit 1.
   Failed host/native close marks the controller closed, drops listeners and cannot
   retry. Initial `e96781ac` harness compile failure is separately preserved.
-- **Resource Sol owns compiler** for candidate `25281354`: typed shared close
+- **Resource Sol owns compiler** for candidate `dbb740bb`: typed shared close
   outcome, error-aware settings/mask drain, admission guards, deferred task
   cancellation and 13 deterministic close tests. Root and independent review
   found/fixed unencodable-patch false success and missing returns before this gate.
-  Source review now has no blocker; no runtime acceptance or main product merge.
+  First runtime candidate252 passed 12 tests then aborted in the NaN test.
+  Bounded diagnostic proved Foundation raises NSInvalidArgumentException, outside
+  Swift try?. Candidate dbb validates normalized JSON before serialization; crash
+  report, raw failure and finite diagnostic control are preserved. Source review
+  accepted repair; focused/adjacent gates pending, no main product merge.
   Callback-descendant tasks retain their originating attempt outcome; independent
   user Retry may create a new attempt. No AppModel recovery implementation yet.
 - **B recovery plan accepted**: revised `d4793913` integrated as main `26884965`.
@@ -33,6 +37,10 @@
   a failed receipt; revised result `3aa90667` has a completed source-plan receipt.
   Requests `3efd98f3` and `58434c0c` reached B through existing-chat SSH queues
   and received peer acknowledgements/results. No product/runtime claim follows.
+- **Luna source-only:** prepares AppModel recovery RED tests in
+  `codex/develop-recovery-red-tests`; minimal injected opener seam authorized to
+  deterministically create failed stale-open cleanup. No AppModel registry or
+  competing build yet.
 - **Next:** finish the Core gate, then implement the accepted AppModel recovery
   registry and navigation/Review/Layers/Agent/output/termination barriers. Discard
   and Stage C lease/CAS remain blocked. B keeps Document ownership and its workload
