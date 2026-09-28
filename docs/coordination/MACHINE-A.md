@@ -1,3 +1,9 @@
+## 2026-09-28 23:34 UTC — corrected cache gates and queued inspector diagnostic
+
+Independent review verified all 8,646 source hashes for `7faea4b8`, passing strict/22 pure/eight Engine groups and unchanged fixture/runner freezes. Final native/format gates remain active; earlier format/strict failures are preserved. Cache remains unmerged and has no accepted performance claim.
+
+Inspector composition `c5f8bca7` matches all five B `036749da` source/handoff files exactly on qualified `858147a3`. Its 42 focused tests and strict runner now also freeze imported runner/oracle/baseline inputs. No trace gates or GUI have run. RAW `c595dad2` is reproducibly formatting-only over reviewed `2b5f30f2`, with 20 tests unrun. Status `4a112eee-bbfd-42a3-a0dc-21eacb0eea8b` was published in Git for B; no new peer receipt or wakeup is claimed.
+
 ## RAW admission RED evidence preserved; cache strict correction pending
 
 Root verified and copied all RAW scaffold `b950941e` evidence payload hashes into `UX-05/evidence/2026-09-28/raw-admission-b950941e-red`, including independent verification of 8,971 immutable inputs. This records one existing control pass and 17 Unsupported failures, not implementation acceptance.
