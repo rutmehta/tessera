@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+pub mod capture;
 pub mod dng;
 pub mod linear_dng;
 

@@ -11,6 +11,12 @@ path = "src/lib.rs"
 engine-api = { path = "../engine-api" }
 libraw-ffi = { path = "../libraw-ffi" }
 
+tempfile.workspace = true
+blake3.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 criterion = "0.5"
 
