@@ -243,9 +243,7 @@ impl RasterizedPsdCopyOperation {
         {
             return Err(failure("PSD is limited to 30000 pixels: save as .psb").into());
         }
-        let mut ids = Vec::new();
-        collect_layers(&snapshot.root, &mut ids, &|| self.state.check())?;
-        let copy = rasterize_layers(&snapshot, &ids, &self.state, |layer| {
+        let copy = rasterize_copy(&snapshot, &self.state, |layer| {
             filtering::rasterize_smart_stack_with_cancel(&snapshot, layer, &self.state.cancel)
         })?;
         io::save_psd_copy_checked(
@@ -257,6 +255,74 @@ impl RasterizedPsdCopyOperation {
         )
     }
 }
+// Count only the tree that the copy emits. Embedded smart-object documents
+// remain one output leaf; Groups recursively emit their children.
+fn preflight_snapshot(
+    snapshot: &compositor::DocState,
+    check: &impl Fn() -> CopyResult<()>,
+) -> CopyResult<compositor::psd::PsdCopyEstimate> {
+    fn increment(count: &mut usize) -> CopyResult<()> {
+        *count = count
+            .checked_add(1)
+            .ok_or_else(|| failure("PSD copy layer count overflow"))?;
+        Ok(())
+    }
+    fn count_layers(
+        layers: &[Arc<Layer>],
+        stacks: &mut usize,
+        leaves: &mut usize,
+        check: &impl Fn() -> CopyResult<()>,
+    ) -> CopyResult<()> {
+        for layer in layers {
+            check()?;
+            match &layer.kind {
+                LayerKind::Group { children, .. } => {
+                    count_layers(children, stacks, leaves, check)?;
+                }
+                LayerKind::SmartObject(so) => {
+                    increment(leaves)?;
+                    if so.filters.iter().any(|filter| filter.enabled) {
+                        increment(stacks)?;
+                    }
+                }
+                LayerKind::Pixel(_) | LayerKind::Text { .. } | LayerKind::Shape { .. } => {
+                    increment(leaves)?;
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+    check()?;
+    let (mut stacks, mut leaves) = (0usize, 0usize);
+    count_layers(&snapshot.root, &mut stacks, &mut leaves, check)?;
+    check()?;
+    Ok(compositor::psd::estimate_rasterized_psd_copy(
+        compositor::psd::PsdCopyEstimateInput {
+            canvas: snapshot.canvas,
+            depth: snapshot.depth,
+            saved_channels: snapshot.channels.len(),
+            // The output is Document::new(copy), not the source PSD retention.
+            retained_merged_alpha: true,
+            rasterized_stacks: stacks,
+            emitted_raster_layers: leaves,
+        },
+    )?)
+}
+
+fn rasterize_copy(
+    snapshot: &compositor::DocState,
+    state: &CopyState,
+    rasterize: impl FnMut(&Layer) -> CopyResult<compositor::Raster>,
+) -> CopyResult<compositor::DocState> {
+    // Reject unavoidable layout failures before evaluator entry or output IO.
+    // This is a modeled payload estimate, not an RSS cap or process permit.
+    preflight_snapshot(snapshot, &|| state.check())?;
+    let mut ids = Vec::new();
+    collect_layers(&snapshot.root, &mut ids, &|| state.check())?;
+    rasterize_layers(snapshot, &ids, state, rasterize)
+}
+
 fn rasterize_layers(
     snapshot: &compositor::DocState,
     ids: &[u64],
