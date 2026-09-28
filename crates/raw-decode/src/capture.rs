@@ -72,7 +72,10 @@ struct Reservation {
 
 enum StageStorage {
     Writable(NamedTempFile),
-    Sealed { path: TempPath, file: Option<fs::File> },
+    Sealed {
+        path: TempPath,
+        file: Option<fs::File>,
+    },
 }
 
 struct StageGuard {
@@ -227,39 +230,75 @@ impl CapturePool {
     }
 
     pub fn capture(
-        &self, source: &Path, route: PinnedRawDecoderRoute, suffix: &str,
-        expected: Option<CapturedAssetIdentity>, cancel: &CancellationToken,
+        &self,
+        source: &Path,
+        route: PinnedRawDecoderRoute,
+        suffix: &str,
+        expected: Option<CapturedAssetIdentity>,
+        cancel: &CancellationToken,
     ) -> EngineResult<CapturedRaw> {
         #[cfg(unix)]
-        { self.capture_internal(source, route, suffix, expected, cancel, CaptureIo::default()) }
+        {
+            self.capture_internal(
+                source,
+                route,
+                suffix,
+                expected,
+                cancel,
+                CaptureIo::default(),
+            )
+        }
         #[cfg(not(unix))]
         {
             let _ = (source, route, suffix, expected, cancel);
-            Err(EngineError::Unsupported { what: "RAW capture requires nonblocking regular-file admission".into() })
+            Err(EngineError::Unsupported {
+                what: "RAW capture requires nonblocking regular-file admission".into(),
+            })
         }
     }
 
     #[cfg(unix)]
     fn capture_internal(
-        &self, source: &Path, route: PinnedRawDecoderRoute, suffix: &str,
-        expected: Option<CapturedAssetIdentity>, cancel: &CancellationToken,
+        &self,
+        source: &Path,
+        route: PinnedRawDecoderRoute,
+        suffix: &str,
+        expected: Option<CapturedAssetIdentity>,
+        cancel: &CancellationToken,
         mut io: CaptureIo,
     ) -> EngineResult<CapturedRaw> {
         use std::os::unix::fs::OpenOptionsExt;
         cancel.check()?;
         let suffix = suffix.to_ascii_lowercase();
-        if suffix.is_empty() || suffix.len() > 16
-            || !suffix.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()) {
-            return Err(EngineError::invalid("suffix", "expected 1–16 ASCII alphanumeric characters"));
+        if suffix.is_empty()
+            || suffix.len() > 16
+            || !suffix
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        {
+            return Err(EngineError::invalid(
+                "suffix",
+                "expected 1–16 ASCII alphanumeric characters",
+            ));
         }
-        let mut original = fs::OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK)
-            .open(source).map_err(|e| EngineError::io_at(source, &e))?;
-        let metadata = original.metadata().map_err(|e| EngineError::io_at(source, &e))?;
+        let mut original = fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(source)
+            .map_err(|e| EngineError::io_at(source, &e))?;
+        let metadata = original
+            .metadata()
+            .map_err(|e| EngineError::io_at(source, &e))?;
         if !metadata.is_file() || metadata.len() == 0 {
-            return Err(EngineError::invalid("source", "capture requires a nonempty regular file"));
+            return Err(EngineError::invalid(
+                "source",
+                "capture requires a nonempty regular file",
+            ));
         }
         let limit = self.inner.limits.max_asset_bytes;
-        if metadata.len() > limit { return Err(capture_limit()); }
+        if metadata.len() > limit {
+            return Err(capture_limit());
+        }
         let before = SourceStamp::from(&metadata);
         check_source(source, &original, &before)?;
         let mut stage = self.allocate_stage(&suffix, cancel)?;
@@ -274,10 +313,16 @@ impl CapturePool {
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
                 result => result.map_err(|e| EngineError::io_at(source, &e))?,
             };
-            if count > capacity { return Err(invalid_read_count()); }
-            if count == 0 { break; }
+            if count > capacity {
+                return Err(invalid_read_count());
+            }
+            if count == 0 {
+                break;
+            }
             copied = copied.checked_add(count as u64).ok_or_else(capture_limit)?;
-            if copied > limit { return Err(capture_limit()); }
+            if copied > limit {
+                return Err(capture_limit());
+            }
             let mut offset = 0;
             while offset < count {
                 cancel.check()?;
@@ -286,17 +331,26 @@ impl CapturePool {
                 match write {
                     Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
                     Err(error) => return Err(EngineError::io_at(stage.path()?, &error)),
-                    Ok(0) => return Err(EngineError::io_at(stage.path()?, &io::Error::from(io::ErrorKind::WriteZero))),
+                    Ok(0) => {
+                        return Err(EngineError::io_at(
+                            stage.path()?,
+                            &io::Error::from(io::ErrorKind::WriteZero),
+                        ));
+                    }
                     Ok(n) if n > count - offset => return Err(invalid_read_count()),
                     Ok(n) => offset += n,
                 }
             }
         }
-        if copied == 0 { return Err(EngineError::invalid("source", "captured stream is empty")); }
+        if copied == 0 {
+            return Err(EngineError::invalid("source", "captured stream is empty"));
+        }
         cancel.check()?;
-        io.after_copy(source, stage.path()?).map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
+        io.after_copy(source, stage.path()?)
+            .map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
         cancel.check()?;
-        io.stage_sync(stage.writable()?).map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
+        io.stage_sync(stage.writable()?)
+            .map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
         cancel.check()?;
         stage.seal(&mut io)?;
         cancel.check()?;
@@ -309,26 +363,45 @@ impl CapturePool {
             cancel.check()?;
             let count = match read {
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-                result => result.map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?,
+                result => {
+                    result.map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?
+                }
             };
-            if count > capacity { return Err(invalid_read_count()); }
-            if count == 0 { break; }
+            if count > capacity {
+                return Err(invalid_read_count());
+            }
+            if count == 0 {
+                break;
+            }
             hashed = hashed.checked_add(count as u64).ok_or_else(capture_limit)?;
-            if hashed > limit { return Err(capture_limit()); }
+            if hashed > limit {
+                return Err(capture_limit());
+            }
             hasher.update(&buffer[..count]);
         }
         if hashed != copied {
-            return Err(EngineError::Conflict { message: "completed RAW stage length changed".into() });
+            return Err(EngineError::Conflict {
+                message: "completed RAW stage length changed".into(),
+            });
         }
         check_source(source, &original, &before)?;
-        let identity = CapturedAssetIdentity { digest: Digest(*hasher.finalize().as_bytes()), byte_len: hashed };
+        let identity = CapturedAssetIdentity {
+            digest: Digest(*hasher.finalize().as_bytes()),
+            byte_len: hashed,
+        };
         if expected.is_some_and(|expected| expected != identity) {
-            return Err(EngineError::Conflict { message: "captured RAW identity does not match expected bytes".into() });
+            return Err(EngineError::Conflict {
+                message: "captured RAW identity does not match expected bytes".into(),
+            });
         }
         cancel.check()?;
-        Ok(CapturedRaw { stage, identity, route, suffix })
+        Ok(CapturedRaw {
+            stage,
+            identity,
+            route,
+            suffix,
+        })
     }
-
 }
 
 impl Reservation {
@@ -354,11 +427,16 @@ impl Drop for Reservation {
 
 impl StageGuard {
     fn cleanup(&mut self) -> EngineResult<()> {
-        let Some(storage) = self.storage.take() else { return Ok(()); };
+        let Some(storage) = self.storage.take() else {
+            return Ok(());
+        };
         // Both states preserve disabled cleanup; close any descriptor before unlink.
         let path = match storage {
             StageStorage::Writable(file) => file.into_temp_path(),
-            StageStorage::Sealed { path, file } => { drop(file); path }
+            StageStorage::Sealed { path, file } => {
+                drop(file);
+                path
+            }
         };
         let result = absent_or_removed(self.reservation.pool.operations.remove_file(&path), &path);
         if result.is_ok() {
@@ -478,8 +556,12 @@ impl CapturePool {
 #[cfg(all(test, unix))]
 impl CapturePool {
     fn capture_with_hooks_for_test(
-        &self, source: &Path, route: PinnedRawDecoderRoute, suffix: &str,
-        expected: Option<CapturedAssetIdentity>, cancel: &CancellationToken,
+        &self,
+        source: &Path,
+        route: PinnedRawDecoderRoute,
+        suffix: &str,
+        expected: Option<CapturedAssetIdentity>,
+        cancel: &CancellationToken,
         hooks: tests::stream::StreamHooks,
     ) -> EngineResult<CapturedRaw> {
         self.capture_internal(source, route, suffix, expected, cancel, CaptureIo { hooks })
@@ -487,21 +569,29 @@ impl CapturePool {
 }
 #[cfg(all(test, unix))]
 impl CapturedRaw {
-    fn path_for_test(&self) -> &Path { self.stage.path().unwrap() }
+    fn path_for_test(&self) -> &Path {
+        self.stage.path().unwrap()
+    }
     fn readonly_file_for_test(&self) -> &fs::File {
         match self.stage.storage.as_ref().unwrap() {
-            StageStorage::Sealed { file: Some(file), .. } => file,
+            StageStorage::Sealed {
+                file: Some(file), ..
+            } => file,
             _ => panic!("capture must retain a sealed readonly descriptor"),
         }
     }
 }
 
-
 fn capture_limit() -> EngineError {
-    EngineError::ResourceExhausted { resource: "RAW capture byte limit".into() }
+    EngineError::ResourceExhausted {
+        resource: "RAW capture byte limit".into(),
+    }
 }
 fn invalid_read_count() -> EngineError {
-    EngineError::from(io::Error::new(io::ErrorKind::InvalidData, "I/O operation returned excess count"))
+    EngineError::from(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "I/O operation returned excess count",
+    ))
 }
 fn read_capacity(limit: u64, consumed: u64) -> usize {
     // create rejects u64::MAX and each loop rejects excess before coming here.
@@ -510,23 +600,38 @@ fn read_capacity(limit: u64, consumed: u64) -> usize {
 
 #[cfg(unix)]
 #[derive(PartialEq, Eq)]
-struct SourceStamp { device: u64, inode: u64, length: u64, modified: (i64, i64), changed: (i64, i64) }
+struct SourceStamp {
+    device: u64,
+    inode: u64,
+    length: u64,
+    modified: (i64, i64),
+    changed: (i64, i64),
+}
 #[cfg(unix)]
 impl From<&fs::Metadata> for SourceStamp {
     fn from(metadata: &fs::Metadata) -> Self {
         use std::os::unix::fs::MetadataExt;
-        Self { device: metadata.dev(), inode: metadata.ino(), length: metadata.len(),
+        Self {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+            length: metadata.len(),
             modified: (metadata.mtime(), metadata.mtime_nsec()),
-            changed: (metadata.ctime(), metadata.ctime_nsec()) }
+            changed: (metadata.ctime(), metadata.ctime_nsec()),
+        }
     }
 }
 #[cfg(unix)]
 fn check_source(path: &Path, opened: &fs::File, expected: &SourceStamp) -> EngineResult<()> {
-    let conflict = || EngineError::Conflict { message: "RAW source changed during capture".into() };
+    let conflict = || EngineError::Conflict {
+        message: "RAW source changed during capture".into(),
+    };
     let handle = opened.metadata().map_err(|_| conflict())?;
     let locator = fs::metadata(path).map_err(|_| conflict())?;
-    if !handle.is_file() || !locator.is_file()
-        || SourceStamp::from(&handle) != *expected || SourceStamp::from(&locator) != *expected {
+    if !handle.is_file()
+        || !locator.is_file()
+        || SourceStamp::from(&handle) != *expected
+        || SourceStamp::from(&locator) != *expected
+    {
         return Err(conflict());
     }
     Ok(())
@@ -548,16 +653,26 @@ impl StageGuard {
     }
     fn readonly(&mut self) -> EngineResult<&mut fs::File> {
         match &mut self.storage {
-            Some(StageStorage::Sealed { file: Some(file), .. }) => Ok(file),
-            _ => Err(EngineError::internal("RAW stage has no readonly descriptor")),
+            Some(StageStorage::Sealed {
+                file: Some(file), ..
+            }) => Ok(file),
+            _ => Err(EngineError::internal(
+                "RAW stage has no readonly descriptor",
+            )),
         }
     }
     fn seal(&mut self, io: &mut CaptureIo) -> EngineResult<()> {
-        let storage = self.storage.take().ok_or_else(|| EngineError::internal("RAW stage missing"))?;
+        let storage = self
+            .storage
+            .take()
+            .ok_or_else(|| EngineError::internal("RAW stage missing"))?;
         match storage {
             StageStorage::Writable(file) => {
                 // No fallible operation between closing writer and restoring owner.
-                self.storage = Some(StageStorage::Sealed { path: file.into_temp_path(), file: None });
+                self.storage = Some(StageStorage::Sealed {
+                    path: file.into_temp_path(),
+                    file: None,
+                });
             }
             other => {
                 self.storage = Some(other);
@@ -565,7 +680,10 @@ impl StageGuard {
             }
         }
         if let Some(StageStorage::Sealed { path, file }) = &mut self.storage {
-            *file = Some(io.readonly_reopen(path).map_err(|e| EngineError::io_at(&*path, &e))?);
+            *file = Some(
+                io.readonly_reopen(path)
+                    .map_err(|e| EngineError::io_at(&*path, &e))?,
+            );
         }
         Ok(())
     }
@@ -579,32 +697,44 @@ struct CaptureIo {
 impl CaptureIo {
     fn source_read(&mut self, file: &mut fs::File, buffer: &mut [u8]) -> io::Result<usize> {
         #[cfg(all(test, unix))]
-        if let Some(hook) = &mut self.hooks.source_read { return hook(file, buffer); }
+        if let Some(hook) = &mut self.hooks.source_read {
+            return hook(file, buffer);
+        }
         file.read(buffer)
     }
     fn stage_write(&mut self, file: &mut fs::File, bytes: &[u8]) -> io::Result<usize> {
         #[cfg(all(test, unix))]
-        if let Some(hook) = &mut self.hooks.stage_write { return hook(file, bytes); }
+        if let Some(hook) = &mut self.hooks.stage_write {
+            return hook(file, bytes);
+        }
         file.write(bytes)
     }
     fn stage_sync(&mut self, file: &fs::File) -> io::Result<()> {
         #[cfg(all(test, unix))]
-        if let Some(hook) = &mut self.hooks.stage_sync { return hook(file); }
+        if let Some(hook) = &mut self.hooks.stage_sync {
+            return hook(file);
+        }
         file.sync_all()
     }
     fn after_copy(&mut self, _source: &Path, _stage: &Path) -> io::Result<()> {
         #[cfg(all(test, unix))]
-        if let Some(hook) = &mut self.hooks.after_copy { return hook(_source, _stage); }
+        if let Some(hook) = &mut self.hooks.after_copy {
+            return hook(_source, _stage);
+        }
         Ok(())
     }
     fn readonly_reopen(&mut self, path: &Path) -> io::Result<fs::File> {
         #[cfg(all(test, unix))]
-        if let Some(hook) = &mut self.hooks.readonly_reopen { return hook(path); }
+        if let Some(hook) = &mut self.hooks.readonly_reopen {
+            return hook(path);
+        }
         fs::File::open(path)
     }
     fn hash_read(&mut self, file: &mut fs::File, buffer: &mut [u8]) -> io::Result<usize> {
         #[cfg(all(test, unix))]
-        if let Some(hook) = &mut self.hooks.hash_read { return hook(file, buffer); }
+        if let Some(hook) = &mut self.hooks.hash_read {
+            return hook(file, buffer);
+        }
         file.read(buffer)
     }
 }
