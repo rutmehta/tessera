@@ -422,10 +422,13 @@ final class DocumentWorkspace {
 
     private func traceSaveLifecycle(_ event: String, _ id: UUID) {
         guard DocumentSaveLifecycleTrace.enabled else { return }
+        // Only ignored storage and non-observable lifecycle records belong here.
+        // Reading presentedSaveAs during a SwiftUI claim adds a dependency that
+        // the original early-return path never registered.
         let state = nativeSaveDismissals[id]
         let probes = state?.activeProbes.map { $0.uuidString }.sorted().joined(separator: ",") ?? "nil"
         DocumentSaveLifecycleTrace.emit(event, id,
-            "workspace=\(ObjectIdentifier(self)) claim=\(saveAsPresentationID?.uuidString ?? "nil") presented=\(presentedSaveAs?.id.uuidString ?? "nil") queued=\(queuedSaveAs?.id.uuidString ?? "nil") active=\(activeSavePrompt?.uuidString ?? "nil") phase=\(saveOperations[id].map { String(describing: $0.phase) } ?? "nil") state=\(state != nil) swift=\(state?.swiftDismissed ?? false) native=\(state?.nativeDetached ?? false) observed=\(state?.observedAttachment ?? false) probes=[\(probes)] parent={\(DocumentSaveLifecycleTrace.window(state?.parent))} sheet={\(DocumentSaveLifecycleTrace.window(state?.sheet))}")
+            "workspace=\(ObjectIdentifier(self)) claim=\(saveAsPresentationID?.uuidString ?? "nil") queued=\(queuedSaveAs?.id.uuidString ?? "nil") active=\(activeSavePrompt?.uuidString ?? "nil") phase=\(saveOperations[id].map { String(describing: $0.phase) } ?? "nil") state=\(state != nil) swift=\(state?.swiftDismissed ?? false) native=\(state?.nativeDetached ?? false) observed=\(state?.observedAttachment ?? false) probes=[\(probes)] parent={\(DocumentSaveLifecycleTrace.window(state?.parent))} sheet={\(DocumentSaveLifecycleTrace.window(state?.sheet))}")
     }
 
     func cancelDocumentSave(_ id: UUID) {
