@@ -451,6 +451,18 @@ final class AppModel {
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
+    var isCachedPreviewLibrary: Bool { engineLibrary?.isReadOnly == true }
+    func reopenCachedPreviewLibrary() {
+        guard let folder = engineLibrary?.folder else { return }
+        openFolder(folder)
+    }
+
+    private(set) var smartPreviews = SmartPreviewController()
+    private(set) var preferSmartPreviews = SmartPreviewPreference.read()
+    private(set) var developSourceRoute: DevelopSourceRoute?
+    private(set) var smartPreviewSelectionRevision = 0
+    private(set) var smartPreviewBatchActive = false
+    private(set) var smartPreviewCancelRequested = false
     var statusMessage: String?
     /// Set by the loupe view: colour space and EDR headroom of the current screen.
     var loupeInfo = ""
@@ -620,7 +632,7 @@ final class AppModel {
         // The open folder again (a catalog import into it, reopening it): rescan in the
         // background and apply the changes in place, keeping history, filters and selection.
         if let lib = engineLibrary, let folder = lib.folder, !isLoading,
-           Self.sameFolder(folder, url) {
+           !lib.isReadOnly, folder.path == url.path {
             rescan(lib, message: message, requestID: requestID) { [weak self] _, loaded in
                 self?.finishFolderRequest(requestID, loaded: loaded)
             }
@@ -633,12 +645,11 @@ final class AppModel {
         let target = basketTarget
         isLoading = true
         statusMessage = "Reading \(url.lastPathComponent)…"
-        rememberFolder(url)
         Task.detached(priority: .userInitiated) {
             let result = Result<(any PhotoLibrary, CullController.InitialSnapshot), Error> {
                 let library: any PhotoLibrary = useStub
                     ? try StubLibrary.scan(folder: url)
-                    : try EngineLibrary.scan(folder: url, basketTarget: target)
+                    : try EngineLibrary.open(folder: url, basketTarget: target)
                 return (library, CullController.prepare(library))
             }
             await MainActor.run {
@@ -650,9 +661,15 @@ final class AppModel {
                 self.isLoading = false
                 switch result {
                 case .success(let (lib, snapshot)):
+                    self.rememberOpenedFolder(lib, replacing: url)
                     self.install(lib, snapshot: snapshot)
                     self.assist.libraryDidLoad(seedFaces: seedFaces)
                     self.openPeople()
+                    if self.isCachedPreviewLibrary {
+                        self.statusMessage = "Cached Smart Preview Library: \(lib.items.count.formatted()) declarations; original folder unavailable. Catalog read-only."
+                        self.finishFolderRequest(requestID, loaded: true)
+                        return
+                    }
                     let raws = lib.items.lazy.filter { $0.kind == .raw }.count
                     let multi = lib.groups.lazy.filter { $0.count > 1 }.count
                     self.statusMessage = message ?? "Opened \(lib.title): \(lib.items.count.formatted()) images (\(raws.formatted()) RAW), "
@@ -675,14 +692,22 @@ final class AppModel {
         statusMessage = "Generated \(count.formatted()) stub items in \(lib.groups.count.formatted()) groups, \(Self.ms(lib.scanDuration))"
     }
 
-    private func rememberFolder(_ url: URL) {
+    /// Record only a successfully opened library's authoritative folder. EngineLibrary
+    /// captures index handle.path while online; cached opens already carry that identity.
+    /// `defaults` permits isolated persistence regression tests without personal history edits.
+    func rememberOpenedFolder(_ library: any PhotoLibrary, replacing requested: URL? = nil,
+                              defaults: UserDefaults = .standard) {
         // A background audit's copied fixture is not a new personal recent-folder preference.
-        guard !ProcessInfo.processInfo.arguments.contains("--nonactivating") else { return }
-        UserDefaults.standard.set(url.path, forKey: Self.lastFolderKey)
-        var recents = recentFolders.filter { $0.standardizedFileURL != url.standardizedFileURL }
-        recents.insert(url, at: 0)
+        guard !ProcessInfo.processInfo.arguments.contains("--nonactivating"),
+              let folder = library.folder else { return }
+        defaults.set(folder.path, forKey: Self.lastFolderKey)
+        // Lexical comparison only: never canonicalize a disconnected original or old recent.
+        var recents = (defaults.stringArray(forKey: Self.recentFoldersKey) ?? [])
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+            .filter { $0.path != folder.path && $0.path != requested?.path }
+        recents.insert(folder, at: 0)
         recentFolders = Array(recents.prefix(8))
-        UserDefaults.standard.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
+        defaults.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
     }
 
     func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
@@ -706,12 +731,21 @@ final class AppModel {
         (library as? EngineLibrary)?.onCatalogChange(nil)
         syncWaiters.removeAll()
         syncRequested = false
+        smartPreviews.cancel() // any captured old native operation still drains on its owner
+        smartPreviews.select(imageID: nil)
         library = lib
+        let previews = SmartPreviewController(api: (lib as? EngineLibrary).map { .live(engine: $0.engine) })
+        smartPreviews = previews
+        previews.onChange = { [weak self, weak previews] imageID in
+            guard let self, let previews, self.smartPreviews === previews,
+                  let id = self.engineLibrary?.itemOfImage[imageID] else { return }
+            self.libraryItemsChanged([id])
+        }
         cull = snapshot.map { CullController(library: lib, snapshot: $0) } ?? lib.makeCullController()
         isEngineBacked = cull.isEngineBacked
         closeDevelop()
         source = .all
-        people.install(cull.isEngineBacked ? cull : nil)
+        people.install(cull.isEngineBacked && !cull.isReadOnly ? cull : nil)
         faceThumbnails.removeAll()
         collections.install(lib)
         compare = nil
@@ -723,7 +757,7 @@ final class AppModel {
         refreshSummary()
         liveObservers.forEach { $0.libraryDidReload() }
         notifySelection(scroll: true)
-        if let engine = lib as? EngineLibrary {
+        if let engine = lib as? EngineLibrary, !engine.isReadOnly {
             engine.onCatalogChange { [weak self] _ in
                 Task { @MainActor in self?.syncLibrary() }
             }
@@ -817,7 +851,7 @@ final class AppModel {
 
     /// Sidebar ▸ People: the incremental clustering job off the main actor, then the tiles.
     func openPeople() {
-        guard isEngineBacked else { return }
+        guard isEngineBacked, !isCachedPreviewLibrary else { return }
         Task { [weak self] in
             await self?.people.refresh()
             self?.reportPeople()
@@ -922,7 +956,7 @@ final class AppModel {
     /// and other writers. One pull at a time; calls during a pull are coalesced into one more.
     /// `then` runs after a pull that started after this call.
     func syncLibrary(then: (@MainActor @Sendable () -> Void)? = nil) {
-        guard let lib = engineLibrary else { then?(); return }
+        guard let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
         if let then { syncWaiters.append(then) }
         guard !syncInFlight else { syncRequested = true; return }
         syncInFlight = true
@@ -953,8 +987,22 @@ final class AppModel {
                         then: (@MainActor (AppModel, _ loaded: Bool) -> Void)?) {
         guard let folder = lib.folder else { return }
         statusMessage = "Updating \(folder.lastPathComponent)…"
+        let target = basketTarget
         Task.detached(priority: .userInitiated) {
-            let result = Result { try lib.engine.indexFolder(path: folder.path) }
+            let result = Result<(FolderHandle?, EngineLibrary?), Error> {
+                if try !LibraryOpenRouter.originalFolderAvailable(folder) {
+                    return (nil, try EngineLibrary.cachedPreviews(folder: folder))
+                }
+                let handle = try lib.engine.indexFolder(path: folder.path)
+                if handle.path != folder.path {
+                    // An online path may have been replaced by a symlink. The old
+                    // CullSession belongs to its old identity; reopen against the new
+                    // index path rather than mutating that live session's folder.
+                    let canonical = URL(fileURLWithPath: handle.path, isDirectory: true)
+                    return (nil, try EngineLibrary.scan(folder: canonical, basketTarget: target))
+                }
+                return (handle, nil)
+            }
             await MainActor.run {
                 guard self.engineLibrary === lib,
                       requestID == nil || self.currentFolderRequestID == requestID else {
@@ -962,7 +1010,19 @@ final class AppModel {
                     return
                 }
                 switch result {
-                case .success(let handle):
+                case .success(let (handle, replacement)):
+                    if let replacement {
+                        self.rememberOpenedFolder(replacement, replacing: folder)
+                        self.install(replacement)
+                        self.assist.libraryDidLoad(seedFaces: false)
+                        self.statusMessage = replacement.isReadOnly
+                            ? "Original folder unavailable; showing cached Smart Preview declarations. Catalog read-only."
+                            : "Opened \(replacement.title): \(replacement.items.count.formatted()) images"
+                        then?(self, true)
+                        return
+                    }
+                    guard let handle else { then?(self, false); return }
+                    self.rememberOpenedFolder(lib, replacing: folder)
                     self.syncLibrary {
                         guard requestID == nil || self.currentFolderRequestID == requestID else {
                             then?(self, false)
@@ -1092,12 +1152,13 @@ final class AppModel {
         let generation = loadGeneration
         let target = basketTarget
         Task.detached(priority: .userInitiated) {
-            let result = Result { try EngineLibrary.scan(folder: folder, basketTarget: target) }
+            let result = Result { try EngineLibrary.open(folder: folder, basketTarget: target) }
             await MainActor.run {
                 guard generation == self.loadGeneration, case .success(let lib) = result else { return }
                 let source = self.source
+                self.rememberOpenedFolder(lib, replacing: folder)
                 self.install(lib)
-                if source != .all { self.setSource(source) }
+                if !lib.isReadOnly, source != .all { self.setSource(source) }
             }
         }
     }
@@ -1140,7 +1201,7 @@ final class AppModel {
         if isReviewing { return selectedReviewEntry == nil ? "No review photo selected" : "Review actions apply to 1 photo" }
         if isPhotoEditing {
             guard let item = editTarget else { return "No photo selected" }
-            return item.kind == .synthetic ? "Preview only · STUB" : "Editing 1 photo · \(item.kind.rawValue)"
+            return item.kind == .synthetic ? "Preview only · STUB" : "Editing 1 photo · \(item.kind.rawValue)" + (develop?.imageID == item.engineImage?.imageID ? developSourceRoute.map { " · " + $0.label } ?? "" : "")
         }
         if source == .people { return "People directory" }
         if compare != nil { return "Active candidate · decisions apply to 1 photo" }
@@ -1617,6 +1678,8 @@ final class AppModel {
     private func notifySelection(scroll: Bool) {
         // Identity, not just the count: a same-size selection can have different mixed fields.
         collections.focusDidChange()
+        smartPreviewSelectionRevision += 1
+        refreshSmartPreviewSelection()
         if let d = develop, d.itemID != focusedItem?.id { closeDevelop() }
         for o in liveObservers { o.selectionDidChange(scrollToFocus: scroll) }
     }
@@ -2127,6 +2190,108 @@ final class AppModel {
         showToast("Rejected \(ids.count) frame\(ids.count == 1 ? "" : "s") from the defect sweep", undoable: true)
     }
 
+    // MARK: Smart Previews (source-only native API integration)
+
+    var smartPreviewTargets: [SmartPreviewTarget] {
+        // Observe selection identity through its existing revision, not only count.
+        _ = libraryRevision
+        _ = smartPreviewSelectionRevision
+        _ = focusedItem
+        _ = selectionCount
+        return targetIDs.compactMap { id in
+            guard library.items.indices.contains(id) else { return nil }
+            let item = library.items[id]
+            guard item.kind == .raw, let ref = item.engineImage else { return nil }
+            return SmartPreviewTarget(id: ref.imageID, name: item.name)
+        }
+    }
+
+    func smartPreviewBadge(for item: PhotoItem) -> String? {
+        guard let ref = item.engineImage else { return nil }
+        return smartPreviews.libraryBadge(imageID: ref.imageID)
+    }
+
+    private func refreshSmartPreviewSelection() {
+        let item = focusedItem
+        smartPreviews.select(imageID: item?.kind == .raw ? item?.engineImage?.imageID : nil)
+    }
+
+    func checkSmartPreviewStatus() {
+        let item = focusedItem
+        smartPreviews.select(imageID: item?.kind == .raw ? item?.engineImage?.imageID : nil, refresh: true)
+    }
+
+    func setPreferSmartPreviews(_ value: Bool) {
+        guard preferSmartPreviews != value, !developRecovery.hasActiveReservations else { return }
+        guard let owner = engineLibrary, let item = focusedItem, let ref = item.engineImage else {
+            preferSmartPreviews = value
+            UserDefaults.standard.set(value, forKey: SmartPreviewPreference.key)
+            return
+        }
+        let generation = loadGeneration
+        let barrier = prepareForRecipeRead(imageIDs: [ref.imageID], library: owner)
+        Task { [weak self] in
+            let result = await barrier.result()
+            // Reopening inside an active read reservation is forbidden. Release only
+            // after actual close/drain, then perform the same owner/generation checks.
+            barrier.finish()
+            guard let self, self.engineLibrary === owner, self.loadGeneration == generation,
+                  self.focusedItem?.engineImage?.imageID == ref.imageID else { return }
+            guard result.isSaved else {
+                self.statusMessage = "Finish saving this photo before changing editing source"
+                return
+            }
+            self.preferSmartPreviews = value
+            UserDefaults.standard.set(value, forKey: SmartPreviewPreference.key)
+            self.smartPreviews.invalidateStatus(imageID: ref.imageID)
+            if self.viewMode == .loupe, let current = self.focusedItem { self.openDevelop(for: current) }
+        }
+    }
+
+    func cancelSmartPreviewBatch() {
+        smartPreviewCancelRequested = true
+        smartPreviews.cancel()
+    }
+
+    func runSmartPreviewBatch(_ action: SmartPreviewController.Action) {
+        let targets = smartPreviewTargets
+        guard !targets.isEmpty else {
+            statusMessage = "Select indexed RAW photos to manage Smart Previews"
+            return
+        }
+        guard !smartPreviewBatchActive, let owner = engineLibrary,
+              !developRecovery.hasActiveReservations,
+              !targets.contains(where: { agent.isMutating(imageID: $0.id, library: owner) }) else { return }
+        let controller = smartPreviews
+        let generation = loadGeneration
+        // Retain the same recipe-read reservation through the entire native drain.
+        let barrier = prepareForRecipeRead(imageIDs: Set(targets.map(\.id)), library: owner)
+        smartPreviewBatchActive = true
+        smartPreviewCancelRequested = false
+        Task { [weak self, controller] in
+            defer {
+                barrier.finish()
+                self?.smartPreviewBatchActive = false
+                if let self, self.smartPreviews === controller, self.loadGeneration == generation,
+                   self.engineLibrary === owner, self.viewMode == .loupe, self.develop == nil,
+                   !self.developRecovery.hasUnresolvedSessions, let item = self.focusedItem {
+                    self.openDevelop(for: item)
+                }
+            }
+            let result = await barrier.result()
+            guard let self, self.engineLibrary === owner, self.loadGeneration == generation,
+                  self.smartPreviews === controller else { return }
+            guard result.isSaved else {
+                self.statusMessage = "Smart Previews: finish saving pending photo edits first"
+                return
+            }
+            guard !self.smartPreviewCancelRequested else { return }
+            await controller.run(action, targets: targets)
+            // Results belong to the captured batch; no global status overwrite after selection changes.
+            if self.smartPreviews === controller { self.refreshSmartPreviewSelection() }
+        }
+    }
+
     // MARK: Develop (Basic panel on the engine)
 
     /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
@@ -2154,6 +2319,11 @@ final class AppModel {
         developStatus = .loading
         let generation = loadGeneration
         let opener = developControllerOpener
+        let preferPreview = preferSmartPreviews
+        let previews = smartPreviews
+        // Establish the explicit open target synchronously; an old async opener
+        // may never change a newer selection while awaiting asset validation.
+        previews.select(imageID: item.kind == .raw ? ref.imageID : nil)
         let token = UUID()
         let recovery = developRecovery
         let task = Task { [weak self, recovery, owner] in
@@ -2162,9 +2332,21 @@ final class AppModel {
                 recovery.finishOpen(token: token)
             }
             do {
-                let controller = try await opener(ref, item.id)
+                let controller: DevelopController
+                if item.kind == .raw {
+                    let snapshot = try await previews.statusForOpening(imageID: ref.imageID)
+                    try Task.checkCancellation()
+                    controller = try await SmartPreviewRouting.open(snapshot, preferPreview: preferPreview) { route in
+                        switch route {
+                        case .original: try await opener(ref, item.id)
+                        case .smartPreview: try await DevelopController.open(ref, itemID: item.id, source: .smartPreview)
+                        }
+                    }
+                } else {
+                    controller = try await opener(ref, item.id)
+                }
                 guard recovery.producedOpen(controller, owner: owner, token: token) else { return }
-                guard let self, !Task.isCancelled, generation == self.loadGeneration,
+                guard let self, !Task.isCancelled, self.activeDevelopOpen == token, generation == self.loadGeneration,
                       self.engineLibrary === owner,
                       self.focusedItem?.engineImage?.imageID == ref.imageID else {
                     let id = recovery.register(owner: owner, controller: controller,
@@ -2211,6 +2393,7 @@ final class AppModel {
             })
         developSessionID = sessionID
         develop = controller
+        developSourceRoute = controller.sourceRoute
         developLibrary = owner
         developStatus = .ready
         developHistory = controller.history
@@ -2223,7 +2406,7 @@ final class AppModel {
         controller.onSaved = { [weak self, weak controller, weak owner] _ in
             guard let self, let controller, let owner, self.engineLibrary === owner,
                   let itemID = owner.itemOfImage[controller.imageID] else { return }
-            self.developDidSave(itemID: itemID)
+            self.developDidSave(itemID: itemID, source: controller.sourceRoute)
         }
         controller.onFailure = { [weak self] message in self?.statusMessage = "Develop: \(message)" }
         if ProcessInfo.processInfo.arguments.contains("--develop-selftest"), !developSelfTestRan {
@@ -2249,6 +2432,7 @@ final class AppModel {
         switch outcome {
         case .saved:
             develop = nil
+            developSourceRoute = nil
             developLibrary = nil
             developSessionID = nil
             developStatus = .none
@@ -2310,7 +2494,11 @@ final class AppModel {
     }
 
     /// Recipe + XMP were written: refresh the grid thumbnail (recipe-hash keyed) and the status.
-    private func developDidSave(itemID: Int) {
+    private func developDidSave(itemID: Int, source: DevelopSourceRoute) {
+        // Autosaves must not repeatedly hash/decode full originals and proxies.
+        if library.items.indices.contains(itemID), let ref = library.items[itemID].engineImage {
+            smartPreviews.didSave(imageID: ref.imageID, source: source)
+        }
         if let d = develop, d.itemID == itemID { developHistory = d.history }
         guard library.items.indices.contains(itemID) else { return }
         loader.invalidate(library.items[itemID])

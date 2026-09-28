@@ -52,11 +52,12 @@ struct ContentView: View {
                     }
                 }
                 if model.viewMode != .document { WorkspaceHeader(model: model) }
-                if model.isEngineBacked, model.source != .people, model.isLibraryWorkspace {
+                if model.isEngineBacked, !model.isCachedPreviewLibrary, model.source != .people, model.isLibraryWorkspace {
                     FilterBar(library: model.collections, model: model)
                 }
                 if model.tether.showPanel {
                     TetherPanel(model: model, tether: model.tether)
+                        .disabled(model.isCachedPreviewLibrary)
                 }
                 GeometryReader { area in
                     ZStack {
@@ -633,8 +634,9 @@ struct EmptyStateView: View {
     let model: AppModel
     var body: some View {
         EmptyStateContent(symbol: "photo.on.rectangle.angled",
-                          title: model.isLoading ? "Reading folder…" : "No images",
-                          message: "Open a folder of JPEG or RAW files to start culling.") {
+                          title: model.isLoading ? "Reading folder…" : (model.isCachedPreviewLibrary ? "No cached Smart Previews" : "No images"),
+                          message: model.isCachedPreviewLibrary ? LibraryAccessMode.cachedSmartPreviews.emptyMessage
+                            : "Open a folder of JPEG or RAW files to start culling.") {
             Button("Open Folder…") { model.presentOpenPanel() }
                 .buttonStyle(.theme(.primary, height: Theme.Height.large))
                 .keyboardShortcut(.defaultAction)

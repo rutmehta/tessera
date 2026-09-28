@@ -10,8 +10,8 @@ struct InspectorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 PanelSection("Image") { ImageInfoPanel(model: model) }
-                PanelSection("Selection") { SelectionPanel(model: model) }
-                if model.isEngineBacked {
+                PanelSection("Selection") { SelectionPanel(model: model).disabled(model.isCachedPreviewLibrary) }
+                if model.isEngineBacked && !model.isCachedPreviewLibrary {
                     PanelSection("Assist") { AssistPanel(model: model) }
                     PanelSection("People", expanded: false) { PeoplePanel(model: model) }
                     PanelSection("Agent Edit") { AgentEditPanel(model: model) }
@@ -64,6 +64,7 @@ extension ImageInfoPanel {
 
     private var statusText: String {
         let st = model.focusedStatus
+        if st.isCachedDeclaration { return "Cached declaration · Edit status not checked" }
         let phase = st.phase.rawValue.capitalized
         return st.albums.isEmpty ? phase : phase + " · in " + st.albums.joined(separator: ", ")
     }

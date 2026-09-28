@@ -1,0 +1,16 @@
+Worktree: /Users/rutmehta/.codex/worktrees/export-integration/tessera
+Final commit recorded in commit.txt (088cc261).
+All cargo commands use CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated.
+Final commands also use TESSERA_EXPORT_BACKEND=cpu; no GPU or GUI runtime tests were run.
+red.log: cargo test -p export --release --test smart_preview_admission
+  Expected compile-red: three nonexhaustive CameraLinear matches. Exit retained in red.exit.
+green.log: same command with CPU backend after export guard. Three tests passed.
+adobe-red.log: cargo test -p pipeline-adobe --release --test smart_preview_admission
+  Behavior-red: native_proxy_cannot_be_reinterpreted_as_adobe failed because Native2 CameraLinear was accepted. Error retained.
+After committing all six owned files, froze recursively discovered local transitive tracked inputs using hash_inputs.py and cargo metadata --no-deps. before.sha256/after.sha256 include committed new tests and original libraw vendor. Other agents' unreferenced new codec/FFI files excluded.
+export-final.log: cargo test -p export --release --test smart_preview_admission --test batch --test errors --test export --test staged --test orientation --no-fail-fast
+adobe-final.log: cargo test -p pipeline-adobe --release --no-fail-fast
+clippy-final.log: cargo clippy -p export -p pipeline-adobe --release --all-targets -- -D warnings
+fmt-final.log: rustfmt --edition 2024 --config skip_children=true --check crates/export/src/lib.rs crates/export/src/batch.rs crates/export/src/ai_masks.rs crates/export/tests/smart_preview_admission.rs crates/pipeline-adobe/src/render.rs crates/pipeline-adobe/tests/smart_preview_admission.rs
+hash-compare.exit: direct cmp before.sha256 after.sha256.
+Every command's direct exit status is recorded in the corresponding .exit file. Historical logs and failures were not overwritten.

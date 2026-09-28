@@ -1,5 +1,21 @@
 # Machine A recovery status
 
+## Export integration gate failed — 2026-09-28
+
+The first broader FFI compile after the accepted CPU-only gate failed: three export exhaustive RenderSource matches did not handle CameraLinear. CPU component tests remain147pass/1ignored, but this is NOT a passing application integration. Failure preserved at /Volumes/betterSSD/tessera-validation/smart-previews/storage/smart-preview-store.log; no concurrent tracked-source change. Original engine implementer owns immediate export admission repair and explicit proxy/full-quality-export refusal tests, plus Adobe-route refusal. Storage tests paused to serialize compilation; codec and image-core work are source-only preparations. Do not treat main's CPU component merge as build-ready application acceptance until repair is validated.
+
+## Smart Preview CPU component accepted — 2026-09-28 15:55 UTC
+
+Integrated in-memory component 2ab94fd9, exact product a3ab5034/f06ddb2b. Final Release pipeline-cpu gate:147 passed,0 failed,1 existing ignored; strict all-target Clippy and targeted formatting exit0. Root rehashed436 frozen inputs; independent Astra review clean. Portable evidence: tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/engine-a3ab5034 (37 payloads plus manifest). Missing-API, HDR-fixture and lint failures retained. This is NOT complete editable Smart Previews: codec, image-core route, offline journal/admission integration, Library UI and end-to-end acceptance remain.
+
+Luna now has the sole compiler lane for local journal+stable ImageId admission tests; initial source review found missing constructor initialization and directory-sync gaps, being fixed before acceptance. Astra prepares bounded compressed camera-linear codec source; separate Astra prepares image-core routing patch without changing active compiler inputs. B returned test-only3ca3e9c9 for request5cfbf6a4; result7d8f8c4c accepted after target validation, tests still UNRUN. Queue01a0e8b2-65a8-7d22-99a4-734c0c98a167 processing is confirmed by native completed peer turn and Git result. No duplicate dispatch. A alone merges main.
+
+## Smart Preview implementation and B handoff — 2026-09-28 15:43 UTC
+
+User explicitly authorized implementation. Clean managed checkout export-integration is reused as codex/smart-previews from main7f98ab79. Astra implements the camera-linear CPU boundary with sole compiler lane; Luna independently prepares local journal storage source without builds; a second Astra reviews B Save As source. Plan: docs/superpowers/plans/2026-09-28-smart-previews.md. End-to-end Smart Previews are NOT implemented/accepted yet. Original photos remain untouched; existing Sony ARW fixture suffices to start, optional camera/sample-folder question is not blocking.
+
+B source result0a6d71e8 and status426c3a04 target this chat UUID and have accepted receipts. origin/codex/save-destination-swift0f820dff contains tests7b7a5dcb/8976f2fe and product3d4b34f4 on81cc08eb; all B runtime UNRUN. Takeover now92a7cb4e. B confirms queue01a0e8a7-e244-72d0-8145-4e331243a383 reached its existing writer and that the tests-only checkpoint had already advanced. This supersedes the earlier interruption/usage blocker; no duplicate resume. Source result remains pending A review/tests and main merge. B retains Document ownership.
+
 ## Peer interruption reconciled and proxy source boundary checked — 2026-09-28 15:30 UTC
 
 Fetch/takeover unchangedcd8445349; mailboxBcbad4852 still has accepted request8638c362, with no result/new incoming or in-progress A work. Native compact snapshot now exposes B's actual latest turn01a0e898-9700-7622-b781-08019f6c758d: failed with usage-limit error after source work. This conclusion comes from the turn error and saved commands, not its separate notLoaded host status. A single recent-turn read confirms B created codex/save-destination-swift at81cc08eb and committed tests-only7b7a5dcb in /Users/rutmehta/Developer/lightroom/.worktrees/B5-16. Three test files,257 insertions/13 deletions; explicitly UNRUN. No completed product or published handoff is claimed. Preserve B's branch/reservation and accepted receipt; do not ACK, resend or launch a duplicate writer.

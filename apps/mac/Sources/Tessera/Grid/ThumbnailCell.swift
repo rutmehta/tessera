@@ -40,7 +40,7 @@ final class ThumbnailCell: NSCollectionViewItem {
 
     func configure(item: PhotoItem, state: CullState, status: ItemStatus, basketTarget: String,
                    suggestedBest: Bool, groupIndex: Int, groupSize: Int,
-                   focused: Bool, style: CellStyle, loader: ThumbnailLoader, suggestion: Decision? = nil) {
+                   focused: Bool, style: CellStyle, loader: ThumbnailLoader, suggestion: Decision? = nil, smartPreviewBadge: String? = nil) {
         let v = cellView
         v.style = style
         v.isFocusedCell = focused
@@ -52,6 +52,8 @@ final class ThumbnailCell: NSCollectionViewItem {
         name = item.name
         self.suggestedBest = suggestedBest
         self.suggestion = suggestion
+        self.smartPreviewBadge = smartPreviewBadge
+        cellView.overlay.smartPreviewBadge = smartPreviewBadge
         updateAccessibility(state: state, status: status, basketTarget: basketTarget)
 
         guard item != representedItem else { return }
@@ -86,14 +88,17 @@ final class ThumbnailCell: NSCollectionViewItem {
         refreshThumbnail(loader: loader)
     }
 
-    func update(state: CullState, status: ItemStatus, basketTarget: String, suggestion: Decision? = nil) {
+    func update(state: CullState, status: ItemStatus, basketTarget: String, suggestion: Decision? = nil, smartPreviewBadge: String? = nil) {
         cellView.imageLayer.opacity = state.decision == .reject ? Theme.Opacity.rejectedImage : 1
         cellView.overlay.set(state: state, status: status, basketTarget: basketTarget)
         cellView.overlay.set(suggestion: suggestion)
         self.suggestion = suggestion
+        self.smartPreviewBadge = smartPreviewBadge
+        cellView.overlay.smartPreviewBadge = smartPreviewBadge
         updateAccessibility(state: state, status: status, basketTarget: basketTarget)
     }
 
+    private var smartPreviewBadge: String?
     private var name = ""
     private var suggestedBest = false
     private var suggestion: Decision?
@@ -104,7 +109,8 @@ final class ThumbnailCell: NSCollectionViewItem {
             + (state.mark > 0 ? ", mark \(state.mark)" : "")
             + (suggestedBest ? ", suggested best" : "")
             + (suggestion.map { ", suggested \($0.label.lowercased())" } ?? "")
-            + ", \(status.phase.rawValue)"
+            + (smartPreviewBadge.map { ", " + $0 } ?? "")
+            + ", \(status.isCachedDeclaration ? "Cached declaration; edit status not checked" : status.phase.rawValue)"
             + (status.albums.isEmpty ? "" : ", in " + status.albums.joined(separator: ", ")))
     }
 
@@ -231,9 +237,12 @@ final class BadgeOverlayView: NSView {
 
     /// Bottom-right status text: derived phase (unedited is implicit) and albums other than the
     /// basket target, whose membership already shows as the basket chip.
+    var smartPreviewBadge: String? { didSet { if smartPreviewBadge != oldValue { needsDisplay = true } } }
+
     private var statusText: String? {
-        var parts: [String] = []
-        if status.phase != .unedited { parts.append(status.phase.rawValue.capitalized) }
+        var parts: [String] = smartPreviewBadge.map { [$0] } ?? []
+        if status.isCachedDeclaration { parts.append("Cached declaration") }
+        else if status.phase != .unedited { parts.append(status.phase.rawValue.capitalized) }
         let others = status.albums.filter { $0 != basketTarget }
         if others.count == 1 { parts.append("In " + others[0]) }
         else if others.count > 1 { parts.append("In \(others.count) albums") }

@@ -1,0 +1,22 @@
+Working directory: /Users/rutmehta/.codex/worktrees/export-integration/tessera
+All commands use CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated
+red: cargo test -p pipeline-cpu --release --test smart_preview
+  exit 101, expected missing public type/variant before implementation (compile-red)
+green1: cargo test -p pipeline-cpu --release --test smart_preview
+  exit 101, HDR fixture uniformly overexposed; existing reconstruction clips it. Preserved failure; fixture replaced with post-reconstruction embedded gain.
+green2: cargo test -p pipeline-cpu --release --test smart_preview
+  exit 0, four tests pass
+regression: cargo test -p pipeline-cpu --release --lib --test smart_preview --test render --test lens_stages --test lens_profiles --test manual_ca --test detail_defaults --test depth_render --test denoise
+  exit 0, five proxy tests plus selected existing CPU regressions
+final: same as regression, six proxy tests. See final.exit for direct command exit.
+Only the final source state is hash-recorded; earlier source states were not separately hashed. All attempt logs retained. C++ LibRaw warnings are preexisting compiler warnings.
+
+Frozen committed validation:
+frozen-commit.txt: f06ddb2b; frozen-before.sha256 and frozen-after.sha256 match (cmp exit 0).
+frozen-full: cargo test -p pipeline-cpu --release --no-fail-fast; exit 0, 147 passed.
+frozen-clippy: cargo clippy -p pipeline-cpu --release --all-targets -- -D warnings; exit 101, new camera_linear_prefix followed existing test module (items_after_test_module). Moved function before tests; no logic change; committed a3ab5034.
+frozen2-commit.txt identifies final amended source layout. frozen2-before.sha256/frozen2-after.sha256 capture all local transitive crate files including vendor/LibRaw, Cargo.lock, Cargo.toml and .cargo config; excludes other agents' unreferenced FFI files.
+frozen2-full: cargo test -p pipeline-cpu --release --no-fail-fast
+frozen2-clippy: cargo clippy -p pipeline-cpu --release --all-targets -- -D warnings
+frozen2-fmt: rustfmt --edition 2024 --config skip_children=true --check crates/pipeline-cpu/src/lib.rs crates/pipeline-cpu/src/render.rs crates/pipeline-cpu/src/smart_preview.rs crates/pipeline-cpu/tests/smart_preview.rs
+Direct exits in matching .exit files. Source comparison: cmp frozen2-before.sha256 frozen2-after.sha256. All original failure logs retained.
