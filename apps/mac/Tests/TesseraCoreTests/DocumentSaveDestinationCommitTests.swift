@@ -162,4 +162,30 @@ final class DocumentSaveDestinationCommitTests: XCTestCase {
         XCTAssertEqual(other.count, 1)
         XCTAssertEqual(try Data(contentsOf: XCTUnwrap(other.first)), Data("unowned".utf8))
     }
+    func testReplacedStagingNameIsNeitherPublishedNorDeleted() throws {
+        let dir = try directory(), target = dir.appendingPathComponent("out.tessera-doc")
+        let retained = dir.appendingPathComponent("original-stage")
+        let hooks = DocumentSaveDestinationCommit.Hooks(beforeCommit: { stage in
+            try FileManager.default.moveItem(at: stage, to: retained)
+            try Data("foreign".utf8).write(to: stage)
+        })
+        XCTAssertThrowsError(try DocumentSaveDestinationCommit.write(Data("ours".utf8), to: target,
+                                                                     intent: .createIfAbsent, hooks: hooks))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+        let entries = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+        XCTAssertEqual(entries.count, 2)
+        let foreign = try XCTUnwrap(entries.first { $0 != retained })
+        XCTAssertEqual(try Data(contentsOf: foreign), Data("foreign".utf8))
+    }
+    func testConfirmedReplaceStillReplacesPathChangedAfterConfirmation() throws {
+        let dir = try directory(), target = dir.appendingPathComponent("out.tessera-doc")
+        try Data("initial".utf8).write(to: target)
+        let hooks = DocumentSaveDestinationCommit.Hooks(beforeCommit: { _ in
+            try Data("changed externally".utf8).write(to: target, options: .atomic)
+        })
+        XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("confirmed".utf8), to: target,
+                            intent: .replaceConfirmed, hooks: hooks), .saved)
+        XCTAssertEqual(try Data(contentsOf: target), Data("confirmed".utf8))
+    }
+
 }
