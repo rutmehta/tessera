@@ -24,6 +24,10 @@ private enum DevelopCloseAdmissionError: LocalizedError {
     }
 }
 
+private struct DevelopSettingsEncodingError: LocalizedError {
+    var errorDescription: String? { "Pending Develop settings could not be encoded as JSON." }
+}
+
 /// One finished level of an engine render, written into an attached IOSurface.
 public struct DevelopFrame: Sendable, Equatable {
     public let surfaceID: UInt32
@@ -495,7 +499,12 @@ public final class DevelopController {
     private func flushSettingsPendingResult() -> (attempted: Bool, error: Error?) {
         let span = PerformanceTrace.shared.begin("flush", session: timingSession, input: timingInput)
         defer { PerformanceTrace.shared.end(span) }
-        guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return (false, nil) }
+        guard !pending.isEmpty, !closed else { return (false, nil) }
+        guard let json = Self.encode(pending) else {
+            let error = DevelopSettingsEncodingError()
+            reportCloseFailure(error)
+            return (false, error)
+        }
         guard !settingsFlushInFlight else {
             settingsFlushRequested = true
             return (false, nil)
@@ -589,13 +598,13 @@ public final class DevelopController {
     /// Moves to the state after history step `id` (nil: the original state).
     public func checkoutHistory(_ id: UInt64?) throws -> Bool {
         try requireMutation()
-        try historyMove { try session.checkoutHistory(id: id) }
+        return try historyMove { try session.checkoutHistory(id: id) }
     }
 
     /// Turns a step's changes off or back on (recorded as a new step).
     public func setHistoryStep(_ id: UInt64, enabled: Bool) throws -> Bool {
         try requireMutation()
-        try historyMove { try session.setHistoryStepEnabled(id: id, enabled: enabled) }
+        return try historyMove { try session.setHistoryStepEnabled(id: id, enabled: enabled) }
     }
 
     /// Named history groups (the agent's "Agent base edit" and redos) with their amount.
@@ -613,7 +622,7 @@ public final class DevelopController {
     @discardableResult
     public func commitGroupAmount(_ groupID: UInt32, _ amount: Double) throws -> Bool {
         try requireMutation()
-        try historyMove { try session.commitGroupAmount(groupId: groupID, amount: min(max(amount, 0), 1)) }
+        return try historyMove { try session.commitGroupAmount(groupId: groupID, amount: min(max(amount, 0), 1)) }
     }
 
     /// Applies a partial recipe (preset) as one undo step labelled `label`.

@@ -318,6 +318,77 @@ final class DevelopCloseResultTests: XCTestCase {
         let result = await first.value
         if case .failure(let error) = result { XCTFail("close failed: \(error)") }
     }
+
+    func testUnencodableSettingsBlockCloseAndRemainPending() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        controller.onNeedsFlush = {}
+        var failures: [String] = []
+        controller.onFailure = { failures.append($0) }
+        controller.set(.exposure, .nan, interactive: true)
+        let result = await controller.close()
+        if case .failure(let error) = result {
+            XCTAssertTrue(error.localizedDescription.contains("encoded as JSON"))
+        } else { XCTFail("invalid JSON must stop close") }
+        XCTAssertEqual(session.settingsAttempts, 0)
+        XCTAssertEqual(session.closeCount, 0)
+        XCTAssertFalse(controller.closed)
+        XCTAssertTrue(controller.value(.exposure).isNaN)
+        XCTAssertEqual(failures.count, 1)
+
+        controller.set(.exposure, 1.25, interactive: true)
+        session.releaseClose()
+        let retry = await controller.close()
+        if case .failure(let error) = retry { XCTFail("corrected retry failed: \(error)") }
+        XCTAssertEqual(session.closeCount, 1)
+    }
+
+    func testCloseInvalidatesDeferredSettingsDrain() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        var reentered = false
+        controller.onPatchSent = { _ in
+            guard !reentered else { return }
+            reentered = true
+            controller.set(.exposure, 0.75, interactive: false)
+        }
+        controller.set(.exposure, 0.25, interactive: false)
+        let obsolete = try XCTUnwrap(controller.deferredSettingsFlush)
+        XCTAssertEqual(session.settingsAttempts, 1)
+        session.releaseClose()
+        let result = await controller.close()
+        await obsolete.value
+        if case .failure(let error) = result { XCTFail("close failed: \(error)") }
+        XCTAssertEqual(session.settingsAttempts, 2, "close drains the pending edit exactly once")
+        XCTAssertNil(controller.deferredSettingsFlush)
+        XCTAssertEqual(session.closeCount, 1)
+    }
+
+    func testCloseInvalidatesDeferredMaskDrain() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        controller.onNeedsFlush = {}
+        let group = try XCTUnwrap(controller.addMask(
+            LinearGradientShape(start: (0.2, 0.2), end: (0.8, 0.8)).json))
+        var reentered = false
+        session.beforeMaskParam = {
+            guard !reentered else { return }
+            reentered = true
+            controller.setMaskParam(group, "exposure", 0.75, interactive: true)
+        }
+        controller.setMaskParam(group, "exposure", 0.25, interactive: true)
+        XCTAssertTrue(controller.flushMaskPending())
+        let obsolete = try XCTUnwrap(controller.scheduledMaskFlushTask)
+        XCTAssertEqual(session.maskParamAttempts, 1)
+        session.beforeMaskParam = nil
+        session.releaseClose()
+        let result = await controller.close()
+        await obsolete.value
+        if case .failure(let error) = result { XCTFail("close failed: \(error)") }
+        XCTAssertEqual(session.maskParamAttempts, 2, "close drains the pending mask once")
+        XCTAssertNil(controller.scheduledMaskFlushTask)
+        XCTAssertEqual(session.closeCount, 1)
+    }
 }
 
 /// A real session wrapper that fails before delegation, leaving native retry possible.
@@ -334,6 +405,7 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
     private var maskParamFailures = 0
     private var closeFailures = 0
     private var listenerDetaches = 0
+    var beforeMaskParam: (@MainActor () -> Void)?
 
     var closeCount: Int { lock.withLock { closes } }
     var settingsAttempts: Int { lock.withLock { settingsCalls } }
@@ -395,6 +467,7 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
     }
     override func maskGroups() throws -> [MaskGroupInfo] { try wrapped.maskGroups() }
     override func setMaskParam(groupId: UInt32, name: String, value: Float, interactive: Bool) throws {
+        MainActor.assumeIsolated { beforeMaskParam?() }
         let fail = lock.withLock {
             maskParamCalls += 1
             guard maskParamFailures > 0 else { return false }
