@@ -1,0 +1,79 @@
+{
+  "base": "b3a47443db4d86190de22da5178c068da652901b",
+  "candidate_head": "2a94a1878a760b41c6e6aa2c80be7a5feb60eeee",
+  "status_porcelain": "",
+  "worktree": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera",
+  "trace_product_enabled": false,
+  "planned_test_filters": [
+    {
+      "filter": "DocumentSaveSettlementTests",
+      "min": 20
+    },
+    {
+      "filter": "DocumentSaveSheetProbeTests",
+      "min": 2
+    },
+    {
+      "filter": "DocumentSaveSheetAttachmentTests",
+      "min": 3
+    },
+    {
+      "filter": "DocumentLoadSettlementTests",
+      "min": 4
+    },
+    {
+      "filter": "testSaveAsNames|testSaveOpenAndExport|testEngineSessionThroughTheAdapter",
+      "min": 3
+    }
+  ],
+  "files": {
+    "apps/mac/Package.resolved": {
+      "bytes": 388,
+      "sha256": "864591e727a84baf306a284db39a5952b23de2e426b4ff4bbfa652446aa77844"
+    },
+    "apps/mac/Package.swift": {
+      "bytes": 2079,
+      "sha256": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentSheets.swift": {
+      "bytes": 14164,
+      "sha256": "3de677783261828fa22557e34a9ff33181b013063d219611a78d9a4611abe47a"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": {
+      "bytes": 38461,
+      "sha256": "a7897039923a8fbff6236874d68160222f07966e2d3bb5d23112c0d70867cbb4"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift": {
+      "bytes": 3115,
+      "sha256": "16747ff20139ca40ec5f66a35839036ec18d21966b06b20e5fe7c67b9d836232"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift": {
+      "bytes": 15724,
+      "sha256": "f3d11b1c88e5268de0f87755e2f95d076b09e8fe73d59c57c840f61b91e05eeb"
+    },
+    "apps/mac/build/ffi/libtessera_ffi.a": {
+      "bytes": 298484480,
+      "sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03"
+    },
+    "tools/orchestrate/wp/B5-16/DOCUMENT-LAYERS-COMPLETION-HANDOFF.md": {
+      "bytes": 2888,
+      "sha256": "d1e55633557e0cabfbf32f0ab2da090449627b8ded7cd81334686607848609cd"
+    },
+    "tools/orchestrate/wp/B5-16/DOCUMENT-SAVE-SETTLEMENT-HANDOFF.md": {
+      "bytes": 4071,
+      "sha256": "7f6e4b44ade1ff0c4717012ea48c5df011dd0e520ceac75be0ec90e8fccdc66c"
+    },
+    "apps/mac/Sources/Tessera/Shell/ContentView.swift": {
+      "bytes": 33279,
+      "sha256": "85cb4fb087d9d824993bb4f1d0f314c5694e8c774da1ea17ebf03a3425518072"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSheetProbeTests.swift": {
+      "bytes": 2262,
+      "sha256": "8b8b6ec235503f600c88e1d2374ce065e7ed33b87443f85c84dfaf46ad684d3c"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSheetAttachmentTests.swift": {
+      "bytes": 1959,
+      "sha256": "53f5ac72b497d5ffd728fc65a85ac305154087ab2d039584372689bab356f55f"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.10s)
+Test Suite 'Selected tests' started at 2026-09-28 01:14:44.292.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 01:14:44.293.
+Test Suite 'DocumentAdjustmentAnalysisTests' started at 2026-09-28 01:14:44.293.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' passed (0.000 seconds).
+Test Suite 'DocumentAdjustmentAnalysisTests' passed at 2026-09-28 01:14:44.294.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'EngineDocumentBackendTests' started at 2026-09-28 01:14:44.294.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEngineSessionThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEngineSessionThroughTheAdapter]' passed (0.127 seconds).
+Test Suite 'EngineDocumentBackendTests' passed at 2026-09-28 01:14:44.421.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.127 (0.127) seconds
+Test Suite 'StubDocumentBackendTests' started at 2026-09-28 01:14:44.421.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testSaveOpenAndExport]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testSaveOpenAndExport]' passed (0.176 seconds).
+Test Suite 'StubDocumentBackendTests' passed at 2026-09-28 01:14:44.596.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.176 (0.176) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 01:14:44.596.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.303 (0.304) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 01:14:44.597.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.303 (0.304) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
