@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Qualified interval Release gate verified — 2026-09-28 13:58 UTC
+
+Candidate5e698e18 is pushed. Root and Astra independently read the durable Python-owned child exit0 and full raw Release result:666 XCTest,665 passed,1 skipped,0 failures, plus5 Swift Testing passes. The27 focused Debug tests are a subset, not additional coverage. All6425 before/after tracked inputs are identical (manifest SHA2563eb6e8474432cf96e9c18f576d0a8eb8d8f2affce19e0a0b32e4d9046028373e); native archive07d924df and generated bindings are unchanged. Portable evidence packaging is underway. The first full run lost its direct exit; the second wrapper failed assigning zsh's read-only status variable. Both raw logs are retained but neither independently passes the full gate. Only the third run has durable child exit0.
+
+No actual Tessera app or capture ran. The protected-dialog blocker remains pending user handling, with normal preview preserved. This verifies diagnostic source correctness, not P01/P11 presentation acceptance; M2 product is not merged. An independent Luna is preparing one exact-base gain-boundary shift control for EXP45 source review before any native execution. The original HDR acceptance remains4pass/1fail.
+
+Origin fetch and mailbox poll found no new messages, in-progress work or receipt for destination request8638c362. SSH still fails hostname resolution; no repeated queue dispatch or peer-wakeup claim. B retains its reserved source ownership. A alone merges main.
+
+
 ## Qualified interval focused gates pass; Release running — 2026-09-28 13:41 UTC
 
 Reconciled candidate5e698e18 corrects only two test-call argument orders from9bf95af. Initial focused compilation failed before any test executed; one attempt is session-observed without a durable raw log, and the second is preserved as focused-unfixed.log/direct1. The correction changes no product behavior or assertions. Root/Astra reviewed exact source. Root then read saved17 Python passes and27 distinct focused Debug XCTest passes (protocol5, launch mode4, PerformanceTrace3, detail scheduling9, mailbox2, Develop4), all direct0. The zero-selected Swift Testing notices add no tests. Full Swift Release is running in the sole heavy lane; no final result is claimed. Archive07d924df/native source remain unchanged.
