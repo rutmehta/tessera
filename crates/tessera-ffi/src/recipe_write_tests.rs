@@ -11,9 +11,105 @@ use std::{
 };
 
 use crate::recipe_write::gate_for;
+use engine_api::recipe::{EditMeta, Recipe};
 
 fn tiny_jpeg(path: &Path) {
     image::RgbImage::new(2, 2).save(path).unwrap();
+}
+
+#[test]
+fn set_recipe_json_publishes_develop_settings_to_recipe_xmp_and_index() {
+    let dir = tempfile::tempdir().unwrap();
+    let photos = dir.path().join("photos");
+    fs::create_dir(&photos).unwrap();
+    let image = photos.join("edited.jpg");
+    tiny_jpeg(&image);
+    let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let id = engine.list_images(ImageQuery::default()).unwrap()[0]
+        .id
+        .clone();
+    let mut recipe: Recipe = serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+    recipe
+        .edit(EditMeta::user("Exposure", 1), |settings| {
+            settings.tone.exposure = 1.25;
+        })
+        .unwrap();
+
+    engine
+        .set_recipe_json(id.clone(), serde_json::to_string(&recipe).unwrap())
+        .unwrap();
+
+    let paths = Sidecar::paths(&image);
+    let written = Sidecar::read_recipe(&paths.recipe).unwrap().recipe;
+    let xmp = Sidecar::read_xmp(&paths.xmp).unwrap();
+    let indexed = engine.list_images(ImageQuery::default()).unwrap();
+    assert_eq!(written.settings.tone.exposure, 1.25);
+    assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 1.25);
+    assert_eq!(indexed[0].recipe_hash, written.recipe_hash().to_string());
+}
+
+#[test]
+fn set_selection_retains_existing_xmp_develop_settings_and_description() {
+    let dir = tempfile::tempdir().unwrap();
+    let photos = dir.path().join("photos");
+    fs::create_dir(&photos).unwrap();
+    let image = photos.join("selected.jpg");
+    tiny_jpeg(&image);
+    let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let id = engine.list_images(ImageQuery::default()).unwrap()[0]
+        .id
+        .clone();
+    let mut recipe: Recipe = serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+    recipe
+        .edit(EditMeta::user("Exposure", 1), |settings| {
+            settings.tone.exposure = 0.75;
+        })
+        .unwrap();
+    engine
+        .set_recipe_json(id.clone(), serde_json::to_string(&recipe).unwrap())
+        .unwrap();
+    let paths = Sidecar::paths(&image);
+    let initial_xmp = sidecar::XmpPacket::from_recipe(
+        &recipe,
+        &sidecar::Metadata {
+            description: "Keep this description".into(),
+            ..Default::default()
+        },
+        &sidecar::MarkPreset::default(),
+    )
+    .unwrap();
+    Sidecar::write_xmp(&paths.xmp, &initial_xmp).unwrap();
+
+    engine
+        .set_selection(
+            id,
+            Selection {
+                decision: Decision::Keep,
+                grade: Some(2),
+                mark: None,
+            },
+        )
+        .unwrap();
+
+    let xmp = Sidecar::read_xmp(&paths.xmp).unwrap();
+    assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 0.75);
+    assert_eq!(xmp.metadata().unwrap().description, "Keep this description");
+    assert_eq!(xmp.selection().unwrap().grade.map(u8::from), Some(2));
+    assert_eq!(
+        Sidecar::read_recipe(&paths.recipe)
+            .unwrap()
+            .recipe
+            .settings
+            .tone
+            .exposure,
+        0.75
+    );
 }
 
 #[test]
