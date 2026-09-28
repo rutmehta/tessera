@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Validation and review update — 2026-09-28 05:26 UTC
+
+- Document `2a94a187` passed 32 focused tests and full Release: 569 XCTest, one skip, zero unexpected failures; five Swift Testing passed, direct exit 0. Root read the raw full result. The real same/distinct Save As matrix passed Cancel, Replace, and persisted-content reopening. Diagnostic trace was absent; isolated app closed.
+- **Product merge held:** B final source review `84425738` found that an attached choosing sheet cancelled/superseded before submission can release successor admission on SwiftUI dismissal without native detachment. A independently confirmed the source gap; this specific GUI failure is not reproduced. Review result `8f8457ae` completed. Observed-detachment result `0f1f76fc` completed for its bounded passes, not whole-product acceptance.
+- B source-only correction request `9ddfd017-dfe5-40ef-b357-7a76f258dea8` published; existing-chat SSH queue `01a0e679-e574-72e3-bd8e-083ad0e09675` accepted, peer receipt pending. Prior GUI failures and new passes stay preserved. No B workloads or heartbeat restart.
+- Recovery Luna froze `f24534ca` with corrected fixture expectations, five added behavior cases, stable target/reuse fixes, and a bounded native-run hold for deterministic same-path rebind. The expanded **56-case focused gate is running**; full Release follows only if green. The dense-index case is a synthetic defensive state, not an end-to-end catalog reorder. Reviewer releases the heavy lane to Luna and packages Document evidence. A alone merges main; preview PID57591 unchanged.
+
 ## Current coordinator checkpoint — 2026-09-28 05:19 UTC
 
 - Document candidate `2a94a187` has no trace instrumentation. All 32 focused tests passed with direct exit 0; root independently read the five raw logs/results. Reviewer owns the sole desktop/build lane. Same-file native Replace now appears; Cancel preserved bytes and confirmed Replace reopened the edited layer. Reviewer also completed distinct-target Cancel/Replace/reopen: Cancel preserved the destination, Replace changed only that file, and reopening showed the edited layer. Isolated app is closed. Full Release suite remains pending; no product integration yet.
