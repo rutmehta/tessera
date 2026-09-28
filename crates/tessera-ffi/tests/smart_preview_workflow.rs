@@ -196,6 +196,20 @@ fn public_engine_offline_restart_sync_original_export_and_conflict() {
     let offline = dir.path().join("offline-photo-copy");
     fs::rename(&photos, &offline).unwrap();
     let engine = Engine::open(support.to_string_lossy().into()).unwrap();
+    let library = engine
+        .open_smart_preview_library_session(photos.to_string_lossy().into())
+        .unwrap();
+    let rows = library.images().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].id, id);
+    assert!(library.grade_images(vec![id.clone()], 3).is_err());
+    assert!(
+        library
+            .set_library(photos.join("library.json").to_string_lossy().into())
+            .is_err()
+    );
+    assert!(library.sync_changes().unwrap().removed.is_empty());
+    assert!(!photos.exists());
     let info = engine.smart_preview_info(id.clone()).unwrap();
     assert!(info.dirty);
     assert!(!info.original_available);

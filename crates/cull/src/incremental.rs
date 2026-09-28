@@ -144,7 +144,13 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         }
         // Unknown ids (already pruned again) are skipped rather than failing the batch.
         fresh.retain(|id| self.index.image_info(*id).is_ok());
-        let fresh = admit(&self.index, &self.query, self.folder.as_deref(), fresh)?;
+        let fresh = admit(
+            &self.index,
+            &self.query,
+            self.folder.as_deref(),
+            fresh,
+            self.declared.as_ref(),
+        )?;
         if fresh.is_empty() {
             return Ok(Vec::new());
         }
@@ -341,7 +347,10 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         let Ok(info) = self.index.image_info(id) else {
             return Ok(false);
         };
-        Ok(info.path.exists()
+        Ok(self
+            .declared
+            .as_ref()
+            .map_or_else(|| info.path.exists(), |ids| ids.contains(&id))
             && self
                 .folder
                 .as_ref()

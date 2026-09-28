@@ -928,6 +928,7 @@ impl Inner {
         sidecar_images: Vec<(engine_api::id::ImageId, PathBuf)>,
         edit: impl FnOnce(&mut Self) -> Result<()>,
     ) -> Result<()> {
+        self.core.require_writable()?;
         let before = self.core.index().snapshot_people_edit(ids, faces)?;
         let files_before = paths
             .into_iter()
@@ -1039,6 +1040,7 @@ impl Inner {
     }
 
     fn refresh_people_job(&mut self, force: bool) -> Result<PeopleJobResult> {
+        self.core.require_writable()?;
         // Refit over the catalog, not just this queue: persisted identities may
         // also have members outside the active folder/filter.
         let images = self.core.index().search(&index::Query {
@@ -1060,7 +1062,7 @@ impl Inner {
     }
 
     fn people(&mut self) -> Result<&People> {
-        if self.assist.people.is_none() {
+        if self.assist.people.is_none() && !self.core.is_declared_read_only() {
             self.refresh_people_job(false)?;
         }
         // Resolve joins again: another session may have renamed/reassigned a face,
@@ -1119,7 +1121,9 @@ impl CullSession {
     /// Incremental ingestion with periodic refits, or an explicit forced refit.
     /// Blocking: invoke on the host worker queue, never the UI thread.
     pub fn refresh_people(&self, force: bool) -> Result<PeopleJobResult> {
-        self.lock()?.refresh_people_job(force)
+        let mut s = self.lock()?;
+        s.core.require_writable()?;
+        s.refresh_people_job(force)
     }
 
     /// All catalog members in stable image-ID/ordinal order. No clustering or
@@ -1141,6 +1145,7 @@ impl CullSession {
     /// Undo the last session-local people edit and return its menu description.
     /// None means empty history; conflicts/errors leave history and state intact.
     pub fn undo_people_edit(&self) -> Result<Option<String>> {
+        self.lock()?.core.require_writable()?;
         {
             let mut s = self.lock()?;
             let images = s
@@ -1159,6 +1164,7 @@ impl CullSession {
 
     /// Redo the last undone people edit. A new successful edit clears redo.
     pub fn redo_people_edit(&self) -> Result<Option<String>> {
+        self.lock()?.core.require_writable()?;
         {
             let mut s = self.lock()?;
             let images = s
@@ -1406,7 +1412,7 @@ impl CullSession {
     /// and runs the job's periodic refit; use `refresh_people(true)` to force it.
     pub fn people(&self, refresh: bool) -> Result<Vec<PersonInfo>> {
         let mut s = self.lock()?;
-        if refresh {
+        if refresh && !s.core.is_declared_read_only() {
             s.refresh_people_job(false)?;
         }
         Ok(s.people()?.list.clone())
@@ -1421,7 +1427,7 @@ impl CullSession {
         eyes_closed_below: Option<f64>,
     ) -> Result<Vec<String>> {
         let mut s = self.lock()?;
-        if s.assist.people.is_none() {
+        if s.assist.people.is_none() && !s.core.is_declared_read_only() {
             s.refresh_people_job(false)?;
         }
         let found = person_frames(

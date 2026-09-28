@@ -498,6 +498,28 @@ fn write_record(path: &Path, record: &Record) -> StoreResult<()> {
     Ok(())
 }
 
+/// Read-only bounded declaration admission. This does not validate pixel bytes
+/// or original identity. Never creates directories or opens original paths.
+pub(crate) fn has_local_declaration(root: &Path, id: ImageId) -> bool {
+    let previews = root.join("smart-previews");
+    let directory = previews.join(id.to_string());
+    for path in [&previews, &directory] {
+        if !fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_dir()) {
+            return false;
+        }
+    }
+    if !fs::symlink_metadata(directory.join("pixels.tsp"))
+        .is_ok_and(|m| m.file_type().is_file() && m.len() > 0)
+    {
+        return false;
+    }
+    if !fs::symlink_metadata(directory.join("journal.json")).is_ok_and(|m| m.file_type().is_file())
+    {
+        return false;
+    }
+    read_record(&directory.join("journal.json"), id).is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

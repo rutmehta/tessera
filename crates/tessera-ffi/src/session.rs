@@ -266,6 +266,48 @@ impl Engine {
     pub fn open_cull_session(&self, folder: String) -> Result<Arc<CullSession>> {
         self.open_session(Path::new(&folder).to_path_buf().into())
     }
+    /// Catalog-only recursive library of local Smart Preview declarations.
+    /// Does not scan, canonicalize, stat, or read the original folder. A bounded
+    /// journal and local asset existence admit a row; pixels are fully validated
+    /// only on Develop open. Read-only selection/basket/people; reopen to refresh
+    /// declarations. `folder` is the absolute catalog path, without `..`.
+    pub fn open_smart_preview_library_session(&self, folder: String) -> Result<Arc<CullSession>> {
+        let folder = Path::new(&folder).to_path_buf();
+        if !folder.is_absolute()
+            || folder
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            return Err(failure("expected absolute catalog folder without .."));
+        }
+        let support = self.support_dir()?.to_path_buf();
+        let index = index::Index::open(&self.db)?;
+        let mut declared = HashSet::new();
+        for id in index.search(&index::Query {
+            limit: i64::MAX as usize,
+            ..Default::default()
+        })? {
+            if index.image_info(id)?.path.starts_with(&folder)
+                && crate::smart_preview_store::has_local_declaration(&support, id)
+            {
+                declared.insert(id);
+            }
+        }
+        let mut core = Core::open_owned_declared(index, folder.clone(), declared)?;
+        core.set_auto_advance(false);
+        Ok(Arc::new(CullSession {
+            support_dir: support.clone(),
+            inner: Mutex::new(Inner {
+                core,
+                reader: Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?,
+                assist: crate::assist::AssistState::new(
+                    support,
+                    crate::assist::library_key(Some(&folder)),
+                ),
+                bests: HashMap::new(),
+            }),
+        }))
+    }
     /// Filtered queue. Zero limit means all matches. Call `set_library` before
     /// basket operations.
     pub fn open_cull_session_for_query(&self, query: ImageQuery) -> Result<Arc<CullSession>> {
@@ -761,5 +803,142 @@ impl CullSession {
                     .collect(),
             })
             .collect())
+    }
+}
+
+#[cfg(test)]
+mod offline_library_tests {
+    use super::*;
+    use crate::smart_preview_store::SmartPreviewJournal;
+    use std::fs;
+
+    #[test]
+    fn offline_library_uses_declarations_and_catalog_without_recreating_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        let nested = photos.join("nested");
+        fs::create_dir_all(&nested).unwrap();
+        for name in ["declared", "no-preview", "bad-journal", "no-pixels"] {
+            fs::write(nested.join(format!("{name}.jpg")), name).unwrap();
+        }
+        let photos = photos.canonicalize().unwrap();
+        let support = dir.path().join("support");
+        let engine = Engine::open(support.to_string_lossy().into()).unwrap();
+        let mut index = index::Index::open(&engine.db).unwrap();
+        index
+            .scan(
+                &photos,
+                &index::NoopSidecarReader,
+                &index::NoopMetadataProvider,
+            )
+            .unwrap();
+        let id_for = |name: &str| {
+            index
+                .image_at(&photos.join("nested").join(format!("{name}.jpg")))
+                .unwrap()
+                .unwrap()
+        };
+        let id = id_for("declared");
+        let selection = cull::Selection::keep(Some(cull::Grade::Two));
+        index.set_selection(id, &selection).unwrap();
+        for name in ["declared", "bad-journal", "no-pixels"] {
+            let id = id_for(name);
+            let bytes = serde_json::to_vec(&sidecar::RecipeDocument {
+                recipe: engine_api::recipe::Recipe::new(id),
+                ..Default::default()
+            })
+            .unwrap();
+            let journal =
+                SmartPreviewJournal::create(&support, id, [1; 32], 10, bytes, None, None).unwrap();
+            if name != "no-pixels" {
+                fs::write(
+                    journal.directory().join("pixels.tsp"),
+                    b"corrupt pixels remain declared",
+                )
+                .unwrap();
+            }
+            if name == "bad-journal" {
+                fs::write(journal.directory().join("journal.json"), b"bad journal").unwrap();
+            }
+        }
+        fs::rename(&photos, dir.path().join("offline")).unwrap();
+        drop(index);
+        drop(engine);
+        let engine = Engine::open(support.to_string_lossy().into()).unwrap();
+        let session = engine
+            .open_smart_preview_library_session(photos.to_string_lossy().into())
+            .unwrap();
+        let rows = session.images().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, id.to_string());
+        assert_eq!(rows[0].selection.grade, Some(2));
+        assert!(!rows[0].in_basket);
+        assert!(session.sync_changes().unwrap().removed.is_empty());
+        assert!(session.grade_images(vec![id.to_string()], 1).is_err());
+        assert!(
+            session
+                .set_library(photos.join("library.json").to_string_lossy().into())
+                .is_err()
+        );
+        assert!(session.set_basket_target("Album".into()).is_err());
+        assert!(session.refresh_people(true).is_err());
+        // Direct first call must use cached assignments without a people refit.
+        assert!(
+            session
+                .frames_with_person("unknown-person".into(), None)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            session
+                .frames_with_person("unknown-person".into(), Some(0.5))
+                .unwrap()
+                .is_empty()
+        );
+        assert!(session.people(false).unwrap().is_empty());
+        assert!(
+            engine
+                .clone()
+                .open_smart_preview_develop_session(id.to_string())
+                .is_err()
+        );
+        assert!(!photos.exists());
+        assert!(
+            engine
+                .open_smart_preview_library_session("relative".into())
+                .is_err()
+        );
+        assert!(
+            engine
+                .open_smart_preview_library_session(
+                    photos.join("../photos").to_string_lossy().into()
+                )
+                .is_err()
+        );
+        let empty = engine
+            .open_smart_preview_library_session(dir.path().join("other").to_string_lossy().into())
+            .unwrap();
+        assert!(empty.images().unwrap().is_empty());
+        fs::remove_file(
+            support
+                .join("smart-previews")
+                .join(id.to_string())
+                .join("pixels.tsp"),
+        )
+        .unwrap();
+        assert_eq!(
+            session.images().unwrap().len(),
+            1,
+            "declaration snapshot changes only on reopen"
+        );
+        assert!(
+            engine
+                .open_smart_preview_library_session(photos.to_string_lossy().into())
+                .unwrap()
+                .images()
+                .unwrap()
+                .is_empty()
+        );
+        assert!(!photos.exists());
     }
 }
