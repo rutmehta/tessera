@@ -1,0 +1,11 @@
+# Develop retry and native close integration — 2026-09-28
+
+Exact tested product: `40d3054e0e4f4563bbc5b4ec09eca29e014d1959`. It combines native close `5478efe1` (on already-merged save retry `85de2860`) and Swift settings retention `96fac819`. Native failure leaves the session retryable; successful close drains its save worker and rejects later mutations. Swift rejected coalesced settings retain newer values and do not auto-retry after failure. **Core close-result propagation, AppModel recovery/navigation/quit gates and mask-retention candidate remain separate unfinished work.** No lease/CAS or multi-file transaction is enabled.
+
+The native Release bridge built at `b7e8b04a`, direct exit0. Regeneration changed only Swift close documentation and its UniFFI checksum (7846 to13264), committed as `40d3054e`. All other1625 tracked source hashes matched the original1626-file freeze. The first coordinator preflight stopped on the expected generated-file change; its runner initialization exited1 before any Swift test began because no manifest had been emitted. That setup outcome is preserved in coordinator-preflight.txt.
+
+Fresh archive SHA256 `8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03`. Prior0a9 archive remains byte-identically backed up under the external validation directory. Matching generated Swift/header and test executable hashes are in build-artifacts.json. No archive binaries are duplicated into Git.
+
+Focused Release:41XCTest,0failures,directexit0. Full Release reused that exact executable:516XCTest executed,1existing skip,0failures,plus5SwiftTesting,directexit0. Both commands, elapsed times, rawlogs and parsed outcomes are preserved. The runner verified source/FFI hashes before and after each gate. Builds used two workers and external betterSSD caches. Native41unit/9Develop-integration/3mask-integration plus finalstrict/fmt evidence is preserved separately under develop-close-native-2026-09-27; prior Swift39/0 and test fixture hang/crash evidence under develop-patch-retry-2026-09-27.
+
+These are automated functional checks, not a new GUI, resource ceiling, latency, broad RAW-camera, or macOS15 compatibility claim. The existing BLAKE3NEON deployment warning is retained in rawlogs. User previewPID57591 was left untouched and does not acquire these changes merely because main merges.

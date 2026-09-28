@@ -1,0 +1,1 @@
+FFI build exit0. Initial Swift preflight expected a clean source tree and stopped because generated Swift close docs/API checksum changed. No Swift tests ran; missing manifest also stopped runner initialization (exit1). Committed regenerated binding and froze new head 40d3054e0e4f4563bbc5b4ec09eca29e014d1959. All other 1625 source hashes unchanged.

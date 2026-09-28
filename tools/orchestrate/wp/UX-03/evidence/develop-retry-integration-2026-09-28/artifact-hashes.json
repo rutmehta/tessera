@@ -1,0 +1,54 @@
+{
+  "run_build_ffi.py": {
+    "sha256": "30b604849d7f7647bcd3eade6fc30fe3f7c8864594ecb0a6197ce0da03b51dbe",
+    "size": 1646
+  },
+  "full.log": {
+    "sha256": "e6c3263e8eee08baff34aea1dab73392ea30385cbbbb5711108e39277a889440",
+    "size": 149103
+  },
+  "run_swift.py": {
+    "sha256": "c4346a16ac95a03d40b82f444dd511613f1cd80179b0b70c443ebabe7e5d99dc",
+    "size": 2650
+  },
+  "coordinator-preflight.txt": {
+    "sha256": "5f53afe722b48f8fbafaa9ffc2dc91a8a93ce3febc0068c1b4917d4074fca9c2",
+    "size": 351
+  },
+  "focused.json": {
+    "sha256": "4f09911583e2b295f149eb4fcfa75d0fe37060bab04585c0f7695ca22e1bd05e",
+    "size": 603
+  },
+  "README.md": {
+    "sha256": "231917728d8c2b0cd8aaec1d37addf209bf427f2009e45a7c6e457e60a49d1df",
+    "size": 2347
+  },
+  "full.json": {
+    "sha256": "77e7700c68668c84b568d705262cc3aea76dcc4216145ce2ba0a19f4c517f3ae",
+    "size": 540
+  },
+  "manifest.json": {
+    "sha256": "99f0e5cca2bc1c792be61673f088a22f7836c9592e1163952ff07114886105b4",
+    "size": 267245
+  },
+  "build-ffi.log": {
+    "sha256": "ac241e6fbde381828d520226afc11db4191cb95523663890f380eeb2944c5914",
+    "size": 208154
+  },
+  "build-ffi.json": {
+    "sha256": "910173e71415729a2413eba92edde8e3a99450c2f769839194430179671a462a",
+    "size": 279
+  },
+  "build-artifacts.json": {
+    "sha256": "aa3a511e8d6a131216a8d3faafcbf65380198dc66ee4f5e94f35a8a1b2ec42ef",
+    "size": 929
+  },
+  "focused.log": {
+    "sha256": "ca8a5b2aed431fa2aa9fcd45809c501a8e0ad77149f61875ba915dd5561a0a9f",
+    "size": 27086
+  },
+  "swift-manifest.json": {
+    "sha256": "20ccab5ae0cb824f3221f6bb7027931b42193dc216806967147abfd966ce5763",
+    "size": 267440
+  }
+}
