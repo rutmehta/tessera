@@ -1,0 +1,4 @@
+f250f27fa7ca13363b71866917f3b47a252c433fff189707069c16001f472dd7  /Volumes/betterSSD/tessera-cache/swift/document-save-settlement/scratch/arm64-apple-macosx/release/Tessera
+a70f45318e7181f7d9b645ab8d46c0b6559853a7004a4f9e289a9539eab91cfe  /Volumes/betterSSD/tessera-validation/document-save-settlement/native-detach-b3a47443/gui/Tessera Native Detach Validation.app/Contents/MacOS/Tessera
+9a1f9979929f8b0d6035cc8f24c3809c5f510e6fbfc173c031fa87e09b148a0f  /Volumes/betterSSD/tessera-validation/document-save-settlement/native-detach-b3a47443/gui/Tessera Native Detach Validation.app/Contents/Info.plist
+8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03  /Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a

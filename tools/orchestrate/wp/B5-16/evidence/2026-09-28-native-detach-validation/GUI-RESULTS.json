@@ -1,0 +1,30 @@
+{
+  "candidate_head": "b3a47443db4d86190de22da5178c068da652901b",
+  "result": "failed_gui_acceptance",
+  "source_executable_sha256": "f250f27fa7ca13363b71866917f3b47a252c433fff189707069c16001f472dd7",
+  "final_packaged_executable_sha256": "a70f45318e7181f7d9b645ab8d46c0b6559853a7004a4f9e289a9539eab91cfe",
+  "ffi_archive_sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03",
+  "bundle_id": "dev.tessera.document-save-validation.b3a47443",
+  "isolated_app": "/Volumes/betterSSD/tessera-validation/document-save-settlement/native-detach-b3a47443/gui/Tessera Native Detach Validation.app",
+  "isolated_app_dir": "/Volumes/betterSSD/tessera-validation/document-save-settlement/native-detach-b3a47443/gui/appdir",
+  "fixture_jpeg_sha256": "f2e70c1e431dad1a3a6984ab4d5311f89fd43c6ba9ad5ce55f12658d27bd7a5e",
+  "original_document_sha256": "a38faab356b51e565a0bd5b3ca478d8df60a38ccabc41717fb55566ff8f8fd75",
+  "distinct_existing_copy_sha256": "a38faab356b51e565a0bd5b3ca478d8df60a38ccabc41717fb55566ff8f8fd75",
+  "steps": [
+    "Initial open -n failed before process start with Launch Services -10810. Its plist used a dev-string CFBundleVersion; corrected isolated metadata to numeric 1, re-signed, and open -n still returned -10810. The exact packaged executable launched directly with the isolated --app-dir and fixture folder.",
+    "Created a 32 x 32, 8-bit sRGB layered document. Save As to new native-detach.tessera-doc succeeded; AX canvas status said Saved native-detach.tessera-doc, file size 1001 bytes.",
+    "Reopened Save As, clicked Cancel: sheet dismissed and editor remained. Reopened with Command-Shift-S, pressed Escape: sheet dismissed and editor remained.",
+    "Reopened Save As on the same existing path and clicked Save. The sheet dismissed; no Replace alert appeared. AX and screenshot showed the editor and the previous Saved status. The original document hash remained a38faab3... .",
+    "Immediately pressing Command-Shift-S caused no AX change. Explicit File > Save As remained enabled, but clicking it showed no sheet. This is an additional stalled successor presentation symptom.",
+    "File > Close Document closed the editor. Open Document on the saved file reopened it, and then a delayed Save As sheet appeared over the reopened editor. Clicked Cancel; AX status behind it said Opened native-detach.tessera-doc.",
+    "Fresh Save As to distinct existing already-exists.tessera-doc dismissed without a Replace alert or new status. Both existing file hashes remained a38faab3... .",
+    "Command-Q closed the isolated app. A CUA state query relaunched the bound app once; a second Command-Q without a follow-up UI query stopped it. No isolated process remained; normal preview PID 57591 was still running."
+  ],
+  "not_verified": [
+    "Replace Cancel and confirmed Replace, because no alert appeared",
+    "Readable reopened replacement output; only original saved document reopened",
+    "Abrupt parent-window destruction and preappearance cancellation",
+    "Full Swift suite"
+  ],
+  "evidence_limits": "CUA AX trees and one screenshot were displayed during the run but not exported as image files. A missing native/Swift dismissal callback is a hypothesis, not established root cause."
+}
