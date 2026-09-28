@@ -169,6 +169,7 @@ public final class SmartPreviewController {
     public private(set) var total = 0
     @ObservationIgnored private let api: SmartPreviewAPI?
     @ObservationIgnored private var selectionGeneration = UUID()
+    @ObservationIgnored private var selectionIdentity = UUID()
     @ObservationIgnored private var selectionTask: Task<Void, Never>?
     @ObservationIgnored private var selectionNeedsRead = true
     @ObservationIgnored private var revisions: [String: UUID] = [:]
@@ -191,6 +192,7 @@ public final class SmartPreviewController {
         if selectedImageID == imageID, !refresh, !selectionNeedsRead { return selectionTask }
         let previous = selectionTask
         previous?.cancel() // stops queued work, not a native call already in progress
+        if selectedImageID != imageID { selectionIdentity = UUID() }
         selectedImageID = imageID; selectionError = nil
         let generation = UUID(); selectionGeneration = generation
         selectionNeedsRead = true
@@ -224,15 +226,34 @@ public final class SmartPreviewController {
     /// validate current source/journal identity and writer admission. An error never
     /// triggers Original fallback. Save callbacks invalidate without hashing again.
     public func statusForOpening(imageID: String) async throws -> SmartPreviewSnapshot {
-        try Task.checkCancellation()
-        guard selectedImageID == imageID else { throw CancellationError() }
-        let task = select(imageID: imageID)
-        await task?.value
-        try Task.checkCancellation()
-        guard selectedImageID == imageID, !isRunning, let info = snapshots[imageID] else {
-            throw SmartPreviewUIError.unavailable(selectionError ?? "Check Smart Preview status before opening this photo")
+        try await statusForOpening(imageID: imageID, willWait: {})
+    }
+
+    /// Internal deterministic test seam fires only after capturing the awaited task
+    /// and generation. The production entry point supplies a no-op observer.
+    func statusForOpening(imageID: String, willWait: @MainActor () -> Void) async throws -> SmartPreviewSnapshot {
+        let identity = selectionIdentity
+        while true {
+            try Task.checkCancellation()
+            guard selectedImageID == imageID, selectionIdentity == identity else { throw CancellationError() }
+            guard !isRunning else {
+                throw SmartPreviewUIError.unavailable("Wait for the Smart Preview operation before opening this photo")
+            }
+            let task = select(imageID: imageID)
+            let generation = selectionGeneration
+            willWait()
+            await task?.value
+            try Task.checkCancellation()
+            guard selectedImageID == imageID, selectionIdentity == identity else { throw CancellationError() }
+            // Check Status may replace a same-photo read while this await drains.
+            // Follow that actual replacement; do not mistake its missing snapshot
+            // for failure, start a duplicate read, or revive an older selection.
+            guard selectionGeneration == generation else { continue }
+            guard !isRunning, let info = snapshots[imageID] else {
+                throw SmartPreviewUIError.unavailable(selectionError ?? "Check Smart Preview status before opening this photo")
+            }
+            return info
         }
-        return info
     }
 
     public func invalidateStatus(imageID: String) {
