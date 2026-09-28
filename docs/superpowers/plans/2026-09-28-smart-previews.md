@@ -27,10 +27,10 @@ Nonneutral WB must detect the working-RGB trap; default lens corrections must no
 
 Files: crates/pipeline-cpu/src/render.rs, new camera-linear source module as needed, src/lib.rs and focused integration tests.
 
-- [ ] Extract pre-matrix CFA prefix into an owned camera-linear value with original calibration, active-area mapping, settings fingerprint and resolved lens operations.
-- [ ] Add explicit render source route. Preserve camera profile then WB then current downstream order. Record applied CA/embedded stages; reject incompatible prefix or unsupported late coordinate transforms before rendering.
-- [ ] Add tests: custom/as-shot WB with nonidentity calibration, scale-one CFA comparison, editable exposure, upstream mismatch, HDR finite values, odd crop/reduction, default Auto/CA.
-- [ ] Run focused Release tests with source hashes/direct exits, retain failed attempts, commit exact component and obtain independent review.
+- [x] Extract pre-matrix CFA prefix into an owned camera-linear value with original calibration, active-area mapping, settings fingerprint and resolved lens operations.
+- [x] Add explicit render source route. Preserve camera profile then WB then current downstream order. Record applied CA/embedded stages; reject incompatible prefix or unsupported late coordinate transforms before rendering.
+- [x] Add tests: custom/as-shot WB with nonidentity calibration, scale-one CFA comparison, editable exposure, upstream mismatch, HDR finite values, odd crop/reduction, default Auto/CA.
+- [x] Run focused Release tests with source hashes/direct exits, retain failed attempts, commit exact component and obtain independent review.
 
 ## Task 2 — durable local recipe journal (Luna, independent source preparation)
 

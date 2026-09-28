@@ -1,5 +1,11 @@
 # Tessera task board — Machine A coordinator
 
+## Smart Preview CPU component accepted — 2026-09-28 15:55 UTC
+
+Integrated in-memory component 2ab94fd9, exact product a3ab5034/f06ddb2b. Final Release pipeline-cpu gate:147 passed,0 failed,1 existing ignored; strict all-target Clippy and targeted formatting exit0. Root rehashed436 frozen inputs; independent Astra review clean. Portable evidence: tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/engine-a3ab5034 (37 payloads plus manifest). Missing-API, HDR-fixture and lint failures retained. This is NOT complete editable Smart Previews: codec, image-core route, offline journal/admission integration, Library UI and end-to-end acceptance remain.
+
+Luna now has the sole compiler lane for local journal+stable ImageId admission tests; initial source review found missing constructor initialization and directory-sync gaps, being fixed before acceptance. Astra prepares bounded compressed camera-linear codec source; separate Astra prepares image-core routing patch without changing active compiler inputs. B returned test-only3ca3e9c9 for request5cfbf6a4; result7d8f8c4c accepted after target validation, tests still UNRUN. Queue01a0e8b2-65a8-7d22-99a4-734c0c98a167 processing is confirmed by native completed peer turn and Git result. No duplicate dispatch. A alone merges main.
+
 ## Smart Preview implementation and B handoff — 2026-09-28 15:43 UTC
 
 User explicitly authorized implementation. Clean managed checkout export-integration is reused as codex/smart-previews from main7f98ab79. Astra implements the camera-linear CPU boundary with sole compiler lane; Luna independently prepares local journal storage source without builds; a second Astra reviews B Save As source. Plan: docs/superpowers/plans/2026-09-28-smart-previews.md. End-to-end Smart Previews are NOT implemented/accepted yet. Original photos remain untouched; existing Sony ARW fixture suffices to start, optional camera/sample-folder question is not blocking.
