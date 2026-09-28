@@ -1,5 +1,16 @@
 # Tessera task board — Machine A coordinator
 
+## Full desktop gate failed; batch regression under repair — 2026-09-28 17:45 UTC
+
+The first full Swift run at feature567f5e92 plus generated bindings/import fix exited1:672 XCTest cases,1 skipped,10 assertion failures across3 tests;5 Swift Testing cases passed. Do not treat this as accepted full-app integration. Native archive/binding regeneration passed270.5s and generated delta was reviewed.
+
+Confirmed product regression in native OriginalWriteReservation integration: Auto Edit with one missing photo aborts whole batch before per-image results. Existing AgentReviewLayout expects two successes plus one retained failure; queue is incorrectly empty. A FFI author prepares a partition-safe guard fix, reserving all IDs/checking dirty state while retaining missing entries as non-writing failures and preserving batch indices. Independent reviewer confirms cause; this blocks full product acceptance despite earlier bounded native passes.
+
+Other failures: OfflineLibraryRouting test expected Foundation-normalized /var instead of native canonical /private/var (7 assertions); A uses independent POSIX realpath only while online for expected fixture, preserving product canonical authority. WorkspaceReadyPhoto expected prefeature label without Original suffix (1 assertion); A updates expectedlabel while retaining actualRAW readiness/layout/mask checks. Missing FolderHandle import compilation failure02 retained and repaired. After focused28 verification/checkpoint, native guard repair owns next compilerlane; final full/strict deferred until repairs integrated.
+
+B has new source requesta4ac739c for preexisting Document strict diagnostics, SSH queue01a0e91a-11cb-7671-ab32-464ff07da425 accepted; clarified checkbox Binding setter (not slider) in statusde6dcb0f/queue01a0e91c-e7b9-7d61-ad99-d514ca9520a9, peer receipt pending. No warning suppression or weakened test thresholds. GPU consolidated proposal remains source-approved but unrun/unapplied. Main merges A-only, older work preserved.
+
+
 ## Compact builds accepted; full desktop integration running — 2026-09-28 17:31 UTC
 
 Main integrates codec8b654835 and native builder8c5fd747. New previews use Compact2048; existing Detail/v1 assets remain readable with no automatic migration/discard, and Original remains default editing source. Sony Compact1640×1092 is7,319,246 bytes versus16,646,144 original (56.03% smaller). Codec error bounds passed, actual preserved v1 asset retained exact historical edited hash and exact upgraded samples. Full CPU+image-core257 tests/5 ignored passed; native builder172 unit tests plus real Compact offline/reconnect/conflict/full4920×3276JPEG workflow passed, strict/fmt0. Root independently verified6938 Git input hashes for each candidate's final gates. Evidence compact-8b654835 and ffi-compact-8c5fd747. No matched-output or interactive speed claim.
