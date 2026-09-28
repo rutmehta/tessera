@@ -54,7 +54,8 @@ struct ExtendedAdjustmentEditor: View {
     // Binding preserves the UI actor of its Sendable setter; toggles commit synchronously.
     private func checkbox(_ title: String, _ on: Bool, _ key: String,
                           _ change: @escaping @MainActor @Sendable (Bool) -> Void) -> some View {
-        Toggle(title, isOn: Binding(get: { on }, set: change))
+        // Keep an actor-inherited closure instead of directly converting the isolated function.
+        Toggle(title, isOn: Binding(get: { on }, set: { value in change(value) }))
             .toggleStyle(.checkbox)
             .font(Theme.Fonts.caption)
             .accessibilityIdentifier("document.properties.\(key)")
