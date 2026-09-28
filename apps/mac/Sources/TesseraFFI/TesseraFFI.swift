@@ -4423,6 +4423,12 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func smartFilters(layer: UInt64) throws  -> [SmartFilterRecord]
     
     /**
+     * Cheap handle preparation: no snapshot, evaluation or IO. One live copy
+     * per document, including cancelled work that has not finished unwinding.
+     */
+    func prepareRasterizedPsdCopy() throws  -> RasterizedPsdCopyOperation
+    
+    /**
      * Starts a Remove stroke on `layer` with a hard round brush of
      * diameter `size` (canvas pixels). A stroke already open is dropped.
      */
@@ -6201,6 +6207,19 @@ open func smartFilters(layer: UInt64)throws  -> [SmartFilterRecord]  {
     uniffi_tessera_ffi_fn_method_documentsession_smart_filters(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Cheap handle preparation: no snapshot, evaluation or IO. One live copy
+     * per document, including cancelled work that has not finished unwinding.
+     */
+open func prepareRasterizedPsdCopy()throws  -> RasterizedPsdCopyOperation  {
+    return try  FfiConverterTypeRasterizedPsdCopyOperation_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_prepare_rasterized_psd_copy(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -10945,6 +10964,141 @@ public func FfiConverterTypePhotoJobListener_lift(_ handle: UInt64) throws -> Ph
 #endif
 public func FfiConverterTypePhotoJobListener_lower(_ value: PhotoJobListener) -> UInt64 {
     return FfiConverterTypePhotoJobListener.lower(value)
+}
+
+
+
+
+
+
+public protocol RasterizedPsdCopyOperationProtocol: AnyObject, Sendable {
+    
+    /**
+     * False once output commit was admitted. Never waits on backend state/IO.
+     */
+    func cancel()  -> Bool
+    
+    func run(path: String) throws  -> RasterizedPsdCopyOutcome
+    
+}
+open class RasterizedPsdCopyOperation: RasterizedPsdCopyOperationProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_rasterizedpsdcopyoperation(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_rasterizedpsdcopyoperation(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * False once output commit was admitted. Never waits on backend state/IO.
+     */
+open func cancel() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_rasterizedpsdcopyoperation_cancel(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func run(path: String)throws  -> RasterizedPsdCopyOutcome  {
+    return try  FfiConverterTypeRasterizedPsdCopyOutcome_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_rasterizedpsdcopyoperation_run(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRasterizedPsdCopyOperation: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = RasterizedPsdCopyOperation
+
+    public static func lift(_ handle: UInt64) throws -> RasterizedPsdCopyOperation {
+        return RasterizedPsdCopyOperation(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: RasterizedPsdCopyOperation) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RasterizedPsdCopyOperation {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: RasterizedPsdCopyOperation, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterizedPsdCopyOperation_lift(_ handle: UInt64) throws -> RasterizedPsdCopyOperation {
+    return try FfiConverterTypeRasterizedPsdCopyOperation.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterizedPsdCopyOperation_lower(_ value: RasterizedPsdCopyOperation) -> UInt64 {
+    return FfiConverterTypeRasterizedPsdCopyOperation.lower(value)
 }
 
 
@@ -28394,6 +28548,72 @@ public func FfiConverterTypeRasterFilterOperation_lower(_ value: RasterFilterOpe
 
 
 
+
+public enum RasterizedPsdCopyOutcome: Equatable, Hashable {
+    
+    case saved
+    case cancelled
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RasterizedPsdCopyOutcome: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRasterizedPsdCopyOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = RasterizedPsdCopyOutcome
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RasterizedPsdCopyOutcome {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .saved
+        
+        case 2: return .cancelled
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RasterizedPsdCopyOutcome, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .saved:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .cancelled:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterizedPsdCopyOutcome_lift(_ buf: RustBuffer) throws -> RasterizedPsdCopyOutcome {
+    return try FfiConverterTypeRasterizedPsdCopyOutcome.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterizedPsdCopyOutcome_lower(_ value: RasterizedPsdCopyOutcome) -> RustBuffer {
+    return FfiConverterTypeRasterizedPsdCopyOutcome.lower(value)
+}
+
+
+
 /**
  * Which inpainting backend Remove asks for.
  */
@@ -33946,6 +34166,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filters() != 21975) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_prepare_rasterized_psd_copy() != 23495) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_begin_remove_stroke() != 41520) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34145,6 +34368,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_vector_mask() != 64949) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_rasterizedpsdcopyoperation_cancel() != 64550) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_rasterizedpsdcopyoperation_run() != 9712) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cancelflag_cancel() != 15413) {

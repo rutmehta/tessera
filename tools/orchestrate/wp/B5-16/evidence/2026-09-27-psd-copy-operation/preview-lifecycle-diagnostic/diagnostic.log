@@ -1,0 +1,124 @@
+Building for debugging...
+[0/6] Write sources
+[2/6] Write swift-version--58304C5D6DBC2206.txt
+[4/8] Compiling TesseraCore ThumbnailLoader.swift
+[5/8] Emitting module TesseraCore
+[6/10] Emitting module Tessera
+[7/10] Compiling Tessera AgentReviewWorkspace.swift
+[7/12] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[8/12] Linking Tessera
+[9/13] Applying Tessera
+[11/13] Emitting module TesseraCoreTests
+[11/13] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[12/13] Linking TesseraPackageTests
+Build complete! (12.35s)
+Test Suite 'Selected tests' started at 2026-09-27 20:07:01.934.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 20:07:01.934.
+Test Suite 'AgentReviewLayoutTests' started at 2026-09-27 20:07:01.934.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' started.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' passed (33.784 seconds).
+Test Suite 'AgentReviewLayoutTests' passed at 2026-09-27 20:07:35.719.
+	 Executed 1 test, with 0 failures (0 unexpected) in 33.784 (33.784) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 20:07:35.719.
+	 Executed 1 test, with 0 failures (0 unexpected) in 33.784 (33.785) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 20:07:35.719.
+	 Executed 1 test, with 0 failures (0 unexpected) in 33.784 (33.785) seconds
+[layout-diag] scratch=/var/folders/_f/grgzfz9j7c1bq0m39nwqz9mm0000gn/T/review-layout-C2878555-38B6-4254-A3FC-3A6FA35ADE53
+[layout-diag] embeddedPreview id=747f6e2f68c3958576037d3e9aa7fb61 tier=thumbnail pending=false bytes=7347
+[layout-diag] ImageIO id=747f6e2f68c3958576037d3e9aa7fb61 tier=thumbnail decoded=true
+[layout-diag] embeddedPreview id=747f6e2f68c3958576037d3e9aa7fb61 tier=thumbnail pending=false bytes=7347
+[layout-diag] ImageIO id=747f6e2f68c3958576037d3e9aa7fb61 tier=thumbnail decoded=true
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=96c9b808ae076d4fd4f7fd653d87c19b tier=thumbnail pending=false bytes=7353
+[layout-diag] ImageIO id=96c9b808ae076d4fd4f7fd653d87c19b tier=thumbnail decoded=true
+[layout-diag] embeddedPreview id=c5a5a14e5e07e2cccd3498153af95621 tier=thumbnail pending=false bytes=7347
+[layout-diag] ImageIO id=c5a5a14e5e07e2cccd3498153af95621 tier=thumbnail decoded=true
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=6483deefae99ce8680f0bd5e2bbf9e68 tier=thumbnail error=Failure(message: "preview cache I/O error: No such file or directory (os error 2)")
+[layout-diag] embeddedPreview id=96c9b808ae076d4fd4f7fd653d87c19b tier=thumbnail pending=false bytes=7353
+[layout-diag] embeddedPreview id=747f6e2f68c3958576037d3e9aa7fb61 tier=thumbnail pending=false bytes=7347
+[layout-diag] embeddedPreview id=c5a5a14e5e07e2cccd3498153af95621 tier=thumbnail pending=false bytes=7347
+[layout-diag] ImageIO id=96c9b808ae076d4fd4f7fd653d87c19b tier=thumbnail decoded=true
+[layout-diag] ImageIO id=c5a5a14e5e07e2cccd3498153af95621 tier=thumbnail decoded=true
+[layout-diag] ImageIO id=747f6e2f68c3958576037d3e9aa7fb61 tier=thumbnail decoded=true
+[layout-diag] invalidate item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] invalidate item=C-missing.jpg key=TesseraCore.EngineImageReference
+[layout-diag] invalidate item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] invalidate item=B-ready.jpg key=TesseraCore.EngineImageReference
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=B28A8486-31EF-4B90-85D9-6FFFB13B0C38
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=70DE1B35-26CD-4D98-BE2E-1C4595CC9C3E
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=E81CEA87-4A83-481E-AE80-F4DC8FF11953
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=EAC19C71-B6F5-4465-BF7B-37FC6BF1CA9B
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=07AD96F2-6CAD-427F-9B22-E55B61A77648
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=44E15B6E-3AA7-4EB0-9683-A7CFCF604FB0
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=DB581BFA-1BD1-45FD-A8DB-7287D56A2AE4
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=6BC45A37-B678-4B5C-87E3-72C5AD9AAA52
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=17BF2135-A607-4F49-9BA8-06067EB2A32C
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=E2DC84C4-4C35-4A96-9850-0E41FF57D3AF
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=1B06C775-7CDA-49E5-A7A1-A5B3A46EA064
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=778915B6-0BB7-4DCB-A3F9-0E1C97B63D3E
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=45A74983-9AB7-4C8D-8B10-94253EBDC00B
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=328C92EB-2925-4DEB-B8E7-A984FB59D71D
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=882DA352-23BE-46A3-9E36-94B644F68A45
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=E70D5B57-2F0A-42A2-81E4-80132909FA10
+[layout-diag] invalidate item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=73B7E1E7-76B4-4AE1-9936-B0B797B0F0F5
+[layout-diag] barrier done token=70DE1B35-26CD-4D98-BE2E-1C4595CC9C3E cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=EAC19C71-B6F5-4465-BF7B-37FC6BF1CA9B cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=44E15B6E-3AA7-4EB0-9683-A7CFCF604FB0 cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=6BC45A37-B678-4B5C-87E3-72C5AD9AAA52 cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=E2DC84C4-4C35-4A96-9850-0E41FF57D3AF cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=778915B6-0BB7-4DCB-A3F9-0E1C97B63D3E cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=328C92EB-2925-4DEB-B8E7-A984FB59D71D cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=E70D5B57-2F0A-42A2-81E4-80132909FA10 cancelled=true sameToken=false sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] barrier done token=CDBCD185-C2AE-42F7-A19E-9F823A48BE68 cancelled=false sameToken=true sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] invalidate item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] request item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] embeddedPreview id=747f6e2f68c3958576037d3e9aa7fb61 tier=preview pending=false bytes=168422
+[layout-diag] ImageIO id=747f6e2f68c3958576037d3e9aa7fb61 tier=preview decoded=true
+[layout-diag] invalidate item=B-ready.jpg key=TesseraCore.EngineImageReference
+[layout-diag] deliver inserted id=5B9743B2-5142-449E-B448-581330FADD82 item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg subscribers=1
+[layout-diag] callback token=CDBCD185-C2AE-42F7-A19E-9F823A48BE68 sameToken=true image=2560x1707
+[layout-diag] finished id=5B9743B2-5142-449E-B448-581330FADD82 item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg
+[layout-diag] embeddedPreview id=96c9b808ae076d4fd4f7fd653d87c19b tier=thumbnail pending=false bytes=7353
+[layout-diag] ImageIO id=96c9b808ae076d4fd4f7fd653d87c19b tier=thumbnail decoded=true
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=CDBCD185-C2AE-42F7-A19E-9F823A48BE68
+[layout-diag] invalidate item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 previousToken=26C6438E-6F38-4B0C-B43A-F81632BF7693
+[layout-diag] barrier done token=4F54F416-BD95-45B3-94F4-B647C042C9D8 cancelled=false sameToken=true sameOwner=true sameSelection=true sameGeneration=true
+[layout-diag] invalidate item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] request item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg key=TesseraCore.EngineImageReference
+[layout-diag] embeddedPreview id=747f6e2f68c3958576037d3e9aa7fb61 tier=preview pending=false bytes=168422
+[layout-diag] ImageIO id=747f6e2f68c3958576037d3e9aa7fb61 tier=preview decoded=true
+[layout-diag] deliver inserted id=69E490EB-893F-4F09-B34A-DD3382FE83BD item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg subscribers=1
+[layout-diag] callback token=4F54F416-BD95-45B3-94F4-B647C042C9D8 sameToken=true image=2560x1707
+[layout-diag] finished id=69E490EB-893F-4F09-B34A-DD3382FE83BD item=A-long-photo-name-with-location-and-client-reference-0123456789.jpg
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:747f6e2f68c3958576037d3e9aa7fb61: 0:1 token=4F54F416-BD95-45B3-94F4-B647C042C9D8
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=9ECD060D-FB59-4984-A7F8-E478125551D8
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=851F1EF0-09B2-489A-A62D-B28FBD365CC6
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=944303F6-9569-4DFF-947D-1ADAD61A4DC4
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=C48E9858-CFC4-4148-8EB0-4EEE2668BFD4
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=B8D3ED92-3FA1-4952-A347-4DD4DCA79658
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=A60A221E-F3DF-40D2-8EFF-3399E85B9264
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=9B3C29C0-E7CA-4DB1-95C0-7274D38259C2
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=43AD0215-FE24-4790-BB0A-28B961188293
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=76EB3222-87E1-4A10-ADF8-92EE0D5552B3
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=2F2F58D8-8AA5-4FEF-95AA-6CD7ECCF0382
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=69E463DF-A069-4D52-ADB6-9FBFB7484444
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=0312E9C4-BC20-41EA-B1BB-7A0FD84C5C40
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=74D1E16D-8CF1-4D0E-BF4C-E4651E4B77B1
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=E5B01F20-FEC2-4DB4-BC01-C3448F582EB1
+[layout-diag] view load identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 previousToken=381B510F-A0E3-47D1-88BE-2D2795D494E4
+[layout-diag] view disappear identity=56F8296B-BF4D-4663-9654-5A00606A24B0:6483deefae99ce8680f0bd5e2bbf9e68: 0:1 token=571592A6-8E7B-4765-B395-40C680A6EB5B
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

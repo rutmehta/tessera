@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "tessera-ffi",
+    "--lib",
+    "document::filtering::"
+  ],
+  "exit": 0,
+  "passed": 20,
+  "expected_min_passed": 20,
+  "accepted": true,
+  "started_unix": 1790552327.70029,
+  "elapsed_seconds": 0.3537931442260742
+}

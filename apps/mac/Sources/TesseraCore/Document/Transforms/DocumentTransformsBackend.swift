@@ -102,6 +102,7 @@ public protocol DocumentTransformsBackend: AnyObject, Sendable {
     func puppetMesh(layer: DocLayerID, density: PuppetDensityTag, expansion: UInt32) throws -> PuppetMeshInfo
     func protectionChannels() -> [ProtectionChannel]
     /// A PSD / PSB copy with smart filter and transform stacks rasterized (the session is unchanged).
+    func prepareRasterizedPSDCopy() throws -> any RasterizedPSDCopyOperation
     func savePSDRasterizingTransforms(path: String) throws
 }
 
@@ -216,6 +217,10 @@ extension EngineDocumentBackend: DocumentTransformsBackend {
 
     public func protectionChannels() -> [ProtectionChannel] {
         ((try? session.documentChannels()) ?? []).filter { $0.kind == .alpha }.map { ProtectionChannel(id: $0.id, name: $0.name) }
+    }
+
+    public func prepareRasterizedPSDCopy() throws -> any RasterizedPSDCopyOperation {
+        EngineRasterizedPSDCopyOperation(try bridged { try session.prepareRasterizedPsdCopy() })
     }
 
     public func savePSDRasterizingTransforms(path: String) throws {

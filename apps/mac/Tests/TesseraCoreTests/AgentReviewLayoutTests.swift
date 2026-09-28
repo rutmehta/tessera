@@ -7,6 +7,78 @@ import XCTest
 /// Real queue + current-photo preview, complementing navigation and owner-action tests.
 @MainActor
 final class AgentReviewLayoutTests: XCTestCase {
+    func testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview() async throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil, "Uses the local background window server")
+        ShellHarness.prepare()
+        let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("review-refresh-\(UUID())")
+        let folder = scratch.appendingPathComponent("photos")
+        let photo = folder.appendingPathComponent("one.jpg")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: scratch) }
+        try ShellHarness.writeJPEG(photo, shade: 35)
+        let support = scratch.appendingPathComponent("support")
+        let model = AppModel(agent: AgentController(arguments: ["--fake-planner"], supportDirectory: support))
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        model.install(library)
+        model.agent.preferences.sceneConsistency = false
+        model.agent.preferences.personConsistency = false
+        model.agent.start(itemIDs: [0], provider: .scripted)
+        let runDeadline = Date().addingTimeInterval(30)
+        while model.agent.isRunning, Date() < runDeadline { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertFalse(model.agent.isRunning)
+        await withCheckedContinuation { continuation in model.syncLibrary { continuation.resume() } }
+        model.enterReview()
+        let item = try XCTUnwrap(model.reviewTargetItem)
+        let selected = model.reviewNavigation.selectedID
+        let (window, _) = ShellHarness.window(model, size: CGSize(width: 960, height: 600), dark: false)
+        defer { window.orderOut(nil); window.contentViewController = nil }
+        let firstDeadline = Date().addingTimeInterval(15)
+        while model.loader.cached(item, tier: .preview) == nil, Date() < firstDeadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let first = try XCTUnwrap(model.loader.cached(item, tier: .preview), "Review must deliver its initial preview")
+        let firstPixel = previewDownsampledPixel(first)
+        let revision = model.libraryRevision
+
+        let imageID = try XCTUnwrap(item.engineImage?.imageID)
+        let session = try library.engine.openDevelopSession(imageId: imageID)
+        try session.setSettings(jsonPatch: #"{"tone":{"exposure":1.25}}"#, interactive: false)
+        try session.flush()
+        try session.close()
+        try ShellHarness.writeJPEG(photo, shade: 180)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(5)], ofItemAtPath: photo.path)
+        _ = try library.engine.indexFolder(path: folder.path)
+        await withCheckedContinuation { continuation in model.syncLibrary { continuation.resume() } }
+        XCTAssertEqual(model.reviewNavigation.selectedID, selected, "The catalog update must preserve Review selection")
+        XCTAssertGreaterThan(model.libraryRevision, revision, "A rows-only pixel update must notify the Review preview")
+        let saved = try XCTUnwrap(JSONSerialization.jsonObject(with:
+            Data(library.engine.getRecipe(imageId: imageID).utf8)) as? [String: Any])
+        let savedSettings = try XCTUnwrap(saved["settings"] as? [String: Any])
+        let savedTone = try XCTUnwrap(savedSettings["tone"] as? [String: Any])
+        XCTAssertEqual((savedTone["exposure"] as? NSNumber)?.doubleValue, 1.25)
+        let refreshDeadline = Date().addingTimeInterval(15)
+        var refreshed: CGImage?
+        while Date() < refreshDeadline {
+            if let next = model.loader.cached(item, tier: .preview), previewDownsampledPixel(next) != firstPixel {
+                refreshed = next
+                break
+            }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertNotNil(refreshed, "Review must deliver pixels from the updated photo without reselection")
+    }
+
+    private func previewDownsampledPixel(_ image: CGImage) -> [UInt8] {
+        var pixel = [UInt8](repeating: 0, count: 4)
+        pixel.withUnsafeMutableBytes { bytes in
+            let context = CGContext(data: bytes.baseAddress, width: 1, height: 1,
+                bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        }
+        return pixel
+    }
+
     func testReviewEmptyAndRealQueueAtEverySizeAndAppearance() async throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil, "Uses the local background window server")
         ShellHarness.prepare()

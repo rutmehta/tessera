@@ -1,0 +1,103 @@
+{
+  "head": "81a6b761d4fa5575772f2c27c86d532a3b540952",
+  "base_main": "f09a66ff9b9c6e4152f5308dbb25c88eee17d76d",
+  "ffi_source_head": "1cbabc04bcaac941413966c96c8a1532269991a7",
+  "files": {
+    "apps/mac/Package.resolved": {
+      "sha256": "864591e727a84baf306a284db39a5952b23de2e426b4ff4bbfa652446aa77844",
+      "bytes": 388
+    },
+    "apps/mac/Package.swift": {
+      "sha256": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86",
+      "bytes": 2079
+    },
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": {
+      "sha256": "e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703",
+      "bytes": 286699
+    },
+    "apps/mac/Sources/Tessera/App/AppCommands.swift": {
+      "sha256": "52ca529dd389bbbcf208afe7986b3253b016a1f73e53f4ec811b505555bd3982",
+      "bytes": 21367
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentController.swift": {
+      "sha256": "38071cf42ee950db5bbbd125b512ad85c8f3c47f301d8f5c3c72286191a8a72c",
+      "bytes": 19565
+    },
+    "apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift": {
+      "sha256": "939b7d693933efc33d4a43b053049f176e082f38b4872c740255c83b7a19ef22",
+      "bytes": 34281
+    },
+    "apps/mac/Sources/Tessera/Shell/ContentView.swift": {
+      "sha256": "d8fd94a9e99350df2151bfc0636df110ff6bce485861ec47aa3cfed426a5a62b",
+      "bytes": 33401
+    },
+    "apps/mac/Sources/TesseraCore/Document/Transforms/DocumentTransformsBackend.swift": {
+      "sha256": "9ae403251a1e413fbfee14ae8e7790556b61aa63567f68c089283b80d9a649ba",
+      "bytes": 11885
+    },
+    "apps/mac/Sources/TesseraCore/Document/Transforms/RasterizedPSDCopyOperation.swift": {
+      "sha256": "9657c389300ff0e9522af100f387d35ca0b11ca0967bf8f5375e3a7b489b880f",
+      "bytes": 2138
+    },
+    "apps/mac/Sources/TesseraCore/StubLibrary.swift": {
+      "sha256": "b4e0261725fc4bf14987570fd8e7339e4221a773560cb2822ba3bbd603077580",
+      "bytes": 9468
+    },
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": {
+      "sha256": "71e2237cfbb132f2a01ecdd17b092a32fc03f2b4239ef116216824bf058f5361",
+      "bytes": 1134432
+    },
+    "apps/mac/Tests/TesseraCoreTests/AgentReviewLayoutTests.swift": {
+      "sha256": "705eabf4698cf9b030f7eb03abe14f971d123c37a4f4b8e939757fb654b29627",
+      "bytes": 15181
+    },
+    "apps/mac/Tests/TesseraCoreTests/RasterizedPSDCopyTests.swift": {
+      "sha256": "bdfff3fd09f34745f09ba952d263526a3ee360bcaf8e763dafa93ea42addeda1",
+      "bytes": 4935
+    },
+    "crates/tessera-ffi/src/document.rs": {
+      "sha256": "1f5710afcd26977e80c5258ecda2e88c994d89d29f71589edf4308a9ece89f93",
+      "bytes": 86672
+    },
+    "crates/tessera-ffi/src/document/filters.rs": {
+      "sha256": "e916fee70b6740c1553d0884b36d5bf4019c0b48d61a6f4aa4c97dfd4686a6ea",
+      "bytes": 135963
+    },
+    "crates/tessera-ffi/src/document/io.rs": {
+      "sha256": "047464f5e6d17eba329841283f38d7871820c66f5c8ac884045dd8e195fb295f",
+      "bytes": 30427
+    },
+    "crates/tessera-ffi/src/document/psd_copy.rs": {
+      "sha256": "2a76dfc549f8bce3420c9c4a0ff7c9d879cf505ff5429a506bb7836d77e51bc8",
+      "bytes": 19478
+    },
+    "crates/tessera-ffi/src/document/transform.rs": {
+      "sha256": "25083bc32e629752d1a874534f1a6ca3247ebde710c95e157efc97ee84ce3779",
+      "bytes": 43626
+    },
+    "crates/tessera-ffi/tests/document_transform_ui.rs": {
+      "sha256": "c094fc94fb7a6b6693131cb17c32c3bec8a99eb890e681341c0274d79547429a",
+      "bytes": 48751
+    },
+    "tools/orchestrate/wp/B5-16/LEGACY-EFFECT-TYPED-IMPLEMENTATION.md": {
+      "sha256": "3eae9082968357f35955413e663e15dbde2ebba118a1100bea09d18aa9bd7aec",
+      "bytes": 3089
+    },
+    "tools/orchestrate/wp/B5-16/PSD-COPY-ERROR-PRECEDENCE.md": {
+      "sha256": "b5b461db5b03281dcc75440ae119938e1ce10e5ef1ff863e709479fe4dcb4787",
+      "bytes": 3198
+    },
+    "tools/orchestrate/wp/B5-16/PSD-COPY-IMPLEMENTATION.md": {
+      "sha256": "a4a8e68ea5c9a8e0cb5fac151e3bfc7a0a5018a57d97ebb165e33d6c2a1e4335",
+      "bytes": 6540
+    },
+    "tools/orchestrate/wp/UX-04/export-preview-20260927/STUB-UI-SOURCE-NOTE.md": {
+      "sha256": "c98afea32070d38ca861849dba44cd9828b675ed39dd229eed9a4766c492d72f",
+      "bytes": 883
+    }
+  },
+  "ffi_archive": {
+    "sha256": "0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae",
+    "bytes": 298267416
+  }
+}

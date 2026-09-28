@@ -1,0 +1,23 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "-c",
+    "release",
+    "--jobs",
+    "2",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swiftpm/psd-current-ffi-release",
+    "--filter",
+    "AgentReviewLayoutTests"
+  ],
+  "exit": 0,
+  "xctest_executed": 2,
+  "xctest_skipped": 0,
+  "xctest_failures": 0,
+  "swift_testing_passed": 0,
+  "accepted": true,
+  "source_head": "dc4073de34b2da17f556e2f237d3f8b6322b4f14",
+  "ffi_sha256": "0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae",
+  "elapsed_seconds": 135.9959590435028
+}

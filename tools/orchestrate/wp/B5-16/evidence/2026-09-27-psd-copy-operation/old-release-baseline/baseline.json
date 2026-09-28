@@ -1,0 +1,20 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "-c",
+    "release",
+    "--skip-build",
+    "--jobs",
+    "2",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swift/editing-export-preview",
+    "--filter",
+    "AgentReviewLayoutTests"
+  ],
+  "exit": 0,
+  "elapsed_seconds": 36.53915786743164,
+  "executable_sha256_before": "305f02fc7b1e3482625f09b4894744fe11c5974e1bc97747bbcda8ec27428e26",
+  "executable_sha256_after": "305f02fc7b1e3482625f09b4894744fe11c5974e1bc97747bbcda8ec27428e26",
+  "unchanged_binary": true
+}

@@ -1268,3 +1268,43 @@ fn bench_warp_drag_20mp() {
         start.elapsed().as_secs_f64() * 1e3
     );
 }
+
+// Source-only candidate: UNRUN on Machine B under resource hold.
+#[test]
+fn rasterized_copy_handle_precancel_retry_and_close() {
+    let (dir, engine) = engine();
+    let session = adopt(&engine, 2, 2, vec![pixel_layer("tiny", 2, 2)]);
+    let path = dir.path().join("copy.psd");
+    std::fs::write(&path, b"sentinel").unwrap();
+    let before = session.info().unwrap();
+    let history = history_len(&session);
+    let old = session.prepare_rasterized_psd_copy().unwrap();
+    assert!(old.cancel());
+    let fresh = session.prepare_rasterized_psd_copy().unwrap();
+    let name = path.to_string_lossy().into_owned();
+    assert_eq!(
+        old.run(name.clone()).unwrap(),
+        RasterizedPsdCopyOutcome::Cancelled
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
+    assert!(old.run(name.clone()).is_err());
+    assert_eq!(
+        fresh.run(name.clone()).unwrap(),
+        RasterizedPsdCopyOutcome::Saved
+    );
+    assert!(std::fs::read(&path).unwrap().starts_with(b"8BPS"));
+    let after = session.info().unwrap();
+    assert_eq!(after.path, before.path);
+    assert_eq!(after.dirty, before.dirty);
+    assert_eq!(after.history_head, before.history_head);
+    assert_eq!(history_len(&session), history);
+    let queued = session.prepare_rasterized_psd_copy().unwrap();
+    session.close();
+    let saved = std::fs::read(&path).unwrap();
+    assert_eq!(
+        queued.run(name).unwrap(),
+        RasterizedPsdCopyOutcome::Cancelled
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), saved);
+    assert!(session.prepare_rasterized_psd_copy().is_err());
+}

@@ -727,6 +727,9 @@ final class AppModel {
         }
         if update.inserted.isEmpty, update.removed.isEmpty, !update.groupsChanged, !update.idsMoved {
             // Rows changed in place (decisions from another writer, scores, edits): redraw cells.
+            // A changed file or recipe also invalidated preview pixels above. Notify
+            // the Review preview, which observes this revision rather than grid observers.
+            if !stale.isEmpty { libraryRevision += 1 }
             refreshSummary()
             collections.cullDidChange(albums: false)
             let positions = { (ids: [Int]) in
