@@ -650,3 +650,24 @@ retires flight; cancellation rechecked after injected wait. Five new tests UNRUN
 and pending/Original negatives retained. A native8-pressure/compiler/GUI/main gates.
 Compiler wrapper10c59dea already completed separately; no Document/generated/
 native/AppModel edits or B workloads/heartbeat/writer changes in this slice.
+
+
+## Checked Save As current-main reconciliation — 2026-09-28
+
+Accepted exact B request fc30ff89-f16d-4d3a-9de7-087f2284b47a and completed
+source-only reconciliation onto pinned main29a4cefd. Published
+codex/save-destination-current-main at cfb511e5 (source af49e4ef).
+Native mapping75a1b9a6->23c5bd0f using merge mainline2, 2a22145b->aef5e5c8;
+Swift7b7a5dcb->15ae6321,3d4b34f4->eab89438,8976f2fe->fe3c19ca,
+3ca3e9c9->af49e4ef. No source conflicts; eleven source/test files only,
+ten exactly match reviewed final candidates; StubDocumentBackend also preserves
+main sampledStep capture correction. All other tracked Smart Preview/generated
+files remain pinned-main bytes. Old candidates/branches preserved.
+
+Combined gates UNRUN, not compile-qualified. A must regenerate current combined
+bindings/archive (never old81cc08eb), run native/focused/adjacent/full Swift/strict
+and actual disposable collision/Replace GUI gates. Handoff and source SHA256
+manifest are on new branch under tools/orchestrate/wp/B5-16/
+SAVE-DESTINATION-CURRENT-MAIN-HANDOFF.md and sibling SOURCE.sha256.
+B performed Git/source comparison and diff-check only; no workloads/apps/GPU,
+heartbeat restart, writer change or main integration. A remains sole integrator.
