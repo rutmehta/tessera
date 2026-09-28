@@ -16,8 +16,12 @@ final class RecoveryWindowCloseGuardTests: XCTestCase {
     }
 
     private func window() -> NSWindow {
-        NSWindow(contentRect: NSRect(x: 50, y: 50, width: 240, height: 180),
-                 styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 50, y: 50, width: 240, height: 180),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        // XCTest retains these windows after `close()` for assertions and
+        // autorelease-pool teardown. AppKit must not release their ownership.
+        window.isReleasedWhenClosed = false
+        return window
     }
 
     func testBlockedCloseDoesNotCallPriorDelegateOrDiscardWindow() {
