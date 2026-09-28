@@ -113,12 +113,54 @@ public struct SmartPreviewOutcome: Identifiable {
     public let message: String
 }
 
+/// Presentation-only evidence from a successful save on a known proxy session.
+/// Never used by routing or native admission; original availability is historical.
+private struct SmartPreviewLocalSavePresentation {
+    let originalLastCheckedOffline: Bool
+    var badge: String {
+        "Smart Preview · Local edits saved · Status needs refresh · Thumbnail: last synchronized image"
+            + (originalLastCheckedOffline ? " · Original last checked offline" : "")
+    }
+}
+
 @MainActor @Observable
 public final class SmartPreviewController {
     public enum Action: String, CaseIterable { case build = "Build", discard = "Discard", synchronize = "Sync" }
     public private(set) var snapshots: [String: SmartPreviewSnapshot] = [:]
+    private var localSavePresentations: [String: SmartPreviewLocalSavePresentation] = [:]
     public private(set) var selectedImageID: String?
     public var selectedInfo: SmartPreviewSnapshot? { selectedImageID.flatMap { snapshots[$0] } }
+    public var selectedPresentationWarning: String? {
+        guard let id = selectedImageID, snapshots[id] == nil else { return nil }
+        return localSavePresentations[id]?.badge
+    }
+    public func libraryBadge(imageID: String) -> String? {
+        guard let info = snapshots[imageID] else { return localSavePresentations[imageID]?.badge }
+        // A failed/stale/conflicting recheck cannot establish thumbnail freshness.
+        let needsSavedWarning = localSavePresentations[imageID] != nil
+            && !info.hasPendingEdits && info.originalAvailable
+        return info.libraryBadge + (needsSavedWarning ? " · Thumbnail: last synchronized image" : "")
+    }
+
+    private func acceptStatus(_ info: SmartPreviewSnapshot) {
+        snapshots[info.imageID] = info
+        // Keep the save evidence until fresh state establishes clean synchronization
+        // (or clean removal); a dirty/offline/conflicting refresh cannot clear it.
+        if !info.needsAttention, !info.hasPendingEdits,
+           info.state == .missing || (info.state == .ready && info.originalAvailable) {
+            localSavePresentations[info.imageID] = nil
+        }
+    }
+
+    public func didSave(imageID: String, source: DevelopSourceRoute) {
+        if source == .smartPreview {
+            let lastOffline = snapshots[imageID].map { !$0.originalAvailable }
+                ?? localSavePresentations[imageID]?.originalLastCheckedOffline ?? false
+            localSavePresentations[imageID] = .init(originalLastCheckedOffline: lastOffline)
+        }
+        // Keep presentation separate; routing must wait for fresh validation.
+        invalidateStatus(imageID: imageID)
+    }
     public private(set) var selectionError: String?
     public private(set) var results: [SmartPreviewOutcome] = []
     public private(set) var isRunning = false
@@ -165,7 +207,7 @@ public final class SmartPreviewController {
                 guard !Task.isCancelled, self.selectionGeneration == generation,
                       self.revisions[imageID] == revision else { return }
                 guard info.imageID == imageID else { throw SmartPreviewUIError.unavailable("Smart Preview identity mismatch") }
-                self.snapshots[imageID] = info; self.onChange?(imageID)
+                self.acceptStatus(info); self.onChange?(imageID)
             } catch {
                 guard !Task.isCancelled, self.selectionGeneration == generation,
                       self.revisions[imageID] == revision else { return }
@@ -241,7 +283,7 @@ public final class SmartPreviewController {
                     info = try await api.info(target.id)
                 }
                 guard info.imageID == target.id else { throw SmartPreviewUIError.unavailable("Smart Preview identity mismatch") }
-                snapshots[target.id] = info
+                acceptStatus(info)
                 if selectedImageID == target.id { selectionNeedsRead = false; selectionError = nil }
                 let success: Bool
                 switch action {

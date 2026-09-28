@@ -25,6 +25,10 @@ struct SmartPreviewMenu: View {
                         .accessibilityIdentifier("use-existing-offline-smart-preview")
                 }
             }
+            if let warning = model.smartPreviews.selectedPresentationWarning {
+                Text(warning).accessibilityLabel(warning)
+                    .accessibilityIdentifier("smart-preview-local-save-warning")
+            }
             if let error = model.smartPreviews.selectionError { Text(error) }
             Button("Check Status for Selected Photo") { model.checkSmartPreviewStatus() }
                 .disabled(model.smartPreviewBatchActive || model.focusedItem?.kind != .raw)

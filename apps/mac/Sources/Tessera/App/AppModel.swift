@@ -2162,7 +2162,7 @@ final class AppModel {
 
     func smartPreviewBadge(for item: PhotoItem) -> String? {
         guard let ref = item.engineImage else { return nil }
-        return smartPreviews.snapshots[ref.imageID]?.libraryBadge
+        return smartPreviews.libraryBadge(imageID: ref.imageID)
     }
 
     private func refreshSmartPreviewSelection() {
@@ -2360,7 +2360,7 @@ final class AppModel {
         controller.onSaved = { [weak self, weak controller, weak owner] _ in
             guard let self, let controller, let owner, self.engineLibrary === owner,
                   let itemID = owner.itemOfImage[controller.imageID] else { return }
-            self.developDidSave(itemID: itemID)
+            self.developDidSave(itemID: itemID, source: controller.sourceRoute)
         }
         controller.onFailure = { [weak self] message in self?.statusMessage = "Develop: \(message)" }
         if ProcessInfo.processInfo.arguments.contains("--develop-selftest"), !developSelfTestRan {
@@ -2448,10 +2448,10 @@ final class AppModel {
     }
 
     /// Recipe + XMP were written: refresh the grid thumbnail (recipe-hash keyed) and the status.
-    private func developDidSave(itemID: Int) {
+    private func developDidSave(itemID: Int, source: DevelopSourceRoute) {
         // Autosaves must not repeatedly hash/decode full originals and proxies.
         if library.items.indices.contains(itemID), let ref = library.items[itemID].engineImage {
-            smartPreviews.invalidateStatus(imageID: ref.imageID)
+            smartPreviews.didSave(imageID: ref.imageID, source: source)
         }
         if let d = develop, d.itemID == itemID { developHistory = d.history }
         guard library.items.indices.contains(itemID) else { return }
