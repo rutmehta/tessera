@@ -1,0 +1,19 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "0",
+    "-i",
+    "bright-white/base-bright255.jpg",
+    "-g",
+    "fixtures/gain.jpg",
+    "-f",
+    "fixtures/cap-16.cfg",
+    "-z",
+    "bright-white/reference-16-bright255-common.jpg"
+  ],
+  "exit": 0,
+  "output_exists": true,
+  "output_sha256": "b3da8f235a4551adba8e7f67e73d174b23fb093c79b071e05e9ef0a31fd082e7",
+  "output_bytes": 1894
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "path": "bright-white/reference-16-bright255-common.jpg",
+    "sha256": "b3da8f235a4551adba8e7f67e73d174b23fb093c79b071e05e9ef0a31fd082e7",
+    "bytes": 1894,
+    "mpf_primary_attribute_hex": "00030000",
+    "mpf_aux_offset": 1478,
+    "mpf_aux_length": 416,
+    "aux_sha256": "d3f01478d2b3af26c3c6d80a6417b33f066992ee229c5a730bb473cc72dc24d8",
+    "aux_exact_exiftool_match": true,
+    "iso_aux_namespace_offset": 1484,
+    "iso_version_hex": "00000000",
+    "iso_flags_hex": "48",
+    "iso_numeric_values": [
+      0,
+      4,
+      0,
+      4,
+      1,
+      0,
+      0
+    ],
+    "icc_bytes": 588,
+    "icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c"
+  },
+  {
+    "path": "bright-white/reference-16-bright255-explicit.jpg",
+    "sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+    "bytes": 1918,
+    "mpf_primary_attribute_hex": "00030000",
+    "mpf_aux_offset": 1478,
+    "mpf_aux_length": 440,
+    "aux_sha256": "8564566df005c14796a9aa35be27f8abedea73c38e5d6170677b1d8a846211d5",
+    "aux_exact_exiftool_match": true,
+    "iso_aux_namespace_offset": 1484,
+    "iso_version_hex": "00000000",
+    "iso_flags_hex": "40",
+    "iso_numeric_values": [
+      0.0,
+      4.0,
+      0.0,
+      4.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    "icc_bytes": 588,
+    "icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c"
+  },
+  {
+    "path": "denominator-explicit/reference-16-explicit.jpg",
+    "sha256": "cadfffeac4728b3536b738c6257bbc7c843bde5dc6153c160141fac5effc06ed",
+    "bytes": 1919,
+    "mpf_primary_attribute_hex": "00030000",
+    "mpf_aux_offset": 1479,
+    "mpf_aux_length": 440,
+    "aux_sha256": "8564566df005c14796a9aa35be27f8abedea73c38e5d6170677b1d8a846211d5",
+    "aux_exact_exiftool_match": true,
+    "iso_aux_namespace_offset": 1485,
+    "iso_version_hex": "00000000",
+    "iso_flags_hex": "40",
+    "iso_numeric_values": [
+      0.0,
+      4.0,
+      0.0,
+      4.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    "icc_bytes": 588,
+    "icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c"
+  }
+]

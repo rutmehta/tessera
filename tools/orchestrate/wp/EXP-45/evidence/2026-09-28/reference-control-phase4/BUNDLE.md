@@ -1,0 +1,3 @@
+# EXP-45 phase 4 portable evidence
+
+This is the bounded exact-white reference-control comparison. It includes the modified PPM, cjpeg base JPEG, reference ISO JPEG before/after the already qualified denominator-form transformation, reference decoder outputs, static MPF/ISO/ICC qualification, raw ImageIO stdout with diagnostic prefix, Core Image output, direct exits, and command provenance. `RESULTS.md` and `MANIFEST.json` match their external phase-4 originals. Upstream source/build binaries remain external and are hashed in phase-1/phase-4 manifests. Earlier phases and original A gate remain unchanged.
