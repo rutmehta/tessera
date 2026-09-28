@@ -58,7 +58,7 @@ public final class PreviewRequest: @unchecked Sendable {
     public var isCancelled: Bool { lock.withLock { cancelled } }
 
     /// Waits until this subscriber has delivered or has been fully detached.
-    func waitForCompletion() async {
+    public func waitForCompletion() async {
         await withCheckedContinuation { continuation in
             let done = lock.withLock {
                 if completed { return true }
