@@ -100,6 +100,8 @@ final class DevelopRecoveryCoordinator {
     @ObservationIgnored private var closedSessions: [SessionID] = []
     @ObservationIgnored private var generation: UInt64 = 0
 
+    var hasUnresolvedSessions: Bool { !records.isEmpty || !opens.isEmpty }
+
     func register(owner: EngineLibrary?, controller: DevelopController, displayName: String) -> SessionID {
         let id = SessionID(value: UUID())
         records[id] = Record(id: id, owner: owner, controller: controller, displayName: displayName)
