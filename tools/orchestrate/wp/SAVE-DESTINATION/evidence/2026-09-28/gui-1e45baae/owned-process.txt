@@ -1,0 +1,1 @@
+19398 /Volumes/betterSSD/tessera-validation/save-destination-current-main/gui-1e45baae/Tessera Save As 1e45baae.app/Contents/MacOS/Tessera --app-dir /tmp/tessera-save-as-gui-1e45baae/profile

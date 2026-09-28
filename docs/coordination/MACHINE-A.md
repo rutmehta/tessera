@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Checked Save As accepted on main — 2026-09-28 20:56 UTC
+
+Main3bad015a integrates qualified1e45baae after native/focused/adjacent/full/strict and real isolated GUI acceptance. All apps/crates/Cargo inputs on merge equal tested candidate exactly. Full703 XCTest/1skip0fail plus5 Swift Testing; actual Sony workflows retained. Root verified7804 Git inputs, exact archive/bindings,89 packaged GUI payload hashes and all4 final disposable outputs. Actual existing-destination Cancel preserved sentinel bytes/inode and dirty title; new-name and affirmative Replace each closed/reopened with the expected layer edit. Owned app exited normally. Late appearance remains native/Swift barrier coverage, not a claimed GUI race. Historical Saved HUD after edit/cancel is a recorded UI clarity limitation.
+
+Portable native/Swift evidence f5dc7308 and current GUI report under tools/orchestrate/wp/SAVE-DESTINATION/evidence/2026-09-28. Failed test oracles and evidence parser correction remain preserved. B source result integration now complete; terminal receipts follow publication. B accepted request5d86ed1a for remaining inspector/persisted editor reconciliation onto same frozen1e45baae; no rebasing or duplicate request needed. B source-only, A sole main integration.
+
+RAW capture worker owns the newly released compiler lane. Twelve ownership/error/concurrency contracts prepared on codex/private-raw-capture, no implementation/test-pass claim yet. Decoder/render/UI scope remains excluded.
+
+
 ## Save As full qualification; remaining B5-16 source dispatched — 2026-09-28 20:44 UTC
 
 Save As immutable1e45baae now passes adjacent48, full703 XCTest/1skip/0fail plus5 Swift Testing, both actual Sony workflows and strict Release product. Full subprocess exited0; runner postcheck initially mismatched Darwin XCTest naming, and correction revalidates the original retained log without rerunning the suite. Source/artifact/fixture freezes hold per reports; independent final provenance verification is active. Actual isolated GUI existing-destination cancel/new-name retry/affirmative Replace/reopen remains pending. Native barriers, not a claimed GUI race, cover late appearance. No Save As main merge or completed B receipt yet.

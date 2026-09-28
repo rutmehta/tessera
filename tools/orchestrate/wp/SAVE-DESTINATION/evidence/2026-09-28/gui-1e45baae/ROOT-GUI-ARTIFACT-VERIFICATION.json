@@ -1,0 +1,31 @@
+{
+  "files_verified": {
+    "replace-sentinel.tessera-doc": {
+      "sha256": "b0530e6f5f1fe5851b758ddb1ccf37e2bb5f6cf6b3c2b04ceb849973e49ab52b",
+      "inode": 73465085,
+      "size": 1014
+    },
+    "edited-new.tessera-doc": {
+      "sha256": "9d0055a66716a1861f55fbf51ef5af0bc6d35247dcce9add11928296b3294cc2",
+      "inode": 73464544,
+      "size": 1012
+    },
+    "cancel-sentinel.tessera-doc": {
+      "sha256": "431887f80e07412f1c42a9bd8f79a0da75674a0ca9a277a66f9a3b33b1aeb6fc",
+      "inode": 73463137,
+      "size": 36
+    },
+    "first.tessera-doc": {
+      "sha256": "5c9210ed5b753804aad15fb56990da0bc005e6d9534fdf1dc596584de9c8af93",
+      "inode": 73463700,
+      "size": 1002
+    }
+  },
+  "output_names_exact": true,
+  "cancel_bytes_inode_preserved": true,
+  "replace_bytes_inode_changed": true,
+  "source_executable_preserved": true,
+  "owned_pid_absent": true,
+  "scope": "Disk artifacts verified independently; actual native CUA interactions observed by GUI worker, no root screenshot claim.",
+  "package_payload_hashes_verified": 89
+}
