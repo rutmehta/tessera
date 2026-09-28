@@ -1,5 +1,14 @@
 # M2-58 acceptance readiness — source-only audit (2026-09-28)
 
+## Reconciled candidate checkpoint — 2026-09-28 13:10 UTC
+
+The audit below is retained historical evidence. Reconciliation is now complete on `codex/m258-current-reconciliation`: native source c1c3b6cc, regenerated bindings abe317c0, visible diagnostics d53a969e, tests-only wrapper corrections f1d13c11, and launcher-only stdio relay9423956c. M2 product source remains unmerged into main. Native Release gates recorded579 named passes/29 ignored and strict/fmt/workspace direct0; full corrected Swift recorded660 XCTest passes/1skip plus5 Swift Testing passes/direct0. Main evidence packages preserve both the original Swift crash and corrected result.
+
+The signed f1d13c11 app with archive07d924df passed provenance checks. All three visible attempts failed/direct1 with no trace or presentation receipt. External-volume stdio was denied twice; /tmp relay launched the test process, but startup never reached a visible regular window. Saved sampling locates it in app-support directory creation. The foreground protected system dialog cannot be inspected by the desktop tool; its wording remains unverified and user handling is pending. Identity-checked graceful termination was requested but the process remained alive. Preserve it and do not bypass protected UI.
+
+The three failures and scoped diagnostics are published on main75028319 under `tools/orchestrate/wp/M2-58/evidence/2026-09-28/visible-capability-blocked-three-attempts` (38 hash-verified payloads). Window observations are explicitly privacy-minimized derivatives, with original raw hashes and local originals preserved. No visible capability, P01 latency, or P11 acceptance follows. Independent qualified measurement-interval source/tests continue while runtime is held. A filtered capture helper compiled/linked successfully without execution; no screen capture or P11 oracle result is claimed.
+
+
 ## Scope and current state
 
 Audited read-only against current published main `0c1a694e8d6f2360b9814872f4c54461ec5d35f4` and preserved M2-58 branch `wp/M2-58` at `196005e2d28592f5e9aac43ccb40dec7cb321d91` (product implementation baseline `5ff267933be108494d78eab55181288258253e16`). The M2-58 worktree is `/Users/rutmehta/Developer/tessera/.worktrees/M2-58`; no tracked edits were present. The task card in `tools/orchestrate/board.json` still says `owner=astra,status=running,attempts=0`, while `tools/orchestrate/wp/M2-58/verdict.json` says `status=escalate,attempts=4,last_test_exit=1`; the current coordination board resolves the actual outstanding item as “Develop presentation capability” / DEV-58 and explicitly says P01/P11 are pending (`docs/coordination/TASK-BOARD.md:19,430`). Do not infer acceptance from the stale card status.
