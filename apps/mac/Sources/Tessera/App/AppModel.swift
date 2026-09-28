@@ -1175,7 +1175,7 @@ final class AppModel {
             let dispatchedSelection = self.selection
             let dispatchedFocus = self.focusedItem.map { self.workspaceKey(for: $0) }
             backendOwnsGate = true
-            self.documents.editInLayers(request.item) { [weak self, barrier] outcome in
+            self.documents.editInLayers(request.item, statusPublication: .caller) { [weak self, barrier] outcome in
                 // DocumentWorkspace installs/selects before settling. Its legacy
                 // viewMode assignment is refused while this reservation exists;
                 // publish the document destination only after backend settlement.
