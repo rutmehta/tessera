@@ -306,6 +306,10 @@ final class AppModel {
     }
 
     private func mutatePendingFilter(_ mutate: (PendingFilterDraft) -> Void) {
+        // An explicit filter or Person facet request supersedes a pending Layers
+        // destination even if that read reservation rejects the filter itself.
+        // The Layers backend still owns its gate until it actually drains.
+        pendingLayeredCopyRequestID = nil
         // A filter action may join its own in-flight Develop close, but must not
         // modify a draft while another operation holds an image reservation.
         guard !developRecovery.hasActiveReservations(excluding: navigationCloseGateID) else {
