@@ -1,0 +1,2 @@
+Timestamp               Ty Process[PID:TID]
+2026-09-28 08:46:28.652 E  kernel[0:611a5cc] (Sandbox) System Policy: xpcproxy(58821) deny(1) file-write-create /Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/app-stdout.log

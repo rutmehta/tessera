@@ -1,0 +1,23 @@
+{
+  "app-stderr.log_copy": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "app-stderr.log_relay": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "app-stdout.log_copy": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "app-stdout.log_relay": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "settlement": {
+    "owned_app": {
+      "bundle_id": "dev.tessera.m258.visible.f1d13c11",
+      "bundle_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+      "launch_date": 1790600100.922871,
+      "launch_id": "2d32193d-7d6c-4925-a993-4c8fa9fd6d68",
+      "ownership_basis": "bundle absent at preflight; exact bundle ID and app URL observed after this run's launch",
+      "pid": 67652
+    },
+    "owned_app_observed": true,
+    "polls": 80,
+    "process_exited": false,
+    "wait_limit_seconds": 20
+  }
+}
+runner_direct_exit=1
+Verified release f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393: /Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app
+Visible timing capability failed: test app did not reach a foreground visible regular window within startup allowance

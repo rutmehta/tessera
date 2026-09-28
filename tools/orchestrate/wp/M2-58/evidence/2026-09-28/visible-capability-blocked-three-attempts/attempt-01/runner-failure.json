@@ -1,0 +1,6 @@
+{
+  "launch_id": "22a264c5-e5bc-4c05-a7aa-8df22fc650a6",
+  "error_type": "CalledProcessError",
+  "error": "Command '['open', '-n', '-a', '/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app', '--stdout', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/app-stdout.log', '--stderr', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/app-stderr.log', '--args', '--timing-visible', '--timing-selftest', '--develop-selftest', '--timing-output', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/trace.json', '--app-dir', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/app-support', '--folder', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture']' returned non-zero exit status 1.",
+  "owned_app": null
+}
