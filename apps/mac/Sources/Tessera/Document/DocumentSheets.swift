@@ -167,6 +167,24 @@ struct SaveAsRequest: Identifiable {
     }
 }
 
+/// Keeps native dismissal paired with the identity of the sheet that appeared.
+/// A successor is queued by DocumentWorkspace until this onDismiss completes.
+struct DocumentSaveAsPresentation: ViewModifier {
+    @Bindable var workspace: DocumentWorkspace
+    @State private var presentedID: UUID?
+
+    func body(content: Content) -> some View {
+        content.sheet(item: Binding(get: { workspace.saveAsRequest }, set: { _ in }), onDismiss: {
+            guard let id = presentedID else { return }
+            presentedID = nil
+            workspace.saveAsPresentationDidDismiss(id)
+        }) { request in
+            SaveAsSheet(workspace: workspace, request: request)
+                .onAppear { presentedID = request.id }
+        }
+    }
+}
+
 /// File ▸ Save As…: name (focused on open, `document.saveAs.name`), format and folder.
 struct SaveAsSheet: View {
     @Bindable var workspace: DocumentWorkspace

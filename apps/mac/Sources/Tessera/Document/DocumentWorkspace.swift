@@ -42,7 +42,7 @@ enum DocumentSaveOutcome: Equatable {
 
 @MainActor
 private final class DocumentSaveOperation {
-    enum Phase { case choosing, replacing, writing }
+    enum Phase { case choosing, waitingForDismissal, replacing, writing }
     let id: UUID
     let document: DocumentController
     let requiresWindow: Bool
@@ -50,6 +50,9 @@ private final class DocumentSaveOperation {
     var continuationCancelled = false
     var completion: ((DocumentSaveOutcome) -> Void)?
     var windowObserver: NSObjectProtocol?
+    weak var presentingWindow: NSWindow?
+    var replaceAlert: NSAlert?
+    var pendingReplacement: SaveAsRequest?
     init(id: UUID, document: DocumentController, requiresWindow: Bool,
          completion: @escaping (DocumentSaveOutcome) -> Void) {
         self.id = id; self.document = document; self.requiresWindow = requiresWindow
@@ -295,6 +298,8 @@ final class DocumentWorkspace {
     @ObservationIgnored private var activeSavePrompt: UUID?
     @ObservationIgnored private var latestSaveRequest: UUID?
     private var presentedSaveAs: SaveAsRequest?
+    private(set) var saveAsPresentationID: UUID?
+    @ObservationIgnored private var queuedSaveAs: SaveAsRequest?
     // The Shell binding's nil setter carries no request identity. Dismissal is
     // settled by SaveAsSheet.onDisappear with its captured ID, never this setter.
     var saveAsRequest: SaveAsRequest? {
@@ -339,6 +344,9 @@ final class DocumentWorkspace {
         guard !saveOperations.values.contains(where: { $0.document === doc && $0.phase == .writing }) else {
             completion(.failed("A save for this document is still running")); return id
         }
+        guard !saveOperations.values.contains(where: { $0.replaceAlert != nil }) else {
+            completion(.failed("A replacement prompt is still open")); return id
+        }
         let old = activeSavePrompt
         let operation = DocumentSaveOperation(id: id, document: doc, requiresWindow: requiresWindow, completion: completion)
         saveOperations[id] = operation
@@ -352,6 +360,7 @@ final class DocumentWorkspace {
             settleDocumentSave(id, .failed("Save requires a document window")); return id
         }
         if let window {
+            operation.presentingWindow = window
             operation.windowObserver = NotificationCenter.default.addObserver(
                 forName: NSWindow.willCloseNotification, object: window, queue: .main
             ) { [weak self] _ in
@@ -365,7 +374,7 @@ final class DocumentWorkspace {
                 name: SaveAsRequest.defaultName(doc.title, path: doc.info.path), folder: saveFolder(for: doc))
             if !hasWindow { // Explicit legacy-only automatic destination.
                 admitDocumentWrite(operation, url: request.url, folder: request.folder)
-            } else { presentedSaveAs = request }
+            } else { presentDocumentSaveSheet(request) }
         }
         return id
     }
@@ -396,26 +405,69 @@ final class DocumentWorkspace {
         else { settleDocumentSave(id, .failed("Document window closed before save")) }
     }
 
+    private func presentDocumentSaveSheet(_ request: SaveAsRequest) {
+        if saveAsPresentationID != nil {
+            queuedSaveAs = request
+            presentedSaveAs = nil
+        } else {
+            saveAsPresentationID = request.id
+            presentedSaveAs = request
+        }
+    }
+
+    /// Native SwiftUI sheet completion, not content onDisappear. ID remains owned
+    /// until this boundary so stale nil binding writes cannot dismiss a successor.
+    func saveAsPresentationDidDismiss(_ id: UUID) {
+        guard saveAsPresentationID == id else { return }
+        saveAsPresentationID = nil
+        if presentedSaveAs?.id == id { presentedSaveAs = nil }
+        if let operation = saveOperations[id] {
+            if operation.phase == .waitingForDismissal, let request = operation.pendingReplacement {
+                operation.pendingReplacement = nil
+                beginReplacementPrompt(operation, request: request)
+            } else if operation.phase == .choosing { cancelDocumentSave(id) }
+        }
+        if let request = queuedSaveAs {
+            queuedSaveAs = nil
+            if saveOperations[request.id]?.phase == .choosing, activeSavePrompt == request.id {
+                presentDocumentSaveSheet(request)
+            }
+        }
+    }
+
     func finishSaveAs(_ request: SaveAsRequest) {
         guard let operation = saveOperations[request.id], operation.document === request.doc,
               operation.phase == .choosing, activeSavePrompt == request.id else { return }
         guard request.isValid else { settleDocumentSave(request.id, .failed("Invalid file name")); return }
+        let exists = saveFileExists?(request.url) ?? FileManager.default.fileExists(atPath: request.url.path)
+        if exists {
+            operation.phase = .waitingForDismissal
+            operation.pendingReplacement = request
+            if presentedSaveAs?.id == request.id { presentedSaveAs = nil }
+            // Only saveAsPresentationDidDismiss may admit a replacement prompt.
+        } else { admitDocumentWrite(operation, url: request.url, folder: request.folder) }
+    }
+
+    private func beginReplacementPrompt(_ operation: DocumentSaveOperation, request: SaveAsRequest) {
+        guard saveOperations[request.id] === operation, operation.document === request.doc,
+              operation.phase == .waitingForDismissal, activeSavePrompt == request.id else { return }
         operation.phase = .replacing
-        if presentedSaveAs?.id == request.id { presentedSaveAs = nil }
         let proceed: @MainActor (Bool) -> Void = { [weak self] accepted in
             guard let self, self.saveOperations[request.id] === operation,
                   operation.phase == .replacing else { return }
+            operation.replaceAlert = nil
             guard accepted else { self.settleDocumentSave(request.id, .cancelled); return }
             self.admitDocumentWrite(operation, url: request.url, folder: request.folder)
         }
-        let exists = saveFileExists?(request.url) ?? FileManager.default.fileExists(atPath: request.url.path)
-        guard exists else { proceed(true); return }
         if let saveReplacePrompt { saveReplacePrompt(request.url, proceed); return }
-        guard let window else {
-            // Even legacy UI requests may not overwrite after losing their window.
+        guard let window = operation.presentingWindow else {
             settleDocumentSave(request.id, .failed("Document window closed before save")); return
         }
+        guard window.attachedSheet == nil else {
+            settleDocumentSave(request.id, .failed("Another sheet is still attached to the document window")); return
+        }
         let alert = NSAlert()
+        operation.replaceAlert = alert
         alert.messageText = "Replace “\(request.url.lastPathComponent)”?"
         alert.informativeText = "A file already exists at this destination. Replacing it will overwrite its contents."
         alert.addButton(withTitle: "Replace")
@@ -462,6 +514,12 @@ final class DocumentWorkspace {
     private func settleDocumentSave(_ id: UUID, _ outcome: DocumentSaveOutcome) {
         guard let operation = saveOperations.removeValue(forKey: id) else { return }
         if let observer = operation.windowObserver { NotificationCenter.default.removeObserver(observer) }
+        if let alert = operation.replaceAlert, let parent = alert.window.sheetParent {
+            parent.endSheet(alert.window, returnCode: .cancel)
+        }
+        operation.replaceAlert = nil
+        operation.pendingReplacement = nil
+        if queuedSaveAs?.id == id { queuedSaveAs = nil }
         if activeSavePrompt == id { activeSavePrompt = nil }
         if presentedSaveAs?.id == id { presentedSaveAs = nil }
         let completion = operation.completion
