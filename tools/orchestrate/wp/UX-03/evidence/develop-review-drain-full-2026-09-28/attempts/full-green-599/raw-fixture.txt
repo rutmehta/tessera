@@ -1,0 +1,1 @@
+-rw-r--r--@ 1 rutmehta  staff  36433920 Sep 25 04:11 fixtures/raw/sample.dng

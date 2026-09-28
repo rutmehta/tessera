@@ -1,0 +1,44 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.10s)
+Test Suite 'Selected tests' started at 2026-09-28 01:45:22.762.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 01:45:22.762.
+Test Suite 'AgentReviewNavigationTests' started at 2026-09-28 01:45:22.762.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testRealQueueFilteredEditRoundTripDraftAndSuccessfulAcceptNext]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [12.561209, 0.34204199999999996, 0.419]; GPU [14.600834, 0.746375, 0.9035420000000001]
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testRealQueueFilteredEditRoundTripDraftAndSuccessfulAcceptNext]' passed (0.852 seconds).
+Test Suite 'AgentReviewNavigationTests' passed at 2026-09-28 01:45:23.615.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.852 (0.853) seconds
+Test Suite 'AgentReviewOwnershipTests' started at 2026-09-28 01:45:23.615.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeAcceptAndRevert]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [24.182624999999998, 0.49549999999999994, 0.58325]; GPU [26.23275, 0.873208, 0.9724999999999999]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeAcceptAndRevert]' passed (0.774 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeRun]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [23.903040999999998, 0.433916, 0.56925]; GPU [25.560625, 0.9586669999999999, 0.9255]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeRun]' passed (0.540 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [24.471458000000002, 0.486834, 0.587667]; GPU [25.711958, 0.843875, 0.985417]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion]' passed (0.776 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [24.266959, 0.46325, 0.602375]; GPU [26.359333, 1.417375, 0.8816670000000001]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe]' passed (0.539 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted]' passed (0.489 seconds).
+Test Suite 'AgentReviewOwnershipTests' passed at 2026-09-28 01:45:26.733.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 3.118 (3.118) seconds
+Test Suite 'DevelopTests' started at 2026-09-28 01:45:26.733.
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/develop-app-rendered-B3904BCD-EBF4-4479-9C3A-910045432C52/shoot/photo.jpg
+  /Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/develop-app-rendered-B3904BCD-EBF4-4479-9C3A-910045432C52/shoot/photo.heic
+develop L2 calibration [first, tone, WB] ms: CPU [0.395667, 0.28800000000000003, 0.276125]; GPU [2.60825, 0.7625419999999999, 0.915083]
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' passed (0.228 seconds).
+Test Suite 'DevelopTests' passed at 2026-09-28 01:45:26.961.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.228 (0.228) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 01:45:26.961.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 4.198 (4.199) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 01:45:26.961.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 4.198 (4.199) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
