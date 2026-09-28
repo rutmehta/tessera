@@ -872,6 +872,9 @@ private final class ClosePlanSession: DevelopSession, @unchecked Sendable {
     override func setSettings(jsonPatch: String, interactive: Bool) throws {
         try wrapped.setSettings(jsonPatch: jsonPatch, interactive: interactive)
     }
+    override func setSettingsIdentified(jsonPatch: String, interactive: Bool, inputId: UInt64?) throws {
+        try wrapped.setSettingsIdentified(jsonPatch: jsonPatch, interactive: interactive, inputId: inputId)
+    }
     override func close() throws {
         try plan.closeWillFailOrWait()
         try wrapped.close()

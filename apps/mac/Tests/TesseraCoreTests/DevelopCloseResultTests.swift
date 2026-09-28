@@ -519,6 +519,16 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
         if fail { throw CloseFaultError.settings }
         try wrapped.setSettings(jsonPatch: jsonPatch, interactive: interactive)
     }
+    override func setSettingsIdentified(jsonPatch: String, interactive: Bool, inputId: UInt64?) throws {
+        let fail = lock.withLock {
+            settingsCalls += 1
+            guard settingsFailures > 0 else { return false }
+            settingsFailures -= 1
+            return true
+        }
+        if fail { throw CloseFaultError.settings }
+        try wrapped.setSettingsIdentified(jsonPatch: jsonPatch, interactive: interactive, inputId: inputId)
+    }
     override func addMask(definitionJson: String, interactive: Bool) throws -> UInt32 {
         try wrapped.addMask(definitionJson: definitionJson, interactive: interactive)
     }

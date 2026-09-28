@@ -951,6 +951,16 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
         if reject { throw InjectedDevelopSessionFailure.settings }
         try wrapped.setSettings(jsonPatch: jsonPatch, interactive: interactive)
     }
+    override func setSettingsIdentified(jsonPatch: String, interactive: Bool, inputId: UInt64?) throws {
+        let reject = lock.withLock {
+            sentInteractive.append(interactive)
+            guard settingsRejections > 0 else { return false }
+            settingsRejections -= 1
+            return true
+        }
+        if reject { throw InjectedDevelopSessionFailure.settings }
+        try wrapped.setSettingsIdentified(jsonPatch: jsonPatch, interactive: interactive, inputId: inputId)
+    }
     override func close() throws {
         lock.withLock { closes += 1 }
         resume.wait()
