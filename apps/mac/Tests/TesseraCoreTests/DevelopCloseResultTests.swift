@@ -146,9 +146,10 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
     func rejectNextClose() { lock.withLock { closeFailures += 1 } }
     func releaseClose() { release.signal() }
     func waitForCloseEntry() async -> Bool {
-        await Task.detached { [entered] in
-            entered.wait(timeout: .now() + 5) == .success
-        }.value
+        await Task.detached { [entered] in Self.waitForEntry(entered) }.value
+    }
+    private static func waitForEntry(_ semaphore: DispatchSemaphore) -> Bool {
+        semaphore.wait(timeout: .now() + 5) == .success
     }
 
     override func info() -> DevelopInfo { wrapped.info() }
