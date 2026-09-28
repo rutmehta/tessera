@@ -3311,10 +3311,9 @@ mod tests {
         engine
             .index_folder(photos.to_string_lossy().into_owned())
             .unwrap();
-        let row = engine
-            .list_images(crate::ImageQuery::default())
-            .unwrap()
-            .remove(0);
+        let mut rows = engine.list_images(crate::ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 1, "fixture must index only its photo");
+        let row = rows.remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         (dir, photo, engine, row.id, session)
     }
