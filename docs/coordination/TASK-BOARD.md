@@ -63,14 +63,20 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    diagnostic launch shows it without loading20k. Release has no Debug menu,
    so separate Debug-menu visibility remains unchecked. No complex-stack GUI,
    largefile cancellation latency or performance claim. Prior failures retained.
-2. **Resource Sol — exclusive compiler:** reviewed78520df5 six tests now run
-   initial RED, then narrow destination gate/rawrevision implementation for only
-   set_selection/set_recipe_json. Same-Engine lockprogress, coherent capture and
-   final recipe/XMP/index checks included. StaleJSON/CAS/otherwriters and atomic
-   multi-file transaction are outside scope; BatchApply remains blocked.
+2. **Resource Sol — combined source preparation:** c734074a passed6focused,
+   fmt and strict; precedinga312 passed1selection+3API. FirstREDmissingmodule
+   and strictunusedhelper/testinitializerfailure preserved. Root verified six
+   frozen hashes/directexits; reviewer acceptedlockorder/revisionsemantics.
+   Integrate currentmainPSD changes in candidate before finalcombinedcrate gate.
+   Only two writers serialized; revisionAPI dormant/tested, not batchCAS or a
+   transaction across recipe/XMP/index. BatchApply remains blocked.
+   **Engine Sol holds compiler** for unmerged diagnostic372f28dc tracing earlier
+   directJSONerror; existing currentFFI preserved, userpreview untouched.
 3. **Luna — desktop released; UX05 source contract:** validationapps closed; normal65fa userpreview
    untouched. Draft true liveRAW graph/persistence boundary and minimum next
-   dependency without editing B-owned Document implementation. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
+   dependency without editing B-owned Document implementation. B review18cfb1c8
+   accepted as design evidence; draftmain219bd62c picks pinned snapshot first.
+   Luna prepares UNRUN futureformat version-preflight regression/plan. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
    evidence/2026-09-27. CUA screenshots inline only, no local export available.
 4. **B — resource hold:** completed PSD receipts b7294f0e/ccb9e8f1 published.
    Result628f798f and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c published
