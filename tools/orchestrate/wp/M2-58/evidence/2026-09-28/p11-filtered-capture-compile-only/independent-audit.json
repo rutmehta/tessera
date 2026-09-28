@@ -1,0 +1,12 @@
+{
+  "scope": "Compile only; helper never executed by reviewer; no capture or P11 claim",
+  "source_sha256": "2c6f62df83df2082d0a3b8f4bc3c746ac7b8b90fc17d2fd5aa1051c57cbf8e2e",
+  "source_matches_prior_unrun_evidence": true,
+  "compiler_direct_exit": 0,
+  "compiler_log_bytes": 0,
+  "binary_local_path": "/Volumes/betterSSD/tessera-validation/m258-current/p11-helper-compile-20260928/filtered-capture-capability",
+  "binary_sha256": "a00ae989bf51dc059565d15424983fac4a1ca7acc8c7506eac815be2cbf07e7a",
+  "binary_bytes": 101128,
+  "executable_included": false,
+  "execution_evidence": "Saved directory contains compilation artifacts only; coordinator reports no helper execution. Compilation success does not prove execution absence."
+}

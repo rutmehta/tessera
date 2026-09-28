@@ -1,0 +1,21 @@
+[
+  "xcrun",
+  "clang",
+  "-fobjc-arc",
+  "-fblocks",
+  "/Volumes/betterSSD/tessera-validation/m258-current/p11-helper-compile-20260928/tessera-p11-filtered-capture-capability.m",
+  "-o",
+  "/Volumes/betterSSD/tessera-validation/m258-current/p11-helper-compile-20260928/filtered-capture-capability",
+  "-framework",
+  "AppKit",
+  "-framework",
+  "CoreGraphics",
+  "-framework",
+  "ScreenCaptureKit",
+  "-framework",
+  "CoreMedia",
+  "-framework",
+  "CoreVideo",
+  "-framework",
+  "QuartzCore"
+]
