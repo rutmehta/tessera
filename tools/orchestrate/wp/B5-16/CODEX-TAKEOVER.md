@@ -478,3 +478,14 @@ Existing user preview65fa6a33 remains open on A unchanged and does not acquire
 these changes merely because main merged. A continues narrow recipe-writer work.
 B hold/paused heartbeat and dirty B5-16a snapshot remain preserved. No B builds,
 tests, apps, benchmarks, main merges or receipt acknowledgements performed.
+
+## UX05 live RAW contract review — 0dbfc6de (2026-09-28 UTC)
+
+Reviewed draft on main0f436436 against native format, source-copy FFI, recipe hash
+and resolver-related code. LIVE-RAW-LAYER-CONTRACT-REVIEW.md identifies unresolved
+latest-versus-pinned recipe semantics, virtual-copy versus asset identity,
+color/geometry and dirty/history policy, and deserialize-before-version behavior.
+Proposes versioned immutable source descriptor, independent resolver/render/event
+contracts, A engine/compositor/persistence versus B FFI/UI split, and first tiny
+pinned persistence/resolver gate. No product capability approved or implemented.
+Open in Layers remains rendered copy. B hold/paused heartbeat preserved.
