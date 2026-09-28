@@ -65,10 +65,6 @@ pub(crate) fn gate_for(image: &Path) -> Result<Arc<GateState>> {
 }
 
 pub(crate) struct GateState {
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "retained for the internal full-byte revision")
-    )]
     key: PathBuf,
     epoch: Mutex<u64>,
     // Accessed only while `epoch` is held, preserving one lock order for
@@ -147,10 +143,6 @@ impl GateState {
         receiver
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "internal revision awaits a caller")
-    )]
     fn check_image(&self, image: &Path) -> Result<()> {
         if destination_key(image)? != self.key {
             return Err(failure("image does not use this recipe destination"));

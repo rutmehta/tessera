@@ -41,6 +41,46 @@ fn exhausted_develop_owner_ids_fail_closed_without_wrapping() {
 }
 
 #[test]
+fn stale_or_wrong_destination_authority_cannot_write_or_clear_new_owner() {
+    let dir = tempfile::tempdir().unwrap();
+    let first_image = dir.path().join("owner-first.jpg");
+    let second_image = dir.path().join("owner-second.jpg");
+    tiny_jpeg(&first_image);
+    tiny_jpeg(&second_image);
+    let first_gate = gate_for(&first_image).unwrap();
+    let second_gate = gate_for(&second_image).unwrap();
+
+    let (first_lease, ()) = first_gate.reserve_develop(&first_image, || Ok(())).unwrap();
+    let stale_authority = first_lease.authority();
+    drop(first_lease);
+    let (second_lease, ()) = first_gate.reserve_develop(&first_image, || Ok(())).unwrap();
+    let current_authority = second_lease.authority();
+
+    let stale_error = match first_gate.begin_develop_write(&stale_authority, &first_image) {
+        Ok(_guard) => panic!("stale authority unexpectedly wrote"),
+        Err(error) => error,
+    };
+    assert!(stale_error.to_string().contains("no longer active"));
+    let wrong_gate_error = match second_gate.begin_develop_write(&current_authority, &second_image)
+    {
+        Ok(_guard) => panic!("authority unexpectedly wrote through another destination"),
+        Err(error) => error,
+    };
+    assert!(
+        wrong_gate_error
+            .to_string()
+            .contains("different destination")
+    );
+    assert!(
+        first_gate
+            .begin_develop_write(&current_authority, &first_image)
+            .is_ok(),
+        "failed stale/wrong-state checks must not clear the current owner"
+    );
+    drop(second_lease);
+}
+
+#[test]
 fn set_recipe_json_publishes_develop_settings_to_recipe_xmp_and_index() {
     let dir = tempfile::tempdir().unwrap();
     let photos = dir.path().join("photos");

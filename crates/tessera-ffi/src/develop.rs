@@ -3744,7 +3744,7 @@ mod tests {
         slot: Arc<Mutex<Option<Arc<DevelopSession>>>>,
         entered: std::sync::mpsc::Sender<()>,
         drop_ack: Mutex<std::sync::mpsc::Receiver<()>>,
-        dropped: std::sync::mpsc::Sender<()>,
+        dropped: std::sync::mpsc::Sender<bool>,
         release: Mutex<std::sync::mpsc::Receiver<()>>,
     }
 
@@ -3752,12 +3752,50 @@ mod tests {
         fn frame_ready(&self, _: FrameInfo) {}
         fn render_failed(&self, _: String) {}
         fn saved(&self, _: String) {
-            self.entered.send(()).unwrap();
-            self.drop_ack.lock().unwrap().recv().unwrap();
+            let _ = self.entered.send(());
+            let _ = self
+                .drop_ack
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .recv_timeout(Duration::from_secs(5));
             let final_session = self.slot.lock().unwrap().take();
+            let dropped_on_writer = final_session.as_ref().is_some_and(|session| {
+                Arc::strong_count(session) == 1
+                    && std::thread::current().id() == session.writer_thread
+            });
             drop(final_session);
-            self.dropped.send(()).unwrap();
-            self.release.lock().unwrap().recv().unwrap();
+            let _ = self.dropped.send(dropped_on_writer);
+            let _ = self
+                .release
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .recv_timeout(Duration::from_secs(5));
+        }
+    }
+
+    struct ReleaseWorkerCallback {
+        ack: Option<std::sync::mpsc::Sender<()>>,
+        release: Option<std::sync::mpsc::Sender<()>>,
+    }
+
+    impl ReleaseWorkerCallback {
+        fn ack(&mut self) {
+            if let Some(sender) = self.ack.take() {
+                let _ = sender.send(());
+            }
+        }
+
+        fn release(&mut self) {
+            if let Some(sender) = self.release.take() {
+                let _ = sender.send(());
+            }
+        }
+    }
+
+    impl Drop for ReleaseWorkerCallback {
+        fn drop(&mut self) {
+            self.ack();
+            self.release();
         }
     }
 
@@ -3770,8 +3808,12 @@ mod tests {
         fn frame_ready(&self, _: FrameInfo) {}
         fn render_failed(&self, _: String) {}
         fn saved(&self, _: String) {
-            self.entered.send(()).unwrap();
-            self.release.lock().unwrap().recv().unwrap();
+            let _ = self.entered.send(());
+            let _ = self
+                .release
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .recv_timeout(Duration::from_secs(5));
         }
     }
 
@@ -3983,8 +4025,25 @@ mod tests {
         first.flush().unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let first_bytes = std::fs::read(&recipe_path).unwrap();
+        let stale_first = first.clone();
         first.close().unwrap();
         let reopened = second_engine.clone().open_develop_session(id).unwrap();
+        stale_first.close().unwrap();
+        drop(stale_first);
+        let still_owned = match second_engine
+            .clone()
+            .open_develop_session(first.shared.image_id.clone())
+        {
+            Ok(opened) => {
+                opened.close().unwrap();
+                panic!("stale closed editor released the current owner's lease");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            still_owned.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
         assert_eq!(
             serde_json::from_str::<Recipe>(
                 &first_engine
@@ -4003,15 +4062,20 @@ mod tests {
 
     #[test]
     fn final_session_drop_on_writer_keeps_lease_until_writer_exit() {
-        let (dir, _photo, engine, id, session) = tiny_develop_session("worker-final-arc.jpg");
+        let (dir, _photo, _engine, id, session) = tiny_develop_session("worker-final-arc.jpg");
         let second_engine =
             Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         let weak = Arc::downgrade(&session);
+        let held_shared = session.shared.clone();
         let slot = Arc::new(Mutex::new(Some(session.clone())));
         let (entered_tx, entered_rx) = std::sync::mpsc::channel();
         let (drop_ack_tx, drop_ack_rx) = std::sync::mpsc::channel();
         let (dropped_tx, dropped_rx) = std::sync::mpsc::channel();
         let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let mut release_callback = ReleaseWorkerCallback {
+            ack: Some(drop_ack_tx),
+            release: Some(release_tx),
+        };
         let (worker_exit_tx, worker_exit_rx) = std::sync::mpsc::channel();
         *session.shared.worker_exit_observer.lock().unwrap() = Some(worker_exit_tx);
         session.set_listener(Some(Arc::new(DropSessionOnSaveWorker {
@@ -4024,28 +4088,43 @@ mod tests {
         session.shared.schedule_save();
         entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         drop(session);
-        drop_ack_tx.send(()).unwrap();
-        dropped_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        release_callback.ack();
+        assert!(
+            dropped_rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            "the final Arc must be destroyed by the save worker"
+        );
         assert!(
             weak.upgrade().is_none(),
             "callback must drop final session Arc on writer thread"
         );
 
-        let conflict = match second_engine.clone().open_develop_session(id.clone()) {
-            Ok(opened) => {
-                opened.close().unwrap();
-                panic!("detached writer released lease before loop exit");
-            }
-            Err(error) => error,
-        };
+        let contender_engine = second_engine.clone();
+        let contender_id = id.clone();
+        let (contender_tx, contender_rx) = std::sync::mpsc::channel();
+        let contender = thread::spawn(move || {
+            let outcome = match contender_engine.open_develop_session(contender_id) {
+                Ok(opened) => {
+                    opened.close().unwrap();
+                    Ok(())
+                }
+                Err(error) => Err(error.to_string()),
+            };
+            contender_tx.send(outcome).unwrap();
+        });
+        let conflict = contender_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap_err();
+        contender.join().unwrap();
         assert_eq!(
-            conflict.to_string(),
+            conflict,
             "conflict: Develop destination already has an active editor"
         );
-        release_tx.send(()).unwrap();
+        release_callback.release();
         worker_exit_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         let reopened = second_engine.open_develop_session(id).unwrap();
         reopened.close().unwrap();
+        drop(held_shared);
     }
 
     #[test]
@@ -4184,18 +4263,36 @@ mod tests {
             )
             .unwrap();
         });
+        let snapshot_error = rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap_err();
         assert!(
-            rx.recv_timeout(Duration::from_secs(5)).unwrap().is_err(),
-            "malformed snapshot must fail promptly"
+            snapshot_error.to_string().contains("key must be a string"),
+            "unexpected snapshot error: {snapshot_error}"
         );
         snapshot_thread.join().unwrap();
         std::fs::write(&recipe_path, &good_recipe).unwrap();
+        let snapshot_reopen = engine.clone().open_develop_session(id.clone()).unwrap();
+        snapshot_reopen.close().unwrap();
 
         let image_bytes = std::fs::read(&photo).unwrap();
         std::fs::remove_file(&photo).unwrap();
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
+        let decode_error = match engine.clone().open_develop_session(id.clone()) {
+            Ok(opened) => {
+                opened.close().unwrap();
+                panic!("missing image unexpectedly decoded");
+            }
+            Err(error) => error,
+        };
         assert!(
-            engine.clone().open_develop_session(id.clone()).is_err(),
-            "raw decode after reservation must fail"
+            !decode_error.to_string().contains("active editor"),
+            "decode failure was masked by stale lease: {decode_error}"
+        );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count
         );
         std::fs::write(&photo, image_bytes).unwrap();
         let reopened = engine.clone().open_develop_session(id).unwrap();
@@ -4577,6 +4674,7 @@ mod tests {
         assert_eq!(rows.len(), 1);
         let id = rows.remove(0).id;
         let editor = engine.clone().open_develop_session(id.clone()).unwrap();
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
         let input = editor.shared.depth_input().unwrap();
         let rgb = image_core::depth::model_input(&input).unwrap();
         let depth = image_core::ml_depth::DepthMap::from_prediction(
@@ -4599,6 +4697,21 @@ mod tests {
 
         let while_open = engine.clone().depth_histogram(id.clone()).unwrap();
         assert_eq!(while_open.len(), 256);
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count
+        );
+        let second_open = match engine.clone().open_develop_session(id.clone()) {
+            Ok(opened) => {
+                opened.close().unwrap();
+                panic!("read-only histogram released the active editor lease");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            second_open.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
         assert!(!editor.shared.lock().unwrap().closed);
         editor.close().unwrap();
         let after_close = engine.depth_histogram(id).unwrap();
