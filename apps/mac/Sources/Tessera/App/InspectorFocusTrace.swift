@@ -155,14 +155,14 @@ final class InspectorFocusTrace {
 
     /// Called at the existing local monitor boundary. No native/AX capture on the nil path.
     @MainActor
-    static func routeEvent(_ trace: InspectorFocusTrace?, event: NSEvent, document: Bool,
+    static func routeEvent(_ trace: InspectorFocusTrace?, event: NSEvent, document: Bool, ownedWindow: NSWindow?,
                            handler: () -> Bool) -> Bool {
         guard let trace, !trace.closed else { return handler() }
         let window = event.window
         let input = Input(keyDown: event.type == .keyDown, keyCode: event.keyCode,
             modifiers: event.modifierFlags.intersection(.deviceIndependentFlagsMask).rawValue,
             eventNumber: event.eventNumber, timestamp: event.timestamp, document: document,
-            ownedKeyWindow: window != nil && window === NSApp.keyWindow,
+            ownedKeyWindow: window != nil && window === NSApp.keyWindow && window === ownedWindow,
             blockedWindow: window == nil || window is NSPanel || window?.attachedSheet != nil
                 || window?.sheetParent != nil || NSApp.modalWindow != nil,
             fullKeyboardAccess: NSApp.isFullKeyboardAccessEnabled,
