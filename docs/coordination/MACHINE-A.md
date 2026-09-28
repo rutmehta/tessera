@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Public offline engine workflow verified; app reopening remains open — 2026-09-28 16:46 UTC
+
+Feature worktree only, NOT main integrated: focused native22/22 passed, realSony public Engine build/render/offline two-restart save/reconnect/sync/conflict test passed. Positive rendered JPEG after sync is4920x3276 and brighter/changed versus baseline; separate Original copy is byte-identical. Source fixture unchanged. Per-run input hashes and direct exits retained in /Volumes/betterSSD/tessera-validation/smart-previews/ffi. Initial compile/harness failures preserved. FullFFI unit run07 is165pass/6fail from existing expected Original-conflict wording; compatibility wording restored and08retry underway. No fullgate acceptance yet; scoped applied-source review active.
+
+Root discovered app-level offline relaunch gap: EngineLibrary.scan requires originalfolder/indexing and cull admission skipsmissingfiles. DirectEngine workflow does not waive this. A source worker now prepares explicit catalog-backed validated-preview session; B must receive exactcontract before implementingSwiftreopen. GPU L0 and Compact tier patches are source-only/unmerged. Originaldefault remains because proxyCPU warmedit384.7ms versus originalMetal33.07ms.
+
+B UI54502c3d results484a7979/7b88e668 acceptedtarget, tests15UNRUN atthathead. Earlier exactc6d05aa3 isolated8controller tests passed. Autosavewarning requestbcf6cb50 queued01a0e8e0, same-photo refresh/open race request06afa311 queued01a0e8e8; peerreceipt pending forlatest. Existing writer preserved, no duplicate sessions. Next: fullnative/review, offlineLibraryAPI, coherentbindings+BUI and actualendtoendapp acceptance.
+
 ## Measured Smart Preview default decision — 2026-09-28 16:32 UTC
 
 Matched Sony2460x1638 encoded-display test at6c057641,2 fresh renderers per route/18 rows: originalCPU cold1101/warm794.5/edited818.2ms; proxyCPU385.8/380.9/384.7ms; originalMetal resident tiles including readback332.6/10.05/33.07ms. Proxy improves CPU route but is11.6x slower than originalMetal for warm edits. Keep Original default; explicit/offline Smart Preview choice remains. No appzero-copy or input-to-present claim. Root checked raw rows, source/harness freeze, direct0 and unchanged original. Evidence: matched-sony-6c057641. Initial wrong resident entry-point failure retained.

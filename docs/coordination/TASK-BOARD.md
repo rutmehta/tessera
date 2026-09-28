@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Public offline engine workflow verified; app reopening remains open — 2026-09-28 16:46 UTC
+
+Feature worktree only, NOT main integrated: focused native22/22 passed, realSony public Engine build/render/offline two-restart save/reconnect/sync/conflict test passed. Positive rendered JPEG after sync is4920x3276 and brighter/changed versus baseline; separate Original copy is byte-identical. Source fixture unchanged. Per-run input hashes and direct exits retained in /Volumes/betterSSD/tessera-validation/smart-previews/ffi. Initial compile/harness failures preserved. FullFFI unit run07 is165pass/6fail from existing expected Original-conflict wording; compatibility wording restored and08retry underway. No fullgate acceptance yet; scoped applied-source review active.
+
+Root discovered app-level offline relaunch gap: EngineLibrary.scan requires originalfolder/indexing and cull admission skipsmissingfiles. DirectEngine workflow does not waive this. A source worker now prepares explicit catalog-backed validated-preview session; B must receive exactcontract before implementingSwiftreopen. GPU L0 and Compact tier patches are source-only/unmerged. Originaldefault remains because proxyCPU warmedit384.7ms versus originalMetal33.07ms.
+
+B UI54502c3d results484a7979/7b88e668 acceptedtarget, tests15UNRUN atthathead. Earlier exactc6d05aa3 isolated8controller tests passed. Autosavewarning requestbcf6cb50 queued01a0e8e0, same-photo refresh/open race request06afa311 queued01a0e8e8; peerreceipt pending forlatest. Existing writer preserved, no duplicate sessions. Next: fullnative/review, offlineLibraryAPI, coherentbindings+BUI and actualendtoendapp acceptance.
+
 ## Current gate — 2026-09-28 16:33 UTC
 
 Exact Bc6d05aa3 controller +8 model tests passed in isolated Swift6 Release package, sourcefreeze identical; evidence swift-model-c6d05aa3. This excludes livebindings/AppModel/app/GUI and laterBfollowups. NativeFFI corrected patch now applied only in featureworktree; sole compilerlane assigned to FFIagent. GPUproxy L0 patch preparation is source-only, not enabled or benchmarked. Originaldefault decision unchanged.
