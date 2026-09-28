@@ -1,3 +1,9 @@
+## Inspector automated qualification verified; actual GUI lane granted
+
+Candidate `858147a3` passed focused 67, layout four, full 720 XCTest cases with one existing skip and zero failures, five Swift Testing cases, and strict Release. Independent review verified all 8,383 immutable Git inputs, four FFI artifacts, fixture preservation and 105 mandatory full-suite pass lines. The strict executable is `f0f676ce47483531916923684b7c2ab817596d29b9c15c91c7e51363ec9d1171`. The inspector worker now owns the sole runtime lane for isolated actual GUI checks; no main merge or GUI pass is yet claimed.
+
+Corrected cache Engine scaffold `480b272e` is under independent rereview after stronger backend, bypass and complete identity assertions. Its six tests remain unrun. Pure foundation evidence is published on main `4c8776cd`; this does not integrate a product cache. A status message `7f3124df-6c04-4368-a8c2-a915ee053f1c` was published for B; no new receipt or wakeup is claimed.
+
 ## 2026-09-28 22:31 UTC — inspector full suite passed; cache integration contracts under review
 
 Inspector candidate `858147a3` reports 67 focused tests and full 720 XCTest cases passing, one existing opt-in skip, zero failures, plus five Swift Testing cases. The runner enforced all 84 adjacent cases, six History cases, layout and both actual Sony workflows. Source, archive and fixture freezes passed. The inspector worker retains the sole runtime lane for the strict build; independent final provenance review and actual GUI acceptance remain pending. No inspector main merge yet.
