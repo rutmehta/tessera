@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Live RAW source review completed — 2026-09-28 14:07 UTC
+
+Luna mapped the actual Photo Edit→Layers ownership/save barrier and flattened-pixel persistence; Astra independently audited compositor/format/recipe/render contracts. Root checked the critical source paths. The initial automatic-follow portions of the draft are explicitly superseded by the previously chosen immutable pinned-recipe direction. Format preflight is already complete on main372dbbcc with final26845eed; no duplicate implementation is needed. No current graph or persisted manifest contains a RAW source node.
+
+The next contract must distinguish physical asset content identity from recipe ImageId/virtual copy, retain actual pinned settings rather than only a hash, define a coherent source-byte read/digest policy, and reject unsupported recipe/process semantics before rendering. Current flattened export is not evidence of arbitrary pinned-process fidelity: its CPU fallback receives settings without process_version. Fixed color, extent/orientation and sample semantics need agreement before A engine and B adapter work. These are source findings and proposed boundaries, not newly reproduced runtime failures or a live-RAW feature release. Existing copy UI remains accurate.
+
+Qualified interval evidence remains main419c8e9b; original HDR acceptance remains failed and proposed confounded control is rejected/unrun. Protected macOS dialog and B DNS failures remain the runtime/peer blockers. No pending incoming mailbox request needs acceptance or reconciliation. A alone merges main; B reservations and preview are preserved.
+
+
 ## Source lanes advance while desktop and B remain blocked — 2026-09-28 14:02 UTC
 
 EXP45 boundary-shift preparation was rejected before execution. It changes gain histogram and auxiliary JPEG encoding, so it cannot isolate the proposed edge-registration cause. No runtime or product fix follows; original4pass/1fail remains. See EXP45-BOUNDARY-SHIFT-REJECTED.md. The older next-step note is explicitly superseded.

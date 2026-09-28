@@ -1,5 +1,14 @@
 # UX-05 draft: live RAW source and layer continuity
 
+## Current precedence and completed prerequisite — 2026-09-28
+
+The later coordinator review below supersedes the initial automatic-follow proposal: the first source-backed contract pins an immutable recipe payload. Later edits to the original photo do not automatically change that snapshot. Automatic follow and shared undo require a separate explicit policy. `ImageId` can denote a virtual copy; physical asset identity/content digest remains distinct. A recipe hash cannot recover the pinned settings.
+
+The format-version preflight is already DONE on main372dbbcc with validated final26845eed. Current code parses ManifestHeader and rejects future versions before decoding typed layer variants. The older statement below that complete Manifest decoding happens first is historical and superseded. Format remains v1, with no RAW source node or persisted document undo.
+
+See LIVE-RAW-GRAPH-PERSISTENCE-AUDIT.md for current source findings and the smallest engine contract proposal. Source bytes need a coherent digest/read policy; supported recipe/process versions and output color/extent/sample semantics must be explicit. Existing flattened export is not proof of arbitrary pinned-process fidelity. No new graph, B-owned adapter or user-facing live-RAW capability is implemented by these notes.
+
+
 Source-only contract draft inspected at `review-ownership/tessera` `fa871bb9`; root checked the current handoff and recipe definitions again on main54a8e85f. No product edits, build, or app launch. This defines the next dependency behind UX-05; it does not change the completed rendered-copy path.
 
 ## Current user-visible contract and implementation
