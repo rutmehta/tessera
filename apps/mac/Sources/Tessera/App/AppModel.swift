@@ -1485,6 +1485,7 @@ final class AppModel {
         navigateAfterDevelopSave { [weak self] in
             guard let self, let id = self.resolvePhotoTarget(target),
                   self.positionOfID.indices.contains(id), self.positionOfID[id] >= 0 else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             self.commitSelect(position: self.positionOfID[id], extend: false)
             self.viewMode = .loupe
         }
@@ -1498,6 +1499,7 @@ final class AppModel {
         navigateAfterDevelopSave { [weak self] in
             guard let self, let currentID = self.resolvePhotoTarget(target),
                   self.positionOfID.indices.contains(currentID), self.positionOfID[currentID] >= 0 else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             self.commitSelect(position: self.positionOfID[currentID], extend: false)
             if self.viewMode != .compare { self.viewMode = .loupe }
         }
@@ -1514,6 +1516,7 @@ final class AppModel {
                 self.commitSetSource(.album(fallbackAlbum))
             }
             guard self.positionOfID.indices.contains(currentID), self.positionOfID[currentID] >= 0 else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             self.commitSelect(position: self.positionOfID[currentID], extend: false)
         }
     }
