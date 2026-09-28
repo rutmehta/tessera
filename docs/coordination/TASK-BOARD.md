@@ -1,5 +1,14 @@
 # Tessera task board — Machine A coordinator
 
+## Offline Library native acceptance — 2026-09-28 17:16 UTC
+
+Integrated94557873/35e378b4 catalog-backed offline Library API. Full cull+FFI Release gate444 passed/15 ignored at35e; only real-workflow test changed in945 to use canonical catalog folder captured online. Corrected actualSony workflow passed plus strict/fmt at945. Root verified6938 Git file hashes for fullgate and finalruns08–10, production identical across test correction; original fixture unchanged. Evidence offline-library-94557873 preserves failed canonical alias tests06/07 and initial lint failure03.
+
+Isolated exact B2ba1d95c controller/model20 tests passed onSwift6 Release (13.19s build+test), sourcefreeze unchanged. This excludes AppModel/nativebinding/fullapp and six new offline-routing tests in B ef307d8d. B ef307d8d result42a031cd accepted for A review. Review confirmed online alias retained instead of canonical index handle.path; new requestc13b4fe0 published, SSH queue01a0e903-d122-7fd2-b86d-5ea06fadf13f accepted, peer receipt pending. Do not claim offline app reopening accepted until that correction and integrated gates pass.
+
+Next compiler lane: Compact tier component and actual size/legacy-v1/fidelity checks, Original/Detail defaults unchanged pending results. GPU proposals remain unapplied; adaptive coarse GPU interaction still needs qualification. Protected GUI blocker and other unfinished board work preserved. Latest status publication does not prove peer receipt.
+
+
 ## Native Smart Preview editing integrated — 2026-09-28 17:04 UTC
 
 Native candidate e1eca7ba (including81a6cc53) is merged after independent review and exact fifteen-file Git hash verification for final runs18–21. Final171 FFI unit tests passed, real Sony workflow passed, strict all-target Clippy and formatting passed. Workflow verifies clean and dirty offline restarts, exact captured recipe/history/unknown fields, local save, reconnect synchronization, conflict retention, byte-identical Original copy and4920×3276 edited JPEG export. Source fixture unchanged. Portable evidence: tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/ffi-e1eca7ba. Earlier64 related integration passes belong to the earlier source checkpoint; all failed attempts remain preserved.

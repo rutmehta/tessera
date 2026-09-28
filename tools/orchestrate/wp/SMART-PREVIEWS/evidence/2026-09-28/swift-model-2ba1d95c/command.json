@@ -1,0 +1,1 @@
+["swift", "test", "-c", "release", "--package-path", "/Volumes/betterSSD/tessera-validation/smart-previews/swift-model-2ba1d95c", "--scratch-path", "/Volumes/betterSSD/tessera-validation/smart-previews/swift-model-2ba1d95c/build", "--filter", "SmartPreviewUITests"]

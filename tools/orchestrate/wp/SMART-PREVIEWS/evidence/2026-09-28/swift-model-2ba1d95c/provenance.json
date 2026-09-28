@@ -1,0 +1,14 @@
+{
+  "head": "2ba1d95c987b104c7b74de701d4d6c327221d238",
+  "sources": {
+    "Sources/TesseraCore/SmartPreviewController.swift": {
+      "git_path": "apps/mac/Sources/TesseraCore/SmartPreviewController.swift",
+      "git_blob": "30bf399c74dc2357c2253026ddffda513a74445c"
+    },
+    "Tests/TesseraCoreTests/SmartPreviewUITests.swift": {
+      "git_path": "apps/mac/Tests/TesseraCoreTests/SmartPreviewUITests.swift",
+      "git_blob": "bfa13147723e72e9fec2f6ea3eb98b4cb093c578"
+    }
+  },
+  "status": "PREPARED ONLY; NOT COMPILED"
+}

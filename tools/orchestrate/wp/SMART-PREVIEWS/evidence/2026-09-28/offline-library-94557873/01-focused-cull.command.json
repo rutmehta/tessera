@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "cull",
+    "--release",
+    "--test",
+    "incremental",
+    "declared_",
+    "--",
+    "--nocapture"
+  ],
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "TESSERA_SMART_PREVIEW_RAW": null
+}

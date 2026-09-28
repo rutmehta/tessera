@@ -1,0 +1,9 @@
+{
+  "full_gate_head": "35e378b43ce85f0cf397ef5c9b1c5cd777e4f5db",
+  "final_head": "9455787389381b806207e91af37d814f876e868d",
+  "changed_since_full_gate": [
+    "crates/tessera-ffi/tests/smart_preview_workflow.rs"
+  ],
+  "production_inputs_equal": true,
+  "sony_original_unchanged": true
+}

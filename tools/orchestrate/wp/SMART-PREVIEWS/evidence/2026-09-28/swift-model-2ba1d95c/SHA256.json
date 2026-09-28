@@ -1,0 +1,11 @@
+{
+  "release.log": "1ae9b3fd5b52d5512f3dfe50c4e686056ea9bf64e34ac8191d09bac4089dffa0",
+  "provenance.json": "89a6a2e0bc3c59fc378c75674b2c58e23a3f6ad7b6209786a63812ea0f0cc674",
+  "source-before.json": "ac85dd4858f8551259bf6dc0b1155f6885d16c3f90ffd34714261af432d7b86e",
+  "source-after.json": "ac85dd4858f8551259bf6dc0b1155f6885d16c3f90ffd34714261af432d7b86e",
+  "command.json": "438b2a7545ddb9d3c9ce6f1487736ddd530f7ba3ca4a6d583ca7ba025431437e",
+  "release.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+  "Package.swift": "45303d24b2eba1a3e0b2a1a22c0373d2aa374274b7dee1cc03a3d94143313467",
+  "Sources/TesseraCore/SmartPreviewController.swift": "05c1b05fc21271676a56816139eb279fbdf63f0f35ef005ed9d7508fecbac210",
+  "Tests/TesseraCoreTests/SmartPreviewUITests.swift": "39d400bae4e57e8889f7c6787c86e05de64da0ec1fad18c627822a1746a41f65"
+}
