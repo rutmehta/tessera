@@ -7,6 +7,7 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
     private static var installed: [ObjectIdentifier: RecoveryWindowCloseGuard] = [:]
 
     private weak var window: NSWindow?
+    private let windowID: ObjectIdentifier
     // Strongly retain the displaced SwiftUI delegate until close/teardown.
     nonisolated(unsafe) private var previous: (any NSWindowDelegate)?
     private let shouldBlock: @MainActor () -> Bool
@@ -18,6 +19,7 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
                  shouldBlock: @escaping @MainActor () -> Bool,
                  blocked: @escaping @MainActor (NSWindow) -> Void) {
         self.window = window
+        self.windowID = ObjectIdentifier(window)
         self.previous = previous
         self.shouldBlock = shouldBlock
         self.blocked = blocked
@@ -27,6 +29,7 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
     /// Called only by the NSViewRepresentable hosted in ContentView's main window.
     static func install(on window: NSWindow) {
         let id = ObjectIdentifier(window)
+        if let stale = installed[id], stale.window !== window { stale.uninstall() }
         if let guardDelegate = installed[id] {
             guard window.delegate !== guardDelegate else { return }
             // SwiftUI may replace its delegate after the view first appears.
@@ -91,10 +94,8 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
             NotificationCenter.default.removeObserver(closeObserver)
             self.closeObserver = nil
         }
-        if let window {
-            if window.delegate === self { window.delegate = previous }
-            Self.installed.removeValue(forKey: ObjectIdentifier(window))
-        }
+        if let window, window.delegate === self { window.delegate = previous }
+        if Self.installed[windowID] === self { Self.installed.removeValue(forKey: windowID) }
     }
 
     nonisolated override func responds(to selector: Selector!) -> Bool {
