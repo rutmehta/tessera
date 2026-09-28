@@ -500,3 +500,20 @@ recovery gaps. Proposes native/Core -> owner-keyed AppModel -> consumer/UI split
 with B reviewing Document handoff only as assigned. No product edits or workloads;
 source tests proposed/unrun. A owns compilation/main and desktop writer remains
 untouched; B hold and paused heartbeat preserved.
+
+## 2026-09-28 — owned Save As adapter source checkpoint
+
+Request be627c0e-b85b-4f4f-8b07-88ee651038c1 accepted and implemented SOURCE ONLY.
+Published origin/codex/document-save-owned-presenter at 93244f8f, baseline010617b8.
+Tests-first range3a7c0d1c..84dc314c; production8fd107f5; handoff93244f8f at
+`tools/orchestrate/wp/B5-16/DOCUMENT-SAVE-OWNED-PRESENTER-HANDOFF.md` on that branch.
+Fresh binding UUID+window identity protects newer host from same-window stale update/teardown.
+Form/Replace have distinct native invocation tokens; completion joins exact captured parent membership
+clearance; chooser cancellation targets only captured panel and waits its return; admitted writer drains.
+Opening/load/status/activation and legacy write/export/close source compared identical to010617b8.
+B ran ONLY source/whitespace inspection, no compile/test/app/benchmark. All tests UNRUN.
+A must establish RED/green, strict/full and actual GUI acceptance. Historical e51 failure and explicit
+unseen-lifetime regression remain requirements, not waived. SDK confirms sheets includes queued
+members but does NOT explicitly prove queued-only endSheet completion. Native queued cancellation,
+parent-close drainage and release of bounded context remain mandatory A acceptance gates; no synthetic
+notification/absence proof and no claim of leak-free or ready product. B resource/heartbeat hold unchanged.
