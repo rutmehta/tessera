@@ -1,27 +1,28 @@
 # Machine A recovery status
 
-## Active validation board — 2026-09-28 04:16 UTC
+## Active validation board — 2026-09-28 04:32 UTC
 
 | Work | Owner | State and next action |
 | --- | --- | --- |
-| Document Save As lifecycle | A reviewer Sol; B source author | Exact `358d19d3`: 17 save + 4 load + 3 adjacent tests passed, direct exit 0 each; source/FFI freeze reverified. GUI FAILED again: existing-file Save As reports “Another sheet is still attached to the document window” and does not show Replace. Reviewer preserves evidence and finishes bounded checks; no product merge. |
-| Develop navigation recovery | Luna + Resource Sol | Source `74df41a2` preserves latest destination during shared close and settles superseded folder callbacks. Dedicated behavioral tests being written, UNRUN. |
-| Preview read lifetime | Resource Sol; independent reviewer Sol | Source `6e2e27b8` separates subscriber cancellation from actual flight drain. Six controlled-worker tests UNRUN; source review found no blocker. |
-| Window close protection | Resource Sol + Luna | Registry cleanup `c6a8c96d` respects exact guard identity. Real AppKit close tests and live SwiftUI acceptance still pending. |
-| Export settings UX | Resource Sol | Approved bounded removal of no-read sheet-opening reservation. Actual export/watermark reads remain gated; Print stays gated. Separate source/test checkpoint pending. |
+| Develop navigation, preview drain, output cancellation, window close | Luna; Resource Sol owns product fixes | Focused candidate `3c44c87f` failed compilation in a test semaphore helper before tests. Preserved direct exit 1 and unchanged source freeze. Retry `cf4f4114` is RUNNING with the sole compiler slot; final dispatch-worker fixture correction `3f34c0c1` is queued, product bytes unchanged. Expected combined coverage: 31 tests. |
+| Document Save As lifecycle | A root/reviewer; B source author | `358d19d3` passed 24 tests but FAILED real same/distinct-file Replace: “Another sheet is still attached to the document window.” Portable evidence `e3186b62` is on main `046501aa`, 13 payload hashes verified. Isolated app closed. |
+| Document native-detachment correction | B source complete; A validation queued | Native parent/sheet identity handoff `dbe55346` + lifetime cleanup `d91363a2`, probe refresh `9663c0e8`, tests `772896a9` + `58053e60` integrated only into isolated candidate `b3a47443`. Source review found no remaining blocker; 20 save + 2 probe + 4 load + 3 adjacent gate prepared but NOT RUN. Actual GUI ordering mandatory. |
+| Export settings UX | Resource Sol source complete | `f67dbc53` removes the no-read sheet-opening reservation; actual Start/watermark and Print reads stay gated. Behavioral regression included in recovery candidate, UNRUN. |
+| Recovery GUI | Reviewer Sol | Bounded plan ready: generated tiny JPEG, reversible test-owned `.edits` obstruction, real failed-save banner, Retry/navigation and relaunch persistence. No recovery app launched; wait for focused gate and explicit desktop allocation. |
 
-- **New B correction request:** `46a76741-5eb0-4d43-a569-0a311b80347e`, SSH queue `01a0e63c-d85d-7be2-b995-e8d6e108512d`, asks for an actual native sheet-detachment handoff. Queue accepted; peer receipt pending. Result `0d9f2b07` now has a failed GUI receipt despite its 24 passing tests.
-- Prior recovery 13-case evidence `0d5c05ee` is published on main `9cc2a0ea`;
-  root verified all seven repository-relative evidence hashes and exact frozen
-  source hashes. A first verification command used the wrong path base; corrected
-  verification passed without changing evidence.
-- B result `0802848a` failed source acceptance. Correction request `ca97f793`
-  has verified peer acceptance/completion; revised result `0d9f2b07` failed GUI validation after its focused tests passed.
-  Original missing-Replace GUI failure remains in evidence.
-- Only one desktop/GPU lane is active. Luna/Resource are source-only during GUI.
-  Normal preview PID57591 is untouched; B workload hold/paused heartbeat persists.
-  A alone owns main merges. No full AppModel, full Quit or large-library acceptance.
-
+- A main `046501aa` publishes evidence/docs only for this wave; no AppModel or
+  Document product merge. Original failed compile/GUI attempts remain preserved.
+- B accepted/completed native-detachment request `46a76741` (SSH queue
+  `01a0e63c-d85d-7be2-b995-e8d6e108512d`) and probe request `6c21ad7c`
+  (queue `01a0e642-824a-7211-877e-3593ec91cd51`). Results `e67f3f26` and
+  `f20d5d88` are accepted for A validation, not runtime acceptance. Earlier
+  results `0802848a` and `0d9f2b07` retain failed receipts.
+- Previous 13-case recovery evidence is on main `9cc2a0ea`; root verified all
+  seven payload hashes plus exact frozen source. It does not cover newer changes.
+- One compiler/GPU/desktop lane at a time. Normal preview PID57591 remains
+  untouched. B workload hold/paused heartbeat continues. A alone merges main.
+  Full AppModel, global Quit, cross-process writes and large-library acceptance
+  remain outstanding; no missing or failed gate is counted as passing.
 
 ## Recovery tests passed; Document replacement remains blocked — 2026-09-28 04:06 UTC
 
