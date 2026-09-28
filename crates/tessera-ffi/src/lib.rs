@@ -9,6 +9,11 @@ mod develop;
 mod document;
 mod enhance;
 mod export;
+#[allow(
+    dead_code,
+    reason = "journal storage awaits Smart Preview caller integration"
+)]
+mod image_edit_admission;
 mod lrcat;
 mod lrcat_fidelity;
 mod merge;
@@ -20,6 +25,11 @@ mod recipe_write;
 #[cfg(test)]
 mod recipe_write_tests;
 mod session;
+#[allow(
+    dead_code,
+    reason = "journal storage awaits Smart Preview caller integration"
+)]
+mod smart_preview_store;
 #[doc(hidden)]
 pub mod surface;
 mod understanding;
