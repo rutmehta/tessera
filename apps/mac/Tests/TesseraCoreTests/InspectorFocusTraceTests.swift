@@ -97,6 +97,11 @@ final class InspectorFocusTraceTests: XCTestCase {
         XCTAssertEqual(snapshot(focus, window: window).status, "focused")
         focus.focused = false
         XCTAssertEqual(snapshot(focus, window: window).status, "unknown")
+        let root = Node(), child = Node()
+        root.focused = false; child.windowIdentity = ObjectIdentifier(window)
+        root.descendants = [child]
+        XCTAssertEqual(snapshot(focus, root: root, window: window).status, "unknown",
+                       "fallback cannot replace conflicting application focus with a convenient child")
     }
 
     func testFallbackAmbiguityCyclesDepthAndNodeCapsAreNotFocusProof() {
