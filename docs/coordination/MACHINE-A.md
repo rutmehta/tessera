@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Work in progress — 2026-09-28 06:07 UTC
+
+- **Document diagnostic / reviewer Sol owns the sole heavy lane:** B acknowledged request `95510c13` and returned opt-in trace `cd967702`, result `93e4084d` accepted after target/expiry validation. A source-reviewed and integrated it as `cfdb8583`; focused compile/tests then isolated Cancel → one repeat GUI trace are running/planned. No lifecycle correction or product acceptance. Prior e8dd GUI failure remains.
+- **Review regression / Luna source:** first old-behavior run passed unexpectedly (one test), so it is preserved as non-discriminating evidence, not a successful RED. Reservation count alone did not prove evaluation or replacement delivery. Luna is refining the observation and actual replacement-render oracle; Resource added read-only waiter observation `d5ae4ef9`. Full597 preview failure remains open; no timeout increase.
+- **Engine RES05a / Resource Sol source:** prepare pure checked PSD modeled payload estimate and unavoidable format preflight, with tiny tests, on a separate main-based branch. No compiler while Document owns lane; no FFI hook yet, no guessed process memory budget/RSS guarantee. Pessimistic alpha/channel weight must not become false rejection of valid opaque RGB output. Preserve staged-filter branch/tests for subsequent integration.
+
+A alone merges main. B remains source-only; its heartbeat and workloads stay held. Normal preview PID57591 remains untouched. Published Git request, SSH queue acceptance, and B accepted receipt are now separately verified for this diagnostic request.
+
 ## Active coordinator lanes — 2026-09-28 06:00 UTC
 
 | Work | Owner | Verified state and next action |
