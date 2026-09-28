@@ -1,0 +1,92 @@
+{
+  "uniform": {
+    "sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+    "bytes": 1918,
+    "mpf_aux_start": 1478,
+    "mpf_aux_size": 440,
+    "mpf_primary_attribute": "00030000",
+    "iso_payload": "75726e3a69736f3a7374643a69736f3a74733a32313439363a2d310000000000400000000000000001000000040000000100000000000000010000000400000001000000010000000100000000000000010000000000000001",
+    "icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+    "mpf_aux_size_field": [
+      722,
+      726
+    ],
+    "reference_decode": {
+      "command": [
+        "./build/ultrahdr_app",
+        "-m",
+        "1",
+        "-j",
+        "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/reference-16-bright255-explicit.jpg",
+        "-o",
+        "0",
+        "-O",
+        "4",
+        "-f",
+        "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/uniform.hdr.cfg",
+        "-z",
+        "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/uniform.hdr.raw"
+      ],
+      "exit": 0,
+      "hdr_linear_half_sha256": "f8ed048c2b04f259ff1a65d77a3e35c17556d355c0322dd279a9d59d3240a19e",
+      "peak": 16.0,
+      "centers_x13_39_40_50_53_66_79": [
+        0.82177734375,
+        3.4609375,
+        3.4609375,
+        3.4609375,
+        16.0,
+        16.0,
+        16.0
+      ],
+      "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+    }
+  },
+  "split": {
+    "sha256": "eaeb9524ddfd2cee2d98c34512103ee7e06819471223de9caf1a8642c69c8968",
+    "bytes": 1929,
+    "mpf_aux_start": 1478,
+    "mpf_aux_size": 451,
+    "mpf_primary_attribute": "00030000",
+    "iso_payload": "75726e3a69736f3a7374643a69736f3a74733a32313439363a2d310000000000400000000000000001000000040000000100000000000000010000000400000001000000010000000100000000000000010000000000000001",
+    "icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+    "mpf_aux_size_field": [
+      722,
+      726
+    ],
+    "reference_decode": {
+      "command": [
+        "./build/ultrahdr_app",
+        "-m",
+        "1",
+        "-j",
+        "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/reference-16-split-explicit.jpg",
+        "-o",
+        "0",
+        "-O",
+        "4",
+        "-f",
+        "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/split.hdr.cfg",
+        "-z",
+        "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/split.hdr.raw"
+      ],
+      "exit": 0,
+      "hdr_linear_half_sha256": "4edcdb911d5cf9a3d7f342ada069b009edeb1a4aa82c8d3b34571e9aaaa4c32d",
+      "peak": 16.0,
+      "centers_x13_39_40_50_53_66_79": [
+        0.051361083984375,
+        0.21630859375,
+        3.4609375,
+        3.4609375,
+        16.0,
+        16.0,
+        16.0
+      ],
+      "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+    }
+  },
+  "primary_except_mpf_size_identical": true,
+  "iso_identical": true,
+  "icc_identical": true,
+  "same_headroom_metadata": true
+}

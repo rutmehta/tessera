@@ -1,0 +1,18 @@
+{
+  "input_jpeg_sha256": "a01fa34e83d93ae0ccc5953a5538c584788021c79591effc714b3c86c6c6b55a",
+  "extracted_aux_sha256": "2e1249b26664cd3ffb617eeae9bb9e172e3800c8142d0fe64ccfc3af483e06d1",
+  "input_scan_offset": 328,
+  "aux_scan_offset": 421,
+  "scan_bytes": 28,
+  "scan_sha256": "a8b732865d2e4e1ba76f14d4f0b741c555c8b4b577f7c7243f100d1700a44829",
+  "compressed_scan_identical": true,
+  "input_vs_aux_whole_file_identical": false,
+  "decoded_sha256": "9bf96ebb0b0f99632f21dd63f81e42cd78efaf4eef32e61be38370c26e079a55",
+  "decoded_left_unique": [
+    0
+  ],
+  "decoded_right_unique": [
+    255
+  ],
+  "exact_step": true
+}

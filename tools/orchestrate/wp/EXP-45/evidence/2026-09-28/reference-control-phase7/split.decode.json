@@ -1,0 +1,30 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/reference-16-split-explicit.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/split.hdr.cfg",
+    "-z",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/split.hdr.raw"
+  ],
+  "exit": 0,
+  "hdr_linear_half_sha256": "4edcdb911d5cf9a3d7f342ada069b009edeb1a4aa82c8d3b34571e9aaaa4c32d",
+  "peak": 16.0,
+  "centers_x13_39_40_50_53_66_79": [
+    0.051361083984375,
+    0.21630859375,
+    3.4609375,
+    3.4609375,
+    16.0,
+    16.0,
+    16.0
+  ],
+  "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+}

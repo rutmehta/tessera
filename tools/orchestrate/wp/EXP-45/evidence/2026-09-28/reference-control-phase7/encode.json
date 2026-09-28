@@ -1,0 +1,22 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "0",
+    "-i",
+    "bright-white/base-bright255.jpg",
+    "-g",
+    "split-gain/gain-split.jpg",
+    "-f",
+    "fixtures/cap-16.cfg",
+    "-z",
+    "split-gain/reference-16-split-common.jpg"
+  ],
+  "cwd": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404",
+  "exit": 0,
+  "input_base_sha256": "86996ff7e0600e6a7cd4eddca26290c9b5fe83d0f20f3c8ddbe6d8b3f4f78e1f",
+  "input_gain_sha256": "a01fa34e83d93ae0ccc5953a5538c584788021c79591effc714b3c86c6c6b55a",
+  "input_metadata_sha256": "f598211428bcfce84fd98b931c99f165c8d61f5513d7f66b7b48f3139f85d973",
+  "output_sha256": "c797162d0d6fd59fd28a6fa85b1fa393f80486d74baa960a78b8f2566650c7c8",
+  "output_bytes": 1905
+}

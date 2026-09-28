@@ -1,0 +1,10 @@
+{
+  "decoded_sha256": "9bf96ebb0b0f99632f21dd63f81e42cd78efaf4eef32e61be38370c26e079a55",
+  "left_unique": [
+    0
+  ],
+  "right_unique": [
+    255
+  ],
+  "exact_step": true
+}
