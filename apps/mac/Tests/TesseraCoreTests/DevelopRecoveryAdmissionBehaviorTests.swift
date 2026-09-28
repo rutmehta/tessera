@@ -25,18 +25,18 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         let item = try XCTUnwrap(fixture.library.items.first)
         model.enterPhotoEdit()
         model.openDevelop(for: item)
-        await waitUntil { model.develop != nil }
+        guard await waitUntil({ model.develop != nil }) else { return }
         let originalController = try XCTUnwrap(model.develop)
         let originalSelection = model.selection
 
         fixture.closePlan.failNextClose()
         model.requestLibraryViewMode(.grid)
-        await waitUntil {
-            model.developRecoveries.contains { presentation in
+        guard await waitUntil({
+            !model.developRecovery.hasActiveReservations && model.developRecoveries.contains { presentation in
                 if case .failed = presentation.phase { return true }
                 return false
             }
-        }
+        }) else { return }
 
         XCTAssertTrue(model.photoEditing, "A failed save must leave the edit workspace attached")
         XCTAssertEqual(model.viewMode, .loupe)
@@ -46,13 +46,13 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         let sessionID = try XCTUnwrap(model.developRecoveries.first?.id)
 
         model.retryDevelopRecovery(sessionID)
-        await waitUntil { model.viewMode == .grid && model.develop == nil }
+        guard await waitUntil({ model.viewMode == .grid && model.develop == nil }) else { return }
         XCTAssertFalse(model.photoEditing)
         XCTAssertTrue(model.developRecoveries.isEmpty)
 
         model.enterPhotoEdit()
         model.openDevelop(for: item)
-        await waitUntil { model.develop != nil }
+        guard await waitUntil({ model.develop != nil }) else { return }
         XCTAssertEqual(fixture.openerCount(), 2)
         XCTAssertFalse(model.develop === originalController,
                        "Reopening after successful retry must create a new native session")
@@ -65,10 +65,11 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         let model = fixture.model
         model.enterPhotoEdit()
         model.openDevelop(for: try XCTUnwrap(fixture.library.items.first))
-        await waitUntil { model.develop != nil }
+        guard await waitUntil({ model.develop != nil }) else { return }
 
         let entered = expectation(description: "native close is held")
         let hold = fixture.closePlan.holdNext(entered: entered)
+        defer { hold.release() }
         model.requestViewMode(.document)
         await fulfillment(of: [entered], timeout: 5)
         XCTAssertTrue(model.photoEditing)
@@ -77,7 +78,7 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
 
         model.requestLibraryViewMode(.grid)
         hold.release()
-        await waitUntil { model.viewMode == .grid && model.develop == nil }
+        guard await waitUntil({ model.viewMode == .grid && model.develop == nil }) else { return }
         XCTAssertFalse(model.photoEditing)
         XCTAssertEqual(fixture.closePlan.closeCount, 1,
                        "Replacing a pending destination must share, not restart, the native close")
@@ -106,9 +107,10 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         let model = fixture.model
         model.enterPhotoEdit()
         model.openDevelop(for: try XCTUnwrap(fixture.library.items.first))
-        await waitUntil { model.develop != nil }
+        guard await waitUntil({ model.develop != nil }) else { return }
         let entered = expectation(description: "folder navigation close is held")
         let hold = fixture.closePlan.holdNext(entered: entered)
+        defer { hold.release() }
         var originalCallbacks: [(Bool, ViewMode)] = []
         var reentrantCallbacks: [Bool] = []
 
@@ -128,30 +130,37 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(originalCallbacks.first).1, .loupe,
                        "The superseded folder callback settles before the pending mode commits")
         hold.release()
-        await waitUntil { !model.isLoading && model.library.items.first?.name == "c.jpg" }
+        guard await waitUntil({ !model.isLoading && model.library.items.first?.name == "c.jpg" }) else { return }
         XCTAssertEqual(originalCallbacks.count, 1)
         XCTAssertEqual(reentrantCallbacks, [true],
                        "The callback's reentrant folder request should become the latest destination")
         XCTAssertFalse(model.photoEditing)
     }
 
-    func testLayeredCompletionKeepsSaveGateAndStaleResultCannotStealNavigation() async throws {
+    func testLayeredCompletionCannotTakeOverAfterLibraryReplacement() async throws {
         let fixture = try makeFixture(photoCount: 2)
         defer { try? FileManager.default.removeItem(at: fixture.root) }
         let model = fixture.model
         let item = try XCTUnwrap(fixture.library.items.first)
+        let initialLibraryView = model.viewMode
+        let initialSelection = model.selection
+        let replacementFolder = fixture.root.appendingPathComponent("replacement-library")
+        try Self.writePhoto(to: replacementFolder.appendingPathComponent("replacement.jpg"), shade: 188)
+        let replacement = try EngineLibrary.scan(
+            folder: replacementFolder, appSupport: fixture.root.appendingPathComponent("replacement-support"))
         model.enterPhotoEdit()
         model.openDevelop(for: item)
-        await waitUntil { model.develop != nil }
+        guard await waitUntil({ model.develop != nil }) else { return }
 
         let backendReady = expectation(description: "layered backend opened but installation is held")
         let heldLoad = HeldLayerLoad()
+        defer { heldLoad.completeIfPending() }
         model.documents.documentLoadExecutor = { engine, body, receive in
             do {
                 let backend = try body(engine)
                 MainActor.assumeIsolated {
                     heldLoad.backend = backend
-                    heldLoad.finish = { receive(.success(backend)) }
+                    heldLoad.completion = { receive(.success(backend)) }
                 }
                 backendReady.fulfill()
             } catch {
@@ -163,21 +172,28 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         model.createRequestedLayeredCopy()
         await fulfillment(of: [backendReady], timeout: 8)
 
-        XCTAssertEqual(model.viewMode, .loupe,
+        XCTAssertTrue(model.developRecovery.hasActiveReservations,
+                      "The host read gate must remain held after native Develop close and until completion")
+        XCTAssertEqual(model.viewMode, initialLibraryView,
                        "The document destination stays unpublished until the backend settles")
         model.openDevelop(for: item)
         XCTAssertEqual(fixture.openerCount(), 1,
                        "The source photo remains reserved while layered installation is outstanding")
         model.select(position: 1)
-        let changedSelection = model.selection
+        XCTAssertEqual(model.selection, initialSelection,
+                       "Selection navigation is blocked while the source read still owns its gate")
         if let failure = heldLoad.failure { XCTFail("Layered backend fixture failed: \(failure)") }
-        try XCTUnwrap(heldLoad.finish)()
-        await waitUntil { heldLoad.backend != nil && model.layeredCopyRequest == nil }
-        await Task.yield()
+        model.install(replacement)
+        XCTAssertTrue(model.engineLibrary === replacement,
+                      "The stale completion scenario requires a real library-owner replacement")
+        XCTAssertTrue(model.developRecovery.hasActiveReservations)
+        heldLoad.completeIfPending()
+        guard await waitUntil({ model.documents.current != nil && !model.developRecovery.hasActiveReservations }) else { return }
+        guard model.documents.current != nil else { return }
 
-        XCTAssertEqual(model.selection, changedSelection)
-        XCTAssertNotEqual(model.viewMode, .document,
-                          "A late installation must not replace a newer selection destination")
+        XCTAssertTrue(model.engineLibrary === replacement)
+        XCTAssertEqual(model.viewMode, initialLibraryView,
+                       "A delayed result for the old owner must not switch the replacement library into Layers")
         XCTAssertNotNil(heldLoad.backend)
         if let document = model.documents.current { model.documents.close(document) }
     }
@@ -185,11 +201,20 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
     func testPresentingExportSheetDoesNotCloseOrReserveDevelopPixels() async throws {
         let fixture = try makeFixture(photoCount: 2)
         defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let defaults = UserDefaults.standard
+        let priorExportSettings = defaults.object(forKey: "ExportSettings")
+        let priorExportPreset = defaults.object(forKey: "ExportPresetName")
+        defer {
+            if let priorExportSettings { defaults.set(priorExportSettings, forKey: "ExportSettings") }
+            else { defaults.removeObject(forKey: "ExportSettings") }
+            if let priorExportPreset { defaults.set(priorExportPreset, forKey: "ExportPresetName") }
+            else { defaults.removeObject(forKey: "ExportPresetName") }
+        }
         let model = fixture.model
         model.setSelectionFromUI([0, 1], clicked: 0)
         model.enterPhotoEdit()
         model.openDevelop(for: try XCTUnwrap(model.focusedItem))
-        await waitUntil { model.develop != nil }
+        guard await waitUntil({ model.develop != nil }) else { return }
         let controller = try XCTUnwrap(model.develop)
         controller.set(.exposure, 0.25, interactive: true)
 
@@ -233,12 +258,15 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
     }
 
     private func waitUntil(_ condition: @MainActor () -> Bool,
-                           file: StaticString = #filePath, line: UInt = #line) async {
-        for _ in 0..<2_000 {
-            if condition() { return }
-            await Task.yield()
+                           file: StaticString = #filePath, line: UInt = #line) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(8))
+        while clock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(5))
         }
         XCTFail("Condition did not settle", file: file, line: line)
+        return false
     }
 
     private static func writePhoto(to url: URL, shade: UInt8) throws {
@@ -267,8 +295,14 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
 @MainActor
 private final class HeldLayerLoad {
     var backend: (any DocumentBackend)?
-    var finish: (@MainActor () -> Void)?
+    var completion: (@MainActor () -> Void)?
     var failure: Error?
+
+    func completeIfPending() {
+        let callback = completion
+        completion = nil
+        callback?()
+    }
 }
 
 private final class ClosePlan: @unchecked Sendable {
