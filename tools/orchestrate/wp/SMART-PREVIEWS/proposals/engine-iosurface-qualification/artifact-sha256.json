@@ -1,0 +1,9 @@
+{
+  "run.py": "dd1c4b645523cfa0c1bf64cfe33c2a80056639ee5fd932ae3f2b4a105048bf5e",
+  "engine-iosurface-qualification.patch": "48f95e6fe727af9a676b8a4ed876d00b530d600cc7ffeccf587633a5b3c135ef",
+  "source-sha256.json": "4643850732d07266f4536c921184724bce316b975cd0f9762b8965547dcbcbe1",
+  "preview_qualification.rs": "2a3cd111ac2bb26a59881763e4d3e7d343f696dfad6a4863fcf89b434a650c0e",
+  "make_patch.py": "275c672dc88402c67690b327c7a3b2aaed611cd61ab00a6788e7c71bc78097cd",
+  "NOTES.md": "29c3a8692daad53ac013561b117493ab19e166e466cf5b665ed6b8bd2acc5834",
+  "compare.py": "64804c3a8f5019dfc8260e89f00e5caf2716a1131802ddc3dabbe9ceac905e1f"
+}
