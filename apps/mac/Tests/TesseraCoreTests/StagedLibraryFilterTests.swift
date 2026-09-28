@@ -176,7 +176,6 @@ final class StagedLibraryFilterTests: XCTestCase {
             backendStarts += 1
             done(.failure(FilterSaveFailed()))
         }
-        defer { f.model.documents.documentLoadExecutor = nil }
 
         f.model.requestLayeredCopy()
         XCTAssertNotNil(f.model.layeredCopyRequest)
@@ -207,7 +206,6 @@ final class StagedLibraryFilterTests: XCTestCase {
             backendStarts += 1
             done(.failure(FilterSaveFailed()))
         }
-        defer { f.model.documents.documentLoadExecutor = nil }
 
         f.model.requestLayeredCopy()
         XCTAssertNotNil(f.model.layeredCopyRequest)
