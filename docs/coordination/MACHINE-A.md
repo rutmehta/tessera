@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Exact-white and ICC controls completed — 2026-09-28 09:23 UTC
+
+Phase4 main67d03fdc,51 verified payloads: independent exact-white control reference-decodes16.0 and ImageIO reaches15.951576/headroom16, while A stays7.983762/headroom8 in the same run. This rules out the previous sub-white reference as an explanation. Phase5 maind8b14fe8,79 verified payloads: reciprocal equal-length ICC payload swaps preserve reference SDR/HDR bytes and leave A8 / Google16 unchanged. Entire ICC profile is not causal in that controlled comparison; no smaller TRC/intent inference or product change follows.
+
+Reviewer owns sole native lane for reciprocal auxiliary JFIF/ISO segment-order copies only; preserve source bytes/lengths/MPF/profile/compressed imagery. Resource source-only found another input difference: A gain samples split x<40 zero, x>=40 full255; Google uniform255. A proposed single-input reference split-gain control remains unrun/unapproved pending marker-order outcome. Original product gate remains failed. B source task remains reserved, no receipt/delivery claim.
+
 ## Reciprocal rational test negative; exact-white control next — 2026-09-28 09:14 UTC
 
 Phase3 evidence main96993579 has63 independently verified portable payloads. A reduced fractions and Google expanded fractions preserve reference-decoder bytes and leave ImageIO outcomes unchanged (A~8, Google~13.934/headroom16). Rational scaling is ruled out for this comparison. No product serializer change is justified. Reviewer now owns sole native lane for an independent producer control with bright base255 instead of240, identical remaining inputs/options and the validated explicit denominator form; reference decoding must establish actual~16 pixels before native comparison. No broader metadata surgery or product edit is authorized.
