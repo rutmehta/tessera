@@ -349,6 +349,7 @@ final class DocumentWorkspace {
     @ObservationIgnored private(set) var saveAsPresentationID: UUID?
     @ObservationIgnored private var queuedSaveAs: SaveAsRequest?
     @ObservationIgnored private var nativeSaveDismissals: [UUID: DocumentSaveNativeDismissal] = [:]
+    @ObservationIgnored var savePresentationWindow: (() -> NSWindow?)?
     @ObservationIgnored var saveSheetParentIsClear: (() -> Bool)?
     @ObservationIgnored var saveSheetDetachmentObserver: ((UUID, @escaping @MainActor () -> Void) -> (() -> Void))?
     // The Shell binding's nil setter carries no request identity. Dismissal is
@@ -521,7 +522,7 @@ final class DocumentWorkspace {
     private func trackNativeSavePresentation(_ id: UUID) {
         guard nativeSaveDismissals[id] == nil else { return }
         let state = DocumentSaveNativeDismissal()
-        state.parent = saveOperations[id]?.presentingWindow ?? window
+        state.parent = saveOperations[id]?.presentingWindow ?? savePresentationWindow?() ?? window
         nativeSaveDismissals[id] = state
         let detached: @MainActor () -> Void = { [weak self, weak state] in
             guard let self, let state, self.nativeSaveDismissals[id] === state else { return }
