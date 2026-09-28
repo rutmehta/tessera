@@ -233,8 +233,8 @@ fn select_at(
     let preference = match control {
         Some(SelectionControl::ExplicitCpu) => "cpu".to_owned(),
         Some(SelectionControl::ExplicitMetal) => "gpu".to_owned(),
+        None | Some(SelectionControl::ObserveAuto) => preference,
         Some(_) => String::new(),
-        None => preference,
     };
     let clear_decisions = || {
         if let Some(reuse) = reuse {
@@ -332,6 +332,10 @@ fn select_at(
     } else {
         None
     };
+    #[cfg(all(test, target_os = "macos"))]
+    if let Some(observer) = observer {
+        observer.lock().unwrap().probe.last_key = cache_key.map(|key| key.bytes_for_test());
+    }
     if let (Some(r), Some(key)) = (reuse, cache_key) {
         let decision = r.store.lookup(key);
         #[cfg(all(test, target_os = "macos"))]

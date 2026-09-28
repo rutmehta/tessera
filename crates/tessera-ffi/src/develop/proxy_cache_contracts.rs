@@ -6,6 +6,7 @@ use std::{fs, path::PathBuf, time::Instant};
 
 #[derive(Clone, Copy)]
 pub(crate) enum SelectionControl {
+    ObserveAuto,
     MeasuredCpu,
     MeasuredMetal,
     CalibrationFailure,
@@ -17,6 +18,7 @@ pub(crate) enum SelectionControl {
 }
 #[derive(Clone, Default, Debug, PartialEq)]
 pub(crate) struct Probe {
+    pub(crate) last_key: Option<[u8; 32]>,
     pub(crate) validations: u64,
     pub(crate) lookups: u64,
     pub(crate) hits: u64,

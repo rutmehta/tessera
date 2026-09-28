@@ -704,3 +704,6 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
             "engine_count":1,"fixture_blake3":fixture_hash,"journal_blake3":journal_hash,"proxy_blake3":proxy_hash,"rows":rows})).unwrap()).unwrap();
     }
 }
+
+#[path = "decision_reuse_qualification.rs"]
+mod decision_reuse_qualification;

@@ -9,6 +9,12 @@ const CAPACITY: usize = 16;
 const TTL_NS: u64 = 30_000_000_000;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Key([u8; 32]);
+#[cfg(all(test, target_os = "macos"))]
+impl Key {
+    pub(crate) fn bytes_for_test(self) -> [u8; 32] {
+        self.0
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Decision {
     Cpu,
