@@ -1,0 +1,1 @@
+{"from": "A", "id": "0a6d71e8-aed9-4b10-9222-3150ce72f194", "status": "accepted", "summary": "Target chat validated. Source package0f820dff received; A source review and runtime gates pending. All B tests remain UNRUN, no merge or product acceptance.", "to": "B", "updated_at": 1790610188, "version": 1}
