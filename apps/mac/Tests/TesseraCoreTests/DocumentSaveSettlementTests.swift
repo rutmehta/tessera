@@ -408,4 +408,36 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.cancelDocumentSave(next)
     }
 
+    func testParentLossFailsQueuedChoosingRequestBeforePublishingIt() throws {
+        let (w, d) = try fixture()
+        var detach: (@MainActor () -> Void)?
+        w.saveSheetDetachmentObserver = { _, callback in detach = callback; return {} }
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        var nextOutcomes: [DocumentSaveOutcome] = []
+        w.saveForPreparation(d, saveAs: true) { nextOutcomes.append($0) }
+        w.saveAsPresentationDidDismiss(old)
+        w.saveHasWindow = { false }
+        w.documentSaveWindowLost(old)
+        detach?()
+        XCTAssertNil(w.saveAsRequest)
+        XCTAssertNil(w.saveAsPresentationID)
+        XCTAssertEqual(nextOutcomes, [.failed("Document window closed before save")])
+    }
+
+    func testChoosingNativeDetachStillWaitsForSwiftDismissal() throws {
+        let (w, d) = try fixture()
+        var detach: (@MainActor () -> Void)?
+        w.saveSheetDetachmentObserver = { _, callback in detach = callback; return {} }
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        detach?()
+        XCTAssertNil(w.saveAsRequest)
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
+    }
+
 }
