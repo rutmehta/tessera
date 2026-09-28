@@ -972,9 +972,8 @@ struct DevelopDiskSnapshot {
 
 #[uniffi::export]
 impl Engine {
-    /// Opens a develop session on an indexed RAW or rendered RGB image.
-    /// Blocking decode: call off the main thread. One session per visible image.
-    /// Blocking depth histogram for an indexed image using its saved recipe.
+    /// Blocking depth histogram for an indexed image using its saved recipe,
+    /// without opening an editable Develop session.
     pub fn depth_histogram(self: Arc<Self>, image_id: String) -> Result<Vec<u64>> {
         let snapshot = self.develop_disk_snapshot(&image_id)?;
         let image = RawImage::open(snapshot.image_id, &snapshot.path)?;
@@ -994,6 +993,8 @@ impl Engine {
             .to_vec())
     }
 
+    /// Opens a develop session on an indexed RAW or rendered RGB image.
+    /// Blocking decode: call off the main thread. One session per visible image.
     pub fn open_develop_session(self: Arc<Self>, image_id: String) -> Result<Arc<DevelopSession>> {
         let snapshot = self.develop_disk_snapshot(&image_id)?;
         let path = snapshot.path;
