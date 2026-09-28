@@ -46,4 +46,16 @@ final class DocumentSaveSheetProbeTests: XCTestCase {
         XCTAssertNil(observed)
         view.capture = nil
     }
+    func testDismantleEndsViewOwnershipOnceAndClearsCallbacks() {
+        let view = DocumentSaveSheetWindowProbe.ProbeView()
+        var ended = 0
+        view.capture = { _ in XCTFail("Unattached view should not report a window") }
+        view.finishOwnership = { ended += 1 }
+        DocumentSaveSheetWindowProbe.dismantleNSView(view, coordinator: ())
+        DocumentSaveSheetWindowProbe.dismantleNSView(view, coordinator: ())
+        XCTAssertEqual(ended, 1)
+        XCTAssertNil(view.capture)
+        XCTAssertNil(view.finishOwnership)
+    }
+
 }
