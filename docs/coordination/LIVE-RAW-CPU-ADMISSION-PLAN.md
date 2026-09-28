@@ -34,7 +34,7 @@ Define concrete finite sensor/active pixel caps, request output-byte cap, permit
 
 Resolve whether full-frame vectors require a conservative upper bound or an actually bounded assembly path. Reserve before the first new allocation, use checked products/additions and fallible allocations where APIs support them, and hold reservation through drain/output ownership. In tests force low budgets; no giant allocations needed. Bound normalization and assembly cancellation checkpoints, but state existing noninterruptible calls honestly.
 
-A post-decode sensor cap cannot bound LibRaw's already-completed native allocation. The first component may explicitly claim only post-decode application allocations; a whole-decode/process cap requires a separate supported native/preflight or isolated-process policy, including the temporary cfa_data copy currently made by RawSource.metadata(). Do not relabel the accepted capture byte quota as either bound. Root must accept this scope before wiring a pixel resolver.
+A post-decode sensor cap cannot bound LibRaw's already-completed native allocation. The first component may explicitly claim only post-decode application allocations; a whole-decode/process cap requires a separate supported native/preflight or isolated-process policy, including the owned cfa_data copy made during decode and owned metadata payloads. Current RawSource.metadata() uses sensor_info() and does not copy a second sample plane; the earlier version of this plan misstated that boundary. Do not relabel the accepted capture byte quota as either bound. Root must accept this scope before wiring a pixel resolver.
 
 ### ICC
 
@@ -59,3 +59,8 @@ E. Focused affected-crate tests, full affected suites, strict/fmt and immutable 
 ## Next reviewable deliverable / stop line
 
 A short source plan plus pure admission contracts and Unsupported scaffold, with exact proposed visibility/error shapes, before rendering code. Stop for review at the normalization-sharing seam and before choosing numerical memory caps, ICC artifact or environment authority. Existing Open in Layers remains a baked copy. Source-backed graph/format, FFI/B-owned Document UI, automatic recipe-follow, broad demosaic/dependency support, orientation2–8, HDR/signed output, persistent caches and speedup claims are unavailable.
+
+
+## Current-source normalization audit
+
+See [LIVE-RAW-NORMALIZATION-SEAM.md](LIVE-RAW-NORMALIZATION-SEAM.md) for the reviewed source inventory and proposed private arithmetic seam. It corrects the earlier metadata-copy assumption and identifies actual capacity accounting and a separate cross-crate API review as prerequisites. This is source analysis only, not a new renderer or allocation guarantee.

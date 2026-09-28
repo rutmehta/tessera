@@ -1,0 +1,29 @@
+# Next RAW normalization seam — source-only
+
+Smallest next slice: extract the existing scalar packed-CFA normalization arithmetic into a private raw-decode helper, and test owned-u16-to-owned-f32 conversion there before exposing any image-core caller. No implementation/runtime, numeric budgets, ICC choice or API approval is made here.
+
+## Existing code and correction to the plan
+
+`raw-decode/src/lib.rs:236–263` validates the plane and per-channel finite black < white, then computes `((u16 as f32 - black)/(white as f32 - black)).clamp(0.0,1.2)` in that order. Channel selection uses full-sensor coordinates, not active-crop-relative coordinates. `CfaImage::from_linear` (109) merely validates/wraps a Vec<f32>; feeding it integers or normalizing twice is incorrect.
+
+**The plan's metadata-copy warning is stale for current source:** `RawSource::metadata` (193–208) calls `RawFile::sensor_info`, not `cfa_data`. `libraw-ffi/src/sensor.rs:24` builds sensor metadata with an empty sample Vec, so metadata extraction adds no second2*S sample plane. The actual `cfa_data` copy is still made by decode_cfa_u16 (213–223): libraw-ffi/src/lib.rs:93–116 copies native rows into one owned packed Vec<u16>. It reserves with existing infallible allocation and unchecked native width*height multiplication; this is outside any proposed post-decode normalization bound.
+
+Native metadata (libraw-ffi/src/lib.rs:147 onward) owns strings and up to3 opcode Vecs, each individually <4MiB when copied. These allocations coexist with native storage and the owned CFA during closed decoding. Rejection of correction metadata later does not undo their prior peak. Native open/unpack and extraction remain synchronous/noninterruptible. decode_native (capture/decode.rs:119–139) checks cancellation after open, after unpack+copy and after metadata, and drops RawSource before returning owned values. Captured stage cleanup completes before DecodedCapturedCfa publication.
+
+## Proposed private arithmetic boundary
+
+A helper should receive checked dimensions/full-sensor layout, owned Vec<u16>, finite black/white calibration and cancellation, and return CfaImage owning exactly one Vec<f32>. No path, native handle, lazy iterator, generic callback or file read. Legacy linearize(libraw_ffi::CfaImage) delegates to the same arithmetic, preserving its wider existing CFA behavior; the future restricted caller applies Bayer/crop/correction admission first. Preserve f32 operation order and clamp; do not introduce reciprocal multiplication or crop-first conversion.
+
+Validate nonzero extent, checked usize sample count/byte products, exact input length, channel validity and black/white before allocation. Avoid the existing `i as u32` truncation by coordinate iteration or checked conversion without altering full-sensor phase. Use checked/fallible output reservation and account actual Vec capacities. A reserve may allocate more than requested: validate/charge actual capacity or specify a reviewed allocator-bound policy before claiming an exact cap. Do not clone u16 input or create an intermediate f32 plane. Move the resulting Vec into CfaPyramid; prevent an additional uncancellable full-plane finite scan by having the internal constructor trust only the helper's validated/calculated finite result, or bound/check that scan too.
+
+Cancellation: check before reservation, at bounded chunk boundaries during conversion (including within very wide rows), and before output publication. Chunk size remains a reviewed implementation constant, not chosen here. On failure/cancel drop partially filled float Vec and input; preserve the primary allocation/calibration error over concurrent cancellation once an operation fails. Hold any future reservation until worker drain and transfer output charge with the completed output. No cancellation claim inside allocator/native calls.
+
+## Live allocation inventory
+
+Let S=full-sensor count, C16/C32 actual vector capacities, M=owned metadata strings/opcode capacities. During native decode: native opaque allocations N + 2*C16 + M + classifier/stage bookkeeping; N is unbounded by this proposal. After closed decode and cleanup: 2*C16 + M, no live RawSource or staged file ownership. During conversion: 2*C16 + 4*C32 + M + constant loop/error bookkeeping; no crop plane and no pixel output yet. On successful conversion: drop integer Vec, retain4*C32 + M. Vec headers/metadata structs and future Arc/RawImage wrappers require fixed-size accounting separately.8*A final output, renderer tiles/halos/intermediates/coverage are later simultaneous live terms, not covered by this seam. Capture disk quota is unrelated.
+
+## Exact tests / visibility stop line
+
+Compare legacy scalar formula independently for all Bayer phases/both green conventions, differing black levels, below-black/white/above-white samples and non-square full sensor with offset active crop. Exact f32 parity is appropriate when arithmetic ordering is unchanged. Assert one normalization, no crop phase shift, invalid layout/count/calibration refusal before output allocation, checked overflow using small synthetic controls, forced allocation refusal, and cancellation before/during/after conversion publishing nothing. Capacity/lifetime instrumentation must measure actual owned Vecs, not merely repeat a requested-size formula. Preserve legacy XTrans behavior separately if refactoring its shared helper.
+
+A private raw-decode helper is not callable by image-core across crates. Public conversion/closed-normalized decoder entry would therefore be a separate narrowly reviewed API decision; do not silently add a public helper or route through RawImage::open to avoid it. Initial extraction/tests can remain private in raw-decode, but production wiring still stops on that interface review, actual post-decode budget policy, ICC/environment prerequisites and trusted orchestration. Public DecodedCapturedCfa values still do not authenticate provenance.
