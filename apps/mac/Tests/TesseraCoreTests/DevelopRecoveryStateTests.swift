@@ -69,6 +69,7 @@ final class DevelopRecoveryStateTests: XCTestCase {
         let id = coordinator.register(owner: rig.owner, controller: rig.controller, displayName: "photo.jpg")
         let entered = expectation(description: "first close entered backend")
         rig.closePlan.gateNextClose(entered: entered)
+        defer { rig.closePlan.releaseGatedClose() }
 
         let first = coordinator.requestClose(id)
         await fulfillment(of: [entered], timeout: 5)
@@ -358,6 +359,7 @@ private final class ClosePlan: @unchecked Sendable {
     private let lock = NSLock()
     private var outcomes: [Bool]
     private var gatedAttempt: Attempt?
+    private var activeGatedSemaphore: DispatchSemaphore?
     private var attempts = 0
     var callCount: Int { lock.withLock { attempts } }
 
@@ -371,7 +373,7 @@ private final class ClosePlan: @unchecked Sendable {
     }
 
     func releaseGatedClose() {
-        let semaphore = lock.withLock { gatedAttempt?.semaphore }
+        let semaphore = lock.withLock { activeGatedSemaphore ?? gatedAttempt?.semaphore }
         semaphore?.signal()
     }
 
@@ -380,12 +382,20 @@ private final class ClosePlan: @unchecked Sendable {
             attempts += 1
             if let gatedAttempt {
                 self.gatedAttempt = nil
+                activeGatedSemaphore = gatedAttempt.semaphore
                 return gatedAttempt
             }
             return Attempt(fails: outcomes.isEmpty ? false : outcomes.removeFirst(), semaphore: nil, entered: nil)
         }
         attempt.entered?.fulfill()
         attempt.semaphore?.wait()
+        if let semaphore = attempt.semaphore {
+            lock.withLock {
+                if activeGatedSemaphore === semaphore {
+                    activeGatedSemaphore = nil
+                }
+            }
+        }
         if attempt.fails { throw InjectedRecoveryCloseFailure() }
         try wrapped.close()
     }
