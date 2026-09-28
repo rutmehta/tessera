@@ -101,7 +101,7 @@ use std::{
 };
 
 #[cfg(test)]
-static FAIL_AFTER_DEVELOP_RECIPE: Mutex<Option<PathBuf>> = Mutex::new(None);
+static FAIL_AFTER_DEVELOP_RECIPE: Mutex<Option<(PathBuf, usize)>> = Mutex::new(None);
 
 /// Interactive drags on screen levels larger than this render one level
 /// coarser until the drag is committed.
@@ -946,8 +946,11 @@ impl Engine {
             let mut fault = FAIL_AFTER_DEVELOP_RECIPE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            if fault.as_deref() == Some(path) {
-                *fault = None;
+            if let Some((fault_path, remaining)) = fault.as_mut()
+                && fault_path == path
+                && *remaining > 0
+            {
+                *remaining -= 1;
                 return Err(failure("injected post-recipe failure"));
             }
         }
@@ -3081,7 +3084,7 @@ mod tests {
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         *FAIL_AFTER_DEVELOP_RECIPE
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some(session.shared.path.clone());
+            .unwrap_or_else(|e| e.into_inner()) = Some((session.shared.path.clone(), 1));
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
@@ -3090,13 +3093,97 @@ mod tests {
         let recipe: Recipe = serde_json::from_str(&engine.get_recipe(row.id.clone()).unwrap())
             .unwrap();
         assert_eq!(recipe.settings.tone.exposure, 0.7);
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let committed_bytes = std::fs::read(&recipe_path).unwrap();
 
         session.flush().unwrap();
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), committed_bytes);
         let xmp = sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo)).unwrap();
         assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 0.7);
         assert_eq!(
             engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
             recipe.recipe_hash().to_string()
+        );
+    }
+
+    #[test]
+    fn failed_develop_sidecar_repair_waits_for_each_explicit_flush() {
+        let dir = tempfile::tempdir().unwrap();
+        let photo = dir.path().join("repeat.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.clone().open_develop_session(row.id).unwrap();
+        *FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some((session.shared.path.clone(), 2));
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        assert!(session.flush().is_err());
+        assert!(session.flush().is_err());
+        session.flush().unwrap();
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.7
+        );
+    }
+
+    #[test]
+    fn repair_uses_current_disk_recipe_after_foreign_develop_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        let photo = dir.path().join("foreign.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        *FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some((session.shared.path.clone(), 1));
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        assert!(session.flush().is_err());
+
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let mut foreign = sidecar::Sidecar::read_recipe(&recipe_path).unwrap();
+        foreign
+            .recipe
+            .edit(EditMeta::default(), |s| s.tone.exposure = 1.2)
+            .unwrap();
+        sidecar::Sidecar::write_recipe(&recipe_path, &foreign).unwrap();
+        let foreign_bytes = std::fs::read(&recipe_path).unwrap();
+
+        session.flush().unwrap();
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), foreign_bytes);
+        let xmp = sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo)).unwrap();
+        assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 1.2);
+        assert_eq!(
+            engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
+            foreign.recipe.recipe_hash().to_string()
         );
     }
 
