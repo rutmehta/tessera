@@ -6248,3 +6248,7 @@ mod depth_histogram_read_only_contract_tests {
 
 #[cfg(all(test, target_os = "macos"))]
 pub(crate) mod preview_qualification;
+
+// Source-only Task 2 contracts; no production selection or cache wiring.
+#[cfg(all(test, target_os = "macos"))]
+mod proxy_cache_contracts;
