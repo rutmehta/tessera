@@ -1,0 +1,21 @@
+# Develop full-save owner conflict: test-first checkpoint
+
+Status: **tests UNRUN; no production behavior changed**. Branch `codex/develop-owner-conflict` starts at main `5219495191d677a5350cac1d012d7eb15362258a`. This is a narrow precursor to Stage C in `tools/orchestrate/wp/UX-03/DEVELOP-WRITER-LEASE-PROPOSAL.md`, not a Develop lease or batch write API. The source audit is `/tmp/tessera-recipe-stagec-next-audit.md`.
+
+## Failure and intended boundary
+
+An open Develop session snapshots a recipe, then `save_develop` overwrites current disk Develop settings/history/process version/source kind under only its Engine catalog lock (`crates/tessera-ffi/src/develop.rs:932-947,1035-1075`). The process-wide destination gate currently covers `Engine::set_selection` and `set_recipe_json` (`lib.rs:393-466`) plus post-recipe Develop repair (`develop.rs:1078-1102`), but not full Develop save. An editor opened before another Engine publishes settings can therefore silently replace those newer settings on its next flush. The new tests first require a conflict and exact disk preservation. Controls require selection to remain orthogonal and legacy RGB normalization not to conflict with the original disk state.
+
+## Bounded implementation contract after real RED
+
+Capture the disk recipe's structural Develop-owner baseline at session open **before** source-kind normalization, without holding the gate during decoding. The owner comparison includes process version, source kind, complete settings, complete history, and monotonic next-mask/next-retouch IDs; it is not `recipe_hash` or a full raw revision. Nested unknown members of settings/history are compared by their structural values. Preserve unrelated recipe unknown members and current selection from a freshly loaded disk document. Do not change the existing `same_develop_fields` helper used for Stage A repair; its semantics and callbacks have separate tests.
+
+On full save, acquire destination gate before Engine catalog mutex; revalidate indexed ID→path. Under those locks compare disk owner fields with the **last published** baseline, and return conflict before any write if they differ. Then overlay the session snapshot and perform recipe→XMP→index while the gate is held. The save worker snapshots actual session recipe under the existing state lock; UI edits may arrive while I/O runs, so baseline must advance to the recipe actually published, not a newer live state. On successful recipe rename, advance baseline even if XMP/index fails; retain Stage A repair debt and first-error reporting. Before rename failure leaves old baseline. Drop gate/catalog before preview storage, listeners, render, or any wait. A conflicting full save remains retryable but must not auto-spin or falsely report saved; explicit Retry without resolution should conflict again. Successful close remains the only native drain/release, with Stage B failure recovery unchanged.
+
+This patch deliberately permits two editors to open and makes a later stale save fail. It does not block `set_recipe_json` during an active editor, implement a lease, turn `set_recipe_json` into CAS, cover Agent/Cull/import/XMP-only writers or external processes, or make recipe/XMP/index one transaction. Batch Apply stays blocked.
+
+## Test checkpoint and next gate
+
+Three tiny 2×2 JPEG tests in `develop.rs`: stale open editor versus newer `set_recipe_json` (expected RED; conflict plus exact recipe/XMP preservation), selection edit during Develop (must stay green), and legacy Raw-tagged RGB source first flush (must stay green after implementation). Existing Stage A post-recipe repair and foreign replacement tests and Stage B failed-close tests must remain green. Tests use real Engine/sidecars and no RAW, GPU, sleeps or large input. The deliberate stale-write test fails on current code by receiving `Ok(())` and replacing the newer exposure.
+
+After compiler handoff, freeze source/command/target hashes, run the focused three tests to observe **behavioral** RED, preserve raw log/direct exit, then implement minimal production change. A subsequent gate should run the focused cases, adjacent Develop retry/close and recipe-write gate tests, and strict format/lint checks with two compiler workers and a bounded watchdog. Do not claim any pass until observed.
