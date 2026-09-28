@@ -1,3 +1,9 @@
+## Hosted-focus diagnostic accepted and source-reviewed
+
+B returned test-only `c39697c4` with handoff `01242fa4`, result `5a1ac3b2-9195-4b65-b4e2-86e44e83a901`. Exact A target, reply and expiry were validated, then an accepted receipt published before review. Independent review verified all manifest hashes and real hosted traversal without forced button focus. A inspector worker now owns the exclusive runtime lane to compose and run the focused diagnostic; policy skips or failures must remain explicit. Production correction still awaits actual responder evidence.
+
+Cache instrumentation RED evidence is durable on main `9d3a36a2`. FFI is authorized only for source preparation of deterministic Engine-local selection controls and real boundary probes, with cache absent. A separate control must demonstrate real CPU/Metal materialization and repeated uncached measurements before a new missing-reuse test run. No product cache implementation yet.
+
 ## Cache scaffold RED classified accurately; runtime released
 
 At exact `480b272e`, compile passed and the six opt-in Engine tests ran: one existing cold source-validation control passed, five new groups failed, zero ignored. All five failures occur at the first expected CPU backend assertion because deterministic selection hooks are still no-op and actual automatic selection chose Metal. Later cache assertions were not reached. This is instrumentation RED, not established missing-cache behavior or a product pass. Source/fixture/runner freezes passed; independent review is active before a bounded instrumentation-first checkpoint. Runtime is released.
