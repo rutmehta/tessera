@@ -1,0 +1,137 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (0.51s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.10.0 (0.57s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.10.0
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache (0.45s)
+Building for production...
+[0/12] /Volumes/betterSSD/tessera-cache/swift/develop-recovery-state-a19d7997/scratch/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[11/15] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/App/DevelopRecoveryCoordinator.swift:59:37: error: call to main actor-isolated instance method 'finishGate' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 57 | 
+ 58 |         func result() async -> BarrierOutcome { await coordinator.evaluate(id) }
+ 59 |         func finish() { coordinator.finishGate(id) }
+    |              |                      `- error: call to main actor-isolated instance method 'finishGate' in a synchronous nonisolated context [#ActorIsolatedCall]
+    |              `- note: add '@MainActor' to make instance method 'finish()' part of global actor 'MainActor'
+ 60 |     }
+ 61 | 
+    :
+288 |     }
+289 | 
+290 |     private func finishGate(_ id: UUID) {
+    |                  `- note: calls to instance method 'finishGate' from outside of its actor context are implicitly asynchronous
+291 |         guard gates.removeValue(forKey: id) != nil else { return }
+292 |         changed()
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/App/DevelopRecoveryCoordinator.swift:77:71: error: main actor-isolated property 'imageID' can not be referenced from a nonisolated context
+ 75 |             self.owner = owner
+ 76 |             self.controller = controller
+ 77 |             self.key = owner.map { Key(owner: $0, imageID: controller.imageID) }
+    |                                                                       `- error: main actor-isolated property 'imageID' can not be referenced from a nonisolated context
+ 78 |             self.displayName = displayName
+ 79 |         }
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/DevelopController.swift:96:16: note: property declared here
+ 94 |     /// The library item it develops; follows in-place library updates (`relink`).
+ 95 |     public private(set) var itemID: Int
+ 96 |     public let imageID: String
+    |                `- note: property declared here
+ 97 |     public let session: DevelopSession
+ 98 |     public let info: DevelopInfo
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:728:21: warning: 'where' only applies to the second pattern match in this 'case'
+726 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+727 |         switch e.keyCode {
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:730:22: warning: 'where' only applies to the second pattern match in this 'case'
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+731 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+732 |             return false
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+error: fatalError

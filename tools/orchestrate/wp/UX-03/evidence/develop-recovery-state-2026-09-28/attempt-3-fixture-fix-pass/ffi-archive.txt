@@ -1,0 +1,2 @@
+ffi_archive_path=/Volumes/betterSSD/tessera-cache/target/main/release/libtessera_ffi.a
+ffi_archive_sha256=8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03
