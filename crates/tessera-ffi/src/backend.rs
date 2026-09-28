@@ -1,5 +1,9 @@
 //! Measured develop-backend selection. Explicit overrides skip calibration.
 
+// Source-only Task 1 contracts; no production cache or selector integration.
+#[cfg(test)]
+mod proxy_decision_cache;
+
 use engine_api::{
     EngineResult,
     recipe::{DevelopSettings, settings::WhiteBalanceMode},
