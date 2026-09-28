@@ -1936,7 +1936,10 @@ mod tests {
             .unwrap();
         let mut rows = engine.list_images(crate::ImageQuery::default()).unwrap();
         assert_eq!(rows.len(), 1);
-        let session = engine.open_develop_session(rows.remove(0).id).unwrap();
+        let session = engine
+            .clone()
+            .open_develop_session(rows.remove(0).id)
+            .unwrap();
         let kind = MaskKind::Subject { model: None };
         let key = ai_key(&kind).unwrap();
         {
