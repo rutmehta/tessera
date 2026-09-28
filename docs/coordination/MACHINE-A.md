@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Geometry and output-profile diagnosis active — 2026-09-28 09:34 UTC
+
+Heartbeat reconciled all prior agents as complete and no compiler process active. Fetched origin/read B takeover; mailbox has no new messages, no in-progress receipts, and no acceptance of request8638c362. Compact native B snapshot reports host unavailable; it is not treated as peer receipt. B scope remains reserved; no duplicate queue dispatch.
+
+Astra independently reviewed actual phase7 probe/primary docs. Float option placement is correct. Uniform decoded HDR uses a named PQ output profile, while split/A use unnamed RGB profiles; equal profile sizes do not establish equality. Luna confirmed same-size draw and actual bright-region samples, so no missed-white-patch explanation. Warning origin remains unassigned.
+
+Luna now owns sole native lane for matched640×128 nearest-neighbor controls, using the same pinned producer and semantic ISO data as80×16 uniform/split cases. One file per native process attributes warnings; isolated probes save actual output ICC bytes and use bounded dynamic dimensions with baseline requalification. Astra reviews source changes independently. A documented nested compute-HDR-stats option is reserved as a separate later experiment; no beta, guessed keys or profile transplantation. Original failed gate and prototype stay unchanged.
+
 ## Independent nonuniform-gain failure reproduced — 2026-09-28 09:27 UTC
 
 All seven bounded diagnostic phases are published through main01efee57; root verified471 portable payload hashes. Phase6 main676cbb54 (72 payloads) rules out reciprocal auxiliary segment order for this pair. Phase7 main01efee57 (71 payloads) changes only the independent producer’s gain input from uniform255 to the exact A half-zero/half255 pattern. Same-run ImageIO changes from15.951576/headroom16 to7.983762741/headroom8; original A is7.983762264/headroom8. Independent reference decoder and software Core Image still reach16. Base/profile/ISO metadata were held fixed, with necessary MPF aux-size bookkeeping and changed compressed gain data explicitly recorded. This establishes content/codestream-sensitive behavior in the tested ImageIO path, not a specific algorithm, universal host limitation, or product acceptance. Raw diagnostics remain preserved. Original A core4pass/1fail and dirty unmerged product stay unchanged.
