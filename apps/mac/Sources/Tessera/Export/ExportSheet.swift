@@ -15,7 +15,7 @@ struct ExportSheet: View {
     @State private var namingPreset = false
 
     var body: some View {
-        SheetScaffold(title: "Export", subtitle: nil) {
+        SheetScaffold(title: "Export", subtitle: "Pending photo edits are saved before export") {
             Picker("Photos", selection: Binding(get: { exporter.target?.id ?? "" }, set: { exporter.targetID = $0 })) {
                 ForEach(exporter.targets) { t in Text("\(t.title) (\(t.count))").tag(t.id) }
             }
