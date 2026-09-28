@@ -16,6 +16,7 @@ mod metadata;
 mod models;
 mod preview;
 mod proof;
+mod recipe_write;
 #[cfg(test)]
 mod recipe_write_tests;
 mod session;
@@ -391,13 +392,22 @@ impl Engine {
     }
     pub fn set_selection(&self, image_id: String, selection: Selection) -> Result<()> {
         let selection = selection.into_core()?;
+        let path = {
+            let c = self.lock()?;
+            Self::path(&c, &image_id)?
+        };
+        let gate = recipe_write::gate_for(Path::new(&path))?;
+        let write = gate.begin_write()?;
         let mut c = self.lock()?;
-        let path = Self::path(&c, &image_id)?;
+        if Self::path(&c, &image_id)? != path {
+            return Err(failure("image path changed before recipe write"));
+        }
         let mut doc = catalog::document(Path::new(&path), parse_id(&image_id)?)?;
         doc.recipe.selection = selection;
         doc.record_write("tessera-mac", now_ms())?;
         Self::persist(&mut c, Path::new(&path), &doc)?;
         drop(c);
+        drop(write);
         self.notify_changes();
         Ok(())
     }
@@ -418,8 +428,16 @@ impl Engine {
         }
         recipe.validate()?;
         recipe.to_json()?; // Reject forward-version documents before any write.
+        let path = {
+            let c = self.lock()?;
+            Self::path(&c, &image_id)?
+        };
+        let gate = recipe_write::gate_for(Path::new(&path))?;
+        let write = gate.begin_write()?;
         let mut c = self.lock()?;
-        let path = Self::path(&c, &image_id)?;
+        if Self::path(&c, &image_id)? != path {
+            return Err(failure("image path changed before recipe write"));
+        }
         let mut doc = catalog::document(Path::new(&path), parse_id(&image_id)?)?;
         // Existing history and unknown fields cannot be discarded by a stale client.
         if recipe.history.base != doc.recipe.history.base
@@ -442,6 +460,7 @@ impl Engine {
         doc.record_write("tessera-mac", now_ms())?;
         Self::persist(&mut c, Path::new(&path), &doc)?;
         drop(c);
+        drop(write);
         self.notify_changes();
         Ok(())
     }
