@@ -9,15 +9,13 @@
   current disk recipe; concurrent flush callers retain the failed outcome.
   Portable evidence: `tools/orchestrate/wp/UX-03/evidence/develop-save-retry-2026-09-27/`.
   Earlier failures and raw-log trailing blank lines remain preserved.
-- **Luna owns the compiler** for rejected Swift settings-patch retention and
-  reentrant callback regressions in `codex/develop-patch-retry`. Prior 33-test
-  Swift gate passed; added regression and final candidate still pending. Its old
-  FFI archive does not establish current-native combined app acceptance.
-- **Stage B native lifecycle tests in progress**: Resource Sol captured three valid behavioral
-  RED cases at `6222f410` (failed-close State.closed and live worker after success);
-  source implementation is active, compiler returned to Luna. Native plan main
-  `c7f1e651`; Stage C lease/CAS stays blocked.
-  No failed-close recovery, all-writer exclusion or multi-file atomicity claim.
+- **Root owns the compiler** for current-FFI/full Release integration of native
+  close lifecycle and Swift rejected-patch retention. Both targeted gates passed;
+  full combined gate is pending. Luna source-plans Core result-bearing close;
+  Resource Sol packages native evidence, no duplicate builds.
+- **Stage B close recovery remains in progress**. Native lifecycle is staged,
+  Core close result and AppModel recovery/navigation/quit UI remain unimplemented.
+  Stage C lease/CAS stays blocked; no all-writer exclusion or transaction claim.
 - **B source review completed**: request `651c9cf1`, SSH queue
   `01a0e5ab-efbd-7030-832c-197eb1659ba9`, accepted receipt and peer result
   `65bd203a` verified. Review `32db07de` preserved on main `23f54c0d`; A completed
@@ -44,7 +42,9 @@ final547 formatting-equivalent conditional correction passed late-mask1/0 and
 strictClippy/fmt. Earlier setup and strict failures remain preserved.
 B initial mask986512b6 review blocked successful-reentrant-edit liveness;
 result48f8e3c2 failed source acceptance. Revision request13fb8907 / SSH queue
-01a0e5c1-7602-7e12-a2d4-968944a95998 published; no B workloads authorized.
+01a0e5c1-7602-7e12-a2d4-968944a95998 received by B; result737e0d32 returns
+revised candidate639da049 and 11 UNRUN tests. A accepted result for source review,
+not runtime/product acceptance. No B workloads authorized.
 Luna source-plans Core result-bearing close next; AppModel/UI recovery unimplemented.
 
 This checkpoint supersedes older in-progress ownership entries below.
