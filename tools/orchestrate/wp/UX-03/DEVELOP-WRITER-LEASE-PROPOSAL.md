@@ -1,6 +1,6 @@
 # Develop writer admission: staged, failure-safe proposal
 
-Status: source-only amendment; no product implementation or validation. The destination gate currently covers only two Engine writers. **Do not activate a Develop lease until the close-failure contract below is implemented and tested.** Batch Apply remains blocked.
+Status update 2026-09-28: bounded Stages A/B and exclusive-admission Stage C are now implemented. Stage C is main `f1f4abe2`, exact validated source `59373066`, with137/137 FFI tests plus format/strict gates. See `docs/coordination/DEVELOP-EXCLUSIVE-ADMISSION-REVIEW.md` for current behavior, evidence and filename-alias/external-writer limits. The sections below retain the original design and historical failure descriptions; their old line references and present-tense behavior are not a description of current main. Batch Apply remains blocked on its separate writer/revision/durability contract.
 
 ## Current failure paths
 
