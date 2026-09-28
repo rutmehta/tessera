@@ -42,6 +42,11 @@ final class InspectorFocusTraceTests: XCTestCase {
     func testDisabledAndExcludedNeverCaptureOrCreateOutputAndRouteOnce() {
         var opened = 0
         XCTAssertNil(InspectorFocusTrace.configured(arguments: ["Tessera"], open: { _ in opened += 1; return Sink() }))
+        for arguments in [["Tessera", "--inspector-focus-trace"],
+                          ["Tessera", "--inspector-focus-trace", "--other-flag"],
+                          ["Tessera", "--inspector-focus-trace", "one", "--inspector-focus-trace", "two"]] {
+            XCTAssertNil(InspectorFocusTrace.configured(arguments: arguments, open: { _ in opened += 1; return Sink() }))
+        }
         XCTAssertEqual(opened, 0)
         var calls = 0, captures = 0
         let sink = Sink()
