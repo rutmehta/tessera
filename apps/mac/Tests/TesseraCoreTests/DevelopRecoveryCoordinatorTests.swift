@@ -96,6 +96,140 @@ final class DevelopRecoveryCoordinatorTests: XCTestCase {
         XCTAssertEqual(openCount, 1, "A failed stale-open cleanup must block same-owner/photo reopen")
     }
 
+    /// Losing the current opener's error or retaining its empty ticket would hide the
+    /// conflict, block navigation, or prevent the next real editor from opening.
+    func testThrownAdmissionErrorIsVisibleAndFreshOpenSucceedsAfterReentry() async throws {
+        let f = try fixture()
+        let opener = GatedOpener()
+        defer { opener.cancelPendingOpen() }
+        let entered = expectation(description: "rejected opener entered")
+        opener.onEntered = { entered.fulfill() }
+        var openCount = 0
+        let model = AppModel(
+            agent: AgentController(arguments: ["--fake-planner"], supportDirectory: f.support),
+            developControllerOpener: { ref, itemID in
+                openCount += 1
+                if openCount == 1 { return try await opener.open() }
+                return try await DevelopController.open(ref, itemID: itemID)
+            }
+        )
+        model.install(f.library)
+        let item = try XCTUnwrap(f.library.items.first)
+        let ref = try XCTUnwrap(item.engineImage)
+        model.enterPhotoEdit()
+        let selection = model.selection
+        model.openDevelop(for: item)
+        await fulfillment(of: [entered], timeout: 5)
+        guard opener.didEnter else { return }
+        XCTAssertEqual(model.developStatus, .loading)
+
+        opener.resume(throwing: InjectedAdmissionFailure())
+        await settleDevelop(model, imageID: ref.imageID, owner: f.library)
+
+        XCTAssertEqual(model.developStatus, .unavailable("injected editor admission conflict"))
+        XCTAssertEqual(model.photoEditAvailabilityHint, "injected editor admission conflict")
+        XCTAssertNil(model.develop)
+        XCTAssertTrue(model.developRecoveries.isEmpty)
+        XCTAssertFalse(model.developRecovery.hasUnresolvedSessions)
+        XCTAssertFalse(model.developRecovery.hasActiveReservations)
+        XCTAssertTrue(model.engineLibrary === f.library)
+        XCTAssertEqual(model.selection, selection)
+        XCTAssertEqual(model.focusedItem?.engineImage?.imageID, ref.imageID)
+        XCTAssertTrue(model.isPhotoEditing)
+
+        model.returnToLibrary(grid: true)
+        XCTAssertEqual(model.viewMode, .grid, "A rejected open owns no unsaved editor to block leaving")
+        XCTAssertFalse(model.isPhotoEditing)
+        model.enterPhotoEdit()
+        // No LoupeController is mounted by this AppModel test; invoke its ordinary
+        // selection-triggered call after exercising the real navigation methods.
+        model.openDevelop(for: item)
+        await settleDevelop(model, imageID: ref.imageID, owner: f.library)
+        let controller = try XCTUnwrap(model.develop)
+        XCTAssertEqual(openCount, 2, "The failed ticket must not block a fresh opener")
+        XCTAssertEqual(model.developStatus, .ready)
+        XCTAssertEqual(controller.imageID, ref.imageID)
+        XCTAssertTrue(model.engineLibrary === f.library)
+        let close = try XCTUnwrap(model.closeDevelop())
+        guard case .saved = await close.value else { return XCTFail("Fresh editor should close normally") }
+        XCTAssertNil(model.develop)
+        XCTAssertFalse(model.developRecovery.hasUnresolvedSessions)
+    }
+
+    /// Removing old-token/cancellation ownership checks would let an old conflict
+    /// replace the new photo's loading/ready state or clear its pending open.
+    func testSupersededAdmissionErrorPreservesReplacementLoadingAndReadyState() async throws {
+        for replacementReady in [false, true] {
+            let f = try fixture()
+            let oldOpener = GatedOpener()
+            let newOpener = GatedOpener()
+            defer {
+                oldOpener.cancelPendingOpen()
+                newOpener.cancelPendingOpen()
+            }
+            let oldEntered = expectation(description: "old opener entered (ready=\(replacementReady))")
+            let newEntered = expectation(description: "replacement opener entered (ready=\(replacementReady))")
+            oldOpener.onEntered = { oldEntered.fulfill() }
+            newOpener.onEntered = { newEntered.fulfill() }
+            var openCount = 0
+            let model = AppModel(
+                agent: AgentController(arguments: ["--fake-planner"], supportDirectory: f.support),
+                developControllerOpener: { _, _ in
+                    openCount += 1
+                    if openCount == 1 { return try await oldOpener.open() }
+                    guard openCount == 2 else { throw UnexpectedRecoveryReopen() }
+                    return try await newOpener.open()
+                }
+            )
+            model.install(f.library)
+            let oldItem = try XCTUnwrap(f.library.items.first)
+            let oldRef = try XCTUnwrap(oldItem.engineImage)
+            model.openDevelop(for: oldItem)
+            await fulfillment(of: [oldEntered], timeout: 5)
+            guard oldOpener.didEnter else { return }
+
+            model.install(f.otherLibrary)
+            let newItem = try XCTUnwrap(f.otherLibrary.items.first)
+            let newRef = try XCTUnwrap(newItem.engineImage)
+            model.openDevelop(for: newItem)
+            await fulfillment(of: [newEntered], timeout: 5)
+            guard newOpener.didEnter else { return }
+            let controller = try await DevelopController.open(newRef, itemID: newItem.id)
+            if replacementReady {
+                newOpener.resume(returning: controller)
+                await settleDevelop(model, imageID: newRef.imageID, owner: f.otherLibrary)
+                XCTAssertTrue(model.develop === controller)
+                XCTAssertEqual(model.developStatus, .ready)
+            } else {
+                XCTAssertNil(model.develop)
+                XCTAssertEqual(model.developStatus, .loading)
+            }
+
+            // The first Task was canceled by install(), but this noninterruptible
+            // opener deliberately throws later, as an in-flight native open can.
+            oldOpener.resume(throwing: InjectedAdmissionFailure())
+            await settleDevelop(model, imageID: oldRef.imageID, owner: f.library)
+            XCTAssertTrue(model.engineLibrary === f.otherLibrary)
+            XCTAssertEqual(model.focusedItem?.engineImage?.imageID, newRef.imageID)
+            XCTAssertEqual(model.developStatus, replacementReady ? .ready : .loading)
+            if !replacementReady {
+                XCTAssertNil(model.develop)
+                newOpener.resume(returning: controller)
+                await settleDevelop(model, imageID: newRef.imageID, owner: f.otherLibrary)
+            }
+            XCTAssertEqual(openCount, 2)
+            XCTAssertEqual(model.developStatus, .ready)
+            XCTAssertTrue(model.develop === controller)
+            XCTAssertEqual(model.developRecoveries.count, 1, "Only the replacement editor owns recovery")
+            let close = try XCTUnwrap(model.closeDevelop())
+            guard case .saved = await close.value else { return XCTFail("Replacement editor should close normally") }
+            XCTAssertNil(model.develop)
+            XCTAssertTrue(model.developRecoveries.isEmpty)
+            XCTAssertFalse(model.developRecovery.hasUnresolvedSessions)
+            XCTAssertFalse(model.developRecovery.hasActiveReservations)
+        }
+    }
+
     private func fixture() throws -> Fixture {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("develop-recovery-stale-\(UUID().uuidString)")
@@ -162,6 +296,11 @@ private final class GatedOpener {
         continuation = nil
     }
 
+    func resume(throwing error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
+    }
+
     func cancelPendingOpen() {
         cancelled = true
         continuation?.resume(throwing: UnexpectedOpenCancellation())
@@ -224,4 +363,8 @@ private struct UnexpectedRecoveryReopen: LocalizedError {
 
 private struct UnexpectedOpenCancellation: LocalizedError {
     var errorDescription: String? { "test cleanup cancelled the gated opener" }
+}
+
+private struct InjectedAdmissionFailure: LocalizedError {
+    var errorDescription: String? { "injected editor admission conflict" }
 }

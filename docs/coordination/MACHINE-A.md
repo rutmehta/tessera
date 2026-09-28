@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## UI admission rejection controls verified — 2026-09-28 10:45 UTC
+
+Tests-only8cc6bc18 passed focused2 and adjacent34/direct0; the adjacent count includes those2. Root checked the raw exits/summaries, unchanged before/after manifests and311 tracked Git blobs plus accepted archive4a45 (312 frozen inputs). Portable evidence3326cb94 has18 payloads independently checked against committed SHA256SUMS. The test source integrated here is byte-identical to8cc6. This validates current rejection presentation, pending-ticket cleanup, fresh native re-entry and stale-error ownership; it does not prove native lease behavior or full-suite/GUI acceptance. Existing compiler/concurrency/link-version warnings are retained verbatim.
+
+Native tests-onlyd61512ed now owns the sole compiler lane for actual second-Engine admission and direct-setter REDs plus foreign-disk baseline control. No product lease code yet. Independent source review confirms self-thread Drop lifetime, original gate/identity authentication, and rollback lock-order requirements. A alone merges main; B's published destination request remains unreceived/offline and reserved.
+
 ## Exclusive admission controls underway — 2026-09-28 10:39 UTC
 
 Current UI source already supports visible rejected opens, pending-ticket settlement, retained failed-close ownership and retry. Astra tests-only8cc6bc18 adds current rejection → Library/re-entry → real successful native session, plus stale rejection while replacement is loading or ready. Root reviewed exact fixture/continuation/observing barriers and granted the sole compiler/native lane for focused and adjacent controls using external scratch and accepted archive4a45. These are expected existing-behavior controls, not manufactured RED. No result is claimed yet.

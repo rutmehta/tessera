@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current execution queue — 2026-09-28 10:39 UTC
+## Current execution queue — 2026-09-28 10:45 UTC
 
 | Task | Owner | Verified state | Next action |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@
 | Save As destination safety | A native; B Swift source reserved | Native 75a1b9a6 passed 11 selected tests + fmt/strict; test-only 2a22145b pins actual directory conflict and passes focused/fmt/strict. Generated checkpoint 81cc08eb built arm64 archive f451870f, input hashes verified. | B request 8638c362 published; SSH delivery failed “Host is down”, no queue ID or receipt. Preserve B ownership, retry existing request when reachable. No full product/UI acceptance. |
 | ISO gain-map interoperability control | A / completed Luna diagnostics; Astra review | Geometry comparison completed: 80×16 baselines reproduced; 640×128 uniform stays16 and split stays8 in ImageIO, reference/CI16. Root verified40 saved payloads and all native exits; Astra independently checked all20 float outputs and profiles. | Phase8 main7bcf77ad (163 payloads) and phase9 sourceeebc6325 (97 payloads) independently verified/imported. HDR-stats changes no provider/pixel/profile/property bytes. Native lane released; no further runtime experiment selected. Warnings occur only in successful uniform controls; no causal warning claim. Original core4pass/1fail and unmerged product remain. |
 | Saved-recipe histogram without writer | A / Luna implementation; Astra/root review | DONE main22ff89b7 bounded prerequisite: exacta31d2518, two intended REDs, focused3 + adjacent7 tests, fmt/strict direct0. Evidence6be9d5d7 plus61-payload coordinator manifest. | Preserve no-writer/read-only path before any future lease. Stage C exclusive admission remains separate and disabled; no UI/performance claim. |
-| Stage C exclusive Develop admission | A / Luna native tests + Astra UI controls + independent Luna review | IN PROGRESS: UI tests-only8cc6bc18 reviewed; Astra owns sole compiler lane for focused/adjacent controls with accepted archive4a45. Native tests-only prep and lock/lifetime review run in parallel. | Require genuine native admission RED, failed-open/close/drop lifetime controls and source review before implementation. No lease product code yet; B-owned UI untouched. |
+| Stage C exclusive Develop admission | A / Luna native tests + Astra UI controls + independent Luna review | IN PROGRESS: UI controls8cc6 passed focused2 and adjacent34/direct0 (34 unique),312 frozen inputs; evidence3326 verified18 payloads. Luna owns sole native lane for tests-onlyd615 intended REDs. Independent lock/lifetime review complete. | Require genuine native admission RED, failed-open/close/drop lifetime controls and source review before implementation. No lease product code yet; B-owned UI untouched. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 
