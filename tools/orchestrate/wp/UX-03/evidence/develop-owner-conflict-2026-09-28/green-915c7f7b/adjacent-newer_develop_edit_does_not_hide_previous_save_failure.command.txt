@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::newer_develop_edit_does_not_hide_previous_save_failure -- --exact --nocapture

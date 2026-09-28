@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib recipe_write_tests -- --nocapture

@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::preexisting_unknown_nested_develop_field_is_not_silently_dropped -- --exact --nocapture

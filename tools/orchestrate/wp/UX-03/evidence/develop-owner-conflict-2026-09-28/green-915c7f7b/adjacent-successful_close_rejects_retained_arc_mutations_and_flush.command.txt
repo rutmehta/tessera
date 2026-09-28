@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::successful_close_rejects_retained_arc_mutations_and_flush -- --exact --nocapture

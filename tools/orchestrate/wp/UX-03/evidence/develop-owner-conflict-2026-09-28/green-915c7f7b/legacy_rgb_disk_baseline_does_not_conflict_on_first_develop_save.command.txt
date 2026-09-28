@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::legacy_rgb_disk_baseline_does_not_conflict_on_first_develop_save -- --exact --nocapture

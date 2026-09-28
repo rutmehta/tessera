@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::selection_during_develop_does_not_conflict_with_edited_settings -- --exact --nocapture
