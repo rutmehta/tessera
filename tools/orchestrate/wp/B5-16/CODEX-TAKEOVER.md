@@ -594,3 +594,15 @@ catalog controls. Explicit preview choice/defaultOriginal and refresh/badges int
 20 prior + 6 new tests UNRUN on B. New tests prove injected router/mode contract,
 not real native factory or GUI relaunch. A must compile/generate/run/integrate.
 No Document/SaveAs edits, workloads, heartbeat or writer changes. SaveAs3ca3e9c9 preserved.
+
+### Alias correction c13b4fe0 — online canonical authority
+
+Published codex/smart-preview-ui775f39b0; tests ea40431c/782752f3, product3029127b.
+EngineLibrary.scan retains index handle.path; AppModel persists only successful
+current opens, replacing alias in recents lexically. Reopen/rescan carry authority;
+changed online index identity gets a new session, not a relabeled old one.
+Real online empty-folder alias scan -> isolated history -> alias removal/original
+move -> cached closure receives canonical path regression added, UNRUN. 27 total
+SmartPreview/offline tests UNRUN on B. No disconnected canonicalization or alias
+guessing; historical disconnected aliases need one online reopen. A gates/main.
+No Document edits/workloads/heartbeat/writer changes; SaveAs3ca3e9c9 preserved.
