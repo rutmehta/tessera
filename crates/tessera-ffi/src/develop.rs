@@ -3712,6 +3712,7 @@ impl DevelopSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     fn edited_preview_key(
         photo: &Path,
