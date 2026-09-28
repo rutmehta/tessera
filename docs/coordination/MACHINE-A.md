@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Pinned RAW descriptor implementation — 2026-09-28 14:55 UTC
+
+A is implementing the descriptor-only engine-api boundary on codex/pinned-raw-descriptor from main5f33e174. Luna owns implementation and the sole narrow compiler lane; Astra independently reviews parsing/default/identity edges. No GUI/capture/decoder/FFI or B-owned edits. Plan: docs/superpowers/plans/2026-09-28-pinned-raw-descriptor.md.
+
+The chosen contract treats current settings as the pinned snapshot and preserves history as opaque exact bytes; it does not validate writable history or return a writable Recipe. Recursive duplicate decoded keys and unknown current-settings members reject. Requested-input identity includes exact payload bytes, asset declaration, owner, route and suffix, but excludes locator hints. Descriptor success is neither asset verification nor render admission. All new implementation gates are pending.
+
+Fetch/read of B takeover is unchanged; mailbox has no new messages, invalid/expired entries or in-progress work. Native peer snapshot is unavailable, so no peer progress/receipt/wakeup is inferred. Existing destination request remains reserved without duplicate queue dispatch. Protected-dialog question remains pending; no app action. A alone merges main.
+
+
 ## Synthetic CPU profile gate passes — 2026-09-28 14:43 UTC
 
 Exact tests-only c3342cd3 passed one targeted Release test/direct0 in0.12s after1m31s compilation. Root and Astra read the saved direct exit/raw result and matched6791 before/after input hashes (manifest73496a1998e04b1ba62f241e24b449321d458d7249f3efbc7295095b10076fe1); Astra verified1301 source Git blobs. Root verified13 portable evidence payloads/2,257,896bytes and exact integrated test hashfe9e532057f328bd475ed8cd4dc98f46958caa644b7f56c9c6309d3b55d70d27. Initial draft corrections were source-only and UNRUN, not failed executed gates. Vendor compiler warnings remain preserved.

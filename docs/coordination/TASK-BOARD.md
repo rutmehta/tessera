@@ -1,5 +1,14 @@
 # Tessera task board — Machine A coordinator
 
+## Pinned RAW descriptor implementation — 2026-09-28 14:55 UTC
+
+A is implementing the descriptor-only engine-api boundary on codex/pinned-raw-descriptor from main5f33e174. Luna owns implementation and the sole narrow compiler lane; Astra independently reviews parsing/default/identity edges. No GUI/capture/decoder/FFI or B-owned edits. Plan: docs/superpowers/plans/2026-09-28-pinned-raw-descriptor.md.
+
+The chosen contract treats current settings as the pinned snapshot and preserves history as opaque exact bytes; it does not validate writable history or return a writable Recipe. Recursive duplicate decoded keys and unknown current-settings members reject. Requested-input identity includes exact payload bytes, asset declaration, owner, route and suffix, but excludes locator hints. Descriptor success is neither asset verification nor render admission. All new implementation gates are pending.
+
+Fetch/read of B takeover is unchanged; mailbox has no new messages, invalid/expired entries or in-progress work. Native peer snapshot is unavailable, so no peer progress/receipt/wakeup is inferred. Existing destination request remains reserved without duplicate queue dispatch. Protected-dialog question remains pending; no app action. A alone merges main.
+
+
 ## Current execution queue — 2026-09-28 14:43 UTC
 
 | Task | Owner | Verified state | Next action |
