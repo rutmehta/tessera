@@ -9,11 +9,20 @@ public struct MaskParamKey: Hashable, Sendable {
     public init(group: UInt32, name: String) { self.group = group; self.name = name }
 }
 
+/// MainActor-only in-flight bookkeeping lives beside the mask extension so the
+/// ordinary Develop settings/close owner needs no additional storage or API.
+@MainActor
+private final class MaskFlushFlight {
+    var brushSamples: [(x: Double, y: Double, pressure: Double)] = []
+}
+
 /// Masking on the develop session (M2-14). Structural edits (add, delete, modes) go to the engine at
 /// once; drags — local sliders, the amount slider, gradient handles and brush samples — are
 /// coalesced to one engine call per display frame through the same `onNeedsFlush` tick as the
 /// Basic sliders. Nothing here commits: callers commit one undo step on mouse-up.
 extension DevelopController {
+    private static var maskFlushFlights: [ObjectIdentifier: MaskFlushFlight] = [:]
+
     /// `'L008'`: one byte per pixel, imported by Metal as `.r8Unorm`.
     public static let overlayPixelFormat: UInt32 = 0x4C30_3038
 
@@ -110,6 +119,12 @@ extension DevelopController {
     /// Records a sample; sent with the next display-frame flush.
     public func addBrushSample(x: Double, y: Double, pressure: Double) {
         guard pendingStroke != nil else { return }
+        if let flight = Self.maskFlushFlights[ObjectIdentifier(self)] {
+            // Acknowledging the older batch must not overwrite samples delivered
+            // synchronously by a reentrant callback while that batch is submitted.
+            flight.brushSamples.append((x, y, pressure))
+            return
+        }
         if pendingStroke?.add(x: x, y: y, pressure: pressure) == true { requestFlush() }
     }
 
@@ -187,10 +202,23 @@ extension DevelopController {
             || pendingStroke?.isEmpty == false
     }
 
-    /// Sends the coalesced mask changes (called from `flushPending`). Returns whether any was sent.
+    /// Attempts coalesced mask changes. Bool is attempt semantics, not save success.
+    /// Accepted operations are removed individually; rejection retains the suffix.
     @discardableResult
     func flushMaskPending() -> Bool {
-        guard !closed, hasPendingMaskChanges else { return false }
+        let identity = ObjectIdentifier(self)
+        guard !closed, hasPendingMaskChanges, Self.maskFlushFlights[identity] == nil else { return false }
+        let flight = MaskFlushFlight()
+        Self.maskFlushFlights[identity] = flight
+        defer {
+            Self.maskFlushFlights.removeValue(forKey: identity)
+            // On failure the old coalescer is intact; on success it has already
+            // acknowledged exactly the accepted batch. Append only newer samples.
+            for sample in flight.brushSamples {
+                _ = pendingStroke?.add(x: sample.x, y: sample.y, pressure: sample.pressure)
+            }
+            if !flight.brushSamples.isEmpty, pendingStroke?.isEmpty == false { onNeedsFlush?() }
+        }
         do {
             if var stroke = pendingStroke, !stroke.isEmpty {
                 try session.addBrushPoints(points: stroke.take())
@@ -198,19 +226,43 @@ extension DevelopController {
             }
             if let c = pendingComponent {
                 pendingComponent = nil
-                try session.setMaskComponent(groupId: c.group, index: c.index, definitionJson: c.json, interactive: true)
+                do {
+                    try session.setMaskComponent(groupId: c.group, index: c.index, definitionJson: c.json, interactive: true)
+                } catch {
+                    // The existing component queue is latest-only. A newer
+                    // definition supersedes the rejected snapshot, never vice versa.
+                    if pendingComponent == nil { pendingComponent = c }
+                    throw error
+                }
             }
-            let groups = pendingMaskGroup
-            pendingMaskGroup.removeAll()
-            for (id, p) in groups.sorted(by: { $0.key < $1.key }) {
-                try session.updateMaskGroup(groupId: id, patch: p.patch, interactive: p.interactive)
+            for id in pendingMaskGroup.keys.sorted() {
+                guard let p = pendingMaskGroup.removeValue(forKey: id) else { continue }
+                do {
+                    try session.updateMaskGroup(groupId: id, patch: p.patch, interactive: p.interactive)
+                } catch {
+                    if let newer = pendingMaskGroup[id] {
+                        var restored = p.patch
+                        restored.name = newer.patch.name ?? restored.name
+                        restored.enabled = newer.patch.enabled ?? restored.enabled
+                        restored.amount = newer.patch.amount ?? restored.amount
+                        restored.invert = newer.patch.invert ?? restored.invert
+                        pendingMaskGroup[id] = (restored, newer.interactive)
+                    } else { pendingMaskGroup[id] = p }
+                    throw error
+                }
             }
-            let params = pendingMaskParams
-            pendingMaskParams.removeAll()
-            for (key, value) in params.sorted(by: { ($0.key.group, $0.key.name) < ($1.key.group, $1.key.name) }) {
-                try session.setMaskParam(groupId: key.group, name: key.name, value: value, interactive: true)
+            for key in pendingMaskParams.keys.sorted(by: { ($0.group, $0.name) < ($1.group, $1.name) }) {
+                guard let value = pendingMaskParams.removeValue(forKey: key) else { continue }
+                do {
+                    try session.setMaskParam(groupId: key.group, name: key.name, value: value, interactive: true)
+                } catch {
+                    if pendingMaskParams[key] == nil { pendingMaskParams[key] = value }
+                    throw error
+                }
             }
         } catch {
+            // Restore before invoking observers: a recovery callback may enqueue
+            // newer coalesced values; the reentrancy gate prevents nested replay.
             onFailure?(error.localizedDescription)
         }
         return true
