@@ -1,0 +1,53 @@
+{
+  "raw_prefix": "too few samples\ntoo few samples\ntoo few samples\ntoo few samples\n",
+  "records": [
+    {
+      "file": "headroom-4-stops.jpg",
+      "iso_aux_present": true,
+      "sdr_peak": 1,
+      "hdr_peak": 7.983762264251709,
+      "hdr_to_sdr_peak_ratio": 7.983762264251709,
+      "imageio_headroom": 8,
+      "imageio_valid_pixels": true,
+      "imageio_input_icc_sha256": "41f8577b10aa6ea7f398c18b4ff6d5c39cca119521704deb2ac2a358f7ac0280",
+      "coreimage_gain_present": true,
+      "coreimage_peak": 16.000003814697266
+    },
+    {
+      "file": "A-with-Google255-ICC.jpg",
+      "iso_aux_present": true,
+      "sdr_peak": 1,
+      "hdr_peak": 7.983762741088867,
+      "hdr_to_sdr_peak_ratio": 7.983762741088867,
+      "imageio_headroom": 8,
+      "imageio_valid_pixels": true,
+      "imageio_input_icc_sha256": "f6ff8101dcbc6f85a7f7616d23a502740e8810a6eb114d233f57574916eabf6c",
+      "coreimage_gain_present": true,
+      "coreimage_peak": 16.000003814697266
+    },
+    {
+      "file": "reference-16-bright255-explicit.jpg",
+      "iso_aux_present": true,
+      "sdr_peak": 1,
+      "hdr_peak": 15.951576232910156,
+      "hdr_to_sdr_peak_ratio": 15.951576232910156,
+      "imageio_headroom": 16,
+      "imageio_valid_pixels": true,
+      "imageio_input_icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16",
+      "coreimage_gain_present": true,
+      "coreimage_peak": 16.000003814697266
+    },
+    {
+      "file": "Google255-with-A-ICC.jpg",
+      "iso_aux_present": true,
+      "sdr_peak": 1,
+      "hdr_peak": 15.951576232910156,
+      "hdr_to_sdr_peak_ratio": 15.951576232910156,
+      "imageio_headroom": 16,
+      "imageio_valid_pixels": true,
+      "imageio_input_icc_sha256": "20d91982bcc869410ea08f96c40ee11c561b71de07b6ebdde540ec88e7361613",
+      "coreimage_gain_present": true,
+      "coreimage_peak": 16.000003814697266
+    }
+  ]
+}

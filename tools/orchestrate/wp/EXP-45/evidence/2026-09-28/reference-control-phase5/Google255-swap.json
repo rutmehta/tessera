@@ -1,0 +1,30 @@
+{
+  "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/reference-16-bright255-explicit.jpg",
+  "source_sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+  "source_bytes": 1918,
+  "donor": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+  "donor_sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+  "output": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/icc-swap/Google255-with-A-ICC.jpg",
+  "output_sha256": "c250df6ed9dc29e55c4e918499eb829f898ec42d69253408ed91b5a0493546f3",
+  "output_bytes": 1918,
+  "icc_segment_range": [
+    2,
+    608
+  ],
+  "icc_data_range": [
+    20,
+    608
+  ],
+  "icc_marker_length_field": 604,
+  "icc_chunk_prefix_hex": "4943435f50524f46494c45000101",
+  "source_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+  "donor_icc_sha256": "9917273a11ee1e244854a427a69099558670b195637332b5bd012efba0059f44",
+  "output_icc_sha256": "9917273a11ee1e244854a427a69099558670b195637332b5bd012efba0059f44",
+  "actual_changed_byte_count": 299,
+  "actual_changed_byte_range": [
+    24,
+    608
+  ],
+  "all_outside_icc_data_bytes_identical": true,
+  "file_length_unchanged": true
+}

@@ -1,0 +1,27 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "icc-swap/A-original.hdr-linear-half.cfg",
+    "-z",
+    "icc-swap/A-original.hdr-linear-half.raw"
+  ],
+  "exit": 0,
+  "raw_bytes": 10240,
+  "raw_sha256": "61cf27b4757daa75048dc3c4d44e4520838872ee7096e23df001442a91547aa5",
+  "bright_center_rgba": [
+    16.0,
+    16.0,
+    16.0,
+    1.0
+  ],
+  "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+}

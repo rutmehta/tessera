@@ -1,0 +1,22 @@
+# EXP-45 ICC-only source audit (read-only, 2026-09-28)
+
+The exact-white Google255 control reaches ~15.95/headroom16 in ImageIO while retained A remains ~7.98/headroom8, so SDR white itself is not an established explanation. Reciprocal rational scaling was also negative. An ICC-only copied-fixture swap is a useful remaining isolation; it has not yet been measured.
+
+## Provenance and intended color meaning
+
+A's gain-map encoder makes the SDR primary by applying the sRGB OETF in `crates/export/src/gain_map.rs:45-69,132-137`, then sends `ColorSpace::Srgb` to `codec::encode_limited` at lines 89-102. `crates/export/src/codec.rs:11-20,200,228` obtains `color_mgmt::Builtin::Srgb`; `crates/color-mgmt/src/lib.rs:45` constructs that with `lcms2::Profile::new_srgb().icc()`. The pinned Google codec's `lib/src/jpegr.cpp:220-241` calls `IccHelper::writeIccProfile(UHDR_CT_SRGB, sdr_intent->cg)` for the primary. `lib/src/icc.cpp:410-470` selects `kSRGB` D50-adapted primaries, D50 white, and `kSRGB_TransFun` TRCs. Thus both encoders **intend an SDR sRGB primary**; neither emits an HDR/PQ/HLG profile for this primary.
+
+Each frozen JPEG contains one 604-byte ICC APP2 segment (identical 14-byte `ICC_PROFILE\0` sequence-1/count-1 wrapper plus 588-byte raw profile). A raw ICC SHA-256 is `9917273a...`; qualified Google16 is `be1eccdf...`. Equal segment sizes make an exact ICC APP2 swap on copies possible without shifting any MPF offset or changing ISO, JFIF, compressed pixels, or segment order. Preserve the APP2 marker/length and verify only the 588 raw ICC bytes changed.
+
+## Meaningful profile differences
+
+- **Header/intent:** A is ICC v4.4 (`04400000`), `lcms` CMM/creator, `APPL` platform, perceptual rendering intent (0), runtime timestamp. Google is v4.3 (`04300000`), zero CMM/creator/platform, relative-colorimetric intent (1), zero timestamp. Both are `mntr` display-class, `RGB ` device color space, `XYZ ` PCS, D50 illuminant, and have no `lumi`, `bkpt`, `cicp`, `A2B0`, or `B2A0` tag.
+- **TRC:** A uses parametric curve type 3 with fixed-point coefficients `(gamma 2.3999938965, a .9478607178, b .0521392822, c .0773925781, d .0404510498)`, shared by RGB. Google uses type 4 with **the same first five exact fixed-point coefficients** and extra offsets `e=0, f=0`, one copy per channel. These functions should be mathematically equivalent; the distinct tag type/layout could still select a different parser path. A tag size is 32 bytes, Google 40.
+- **Primaries/white:** Both `wtpt` tag payloads are byte-identical D50. Both matrix primaries are near sRGB: A `rXYZ` about (.43604,.22249,.01392), Google (.43607,.22249,.01392); corresponding green/blue differences are roughly 10⁻⁴. These small quantization differences alone do not numerically explain a 2× gain. A has `chad` and `chrm` tags; Google does not. A has 11 tags, Google 9. Neither has luminance/headroom metadata in ICC.
+- **Descriptions/copyright:** A `sRGB built-in` / `No copyright, use freely`; Google `sRGB Gamut with sRGB Transfer` / `Google Inc. 2022`. These, timestamp, and producer IDs change hashes without claiming different tone curves.
+
+Tag-list and coefficient findings come from direct ICC header/tag-table parsing of frozen A `headroom-4-stops.jpg` SHA-256 `bb08f44d...` and qualified `reference-16-explicit.jpg` SHA-256 `cadfffea...`, corroborated by `exiftool -G1 -s -ICC_Profile:all`. Both primary ICC segments were extracted as read-only data. The Google source is pinned under `/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/libultrahdr/`.
+
+## Interpretation limit for the reciprocal copies
+
+An ICC-only swap can test whether ImageIO's different handling travels with these ICC bytes. Compare **both SDR and HDR pixels and their ratios**, auxiliary recognition, and reported headroom for original and swapped copies in one native run: color transforms could slightly move the absolute SDR peak even if gain handling is unchanged. A reciprocal flip would implicate profile-dependent handling but would not identify which header/tag difference matters; no flip would reduce ICC priority. Because the profiles are intended to encode the same sRGB transfer and nearly identical primaries, a 2× change would suggest an API/parser branch rather than ordinary matrix precision, but that remains inference until measured. Preserve the original A failure and do not change product ICC selection on this audit alone.
