@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-27",
+  "source_product_commit": "dc4073de34b2da17f556e2f237d3f8b6322b4f14",
+  "evidence_tip_commit": "8ac2e1ae27951c842b9b9994cf9b16b4542f3997",
+  "gate": {
+    "configuration": "Release",
+    "command": "swift test",
+    "xctest_executed": 509,
+    "xctest_skipped": 1,
+    "xctest_failed": 0,
+    "swift_testing_passed": 5,
+    "direct_exit": 0,
+    "verification_source": "parent independently verified exact candidate, archive, and source hashes"
+  },
+  "ffi_archive": {
+    "path": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a",
+    "sha256": "0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae"
+  },
+  "built_executable": {
+    "path": "/Volumes/betterSSD/tessera-cache/swiftpm/psd-current-ffi-release/arm64-apple-macosx/release/Tessera",
+    "sha256": "6726d93c1a272f6ec019f03b2f78d5a677e55822862bc532597d09aefc4a5f28"
+  },
+  "normal_validation_app": {
+    "path": "/Volumes/betterSSD/tessera-validation/psd-ui-8ac2e1ae/Tessera-PSD-UI-Validation-8ac2e1ae.app",
+    "bundle_id": "dev.tessera.validation.psdui.8ac2e1ae",
+    "arguments": [],
+    "support_dir": "/tmp/tessera-psd-ui-validation/normal-support",
+    "packaged_executable_sha256": "f40ffd3f1dd4a8558a3b3cc6e4acf4b7ae5bc21c29e3c6c43962da21a63ae965",
+    "codesign_deep_strict": "passed",
+    "closed": true
+  },
+  "diagnostic_validation_app": {
+    "path": "/Volumes/betterSSD/tessera-validation/psd-ui-8ac2e1ae/Tessera-PSD-Diagnostic-Validation-8ac2e1ae.app",
+    "bundle_id": "dev.tessera.validation.psddiag.8ac2e1ae",
+    "arguments": ["--enable-stub-library"],
+    "support_dir": "/tmp/tessera-psd-ui-validation/diagnostic-support",
+    "packaged_executable_sha256": "592e3bf46d0318796d9ae8df830866837f4358789563aa911c042d2cff55631a",
+    "codesign_deep_strict": "passed",
+    "stub_button_visible": true,
+    "stub_items_loaded": false,
+    "closed": true
+  },
+  "fixture": {
+    "path": "/tmp/tessera-psd-ui-validation/fixture/photos/psd-source-checker.jpg",
+    "width": 320,
+    "height": 240,
+    "bytes": 8137,
+    "sha256_before_and_after": "24ec0418d1e0ffa42c095bde2425fe3cf280fc199ab5c02eca0229529d127345"
+  },
+  "output_psd": {
+    "path": "/tmp/tessera-psd-ui-validation/fixture/photos/psd-ui-rasterized.psd",
+    "width": 320,
+    "height": 240,
+    "format": "Adobe Photoshop Image, RGBA, 4x 16-bit channels",
+    "bytes": 1229596,
+    "sha256": "f6d59f1de4622bcf638afbb422a10e4fb5a306d19203be5f97869bba433c4cce",
+    "reopened_in_app": true,
+    "reopened_layer_count": 1
+  },
+  "user_preview_pid_57591_untouched": true,
+  "screenshots": "Captured through CUA and visible inline in the interaction record; CUA did not expose a local file export path."
+}
