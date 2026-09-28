@@ -128,11 +128,10 @@ struct SaveAsRequest: Identifiable {
         }
     }
 
-    let id = UUID()
+    var id = UUID()
     let doc: DocumentController
     var name: String
     var folder: URL
-    var then: (@MainActor () -> Void)?
 
     /// The format the name's extension asks for (`.tessera-doc` when it has none).
     var format: Format { Self.format(of: name) }
@@ -165,6 +164,101 @@ struct SaveAsRequest: Identifiable {
         let n = name.trimmingCharacters(in: .whitespaces)
         let stem = Format(rawValue: (n as NSString).pathExtension.lowercased()) != nil ? (n as NSString).deletingPathExtension : n
         return stem + "." + format.rawValue
+    }
+}
+
+/// Captures the actual window hosting this Save As content, not an arbitrary
+/// attached sheet discovered later from the application's current main window.
+struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
+    let workspace: DocumentWorkspace
+    let requestID: UUID
+    // Internal reporting seam for a reused, already-attached view regression.
+    var reportWindow: @MainActor (DocumentWorkspace, UUID, NSWindow) -> Void = { owner, id, window in
+        owner.captureSaveAsSheetWindow(id, window: window)
+    }
+    final class ProbeView: NSView {
+        var capture: ((NSWindow) -> Void)?
+        var ownerIdentity: ObjectIdentifier?
+        var requestIdentity: UUID?
+        var finishOwnership: (() -> Void)?
+        func endOwnership() {
+            capture = nil
+            let finish = finishOwnership
+            finishOwnership = nil
+            ownerIdentity = nil; requestIdentity = nil
+            finish?()
+        }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { capture?(window) }
+        }
+    }
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        refreshCapture(on: view)
+        return view
+    }
+    func updateNSView(_ view: ProbeView, context: Context) {
+        refreshCapture(on: view)
+    }
+    static func dismantleNSView(_ view: ProbeView, coordinator: ()) {
+        if let window = view.window { view.capture?(window) }
+        view.endOwnership()
+    }
+    func refreshCapture(on view: ProbeView) {
+        let id = requestID
+        if view.ownerIdentity != ObjectIdentifier(workspace) || view.requestIdentity != id {
+            view.endOwnership()
+            view.ownerIdentity = ObjectIdentifier(workspace)
+            view.requestIdentity = id
+            let probe = UUID()
+            if workspace.saveAsProbeBegan(id, probe: probe) {
+                view.finishOwnership = { [weak workspace] in workspace?.saveAsProbeEnded(id, probe: probe) }
+            }
+        }
+        let report = reportWindow
+        view.capture = { [weak workspace] window in
+            guard let workspace else { return }
+            report(workspace, id, window)
+        }
+        // Reuse may not produce another viewDidMoveToWindow callback.
+        if let window = view.window { view.capture?(window) }
+    }
+}
+
+/// Non-observable identity latch: capturing sheet content must not rely on an
+/// onAppear state update, which may never occur after a synchronous cancellation.
+@MainActor
+private final class DocumentSavePresentationCapture {
+    var id: UUID?
+    func claim(_ request: SaveAsRequest, in workspace: DocumentWorkspace) -> Bool {
+        if let id, id != request.id { return false }
+        guard workspace.saveAsPresentationWillPresent(request.id) else { return false }
+        id = request.id
+        return true
+    }
+}
+
+/// Keeps native dismissal paired with the item SwiftUI actually consumed.
+struct DocumentSaveAsPresentation: ViewModifier {
+    @Bindable var workspace: DocumentWorkspace
+    @State private var capture = DocumentSavePresentationCapture()
+
+    func body(content: Content) -> some View {
+        content.sheet(item: Binding(get: { workspace.saveAsRequest }, set: { _ in }), onDismiss: {
+            guard let id = capture.id else { return }
+            capture.id = nil
+            workspace.saveAsPresentationDidDismiss(id)
+        }) { request in
+            // Capture synchronously at the content boundary, including the
+            // appearing-but-not-yet-onAppear interval. Merely setting the item
+            // in the workspace does not claim this presentation identity.
+            if capture.claim(request, in: workspace) {
+                SaveAsSheet(workspace: workspace, request: request)
+                    .background(DocumentSaveSheetWindowProbe(workspace: workspace, requestID: request.id)
+                        .frame(width: 0, height: 0))
+            }
+        }
     }
 }
 
@@ -213,7 +307,7 @@ struct SaveAsSheet: View {
         } leading: {
             EmptyView()
         } actions: {
-            Button("Cancel") { workspace.saveAsRequest = nil }
+            Button("Cancel") { workspace.cancelDocumentSave(request.id) }
                 .keyboardShortcut(.cancelAction).sheetButton()
                 .accessibilityIdentifier("document.saveAs.cancel")
             Button("Save") { save() }
@@ -223,6 +317,7 @@ struct SaveAsSheet: View {
                 .accessibilityIdentifier("document.saveAs.save")
         }
         .frame(width: 520, height: 330)
+        .onDisappear { workspace.saveAsSheetDidDisappear(request.id) }
         .onAppear {
             // The field takes the keyboard as the sheet opens (after SwiftUI installs it).
             DispatchQueue.main.async { MainActor.assumeIsolated { nameFocused = true } }

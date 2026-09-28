@@ -1,0 +1,16 @@
+# Layers backend-completion seam (UNRUN)
+
+Request 7f1c2378-12bd-49b1-9bef-efc1e525def4. Separate tests bfcf1689 and product 9e140c5b on codex/document-save-settlement, after typed-save product b3b39c82/handoff60145d6c. These are separate commits so A can select the dependency without accepting the save candidate. Product edits only DocumentWorkspace.swift; tests only DocumentLoadSettlementTests.swift.
+
+Exact MainActor API:
+
+    func editInLayers(_ item: PhotoItem?,
+        completion: @escaping @MainActor (DocumentLoadOutcome) -> Void = { _ in })
+
+DocumentLoadOutcome is Equatable/Sendable with installed, rejected(String), failed(String), workspaceReleased. Existing void call sites remain compatible. Completion may run synchronously for early rejection or stub load; caller must acquire/capture its reservation before invoking. Every outcome releases the caller's captured reservation exactly once. For admitted backend work, completion is NOT dispatch acknowledgement: it runs after openDocumentFromImage/openDocument returns and controller installation (or orphan backend cleanup) completes. The settlement object owns captured engine and callback while the worker drains. Workspace is weakly held; if released, a successfully returned backend is closed and workspaceReleased is delivered. Backend errors remain failed even if workspace disappeared. Install error closes returned backend and settles failed. Current backend close is synchronous/void; no new native cancellation/preemption claim.
+
+The private shared load path now uses this settlement for regular Open too. An opening token stops an older completion clearing a newer opening indicator; that string is not used as a barrier. A successful installed result means installed at the actual captured operation's completion, not that the navigation intent remains current. A still owns owner/intent admission and should prevent stale navigation before dispatch; this seam does not add post-dispatch installation cancellation or AppModel guards. Consumer UI disappearance must not drop the callback's reservation ownership: capture reservation independently of weak views.
+
+Four deterministic source tests (UNRUN) inject the backend executor: delayed success does not settle at dispatch and duplicate callbacks do not install twice; backend failure settles once; nil/missing-file early rejects never dispatch; workspace deallocation still settles after backend returns. No actual file decode, native sheets or GPU requested by tests. Source inspection and git diff --check only on B; compiler/tests unverified. Exact signature checkpoint was already sent as status675c8536. A may integrate API source, but compilation/independent review remain required.
+
+No AppModel, global Quit, draft finalization or new cancellation API. B workload hold/paused heartbeat/existing writer preserved. A alone validates and merges main.
