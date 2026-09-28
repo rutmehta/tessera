@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import TesseraFFI
 import XCTest
 @testable import Tessera
 @testable import TesseraCore
@@ -53,7 +54,21 @@ final class AgentReviewLayoutTests: XCTestCase {
         recipe["settings"] = settings
         let recipeData = try JSONSerialization.data(withJSONObject: recipe, options: [.sortedKeys])
         print("[review-refresh-test] recipe serialized")
-        try library.engine.setRecipeJson(imageId: imageID, json: String(decoding: recipeData, as: UTF8.self))
+        do {
+            try library.engine.setRecipeJson(imageId: imageID, json: String(decoding: recipeData, as: UTF8.self))
+        } catch {
+            let typeName = String(reflecting: type(of: error))
+            let reflected = String(reflecting: error)
+            if let bridge = error as? BridgeError, case .Failure(let message) = bridge {
+                print("[review-json-provenance] type=\(typeName) BridgeError.Failure message=\(message.debugDescription) reflected=\(reflected)")
+                XCTAssertTrue(message.contains("settings do not match history head"),
+                              "Unexpected Review-context BridgeError: type=\(typeName) message=\(message.debugDescription)")
+            } else {
+                XCTFail("Unexpected Review-context setter error: type=\(typeName) reflected=\(reflected)")
+            }
+            return
+        }
+        XCTFail("Settings without a history entry were unexpectedly accepted")
         print("[review-refresh-test] recipe written")
         try ShellHarness.writeJPEG(photo, shade: 180)
         try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(5)], ofItemAtPath: photo.path)
