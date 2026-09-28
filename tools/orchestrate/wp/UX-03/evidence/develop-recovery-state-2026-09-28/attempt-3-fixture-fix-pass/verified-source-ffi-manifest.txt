@@ -1,0 +1,17 @@
+Tested source commit: 6a03d66b925a837017b46122ab825a299f7880d1
+Configuration: Release; jobs=2; XCTest filter=DevelopRecoveryStateTests.
+Result: 9 XCTest cases executed, 0 failures; direct process exit 0.
+
+SHA-256 source inputs at the tested commit:
+9e5cc051c3f1673333c6dfc45b9b36a0e982e8a45d6889c474119d363fefec0b  apps/mac/Sources/Tessera/App/DevelopRecoveryCoordinator.swift
+756850b8e946c8988c47723bc12d1b7174211cb37fb76f21a64f0137298d12dc  apps/mac/Tests/TesseraCoreTests/DevelopRecoveryStateTests.swift
+150b9ce0c8c03445e1bb75b78fc08884a52b17d0c884f4ae80169e0caf2dbaa5  apps/mac/Sources/TesseraCore/DevelopController.swift
+06288d8fd346211211fc75ec9cdc45ab37c8dbbef4517967ad82eb5f8aef0b3c  apps/mac/Sources/TesseraCore/Develop/DevelopController+Masks.swift
+d65d01f349269b1cc22bcd76b2c55725406e382d5a93dd70338093adabdbacc6  apps/mac/Sources/Tessera/App/AppModel.swift
+e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703  apps/mac/Sources/CTesseraFFI/CTesseraFFI.h
+
+FFI archive used:
+Path: /Volumes/betterSSD/tessera-cache/target/main/release/libtessera_ffi.a
+SHA-256: 8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03
+
+The raw final-freeze.txt is retained unchanged as captured; this manifest resolves its blank archive field with an independently verified archive path and hash.
