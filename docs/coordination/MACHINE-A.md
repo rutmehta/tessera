@@ -4,6 +4,22 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Two-writer gate integrated; format preflight next — 2026-09-28 00:58 UTC
+
+Maina920c46c integrates exactcombinedcf161acb crates/Cargo; evidence05522ce
+mergedmain0ee89e33. Sixfocused+3API+fmt/strict pass; root verified76sourcehashes
+and directexits. Earlier1selectionpass, firstRED and strictfailure retained.
+Only two Engine writers serialized; dormant fullrevision API tested, no CAS,
+allwriter exclusion or multi-filetransaction claim. Resource Sol audits Develop
+session lifecycle next; BatchApply staysblocked.
+
+Luna holdscompiler for versionpreflight test/plan1ed91805 (futureunknownkind
+must report SchemaVersion before graphparse); no RAWnode or new UI. B source
+review18cfb1c8 accepted, pinned snapshot/identity/geometry decisions in draft
+main219bd62c; existing renderedcopy unchanged. B resourcehold stays.
+DirectJSON provenance diagnostics372f/2457 catch expectedhistoryBridgeError;
+originalphase/deinit unreproduced and unresolved, raw evidence main60a310ac.
+
 ## PSD/Review integrated; recipe writer RED next — 2026-09-28 00:37 UTC
 
 Main7757f628 product bytes equal testeddc4073de; GUIevidence6bef18a merged

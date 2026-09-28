@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-28 00:37 UTC
+Updated: 2026-09-28 00:58 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -63,20 +63,23 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    diagnostic launch shows it without loading20k. Release has no Debug menu,
    so separate Debug-menu visibility remains unchecked. No complex-stack GUI,
    largefile cancellation latency or performance claim. Prior failures retained.
-2. **Resource Sol — combined source preparation:** c734074a passed6focused,
-   fmt and strict; precedinga312 passed1selection+3API. FirstREDmissingmodule
-   and strictunusedhelper/testinitializerfailure preserved. Root verified six
-   frozen hashes/directexits; reviewer acceptedlockorder/revisionsemantics.
-   Integrate currentmainPSD changes in candidate before finalcombinedcrate gate.
-   Only two writers serialized; revisionAPI dormant/tested, not batchCAS or a
-   transaction across recipe/XMP/index. BatchApply remains blocked.
-   **Engine Sol holds compiler** for unmerged diagnostic372f28dc tracing earlier
-   directJSONerror; existing currentFFI preserved, userpreview untouched.
+2. **Two Engine writer gate DONE maina920c46c**, exact combinedcf161acb
+   crates/Cargo bytes; portablecombinedevidence05522ce mergedmain0ee89e33.
+   Sixfocused+3API+fmt/strict pass; rootverified76sourcehashes/directexits.
+   Earlier1selectioncheckpassed, firstmissingmoduleRED and strictlintfailure
+   retained. Rawrevision APIs are tested but not yet consumed by production CAS.
+   Only set_selection/set_recipe_json diskRMW serialized, not otherwriters,
+   staleJSONprotection or multi-filetransactions. BatchApply remains blocked.
+   Resource Sol now audits Develop session lease/write lifecycle source-only.
+   DirectJSON diagnostic headless372f/context2457 both caught normalhistory
+   BridgeError; originalphase/deinit remains unreproduced/unresolved, evidence
+   main60a310ac. Diagnostic test code is not merged.
 3. **Luna — desktop released; UX05 source contract:** validationapps closed; normal65fa userpreview
    untouched. Draft true liveRAW graph/persistence boundary and minimum next
    dependency without editing B-owned Document implementation. B review18cfb1c8
    accepted as design evidence; draftmain219bd62c picks pinned snapshot first.
-   Luna prepares UNRUN futureformat version-preflight regression/plan. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
+   Luna owns compiler for futureformat version-preflight RED then narrowfix;
+   test/plancheckpoint1ed91805, no RAWnode/schema/UI. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
    evidence/2026-09-27. CUA screenshots inline only, no local export available.
 4. **B — resource hold:** completed PSD receipts b7294f0e/ccb9e8f1 published.
    Result628f798f and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c published
