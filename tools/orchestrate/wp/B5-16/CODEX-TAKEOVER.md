@@ -528,3 +528,17 @@ sources unchanged. Handoff file SAVE-DESTINATION-SWIFT-HANDOFF.md on the source 
 including non-atomic cleanup identity checks under hostile directory mutation. B compile/tests/GUI
 remain UNRUN and resource/heartbeat hold intact. A owns coherent f451870f archive and all gates/main.
 No runtime or user-preview acceptance claimed. Git result0a6d71e8-aed9-4b10-9222-3150ce72f194.
+
+## 2026-09-28 — Smart Preview Swift UI source checkpoint
+
+Accepted request d7764a2f-a47f-4542-84b6-b1459a144d8b. Published isolated
+origin/codex/smart-preview-ui at c6d05aa3 from fa7372b9. Tests 8f98ff26/dbe266b6;
+product 3a9995f3. Eight deterministic tests UNRUN. New injected async controller,
+serial RAW Build/Discard/Sync, between-photo cancellation, cached accessible states,
+explicit default-on source preference and actual Develop routing through existing
+recovery/save reservations. Pending edits cannot be discarded or silently bypassed
+for Original. Source handoff SMART-PREVIEW-SWIFT-HANDOFF.md is on that branch.
+A must supply frozen native API/generated bindings before compilation; all strict,
+runtime, offline/reconnect/export and GUI gates remain A-owned and unverified here.
+Save As branch preserved at 3ca3e9c9 (two additional request5cfbf6a4 tests also UNRUN).
+No B compiler/tests/apps/benchmarks, heartbeat or writer changes. Main merges remain A-only.
