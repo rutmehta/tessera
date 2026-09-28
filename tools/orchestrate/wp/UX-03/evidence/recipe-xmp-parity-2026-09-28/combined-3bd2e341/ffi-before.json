@@ -1,0 +1,19 @@
+{
+  "head": "3bd2e341b0323905e94eaa0e58d1e7d771e168cb",
+  "status": "",
+  "paths": {
+    "apps/mac/build/ffi/libtessera_ffi.a": "19f9f5487752e2588c6febe99d126905cad7d9986285d2aebf633dfaeba2b427",
+    "apps/mac/build/ffi/TesseraFFI.swift": "0ece5bfe1e7ed612395296b17723e24accedf88079240bec9a1946d7c2fa3cc3",
+    "apps/mac/build/ffi/CTesseraFFI.h": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": "b78ca980fa0ed7997ad3f65c17a7ea3b509758ebf466679f130702d83f25bca4",
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703",
+    "apps/mac/Sources/CTesseraFFI/module.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd"
+  },
+  "backup_paths": {
+    "CTesseraFFI.h": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+    "CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "TesseraFFI.swift": "0ece5bfe1e7ed612395296b17723e24accedf88079240bec9a1946d7c2fa3cc3",
+    "libtessera_ffi.a": "19f9f5487752e2588c6febe99d126905cad7d9986285d2aebf633dfaeba2b427"
+  }
+}

@@ -1,0 +1,232 @@
+{
+  "source_head": "3bd2e341b0323905e94eaa0e58d1e7d771e168cb",
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target/main",
+  "jobs": 2,
+  "rayon_threads": 2,
+  "results": [
+    {
+      "name": "recipe_write",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "recipe_write_tests::",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580754.5659032,
+      "finished_at": 1790580813.6127381,
+      "counts": [
+        "ok",
+        "8",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/recipe_write.log"
+    },
+    {
+      "name": "open_develop_editor_does_not_overwrite_newer_engine_settings",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::open_develop_editor_does_not_overwrite_newer_engine_settings",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580813.6133099,
+      "finished_at": 1790580814.489451,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/open_develop_editor_does_not_overwrite_newer_engine_settings.log"
+    },
+    {
+      "name": "selection_during_develop_does_not_conflict_with_edited_settings",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::selection_during_develop_does_not_conflict_with_edited_settings",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580814.489748,
+      "finished_at": 1790580814.863669,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/selection_during_develop_does_not_conflict_with_edited_settings.log"
+    },
+    {
+      "name": "legacy_rgb_disk_baseline_does_not_conflict_on_first_develop_save",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::legacy_rgb_disk_baseline_does_not_conflict_on_first_develop_save",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580814.863924,
+      "finished_at": 1790580815.25123,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/legacy_rgb_disk_baseline_does_not_conflict_on_first_develop_save.log"
+    },
+    {
+      "name": "foreign_unknown_nested_develop_field_cannot_be_erased_by_open_editor",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::foreign_unknown_nested_develop_field_cannot_be_erased_by_open_editor",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580815.251627,
+      "finished_at": 1790580815.615654,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/foreign_unknown_nested_develop_field_cannot_be_erased_by_open_editor.log"
+    },
+    {
+      "name": "preexisting_unknown_nested_develop_field_is_not_silently_dropped",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::preexisting_unknown_nested_develop_field_is_not_silently_dropped",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580815.615874,
+      "finished_at": 1790580815.936844,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/preexisting_unknown_nested_develop_field_is_not_silently_dropped.log"
+    },
+    {
+      "name": "second_develop_editor_cannot_replace_first_edit",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::second_develop_editor_cannot_replace_first_edit",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580815.937084,
+      "finished_at": 1790580816.3172328,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/second_develop_editor_cannot_replace_first_edit.log"
+    },
+    {
+      "name": "post_recipe_failure_advances_owner_baseline_for_newer_local_edit",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::post_recipe_failure_advances_owner_baseline_for_newer_local_edit",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580816.317568,
+      "finished_at": 1790580816.683778,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/post_recipe_failure_advances_owner_baseline_for_newer_local_edit.log"
+    },
+    {
+      "name": "develop_save_waits_for_destination_without_holding_catalog_mutex",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--lib",
+        "develop::tests::develop_save_waits_for_destination_without_holding_catalog_mutex",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580816.684082,
+      "finished_at": 1790580817.0551622,
+      "counts": [
+        "ok",
+        "1",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/develop_save_waits_for_destination_without_holding_catalog_mutex.log"
+    }
+  ]
+}
