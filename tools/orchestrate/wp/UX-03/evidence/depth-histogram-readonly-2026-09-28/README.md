@@ -17,6 +17,10 @@ Tests-only source freeze: commit `77eb68d0aa32fa43d414ebb6522c3b6a34142307`.
 - Direct exit: `control-cache-miss-77eb68d0/direct-exit.txt` = 0.
 - The no-model cache miss returned `MISSING_MODEL_MESSAGE`; the path does not download weights.
 
+## Saved-process validation RED
+
+Tests-only source freeze `c2737914525eeb6e59b14ca173cd298304932201` corrected an initial expected-message mistake in commit `b66d0348`; the captured run is under `adobe99-process-c2737914/`. With a valid cached native-input entry and saved Adobe PV99 recipe, the process-specific renderer diagnostic assertion passed. The test then failed only because Engine histogram started a second writer (counter 2 vs 1); direct exit 101. This is the intended no-session RED and also proves a cache hit does not hide process-version validation.
+
 ## Target cache relocation
 
 The first build used the worktree-local target cache. It was relocated after the runs because the internal disk had 3.1 GiB free. Both preserved BetterSSD copies contain 26,620 directory entries and 25,351 regular files; checksum-only rsync dry runs between the original internal tree and the first external copy, then between both external copies, exited 0 with no changed-file output. See `cache-relocation*.txt`, `cache-relocation-rsync-check.log`, and `cache-relocated-copy-check.log`.

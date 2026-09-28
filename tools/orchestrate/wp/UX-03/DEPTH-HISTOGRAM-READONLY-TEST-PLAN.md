@@ -1,6 +1,6 @@
 # Read-only saved-recipe depth histogram: test-first checkpoint
 
-Status: tests-only checkpoint following main `3dbd4a47`, committed as `77eb68d0`; primary intended RED observed. A separate tests-only follow-up adds saved-process validation coverage after preserving that freeze. No production histogram refactor is included in this checkpoint.
+Status: tests-only checkpoint following main `3dbd4a47`, committed as `77eb68d0`; primary intended RED observed. Adobe99 follow-up is frozen at `c2737914` and also reaches the intended second-writer RED after passing process-specific validation with a populated cache. No production histogram refactor is included in these checkpoints.
 
 ## Behavioral contract
 
@@ -28,4 +28,4 @@ At frozen HEAD `77eb68d0aa32fa43d414ebb6522c3b6a34142307`, the primary test comp
 
 The run used Rust 1.98.1, macOS 26.6.2 arm64, two Cargo jobs, and the worktree target cache. Existing Develop backend startup printed CPU/GPU L2 calibration timings; this was an automatic side effect of the tiny native test harness, not a performance or GPU acceptance claim. The inactive cache is preserved on BetterSSD and `target` is a symlink; future commands must explicitly set `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated`.
 
-No lease activation, FFI/generated binding change, or Swift/UI work is included. Before production implementation, the Adobe99 tests-only checkpoint must be frozen and run on the external target; then review the exact source checkpoint and preserve its intended RED.
+No lease activation, FFI/generated binding change, or Swift/UI work is included. The exact Adobe99 checkpoint was source-reviewed, then run on the external target; preserve both REDs before the implementation work.
