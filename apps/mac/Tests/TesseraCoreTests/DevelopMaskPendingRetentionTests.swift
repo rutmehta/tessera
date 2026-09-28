@@ -68,6 +68,7 @@ final class DevelopMaskPendingRetentionTests: XCTestCase {
 
     func testReentrantNewerComponentAndParamSurviveFailedAttempt() throws {
         let (c, s) = try fixture()
+        defer { s.before = nil }
         c.setMaskComponent(1, 0, json: "old", interactive: true)
         s.reject = "component:1"
         s.before = { _ in
@@ -87,12 +88,37 @@ final class DevelopMaskPendingRetentionTests: XCTestCase {
 
     func testRejectedGroupMergesOlderFieldsUnderNewerPatch() throws {
         let (c, s) = try fixture()
+        defer { s.before = nil }
         c.updateMaskGroup(1, patch(0.2, name: "retain-name"), interactive: true)
         s.reject = "group:1"
         s.before = { _ in c.updateMaskGroup(1, self.patch(0.8), interactive: true) }
         c.flushMaskPending()
         XCTAssertEqual(c.pendingMaskGroup[1]?.patch.amount, 0.8)
         XCTAssertEqual(c.pendingMaskGroup[1]?.patch.name, "retain-name")
+    }
+
+    func testSuccessfulAcknowledgementKeepsNewerSameKeyValues() throws {
+        let (c, s) = try fixture()
+        defer { s.before = nil }
+        c.setMaskComponent(1, 0, json: "old", interactive: true)
+        c.updateMaskGroup(1, patch(0.2), interactive: true)
+        c.setMaskParam(1, "exposure", 1, interactive: true)
+        s.before = { operation in
+            switch operation {
+            case "component:1": c.setMaskComponent(1, 0, json: "new", interactive: true)
+            case "group:1": c.updateMaskGroup(1, self.patch(0.8), interactive: true)
+            case "param:1:exposure": c.setMaskParam(1, "exposure", 2, interactive: true)
+            default: XCTFail("Unexpected operation")
+            }
+        }
+        c.flushMaskPending()
+        XCTAssertEqual(c.pendingComponent?.json, "new")
+        XCTAssertEqual(c.pendingMaskGroup[1]?.patch.amount, 0.8)
+        XCTAssertEqual(c.pendingMaskParams[.init(group: 1, name: "exposure")], 2)
+        s.before = nil
+        c.flushMaskPending()
+        XCTAssertFalse(c.hasPendingMaskChanges)
+        XCTAssertEqual(s.calls.count, 6)
     }
 
     func testBrushRejectionRetainsSamplesAndSuccessKeepsReentrantSample() throws {
