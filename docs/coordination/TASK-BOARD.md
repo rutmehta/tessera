@@ -1,5 +1,12 @@
 # Tessera task board — Machine A coordinator
 
+## Compact builds accepted; full desktop integration running — 2026-09-28 17:31 UTC
+
+Main integrates codec8b654835 and native builder8c5fd747. New previews use Compact2048; existing Detail/v1 assets remain readable with no automatic migration/discard, and Original remains default editing source. Sony Compact1640×1092 is7,319,246 bytes versus16,646,144 original (56.03% smaller). Codec error bounds passed, actual preserved v1 asset retained exact historical edited hash and exact upgraded samples. Full CPU+image-core257 tests/5 ignored passed; native builder172 unit tests plus real Compact offline/reconnect/conflict/full4920×3276JPEG workflow passed, strict/fmt0. Root independently verified6938 Git input hashes for each candidate's final gates. Evidence compact-8b654835 and ffi-compact-8c5fd747. No matched-output or interactive speed claim.
+
+B canonical-path correction775f39b0 received, result8b47428c accepted, clean independent source review. Requestc13b4fe0 peer receipt verified, queue01a0e903 processed; no duplicate dispatch. Older alias-only history already disconnected requires online reopen once. B UI775 integrated only on feature codex/smart-previews for matching FFI generation and full Swift gates;27 source tests still await full-package execution (earlier exact2ba isolated20 pass separately). Codec agent owns sole compilerlane. GPU/coarse/FFI proposals source-reviewed but UNRUN/unapplied; never call them accelerated product behavior. Protected GUI permission blocker remains; no app lifecycle action or bypass. Other queue preserved.
+
+
 ## Offline Library native acceptance — 2026-09-28 17:16 UTC
 
 Integrated94557873/35e378b4 catalog-backed offline Library API. Full cull+FFI Release gate444 passed/15 ignored at35e; only real-workflow test changed in945 to use canonical catalog folder captured online. Corrected actualSony workflow passed plus strict/fmt at945. Root verified6938 Git file hashes for fullgate and finalruns08–10, production identical across test correction; original fixture unchanged. Evidence offline-library-94557873 preserves failed canonical alias tests06/07 and initial lint failure03.
