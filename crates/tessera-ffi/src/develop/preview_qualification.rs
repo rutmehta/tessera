@@ -490,8 +490,10 @@ impl DevelopListener for ReopenListener {
 fn engine_same_engine_unchanged_proxy_reopen_baseline() {
     let route = std::env::var("TESSERA_QUALIFY_ROUTE").unwrap();
     assert!(["proxy-auto", "proxy-cpu"].contains(&route.as_str()));
-    assert_eq!(std::env::var("TESSERA_RENDER_BACKEND").unwrap_or_default(),
-        if route == "proxy-cpu" { "cpu" } else { "" });
+    assert_eq!(
+        std::env::var("TESSERA_RENDER_BACKEND").unwrap_or_default(),
+        if route == "proxy-cpu" { "cpu" } else { "" }
+    );
     assert!(std::env::var_os("TESSERA_SMART_PREVIEW_GPU").is_none());
     let format = std::env::var("TESSERA_QUALIFY_FORMAT").unwrap();
     assert!(["sdr", "edr"].contains(&format.as_str()));
@@ -506,14 +508,17 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
     let original = photos.join(fixture.file_name().unwrap());
     fs::copy(&fixture, &original).unwrap();
     let engine = Engine::open(temp.path().join("support").to_string_lossy().into()).unwrap();
-    engine.index_folder(photos.to_string_lossy().into()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into())
+        .unwrap();
     let images = engine.list_images(crate::ImageQuery::default()).unwrap();
     assert_eq!(images.len(), 1);
     let id = images[0].id.clone();
     let mut recipe: engine_api::recipe::Recipe =
         serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
     recipe.process_version = engine_api::recipe::ProcessVersion {
-        family: engine_api::recipe::ProcessFamily::Native, revision: 2,
+        family: engine_api::recipe::ProcessFamily::Native,
+        revision: 2,
     };
     recipe.settings.denoise.method = engine_api::recipe::settings::DenoiseMethod::Off;
     recipe.settings.tone.exposure = 0.25;
@@ -521,9 +526,20 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
         recipe.settings.output.hdr = true;
         recipe.settings.output.hdr_headroom_stops = 2.;
     }
-    recipe.history.record(&recipe.history.base.clone(), &recipe.settings,
-        engine_api::recipe::EditMeta::user("reopen baseline", 1)).unwrap();
-    engine.set_recipe_json(id.clone(), String::from_utf8(recipe.to_json().unwrap()).unwrap()).unwrap();
+    recipe
+        .history
+        .record(
+            &recipe.history.base.clone(),
+            &recipe.settings,
+            engine_api::recipe::EditMeta::user("reopen baseline", 1),
+        )
+        .unwrap();
+    engine
+        .set_recipe_json(
+            id.clone(),
+            String::from_utf8(recipe.to_json().unwrap()).unwrap(),
+        )
+        .unwrap();
     let captured_recipe = engine.get_recipe(id.clone()).unwrap();
     let built = engine.build_smart_preview(id.clone()).unwrap();
     assert!(built.width <= 2048 && built.height <= 2048);
@@ -539,45 +555,70 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
         GPU.lock().unwrap().take();
         RESIDENT.lock().unwrap().clear();
         let start = Instant::now();
-        let session = engine.clone().open_smart_preview_develop_session(id.clone()).unwrap();
+        let session = engine
+            .clone()
+            .open_smart_preview_develop_session(id.clone())
+            .unwrap();
         let returned = Instant::now();
         let info = session.info();
         assert_eq!(info.orientation, 1);
         let metal = info.backend.starts_with("Metal (");
-        if route == "proxy-cpu" { assert!(!metal); }
+        if route == "proxy-cpu" {
+            assert!(!metal);
+        }
         let weak_shared = Arc::downgrade(&session.shared);
         let weak_renderer = Arc::downgrade(&session.shared.renderer);
         let weak_gpu = GPU.lock().unwrap().as_ref().map(Arc::downgrade);
         assert_eq!(weak_gpu.is_some(), metal);
-        session.set_display_headroom(if float { 4. } else { 1. }).unwrap();
+        session
+            .set_display_headroom(if float { 4. } else { 1. })
+            .unwrap();
         let plan = session.plan_surface(640, 426);
-        let ring: Vec<Surface> = (0..2).map(|_| if float {
-            crate::surface::testing::create_owned_rgba16f(plan.width, plan.height)
-        } else {
-            Surface::create_rgba8(plan.width, plan.height).unwrap()
-        }).collect();
+        let ring: Vec<Surface> = (0..2)
+            .map(|_| {
+                if float {
+                    crate::surface::testing::create_owned_rgba16f(plan.width, plan.height)
+                } else {
+                    Surface::create_rgba8(plan.width, plan.height).unwrap()
+                }
+            })
+            .collect();
         let surface_ids: Vec<_> = ring.iter().map(Surface::id).collect();
         let (send, receive) = mpsc::channel();
         session.set_listener(Some(Arc::new(ReopenListener(send))));
         RESIDENT.lock().unwrap().clear();
         let before = stats(); // Calibration excluded from actual-frame proof.
         for surface in &ring {
-            session.attach_surface(surface.id(), plan.width, plan.height).unwrap();
+            session
+                .attach_surface(surface.id(), plan.width, plan.height)
+                .unwrap();
         }
         let expected = session.shared.state.lock().unwrap().generation;
         let deadline = Instant::now() + Duration::from_secs(60);
         let (delivered, frame) = loop {
-            let remaining = deadline.checked_duration_since(Instant::now()).expect("frame deadline");
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .expect("frame deadline");
             let (at, frame) = receive.recv_timeout(remaining).expect("frame timeout");
             let frame = frame.expect("render error");
-            if frame.generation == expected && frame.is_final { break (at, frame); }
+            if frame.generation == expected && frame.is_final {
+                break (at, frame);
+            }
         };
         let after = stats();
-        let output_kind = if float { RenderOutput::DisplayLinear(Headroom::new(4.)) }
-            else { RenderOutput::Display };
-        let resident = RESIDENT.lock().unwrap().contains(&(frame.generation, frame.level, output_kind));
+        let output_kind = if float {
+            RenderOutput::DisplayLinear(Headroom::new(4.))
+        } else {
+            RenderOutput::Display
+        };
+        let resident =
+            RESIDENT
+                .lock()
+                .unwrap()
+                .contains(&(frame.generation, frame.level, output_kind));
         let pixel_file = format!("cycle-{cycle}.rgb32f");
-        let settings: serde_json::Value = serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+        let settings: serde_json::Value =
+            serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
         let mut row = json!({"cycle":cycle,"initial_open":cycle==0,"route":route,"backend":info.backend,
             "format":format,"viewport":[640,426],"settings":settings,"plan_level":plan.level,
             "level":frame.level,"dimensions":[frame.width,frame.height],
@@ -590,16 +631,34 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
             "released":false,"release_ms":null,"phase":"measured",
             "release_deadline_ms":5000,"pixel_file":pixel_file});
         // Persist measured evidence before route/pixel/lifecycle assertions can fail.
-        fs::write(output.join(format!("cycle-{cycle}-measured.json")),
-            serde_json::to_vec_pretty(&row).unwrap()).unwrap();
-        assert_eq!(resident, metal, "selected backend is not proof of this frame's route");
+        fs::write(
+            output.join(format!("cycle-{cycle}-measured.json")),
+            serde_json::to_vec_pretty(&row).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            resident, metal,
+            "selected backend is not proof of this frame's route"
+        );
         assert_eq!(after.submissions > before.submissions, metal);
         assert_eq!(after.pixel_readback_bytes, before.pixel_readback_bytes);
-        if metal { assert!(after.last_resident_dispatches > 0); }
+        if metal {
+            assert!(after.last_resident_dispatches > 0);
+        }
         // All readback, file IO, settings comparison and lifecycle waits are AFTER delivery.
-        let pixel_bytes = pixels(ring.iter().find(|s| s.id() == frame.surface_id).unwrap(), &frame, float);
+        let pixel_bytes = pixels(
+            ring.iter().find(|s| s.id() == frame.surface_id).unwrap(),
+            &frame,
+            float,
+        );
         if float {
-            assert!(pixel_bytes.as_chunks::<4>().0.iter().any(|v| f32::from_le_bytes(*v) > 1.));
+            assert!(
+                pixel_bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .any(|v| f32::from_le_bytes(*v) > 1.)
+            );
         }
         fs::write(output.join(&pixel_file), pixel_bytes).unwrap();
         assert_eq!(settings, serde_json::to_value(&recipe.settings).unwrap());
@@ -611,20 +670,32 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
         GPU.lock().unwrap().take();
         let release_start = Instant::now();
         loop {
-            let released = weak_shared.upgrade().is_none() && weak_renderer.upgrade().is_none()
+            let released = weak_shared.upgrade().is_none()
+                && weak_renderer.upgrade().is_none()
                 && weak_gpu.as_ref().is_none_or(|w| w.upgrade().is_none())
-                && surface_ids.iter().all(|&sid| Surface::lookup_presentation(sid, plan.width, plan.height).is_err());
-            if released { break; }
-            assert!(release_start.elapsed() < Duration::from_secs(5), "owned resources failed to drain");
+                && surface_ids.iter().all(|&sid| {
+                    Surface::lookup_presentation(sid, plan.width, plan.height).is_err()
+                });
+            if released {
+                break;
+            }
+            assert!(
+                release_start.elapsed() < Duration::from_secs(5),
+                "owned resources failed to drain"
+            );
             std::thread::sleep(Duration::from_millis(5));
         }
         assert_eq!(engine.get_recipe(id.clone()).unwrap(), captured_recipe);
-        assert_eq!(digest(&journal_path), journal_hash, "unchanged open mutated journal");
+        assert_eq!(
+            digest(&journal_path),
+            journal_hash,
+            "unchanged open mutated journal"
+        );
         assert_eq!(digest(&pixels_path), proxy_hash);
         assert_eq!(digest(&fixture), fixture_hash);
         assert_eq!(digest(&original), fixture_hash);
         row["released"] = json!(true);
-        row["release_ms"] = json!(release_start.elapsed().as_secs_f64()*1000.);
+        row["release_ms"] = json!(release_start.elapsed().as_secs_f64() * 1000.);
         row["phase"] = json!("validated_and_released");
         rows.push(row);
         // Incremental evidence survives any later cycle failure.
