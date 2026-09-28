@@ -7447,12 +7447,15 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openLibrary(path: String) throws  -> LibraryStore
     
     /**
-     * Opens a develop session on an indexed RAW or rendered RGB image.
-     * Blocking decode: call off the main thread. One session per visible image.
-     * Blocking depth histogram for an indexed image using its saved recipe.
+     * Blocking depth histogram for an indexed image using its saved recipe,
+     * without opening an editable Develop session.
      */
     func depthHistogram(imageId: String) throws  -> [UInt64]
     
+    /**
+     * Opens a develop session on an indexed RAW or rendered RGB image.
+     * Blocking decode: call off the main thread. One session per visible image.
+     */
     func openDevelopSession(imageId: String) throws  -> DevelopSession
     
     /**
@@ -8008,9 +8011,8 @@ open func openLibrary(path: String)throws  -> LibraryStore  {
 }
     
     /**
-     * Opens a develop session on an indexed RAW or rendered RGB image.
-     * Blocking decode: call off the main thread. One session per visible image.
-     * Blocking depth histogram for an indexed image using its saved recipe.
+     * Blocking depth histogram for an indexed image using its saved recipe,
+     * without opening an editable Develop session.
      */
 open func depthHistogram(imageId: String)throws  -> [UInt64]  {
     return try  FfiConverterSequenceUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -8022,6 +8024,10 @@ open func depthHistogram(imageId: String)throws  -> [UInt64]  {
 })
 }
     
+    /**
+     * Opens a develop session on an indexed RAW or rendered RGB image.
+     * Blocking decode: call off the main thread. One session per visible image.
+     */
 open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
     return try  FfiConverterTypeDevelopSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -33564,10 +33570,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_depth_histogram() != 18154) {
+    if (uniffi_tessera_ffi_checksum_method_engine_depth_histogram() != 58713) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 14391) {
+    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 50243) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_document_ids() != 48705) {
