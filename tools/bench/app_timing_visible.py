@@ -98,6 +98,25 @@ def _digest(path):
     return h.hexdigest()
 
 
+def prepare_launch_redirection_targets(stdout_path, stderr_path):
+    """Create fresh stdout/stderr files before Launch Services starts the app."""
+    for path in (stdout_path, stderr_path):
+        Path(path).touch(exist_ok=False)
+
+
+def prepare_launch_stdio(output_directory, relay_directory=None):
+    output_directory = Path(output_directory)
+    if relay_directory is None:
+        stdio_directory = output_directory
+    else:
+        stdio_directory = Path(relay_directory)
+        stdio_directory.mkdir(parents=True, exist_ok=False)
+    stdout_path = stdio_directory / "app-stdout.log"
+    stderr_path = stdio_directory / "app-stderr.log"
+    prepare_launch_redirection_targets(stdout_path, stderr_path)
+    return stdio_directory, stdout_path, stderr_path
+
+
 def _same_path(left, right):
     return Path(left).resolve() == Path(right).resolve()
 
@@ -222,6 +241,8 @@ def main():
     parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--fixture", type=Path, required=True, help="one RAW fixture copied into this run")
     parser.add_argument("--output", type=Path, required=True, help="fresh disposable run directory")
+    parser.add_argument("--stdio-relay-directory", type=Path,
+                        help="fresh caller-owned directory for Launch Services stdout/stderr")
     args = parser.parse_args()
 
     app = args.app.resolve()
@@ -250,7 +271,7 @@ def main():
         raise ValueError("copied fixture hash mismatch")
     support = out / "app-support"
     trace_path = out / "trace.json"
-    stdout_path, stderr_path = out / "app-stdout.log", out / "app-stderr.log"
+    stdio_directory, stdout_path, stderr_path = prepare_launch_stdio(out, args.stdio_relay_directory)
     probe_source = Path(__file__).with_name("VisibleWindowProbe.swift")
     probe = out / "visible-window-probe"
     subprocess.run(["swiftc", str(probe_source), "-o", str(probe)], check=True, timeout=60)
@@ -271,7 +292,10 @@ def main():
                  "expected_commit": args.expected_commit, "app_url": str(app),
                  "fixture": str(copied_fixture), "fixture_sha256": _digest(copied_fixture),
                  "app_provenance": provenance, "probe_source_sha256": probe_hash,
-                 "probe_binary_sha256": probe_binary_hash, "visible_mode": True,
+                 "probe_binary_sha256": probe_binary_hash,
+                 "runner_source_sha256": _digest(Path(__file__)),
+                 "stdio_directory": str(stdio_directory), "stdout_path": str(stdout_path),
+                 "stderr_path": str(stderr_path), "visible_mode": True,
                  "nonactivating": False, "app_support": str(support),
                  "startup_allowance_seconds": 5, "outer_deadline_seconds": 180}
     (out / "run.json").write_text(json.dumps(preflight, indent=2) + "\n")

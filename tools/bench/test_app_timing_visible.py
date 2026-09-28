@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.dont_write_bytecode = True
@@ -26,6 +27,24 @@ def causal_trace(count=100):
 
 
 class VisibleTimingTests(unittest.TestCase):
+    def test_launch_redirection_targets_exist_before_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            output.mkdir()
+            stdio_directory, stdout, stderr = visible.prepare_launch_stdio(output)
+            self.assertEqual(stdio_directory, output)
+            self.assertTrue(stdout.is_file())
+            self.assertTrue(stderr.is_file())
+            self.assertEqual(stdout.read_bytes(), b"")
+            self.assertEqual(stderr.read_bytes(), b"")
+            relay = Path(directory) / "relay"
+            stdio_directory, stdout, stderr = visible.prepare_launch_stdio(output, relay)
+            self.assertEqual(stdio_directory, relay)
+            self.assertTrue(stdout.is_file())
+            self.assertTrue(stderr.is_file())
+            self.assertEqual(stdout.read_bytes(), b"")
+            self.assertEqual(stderr.read_bytes(), b"")
+
     def test_accepts_only_existing_causal_actual_present_oracle(self):
         summary = visible.validate_trace(causal_trace())
         self.assertEqual(summary["causally_presented_inputs"], 100)
