@@ -1,0 +1,329 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (0.43s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.10.0 (0.48s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.10.0
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache (0.37s)
+Building for production...
+[0/12] /Volumes/betterSSD/tessera-validation/document-save-settlement/candidate-62d546dc-focused-4a45-20260928/scratch/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[11/15] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:728:21: warning: 'where' only applies to the second pattern match in this 'case'
+726 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+727 |         switch e.keyCode {
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:730:22: warning: 'where' only applies to the second pattern match in this 'case'
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+731 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+732 |             return false
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[11/15] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[12/15] Linking Tessera
+[14/16] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:12:13: error: main actor-isolated default value in a nonisolated context
+ 10 | final class DocumentSaveSettlementTests: XCTestCase {
+ 11 |     private final class Fixture {
+ 12 |         let workspace = DocumentWorkspace()
+    |             `- error: main actor-isolated default value in a nonisolated context
+ 13 |         let document: DocumentController
+ 14 |         let windowIdentity = NSObject()
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:18:28: error: call to main actor-isolated initializer 'init(backend:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 16 |         var tokens: [DocumentSavePresentationToken] = []
+ 17 |         init() throws {
+ 18 |             document = try DocumentController(backend: StubDocumentBackend())
+    |                            `- error: call to main actor-isolated initializer 'init(backend:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 19 |             workspace.saveHasWindow = { true }
+ 20 |             workspace.saveFileExists = { _ in false }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentController.swift:50:5: note: calls to initializer 'init(backend:)' from outside of its actor context are implicitly asynchronous
+ 48 |     @ObservationIgnored private var fillDebounce: Task<Void, Never>?
+ 49 | 
+ 50 |     init(backend: any DocumentBackend) throws {
+    |     `- note: calls to initializer 'init(backend:)' from outside of its actor context are implicitly asynchronous
+ 51 |         self.backend = backend
+ 52 |         info = try backend.info()
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:19:23: error: main actor-isolated property 'saveHasWindow' can not be mutated from a nonisolated context
+ 17 |         init() throws {
+ 18 |             document = try DocumentController(backend: StubDocumentBackend())
+ 19 |             workspace.saveHasWindow = { true }
+    |                       `- error: main actor-isolated property 'saveHasWindow' can not be mutated from a nonisolated context
+ 20 |             workspace.saveFileExists = { _ in false }
+ 21 |             let binding = UUID()
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:325:29: note: mutation of this property is only permitted within the actor
+323 |     // Injected only by deterministic source tests; native session is injected at
+324 |     // the presenter's driver boundary, never by synthesizing dismissal callbacks.
+325 |     @ObservationIgnored var saveHasWindow: (() -> Bool)?
+    |                             `- note: mutation of this property is only permitted within the actor
+326 |     @ObservationIgnored var saveFileExists: ((URL) -> Bool)?
+327 |     @ObservationIgnored var saveWriter: ((DocumentController, URL?, @escaping @MainActor (Result<Void, Error>) -> Void) -> Void)?
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:20:23: error: main actor-isolated property 'saveFileExists' can not be mutated from a nonisolated context
+ 18 |             document = try DocumentController(backend: StubDocumentBackend())
+ 19 |             workspace.saveHasWindow = { true }
+ 20 |             workspace.saveFileExists = { _ in false }
+    |                       `- error: main actor-isolated property 'saveFileExists' can not be mutated from a nonisolated context
+ 21 |             let binding = UUID()
+ 22 |             workspace.savePresenter.registerBinding(binding)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:326:29: note: mutation of this property is only permitted within the actor
+324 |     // the presenter's driver boundary, never by synthesizing dismissal callbacks.
+325 |     @ObservationIgnored var saveHasWindow: (() -> Bool)?
+326 |     @ObservationIgnored var saveFileExists: ((URL) -> Bool)?
+    |                             `- note: mutation of this property is only permitted within the actor
+327 |     @ObservationIgnored var saveWriter: ((DocumentController, URL?, @escaping @MainActor (Result<Void, Error>) -> Void) -> Void)?
+328 | 
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:22:37: error: call to main actor-isolated instance method 'registerBinding' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 20 |             workspace.saveFileExists = { _ in false }
+ 21 |             let binding = UUID()
+ 22 |             workspace.savePresenter.registerBinding(binding)
+    |                                     `- error: call to main actor-isolated instance method 'registerBinding' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 23 |             workspace.savePresenter.updateBinding(binding, windowID: ObjectIdentifier(windowIdentity)) { [weak self] token, _, _ in
+ 24 |                 guard let self else { return nil }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentSavePresenter.swift:81:10: note: calls to instance method 'registerBinding' from outside of its actor context are implicitly asynchronous
+ 79 |     var isBusy: Bool { active != nil }
+ 80 | 
+ 81 |     func registerBinding(_ id: UUID) {
+    |          `- note: calls to instance method 'registerBinding' from outside of its actor context are implicitly asynchronous
+ 82 |         guard bindingID != id else { return }
+ 83 |         let oldHost = host, old = active
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:22:23: error: main actor-isolated property 'savePresenter' can not be referenced from a nonisolated context
+ 20 |             workspace.saveFileExists = { _ in false }
+ 21 |             let binding = UUID()
+ 22 |             workspace.savePresenter.registerBinding(binding)
+    |                       `- error: main actor-isolated property 'savePresenter' can not be referenced from a nonisolated context
+ 23 |             workspace.savePresenter.updateBinding(binding, windowID: ObjectIdentifier(windowIdentity)) { [weak self] token, _, _ in
+ 24 |                 guard let self else { return nil }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:317:29: note: property declared here
+315 |     @ObservationIgnored private var activeSavePrompt: UUID?
+316 |     @ObservationIgnored private var latestSaveRequest: UUID?
+317 |     @ObservationIgnored let savePresenter = DocumentSavePresenter()
+    |                             `- note: property declared here
+318 |     @ObservationIgnored private var presentedSaveAs: SaveAsRequest?
+319 |     @ObservationIgnored private var savePresentation: DocumentSavePresentationToken?
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:23:37: error: call to main actor-isolated instance method 'updateBinding(_:windowID:factory:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 21 |             let binding = UUID()
+ 22 |             workspace.savePresenter.registerBinding(binding)
+ 23 |             workspace.savePresenter.updateBinding(binding, windowID: ObjectIdentifier(windowIdentity)) { [weak self] token, _, _ in
+    |                                     `- error: call to main actor-isolated instance method 'updateBinding(_:windowID:factory:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 24 |                 guard let self else { return nil }
+ 25 |                 let session = FakeDocumentSaveSession()
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentSavePresenter.swift:88:10: note: calls to instance method 'updateBinding(_:windowID:factory:)' from outside of its actor context are implicitly asynchronous
+ 86 |         if let old { lose(old) }
+ 87 |     }
+ 88 |     func updateBinding(_ id: UUID, windowID: ObjectIdentifier, factory: @escaping Factory) {
+    |          `- note: calls to instance method 'updateBinding(_:windowID:factory:)' from outside of its actor context are implicitly asynchronous
+ 89 |         guard bindingID == id else { return }
+ 90 |         let newHost = DocumentSaveHostIdentity(bindingID: id, windowID: windowID)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:23:23: error: main actor-isolated property 'savePresenter' can not be referenced from a nonisolated context
+ 21 |             let binding = UUID()
+ 22 |             workspace.savePresenter.registerBinding(binding)
+ 23 |             workspace.savePresenter.updateBinding(binding, windowID: ObjectIdentifier(windowIdentity)) { [weak self] token, _, _ in
+    |                       `- error: main actor-isolated property 'savePresenter' can not be referenced from a nonisolated context
+ 24 |                 guard let self else { return nil }
+ 25 |                 let session = FakeDocumentSaveSession()
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:317:29: note: property declared here
+315 |     @ObservationIgnored private var activeSavePrompt: UUID?
+316 |     @ObservationIgnored private var latestSaveRequest: UUID?
+317 |     @ObservationIgnored let savePresenter = DocumentSavePresenter()
+    |                             `- note: property declared here
+318 |     @ObservationIgnored private var presentedSaveAs: SaveAsRequest?
+319 |     @ObservationIgnored private var savePresentation: DocumentSavePresentationToken?
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:25:31: error: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 23 |             workspace.savePresenter.updateBinding(binding, windowID: ObjectIdentifier(windowIdentity)) { [weak self] token, _, _ in
+ 24 |                 guard let self else { return nil }
+ 25 |                 let session = FakeDocumentSaveSession()
+    |                               `- error: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 26 |                 sessions.append(session); tokens.append(token)
+ 27 |                 return session
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSavePresenterTests.swift:7:13: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+  5 | // SOURCE ONLY / UNRUN on B. Fake owns native callback and membership independently.
+  6 | @MainActor
+  7 | final class FakeDocumentSaveSession: DocumentSaveNativeSession {
+    |             `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+  8 |     var canBegin = true
+  9 |     var containsSheet = false
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:31:29: error: call to main actor-isolated instance method 'complete' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 28 |             }
+ 29 |         }
+ 30 |         func drain(_ index: Int, response: Int = NSApplication.ModalResponse.cancel.rawValue) {
+    |              `- note: add '@MainActor' to make instance method 'drain(_:response:)' part of global actor 'MainActor'
+ 31 |             sessions[index].complete(response); sessions[index].detach()
+    |                             `- error: call to main actor-isolated instance method 'complete' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 32 |         }
+ 33 |     }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSavePresenterTests.swift:30:10: note: calls to instance method 'complete' from outside of its actor context are implicitly asynchronous
+ 28 |         retireCount += 1; completed = nil; changed = nil; parentClosed = nil
+ 29 |     }
+ 30 |     func complete(_ response: Int = NSApplication.ModalResponse.cancel.rawValue) { completed?(response) }
+    |          `- note: calls to instance method 'complete' from outside of its actor context are implicitly asynchronous
+ 31 |     func detach() { containsSheet = false; changed?() }
+ 32 | }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:31:65: error: call to main actor-isolated instance method 'detach()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 28 |             }
+ 29 |         }
+ 30 |         func drain(_ index: Int, response: Int = NSApplication.ModalResponse.cancel.rawValue) {
+    |              `- note: add '@MainActor' to make instance method 'drain(_:response:)' part of global actor 'MainActor'
+ 31 |             sessions[index].complete(response); sessions[index].detach()
+    |                                                                 `- error: call to main actor-isolated instance method 'detach()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 32 |         }
+ 33 |     }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSavePresenterTests.swift:31:10: note: calls to instance method 'detach()' from outside of its actor context are implicitly asynchronous
+ 29 |     }
+ 30 |     func complete(_ response: Int = NSApplication.ModalResponse.cancel.rawValue) { completed?(response) }
+ 31 |     func detach() { containsSheet = false; changed?() }
+    |          `- note: calls to instance method 'detach()' from outside of its actor context are implicitly asynchronous
+ 32 | }
+ 33 | 
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift:178:63: error: cannot convert value of type 'SaveAsRequest' to expected argument type 'UUID'
+176 |         XCTAssertEqual(f.sessions[0].endCount, 0)
+177 |         let next = w.saveForPreparation(other, saveAs: true) { _ in }
+178 |         w.finishSaveAs(old); f.drain(0); w.cancelDocumentSave(old)
+    |                                                               `- error: cannot convert value of type 'SaveAsRequest' to expected argument type 'UUID'
+179 |         XCTAssertEqual(w.saveAsRequest?.id, next)
+180 |         w.cancelDocumentSave(next); f.drain(1)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+error: fatalError

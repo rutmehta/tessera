@@ -128,11 +128,10 @@ struct SaveAsRequest: Identifiable {
         }
     }
 
-    let id = UUID()
+    var id = UUID()
     let doc: DocumentController
     var name: String
     var folder: URL
-    var then: (@MainActor () -> Void)?
 
     /// The format the name's extension asks for (`.tessera-doc` when it has none).
     var format: Format { Self.format(of: name) }
@@ -168,10 +167,67 @@ struct SaveAsRequest: Identifiable {
     }
 }
 
+private final class DocumentSaveHostCloseObservation {
+    private let token: NSObjectProtocol
+    @MainActor init(window: NSWindow, closed: @escaping @MainActor () -> Void) {
+        token = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification,
+            object: window, queue: .main) { _ in MainActor.assumeIsolated { closed() } }
+    }
+    deinit { NotificationCenter.default.removeObserver(token) }
+}
+
+/// A bridge incarnation owns a fresh UUID, even if SwiftUI replaces it on the
+/// same NSWindow. Updates and teardown never register an old incarnation anew.
+struct DocumentSaveParentBridge: NSViewRepresentable {
+    let presenter: DocumentSavePresenter
+    final class ParentView: NSView {
+        let bindingID = UUID()
+        let presenter: DocumentSavePresenter
+        private var closeObservation: DocumentSaveHostCloseObservation?
+        private weak var boundWindow: NSWindow?
+        init(presenter: DocumentSavePresenter) {
+            self.presenter = presenter
+            super.init(frame: .zero)
+            presenter.registerBinding(bindingID)
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            refresh()
+        }
+        func refresh() {
+            guard let window else {
+                closeObservation = nil; boundWindow = nil
+                presenter.clearWindow(bindingID)
+                return
+            }
+            if boundWindow !== window {
+                boundWindow = window
+                let capturedWindowID = ObjectIdentifier(window)
+                closeObservation = DocumentSaveHostCloseObservation(window: window) { [weak self] in
+                    guard let self else { return }
+                    self.presenter.removeBinding(self.bindingID, windowID: capturedWindowID)
+                }
+            }
+            presenter.updateBinding(bindingID, windowID: ObjectIdentifier(window)) { [weak window] _, content, actions in
+                guard let window else { return nil }
+                return AppKitDocumentSaveSession(parent: window, content: content, actions: actions)
+            }
+        }
+        func shutdown() {
+            closeObservation = nil; boundWindow = nil
+            presenter.removeBinding(bindingID)
+        }
+    }
+    func makeNSView(context: Context) -> ParentView { ParentView(presenter: presenter) }
+    func updateNSView(_ view: ParentView, context: Context) { view.refresh() }
+    static func dismantleNSView(_ view: ParentView, coordinator: ()) { view.shutdown() }
+}
+
 /// File ▸ Save As…: name (focused on open, `document.saveAs.name`), format and folder.
 struct SaveAsSheet: View {
-    @Bindable var workspace: DocumentWorkspace
     @State var request: SaveAsRequest
+    let actions: DocumentSavePresentationActions
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -213,7 +269,7 @@ struct SaveAsSheet: View {
         } leading: {
             EmptyView()
         } actions: {
-            Button("Cancel") { workspace.saveAsRequest = nil }
+            Button("Cancel") { actions.cancel() }
                 .keyboardShortcut(.cancelAction).sheetButton()
                 .accessibilityIdentifier("document.saveAs.cancel")
             Button("Save") { save() }
@@ -231,17 +287,12 @@ struct SaveAsSheet: View {
 
     private func save() {
         guard request.isValid else { return }
-        workspace.finishSaveAs(request)
+        actions.submit(request)
     }
 
     private func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose a Folder"
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        panel.directoryURL = request.folder
-        panel.prompt = "Choose"
-        if panel.runModal() == .OK, let url = panel.url { request.folder = url }
+        actions.chooseFolder(request.folder) { url in
+            if let url { request.folder = url }
+        }
     }
 }

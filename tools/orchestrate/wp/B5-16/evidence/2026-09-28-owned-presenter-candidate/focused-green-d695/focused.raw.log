@@ -1,0 +1,307 @@
+[0/1] Planning build
+Building for production...
+[0/5] Write sources
+[1/5] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[4/6] Compiling TesseraPackageTests runner.swift
+[4/6] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[5/6] Linking TesseraPackageTests
+Build complete! (32.12s)
+Test Suite 'Selected tests' started at 2026-09-28 04:02:03.429.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 04:02:03.430.
+Test Suite 'DevelopRecoveryAdmissionBehaviorTests' started at 2026-09-28 04:02:03.430.
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testDevelopReuseUsesImageIdentityAcrossDenseIDChanges]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [1.03125, 0.341292, 0.373292]; GPU [3.490791, 0.793209, 0.960625]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testDevelopReuseUsesImageIdentityAcrossDenseIDChanges]' passed (0.065 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedClosePreservesSavedSmartAlbumSourceAndFilter]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5730419999999999, 0.27391600000000005, 0.315958]; GPU [2.669708, 0.9652919999999999, 0.938333]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedClosePreservesSavedSmartAlbumSourceAndFilter]' passed (0.041 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedSaveKeepsWorkspaceAndExplicitRetryCommitsThenReopensFreshController]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5706669999999999, 0.28391700000000003, 0.362583]; GPU [4.176459, 0.870834, 0.94525]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedSaveKeepsWorkspaceAndExplicitRetryCommitsThenReopensFreshController]' passed (0.050 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseCommitsGridDoubleClickSelectionAndLoupeTogether]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.553542, 0.268, 0.29575]; GPU [2.618459, 0.9265, 0.80875]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseCommitsGridDoubleClickSelectionAndLoupeTogether]' passed (0.034 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseKeepsTetherAutoAdvanceTargetAndLoupeTogether]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5388339999999999, 0.271042, 0.310916]; GPU [2.646042, 0.853125, 0.932167]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseKeepsTetherAutoAdvanceTargetAndLoupeTogether]' passed (0.031 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseMovesPeoplePhotoToAllPhotosAndLoupeTogether]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.523, 0.27045800000000003, 0.29604199999999997]; GPU [2.747667, 0.861834, 0.9872909999999999]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseMovesPeoplePhotoToAllPhotosAndLoupeTogether]' passed (0.036 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseOpensSavedSmartAlbumAndClearsFilterAsOneIntent]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.542333, 0.339042, 0.31679199999999996]; GPU [2.871834, 0.860625, 0.983542]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseOpensSavedSmartAlbumAndClearsFilterAsOneIntent]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseReturnsToLibraryAndEntersCompareAsOneIntent]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.513792, 0.287041, 0.286833]; GPU [3.4957920000000002, 0.861459, 0.891709]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseReturnsToLibraryAndEntersCompareAsOneIntent]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldGridDestinationResolvesTargetByImageIdentityAfterLibraryRevisionChanges]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [1.402709, 0.76925, 0.365458]; GPU [5.409792, 1.925458, 1.786708]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldGridDestinationResolvesTargetByImageIdentityAfterLibraryRevisionChanges]' passed (0.076 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLatestViewIntentCommitsAfterOneHeldDevelopClose]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [1.702875, 1.074958, 1.238]; GPU [8.744791, 4.511583000000001, 1.9057080000000002]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLatestViewIntentCommitsAfterOneHeldDevelopClose]' passed (0.066 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLayeredCompletionCannotTakeOverAfterLibraryReplacement]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.553, 0.270083, 0.329458]; GPU [3.111542, 0.77275, 0.946208]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLayeredCompletionCannotTakeOverAfterLibraryReplacement]' passed (0.254 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLibraryDestinationDuringLayersCloseInvalidatesCopyUntilReissued]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.542583, 0.27370900000000004, 0.324875]; GPU [3.204042, 0.598417, 4.030875]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLibraryDestinationDuringLayersCloseInvalidatesCopyUntilReissued]' passed (0.040 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testPresentingExportSheetDoesNotCloseOrReserveDevelopPixels]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.560959, 0.28058299999999997, 0.31837499999999996]; GPU [5.221667, 0.931417, 0.650583]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testPresentingExportSheetDoesNotCloseOrReserveDevelopPixels]' passed (0.055 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringHeldLayerBackendKeepsReservationAndPreventsStaleViewStatus]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.545083, 0.2705, 0.319834]; GPU [4.085667, 0.869042, 0.915208]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringHeldLayerBackendKeepsReservationAndPreventsStaleViewStatus]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringLayersCloseInvalidatesCopyButStillRequiresFreshSelection]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.539292, 0.274833, 0.364208]; GPU [3.2832500000000002, 0.6285000000000001, 3.850125]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringLayersCloseInvalidatesCopyButStillRequiresFreshSelection]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testStaleLayeredFailurePreservesReplacementStatusAndReleasesSourceGate]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.571416, 0.30475, 0.345291]; GPU [3.097209, 0.892667, 0.8638330000000001]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testStaleLayeredFailurePreservesReplacementStatusAndReleasesSourceGate]' passed (0.047 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryClearsRecoveryOwnedBlockedNavigationStatus]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.560958, 0.274459, 0.27720799999999995]; GPU [6.32875, 0.903375, 0.676333]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryClearsRecoveryOwnedBlockedNavigationStatus]' passed (0.053 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryPreservesNewerUnrelatedStatus]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.600417, 0.278375, 0.27641699999999997]; GPU [3.372625, 0.5475, 0.61275]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryPreservesNewerUnrelatedStatus]' passed (0.051 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSupersededFolderCallbackSettlesOnceAndMayReenterOpenFolder]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5784170000000001, 0.352291, 0.287042]; GPU [6.851625, 0.975542, 1.0675839999999999]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSupersededFolderCallbackSettlesOnceAndMayReenterOpenFolder]' passed (0.081 seconds).
+Test Suite 'DevelopRecoveryAdmissionBehaviorTests' passed at 2026-09-28 04:02:04.566.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 1.135 (1.136) seconds
+Test Suite 'DevelopRecoveryAdmissionTests' started at 2026-09-28 04:02:04.566.
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionTests testLaterConflictingAliasGateWaitsForEarlierReservationBeforeClosing]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.530458, 0.272458, 0.314]; GPU [3.137875, 0.58175, 4.29275]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionTests testLaterConflictingAliasGateWaitsForEarlierReservationBeforeClosing]' passed (0.047 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionTests testReservationsCoverSamePathAndHardLinkAliasesButNotUnrelatedSources]' started.
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionTests testReservationsCoverSamePathAndHardLinkAliasesButNotUnrelatedSources]' passed (0.032 seconds).
+Test Suite 'DevelopRecoveryAdmissionTests' passed at 2026-09-28 04:02:04.646.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.080 (0.080) seconds
+Test Suite 'DevelopRecoveryCoordinatorTests' started at 2026-09-28 04:02:04.646.
+Test Case '-[TesseraCoreTests.DevelopRecoveryCoordinatorTests testFailedActiveCloseDoesNotAdmitAnotherSamePhotoOpen]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.345292, 0.26654100000000003, 0.30833299999999997]; GPU [6.881292, 0.873709, 1.010042]
+Test Case '-[TesseraCoreTests.DevelopRecoveryCoordinatorTests testFailedActiveCloseDoesNotAdmitAnotherSamePhotoOpen]' passed (0.036 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryCoordinatorTests testFailedCleanupOfStaleOpenDoesNotAdmitSameOwnerPhotoOpen]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.3335, 0.271333, 0.274458]; GPU [6.805000000000001, 0.887291, 0.976958]
+Test Case '-[TesseraCoreTests.DevelopRecoveryCoordinatorTests testFailedCleanupOfStaleOpenDoesNotAdmitSameOwnerPhotoOpen]' passed (0.036 seconds).
+Test Suite 'DevelopRecoveryCoordinatorTests' passed at 2026-09-28 04:02:04.718.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.071 (0.071) seconds
+Test Suite 'DevelopRecoveryStateTests' started at 2026-09-28 04:02:04.718.
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testFailedCloseRetainsOwnerAndControllerUntilExplicitRetrySucceeds]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.405875, 0.26525000000000004, 0.297708]; GPU [5.161625000000001, 0.770709, 1.0302499999999999]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testFailedCloseRetainsOwnerAndControllerUntilExplicitRetrySucceeds]' passed (0.033 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testFailedStaleOpenCleanupRegistersBeforeInitiatingBarrierReturns]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.32625, 0.347, 0.28612499999999996]; GPU [6.920667, 0.805416, 0.976083]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testFailedStaleOpenCleanupRegistersBeforeInitiatingBarrierReturns]' passed (0.033 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testFinishOpenClosesProducedControllerThatWasNotTransferred]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.49175, 0.26925, 0.29920800000000003]; GPU [7.4025, 0.7733749999999999, 1.041959]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testFinishOpenClosesProducedControllerThatWasNotTransferred]' passed (0.034 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testJoinedCloseCallersShareOneFailureAndDoNotAutoRetry]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.4695, 0.268625, 0.310875]; GPU [7.344625, 0.923916, 0.965667]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testJoinedCloseCallersShareOneFailureAndDoNotAutoRetry]' passed (0.034 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testLateProducedControllerIsRetainedAndCanBeRetried]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.380625, 0.275417, 0.30762500000000004]; GPU [6.9245, 0.761459, 0.914584]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testLateProducedControllerIsRetainedAndCanBeRetried]' passed (0.038 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testOwnerlessRecoveryRecordBlocksEveryLibraryUntilResolved]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.466875, 0.27599999999999997, 0.306083]; GPU [6.91925, 4.245625, 0.980833]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testOwnerlessRecoveryRecordBlocksEveryLibraryUntilResolved]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testSuccessfulBarrierKeepsAdmissionReservedUntilGateFinish]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.367125000000001, 0.281667, 0.300083]; GPU [6.980958, 0.874833, 0.702375]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testSuccessfulBarrierKeepsAdmissionReservedUntilGateFinish]' passed (0.035 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testTransferRequiresMatchingOwnerAndExactControllerRecipient]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [4.3957500000000005, 0.275625, 0.281583]; GPU [6.955708, 0.564708, 0.7847919999999999]
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testTransferRequiresMatchingOwnerAndExactControllerRecipient]' passed (0.033 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testUnknownSessionCloseFailsClosed]' started.
+Test Case '-[TesseraCoreTests.DevelopRecoveryStateTests testUnknownSessionCloseFailsClosed]' passed (0.000 seconds).
+Test Suite 'DevelopRecoveryStateTests' passed at 2026-09-28 04:02:04.998.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.280 (0.280) seconds
+Test Suite 'DocumentAdjustmentAnalysisTests' started at 2026-09-28 04:02:04.998.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testAutoToneStretchesEachChannelAndColorSetsGamma]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testAutoToneStretchesEachChannelAndColorSetsGamma]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testBlackWhiteAutoMatchesLumaAndKeepsDefaultsForMissingHues]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testBlackWhiteAutoMatchesLumaAndKeepsDefaultsForMissingHues]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCompositeAnalysisNeutralizesTheLayerAndLeavesNoTrace]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCompositeAnalysisNeutralizesTheLayerAndLeavesNoTrace]' passed (0.019 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCubeAnd3DLLoaders]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCubeAnd3DLLoaders]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testEqualizeMapsAreCDFMinNormalized]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testEqualizeMapsAreCDFMinNormalized]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testHDREqualizeFreezesALuminanceMap]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testHDREqualizeFreezesALuminanceMap]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLabStatisticsAndMatchColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLabStatisticsAndMatchColor]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testMenusListEveryKindOnceInPhotoshopOrder]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testMenusListEveryKindOnceInPhotoshopOrder]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testNewImageDependentLayersAreAnalysed]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testNewImageDependentLayersAreAnalysed]' passed (0.023 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testPhotoFilterPresetsMatchTheEngineSwatches]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testPhotoFilterPresetsMatchTheEngineSwatches]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testStubRendersTheNewPointwiseKinds]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testStubRendersTheNewPointwiseKinds]' passed (0.001 seconds).
+Test Suite 'DocumentAdjustmentAnalysisTests' passed at 2026-09-28 04:02:05.043.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.045 (0.045) seconds
+Test Suite 'DocumentLayersActivationTests' started at 2026-09-28 04:02:05.043.
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testDefaultActivationIsIndependentOfCallerOwnedStatus]' started.
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testDefaultActivationIsIndependentOfCallerOwnedStatus]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testExistingBackendInstallSelectsInternallyWithoutModePublication]' started.
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testExistingBackendInstallSelectsInternallyWithoutModePublication]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testHeldCallerOwnedLoadInstallsWithoutPublishingModeAndSettlesOnce]' started.
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testHeldCallerOwnedLoadInstallsWithoutPublishingModeAndSettlesOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testOpenRetainsDefaultModePublication]' started.
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testOpenRetainsDefaultModePublication]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testSuppressedActivationStillAllowsWorkspaceStatus]' started.
+Test Case '-[TesseraCoreTests.DocumentLayersActivationTests testSuppressedActivationStillAllowsWorkspaceStatus]' passed (0.000 seconds).
+Test Suite 'DocumentLayersActivationTests' passed at 2026-09-28 04:02:05.046.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'DocumentLoadSettlementTests' started at 2026-09-28 04:02:05.046.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testBackendFailureSettlesOnceWithoutInstall]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testBackendFailureSettlesOnceWithoutInstall]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testDelayedBackendCompletionDoesNotReleaseAtDispatch]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testDelayedBackendCompletionDoesNotReleaseAtDispatch]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testEarlyRejectsSettleWithoutExecutor]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testEarlyRejectsSettleWithoutExecutor]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testReleasedWorkspaceStillSettlesAfterBackendReturns]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testReleasedWorkspaceStillSettlesAfterBackendReturns]' passed (0.000 seconds).
+Test Suite 'DocumentLoadSettlementTests' passed at 2026-09-28 04:02:05.048.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'DocumentLoadStatusTests' started at 2026-09-28 04:02:05.048.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedFailureDoesNotOverwriteNewerStatus]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedFailureDoesNotOverwriteNewerStatus]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedRejectionDoesNotPublishStatus]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedRejectionDoesNotPublishStatus]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedSuccessPreservesStatusAndStillInstallsAndSettles]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedSuccessPreservesStatusAndStillInstallsAndSettles]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultRetainsStartFailureAndRejectionMessages]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultRetainsStartFailureAndRejectionMessages]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultSuccessStillPublishesLegacyMessage]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultSuccessStillPublishesLegacyMessage]' passed (0.000 seconds).
+Test Suite 'DocumentLoadStatusTests' passed at 2026-09-28 04:02:05.049.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DocumentSavePresenterTests' started at 2026-09-28 04:02:05.049.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelBeforeBeginFromFactoryNeverBeginsNativeSession]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelBeforeBeginFromFactoryNeverBeginsNativeSession]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelThenWholeNativeLifetimeBeforeBeginReturnsStillDrains]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelThenWholeNativeLifetimeBeforeBeginReturnsStillDrains]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCompletionWithCapturedSheetStillNativeQueuedCannotRelease]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCompletionWithCapturedSheetStillNativeQueuedCannotRelease]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testDuplicateCompletionBeforeDetachPreservesFirstResponse]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testDuplicateCompletionBeforeDetachPreservesFirstResponse]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testHeldChildCancellationDefersParentEndIncludingReentrantChildReturn]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testHeldChildCancellationDefersParentEndIncludingReentrantChildReturn]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testNewBindingMayWaitForOldDrainButOldCloseCannotRemoveNewHost]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testNewBindingMayWaitForOldDrainButOldCloseCannotRemoveNewHost]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testOldWindowCloseForCurrentBridgeCannotShutdownReboundWindow]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testOldWindowCloseForCurrentBridgeCannotShutdownReboundWindow]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentCloseSettlesLossButNativeMembershipStillMustDrain]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentCloseSettlesLossButNativeMembershipStillMustDrain]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentLossCancelsHeldChildEvenIfNativeCompletionAlreadyArrived]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentLossCancelsHeldChildEvenIfNativeCompletionAlreadyArrived]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testReentrantCancelDuringBeginAndCompletionDuringEndAreIdempotent]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testReentrantCancelDuringBeginAndCompletionDuringEndAreIdempotent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testSameWindowNewGenerationRejectsOldUpdateAndTeardown]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testSameWindowNewGenerationRejectsOldUpdateAndTeardown]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testStaleCompletionCannotRetireSuccessorAndUnrelatedAdmissionFailsClosed]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testStaleCompletionCannotRetireSuccessorAndUnrelatedAdmissionFailsClosed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testWhollyUnseenAttachmentWithLiveViewWaitsCompletionAndDetachInEitherOrder]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testWhollyUnseenAttachmentWithLiveViewWaitsCompletionAndDetachInEitherOrder]' passed (0.000 seconds).
+Test Suite 'DocumentSavePresenterTests' passed at 2026-09-28 04:02:05.050.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DocumentSaveSettlementTests' started at 2026-09-28 04:02:05.050.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringFormDrainCannotStartReplacementOrWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringFormDrainCannotStartReplacementOrWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLegacyHeadlessSaveAsUsesAutomaticDestinationAndReportsSuccess]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLegacyHeadlessSaveAsUsesAutomaticDestinationAndReportsSuccess]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCannotOverwriteNewPromptOrAdmitDuplicateDocumentWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCannotOverwriteNewPromptOrAdmitDuplicateDocumentWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentCloseFailsQueuedSuccessorAndKeepsNativeDrain]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentCloseFailsQueuedSuccessorAndKeepsNativeDrain]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReentrantCancelledCallerSupersedesIntermediateQueuedRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReentrantCancelledCallerSupersedesIntermediateQueuedRequest]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndStaleApprovalCannotWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndStaleApprovalCannotWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceOwnsDistinctTokenAndWaitsForItsPhysicalDrainBeforeWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceOwnsDistinctTokenAndWaitsForItsPhysicalDrainBeforeWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSaveWaitsForCompletionAndMembershipThenWritesOnce]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSaveWaitsForCompletionAndMembershipThenWritesOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailurePreservesFolderAndAdmittedWriteDrainsThroughCancellation]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailurePreservesFolderAndAdmittedWriteDrainsThroughCancellation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndStaleActionsCannotAffectSuccessor]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndStaleActionsCannotAffectSuccessor]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSettlementTests' passed at 2026-09-28 04:02:05.053.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'DocumentSaveSheetAttachmentTests' started at 2026-09-28 04:02:05.053.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testNewSheetIsNotModifiedWhenOldSheetHasDetached]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testNewSheetIsNotModifiedWhenOldSheetHasDetached]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testQueuedCapturedSheetStillBelongsToParentUnderUnrelatedAttachedSheet]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testQueuedCapturedSheetStillBelongsToParentUnderUnrelatedAttachedSheet]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSheetAttachmentTests' passed at 2026-09-28 04:02:05.053.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'DocumentSaveSheetProbeTests' started at 2026-09-28 04:02:05.053.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testDismantlingOldAttachedBridgeCannotClearNewBridgeOnSameWindow]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testDismantlingOldAttachedBridgeCannotClearNewBridgeOnSameWindow]' passed (0.055 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testStaleSameWindowBridgeTeardownDoesNotShutdownNewBinding]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testStaleSameWindowBridgeTeardownDoesNotShutdownNewBinding]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSheetProbeTests' passed at 2026-09-28 04:02:05.109.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.056 (0.056) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 04:02:05.109.
+	 Executed 90 tests, with 0 failures (0 unexpected) in 1.674 (1.679) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 04:02:05.109.
+	 Executed 90 tests, with 0 failures (0 unexpected) in 1.674 (1.680) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

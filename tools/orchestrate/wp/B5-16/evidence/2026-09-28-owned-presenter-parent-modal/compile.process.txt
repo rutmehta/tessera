@@ -1,0 +1,5 @@
+pid=49453
+pgid=49453
+started_utc=2026-09-28T08:23:21.132711+00:00
+command=swift test --list-tests --scratch-path /Volumes/betterSSD/tessera-validation/document-save-settlement/candidate-62d546dc-focused-4a45-20260928/scratch --jobs 2 -c release -Xswiftc -enable-testing
+scratch=/Volumes/betterSSD/tessera-validation/document-save-settlement/candidate-62d546dc-focused-4a45-20260928/scratch
