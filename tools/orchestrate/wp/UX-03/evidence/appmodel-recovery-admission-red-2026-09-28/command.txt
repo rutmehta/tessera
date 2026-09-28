@@ -1,0 +1,1 @@
+swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/develop-recovery-red-tests-b928219d/scratch -c release --jobs 2 -Xswiftc -enable-testing --filter DevelopRecoveryCoordinatorTests

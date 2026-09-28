@@ -1,0 +1,15 @@
+{
+  "status": "behavioral-red",
+  "candidate": "b928219da34d5bf56b76285ab31927c43d94e31c",
+  "opener_seam_commit": "58e1b39fc6353745ebb5bc42d531e4fb5a316a18",
+  "tests_executed": 2,
+  "tests_failed": 2,
+  "unexpected_failures": 0,
+  "direct_exit": 1,
+  "assertion": "both injected close failures were observed; after barriers opener count was 2, expected 1",
+  "watchdog_seconds": 300,
+  "elapsed_seconds": 206.723,
+  "build_configuration": "Release",
+  "jobs": 2,
+  "ffi_archive_sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03"
+}
