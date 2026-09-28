@@ -582,3 +582,15 @@ photo identity and status generation: same-photo refresh is awaited, changed-pho
 latest snapshot and exactly two calls; selection-change negative control retained.
 20 tests UNRUN on B. Badge/local-save fix preserved. No offline Library changes:
 await A exact native API. No B workloads/heartbeat/writer changes; A gates/main.
+
+### Offline Library 889b3f34 — source handoff
+
+Published codex/smart-preview-ui ef307d8d; tests dac7126e/product c5e001e5.
+Cached factory calls frozen openSmartPreviewLibrarySession; A binding pending.
+Missing-folder recent/relaunch routes cache; online errors propagate. Cached mode
+skips index/list/library.json/analysis/people/profile/autosync startup and offers
+explicit reopen, declaration labels, empty reconnect/build guidance, read-only
+catalog controls. Explicit preview choice/defaultOriginal and refresh/badges intact.
+20 prior + 6 new tests UNRUN on B. New tests prove injected router/mode contract,
+not real native factory or GUI relaunch. A must compile/generate/run/integrate.
+No Document/SaveAs edits, workloads, heartbeat or writer changes. SaveAs3ca3e9c9 preserved.
