@@ -805,6 +805,50 @@ struct AiMaskJob {
 }
 
 impl AiMaskJob {
+    fn finish(&self, shared: &Arc<Shared>, result: anyhow::Result<AlphaPlane>) {
+        // AI jobs are fire-and-forget. Their computation can outlive a close;
+        // completed work must not revive rendering or notify a closed editor.
+        if !matches!(shared.state.lock(), Ok(st) if !st.closing && !st.closed) {
+            return;
+        }
+        let masks = &shared.masks;
+        let error = match result {
+            Ok(plane) => {
+                masks.set_ai(&self.key, AiEntry::Ready(Arc::new(plane)));
+                None
+            }
+            Err(e) => {
+                let message = format!("{e:#}");
+                masks.set_ai(&self.key, AiEntry::Failed(message.clone()));
+                Some(message)
+            }
+        };
+        if let Some(l) = masks.listener() {
+            l.ai_progress(MaskJobUpdate {
+                key: self.key.clone(),
+                title: component_title(&self.kind),
+                fraction: 1.0,
+                message: if error.is_some() { "Failed" } else { "Ready" }.into(),
+                done: true,
+                error,
+            });
+        }
+        if let Ok(mut st) = shared.state.lock() {
+            let uses = st
+                .live
+                .locals
+                .adjustments
+                .iter()
+                .flat_map(|g| &g.components)
+                .any(|c| ai_key(&c.kind).as_deref() == Some(&self.key));
+            if uses && !st.closing && !st.closed {
+                // Rasters are part of the mask cache key: re-render.
+                st.rendered = None;
+                shared.render(&mut st, false);
+            }
+        }
+    }
+
     fn progress(&self, masks: &MaskShared, fraction: f32, message: &str) {
         masks.set_ai(
             &self.key,
@@ -926,42 +970,7 @@ impl Job for AiMaskJob {
             return Ok(());
         };
         let result = self.compute(&shared, ctx);
-        let masks = &shared.masks;
-        let error = match result {
-            Ok(plane) => {
-                masks.set_ai(&self.key, AiEntry::Ready(Arc::new(plane)));
-                None
-            }
-            Err(e) => {
-                let message = format!("{e:#}");
-                masks.set_ai(&self.key, AiEntry::Failed(message.clone()));
-                Some(message)
-            }
-        };
-        if let Some(l) = masks.listener() {
-            l.ai_progress(MaskJobUpdate {
-                key: self.key.clone(),
-                title: component_title(&self.kind),
-                fraction: 1.0,
-                message: if error.is_some() { "Failed" } else { "Ready" }.into(),
-                done: true,
-                error,
-            });
-        }
-        if let Ok(mut st) = shared.state.lock() {
-            let uses = st
-                .live
-                .locals
-                .adjustments
-                .iter()
-                .flat_map(|g| &g.components)
-                .any(|c| ai_key(&c.kind).as_deref() == Some(&self.key));
-            if uses {
-                // Rasters are part of the mask cache key: re-render.
-                st.rendered = None;
-                shared.render(&mut st, false);
-            }
-        }
+        self.finish(&shared, result);
         Ok(())
     }
 }
@@ -1900,6 +1909,62 @@ pub(crate) struct MaskState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Default)]
+    struct LateMaskUpdates(Mutex<Vec<MaskJobUpdate>>);
+
+    impl MaskListener for LateMaskUpdates {
+        fn overlay_ready(&self, _: MaskOverlayFrame) {}
+        fn ai_progress(&self, update: MaskJobUpdate) {
+            self.0.lock().unwrap().push(update);
+        }
+    }
+
+    #[test]
+    fn completed_ai_mask_job_does_not_revive_closed_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("late-mask.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let mut rows = engine.list_images(crate::ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 1);
+        let session = engine.open_develop_session(rows.remove(0).id).unwrap();
+        let kind = MaskKind::Subject { model: None };
+        let key = ai_key(&kind).unwrap();
+        {
+            let mut st = session.shared.edit_lock().unwrap();
+            st.live.locals.adjustments.push(LocalAdjustment {
+                components: vec![MaskComponent::new(kind.clone())],
+                ..Default::default()
+            });
+            let drawn = st.drawn();
+            st.rendered = Some(drawn);
+        }
+        let listener = Arc::new(LateMaskUpdates::default());
+        session.set_mask_listener(Some(listener.clone()));
+        let job = AiMaskJob {
+            shared: Arc::downgrade(&session.shared),
+            key: key.clone(),
+            kind,
+        };
+        session.close().unwrap();
+        let generation = session.shared.generation.load(Ordering::SeqCst);
+        let rendered = session.shared.lock().unwrap().rendered.clone();
+        assert!(rendered.is_some());
+
+        job.finish(&session.shared, Err(anyhow::anyhow!("late completion")));
+        assert_eq!(session.shared.generation.load(Ordering::SeqCst), generation);
+        assert_eq!(session.shared.lock().unwrap().rendered, rendered);
+        assert!(!session.shared.masks.ai.lock().unwrap().contains_key(&key));
+        assert!(listener.0.lock().unwrap().is_empty());
+    }
 
     #[test]
     fn ai_thumbnail_uses_its_own_scale_instead_of_the_observed_level() {
