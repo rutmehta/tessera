@@ -1,0 +1,155 @@
+{
+  "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/reference-16-split-explicit.jpg",
+  "default_expand": {
+    "patches": [
+      {
+        "y": 8,
+        "fraction": 0.1,
+        "x": 8,
+        "rgba": [
+          0.05127198249101639,
+          0.051271967589855194,
+          0.05127193033695221,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.3,
+        "x": 24,
+        "rgba": [
+          0.05127198249101639,
+          0.051271967589855194,
+          0.05127193033695221,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.5,
+        "x": 40,
+        "rgba": [
+          3.4538345336914062,
+          3.4538333415985107,
+          3.4538333415985107,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.7,
+        "x": 56,
+        "rgba": [
+          16.000003814697266,
+          16,
+          16,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.9,
+        "x": 72,
+        "rgba": [
+          16.000003814697266,
+          16,
+          16,
+          1
+        ]
+      }
+    ],
+    "valid_pixels": 1,
+    "alpha_min": 1,
+    "width": 80,
+    "alpha_max": 1,
+    "image_created": true,
+    "height": 16,
+    "peak": 16.000003814697266,
+    "content_headroom": 16,
+    "nonfinite": 0,
+    "nonzero": 3840,
+    "min": 0.05127193033695221,
+    "rgba_f32le": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split80/coreimage/reference-16-split-explicit.jpg.default.rgba-f32le",
+      "bytes": 20480,
+      "sha256": "3b361a1ed1d99b0cf953cc2ffe5e9bc48bff92653a36fd5fe9fdcf1aec1b6936"
+    }
+  },
+  "explicit_gain": {
+    "patches": [
+      {
+        "y": 8,
+        "fraction": 0.1,
+        "x": 8,
+        "rgba": [
+          0.05127198249101639,
+          0.051271967589855194,
+          0.05127193033695221,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.3,
+        "x": 24,
+        "rgba": [
+          0.05127198249101639,
+          0.051271967589855194,
+          0.05127193033695221,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.5,
+        "x": 40,
+        "rgba": [
+          3.4538345336914062,
+          3.4538333415985107,
+          3.4538333415985107,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.7,
+        "x": 56,
+        "rgba": [
+          16.000003814697266,
+          16,
+          16,
+          1
+        ]
+      },
+      {
+        "y": 8,
+        "fraction": 0.9,
+        "x": 72,
+        "rgba": [
+          16.000003814697266,
+          16,
+          16,
+          1
+        ]
+      }
+    ],
+    "valid_pixels": 1,
+    "alpha_min": 1,
+    "width": 80,
+    "alpha_max": 1,
+    "image_created": true,
+    "height": 16,
+    "peak": 16.000003814697266,
+    "content_headroom": 16,
+    "nonfinite": 0,
+    "nonzero": 3840,
+    "min": 0.05127193033695221,
+    "rgba_f32le": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split80/coreimage/reference-16-split-explicit.jpg.explicit.rgba-f32le",
+      "bytes": 20480,
+      "sha256": "3b361a1ed1d99b0cf953cc2ffe5e9bc48bff92653a36fd5fe9fdcf1aec1b6936"
+    }
+  },
+  "gain_created": 1,
+  "base_created": 1
+}

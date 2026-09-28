@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/probe/coreimage-probe-geometry",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/uniform640/coreimage",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/reference-16-uniform-explicit.jpg"
+  ],
+  "cwd": "/Users/rutmehta/Developer/tessera"
+}

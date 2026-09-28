@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/qualification/attempt-01-qualification.py", line 13, in <module>
+    assert samples[320:]==bytes([255])*320
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

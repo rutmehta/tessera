@@ -1,0 +1,98 @@
+{
+  "uniform": {
+    "source": "reference-16-uniform-common.jpg",
+    "source_sha256": "af126dd6a6d0170112cd50f982c3ab90d9bfc85618642664d5d7142de0f51bf6",
+    "source_bytes": 5062,
+    "explicit": "reference-16-uniform-explicit.jpg",
+    "explicit_sha256": "a1ff45bca3b67b0140d959238bc2023bbf156995705db2cfb86a38e4fe441bb8",
+    "explicit_bytes": 5086,
+    "secondary_range": [
+      3701,
+      5086
+    ],
+    "secondary_jpeg": "extracted-gain-uniform-640x128.jpg",
+    "secondary_sha256": "fcbaa02ca6cc63a0f6a522879a55e43495a65847fab7064b293f23d8d92e611a",
+    "iso_change": "ISO 0x48 common denominator to 0x40 explicit rationals using prior validated field parser",
+    "rational_pairs": [
+      [
+        0,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "mpf_secondary_size_before": 1361,
+    "mpf_secondary_size_after": 1385,
+    "primary_attribute": "00030000"
+  },
+  "split": {
+    "source": "reference-16-split-common.jpg",
+    "source_sha256": "893fd99506210fd8a408e00176db6d5d42b20f6f492c3b83ba0da5ffba5b1c43",
+    "source_bytes": 5140,
+    "explicit": "reference-16-split-explicit.jpg",
+    "explicit_sha256": "3a3bd5de55261b1a63674ee191f2a41189cbd417cbabde106a92804b56c7bc47",
+    "explicit_bytes": 5164,
+    "secondary_range": [
+      3701,
+      5164
+    ],
+    "secondary_jpeg": "extracted-gain-split-640x128.jpg",
+    "secondary_sha256": "1b98579ff243ff8335e595de72c3c8045cebb199f93574288affbd445333e945",
+    "iso_change": "ISO 0x48 common denominator to 0x40 explicit rationals using prior validated field parser",
+    "rational_pairs": [
+      [
+        0,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "mpf_secondary_size_before": 1439,
+    "mpf_secondary_size_after": 1463,
+    "primary_attribute": "00030000"
+  }
+}

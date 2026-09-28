@@ -1,0 +1,187 @@
+{
+  "geometry": [
+    640,
+    128
+  ],
+  "sample_coordinates": {
+    "x": [
+      64,
+      192,
+      320,
+      448,
+      576
+    ],
+    "y": 64,
+    "normalized_fractions": [
+      0.1,
+      0.3,
+      0.5,
+      0.7,
+      0.9
+    ]
+  },
+  "gain": {
+    "uniform": {
+      "source_sha256": "f9eb1e3eaad35a3b444ec214d4e4c81004c8ee621d2a88ac6d188ee3fe2a37d2",
+      "decoded_sha256": "f9eb1e3eaad35a3b444ec214d4e4c81004c8ee621d2a88ac6d188ee3fe2a37d2",
+      "exact_samples_match": true,
+      "sample_counts": {
+        "255": 81920
+      },
+      "every_row_identical": true,
+      "transition_x": null,
+      "source_samples_per_row": 640
+    },
+    "split": {
+      "source_sha256": "fb452de415576801172a728d1a4d4f54a25778c9d906724126f93691d94892d7",
+      "decoded_sha256": "fb452de415576801172a728d1a4d4f54a25778c9d906724126f93691d94892d7",
+      "exact_samples_match": true,
+      "sample_counts": {
+        "0": 40960,
+        "255": 40960
+      },
+      "every_row_identical": true,
+      "transition_x": 320,
+      "source_samples_per_row": 640
+    }
+  },
+  "reference": {
+    "uniform": {
+      "raw_sha256": "79664b4d13cb36e15b8fbd5dc9c8539dcc1f15464affde85ecbc881ff9bae975",
+      "raw_bytes": 655360,
+      "rgb_global_peak": 16.0,
+      "alpha_min": 1.0,
+      "alpha_max": 1.0,
+      "centers_R": [
+        0.82177734375,
+        0.82177734375,
+        3.4609375,
+        16.0,
+        16.0
+      ],
+      "config_sha256": "f598211428bcfce84fd98b931c99f165c8d61f5513d7f66b7b48f3139f85d973",
+      "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+    },
+    "split": {
+      "raw_sha256": "e3190c281fde39cb9646150f1e75f45182ce3f9bf1cd453e18a5a742184a8e22",
+      "raw_bytes": 655360,
+      "rgb_global_peak": 16.0,
+      "alpha_min": 1.0,
+      "alpha_max": 1.0,
+      "centers_R": [
+        0.051361083984375,
+        0.051361083984375,
+        3.4609375,
+        16.0,
+        16.0
+      ],
+      "config_sha256": "f598211428bcfce84fd98b931c99f165c8d61f5513d7f66b7b48f3139f85d973",
+      "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+    }
+  },
+  "base": {
+    "decoded_base_sha256": "f047b2bb9d81cb61ad1e157285efca28162eae9b9733910b66341ec88d40b5e7",
+    "decoded_dimensions": [
+      640,
+      128
+    ],
+    "base_level_counts_in_source": {
+      "64": 1248,
+      "128": 1296,
+      "255": 1296
+    },
+    "interior_checks": [
+      {
+        "x": 32,
+        "y": 0,
+        "expected": 64,
+        "decoded_rgb": [
+          64,
+          64,
+          64
+        ]
+      },
+      {
+        "x": 240,
+        "y": 0,
+        "expected": 128,
+        "decoded_rgb": [
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "x": 520,
+        "y": 0,
+        "expected": 255,
+        "decoded_rgb": [
+          255,
+          255,
+          255
+        ]
+      },
+      {
+        "x": 32,
+        "y": 64,
+        "expected": 64,
+        "decoded_rgb": [
+          64,
+          64,
+          64
+        ]
+      },
+      {
+        "x": 240,
+        "y": 64,
+        "expected": 128,
+        "decoded_rgb": [
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "x": 520,
+        "y": 64,
+        "expected": 255,
+        "decoded_rgb": [
+          255,
+          255,
+          255
+        ]
+      },
+      {
+        "x": 32,
+        "y": 127,
+        "expected": 64,
+        "decoded_rgb": [
+          64,
+          64,
+          64
+        ]
+      },
+      {
+        "x": 240,
+        "y": 127,
+        "expected": 128,
+        "decoded_rgb": [
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "x": 520,
+        "y": 127,
+        "expected": 255,
+        "decoded_rgb": [
+          255,
+          255,
+          255
+        ]
+      }
+    ],
+    "source_replicated_exactly": true
+  }
+}
