@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "compositor",
+    "--release",
+    "--test",
+    "psd_cancellation",
+    "--test",
+    "psd_document",
+    "--test",
+    "m532_channels",
+    "--",
+    "--nocapture"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "watchdog_seconds": 600
+}

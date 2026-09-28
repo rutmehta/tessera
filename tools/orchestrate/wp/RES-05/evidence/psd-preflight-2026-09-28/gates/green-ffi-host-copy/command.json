@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "tessera-ffi",
+    "--release",
+    "--test",
+    "document_transform_ui",
+    "--",
+    "--exact",
+    "rasterized_copy_handle_precancel_retry_and_close",
+    "--nocapture"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "watchdog_seconds": 600
+}

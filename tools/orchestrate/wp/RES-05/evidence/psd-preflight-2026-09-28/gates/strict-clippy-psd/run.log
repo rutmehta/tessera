@@ -1,0 +1,4 @@
+    Checking crc32fast v1.5.2
+    Checking flate2 v1.1.10
+    Checking psd v0.1.0 (/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/crates/psd)
+    Finished `release` profile [optimized] target(s) in 0.57s

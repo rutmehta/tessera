@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "cargo",
+    "clippy",
+    "--locked",
+    "-p",
+    "compositor",
+    "--release",
+    "--lib",
+    "--test",
+    "psd_admission",
+    "--test",
+    "psd_cancellation",
+    "--test",
+    "psd_document",
+    "--test",
+    "m532_channels",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "watchdog_seconds": 600
+}

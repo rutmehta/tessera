@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "rustfmt",
+    "--edition",
+    "2024",
+    "--check",
+    "crates/compositor/src/psd.rs",
+    "crates/compositor/tests/psd_admission.rs"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "watchdog_seconds": 600
+}

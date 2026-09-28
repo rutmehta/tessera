@@ -1,0 +1,29 @@
+   Compiling psd v0.1.0 (/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/crates/psd)
+    Finished `release` profile [optimized] target(s) in 1.39s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/main/release/deps/psd-1fe70494361e5185)
+
+running 21 tests
+test compression::tests::packbits_known_packets_and_errors ... ok
+test compression::tests::prediction_known_external_vectors ... ok
+test compression::tests::raw_known_bytes_and_validation ... ok
+test compression::tests::rle_row_tables_known_psd_and_psb ... ok
+test compression::tests::psd_rejects_oversized_rle_row_psb_accepts_it ... ok
+test compression::tests::zip_known_external_zlib_stream ... ok
+test compression::tests::randomized_packbits_roundtrips ... ok
+test metadata::tests::metadata_additional_info_dispatch_retains_source ... ok
+test metadata::tests::metadata_descriptor_decodes_typed_values_and_bounds ... ok
+test metadata::tests::metadata_engine_fonts_sizes_are_structurally_decoded ... ok
+test metadata::tests::metadata_descriptor_nested_primitives_and_limits ... ok
+test metadata::tests::metadata_legacy_effects_keep_unknown_records ... ok
+test metadata::tests::metadata_smart_objects_and_embedded_originals ... ok
+test compression::tests::large_zip_streams_cross_scratch_boundaries ... ok
+test metadata::tests::metadata_styles_fills_and_adjustments ... ok
+test metadata::tests::metadata_vector_mask_decodes_records_not_scanned_keys ... ok
+test tests::hand_built_minimal_raw ... ok
+test tests::resource_framing ... ok
+test metadata::tests::metadata_text_preserves_engine_and_style_runs ... ok
+test compression::tests::compression_modes_roundtrip_depths_and_empty_shapes ... ok
+test compression::tests::malformed_random_inputs_never_panic ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

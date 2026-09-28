@@ -1,0 +1,575 @@
+diff --git a/crates/compositor/src/psd.rs b/crates/compositor/src/psd.rs
+index 399dc018..5a57de2a 100644
+--- a/crates/compositor/src/psd.rs
++++ b/crates/compositor/src/psd.rs
+@@ -104,6 +104,127 @@ fn checked_len(a: usize, b: usize) -> EngineResult<usize> {
+     a.checked_mul(b)
+         .ok_or_else(|| error("PSD output size overflow"))
+ }
++
++/// Inputs for a checked, allocation-free modeled pixel-payload estimate.
++/// Stack and leaf counts describe the rasterized copy's intended output tree;
++/// callers must count from the same immutable snapshot they later convert.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct PsdCopyEstimateInput {
++    /// Canvas extent used by the output PSD/PSB.
++    pub canvas: Extent,
++    /// Depth of exported channel samples.
++    pub depth: Depth,
++    /// Named alpha and spot planes retained in addition to RGB/merged alpha.
++    pub saved_channels: usize,
++    /// An imported PSD's negative layer count already requires merged alpha.
++    pub retained_merged_alpha: bool,
++    /// Enabled smart stacks that the caller will bake into pixel layers.
++    pub rasterized_stacks: usize,
++    /// Pixel, text, shape, and smart-object leaves emitting raster channels.
++    pub emitted_raster_layers: usize,
++}
++
++/// Modeled pixel payload, not a peak RSS bound or process admission limit.
++/// Opaque records, encoded vectors, masks, allocator capacity, renderer/codec
++/// workspaces, and operating-system allocations are outside this estimate.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct PsdCopyEstimate {
++    /// Checked sum of the documented modeled pixel payloads.
++    pub modeled_pixel_bytes: usize,
++    /// RGB, retained merged alpha if any, and saved planes.
++    pub guaranteed_composite_channels: usize,
++    /// Composite channels if the rendered content needs merged alpha.
++    pub possible_composite_channels: usize,
++    /// Decoded bytes for guaranteed planes, validated by the PSD encoder rule.
++    pub guaranteed_composite_bytes: usize,
++    /// Decoded bytes if merged alpha is emitted; informational only.
++    pub possible_composite_bytes: usize,
++}
++
++fn composite_layout(
++    canvas: Extent,
++    depth: Depth,
++    saved_channels: usize,
++    retained_merged_alpha: bool,
++) -> EngineResult<(usize, usize, usize, usize)> {
++    if canvas.width == 0 || canvas.height == 0 || canvas.width > 300_000 || canvas.height > 300_000
++    {
++        return Err(error("invalid PSD canvas"));
++    }
++    let guaranteed_channels = 3usize
++        .checked_add(usize::from(retained_merged_alpha))
++        .and_then(|n| n.checked_add(saved_channels))
++        .ok_or_else(|| error("too many PSD channels"))?;
++    if guaranteed_channels > 56 {
++        return Err(error("PSD supports at most 56 composite channels"));
++    }
++    let possible_channels = 4usize
++        .checked_add(saved_channels)
++        .ok_or_else(|| error("too many PSD channels"))?;
++    let rows = (canvas.height as usize)
++        .checked_mul(guaranteed_channels)
++        .ok_or_else(|| error("PSD output size overflow"))?;
++    // This is the encoder's own decoded-buffer limit, shared rather than
++    // copied here. Possible content-dependent alpha is deliberately excluded
++    // from rejection; opaque RGB must remain eligible.
++    let guaranteed_bytes =
++        ::psd::compression::decoded_size(canvas.width as usize, rows, (depth.bytes() * 8) as u16)
++            .map_err(error)?;
++    let pixels = checked_len(canvas.width as usize, canvas.height as usize)?;
++    let possible_bytes = checked_len(checked_len(pixels, depth.bytes())?, possible_channels)?;
++    Ok((
++        guaranteed_channels,
++        possible_channels,
++        guaranteed_bytes,
++        possible_bytes,
++    ))
++}
++
++/// Estimate known raster payloads without evaluating or allocating image data.
++/// The sum intentionally counts sequential work and retained output together;
++/// it is a policy weight, not a physical simultaneous-memory bound. Only the
++/// guaranteed composite layout is format-validated. Actual merged alpha is
++/// discovered after render and may still make the writer reject the output.
++pub fn estimate_rasterized_psd_copy(input: PsdCopyEstimateInput) -> EngineResult<PsdCopyEstimate> {
++    let (guaranteed_channels, possible_channels, guaranteed_bytes, possible_bytes) =
++        composite_layout(
++            input.canvas,
++            input.depth,
++            input.saved_channels,
++            input.retained_merged_alpha,
++        )?;
++    let pixels = checked_len(input.canvas.width as usize, input.canvas.height as usize)?;
++    let plane = checked_len(pixels, input.depth.bytes())?;
++    let rgba_f32 = checked_len(pixels, 16)?;
++    let rgba_at_depth = checked_len(plane, 4)?;
++    let baked_output = if input.rasterized_stacks == 0 {
++        0
++    } else {
++        rgba_f32
++    };
++    let retained_bakes = checked_len(rgba_at_depth, input.rasterized_stacks)?;
++    let emitted_planes = checked_len(rgba_at_depth, input.emitted_raster_layers)?;
++    let modeled_pixel_bytes = [
++        baked_output,
++        retained_bakes,
++        emitted_planes,
++        rgba_f32,
++        possible_bytes,
++        plane,
++    ]
++    .into_iter()
++    .try_fold(0usize, |sum, bytes| {
++        sum.checked_add(bytes)
++            .ok_or_else(|| error("PSD copy estimate overflow"))
++    })?;
++    Ok(PsdCopyEstimate {
++        modeled_pixel_bytes,
++        guaranteed_composite_channels: guaranteed_channels,
++        possible_composite_channels: possible_channels,
++        guaranteed_composite_bytes: guaranteed_bytes,
++        possible_composite_bytes: possible_bytes,
++    })
++}
+ fn check_pixel(cancel: &CancellationToken, x: usize) -> EngineResult<()> {
+     if x & 1023 == 0 {
+         cancel.check()?;
+@@ -2433,6 +2554,22 @@ pub fn to_psd_with_cancel(
+     cancel: &CancellationToken,
+ ) -> EngineResult<PsdDocument> {
+     cancel.check()?;
++    let state = document.state();
++    // The guaranteed output planes must satisfy the exact PSD encoder layout
++    // before cloning retained records or assembling layer rasters. Native
++    // documents create a merged-alpha PSD in ImportedPsd::from_state; imported
++    // documents retain their recorded merged-alpha flag. This does
++    // not admit work by estimated memory weight; B's earlier rasterization
++    // boundary is a separate caller-owned integration.
++    composite_layout(
++        state.canvas,
++        state.depth,
++        state.channels.len(),
++        document
++            .psd_source
++            .as_ref()
++            .is_none_or(|source| source.source.layer_section.merged_alpha),
++    )?;
+     let mut imported = match &document.psd_source {
+         Some(source) => source.as_ref().clone(),
+         None => ImportedPsd::from_state((**document.state()).clone())?,
+diff --git a/crates/compositor/tests/psd_admission.rs b/crates/compositor/tests/psd_admission.rs
+new file mode 100644
+index 00000000..634a9181
+--- /dev/null
++++ b/crates/compositor/tests/psd_admission.rs
+@@ -0,0 +1,141 @@
++use compositor::{
++    Depth, DocState, Document, Fill, Layer, LayerKind, Raster,
++    channels::{ChannelId, ChannelKind, DocumentChannel},
++    psd::{PsdCopyEstimateInput, estimate_rasterized_psd_copy},
++};
++use engine_api::tile::Extent;
++use std::sync::Arc;
++
++fn input(depth: Depth) -> PsdCopyEstimateInput {
++    PsdCopyEstimateInput {
++        canvas: Extent::new(2, 2),
++        depth,
++        saved_channels: 0,
++        retained_merged_alpha: false,
++        rasterized_stacks: 1,
++        emitted_raster_layers: 2,
++    }
++}
++
++#[test]
++fn modeled_pixel_payload_accounts_for_depth_stacks_leaves_and_saved_planes() {
++    for (depth, expected) in [(Depth::U8, 196), (Depth::U16, 264), (Depth::F32, 400)] {
++        let estimate = estimate_rasterized_psd_copy(input(depth)).unwrap();
++        assert_eq!(estimate.modeled_pixel_bytes, expected);
++        assert_eq!(estimate.guaranteed_composite_channels, 3);
++        assert_eq!(estimate.possible_composite_channels, 4);
++    }
++    let baseline = estimate_rasterized_psd_copy(input(Depth::U8)).unwrap();
++    let saved = estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++        saved_channels: 1,
++        ..input(Depth::U8)
++    })
++    .unwrap();
++    assert_eq!(saved.modeled_pixel_bytes - baseline.modeled_pixel_bytes, 4);
++    assert_eq!(saved.guaranteed_composite_channels, 4);
++    let extra_stack = estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++        rasterized_stacks: 2,
++        ..input(Depth::U8)
++    })
++    .unwrap();
++    assert_eq!(
++        extra_stack.modeled_pixel_bytes - baseline.modeled_pixel_bytes,
++        16
++    );
++    let extra_layer = estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++        emitted_raster_layers: 3,
++        ..input(Depth::U8)
++    })
++    .unwrap();
++    assert_eq!(
++        extra_layer.modeled_pixel_bytes - baseline.modeled_pixel_bytes,
++        16
++    );
++}
++
++#[test]
++fn format_preflight_uses_guaranteed_channels_not_possible_alpha() {
++    // 70 million U8 pixels: RGB is 210 MB; RGBA is 280 MB. The existing
++    // PSD decoded-buffer limit lies between them. This test allocates no image.
++    let large = PsdCopyEstimateInput {
++        canvas: Extent::new(10_000, 7_000),
++        depth: Depth::U8,
++        saved_channels: 0,
++        retained_merged_alpha: false,
++        rasterized_stacks: 0,
++        emitted_raster_layers: 0,
++    };
++    let opaque_eligible = estimate_rasterized_psd_copy(large).unwrap();
++    assert_eq!(opaque_eligible.guaranteed_composite_bytes, 210_000_000);
++    assert_eq!(opaque_eligible.possible_composite_bytes, 280_000_000);
++    assert!(
++        estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++            retained_merged_alpha: true,
++            ..large
++        })
++        .is_err()
++    );
++    // 53 saved planes are valid only if the content stays opaque.
++    assert!(
++        estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++            canvas: Extent::new(2, 2),
++            saved_channels: 53,
++            ..large
++        })
++        .is_ok()
++    );
++    assert!(
++        estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++            canvas: Extent::new(2, 2),
++            saved_channels: 54,
++            ..large
++        })
++        .is_err()
++    );
++}
++
++#[test]
++fn invalid_geometry_and_checked_weight_overflow_fail_without_allocation() {
++    assert!(
++        estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++            canvas: Extent::new(0, 2),
++            ..input(Depth::U8)
++        })
++        .is_err()
++    );
++    assert!(
++        estimate_rasterized_psd_copy(PsdCopyEstimateInput {
++            rasterized_stacks: usize::MAX,
++            ..input(Depth::F32)
++        })
++        .is_err()
++    );
++}
++
++#[test]
++fn native_document_guaranteed_alpha_fails_before_layer_export() {
++    let extent = Extent::new(1, 1);
++    let mut state = DocState::new(extent, Depth::U8);
++    // Fill is intentionally unsupported by the PSD layer exporter. If layer
++    // traversal wins, it returns that error instead of the guaranteed
++    // 3 RGB + 1 native merged-alpha + 53 saved-channel limit.
++    state.root.push(Arc::new(Layer::new(
++        "unexportable",
++        LayerKind::Fill(Fill::Solid { color: [0.5; 3] }),
++    )));
++    for id in 0..53 {
++        state.channels.push(DocumentChannel {
++            id: ChannelId(id + 1),
++            name: format!("alpha-{id}"),
++            kind: ChannelKind::Alpha,
++            raster: Raster::new(extent, 1, Depth::U8, 0.0),
++        });
++    }
++    let failure = compositor::psd::to_psd(&Document::new(state)).unwrap_err();
++    assert!(
++        failure
++            .to_string()
++            .contains("at most 56 composite channels"),
++        "format preflight must precede layer traversal: {failure}"
++    );
++}
+diff --git a/crates/psd/src/compression.rs b/crates/psd/src/compression.rs
+index 760ced9a..0f4a3657 100644
+--- a/crates/psd/src/compression.rs
++++ b/crates/psd/src/compression.rs
+@@ -50,6 +50,12 @@ fn layout(width: usize, rows: usize, depth: u16) -> crate::Result<(usize, usize)
+     Ok((row, total))
+ }
+ 
++/// Validate the decoded payload of stacked channel planes against the same
++/// layout and size rule used by the encoder. This performs no allocation.
++pub fn decoded_size(width: usize, rows: usize, depth: u16) -> crate::Result<usize> {
++    layout(width, rows, depth).map(|(_, total)| total)
++}
++
+ fn table_size(rows: usize, psb: bool) -> crate::Result<usize> {
+     rows.checked_mul(if psb { 4 } else { 2 })
+         .filter(|&n| n <= MAX_DECODED)
+diff --git a/crates/tessera-ffi/src/document/psd_copy.rs b/crates/tessera-ffi/src/document/psd_copy.rs
+index d8d6e113..bbdf4bb5 100644
+--- a/crates/tessera-ffi/src/document/psd_copy.rs
++++ b/crates/tessera-ffi/src/document/psd_copy.rs
+@@ -243,9 +243,7 @@ impl RasterizedPsdCopyOperation {
+         {
+             return Err(failure("PSD is limited to 30000 pixels: save as .psb").into());
+         }
+-        let mut ids = Vec::new();
+-        collect_layers(&snapshot.root, &mut ids, &|| self.state.check())?;
+-        let copy = rasterize_layers(&snapshot, &ids, &self.state, |layer| {
++        let copy = rasterize_copy(&snapshot, &self.state, |layer| {
+             filtering::rasterize_smart_stack_with_cancel(&snapshot, layer, &self.state.cancel)
+         })?;
+         io::save_psd_copy_checked(
+@@ -257,6 +255,74 @@ impl RasterizedPsdCopyOperation {
+         )
+     }
+ }
++// Count only the tree that the copy emits. Embedded smart-object documents
++// remain one output leaf; Groups recursively emit their children.
++fn preflight_snapshot(
++    snapshot: &compositor::DocState,
++    check: &impl Fn() -> CopyResult<()>,
++) -> CopyResult<compositor::psd::PsdCopyEstimate> {
++    fn increment(count: &mut usize) -> CopyResult<()> {
++        *count = count
++            .checked_add(1)
++            .ok_or_else(|| failure("PSD copy layer count overflow"))?;
++        Ok(())
++    }
++    fn count_layers(
++        layers: &[Arc<Layer>],
++        stacks: &mut usize,
++        leaves: &mut usize,
++        check: &impl Fn() -> CopyResult<()>,
++    ) -> CopyResult<()> {
++        for layer in layers {
++            check()?;
++            match &layer.kind {
++                LayerKind::Group { children, .. } => {
++                    count_layers(children, stacks, leaves, check)?;
++                }
++                LayerKind::SmartObject(so) => {
++                    increment(leaves)?;
++                    if so.filters.iter().any(|filter| filter.enabled) {
++                        increment(stacks)?;
++                    }
++                }
++                LayerKind::Pixel(_) | LayerKind::Text { .. } | LayerKind::Shape { .. } => {
++                    increment(leaves)?;
++                }
++                _ => {}
++            }
++        }
++        Ok(())
++    }
++    check()?;
++    let (mut stacks, mut leaves) = (0usize, 0usize);
++    count_layers(&snapshot.root, &mut stacks, &mut leaves, check)?;
++    check()?;
++    Ok(compositor::psd::estimate_rasterized_psd_copy(
++        compositor::psd::PsdCopyEstimateInput {
++            canvas: snapshot.canvas,
++            depth: snapshot.depth,
++            saved_channels: snapshot.channels.len(),
++            // The output is Document::new(copy), not the source PSD retention.
++            retained_merged_alpha: true,
++            rasterized_stacks: stacks,
++            emitted_raster_layers: leaves,
++        },
++    )?)
++}
++
++fn rasterize_copy(
++    snapshot: &compositor::DocState,
++    state: &CopyState,
++    rasterize: impl FnMut(&Layer) -> CopyResult<compositor::Raster>,
++) -> CopyResult<compositor::DocState> {
++    // Reject unavoidable layout failures before evaluator entry or output IO.
++    // This is a modeled payload estimate, not an RSS cap or process permit.
++    preflight_snapshot(snapshot, &|| state.check())?;
++    let mut ids = Vec::new();
++    collect_layers(&snapshot.root, &mut ids, &|| state.check())?;
++    rasterize_layers(snapshot, &ids, state, rasterize)
++}
++
+ fn rasterize_layers(
+     snapshot: &compositor::DocState,
+     ids: &[u64],
+@@ -555,3 +621,165 @@ mod tests {
+         assert!(state.check().is_ok());
+     }
+ }
++
++// RES05a: source-only on B; all following tests are UNRUN.
++#[cfg(test)]
++mod preflight_tests {
++    use super::*;
++    use compositor::geom::Affine;
++    use compositor::{Depth, DocState, Raster, SmartFilter, SmartObject};
++    use engine_api::tile::Extent;
++
++    fn tiny() -> DocState {
++        let extent = Extent::new(2, 2);
++        let mut snapshot = DocState::new(extent, Depth::U8);
++        let mut smart = SmartObject::new(DocState::new(extent, Depth::U8), Affine::IDENTITY);
++        smart.filters.push(SmartFilter {
++            enabled: true,
++            ..Default::default()
++        });
++        let mut layer = Layer::new("enabled", LayerKind::SmartObject(smart));
++        layer.id = LayerId(1);
++        snapshot.root.push(Arc::new(layer));
++        snapshot
++    }
++
++    fn add_saved_planes(snapshot: &mut DocState) {
++        use compositor::channels::{ChannelId, ChannelKind, DocumentChannel};
++        for id in 0..53 {
++            snapshot.channels.push(DocumentChannel {
++                id: ChannelId(id + 1),
++                name: "tiny alpha".into(),
++                kind: ChannelKind::Alpha,
++                raster: Raster::new(Extent::new(1, 1), 1, Depth::U8, 0.0),
++            });
++        }
++    }
++
++    #[test]
++    fn unavoidable_layout_rejects_before_first_rasterization() {
++        for variant in 0..3 {
++            let mut snapshot = tiny();
++            match variant {
++                0 => add_saved_planes(&mut snapshot),
++                1 => snapshot.canvas = Extent::new(10_000, 7_000), // metadata only; mandatory RGBA
++                _ => snapshot.canvas = Extent::new(0, 2),
++            }
++            let state = CopyState::new();
++            let mut calls = 0;
++            let result = rasterize_copy(&snapshot, &state, |_| {
++                calls += 1;
++                Err(failure("evaluator must not run").into())
++            });
++            assert_eq!(calls, 0);
++            let Err(CopyError::Failed(error)) = result else {
++                panic!("expected format failure")
++            };
++            assert!(!error.to_string().contains("evaluator must not run"));
++        }
++    }
++
++    #[test]
++    fn recursive_snapshot_counts_match_emitted_leaves_and_enabled_stacks() {
++        let mut snapshot = tiny();
++        let mut disabled = SmartObject::new(tiny(), Affine::IDENTITY);
++        disabled.filters.push(SmartFilter {
++            enabled: false,
++            ..Default::default()
++        });
++        let mut children = snapshot.root.clone();
++        for kind in [
++            LayerKind::SmartObject(disabled),
++            LayerKind::Pixel(Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.0)),
++            LayerKind::Text {
++                model: Default::default(),
++                transform: Affine::IDENTITY,
++            },
++            LayerKind::Shape {
++                model: Default::default(),
++                transform: Affine::IDENTITY,
++            },
++            LayerKind::Fill(compositor::Fill::Solid { color: [0.0; 3] }),
++        ] {
++            children.push(Arc::new(Layer::new("leaf", kind)));
++        }
++        snapshot.root = vec![Arc::new(Layer::new(
++            "group",
++            LayerKind::Group {
++                mode: Default::default(),
++                children,
++            },
++        ))];
++        let actual = preflight_snapshot(&snapshot, &|| Ok(())).unwrap();
++        let expected =
++            compositor::psd::estimate_rasterized_psd_copy(compositor::psd::PsdCopyEstimateInput {
++                canvas: snapshot.canvas,
++                depth: snapshot.depth,
++                saved_channels: 0,
++                retained_merged_alpha: true,
++                rasterized_stacks: 1,
++                emitted_raster_layers: 5,
++            })
++            .unwrap();
++        assert_eq!(actual, expected); // embedded smart-object children are not separate output leaves
++    }
++
++    #[test]
++    fn valid_snapshot_evaluates_and_cancelled_snapshot_does_not() {
++        let snapshot = tiny();
++        let state = CopyState::new();
++        let mut calls = 0;
++        let copy = rasterize_copy(&snapshot, &state, |_| {
++            calls += 1;
++            Ok(Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.0))
++        })
++        .unwrap();
++        assert_eq!(calls, 1);
++        assert!(matches!(copy.root[0].kind, LayerKind::Pixel(_)));
++        assert!(matches!(snapshot.root[0].kind, LayerKind::SmartObject(_)));
++        state.cancel();
++        let result = rasterize_copy(&snapshot, &state, |_| panic!("cancelled evaluator"));
++        assert!(matches!(result, Err(CopyError::Cancelled)));
++    }
++
++    #[test]
++    fn rejected_operation_preserves_destination_and_drains_then_valid_copy_saves() {
++        let dir = tempfile::tempdir().unwrap();
++        let engine =
++            crate::Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
++        let mut invalid = tiny();
++        add_saved_planes(&mut invalid);
++        let session = engine.adopt_document(Document::new(invalid), "invalid tiny".into());
++        let destination = dir.path().join("copy.psd");
++        std::fs::write(&destination, b"sentinel").unwrap();
++        let operation = session.prepare_rasterized_psd_copy().unwrap();
++        let error = operation
++            .run(destination.to_string_lossy().into_owned())
++            .unwrap_err();
++        assert!(error.to_string().contains("at most 56 composite channels"));
++        assert_eq!(std::fs::read(&destination).unwrap(), b"sentinel");
++        assert!(!operation.state.holds_admission());
++        assert!(session.prepare_rasterized_psd_copy().unwrap().cancel());
++        let mut valid = DocState::new(Extent::new(2, 2), Depth::U8);
++        valid.root.push(Arc::new(Layer::new(
++            "pixel",
++            LayerKind::Pixel(Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.5)),
++        )));
++        let valid_session = engine.adopt_document(Document::new(valid), "valid tiny".into());
++        let operation = valid_session.prepare_rasterized_psd_copy().unwrap();
++        assert_eq!(
++            operation
++                .run(destination.to_string_lossy().into_owned())
++                .unwrap(),
++            RasterizedPsdCopyOutcome::Saved
++        );
++        assert!(!operation.state.holds_admission());
++        assert!(std::fs::read(&destination).unwrap().starts_with(b"8BPS"));
++        assert!(
++            valid_session
++                .prepare_rasterized_psd_copy()
++                .unwrap()
++                .cancel()
++        );
++    }
++}

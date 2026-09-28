@@ -2556,9 +2556,7 @@ pub fn to_psd_with_cancel(
     cancel.check()?;
     let state = document.state();
     // The guaranteed output planes must satisfy the exact PSD encoder layout
-    // before cloning retained records or assembling layer rasters. Native
-    // documents create a merged-alpha PSD in ImportedPsd::from_state; imported
-    // documents retain their recorded merged-alpha flag. This does
+    // before cloning retained records or assembling layer rasters. This does
     // not admit work by estimated memory weight; B's earlier rasterization
     // boundary is a separate caller-owned integration.
     composite_layout(
@@ -2568,7 +2566,7 @@ pub fn to_psd_with_cancel(
         document
             .psd_source
             .as_ref()
-            .is_none_or(|source| source.source.layer_section.merged_alpha),
+            .is_some_and(|source| source.source.layer_section.merged_alpha),
     )?;
     let mut imported = match &document.psd_source {
         Some(source) => source.as_ref().clone(),

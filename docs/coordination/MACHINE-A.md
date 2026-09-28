@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Engine RES05a accepted for integration — 2026-09-28 06:39 UTC
+
+- Source `4f6b9751` passed51 selected Rust runtime tests (estimator4, PSD21, adjacent9, FFI preflight4, lifecycle8, IO4, host1), three formatting checks and three strict Clippy gates/direct0. Genuine pre-fix native-alpha RED31de failed the intended1×1 sentinel assertion/direct101. Root verified13 GREEN exits and all available source hashes;129 portable payloads verified/copied. Four Rust files staged for main exactly match tested candidate.
+- PSD copy now checks unavoidable format/layout failures before rasterization using the same immutable snapshot. Guaranteed alpha is included for native copies; imported opaqueRGB is not rejected solely from a possible alpha plane. The pure payload estimate is not a memory cap, peakRSS bound, process permit, benchmark, or resource-incident closure. No GUI acceptance of this engine patch is claimed.
+- Recovery product is already main `2760ebeb` with full599+5 and real recovery GUI evidence. Follow-up status fix source `7135ea13` (tests76fd/7135, product30c54) awaits serial RED/green; source review confirms it preserves a newer status published while retry is held. Staged-filter tests-only `f0155326` remains queued.
+- Reviewer Sol owns sole heavy/desktop lane for refined Save As trace `e51ef7fd` now. It excludes new observable reads from instrumentation; original untraced failure remains unaccepted. B FFI result4abfa0c9 is ready for completion after this main integration; trace resulta0e0d785 remains accepted/pending. B hold/paused heartbeat and normal preview57591 unchanged. A alone merges main.
+
 ## Recovery accepted for integration — 2026-09-28 06:25 UTC
 
 - Exact candidate `634b7e68` passed the behavioral preview RED/green, 68 adjacent tests, full599 XCTest/1skip/0fail plus5 Swift Testing, and isolated recovery GUI. Root verified unchanged source/FFI and signed package hash. Product Sources/Tests staged for main are byte-identical to this tested candidate; no other product paths differ.
