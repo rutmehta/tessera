@@ -1,0 +1,71 @@
+{
+  "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/fixtures/reference-4.jpg",
+  "source_sha256": "a4564ba16f3febd8330bc751e181209bf9a8bfd1b4118d7ec004db9a724315ce",
+  "source_bytes": 1895,
+  "output": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/denominator-explicit/reference-4-explicit.jpg",
+  "output_sha256": "43cbe202ddb275fa524fab7cbe40bdd1f119e1d933b5971bb54be7068ca9669d",
+  "output_bytes": 1919,
+  "source_mpf_primary_attr": "00030000",
+  "output_mpf_primary_attr": "00030000",
+  "source_aux_iso_flags": "48",
+  "output_aux_iso_flags": "40",
+  "source_common_values": [
+    1,
+    0,
+    2,
+    0,
+    2,
+    1,
+    0,
+    0
+  ],
+  "output_explicit_rationals": [
+    [
+      0,
+      1
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ]
+  ],
+  "mpf_aux_size_changed_range": [
+    722,
+    726
+  ],
+  "mpf_aux_size_before_hex": "000001a0",
+  "mpf_aux_size_after_hex": "000001b8",
+  "aux_iso_replaced_source_range": [
+    1481,
+    1550
+  ],
+  "aux_iso_replacement_output_range": [
+    1481,
+    1574
+  ],
+  "aux_iso_segment_length_before": 69,
+  "aux_iso_segment_length_after": 93,
+  "aux_soi_offset_unchanged": 1479,
+  "prefix_suffix_unchanged_outside_these_ranges": true,
+  "compressed_base_and_gain_data_unchanged": true
+}
