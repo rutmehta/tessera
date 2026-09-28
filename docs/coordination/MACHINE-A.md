@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Qualified interval focused gates pass; Release running — 2026-09-28 13:41 UTC
+
+Reconciled candidate5e698e18 corrects only two test-call argument orders from9bf95af. Initial focused compilation failed before any test executed; one attempt is session-observed without a durable raw log, and the second is preserved as focused-unfixed.log/direct1. The correction changes no product behavior or assertions. Root/Astra reviewed exact source. Root then read saved17 Python passes and27 distinct focused Debug XCTest passes (protocol5, launch mode4, PerformanceTrace3, detail scheduling9, mailbox2, Develop4), all direct0. The zero-selected Swift Testing notices add no tests. Full Swift Release is running in the sole heavy lane; no final result is claimed. Archive07d924df/native source remain unchanged.
+
+The bounded capture launcher is integrated main3f78f2d9 from final sourceaa27a44a. Root verified13 evidence payloads, all3 source hashes and seven passing harmless stand-in tests/direct0. Launcher/helper/config/snapshot integrity failure and log-read errors fail closed; helper exit, timeout kill request, and confirmed reap remain distinct. The actual compiled capture helper has not run. Compile-only helper evidence remains mainfcfc64cc.
+
+The isolated f1 visible run remains failed and PID67652 was last observed alive, waiting on unresolved startup with a protected system dialog. User handling is still pending; no app launch, termination, protected-dialog access or capture is underway. Normal preview remains untouched. Latest B fetch/mailbox has no new message or receipt; SSH still cannot resolve its configured hostname. Source ownership and existing destination request remain reserved, without duplicate dispatch. A alone merges main.
+
+
 ## Visible capability blocked; independent source work continues — 2026-09-28 13:05 UTC
 
 Exact-tested f1d13c11 app passed package provenance and signature checks. Three bounded visible attempts all failed with runner direct exit1 and no trace/receipt. First external-volume stdio creation was denied to xpcproxy; precreating those files then encountered a read denial. Runner-only9423956c adds fresh stdio relay support and records runner hashes; its eight Python checks passed. The third attempt launched exact owned PID67652 through /tmp stdio, but no regular visible app window appeared during startup. A saved process sample places the main thread in isolated app-support directory creation. UserNotificationCenter is foreground; the dialog wording is unverified because the desktop tool explicitly denied access to that protected app.
