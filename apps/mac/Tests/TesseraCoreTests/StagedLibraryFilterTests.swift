@@ -164,6 +164,64 @@ final class StagedLibraryFilterTests: XCTestCase {
         XCTAssertTrue(f.model.people.facet.isEmpty)
     }
 
+    func testFilterAndFacetRequestDuringLayersSaveCancelOnlyItsDestination() async throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        guard await openDevelop(f) else { return }
+        let entered = expectation(description: "Layers preparation entered Develop close")
+        let hold = f.saves.holdNext(entered: entered)
+        defer { hold.release() }
+        var backendStarts = 0
+        f.model.documents.documentLoadExecutor = { _, _, done in
+            backendStarts += 1
+            done(.failure(FilterSaveFailed()))
+        }
+
+        f.model.requestLayeredCopy()
+        XCTAssertNotNil(f.model.layeredCopyRequest)
+        f.model.createRequestedLayeredCopy()
+        await fulfillment(of: [entered], timeout: 5)
+        f.model.updateLibraryFilter { $0.grades.insert("2") }
+        f.model.togglePersonFacet(f.personIDs[0])
+        XCTAssertEqual(f.model.collections.filter, LibraryFilter())
+        XCTAssertTrue(f.model.people.facet.isEmpty)
+
+        hold.release()
+        guard await waitUntil({ !f.model.developRecovery.hasActiveReservations
+            && f.model.develop == nil }) else { return }
+        XCTAssertEqual(backendStarts, 0, "the stale Layers destination must not dispatch")
+        XCTAssertNotEqual(f.model.viewMode, .document)
+        XCTAssertEqual(f.saves.closeCount, 1)
+    }
+
+    func testPersonFacetAloneDuringLayersSaveCancelsItsDestination() async throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        guard await openDevelop(f) else { return }
+        let entered = expectation(description: "Layers preparation entered Develop close")
+        let hold = f.saves.holdNext(entered: entered)
+        defer { hold.release() }
+        var backendStarts = 0
+        f.model.documents.documentLoadExecutor = { _, _, done in
+            backendStarts += 1
+            done(.failure(FilterSaveFailed()))
+        }
+
+        f.model.requestLayeredCopy()
+        XCTAssertNotNil(f.model.layeredCopyRequest)
+        f.model.createRequestedLayeredCopy()
+        await fulfillment(of: [entered], timeout: 5)
+        f.model.togglePersonFacet(f.personIDs[0])
+        XCTAssertTrue(f.model.people.facet.isEmpty)
+
+        hold.release()
+        guard await waitUntil({ !f.model.developRecovery.hasActiveReservations
+            && f.model.develop == nil }) else { return }
+        XCTAssertEqual(backendStarts, 0)
+        XCTAssertNotEqual(f.model.viewMode, .document)
+        XCTAssertEqual(f.saves.closeCount, 1)
+    }
+
     private func openDevelop(_ f: Fixture) async -> Bool {
         f.model.requestViewMode(.loupe)
         guard let item = f.first.items.first else { XCTFail("Missing indexed photo"); return false }
