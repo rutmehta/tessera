@@ -3324,7 +3324,7 @@ mod tests {
         FAIL_AFTER_DEVELOP_RECIPE
             .lock()
             .unwrap()
-            .insert(photo.clone(), 1);
+            .insert(session.shared.path.clone(), 1);
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
@@ -3385,7 +3385,7 @@ mod tests {
         FAIL_AFTER_DEVELOP_RECIPE
             .lock()
             .unwrap()
-            .insert(photo.clone(), 1);
+            .insert(session.shared.path.clone(), 1);
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
