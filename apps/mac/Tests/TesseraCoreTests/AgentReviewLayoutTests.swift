@@ -19,6 +19,7 @@ final class AgentReviewLayoutTests: XCTestCase {
         let support = scratch.appendingPathComponent("support")
         let model = AppModel(agent: AgentController(arguments: ["--fake-planner"], supportDirectory: support))
         let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        print("[review-refresh-test] scanned")
         model.install(library)
         model.agent.preferences.sceneConsistency = false
         model.agent.preferences.personConsistency = false
@@ -27,6 +28,7 @@ final class AgentReviewLayoutTests: XCTestCase {
         while model.agent.isRunning, Date() < runDeadline { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertFalse(model.agent.isRunning)
         await withCheckedContinuation { continuation in model.syncLibrary { continuation.resume() } }
+        print("[review-refresh-test] agent settled and catalog drained")
         model.enterReview()
         let item = try XCTUnwrap(model.reviewTargetItem)
         let selected = model.reviewNavigation.selectedID
@@ -37,6 +39,7 @@ final class AgentReviewLayoutTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(20))
         }
         let first = try XCTUnwrap(model.loader.cached(item, tier: .preview), "Review must deliver its initial preview")
+        print("[review-refresh-test] initial preview ready")
         let firstPixel = previewDownsampledPixel(first)
         let revision = model.libraryRevision
 
@@ -49,11 +52,15 @@ final class AgentReviewLayoutTests: XCTestCase {
         settings["tone"] = tone
         recipe["settings"] = settings
         let recipeData = try JSONSerialization.data(withJSONObject: recipe, options: [.sortedKeys])
+        print("[review-refresh-test] recipe serialized")
         try library.engine.setRecipeJson(imageId: imageID, json: String(decoding: recipeData, as: UTF8.self))
+        print("[review-refresh-test] recipe written")
         try ShellHarness.writeJPEG(photo, shade: 180)
         try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(5)], ofItemAtPath: photo.path)
         _ = try library.engine.indexFolder(path: folder.path)
+        print("[review-refresh-test] file reindexed")
         await withCheckedContinuation { continuation in model.syncLibrary { continuation.resume() } }
+        print("[review-refresh-test] catalog synced")
         XCTAssertEqual(model.reviewNavigation.selectedID, selected, "The catalog update must preserve Review selection")
         XCTAssertGreaterThan(model.libraryRevision, revision, "A rows-only pixel update must notify the Review preview")
         let saved = try XCTUnwrap(JSONSerialization.jsonObject(with:
