@@ -205,23 +205,23 @@ final class DocumentWorkspace {
 
     // MARK: Opening
 
-    func install(_ backend: any DocumentBackend) throws {
+    func install(_ backend: any DocumentBackend, activateDocument: Bool = true) throws {
         if let existing = documents.first(where: { $0.backend === backend }) {
-            select(existing)
+            select(existing, activateDocument: activateDocument)
             return
         }
         let doc = try DocumentController(backend: backend)
         doc.report = { [weak self] in self?.say($0) }
         documents.append(doc)
-        select(doc)
+        select(doc, activateDocument: activateDocument)
     }
 
-    func select(_ doc: DocumentController) {
+    func select(_ doc: DocumentController, activateDocument: Bool = true) {
         // B5-10 begin: switching documents applies the text being edited (Esc first to discard it).
         if current !== doc, let c = current, DocumentText.shared.isEditing(c) { DocumentText.shared.documentWillChange() }
         // B5-10 end
         current = doc
-        app?.viewMode = .document
+        if activateDocument { app?.viewMode = .document }
     }
 
     func newDocument(_ s: NewDocumentSettings) {
@@ -249,6 +249,7 @@ final class DocumentWorkspace {
     /// installation/orphan cleanup, even if the workspace no longer exists.
     private func load(_ what: String, engine: any DocumentEngine, done: String,
                       statusPublication: DocumentLoadStatusPublication = .workspace,
+                      activateDocument: Bool = true,
                       completion: @escaping @MainActor (DocumentLoadOutcome) -> Void = { _ in },
                       _ body: @escaping @Sendable (any DocumentEngine) throws -> any DocumentBackend) {
         let token = UUID()
@@ -269,7 +270,7 @@ final class DocumentWorkspace {
             switch result {
             case .success(let backend):
                 do {
-                    try self.install(backend)
+                    try self.install(backend, activateDocument: activateDocument)
                     self.publishDocumentLoadStatus(done, policy: statusPublication)
                     settlement.finish(.installed)
                 } catch {
@@ -322,8 +323,11 @@ final class DocumentWorkspace {
     /// Release saved-pixel reservations from completion, never on method return.
     /// Rejections/stub loads may settle synchronously. There is no early cancellation
     /// signal: completion follows backend return, including when the UI disappears.
+    /// Set activateDocument to false when the caller owns navigation admission.
+    /// Installation/current-document selection and backend settlement still complete.
     func editInLayers(_ item: PhotoItem?,
                       statusPublication: DocumentLoadStatusPublication = .workspace,
+                      activateDocument: Bool = true,
                       completion: @escaping @MainActor (DocumentLoadOutcome) -> Void = { _ in }) {
         guard let item else {
             let message = "Edit in Layers: select a photo first"
@@ -332,7 +336,7 @@ final class DocumentWorkspace {
         let what = "Edit \(item.name) in Layers", done = "Editing \(item.name) in layers"
         if !(engineOverride is StubDocumentEngine), let ref = item.engineImage {
             let id = ref.imageID
-            load(what, engine: EngineDocumentEngine.for(ref.engine), done: done, statusPublication: statusPublication, completion: completion) {
+            load(what, engine: EngineDocumentEngine.for(ref.engine), done: done, statusPublication: statusPublication, activateDocument: activateDocument, completion: completion) {
                 try $0.openDocumentFromImage(imageId: id, developed: true)
             }
             return
@@ -344,13 +348,13 @@ final class DocumentWorkspace {
         }
         if engine is StubDocumentEngine {
             let id = "file:\(url.path)"
-            load(what, engine: engine, done: done, statusPublication: statusPublication, completion: completion) { try $0.openDocumentFromImage(imageId: id, developed: true) }
+            load(what, engine: engine, done: done, statusPublication: statusPublication, activateDocument: activateDocument, completion: completion) { try $0.openDocumentFromImage(imageId: id, developed: true) }
         } else if item.kind == .raw {
             let message = "Edit in Layers: open the photo's folder to edit a RAW on the engine"
             publishDocumentLoadStatus(message, policy: statusPublication); completion(.rejected(message))
         } else {
             let path = url.path
-            load(what, engine: engine, done: done, statusPublication: statusPublication, completion: completion) { try $0.openDocument(path: path) }
+            load(what, engine: engine, done: done, statusPublication: statusPublication, activateDocument: activateDocument, completion: completion) { try $0.openDocument(path: path) }
         }
     }
 
