@@ -710,3 +710,19 @@ assertion. No B Python runner/test execution, compiler/apps/GPU/heartbeat/writer
 changes. Mailbox utility only for coordination. A owns gates/main; no actual app
 selftest authorized. Nonactivating is not desktop isolation; admission check is
 not atomic revocation or running-child monitoring. Inspector candidate preserved.
+
+## History accessible height actions — 2026-09-28
+
+Accepted81b15b38-4187-4190-8485-0e7f1e37099e. Published separate
+codex/b5-16-history-accessibility at e2c3cd03 from frozen ddb28101;
+tests553dc70d, product288d728a. Native decrease/increase/reset buttons and
+labelled points readout in unchanged-height header share existing AppStorage
+request and budget clamp; pointer drag/double-click and footer untouched.
+KeyOwningControl focus prevents Space/Return leaking to Document shortcuts.
+Frozen inspector ddb28101 and runner1972f603 unchanged. Five tests UNRUN: real AX
+press/state, clamp/no layout write, native keyboard ownership, callback teardown,
+hosted inspector preference persistence/recreation. Existing layout assertions
+unchanged. Exact hashes and actual AX/keyboard plan in HISTORY-ACCESSIBILITY-
+HANDOFF.md and HISTORY-ACCESSIBILITY-SOURCE.sha256 on new branch. A compiler/CUA/
+main only; no new acceptance from previous pointer or runner gates. No B workloads,
+Python tests/apps/GPU, settings changes, heartbeat or writer changes.
