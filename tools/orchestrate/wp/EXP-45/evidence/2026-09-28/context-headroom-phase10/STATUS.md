@@ -1,3 +1,3 @@
 # Status
 
-UNRUN source checkpoint. The source checkpoint has been compiled and its first run attempt is preserved externally, but phase10 has no completed measurement yet. Attempt01 stopped in a baseline ICC SHA assertion before any target8/16 case. Attempt02 failed before native process launch because the external binary copy lacked its executable bit; it has no native direct exit. Both attempts and their logs are preserved externally. The phase8 acceptance failure remains unchanged; this context-rendering diagnostic cannot replace it.
+The destination-context diagnostic completed in attempt03: runner direct exit 0 and nine native processes exited 0. The original ImageIO acceptance failure remains unresolved. Attempts01 and02 are preserved as distinct harness failures: an ICC timestamp-only hash assertion and a pre-launch executable-mode error, respectively.

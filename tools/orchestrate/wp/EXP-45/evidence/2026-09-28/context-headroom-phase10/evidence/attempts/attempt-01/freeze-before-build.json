@@ -1,0 +1,38 @@
+{
+  "state": "pre-build freeze",
+  "git_head": "fb90452c6e93f8d600a40b2c2a9c68762776b439",
+  "branch": "codex/exp45-context-headroom",
+  "source_base": "efa316f244f7475297883d63648fde49ac12bf6f",
+  "files": {
+    "probe_source": {
+      "repo_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/probe/imageio-probe-context.m",
+      "sha256": "709fc46186e8a2907466fef052fb4109ad7af3060c5067f7d9f18a4ccae23529",
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/frozen-inputs/probe_source.m"
+    },
+    "runner": {
+      "repo_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/probe/run_context_headroom.py",
+      "sha256": "8318046661ae9a692a00ab7df239c78d8a34cb40b0a86a409605ae2ba22c7970",
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/frozen-inputs/runner.py"
+    },
+    "phase8_manifest": {
+      "repo_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/native-geometry-manifest.json",
+      "sha256": "d856f960d57b28dc0abb3bdf2004be6b59b129885f0107478aefe7806ba66088",
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/frozen-inputs/phase8_manifest.json"
+    },
+    "A80": {
+      "repo_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/inputs/A80.jpg",
+      "sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/frozen-inputs/A80.jpg"
+    },
+    "split80": {
+      "repo_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/inputs/split80.jpg",
+      "sha256": "eaeb9524ddfd2cee2d98c34512103ee7e06819471223de9caf1a8642c69c8968",
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/frozen-inputs/split80.jpg"
+    },
+    "uniform80": {
+      "repo_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/inputs/uniform80.jpg",
+      "sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/frozen-inputs/uniform80.jpg"
+    }
+  }
+}

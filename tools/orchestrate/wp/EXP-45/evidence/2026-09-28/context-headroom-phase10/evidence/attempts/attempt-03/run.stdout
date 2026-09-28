@@ -1,0 +1,62 @@
+{
+  "A80": {
+    "default": {
+      "hdr_peak": 7.983762264251709,
+      "headroom": 8,
+      "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+      "icc_sha256": "c93724b8ffc8db5e76d30f2da55cf81b8cc972c87b63cb587421f069742c017c"
+    },
+    "target8": {
+      "hdr_peak": 7.983762264251709,
+      "headroom": 8,
+      "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+      "icc_sha256": "c93724b8ffc8db5e76d30f2da55cf81b8cc972c87b63cb587421f069742c017c"
+    },
+    "target16": {
+      "hdr_peak": 7.983762264251709,
+      "headroom": 8,
+      "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+      "icc_sha256": "c93724b8ffc8db5e76d30f2da55cf81b8cc972c87b63cb587421f069742c017c"
+    }
+  },
+  "split80": {
+    "default": {
+      "hdr_peak": 7.983762741088867,
+      "headroom": 8,
+      "provider_sha256": "1878a761cb7ff26d6a737deb48d22b16067abec58dcb2ef892c5ea258b533aaf",
+      "icc_sha256": "0f2f135bd611a97619f4b317b910199f8398c2212fb8e2719a97086d2a320671"
+    },
+    "target8": {
+      "hdr_peak": 7.983762741088867,
+      "headroom": 8,
+      "provider_sha256": "1878a761cb7ff26d6a737deb48d22b16067abec58dcb2ef892c5ea258b533aaf",
+      "icc_sha256": "0f2f135bd611a97619f4b317b910199f8398c2212fb8e2719a97086d2a320671"
+    },
+    "target16": {
+      "hdr_peak": 7.983762741088867,
+      "headroom": 8,
+      "provider_sha256": "1878a761cb7ff26d6a737deb48d22b16067abec58dcb2ef892c5ea258b533aaf",
+      "icc_sha256": "0f2f135bd611a97619f4b317b910199f8398c2212fb8e2719a97086d2a320671"
+    }
+  },
+  "uniform80": {
+    "default": {
+      "hdr_peak": 15.951576232910156,
+      "headroom": 16,
+      "provider_sha256": "0a9ec8df0f2cc79542c4c788291c0c9b8ad705ef9fede1185683b51ad23cbf7f",
+      "icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16"
+    },
+    "target8": {
+      "hdr_peak": 7.988626956939697,
+      "headroom": 16,
+      "provider_sha256": "0a9ec8df0f2cc79542c4c788291c0c9b8ad705ef9fede1185683b51ad23cbf7f",
+      "icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16"
+    },
+    "target16": {
+      "hdr_peak": 15.951576232910156,
+      "headroom": 16,
+      "provider_sha256": "0a9ec8df0f2cc79542c4c788291c0c9b8ad705ef9fede1185683b51ad23cbf7f",
+      "icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16"
+    }
+  }
+}

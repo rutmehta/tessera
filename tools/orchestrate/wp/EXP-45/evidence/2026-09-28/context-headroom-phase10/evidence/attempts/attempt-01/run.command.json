@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "python3",
+    "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/probe/run_context_headroom.py",
+    "--binary",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/imageio-probe-context",
+    "--run-root",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-01/runs"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10",
+  "source_head": "fb90452c6e93f8d600a40b2c2a9c68762776b439",
+  "binary_sha256": "5a0ca1f883de5aaabca91691a2666ad016d80fff150b20660ded7d0932b580c0",
+  "runner_sha256": "8318046661ae9a692a00ab7df239c78d8a34cb40b0a86a409605ae2ba22c7970"
+}

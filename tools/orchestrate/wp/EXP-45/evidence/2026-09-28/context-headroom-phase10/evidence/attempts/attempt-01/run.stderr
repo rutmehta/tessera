@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/probe/run_context_headroom.py", line 183, in <module>
+    if __name__ == '__main__': main()
+                               ~~~~^^
+  File "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/probe/run_context_headroom.py", line 120, in main
+    assert image['input_icc_sha256'] == expected['input_icc_sha256']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
