@@ -1,0 +1,62 @@
+{
+  "source-manifest.json": {
+    "bytes": 2182,
+    "sha256": "65314a3fe79b2bc71febf1858f0fc850495b3979d8fc56000e529cbc51354a24"
+  },
+  "TRACE-RESULTS.md": {
+    "bytes": 2545,
+    "sha256": "1c1d5d8627069188cd1a76f2ca83dcbd66d830e24017ad68dac0ab2ae128561c"
+  },
+  "run-gates.py": {
+    "bytes": 3312,
+    "sha256": "7ec47e52a3c0c6d5431f241265ed166cbe3de4ba8bcd961d0c98663cdfff5733"
+  },
+  "sheet-probe.log": {
+    "bytes": 1701,
+    "sha256": "f4974c82e9f1dc91605276702ed0a4f02b0d3a26878d7250073265fba4aca975"
+  },
+  "after-second-save-as.stderr.log": {
+    "bytes": 26540,
+    "sha256": "30508aaa333cccaad5fa249cb2b144865c37229d4a5fb5a6d53f3932937a18f7"
+  },
+  "save-settlement.log": {
+    "bytes": 16098,
+    "sha256": "23eb67fc03a3de320e0a7440b956ae570dd1c51635ad0e38b8d9ea77ef064061"
+  },
+  "package-hashes.txt": {
+    "bytes": 756,
+    "sha256": "cf2d38327062b34915283a4c82b27b70199c89e2b5d354e6014a11abe0a9e36e"
+  },
+  "sheet-probe.json": {
+    "bytes": 769,
+    "sha256": "c1f177ddf576f21db5cce2c347fab63f69d8d794c0c7792aff8bbecb5991dc37"
+  },
+  "README.md": {
+    "bytes": 2545,
+    "sha256": "1c1d5d8627069188cd1a76f2ca83dcbd66d830e24017ad68dac0ab2ae128561c"
+  },
+  "after-cancel.stderr.log": {
+    "bytes": 19769,
+    "sha256": "917d82025050c2dad10ccd5fc137fbbda2b3d507e4b9969cc51ae9f93500af82"
+  },
+  "before-cancel.stderr.log": {
+    "bytes": 7042,
+    "sha256": "52c1ac2f9a03d07d4190ab8e88db526b7e1c9293d1a9c9b1a41f6ab858d8c878"
+  },
+  "app.stderr.log": {
+    "bytes": 39262,
+    "sha256": "aa1b51ba99f176e72b91bbae937cd8058f9e381780f64a5fa2bef52ecc688df5"
+  },
+  "package-exact.sh": {
+    "bytes": 2074,
+    "sha256": "d3367fcdb3652842b42bbccb69261dd9c043c92b228a41681975a7e21c712dd3"
+  },
+  "PLAN.md": {
+    "bytes": 618,
+    "sha256": "ce43fbfa3bf586cdc09882578082a1f01ec81fe2124f3d8db9c95e12e8032896"
+  },
+  "save-settlement.json": {
+    "bytes": 776,
+    "sha256": "01e863f397863c2c6792693f4ba7cc12a0a0477b9fdd91df39823b08c073fba6"
+  }
+}
