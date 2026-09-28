@@ -1,0 +1,64 @@
+{
+  "sdr": {
+    "old_icc_sha": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+    "new_icc_sha": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+    "different_offsets": [],
+    "old_date": [
+      1998,
+      2,
+      9,
+      6,
+      49,
+      0
+    ],
+    "new_date": [
+      1998,
+      2,
+      9,
+      6,
+      49,
+      0
+    ],
+    "equal_outside_date": true,
+    "all_float_count": 5120,
+    "finite": true,
+    "rgb_max": 1.0,
+    "rgb_mean": 0.5009033203125,
+    "alpha_min": 1.0,
+    "alpha_max": 1.0,
+    "draw_sha256": "3806b53d7f9c46650fcb8ccf638eb815a4b35903ab34527be07393ac48a258da"
+  },
+  "hdr": {
+    "old_icc_sha": "7482c5d010ed0559f66fa84cb1ea3c189ac252e339db93d88e3138fc278b92dd",
+    "new_icc_sha": "ecf973d0c5dfcdc9e14c1dfcd9290b521501bb3589d530c6b564320c8dbbf55f",
+    "different_offsets": [
+      31,
+      33,
+      35
+    ],
+    "old_date": [
+      2026,
+      9,
+      28,
+      5,
+      45,
+      15
+    ],
+    "new_date": [
+      2026,
+      9,
+      28,
+      7,
+      40,
+      55
+    ],
+    "equal_outside_date": true,
+    "all_float_count": 5120,
+    "finite": true,
+    "rgb_max": 7.983762264251709,
+    "rgb_mean": 3.9927808134816587,
+    "alpha_min": 1.0,
+    "alpha_max": 1.0,
+    "draw_sha256": "251345c4350cded78817df16d9d5289531175ed3afff28572be132f53881642c"
+  }
+}

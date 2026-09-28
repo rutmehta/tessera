@@ -1,0 +1,103 @@
+{
+  "state": "pre-run freeze",
+  "git_head": "b501cc96b50562f4b738465b27db12427cf6446b",
+  "branch": "codex/exp45-context-headroom",
+  "base_head": "efa316f244f7475297883d63648fde49ac12bf6f",
+  "binary_copy_method": "shutil.copy2; executable mode verified",
+  "compile_direct_exit": "0",
+  "binary_from_attempt01_sha256": "5a0ca1f883de5aaabca91691a2666ad016d80fff150b20660ded7d0932b580c0",
+  "files": {
+    "probe_source": {
+      "path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/probe/imageio-probe-context.m",
+      "sha256": "709fc46186e8a2907466fef052fb4109ad7af3060c5067f7d9f18a4ccae23529",
+      "bytes": 8864,
+      "mode": "0o644"
+    },
+    "runner": {
+      "path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/probe/run_context_headroom.py",
+      "sha256": "562d6775fb63d3ce5b5030c85390a2541a9668db05c8645540451027b1153062",
+      "bytes": 14809,
+      "mode": "0o644"
+    },
+    "phase8_manifest": {
+      "path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/native-geometry-manifest.json",
+      "sha256": "d856f960d57b28dc0abb3bdf2004be6b59b129885f0107478aefe7806ba66088",
+      "bytes": 60056,
+      "mode": "0o644"
+    },
+    "binary": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/imageio-probe-context",
+      "sha256": "5a0ca1f883de5aaabca91691a2666ad016d80fff150b20660ded7d0932b580c0",
+      "bytes": 57080,
+      "mode": "0o755"
+    },
+    "A80": {
+      "path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/inputs/A80.jpg",
+      "sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+      "bytes": 1956,
+      "mode": "0o644"
+    },
+    "split80": {
+      "path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/inputs/split80.jpg",
+      "sha256": "eaeb9524ddfd2cee2d98c34512103ee7e06819471223de9caf1a8642c69c8968",
+      "bytes": 1929,
+      "mode": "0o644"
+    },
+    "uniform80": {
+      "path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/inputs/uniform80.jpg",
+      "sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+      "bytes": 1918,
+      "mode": "0o644"
+    }
+  },
+  "phase8_icc_copies": {
+    "A80-sdr": {
+      "source_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/A80/imageio/sdr-returned-colorspace-icc.icc",
+      "sha256": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+      "bytes": 3144,
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/frozen-inputs/phase8-icc/A80/sdr-returned-colorspace-icc.icc"
+    },
+    "A80-hdr": {
+      "source_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/A80/imageio/hdr-returned-colorspace-icc.icc",
+      "sha256": "7482c5d010ed0559f66fa84cb1ea3c189ac252e339db93d88e3138fc278b92dd",
+      "bytes": 26620,
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/frozen-inputs/phase8-icc/A80/hdr-returned-colorspace-icc.icc"
+    },
+    "split80-sdr": {
+      "source_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/split80/imageio/sdr-returned-colorspace-icc.icc",
+      "sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+      "bytes": 588,
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/frozen-inputs/phase8-icc/split80/sdr-returned-colorspace-icc.icc"
+    },
+    "split80-hdr": {
+      "source_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/split80/imageio/hdr-returned-colorspace-icc.icc",
+      "sha256": "b12e0492d7549d5f54a1cbd38ed6ced20a2a669be98cda4892823e4ed80fe2d6",
+      "bytes": 26620,
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/frozen-inputs/phase8-icc/split80/hdr-returned-colorspace-icc.icc"
+    },
+    "uniform80-sdr": {
+      "source_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/uniform80/imageio/sdr-returned-colorspace-icc.icc",
+      "sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+      "bytes": 588,
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/frozen-inputs/phase8-icc/uniform80/sdr-returned-colorspace-icc.icc"
+    },
+    "uniform80-hdr": {
+      "source_path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/geometry-size-control-phase8/native/uniform80/imageio/hdr-returned-colorspace-icc.icc",
+      "sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16",
+      "bytes": 13300,
+      "external_copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/frozen-inputs/phase8-icc/uniform80/hdr-returned-colorspace-icc.icc"
+    }
+  },
+  "prior_attempts": {
+    "01": {
+      "runner_exit": "1",
+      "native_processes": 1,
+      "target_cases": 0
+    },
+    "02": {
+      "runner_exit": "1",
+      "native_processes": 0,
+      "reason": "PermissionError before Popen execution"
+    }
+  }
+}

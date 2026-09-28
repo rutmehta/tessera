@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/imageio-probe-context",
+    "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10/inputs/split80.jpg"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/tools/orchestrate/wp/EXP-45/evidence/2026-09-28/context-headroom-phase10",
+  "controlled_env": {
+    "PROBE_OUTPUT_DIR": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/runs/target16/split80",
+    "PROBE_DUMP": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/runs/target16/split80",
+    "PROBE_RAW": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/context-headroom-phase10/attempt-03/runs/target16/split80/provider",
+    "PROBE_TARGET_HEADROOM": "16"
+  },
+  "cleared_inherited": [
+    "PROBE_OPTIONS",
+    "PROBE_LUMA_OFF",
+    "PROBE_TARGET_ZERO",
+    "PROBE_TARGET_HEADROOM",
+    "PROBE_HDR_STATS",
+    "PROBE_COMPUTE_HDR_STATS",
+    "PROBE_OUTPUT_DIR",
+    "PROBE_DUMP",
+    "PROBE_RAW"
+  ],
+  "timeout_seconds": 60
+}

@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## HDR context control complete; Develop validation advancing — 2026-09-28 11:56 UTC
+
+Phase10 sourceb501cc96/evidencef5893c0f completed nine native processes and runner/direct0. Root/Astra independently verified18 float buffers, raw profiles/provider bytes and frozen inputs; root verified218 portable payloads. Uniform target8 responds16→8, while A/split stay8 at default/8/16. See EXP45-CONTEXT-HEADROOM-REVIEW.md. Original acceptance remains4pass/1fail. Failed ICC-hash and pre-launch attempts remain preserved; no further HDR runtime selected.
+
+M2-58 reconciliationc1c3b6cc preserves Stage C/recovery/histogram and is independently source-reviewed; writer owner has the sole native correctness/compiler lane, with exact regenerated bindings required before Swift. A separate Luna prepares source-only opt-in visible timing capability; no current P01/P11 or new GUI result. Normal preview is preserved. B request8638c362 remains reserved without new receipt; existing offline status unchanged. A alone integrates main.
+
+
 ## Exclusive admission integrated — 2026-09-28 11:32 UTC
 
 Published main `f1f4abe2`. Git mailbox status `23464001-c1d4-4ff7-95d4-4cf142ccf7da` published; no peer receipt/wakeup claimed. Read-only SSH health check still fails hostname resolution. A separate Luna is reviewing M2-58 current-source presentation capability while HDR prepares; no duplicate compiler/desktop use.
