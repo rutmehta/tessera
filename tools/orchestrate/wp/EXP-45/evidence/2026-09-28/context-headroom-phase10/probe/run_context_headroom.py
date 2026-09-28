@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare default, 8x, and 16x Core Graphics destination headroom per input."""
 from pathlib import Path
-import argparse, hashlib, json, os, plistlib, subprocess
+import argparse, hashlib, json, os, plistlib, subprocess, stat
 
 HERE = Path(__file__).resolve().parent
 PHASE = HERE.parent
@@ -40,7 +40,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     binary = args.binary.resolve()
     source = HERE / 'imageio-probe-context.m'
-    assert binary.is_file() and PHASE8.is_file()
+    assert binary.is_file() and os.access(binary, os.X_OK) and PHASE8.is_file(), 'probe binary must exist and be executable'
     previous = json.loads(PHASE8.read_text())
     source_sha, binary_sha = sha_file(source), sha_file(binary)
     manifest = {
@@ -80,6 +80,7 @@ def main():
                 'timeout_seconds': 60}
             (run / 'command.json').write_text(json.dumps(command_record, indent=2) + '\n')
             before_hashes = {'source_sha256': sha_file(source), 'binary_sha256': sha_file(binary),
+                             'binary_mode': oct(stat.S_IMODE(binary.stat().st_mode)),
                              'input_sha256': sha_file(source_path)}
             (run / 'attempt-freeze-before.json').write_text(json.dumps(before_hashes, indent=2) + '\n')
             try:
@@ -93,6 +94,15 @@ def main():
                 (run / 'stderr.partial.bin').write_bytes(partial_err)
                 (run / 'direct.exit').write_text('timeout after 60 seconds\n')
                 after_hashes = {'source_sha256': sha_file(source), 'binary_sha256': sha_file(binary),
+                                'binary_mode': oct(stat.S_IMODE(binary.stat().st_mode)),
+                                'input_sha256': sha_file(source_path)}
+                (run / 'attempt-freeze-after.json').write_text(json.dumps(after_hashes, indent=2) + '\n')
+                raise
+            except OSError as launch_error:
+                (run / 'launcher-error.txt').write_text(f'{type(launch_error).__name__}: {launch_error}\n')
+                (run / 'direct.exit').write_text(f'launcher error: {type(launch_error).__name__}\n')
+                after_hashes = {'source_sha256': sha_file(source), 'binary_sha256': sha_file(binary),
+                                'binary_mode': oct(stat.S_IMODE(binary.stat().st_mode)),
                                 'input_sha256': sha_file(source_path)}
                 (run / 'attempt-freeze-after.json').write_text(json.dumps(after_hashes, indent=2) + '\n')
                 raise
@@ -100,6 +110,7 @@ def main():
             (run / 'stderr.bin').write_bytes(completed.stderr)
             (run / 'direct.exit').write_text(f'{completed.returncode}\n')
             after_hashes = {'source_sha256': sha_file(source), 'binary_sha256': sha_file(binary),
+                            'binary_mode': oct(stat.S_IMODE(binary.stat().st_mode)),
                             'input_sha256': sha_file(source_path)}
             (run / 'attempt-freeze-after.json').write_text(json.dumps(after_hashes, indent=2) + '\n')
             assert before_hashes == after_hashes, (name, target_name, 'probe/binary/fixture changed during process')
