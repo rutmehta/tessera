@@ -112,6 +112,31 @@ fn checked_native_psd_and_psb_create_and_confirmed_replace() {
 }
 
 #[test]
+fn checked_native_psd_and_psb_collisions_preserve_session_markers() {
+    for ext in ["tessera-doc", "psd", "psb"] {
+        let (dir, _engine, session) = new_document();
+        let destination = dir.path().join(format!("occupied.{ext}"));
+        std::fs::write(&destination, b"another-writer").unwrap();
+        let before = session.info().unwrap();
+        assert_eq!(
+            session
+                .save_as_checked(
+                    destination.to_string_lossy().into_owned(),
+                    DocumentSaveDestinationIntent::CreateIfAbsent
+                )
+                .unwrap(),
+            DocumentSaveAsResult::DestinationExists
+        );
+        assert_eq!(std::fs::read(&destination).unwrap(), b"another-writer");
+        let after = session.info().unwrap();
+        assert_eq!(after.path, before.path);
+        assert_eq!(after.title, before.title);
+        assert_eq!(after.dirty, before.dirty);
+        assert_eq!(after.history_head, before.history_head);
+    }
+}
+
+#[test]
 fn legacy_save_as_still_replaces_existing_destination() {
     let (dir, _engine, session) = new_document();
     let path = dir.path().join("legacy.tessera-doc");
