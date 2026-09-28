@@ -263,7 +263,11 @@ impl Engine {
             |r| r.get(0),
         )?)
     }
-    fn persist(
+    fn persist(c: &mut Catalog, path: &Path, doc: &sidecar::RecipeDocument) -> Result<()> {
+        let packet = catalog::selection_packet(path, doc)?;
+        Self::persist_with_packet(c, path, doc, &packet)
+    }
+    fn persist_with_packet(
         c: &mut Catalog,
         path: &Path,
         doc: &sidecar::RecipeDocument,
@@ -409,8 +413,7 @@ impl Engine {
         let mut doc = catalog::document(Path::new(&path), parse_id(&image_id)?)?;
         doc.recipe.selection = selection;
         doc.record_write("tessera-mac", now_ms())?;
-        let packet = catalog::selection_packet(Path::new(&path), &doc)?;
-        Self::persist(&mut c, Path::new(&path), &doc, &packet)?;
+        Self::persist(&mut c, Path::new(&path), &doc)?;
         drop(c);
         drop(write);
         self.notify_changes();
@@ -464,7 +467,7 @@ impl Engine {
         doc.recipe = recipe;
         doc.record_write("tessera-mac", now_ms())?;
         let packet = catalog::selection_packet(Path::new(&path), &doc)?.with_recipe(&doc.recipe)?;
-        Self::persist(&mut c, Path::new(&path), &doc, &packet)?;
+        Self::persist_with_packet(&mut c, Path::new(&path), &doc, &packet)?;
         drop(c);
         drop(write);
         self.notify_changes();
