@@ -1,0 +1,59 @@
+{
+  "scale": 8,
+  "dimensions": {
+    "source": [
+      80,
+      16
+    ],
+    "output": [
+      640,
+      128
+    ]
+  },
+  "method": "exact nearest-neighbor replication of every source sample; no filtering",
+  "base": {
+    "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/base-bright255.ppm",
+    "source_sha256": "3ac4503ac03416072c3d8ac4990c6e70f354a2d16b542396c33b2c7f0e6e175e",
+    "output": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/base-bright255-640x128.ppm",
+    "output_sha256": "e5f5572fef9148ce718b3f637797df9e3089e8eb40c3d14d1b0b48062be54ff5",
+    "header_sha256": "d4302ff2b98bb8c97103dae05ea6bb8f6686be7f3756df97da2773ccd20f1f5e",
+    "unique_rgb": [
+      64,
+      128,
+      255
+    ]
+  },
+  "uniform": {
+    "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/fixtures/gain.pgm",
+    "source_sha256": "9d9293b6cf23f44eb580d7a9066cd2439457310efcd3e6af3f323ddaa88050ab",
+    "output": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/gain-uniform-640x128.pgm",
+    "output_sha256": "14c9c42e0ef712a7055b671cffc35dcc37e21c70cfee67b5fae63bb5d3da6bea",
+    "header_sha256": "9c8a77de28c24ae2ea83d2d81eb2113591421e55a6cac26493c523983c923287",
+    "sample_counts": {
+      "255": 81920
+    },
+    "all_rows_same_counts": true,
+    "row_counts": {
+      "zero": 0,
+      "max": 640
+    },
+    "transition_x": null
+  },
+  "split": {
+    "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/gain-split.pgm",
+    "source_sha256": "9bf96ebb0b0f99632f21dd63f81e42cd78efaf4eef32e61be38370c26e079a55",
+    "output": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/gain-split-640x128.pgm",
+    "output_sha256": "9ebce18ee393a22b91b4effbcfe85f6b951262bdf9adbc44afeb6af2c05b1004",
+    "header_sha256": "9c8a77de28c24ae2ea83d2d81eb2113591421e55a6cac26493c523983c923287",
+    "sample_counts": {
+      "0": 40960,
+      "255": 40960
+    },
+    "all_rows_same_counts": true,
+    "row_counts": {
+      "zero": 320,
+      "max": 320
+    },
+    "transition_x": 320
+  }
+}

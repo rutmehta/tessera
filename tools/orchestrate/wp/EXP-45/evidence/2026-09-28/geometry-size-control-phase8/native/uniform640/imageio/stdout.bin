@@ -1,0 +1,189 @@
+too few samples
+too few samples
+too few samples
+too few samples
+too few samples
+[
+  {
+    "apple_aux_present" : 0,
+    "iso_aux_present" : 1,
+    "image_count" : 1,
+    "hdr" : {
+      "context_target_before" : 0,
+      "input_color_space_components" : 3,
+      "provider_bytes" : 327680,
+      "rgb_min" : 0.82051742076873779,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "input_icc_sha256" : "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16",
+      "context_target_after" : 0,
+      "context_target_set" : false,
+      "input_color_space_present" : 1,
+      "provider_sha256" : "ab58ddd0fac42fd4ef7d7810a36be5971568d5ac93d53a2247e4f74c4a654224",
+      "headroom" : 16,
+      "rgb_mean" : 6.8202977647384007,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "kCGColorSpaceITUR_2100_PQ",
+      "bits_per_component" : 10,
+      "nonfinite_rgb" : 0,
+      "height" : 128,
+      "samples_above_one" : 165888,
+      "width" : 640,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        {
+          "y" : 64,
+          "fraction" : 0.10000000000000001,
+          "x" : 64,
+          "rgba" : [
+            0.82051742076873779,
+            0.82051753997802734,
+            0.82051753997802734,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.29999999999999999,
+          "x" : 192,
+          "rgba" : [
+            0.82051742076873779,
+            0.82051753997802734,
+            0.82051753997802734,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.5,
+          "x" : 320,
+          "rgba" : [
+            3.4665861129760742,
+            3.4665865898132324,
+            3.4665865898132324,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.69999999999999996,
+          "x" : 448,
+          "rgba" : [
+            15.951574325561523,
+            15.95157527923584,
+            15.951576232910156,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.90000000000000002,
+          "x" : 576,
+          "rgba" : [
+            15.951574325561523,
+            15.95157527923584,
+            15.951576232910156,
+            1
+          ]
+        }
+      ],
+      "input_icc_bytes" : 13300,
+      "bitmap_info" : 204806,
+      "rgb_max" : 15.951576232910156,
+      "input_color_space_model" : 1,
+      "nonzero_rgb_samples" : 245760,
+      "bytes_per_row" : 2560
+    },
+    "path" : "\/Volumes\/betterSSD\/tessera-validation\/exp45-independent-control\/d52a0d13814ca399fc8a07e23de1d2c63f0e8404\/size-640x128\/reference-16-uniform-explicit.jpg",
+    "source_properties_plist" : "\/Volumes\/betterSSD\/tessera-validation\/exp45-independent-control\/d52a0d13814ca399fc8a07e23de1d2c63f0e8404\/size-640x128\/native\/uniform640\/imageio\/source-properties.plist",
+    "sdr" : {
+      "context_target_before" : 0,
+      "input_color_space_components" : 3,
+      "provider_bytes" : 327680,
+      "rgb_min" : 0.05126953125,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "input_icc_sha256" : "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+      "context_target_after" : 0,
+      "context_target_set" : false,
+      "input_color_space_present" : 1,
+      "provider_sha256" : "a68120bec8f3078fdcc19b13eacc6b73939ba76e37ec7255b17e4a979f6c54c9",
+      "headroom" : 1,
+      "rgb_mean" : 0.427001953125,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "unknown",
+      "bits_per_component" : 8,
+      "nonfinite_rgb" : 0,
+      "height" : 128,
+      "samples_above_one" : 0,
+      "width" : 640,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        {
+          "y" : 64,
+          "fraction" : 0.10000000000000001,
+          "x" : 64,
+          "rgba" : [
+            0.05126953125,
+            0.05126953125,
+            0.05126953125,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.29999999999999999,
+          "x" : 192,
+          "rgba" : [
+            0.05126953125,
+            0.05126953125,
+            0.05126953125,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.5,
+          "x" : 320,
+          "rgba" : [
+            0.2158203125,
+            0.2158203125,
+            0.2158203125,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.69999999999999996,
+          "x" : 448,
+          "rgba" : [
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "y" : 64,
+          "fraction" : 0.90000000000000002,
+          "x" : 576,
+          "rgba" : [
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "input_icc_bytes" : 588,
+      "bitmap_info" : 5,
+      "rgb_max" : 1,
+      "input_color_space_model" : 1,
+      "nonzero_rgb_samples" : 245760,
+      "bytes_per_row" : 2560
+    },
+    "max_sdr_hdr_delta" : 14.951576232910156
+  }
+]

@@ -1,0 +1,224 @@
+{
+  "apple_aux_present": 0,
+  "iso_aux_present": 1,
+  "image_count": 1,
+  "hdr": {
+    "context_target_before": 0,
+    "input_color_space_components": 3,
+    "provider_bytes": 327680,
+    "rgb_min": 0.05137912184000015,
+    "alpha_min": 1,
+    "alpha_max": 1,
+    "input_icc_sha256": "930566efae7c63c52625fb78f1cb567b2630b5c7ceb22328a3c52f107712d35c",
+    "context_target_after": 0,
+    "context_target_set": false,
+    "input_color_space_present": 1,
+    "provider_sha256": "86e8daba024a8bd7b87cd3dacda0b845b05a51af3375161ab1e49eafaffb6b1a",
+    "headroom": 8,
+    "rgb_mean": 3.029382730461657,
+    "pixels_decoded": 1,
+    "image_created": true,
+    "color_space": "unknown",
+    "bits_per_component": 10,
+    "nonfinite_rgb": 0,
+    "height": 128,
+    "samples_above_one": 122880,
+    "width": 640,
+    "bits_per_pixel": 32,
+    "patch_centers": [
+      {
+        "y": 64,
+        "fraction": 0.1,
+        "x": 64,
+        "rgba": [
+          0.05137912184000015,
+          0.05137912929058075,
+          0.05137912929058075,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.3,
+        "x": 192,
+        "rgba": [
+          0.05137912184000015,
+          0.05137912929058075,
+          0.05137912929058075,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.5,
+        "x": 320,
+        "rgba": [
+          1.7246283292770386,
+          1.7246285676956177,
+          1.7246285676956177,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.7,
+        "x": 448,
+        "rgba": [
+          7.983761787414551,
+          7.983762741088867,
+          7.983762264251709,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.9,
+        "x": 576,
+        "rgba": [
+          7.983761787414551,
+          7.983762741088867,
+          7.983762264251709,
+          1
+        ]
+      }
+    ],
+    "input_icc_bytes": 26620,
+    "bitmap_info": 204806,
+    "rgb_max": 7.983762741088867,
+    "input_color_space_model": 1,
+    "nonzero_rgb_samples": 245760,
+    "bytes_per_row": 2560,
+    "provider_dump": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split640/imageio/provider-hdr.bin",
+      "bytes": 327680,
+      "sha256": "86e8daba024a8bd7b87cd3dacda0b845b05a51af3375161ab1e49eafaffb6b1a"
+    },
+    "drawn_rgba_f32": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split640/imageio/reference-16-split-explicit.jpg.hdr.f32",
+      "bytes": 1310720,
+      "sha256": "adeefc99372ffd4dd2c5997ad7328408d94711c00dbbe8a124fb42e59b97ba77"
+    },
+    "returned_colorspace_icc": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split640/imageio/hdr-returned-colorspace-icc.icc",
+      "bytes": 26620,
+      "sha256": "930566efae7c63c52625fb78f1cb567b2630b5c7ceb22328a3c52f107712d35c"
+    }
+  },
+  "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/reference-16-split-explicit.jpg",
+  "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split640/imageio/source-properties.plist",
+  "sdr": {
+    "context_target_before": 0,
+    "input_color_space_components": 3,
+    "provider_bytes": 327680,
+    "rgb_min": 0.05126953125,
+    "alpha_min": 1,
+    "alpha_max": 1,
+    "input_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+    "context_target_after": 0,
+    "context_target_set": false,
+    "input_color_space_present": 1,
+    "provider_sha256": "a68120bec8f3078fdcc19b13eacc6b73939ba76e37ec7255b17e4a979f6c54c9",
+    "headroom": 1,
+    "rgb_mean": 0.427001953125,
+    "pixels_decoded": 1,
+    "image_created": true,
+    "color_space": "unknown",
+    "bits_per_component": 8,
+    "nonfinite_rgb": 0,
+    "height": 128,
+    "samples_above_one": 0,
+    "width": 640,
+    "bits_per_pixel": 32,
+    "patch_centers": [
+      {
+        "y": 64,
+        "fraction": 0.1,
+        "x": 64,
+        "rgba": [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.3,
+        "x": 192,
+        "rgba": [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.5,
+        "x": 320,
+        "rgba": [
+          0.2158203125,
+          0.2158203125,
+          0.2158203125,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.7,
+        "x": 448,
+        "rgba": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "y": 64,
+        "fraction": 0.9,
+        "x": 576,
+        "rgba": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "input_icc_bytes": 588,
+    "bitmap_info": 5,
+    "rgb_max": 1,
+    "input_color_space_model": 1,
+    "nonzero_rgb_samples": 245760,
+    "bytes_per_row": 2560,
+    "provider_dump": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split640/imageio/provider-sdr.bin",
+      "bytes": 327680,
+      "sha256": "a68120bec8f3078fdcc19b13eacc6b73939ba76e37ec7255b17e4a979f6c54c9"
+    },
+    "drawn_rgba_f32": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split640/imageio/reference-16-split-explicit.jpg.sdr.f32",
+      "bytes": 1310720,
+      "sha256": "0f108c53cb0d852c224f8ea87f53ef18498751c6b258a01b8490310fedb3753a"
+    },
+    "returned_colorspace_icc": {
+      "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/split640/imageio/sdr-returned-colorspace-icc.icc",
+      "bytes": 588,
+      "sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c"
+    }
+  },
+  "max_sdr_hdr_delta": 6.983762741088867,
+  "source_properties_sha256": "9cce8b13b29f34753261a50796e16df9756382f258cd537d8dc7565ce747e313",
+  "source_properties_bytes": 608,
+  "source_property_keys": [
+    "ColorModel",
+    "Depth",
+    "Headroom",
+    "Orientation",
+    "PixelHeight",
+    "PixelWidth",
+    "ProfileName",
+    "{TIFF}"
+  ]
+}

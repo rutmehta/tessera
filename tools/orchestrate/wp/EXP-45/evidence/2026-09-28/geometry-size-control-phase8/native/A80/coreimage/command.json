@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/probe/coreimage-probe-geometry",
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/size-640x128/native/A80/coreimage",
+    "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg"
+  ],
+  "cwd": "/Users/rutmehta/Developer/tessera"
+}
