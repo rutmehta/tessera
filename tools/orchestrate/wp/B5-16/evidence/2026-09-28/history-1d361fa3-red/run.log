@@ -1,0 +1,276 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (0.42s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.10.0 (1.59s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.10.0
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache (0.37s)
+Building for production...
+[0/12] /Volumes/betterSSD/tessera-validation/b5-16-history-1d361fa3/swift-build/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+[11/15] Compiling Tessera AISettingsView.swift
+[11/15] Write Objects.LinkFileList
+[12/15] Linking Tessera
+[14/16] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:21:58: warning: conditional downcast from 'String?' to 'String' does nothing
+ 19 |         XCTAssertEqual(view.reset.accessibilityLabel(), "Reset History height")
+ 20 |         XCTAssertEqual(view.readout.accessibilityLabel(), "History height")
+ 21 |         XCTAssertEqual(view.readout.accessibilityValue() as? String, String(format: "%.0f points", initial))
+    |                                                          `- warning: conditional downcast from 'String?' to 'String' does nothing
+ 22 |         XCTAssertTrue(view.increase.accessibilityPerformPress())
+ 23 |         XCTAssertEqual(changes, [initial + Double(Theme.Height.row)])
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:24:58: warning: conditional downcast from 'String?' to 'String' does nothing
+ 22 |         XCTAssertTrue(view.increase.accessibilityPerformPress())
+ 23 |         XCTAssertEqual(changes, [initial + Double(Theme.Height.row)])
+ 24 |         XCTAssertEqual(view.readout.accessibilityValue() as? String, String(format: "%.0f points", initial + Double(Theme.Height.row)))
+    |                                                          `- warning: conditional downcast from 'String?' to 'String' does nothing
+ 25 |         XCTAssertTrue(view.decrease.accessibilityPerformPress())
+ 26 |         XCTAssertEqual(changes.last, initial)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:45:58: warning: conditional downcast from 'String?' to 'String' does nothing
+ 43 |         XCTAssertTrue(view.reset.accessibilityPerformPress())
+ 44 |         XCTAssertEqual(changes.last, Double(DocumentInspector.historyDefault), "reset stores the unclamped default request")
+ 45 |         XCTAssertEqual(view.readout.accessibilityValue() as? String,
+    |                                                          `- warning: conditional downcast from 'String?' to 'String' does nothing
+ 46 |                        String(format: "%.0f points", Double(DocumentInspector.budget.historyHeight(requested: DocumentInspector.historyDefault, column: column))))
+ 47 |         view.configure(requested: 0, column: 900) { changes.append($0) }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:126:62: warning: conditional downcast from 'String?' to 'String' does nothing
+124 |         defer { restoredWindow.orderOut(nil); restoredWindow.contentViewController = nil }
+125 |         let restored = try XCTUnwrap(find(restoredHost))
+126 |         XCTAssertEqual(restored.readout.accessibilityValue() as? String, String(format: "%.0f points", initial + Double(Theme.Height.row)))
+    |                                                              `- warning: conditional downcast from 'String?' to 'String' does nothing
+127 |         XCTAssertTrue(restored.reset.accessibilityPerformPress())
+128 |         XCTAssertEqual(defaults.double(forKey: heightKey), initial)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[15/17] Compiling TesseraPackageTests runner.swift
+[15/17] Write Objects.LinkFileList
+[16/17] Linking TesseraPackageTests
+Build complete! (169.24s)
+Test Suite 'Selected tests' started at 2026-09-28 17:36:32.576.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 17:36:32.577.
+Test Suite 'DocumentAdjustmentAnalysisTests' started at 2026-09-28 17:36:32.577.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testAutoToneStretchesEachChannelAndColorSetsGamma]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testAutoToneStretchesEachChannelAndColorSetsGamma]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testBlackWhiteAutoMatchesLumaAndKeepsDefaultsForMissingHues]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testBlackWhiteAutoMatchesLumaAndKeepsDefaultsForMissingHues]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCompositeAnalysisNeutralizesTheLayerAndLeavesNoTrace]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCompositeAnalysisNeutralizesTheLayerAndLeavesNoTrace]' passed (0.191 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCubeAnd3DLLoaders]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCubeAnd3DLLoaders]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testEqualizeMapsAreCDFMinNormalized]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testEqualizeMapsAreCDFMinNormalized]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testHDREqualizeFreezesALuminanceMap]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testHDREqualizeFreezesALuminanceMap]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLabStatisticsAndMatchColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLabStatisticsAndMatchColor]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' passed (0.019 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' passed (0.041 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testMenusListEveryKindOnceInPhotoshopOrder]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testMenusListEveryKindOnceInPhotoshopOrder]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' passed (0.015 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testNewImageDependentLayersAreAnalysed]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testNewImageDependentLayersAreAnalysed]' passed (0.019 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testPhotoFilterPresetsMatchTheEngineSwatches]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testPhotoFilterPresetsMatchTheEngineSwatches]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testStubRendersTheNewPointwiseKinds]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testStubRendersTheNewPointwiseKinds]' passed (0.001 seconds).
+Test Suite 'DocumentAdjustmentAnalysisTests' passed at 2026-09-28 17:36:32.867.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.289 (0.290) seconds
+Test Suite 'DocumentAdjustmentJSONTests' started at 2026-09-28 17:36:32.867.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testAuto]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testAuto]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBlackWhite]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBlackWhite]' passed (0.015 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBrightnessContrast]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBrightnessContrast]' passed (0.018 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testChannelMixer]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testChannelMixer]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorBalance]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorBalance]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorLookup]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorLookup]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testCurves]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testCurves]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testDesaturate]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testDesaturate]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testEqualize]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testEqualize]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testExposure]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testExposure]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testGradientMap]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testGradientMap]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHdrToning]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHdrToning]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHueSaturation]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHueSaturation]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testInvert]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testInvert]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testLevels]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testLevels]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testMatchColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testMatchColor]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testNeutralValuesRoundTripThroughTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testNeutralValuesRoundTripThroughTheEngine]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPhotoFilter]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPhotoFilter]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPosterize]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPosterize]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testReplaceColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testReplaceColor]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testSelectiveColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testSelectiveColor]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testShadowsHighlights]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testShadowsHighlights]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testThreshold]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testThreshold]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testVibrance]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testVibrance]' passed (0.010 seconds).
+Test Suite 'DocumentAdjustmentJSONTests' passed at 2026-09-28 17:36:33.151.
+	 Executed 25 tests, with 0 failures (0 unexpected) in 0.283 (0.284) seconds
+Test Suite 'DocumentHistoryHeightControlTests' started at 2026-09-28 17:36:33.151.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' started.
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:40: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest] : XCTAssertTrue failed
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:43: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest] : XCTAssertTrue failed
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:45: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest] : XCTAssertEqual failed: ("Optional("168 pt")") is not equal to ("Optional("168 points")")
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' failed (0.942 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' started.
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:121: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation] : XCTAssertTrue failed
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:126: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation] : XCTAssertEqual failed: ("Optional("192 pt")") is not equal to ("Optional("192 points")")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:127: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation] : XCTAssertTrue failed
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' failed (2.594 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' started.
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:93: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions] : XCTAssertTrue failed
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' failed (0.025 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' passed (0.009 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' started.
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:16: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue] : XCTAssertEqual failed: ("Optional(__C.NSAccessibilityRole(_rawValue: AXUnknown))") is not equal to ("Optional(__C.NSAccessibilityRole(_rawValue: AXButton))")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:21: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue] : XCTAssertEqual failed: ("Optional("168 pt")") is not equal to ("Optional("168 points")")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:22: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue] : XCTAssertTrue failed
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:24: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue] : XCTAssertEqual failed: ("Optional("192 pt")") is not equal to ("Optional("192 points")")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:25: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue] : XCTAssertTrue failed
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:27: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue] : XCTAssertTrue failed
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift:28: error: -[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue] : XCTAssertTrue failed
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' failed (0.004 seconds).
+Test Suite 'DocumentHistoryHeightControlTests' failed at 2026-09-28 17:36:36.725.
+	 Executed 5 tests, with 14 failures (0 unexpected) in 3.574 (3.574) seconds
+Test Suite 'DocumentInspectorTabsTests' started at 2026-09-28 17:36:36.726.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' passed (0.000 seconds).
+Test Suite 'DocumentInspectorTabsTests' passed at 2026-09-28 17:36:36.726.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'DocumentKeyRoutingTests' started at 2026-09-28 17:36:36.726.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' passed (0.042 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' started.
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:30: error: -[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode] : XCTAssertFalse failed - x
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:30: error: -[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode] : XCTAssertFalse failed - p
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:30: error: -[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode] : XCTAssertFalse failed - 1
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:30: error: -[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode] : XCTAssertFalse failed - b
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:30: error: -[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode] : XCTAssertFalse failed - c
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:30: error: -[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode] : XCTAssertFalse failed - g
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:30: error: -[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode] : XCTAssertFalse failed - e
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' failed (0.005 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' started.
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift:83: error: -[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys] : XCTAssertEqual failed: ("move") is not equal to ("marquee")
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' failed (0.006 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' passed (0.000 seconds).
+Test Suite 'DocumentKeyRoutingTests' failed at 2026-09-28 17:36:36.782.
+	 Executed 5 tests, with 8 failures (0 unexpected) in 0.055 (0.056) seconds
+Test Suite 'KeyFocusTests' started at 2026-09-28 17:36:36.782.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' passed (0.009 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' passed (0.003 seconds).
+Test Suite 'KeyFocusTests' passed at 2026-09-28 17:36:36.833.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.051 (0.051) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-28 17:36:36.833.
+	 Executed 65 tests, with 22 failures (0 unexpected) in 4.252 (4.256) seconds
+Test Suite 'Selected tests' failed at 2026-09-28 17:36:36.833.
+	 Executed 65 tests, with 22 failures (0 unexpected) in 4.252 (4.257) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

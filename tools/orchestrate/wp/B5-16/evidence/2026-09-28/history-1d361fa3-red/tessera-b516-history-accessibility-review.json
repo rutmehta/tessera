@@ -1,0 +1,34 @@
+{
+  "candidate": "e2c3cd032918a795dda7c44e699925d15f686711",
+  "base": "ddb2810196d5492c9258840af9a431e706d9318f",
+  "review": "source-only; no build or GUI",
+  "disposition": "No blocking source defect identified; runtime qualification required",
+  "files": [
+    {
+      "path": "apps/mac/Sources/Tessera/Document/DocumentHistoryHeightControl.swift",
+      "expected": "834e4dfc06257740ae4c06982387d4d475c6553e31dff40f49b5effe1133e1ae",
+      "actual": "834e4dfc06257740ae4c06982387d4d475c6553e31dff40f49b5effe1133e1ae",
+      "equal": true
+    },
+    {
+      "path": "apps/mac/Sources/Tessera/Document/DocumentView.swift",
+      "expected": "5a181aaa7109cf878088e06da19bd66b192dc64a6fd85571df9fd8355e230fd1",
+      "actual": "5a181aaa7109cf878088e06da19bd66b192dc64a6fd85571df9fd8355e230fd1",
+      "equal": true
+    },
+    {
+      "path": "apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift",
+      "expected": "d03c9bba963e6daef0985071d765f535586df61d350a88b6ce23a0462f3cfb9d",
+      "actual": "d03c9bba963e6daef0985071d765f535586df61d350a88b6ce23a0462f3cfb9d",
+      "equal": true
+    }
+  ],
+  "changed_paths": [
+    "apps/mac/Sources/Tessera/Document/DocumentHistoryHeightControl.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentView.swift",
+    "apps/mac/Tests/TesseraCoreTests/DocumentHistoryHeightControlTests.swift",
+    "tools/orchestrate/wp/B5-16/HISTORY-ACCESSIBILITY-HANDOFF.md",
+    "tools/orchestrate/wp/B5-16/HISTORY-ACCESSIBILITY-SOURCE.sha256"
+  ],
+  "prior_gui_report": "/Volumes/betterSSD/tessera-validation/b5-16-ddb28101/gui-f1089ba5/GUI-CHECKPOINT.md"
+}
