@@ -227,6 +227,67 @@ final class SmartPreviewUITests: XCTestCase {
         XCTAssertEqual(probe.reads, ["new"])
     }
 
+    func testOpeningFollowsReplacementSamePhotoStatusRead() async throws {
+        let firstRead = expectation(description: "first native read started")
+        let secondRead = expectation(description: "replacement native read started")
+        let firstWait = expectation(description: "opener captured first generation")
+        let secondWait = expectation(description: "opener captured replacement generation")
+        let reads = OpeningReadGates(started: [firstRead, secondRead])
+        let controller = SmartPreviewController(api: reads.api)
+        let first = controller.select(imageID: "raw")!
+        await fulfillment(of: [firstRead], timeout: 1)
+        var waits = 0
+        var openingFinished = false
+        let opening = Task {
+            defer { openingFinished = true }
+            return try await controller.statusForOpening(imageID: "raw", willWait: {
+                waits += 1
+                if waits == 1 { firstWait.fulfill() }
+                if waits == 2 { secondWait.fulfill() }
+            })
+        }
+        await fulfillment(of: [firstWait], timeout: 1)
+        let replacement = controller.select(imageID: "raw", refresh: true)!
+        reads.finish(0, with: info("raw", .ready))
+        await first.value
+        await fulfillment(of: [secondRead, secondWait], timeout: 1)
+        XCTAssertFalse(openingFinished, "Do not fail on the nil snapshot while replacement validation is pending")
+        XCTAssertNil(controller.selectedInfo)
+        let latest = info("raw", .dirty, dirty: true)
+        reads.finish(1, with: latest)
+        let openedStatus = try await opening.value
+        await replacement.value
+        XCTAssertEqual(openedStatus, latest)
+        XCTAssertEqual(reads.imageIDs, ["raw", "raw"], "Following a generation must not create a third read")
+        XCTAssertEqual(controller.selectedImageID, "raw")
+    }
+
+    func testOpeningCancelsIfSelectionChangesAwayAndBackDuringRead() async {
+        let firstRead = expectation(description: "first native read started")
+        let replacementRead = expectation(description: "new selection native read started")
+        let captured = expectation(description: "opener captured old selection identity")
+        let reads = OpeningReadGates(started: [firstRead, replacementRead])
+        let controller = SmartPreviewController(api: reads.api)
+        controller.select(imageID: "raw")
+        await fulfillment(of: [firstRead], timeout: 1)
+        let opening = Task {
+            try await controller.statusForOpening(imageID: "raw", willWait: { captured.fulfill() })
+        }
+        await fulfillment(of: [captured], timeout: 1)
+        controller.select(imageID: "other")
+        let back = controller.select(imageID: "raw")!
+        reads.finish(0, with: info("raw"))
+        do {
+            _ = try await opening.value
+            XCTFail("Returning to the same image must not revive an opener from an older selection")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        await fulfillment(of: [replacementRead], timeout: 1)
+        reads.finish(1, with: info("raw", .dirty, dirty: true))
+        await back.value
+        XCTAssertEqual(controller.selectedImageID, "raw")
+        XCTAssertEqual(reads.imageIDs, ["raw", "raw"])
+    }
+
     func testStaleOpenerCannotRetargetCurrentSelectionOrStartAnotherRead() async {
         let probe = PreviewProbe()
         let controller = SmartPreviewController(api: probe.api)
@@ -320,4 +381,29 @@ private final class PreviewProbe {
     func waitForBuild() async { if !buildEntered { await withCheckedContinuation { buildWaiter = $0 } } }
     func finishRead(_ info: SmartPreviewSnapshot) { read?.resume(returning: info); read = nil }
     func finishBuild(_ info: SmartPreviewSnapshot) { build?.resume(returning: info); build = nil }
+}
+
+
+/// Two native reads suspend independently. Expectations are failure deadlines,
+/// not sleeps or synchronization guesses; the actual ordering uses continuations.
+@MainActor
+private final class OpeningReadGates {
+    let started: [XCTestExpectation]
+    private(set) var imageIDs: [String] = []
+    private var pending: [Int: CheckedContinuation<SmartPreviewSnapshot, Never>] = [:]
+    init(started: [XCTestExpectation]) { self.started = started }
+    var api: SmartPreviewAPI {
+        .init(info: { [self] id in
+            let index = imageIDs.count
+            imageIDs.append(id)
+            return await withCheckedContinuation { continuation in
+                pending[index] = continuation
+                if started.indices.contains(index) { started[index].fulfill() }
+            }
+        }, build: { _ in throw ProbeError.failed }, discard: { _ in },
+              synchronize: { _ in throw ProbeError.failed })
+    }
+    func finish(_ index: Int, with value: SmartPreviewSnapshot) {
+        pending.removeValue(forKey: index)?.resume(returning: value)
+    }
 }
