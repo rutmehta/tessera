@@ -1,0 +1,7 @@
+# Bounded actual-event focus trace — coordinator source review
+
+Reviewed B proposal 83172f16 and all three manifest hashes. Approved diagnostic source implementation only, under the existing authorized GUI investigation. No routing correction or actual focus acceptance yet. Public semantic AX inspection at the existing pre-handler boundary is appropriate because the hosted diagnostic never found the virtual SwiftUI button. Handler invocation and event return must remain exactly once and unchanged.
+
+Require disabled-by-default collector with no AX work or file creation; explicit new output path opened exclusively, finite 32-event/64-KiB limits, identity/cycle/depth/node bounds and scalar-only snapshots. Do not serialize document names, paths, text/value content or raw characters. Incomplete membership/focus remains unknown. Trace-enabled and disabled actual reproduction must be compared because AX reads can materialize state. No private class matching, global settings or extra event monitor.
+
+Keep the failed hosted diagnostic and warning correction on their preserved branches/evidence. The new trace implementation can branch from qualified inspector source 619524b0, without transplanting the failed setup test into the ordinary product acceptance suite. This is an independent diagnostic, not converting its failure to a skip or deleting its historical assertions. Add collector/routing/lifetime controls and keep existing real shortcut tests. A will compile, run and package; B stays source-only. New source must be reviewed before runtime.
