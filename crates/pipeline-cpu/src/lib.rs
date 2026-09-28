@@ -30,7 +30,9 @@ pub use lens_plan::{
 mod optics;
 mod render;
 mod smart_preview;
-pub use smart_preview::{CameraLinearProxy, DecodedSmartPreview, SmartPreviewEncoding};
+pub use smart_preview::{
+    CameraLinearProxy, DecodedSmartPreview, SmartPreviewEncoding, SmartPreviewTier,
+};
 mod upright;
 pub use display::{
     MAX_HDR_HEADROOM, SigmoidSettings, display, display_float, display_linear, hdr_sigmoid_ln_a,

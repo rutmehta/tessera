@@ -4,7 +4,7 @@ use engine_api::{
 };
 use pipeline_cpu::{
     CameraLinearProxy, LensContext, ManualCaSettings, RenderSource, SmartPreviewEncoding,
-    render_linear_scaled,
+    SmartPreviewTier, render_linear_scaled,
 };
 use raw_decode::{CfaImage, CfaLayout, RawMetadata};
 fn fixture(w: u32, h: u32) -> (CfaImage, RawMetadata) {
@@ -423,6 +423,11 @@ fn real_raw_fixture_measurement() {
     use std::time::Instant;
     let path = std::env::var("TESSERA_CODEC_RAW_FIXTURE").unwrap();
     let output = std::path::PathBuf::from(std::env::var("TESSERA_CODEC_OUTPUT_DIR").unwrap());
+    let tier = match std::env::var("TESSERA_CODEC_TIER").as_deref() {
+        Ok("compact2048") => SmartPreviewTier::Compact2048,
+        Ok("detail2560") | Err(std::env::VarError::NotPresent) => SmartPreviewTier::Detail2560,
+        _ => panic!("TESSERA_CODEC_TIER must be compact2048 or detail2560"),
+    };
     let source_bytes = std::fs::read(&path).unwrap();
     let source_digest = *blake3::hash(&source_bytes).as_bytes();
     let mut source = raw_decode::RawSource::open(&path).unwrap();
@@ -432,13 +437,14 @@ fn real_raw_fixture_measurement() {
     let raw_decode_ms = start.elapsed().as_secs_f64() * 1000.;
     let settings = DevelopSettings::default();
     let start = Instant::now();
-    let proxy = CameraLinearProxy::generate(
+    let proxy = CameraLinearProxy::generate_with_tier(
         &cfa,
         &metadata,
         &settings,
         ProcessVersion::NATIVE_CURRENT,
         source_digest,
         &LensContext::default(),
+        tier,
     )
     .unwrap();
     let generation_ms = start.elapsed().as_secs_f64() * 1000.;
@@ -473,6 +479,18 @@ fn real_raw_fixture_measurement() {
     let rendered =
         render_linear_scaled(&edited, &RenderSource::CameraLinear(&reopened.proxy), 1).unwrap();
     let edited_render_ms = start.elapsed().as_secs_f64() * 1000.;
+    let unencoded = render_linear_scaled(&edited, &RenderSource::CameraLinear(&proxy), 1).unwrap();
+    let mut max_edited_render_error = 0.0_f64;
+    for (a, b) in unencoded
+        .planes()
+        .iter()
+        .flatten()
+        .zip(rendered.planes().iter().flatten())
+    {
+        let error = (f64::from(*a) - f64::from(*b)).abs();
+        max_edited_render_error = max_edited_render_error.max(error);
+        assert!(error <= 0.003 * f64::from(*a).abs() + 0.0005);
+    }
     assert_ne!(baseline.planes(), rendered.planes());
     assert!(rendered.planes().iter().flatten().all(|v| v.is_finite()));
     let mut render_hash = blake3::Hasher::new();
@@ -482,10 +500,11 @@ fn real_raw_fixture_measurement() {
     let report = serde_json::json!({
         "original_bytes": source_bytes.len(), "original_blake3": blake3::Hash::from(source_digest).to_hex().to_string(),
         "sensor_dimensions": [metadata.width, metadata.height], "original_crop": metadata.default_crop,
+        "tier": format!("{tier:?}"), "max_edge": tier.max_edge(),
         "proxy_dimensions": [proxy.pixels().width(), proxy.pixels().height()], "scale": proxy.scale(),
         "proxy_encoded_bytes": encoded.len(), "encoding": format!("{:?}", reopened.encoding),
         "raw_decode_ms": raw_decode_ms, "generation_ms": generation_ms, "encode_ms": encode_ms, "decode_ms": decode_ms,
-        "max_sample_error": max_sample_error, "baseline_render_ms": baseline_render_ms, "edited_render_ms": edited_render_ms,
+        "max_sample_error": max_sample_error, "max_edited_render_error":max_edited_render_error, "baseline_render_ms": baseline_render_ms, "edited_render_ms": edited_render_ms,
         "edit": { "temperature": 4200, "tint": 13, "exposure": 0.7 }, "edit_changed_render": true,
         "edited_render_dimensions": [rendered.width(), rendered.height()],
         "edited_render_blake3": render_hash.finalize().to_hex().to_string()
@@ -494,9 +513,239 @@ fn real_raw_fixture_measurement() {
         *blake3::hash(&std::fs::read(&path).unwrap()).as_bytes(),
         source_digest
     );
-    std::fs::write(output.join("sony-camera-linear.clp"), encoded).unwrap();
+    let (asset_name, report_name) = match tier {
+        SmartPreviewTier::Detail2560 => ("sony-camera-linear.clp", "sony-measurement.json"),
+        SmartPreviewTier::Compact2048 => (
+            "sony-compact2048-camera-linear.clp",
+            "sony-compact2048-measurement.json",
+        ),
+    };
+    std::fs::write(output.join(asset_name), encoded).unwrap();
     std::fs::write(
-        output.join("sony-measurement.json"),
+        output.join(report_name),
+        serde_json::to_vec_pretty(&report).unwrap(),
+    )
+    .unwrap();
+    println!("{report}");
+}
+
+#[test]
+fn explicit_tiers_round_trip_with_validated_scale_and_unchanged_default() {
+    let (cfa, metadata) = fixture(4920, 9);
+    let settings = DevelopSettings::default();
+    let default = CameraLinearProxy::generate(
+        &cfa,
+        &metadata,
+        &settings,
+        ProcessVersion::NATIVE_CURRENT,
+        [7; 32],
+        &LensContext::default(),
+    )
+    .unwrap();
+    for (tier, scale, width, height) in [
+        (SmartPreviewTier::Detail2560, 2, 2460, 5),
+        (SmartPreviewTier::Compact2048, 3, 1640, 3),
+    ] {
+        let proxy = CameraLinearProxy::generate_with_tier(
+            &cfa,
+            &metadata,
+            &settings,
+            ProcessVersion::NATIVE_CURRENT,
+            [7; 32],
+            &LensContext::default(),
+            tier,
+        )
+        .unwrap();
+        assert_eq!(
+            (
+                proxy.scale(),
+                proxy.pixels().width(),
+                proxy.pixels().height()
+            ),
+            (scale, width, height)
+        );
+        if tier == SmartPreviewTier::Detail2560 {
+            assert_eq!(default.pixels().planes(), proxy.pixels().planes());
+            assert_eq!(default.tier(), tier);
+        }
+        let bytes = proxy.encode_persistent(123).unwrap();
+        let decoded = CameraLinearProxy::decode_persistent(&bytes).unwrap();
+        assert_eq!(decoded.proxy.tier(), tier);
+        assert_eq!(decoded.proxy.scale(), scale);
+        assert_eq!(
+            decoded.proxy.original_metadata().default_crop,
+            metadata.default_crop
+        );
+        for (a, b) in proxy
+            .pixels()
+            .planes()
+            .iter()
+            .flatten()
+            .zip(decoded.proxy.pixels().planes().iter().flatten())
+        {
+            assert!((f64::from(*a) - f64::from(*b)).abs() <= 0.0005 * f64::from(*a).abs() + 3e-8);
+        }
+        let mut edited = settings.clone();
+        edited.white_balance.mode = WhiteBalanceMode::Custom;
+        edited.white_balance.temperature = 4200.;
+        edited.white_balance.tint = 13.;
+        edited.tone.exposure = 0.7;
+        let before = render_linear_scaled(&edited, &RenderSource::CameraLinear(&proxy), 1).unwrap();
+        let after =
+            render_linear_scaled(&edited, &RenderSource::CameraLinear(&decoded.proxy), 1).unwrap();
+        for (a, b) in before
+            .planes()
+            .iter()
+            .flatten()
+            .zip(after.planes().iter().flatten())
+        {
+            assert!((a - b).abs() <= 0.003 * a.abs() + 0.0005);
+        }
+        let mismatched = change_json(&bytes, |v| {
+            v["tier"] = serde_json::json!(if tier == SmartPreviewTier::Detail2560 {
+                "Compact2048"
+            } else {
+                "Detail2560"
+            })
+        });
+        assert!(CameraLinearProxy::decode_persistent(&mismatched).is_err());
+    }
+}
+
+#[test]
+fn legacy_v1_detail_decodes_but_new_container_requires_explicit_supported_tier() {
+    let bytes = proxy().encode_persistent(100).unwrap();
+    assert_eq!(u32::from_le_bytes(bytes[8..12].try_into().unwrap()), 2);
+    let mut legacy = change_json(&bytes, |v| {
+        v.as_object_mut().unwrap().remove("tier");
+        v["generator"] = serde_json::json!(1);
+    });
+    legacy[8..12].copy_from_slice(&1_u32.to_le_bytes());
+    resign(&mut legacy);
+    let decoded = CameraLinearProxy::decode_persistent(&legacy).unwrap();
+    assert_eq!(decoded.proxy.tier(), SmartPreviewTier::Detail2560);
+    assert_eq!(decoded.proxy.scale(), 1);
+    assert_eq!(
+        decoded.proxy.pixels().planes(),
+        CameraLinearProxy::decode_persistent(&bytes)
+            .unwrap()
+            .proxy
+            .pixels()
+            .planes()
+    );
+    let upgraded = decoded.proxy.encode_persistent(100).unwrap();
+    assert_eq!(u32::from_le_bytes(upgraded[8..12].try_into().unwrap()), 2);
+    assert!(CameraLinearProxy::decode_persistent(&upgraded).is_ok());
+    for tier in [serde_json::Value::Null, serde_json::json!("Future4096")] {
+        assert!(
+            CameraLinearProxy::decode_persistent(&change_json(&bytes, |v| v["tier"] = tier))
+                .is_err()
+        );
+    }
+    assert!(
+        CameraLinearProxy::decode_persistent(&change_json(&bytes, |v| {
+            v.as_object_mut().unwrap().remove("tier");
+        }))
+        .is_err()
+    );
+    assert!(
+        CameraLinearProxy::decode_persistent(
+            &change_json(&legacy, |v| v["tier"] = serde_json::json!("Compact2048"))
+        )
+        .is_err()
+    );
+    assert!(
+        CameraLinearProxy::decode_persistent(
+            &change_json(&bytes, |v| v["generator"] = serde_json::json!(1))
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn legacy_v1_rejects_even_null_tier_metadata() {
+    let bytes = proxy().encode_persistent(100).unwrap();
+    let mut legacy = change_json(&bytes, |v| {
+        v["generator"] = serde_json::json!(1);
+        v["tier"] = serde_json::Value::Null;
+    });
+    legacy[8..12].copy_from_slice(&1_u32.to_le_bytes());
+    resign(&mut legacy);
+    assert!(CameraLinearProxy::decode_persistent(&legacy).is_err());
+}
+
+/// Reopen an actual preserved v1 asset, not reconstructed metadata from a v2 writer.
+#[test]
+#[ignore = "requires TESSERA_CODEC_LEGACY_ASSET, TESSERA_CODEC_LEGACY_REPORT and TESSERA_CODEC_OUTPUT_DIR"]
+fn real_legacy_v1_asset_reopen_and_edit_parity() {
+    use std::time::Instant;
+    let path = std::env::var("TESSERA_CODEC_LEGACY_ASSET").unwrap();
+    let report_path = std::env::var("TESSERA_CODEC_LEGACY_REPORT").unwrap();
+    let output = std::path::PathBuf::from(std::env::var("TESSERA_CODEC_OUTPUT_DIR").unwrap());
+    let bytes = std::fs::read(&path).unwrap();
+    let asset_hash = blake3::hash(&bytes);
+    assert_eq!(u32::from_le_bytes(bytes[8..12].try_into().unwrap()), 1);
+    let historical: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(report_path).unwrap()).unwrap();
+    let start = Instant::now();
+    let legacy = CameraLinearProxy::decode_persistent(&bytes).unwrap();
+    let decode_ms = start.elapsed().as_secs_f64() * 1000.;
+    assert_eq!(legacy.proxy.tier(), SmartPreviewTier::Detail2560);
+    assert_eq!(
+        (
+            legacy.proxy.pixels().width(),
+            legacy.proxy.pixels().height()
+        ),
+        (2460, 1638)
+    );
+    assert_eq!(
+        legacy.original_byte_length,
+        historical["original_bytes"].as_u64().unwrap()
+    );
+    assert_eq!(
+        blake3::Hash::from(legacy.proxy.original_content_digest())
+            .to_hex()
+            .as_str(),
+        historical["original_blake3"].as_str().unwrap()
+    );
+    let upgraded_bytes = legacy
+        .proxy
+        .encode_persistent(legacy.original_byte_length)
+        .unwrap();
+    let upgraded = CameraLinearProxy::decode_persistent(&upgraded_bytes).unwrap();
+    assert_eq!(
+        legacy.proxy.pixels().planes(),
+        upgraded.proxy.pixels().planes()
+    );
+    let settings = DevelopSettings::default();
+    let baseline =
+        render_linear_scaled(&settings, &RenderSource::CameraLinear(&legacy.proxy), 1).unwrap();
+    let mut edited = settings;
+    edited.white_balance.mode = WhiteBalanceMode::Custom;
+    edited.white_balance.temperature = 4200.;
+    edited.white_balance.tint = 13.;
+    edited.tone.exposure = 0.7;
+    let start = Instant::now();
+    let rendered =
+        render_linear_scaled(&edited, &RenderSource::CameraLinear(&legacy.proxy), 1).unwrap();
+    let edited_render_ms = start.elapsed().as_secs_f64() * 1000.;
+    let upgraded_render =
+        render_linear_scaled(&edited, &RenderSource::CameraLinear(&upgraded.proxy), 1).unwrap();
+    assert_eq!(rendered.planes(), upgraded_render.planes());
+    assert_ne!(baseline.planes(), rendered.planes());
+    let mut hash = blake3::Hasher::new();
+    for value in rendered.planes().iter().flatten() {
+        hash.update(&value.to_le_bytes());
+    }
+    let render_hash = hash.finalize().to_hex().to_string();
+    assert_eq!(
+        render_hash,
+        historical["edited_render_blake3"].as_str().unwrap()
+    );
+    assert_eq!(blake3::hash(&std::fs::read(&path).unwrap()), asset_hash);
+    let report = serde_json::json!({"legacy_bytes":bytes.len(),"legacy_blake3":asset_hash.to_hex().to_string(),"legacy_version":1,"decoded_tier":"Detail2560","dimensions":[2460,1638],"decode_ms":decode_ms,"edited_render_ms":edited_render_ms,"edited_render_blake3":render_hash,"matches_historical_render":true,"v2_upgrade_samples_exact":true,"v2_upgrade_edit_exact":true,"legacy_file_unchanged":true});
+    std::fs::write(
+        output.join("legacy-v1-reopen.json"),
         serde_json::to_vec_pretty(&report).unwrap(),
     )
     .unwrap();

@@ -15,6 +15,22 @@ use engine_api::{
 };
 use raw_decode::{CfaImage, RawMetadata};
 
+/// Explicit pre-edit spatial quality tier; neither tier changes the color pipeline.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum SmartPreviewTier {
+    Compact2048,
+    #[default]
+    Detail2560,
+}
+impl SmartPreviewTier {
+    pub const fn max_edge(self) -> u32 {
+        match self {
+            Self::Compact2048 => 2048,
+            Self::Detail2560 => 2560,
+        }
+    }
+}
+
 /// Owned camera-linear active-area pixels, before camera matrices and WB.
 ///
 /// Generation bakes sensor corrections, reconstruction, demosaic and CA in their
@@ -39,9 +55,10 @@ pub struct CameraLinearProxy {
     lens: LensSettings,
     original_content_digest: [u8; 32],
     scale: u32,
+    tier: SmartPreviewTier,
 }
 impl CameraLinearProxy {
-    pub const GENERATOR_REVISION: u32 = 1;
+    pub const GENERATOR_REVISION: u32 = 2;
     pub const MAX_EDGE: u32 = 2560;
     /// Caller supplies the verified original byte digest, not a path identity.
     /// Only Native revision 2 and raw denoise Off are admitted. A downstream
@@ -53,6 +70,28 @@ impl CameraLinearProxy {
         process: ProcessVersion,
         original_content_digest: [u8; 32],
         context: &LensContext<'_>,
+    ) -> EngineResult<Self> {
+        Self::generate_with_tier(
+            image,
+            metadata,
+            settings,
+            process,
+            original_content_digest,
+            context,
+            SmartPreviewTier::Detail2560,
+        )
+    }
+
+    /// Same immutable pre-edit boundary with an explicit spatial tier. Reduction
+    /// uses complete demosaiced camera-linear pixels, before calibration and WB.
+    pub fn generate_with_tier(
+        image: &CfaImage,
+        metadata: &RawMetadata,
+        settings: &DevelopSettings,
+        process: ProcessVersion,
+        original_content_digest: [u8; 32],
+        context: &LensContext<'_>,
+        tier: SmartPreviewTier,
     ) -> EngineResult<Self> {
         if process.family != ProcessFamily::Native || process.revision != 2 {
             return Err(required("Native revision 2 required"));
@@ -77,7 +116,7 @@ impl CameraLinearProxy {
             crate::render::camera_linear_prefix(settings, image, metadata, context, None, None)?;
         let scale = metadata.default_crop[2]
             .max(metadata.default_crop[3])
-            .div_ceil(Self::MAX_EDGE)
+            .div_ceil(tier.max_edge())
             .max(1);
         let pixels = camera.downsample_crop(metadata.default_crop, scale)?;
         // Image::new enforces finite payload even when an upstream operator
@@ -94,6 +133,7 @@ impl CameraLinearProxy {
             lens: settings.lens.clone(),
             original_content_digest,
             scale,
+            tier,
         })
     }
     pub fn pixels(&self) -> &Image {
@@ -104,6 +144,9 @@ impl CameraLinearProxy {
     }
     pub fn original_content_digest(&self) -> [u8; 32] {
         self.original_content_digest
+    }
+    pub fn tier(&self) -> SmartPreviewTier {
+        self.tier
     }
     pub fn scale(&self) -> u32 {
         self.scale
