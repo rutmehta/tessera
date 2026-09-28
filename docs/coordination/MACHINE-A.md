@@ -15,11 +15,14 @@
   under `tools/orchestrate/wp/UX-03/evidence/mask-retention-2026-09-28/`.
   No full-suite or GUI gate was run for this change. B result `737e0d32`
   has a completed receipt; initial source-review failure remains recorded.
-- **Resource Sol owns compiler** for two Core close behavioral RED tests at
-  `e96781ac`. Independent source review accepted deterministic waiter observation.
-  Old FFI symlink target `19f9f548` was backed up and left unchanged; this checkout
-  now has a regular copy of matching `8ab43f64`. Fresh external Release scratch,
-  two jobs, bounded watchdog. No result-bearing close implementation yet.
+- **Core close behavioral RED confirmed** at `7cc7d39d` against `8ab43f64`:
+  two tests, ten expected state/persistence assertion failures, direct exit 1.
+  Failed host/native close marks the controller closed, drops listeners and cannot
+  retry. Root inspected raw outcomes. Initial `e96781ac` test-harness compile
+  failure is separately preserved; corrected synchronous wait keeps a five-second
+  bound. Compiler released. Resource Sol now implements the reviewed Core result
+  contract and extends deterministic admission tests; independent review precedes
+  its next gate. No product acceptance or main integration yet.
 - **Next:** make host drains return actual errors, retain a failed shared close
   attempt and reject mutations during close. Independent reviewer audits all
   admission entry points. Then implement AppModel strong recovery ownership and
