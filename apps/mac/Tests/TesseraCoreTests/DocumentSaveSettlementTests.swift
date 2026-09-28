@@ -617,9 +617,8 @@ final class DocumentSaveDismissAttachmentTests: XCTestCase {
         w.documentSaveWindowLost(old)
         XCTAssertNil(w.saveAsPresentationID)
     }
-    // UNRUN known-gap regression: expected to fail on 3d08368e, not an acceptance test pass.
-    // No XCTExpectFailure/skip: run separately as a RED contract demonstration on A.
-    func testKnownGapUnobservedAttachmentEndsBeforeDismissalNeedsSuccessorProgress() throws {
+    // UNRUN: RED against 3d08368e; requires recording identity before Cancel clears the item.
+    func testCancelRecordsAttachmentBeforeNativeEndPrecedesDismissal() throws {
         let parent = ParentWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
                                   styleMask: [], backing: .buffered, defer: true)
         let sheet = window(), w = DocumentWorkspace()
@@ -638,8 +637,8 @@ final class DocumentSaveDismissAttachmentTests: XCTestCase {
         let presented = w.saveAsRequest?.id
         let retained = w.saveAsPresentationID
         w.cancelDocumentSave(next); w.documentSaveWindowLost(old)
-        XCTAssertNil(retained, "known gap: no captured attachment evidence, live probe holds claim")
-        XCTAssertEqual(presented, next, "requires an additional identity-bearing lifetime signal")
+        XCTAssertNil(retained, "Cancel must retain actual attachment evidence until native end")
+        XCTAssertEqual(presented, next, "native end plus dismissal must release the queued successor")
     }
 
     func testUnrelatedEndBeforeDismissalCannotInventCapturedAttachment() throws {
@@ -683,6 +682,29 @@ final class DocumentSaveDismissAttachmentTests: XCTestCase {
         XCTAssertEqual(w.saveAsRequest?.id, next)
         XCTAssertNil(w.saveAsPresentationID)
         w.cancelDocumentSave(next)
+    }
+
+    // UNRUN remaining contract gap, deliberately not waived with XCTExpectFailure or skip.
+    // This requires new identity-bearing lifecycle evidence, not a weaker didEnd guard.
+    func testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress() throws {
+        let parent = ParentWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                                  styleMask: [], backing: .buffered, defer: true)
+        let sheet = window(), w = DocumentWorkspace()
+        w.saveHasWindow = { true }; w.savePresentationWindow = { parent }
+        let d = try DocumentController(backend: StubDocumentBackend())
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: UUID()))
+        w.captureSaveAsSheetWindow(old, window: sheet)
+        w.cancelDocumentSave(old) // Still unattached here.
+        parent.simulatedSheet = sheet
+        parent.simulatedSheet = nil // Entire lifetime occurs without a callback we can identify.
+        w.saveAsParentSheetDidEnd(old)
+        w.saveAsPresentationDidDismiss(old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        let presented = w.saveAsRequest?.id
+        w.cancelDocumentSave(next); w.documentSaveWindowLost(old)
+        XCTAssertEqual(presented, next, "known remaining gap: requires additional native lifetime evidence")
     }
 
 }
