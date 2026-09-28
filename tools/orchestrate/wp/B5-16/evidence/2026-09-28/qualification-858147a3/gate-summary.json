@@ -1,0 +1,34 @@
+{
+  "01-models-analysis-01": {
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 99.33292050007731,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "02-layout-01": {
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 82.98048850009218,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "04-full-01": {
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 236.8499850416556,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "05-strict-01": {
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 128.60937125002965,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "prior_head": "7732a03e",
+  "scratch_reused": "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+  "copied_red_binaries": {
+    "Tessera": "129dd855e70ec1edb5256dd8286a647f0a65326543ead2ffab19a86c5d6f2f90",
+    "TesseraPackageTests": "7ce9a53b8846d1f709d5ab9578ba1ce17a74bb12e6f36ef9a291d9db60468bdc"
+  }
+}

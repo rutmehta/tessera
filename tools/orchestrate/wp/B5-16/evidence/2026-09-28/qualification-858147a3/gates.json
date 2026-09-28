@@ -1,0 +1,190 @@
+{
+  "gates": {
+    "01-models-analysis": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--filter",
+      "ThemeLintTests|DocumentHistoryHeightControlTests|DocumentInspectorTabsTests|DocumentKeyRoutingTests|KeyFocusTests|DocumentAdjustmentAnalysisTests|DocumentAdjustmentJSONTests"
+    ],
+    "01b-keyboard-alone": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--filter",
+      "DocumentKeyRoutingTests|KeyFocusTests",
+      "--skip-build"
+    ],
+    "02-layout": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--filter",
+      "ShellLayoutTests"
+    ],
+    "03-adjacent": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--filter",
+      "DocumentSaveDestinationCommitTests|DocumentSaveSettlementTests|DocumentSavePresenterTests|DocumentSaveSheetAttachmentTests|DocumentLoadSettlementTests|DocumentLoadStatusTests|DocumentOutlineLifecycleTests|EngineDocumentBackendTests|DocumentTransformTests"
+    ],
+    "04-full": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2"
+    ],
+    "05-strict": [
+      "swift",
+      "build",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--product",
+      "Tessera",
+      "-Xswiftc",
+      "-strict-concurrency=complete",
+      "-Xswiftc",
+      "-warnings-as-errors"
+    ]
+  },
+  "required": {
+    "01-models-analysis": [
+      [
+        "ThemeLintTests",
+        "testViewsUseThemeTokensOnly"
+      ],
+      [
+        "DocumentHistoryHeightControlTests",
+        "testGlobalStateRestoresExistingOwnersAndPreferenceValues"
+      ],
+      [
+        "DocumentHistoryHeightControlTests",
+        "testNativeAXPressActionsChangeHeightAndExposeCurrentValue"
+      ],
+      [
+        "DocumentHistoryHeightControlTests",
+        "testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest"
+      ],
+      [
+        "DocumentHistoryHeightControlTests",
+        "testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions"
+      ],
+      [
+        "DocumentHistoryHeightControlTests",
+        "testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions"
+      ],
+      [
+        "DocumentHistoryHeightControlTests",
+        "testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation"
+      ],
+      [
+        "DocumentInspectorTabsTests",
+        "testTabsAndShortcuts"
+      ],
+      [
+        "DocumentInspectorTabsTests",
+        "testBudgetFitsTheSmallestColumn"
+      ],
+      [
+        "DocumentInspectorTabsTests",
+        "testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum"
+      ],
+      [
+        "DocumentInspectorTabsTests",
+        "testOpacityAndFillShareARowFrom300Points"
+      ],
+      [
+        "DocumentInspectorTabsTests",
+        "testTabStripShowsAtMostThreeIncludingTheCurrentOne"
+      ],
+      [
+        "DocumentAdjustmentAnalysisTests",
+        "testLegacyMatchColorNeutralizeReopenDisableUndoAndSave"
+      ],
+      [
+        "DocumentAdjustmentAnalysisTests",
+        "testLegacyMatchColorMissingSourceDoesNotPretendToDisable"
+      ],
+      [
+        "DocumentAdjustmentAnalysisTests",
+        "testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels"
+      ]
+    ],
+    "02-layout": [
+      [
+        "ShellLayoutTests",
+        "testShellContainedAtEverySizeStateAndAppearance"
+      ],
+      [
+        "ShellLayoutTests",
+        "testDocumentInspectorEveryTabAndHistoryStateAtEverySize"
+      ],
+      [
+        "ShellLayoutTests",
+        "testManyDocumentTabsStayCapped"
+      ],
+      [
+        "ShellLayoutTests",
+        "testInspectorTabShortcuts"
+      ]
+    ],
+    "04-full": [
+      [
+        "SmartPreviewNativeWorkflowTests",
+        "testActualCachedThumbnailAfterOriginalDisconnect"
+      ],
+      [
+        "SmartPreviewNativeWorkflowTests",
+        "testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect"
+      ]
+    ]
+  },
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "status": "prepared only; adjacent separate gate omitted in favor of full required evidence"
+}

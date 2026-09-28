@@ -1,0 +1,47 @@
+{
+  "ThemeLintTests.testViewsUseThemeTokensOnly": [
+    "Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.239 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testGlobalStateRestoresExistingOwnersAndPreferenceValues": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' passed (0.002 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testNativeAXPressActionsChangeHeightAndExposeCurrentValue": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' passed (0.003 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' passed (0.084 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' passed (0.011 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' passed (0.004 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' passed (0.857 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testTabsAndShortcuts": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testBudgetFitsTheSmallestColumn": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testOpacityAndFillShareARowFrom300Points": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testTabStripShowsAtMostThreeIncludingTheCurrentOne": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' passed (0.000 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorNeutralizeReopenDisableUndoAndSave": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' passed (0.034 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorMissingSourceDoesNotPretendToDisable": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' passed (0.015 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' passed (0.015 seconds)."
+  ]
+}

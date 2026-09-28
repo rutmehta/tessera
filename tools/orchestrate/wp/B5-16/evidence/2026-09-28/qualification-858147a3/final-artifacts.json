@@ -1,0 +1,26 @@
+{
+  "head": "858147a3183c98b9e15118495a75da3bc2ddd0d0",
+  "source_count": 8383,
+  "archive_and_bindings": {
+    "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+    "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+  },
+  "fixture": {
+    "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+  },
+  "swift_outputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build/release/Tessera": "f0f676ce47483531916923684b7c2ab817596d29b9c15c91c7e51363ec9d1171",
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests": "5591754bbb2f4ab8c52142a899695705d8f6a3e83cbf0eab86a811d4657fd52c"
+  },
+  "preserved_copies": {
+    "Tessera": "f0f676ce47483531916923684b7c2ab817596d29b9c15c91c7e51363ec9d1171",
+    "TesseraPackageTests": "5591754bbb2f4ab8c52142a899695705d8f6a3e83cbf0eab86a811d4657fd52c"
+  },
+  "full_gate_outputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build/release/Tessera": "bcb1bdab3d7107e4ced3fd3eb122f1377da6f7a8d81f353e1d32df368e166640",
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests": "5591754bbb2f4ab8c52142a899695705d8f6a3e83cbf0eab86a811d4657fd52c"
+  }
+}

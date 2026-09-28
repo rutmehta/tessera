@@ -1,0 +1,14 @@
+{
+  "ShellLayoutTests.testShellContainedAtEverySizeStateAndAppearance": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (46.040 seconds)."
+  ],
+  "ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (29.310 seconds)."
+  ],
+  "ShellLayoutTests.testManyDocumentTabsStayCapped": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (2.351 seconds)."
+  ],
+  "ShellLayoutTests.testInspectorTabShortcuts": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (1.815 seconds)."
+  ]
+}

@@ -1,0 +1,317 @@
+{
+  "ThemeLintTests.testViewsUseThemeTokensOnly": [
+    "Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.244 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testGlobalStateRestoresExistingOwnersAndPreferenceValues": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' passed (0.002 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testNativeAXPressActionsChangeHeightAndExposeCurrentValue": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' passed (0.003 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' passed (0.009 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' passed (0.013 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' passed (0.003 seconds)."
+  ],
+  "DocumentHistoryHeightControlTests.testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation": [
+    "Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' passed (0.699 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testTabsAndShortcuts": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testBudgetFitsTheSmallestColumn": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testOpacityAndFillShareARowFrom300Points": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' passed (0.000 seconds)."
+  ],
+  "DocumentInspectorTabsTests.testTabStripShowsAtMostThreeIncludingTheCurrentOne": [
+    "Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' passed (0.000 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorNeutralizeReopenDisableUndoAndSave": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' passed (0.035 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testLegacyMatchColorMissingSourceDoesNotPretendToDisable": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' passed (0.017 seconds)."
+  ],
+  "DocumentAdjustmentAnalysisTests.testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels": [
+    "Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' passed (0.017 seconds)."
+  ],
+  "ShellLayoutTests.testShellContainedAtEverySizeStateAndAppearance": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (45.834 seconds)."
+  ],
+  "ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (27.845 seconds)."
+  ],
+  "ShellLayoutTests.testManyDocumentTabsStayCapped": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (2.322 seconds)."
+  ],
+  "ShellLayoutTests.testInspectorTabShortcuts": [
+    "Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (1.872 seconds)."
+  ],
+  "SmartPreviewNativeWorkflowTests.testActualCachedThumbnailAfterOriginalDisconnect": [
+    "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' passed (4.567 seconds)."
+  ],
+  "SmartPreviewNativeWorkflowTests.testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect": [
+    "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (4.858 seconds)."
+  ],
+  "DocumentLoadSettlementTests.testBackendFailureSettlesOnceWithoutInstall": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testBackendFailureSettlesOnceWithoutInstall]' passed (0.002 seconds)."
+  ],
+  "DocumentLoadSettlementTests.testDelayedBackendCompletionDoesNotReleaseAtDispatch": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testDelayedBackendCompletionDoesNotReleaseAtDispatch]' passed (0.000 seconds)."
+  ],
+  "DocumentLoadSettlementTests.testEarlyRejectsSettleWithoutExecutor": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testEarlyRejectsSettleWithoutExecutor]' passed (0.000 seconds)."
+  ],
+  "DocumentLoadSettlementTests.testReleasedWorkspaceStillSettlesAfterBackendReturns": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testReleasedWorkspaceStillSettlesAfterBackendReturns]' passed (0.000 seconds)."
+  ],
+  "DocumentLoadStatusTests.testCallerOwnedFailureDoesNotOverwriteNewerStatus": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedFailureDoesNotOverwriteNewerStatus]' passed (0.000 seconds)."
+  ],
+  "DocumentLoadStatusTests.testCallerOwnedRejectionDoesNotPublishStatus": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedRejectionDoesNotPublishStatus]' passed (0.000 seconds)."
+  ],
+  "DocumentLoadStatusTests.testCallerOwnedSuccessPreservesStatusAndStillInstallsAndSettles": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedSuccessPreservesStatusAndStillInstallsAndSettles]' passed (0.000 seconds)."
+  ],
+  "DocumentLoadStatusTests.testDefaultRetainsStartFailureAndRejectionMessages": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultRetainsStartFailureAndRejectionMessages]' passed (0.000 seconds)."
+  ],
+  "DocumentLoadStatusTests.testDefaultSuccessStillPublishesLegacyMessage": [
+    "Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultSuccessStillPublishesLegacyMessage]' passed (0.000 seconds)."
+  ],
+  "DocumentOutlineLifecycleTests.testClearDropsPendingAndCannotResurrectOldOutline": [
+    "Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testClearDropsPendingAndCannotResurrectOldOutline]' passed (0.052 seconds)."
+  ],
+  "DocumentOutlineLifecycleTests.testCloseRejectsRunningResultAndDropsPendingWork": [
+    "Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testCloseRejectsRunningResultAndDropsPendingWork]' passed (0.000 seconds)."
+  ],
+  "DocumentOutlineLifecycleTests.testSwitchDiscardsOldOutlineAndRunsOnlyNewestPendingDocument": [
+    "Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testSwitchDiscardsOldOutlineAndRunsOnlyNewestPendingDocument]' passed (0.001 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testCapturedHeadLeavesLaterEditDirtyAndOrdinarySaveReadsPathAfterGate": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testCapturedHeadLeavesLaterEditDirtyAndOrdinarySaveReadsPathAfterGate]' passed (0.003 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testConcurrentSameNamePublishesExactlyOneAndUsesUniqueStaging": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testConcurrentSameNamePublishesExactlyOneAndUsesUniqueStaging]' passed (0.001 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testConfirmedReplaceStillReplacesPathChangedAfterConfirmation": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testConfirmedReplaceStillReplacesPathChangedAfterConfirmation]' passed (0.001 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testExclusiveRenameFallbackAndPostCommitCleanupFailureKeepActualResult": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testExclusiveRenameFallbackAndPostCommitCleanupFailureKeepActualResult]' passed (0.001 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testForcedExclusiveRenameFallbackCollisionPreservesSentinelAndRemovesStage": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testForcedExclusiveRenameFallbackCollisionPreservesSentinelAndRemovesStage]' passed (0.002 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testLateFileAppearanceAndUnsafeEntriesNeverClobber": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testLateFileAppearanceAndUnsafeEntriesNeverClobber]' passed (0.001 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testRealCollisionLeavesSentinelAndMarkersThenRetryAndLegacyReplaceWork": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testRealCollisionLeavesSentinelAndMarkersThenRetryAndLegacyReplaceWork]' passed (0.002 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testReplacedStagingNameIsNeitherPublishedNorDeleted": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testReplacedStagingNameIsNeitherPublishedNorDeleted]' passed (0.001 seconds)."
+  ],
+  "DocumentSaveDestinationCommitTests.testSuccessfulRenameDoesNotCleanupReusedOldStageName": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testSuccessfulRenameDoesNotCleanupReusedOldStageName]' passed (0.001 seconds)."
+  ],
+  "DocumentSavePresenterTests.testCancelBeforeBeginFromFactoryNeverBeginsNativeSession": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelBeforeBeginFromFactoryNeverBeginsNativeSession]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testCancelThenWholeNativeLifetimeBeforeBeginReturnsStillDrains": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelThenWholeNativeLifetimeBeforeBeginReturnsStillDrains]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testCompletionWithCapturedSheetStillNativeQueuedCannotRelease": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCompletionWithCapturedSheetStillNativeQueuedCannotRelease]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testDuplicateCompletionBeforeDetachPreservesFirstResponse": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testDuplicateCompletionBeforeDetachPreservesFirstResponse]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testHeldChildCancellationDefersParentEndIncludingReentrantChildReturn": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testHeldChildCancellationDefersParentEndIncludingReentrantChildReturn]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testNewBindingMayWaitForOldDrainButOldCloseCannotRemoveNewHost": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testNewBindingMayWaitForOldDrainButOldCloseCannotRemoveNewHost]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testOldWindowCloseForCurrentBridgeCannotShutdownReboundWindow": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testOldWindowCloseForCurrentBridgeCannotShutdownReboundWindow]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testParentCloseSettlesLossButNativeMembershipStillMustDrain": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentCloseSettlesLossButNativeMembershipStillMustDrain]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testParentLossCancelsHeldChildEvenIfNativeCompletionAlreadyArrived": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentLossCancelsHeldChildEvenIfNativeCompletionAlreadyArrived]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testReentrantCancelDuringBeginAndCompletionDuringEndAreIdempotent": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testReentrantCancelDuringBeginAndCompletionDuringEndAreIdempotent]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testSameWindowNewGenerationRejectsOldUpdateAndTeardown": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testSameWindowNewGenerationRejectsOldUpdateAndTeardown]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testStaleCompletionCannotRetireSuccessorAndUnrelatedAdmissionFailsClosed": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testStaleCompletionCannotRetireSuccessorAndUnrelatedAdmissionFailsClosed]' passed (0.000 seconds)."
+  ],
+  "DocumentSavePresenterTests.testWhollyUnseenAttachmentWithLiveViewWaitsCompletionAndDetachInEitherOrder": [
+    "Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testWhollyUnseenAttachmentWithLiveViewWaitsCompletionAndDetachInEitherOrder]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testAbsentIntentSurvivesLateAppearanceAndConflictDoesNotAdvanceState": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAbsentIntentSurvivesLateAppearanceAndConflictDoesNotAdvanceState]' passed (0.001 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testCancelDuringFormDrainCannotStartReplacementOrWrite": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringFormDrainCannotStartReplacementOrWrite]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testLegacyHeadlessSaveAsUsesAutomaticDestinationAndReportsSuccess": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLegacyHeadlessSaveAsUsesAutomaticDestinationAndReportsSuccess]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testMissingWindowFailsClosed": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testOldWriteCannotOverwriteNewPromptOrAdmitDuplicateDocumentWrite": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCannotOverwriteNewPromptOrAdmitDuplicateDocumentWrite]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testOnlyAffirmativeMatchingReplaceDrainGrantsReplacementIntent": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOnlyAffirmativeMatchingReplaceDrainGrantsReplacementIntent]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testParentCloseFailsQueuedSuccessorAndKeepsNativeDrain": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentCloseFailsQueuedSuccessorAndKeepsNativeDrain]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testReentrantCancelledCallerSupersedesIntermediateQueuedRequest": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReentrantCancelledCallerSupersedesIntermediateQueuedRequest]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testReplaceCancelAndStaleApprovalCannotWrite": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndStaleApprovalCannotWrite]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testReplaceOwnsDistinctTokenAndWaitsForItsPhysicalDrainBeforeWrite": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceOwnsDistinctTokenAndWaitsForItsPhysicalDrainBeforeWrite]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testSaveWaitsForCompletionAndMembershipThenWritesOnce": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSaveWaitsForCompletionAndMembershipThenWritesOnce]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testSupersededWriterConflictPreservesNewStatusAndNeverRunsThen": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersededWriterConflictPreservesNewStatusAndNeverRunsThen]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testWriteFailurePreservesFolderAndAdmittedWriteDrainsThroughCancellation": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailurePreservesFolderAndAdmittedWriteDrainsThroughCancellation]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSettlementTests.testWrongControllerAndStaleActionsCannotAffectSuccessor": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndStaleActionsCannotAffectSuccessor]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSheetAttachmentTests.testNewSheetIsNotModifiedWhenOldSheetHasDetached": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testNewSheetIsNotModifiedWhenOldSheetHasDetached]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSheetAttachmentTests.testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSheetAttachmentTests.testQueuedCapturedSheetStillBelongsToParentUnderUnrelatedAttachedSheet": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testQueuedCapturedSheetStillBelongsToParentUnderUnrelatedAttachedSheet]' passed (0.000 seconds)."
+  ],
+  "DocumentSaveSheetAttachmentTests.testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete": [
+    "Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testContentAwareBoxHandlesProportionsAndLimits": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testContentAwareBoxHandlesProportionsAndLimits]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testEnginePuppetMeshAndProtectionChannels": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testEnginePuppetMeshAndProtectionChannels]' passed (0.024 seconds)."
+  ],
+  "DocumentTransformTests.testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode]' passed (0.018 seconds)."
+  ],
+  "DocumentTransformTests.testEngineSplitAddsLinesWithoutMovingTheSurface": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSplitAddsLinesWithoutMovingTheSurface]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testOperationJSONCarriesKernelAndNeverAProtectMask": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testOperationJSONCarriesKernelAndNeverAProtectMask]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testPerspectiveQuadsArePerimeterOrderedAndRoundTrip": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveQuadsArePerimeterOrderedAndRoundTrip]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testPerspectiveSplitKeepsTheWarpedImageInPlace": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveSplitKeepsTheWarpedImageInPlace]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testPresetsBendZeroIsIdentityAndInvalidBendFails": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testPresetsBendZeroIsIdentityAndInvalidBendFails]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testPuppetModelRoundTripsAndPinsNeverJump": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetModelRoundTripsAndPinsNeverJump]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testPuppetRebaseKeepsPinsOnTheNearestNewVertex": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetRebaseKeepsPinsOnTheNearestNewVertex]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testTransformKeyRoutingIgnoresOnlyIncidentalFlags": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformKeyRoutingIgnoresOnlyIncidentalFlags]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testTransformReturnAndEnterUseTheSameModifierGuard": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformReturnAndEnterUseTheSameModifierGuard]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testWarpAnchorDragCarriesItsHandles": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpAnchorDragCarriesItsHandles]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testWarpMeshJSONMatchesTheEngineSchema": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpMeshJSONMatchesTheEngineSchema]' passed (0.000 seconds)."
+  ],
+  "DocumentTransformTests.testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity": [
+    "Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity]' passed (0.000 seconds)."
+  ],
+  "EngineDocumentBackendTests.testBlendModeStringsMatchTheEngine": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testBlendModeStringsMatchTheEngine]' passed (0.015 seconds)."
+  ],
+  "EngineDocumentBackendTests.testCheckedSaveAsMapsTypedResultsAndPreservesOtherErrors": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testCheckedSaveAsMapsTypedResultsAndPreservesOtherErrors]' passed (0.038 seconds)."
+  ],
+  "EngineDocumentBackendTests.testDirtyCheckedSaveConflictAtDifferentTargetPreservesIdentityAndSavedMarker": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testDirtyCheckedSaveConflictAtDifferentTargetPreservesIdentityAndSavedMarker]' passed (0.024 seconds)."
+  ],
+  "EngineDocumentBackendTests.testEngineSessionThroughTheAdapter": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEngineSessionThroughTheAdapter]' passed (0.021 seconds)."
+  ],
+  "EngineDocumentBackendTests.testEnumsRoundTripEveryValue": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEnumsRoundTripEveryValue]' passed (0.000 seconds)."
+  ],
+  "EngineDocumentBackendTests.testFramesReachTheListenerOnMain": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testFramesReachTheListenerOnMain]' passed (0.042 seconds)."
+  ],
+  "EngineDocumentBackendTests.testHistoryIDMapShowsTheBaseAsOpened": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testHistoryIDMapShowsTheBaseAsOpened]' passed (0.000 seconds)."
+  ],
+  "EngineDocumentBackendTests.testListenerCoalescesUntilTheMainQueueDrains": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerCoalescesUntilTheMainQueueDrains]' passed (0.000 seconds)."
+  ],
+  "EngineDocumentBackendTests.testListenerDeliversOnTheMainThread": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerDeliversOnTheMainThread]' passed (0.000 seconds)."
+  ],
+  "EngineDocumentBackendTests.testRecordsRoundTripFieldByField": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testRecordsRoundTripFieldByField]' passed (0.000 seconds)."
+  ],
+  "EngineDocumentBackendTests.testWorkspaceChoosesTheEngineOrTheStub": [
+    "Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testWorkspaceChoosesTheEngineOrTheStub]' passed (0.019 seconds)."
+  ]
+}
