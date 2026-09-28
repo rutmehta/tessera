@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Accepted UI and engine changes — 2026-09-28 07:27 UTC
+
+Staged filters/facets integrated mainf27f96e4 with evidenceb6608ee9. Source matches testeddd6:9 focused and44 adjacent/1skip/0. Root verified32 payloads and combined GREEN before/after inputs; behavioral RED371 had6 failures, initialeb15 was fixture-only failure. No added GUI/full-suite claim.
+
+Develop stale-writer protection integrated mainf4bc0c0b, exact tested915c7f7b Rust/Cargo including destination read-gate helper.25 selected runtime tests +format/strict passed;40 source hashes and185 raw evidence files verified. Root added portable SHA256SUMS. Raw patch context/log whitespace remains exact; product/docs whitespace checks pass. Initial integration verifier caught a missing helper before commit, then exact-tree verification passed. This is participating-writer conflict protection, not lease/CAS/all-writer coverage or a new user-preview binary.
+
+Reviewer Sol owns sole heavy lane for XMP setter paritye5c5dee7 RED/fix; combine current native owner fix before final gate. A owns lib.rs/develop.rs engine work. B retains Save As Document/host presenter source via acknowledged requestbe627c0e; generation-safe host binding required. Existing-session SSH queue and Git receipts are verified; separate native-host notLoaded/interrupted status is not delivery failure. B resource hold/paused heartbeat and user preview57591 remain unchanged. A alone merges main.
+
+
 ## Parallel work and Save As design decision — 2026-09-28 07:05 UTC
 
 - Luna owns sole compiler lane: staged-filter tests-only `eb15a6e0` on accepted status source291857e1, then narrow AppModel implementation if genuine RED. Resource explicitly released idle compiler while revising source; no overlapping build.
