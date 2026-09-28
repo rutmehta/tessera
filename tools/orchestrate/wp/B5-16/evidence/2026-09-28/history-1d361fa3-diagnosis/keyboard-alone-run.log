@@ -1,0 +1,47 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-09-28 17:37:37.927.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 17:37:37.927.
+Test Suite 'DocumentKeyRoutingTests' started at 2026-09-28 17:37:37.927.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' passed (0.105 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' passed (0.000 seconds).
+Test Suite 'DocumentKeyRoutingTests' passed at 2026-09-28 17:37:38.042.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.114 (0.115) seconds
+Test Suite 'KeyFocusTests' started at 2026-09-28 17:37:38.042.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' passed (0.017 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' passed (0.003 seconds).
+Test Suite 'KeyFocusTests' passed at 2026-09-28 17:37:38.102.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.060 (0.060) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 17:37:38.102.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.174 (0.175) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 17:37:38.102.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.174 (0.176) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

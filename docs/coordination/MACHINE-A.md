@@ -1,3 +1,9 @@
+## History gate diagnosis; source correction requested
+
+Combined1d361fa3 focused gate failed65 tests/22 assertions; remaining gates stopped. Exact-binary keyboard-alone15 passes. Plain AppKit diagnostic reproduces AXUnknown and false press return with actual action firing, plus visible readout value, so these direct API assertions do not establish a product accessibility defect. Hosted singleton cleanup is the leading explanation of order-dependent keyboard failures, not yet conclusively isolated. B source correction requestf8417c10 published and SSH queue01a0e9f5 accepted; peer receipt pending. No repeated queue or writer changes. Actual external AX/keyboard GUI acceptance remains required. Diagnostic lane released; all failures/probes retained.
+
+RAW capture main1b073b0c remains accepted bounded component. Next closed owned-CFA decoder plan and proxy reopen baseline harness are source preparation only.
+
 ## RAW capture component integrated; inspector accessibility compiling
 
 Main1b073b0c integrates approved af5473d8 with exact seven-file comparison and unchanged raw-decode/engine-api/libraw-ffi dependency sources. Full60/strict/fmt and all8204 source hashes independently verified;110 portable evidence payloads root rehashed. No fresh build, full-workspace, nonUnix or decoder/render feature acceptance implied.

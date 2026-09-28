@@ -1,0 +1,44 @@
+/Volumes/betterSSD/tessera-validation/b5-16-history-1d361fa3/native-ax-probe.swift:7:14: error: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 1 | import AppKit
+ 2 | @MainActor final class Target: NSObject {
+   |                                         `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 3 |  var calls = 0
+ 4 |  @objc func clicked(_ sender: Any?) { calls += 1 }
+ 5 | }
+ 6 | NSApplication.shared.setActivationPolicy(.prohibited)
+ 7 | let target = Target()
+   |              `- error: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 8 | let button = NSButton(title: "+", target: target, action: #selector(Target.clicked(_:)))
+ 9 | button.bezelStyle = .inline
+
+/Volumes/betterSSD/tessera-validation/b5-16-history-1d361fa3/native-ax-probe.swift:13:127: error: main actor-isolated property 'calls' can not be referenced from a nonisolated context
+ 1 | import AppKit
+ 2 | @MainActor final class Target: NSObject {
+ 3 |  var calls = 0
+   |      `- note: property declared here
+ 4 |  @objc func clicked(_ sender: Any?) { calls += 1 }
+ 5 | }
+   :
+11 | let label = NSTextField(labelWithString: "168 pt")
+12 | label.setAccessibilityValue("168 points")
+13 | print("plain role=\(String(describing:button.accessibilityRole())) press=\(button.accessibilityPerformPress()) calls=\(target.calls) label=\(String(describing:label.accessibilityValue()))")
+   |                                                                                                                               `- error: main actor-isolated property 'calls' can not be referenced from a nonisolated context
+14 | let window = NSWindow(contentRect: NSRect(x:0,y:0,width:200,height:80),styleMask:.titled,backing:.buffered,defer:false)
+15 | window.isReleasedWhenClosed = false
+
+/Volumes/betterSSD/tessera-validation/b5-16-history-1d361fa3/native-ax-probe.swift:18:128: error: main actor-isolated property 'calls' can not be referenced from a nonisolated context
+ 1 | import AppKit
+ 2 | @MainActor final class Target: NSObject {
+ 3 |  var calls = 0
+   |      `- note: property declared here
+ 4 |  @objc func clicked(_ sender: Any?) { calls += 1 }
+ 5 | }
+   :
+16 | window.contentView?.addSubview(button)
+17 | window.contentView?.addSubview(label)
+18 | print("hosted role=\(String(describing:button.accessibilityRole())) press=\(button.accessibilityPerformPress()) calls=\(target.calls) label=\(String(describing:label.accessibilityValue()))")
+   |                                                                                                                                `- error: main actor-isolated property 'calls' can not be referenced from a nonisolated context
+19 | window.contentView = nil
+20 | window.close()
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>

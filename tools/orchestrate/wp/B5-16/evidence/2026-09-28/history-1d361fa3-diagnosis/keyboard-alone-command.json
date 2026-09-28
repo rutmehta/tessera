@@ -1,0 +1,1 @@
+["swift", "test", "--skip-build", "--package-path", "apps/mac", "--scratch-path", "/Volumes/betterSSD/tessera-validation/b5-16-history-1d361fa3/swift-build", "-c", "release", "--jobs", "2", "--filter", "DocumentKeyRoutingTests|KeyFocusTests"]

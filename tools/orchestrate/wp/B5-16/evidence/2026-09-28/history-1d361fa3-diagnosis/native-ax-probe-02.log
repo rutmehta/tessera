@@ -1,0 +1,2 @@
+plain role=Optional(__C.NSAccessibilityRole(_rawValue: AXUnknown)) press=false calls=1 label=Optional("168 pt")
+hosted role=Optional(__C.NSAccessibilityRole(_rawValue: AXUnknown)) press=false calls=2 label=Optional("168 pt")
