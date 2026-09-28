@@ -189,18 +189,31 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
         workspace.inspectorTab = .stack
         workspace.newDocument(workspace.newSettings)
         XCTAssertNotNil(workspace.current)
+        let contentSize = NSSize(width: 288, height: 848)
         func hostInspector() -> (NSWindow, NSView) {
             let controller = NSHostingController(rootView: DocumentInspector(workspace: workspace))
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 288, height: 848),
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: contentSize),
                                   styleMask: .titled, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.contentViewController = controller
+            // Installing a hosting controller can replace the initial content
+            // geometry with its zero preferred size. Size the attached host,
+            // not just the window's pre-attachment contentRect.
+            window.setContentSize(contentSize)
+            controller.view.frame = NSRect(origin: .zero, size: contentSize)
             window.orderBack(nil)
             controller.view.layoutSubtreeIfNeeded()
             // Use the existing harness's event-loop settling convention, only on
             // the inspector host. No Document viewport or shared attachment.
             RunLoop.main.run(until: Date().addingTimeInterval(0.25))
+            controller.view.layoutSubtreeIfNeeded()
             return (window, controller.view)
+        }
+        func assertContentBounds(_ window: NSWindow, _ host: NSView) {
+            XCTAssertGreaterThan(host.bounds.width, 0)
+            XCTAssertGreaterThan(host.bounds.height, 0)
+            XCTAssertEqual(host.bounds, NSRect(origin: .zero, size: contentSize))
+            XCTAssertEqual(window.contentView?.bounds.size, contentSize)
         }
         func find(_ root: NSView) -> DocumentHistoryHeightControl? {
             if let control = root as? DocumentHistoryHeightControl { return control }
@@ -208,11 +221,14 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
         }
         let (window, host) = hostInspector()
         defer { window.orderOut(nil); window.contentViewController = nil; window.close() }
+        assertContentBounds(window, host)
         let control = try XCTUnwrap(find(host), "must expose native actions in the actual inspector")
+        XCTAssertTrue(control.increase.isEnabled, "sized inspector must permit increasing the default History height")
         _ = control.increase.accessibilityPerformPress()
         XCTAssertEqual(defaults.double(forKey: heightKey), initial + Double(Theme.Height.row))
         let (restoredWindow, restoredHost) = hostInspector()
         defer { restoredWindow.orderOut(nil); restoredWindow.contentViewController = nil; restoredWindow.close() }
+        assertContentBounds(restoredWindow, restoredHost)
         let restored = try XCTUnwrap(find(restoredHost))
         XCTAssertEqual(restored.readout.accessibilityValue(), String(format: "%.0f pt", initial + Double(Theme.Height.row)))
         _ = restored.reset.accessibilityPerformPress()
