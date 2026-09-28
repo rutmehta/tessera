@@ -3503,6 +3503,8 @@ mod tests {
             .unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let published_bytes = std::fs::read(&recipe_path).unwrap();
+        let xmp_path = catalog::xmp_path(&photo);
+        let published_xmp = std::fs::read(&xmp_path).unwrap();
 
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
@@ -3510,17 +3512,7 @@ mod tests {
         let error = session.flush().expect_err("stale editor must not publish");
         assert!(error.to_string().contains("conflict"), "{error}");
         assert_eq!(std::fs::read(&recipe_path).unwrap(), published_bytes);
-        assert_eq!(
-            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
-                .unwrap()
-                .to_recipe()
-                .unwrap()
-                .recipe
-                .settings
-                .tone
-                .exposure,
-            1.2
-        );
+        assert_eq!(std::fs::read(&xmp_path).unwrap(), published_xmp);
         assert!(!session.shared.lock().unwrap().closed);
     }
 
