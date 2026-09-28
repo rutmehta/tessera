@@ -1,3 +1,9 @@
+## Inspector theme correction requested; pure cache foundation active
+
+A7732a03e passed66focused,15keyboard,4layout,84adjacent. Full720XCTest/1existingopt-in skip/1ThemeLintfailure plus5SwiftTesting; bothactualSony andallHistory/keyboard passed. Solefailure ad-hoc Historyfont, B source request680a8220 and SSHqueue01a0ea13 published. ExistinglabelNumeric token requested, no lintwaiver or equivalenceclaim. Strict/GUI unrun; allfailures durable onmainb1567cd9.
+
+FFI owns freedcompiler lane for reviewedpurecache Task1 after graph-key/replacement-expiry coverage additions. No Engineintegration yet. Baselineindependentlyverified andportableevidence mainb9ccf6fe.
+
 ## 2026-09-28 22:03 UTC — baseline measured; inspector rerun active
 
 Baseline3614e21b reports24completed/released opens acrossauto/CPU SDR/EDR,4stablecohorts and12passingpixelpairs at820x546 L1. Unchanged reopen callback mediansauto645.563msSDR/589.431msEDR vsCPU167.071/165.954. This is no proxy-versus-Original/editing-speed/cachebenefit claim. Independent finalprovenance review active; firstfmtfailure preserved before corrected03fmt/04strict/05runtime passes.
