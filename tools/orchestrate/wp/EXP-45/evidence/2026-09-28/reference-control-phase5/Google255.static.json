@@ -1,0 +1,61 @@
+{
+  "source": {
+    "sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+    "bytes": 1918,
+    "mpf_primary_attr_hex": "00030000",
+    "mpf_aux_offset": 1478,
+    "mpf_aux_size": 440,
+    "aux_sha256": "8564566df005c14796a9aa35be27f8abedea73c38e5d6170677b1d8a846211d5",
+    "iso_secondary_offset": 1484,
+    "iso_flags_hex": "40",
+    "iso_rational_words": [
+      0,
+      1,
+      4,
+      1,
+      0,
+      1,
+      4,
+      1,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "icc_bytes": 588,
+    "icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c"
+  },
+  "copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/icc-swap/Google255-with-A-ICC.jpg",
+  "copy_info": {
+    "sha256": "c250df6ed9dc29e55c4e918499eb829f898ec42d69253408ed91b5a0493546f3",
+    "bytes": 1918,
+    "mpf_primary_attr_hex": "00030000",
+    "mpf_aux_offset": 1478,
+    "mpf_aux_size": 440,
+    "aux_sha256": "8564566df005c14796a9aa35be27f8abedea73c38e5d6170677b1d8a846211d5",
+    "iso_secondary_offset": 1484,
+    "iso_flags_hex": "40",
+    "iso_rational_words": [
+      0,
+      1,
+      4,
+      1,
+      0,
+      1,
+      4,
+      1,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "icc_bytes": 588,
+    "icc_sha256": "9917273a11ee1e244854a427a69099558670b195637332b5bd012efba0059f44"
+  },
+  "all_mpf_iso_auxiliary_fields_unchanged": true,
+  "icc_payload_swapped": true
+}

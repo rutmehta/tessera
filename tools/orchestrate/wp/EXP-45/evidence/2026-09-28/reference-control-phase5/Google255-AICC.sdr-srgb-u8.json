@@ -1,0 +1,27 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "icc-swap/Google255-with-A-ICC.jpg",
+    "-o",
+    "3",
+    "-O",
+    "3",
+    "-f",
+    "icc-swap/Google255-AICC.sdr-srgb-u8.cfg",
+    "-z",
+    "icc-swap/Google255-AICC.sdr-srgb-u8.raw"
+  ],
+  "exit": 0,
+  "raw_bytes": 5120,
+  "raw_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+  "bright_center_rgba": [
+    255,
+    255,
+    255,
+    255
+  ],
+  "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+}
