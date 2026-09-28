@@ -1,3 +1,9 @@
+## 2026-09-28 22:04 UTC — baseline measured; inspector rerun active
+
+Baseline3614e21b reports24completed/released opens acrossauto/CPU SDR/EDR,4stablecohorts and12passingpixelpairs at820x546 L1. Unchanged reopen callback mediansauto645.563msSDR/589.431msEDR vsCPU167.071/165.954. This is no proxy-versus-Original/editing-speed/cachebenefit claim. Independent finalprovenance review active; firstfmtfailure preserved before corrected03fmt/04strict/05runtime passes.
+
+Bhostfix4aaed30a/result34da0c42 accepted and independentlyreviewed, composedA7732a03e. It now owns serializedcombined66/keyboard/layout/adjacent/full/strict. BothhistoricalREDs remain. ActualAX/keyboardGUI andmainmerge stillpending.
+
 ## Inspector fixture correction pending; proxy baseline active
 
 Second inspector gatecd0b850d failed66/3 only in actualInspector preference test: zero host bounds clamp History to0; otherfiveHistory/allkeyboard pass. Source diagnosis requests explicit host size and asserted bounds/enabled state, without weakening existing checks. Requesta9f170bf published, SSHqueue01a0ea02 accepted; peer receipt pending. Evidence main56dd677e preserves directfailure/freeze; no product/GUI acceptance.
