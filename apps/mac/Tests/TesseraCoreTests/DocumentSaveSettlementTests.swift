@@ -440,4 +440,78 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.cancelDocumentSave(next)
     }
 
+    func testPreattachmentCancelRecoversAfterProbeTeardownAndDismissal() throws {
+        let (w, d) = try fixture()
+        w.saveSheetDetachmentObserver = nil
+        w.saveSheetParentIsClear = { true }
+        var outcomes: [DocumentSaveOutcome] = []
+        let old = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let probe = UUID()
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: probe))
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertNil(w.saveAsRequest, "a still-owned view cannot be inferred detached")
+        w.saveAsProbeEnded(old, probe: probe)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertNil(w.saveAsPresentationID)
+        w.saveAsProbeEnded(old, probe: probe)
+        w.saveAsParentSheetDidEnd(old)
+        XCTAssertFalse(w.saveAsProbeBegan(old, probe: UUID()))
+        XCTAssertEqual(outcomes, [.cancelled])
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
+    }
+
+    func testTerminalProbeWaitsForAttachedParentThenEndNotification() throws {
+        let (w, d) = try fixture()
+        w.saveSheetDetachmentObserver = nil
+        var clear = false
+        w.saveSheetParentIsClear = { clear }
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let probe = UUID()
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: probe))
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.saveAsProbeEnded(old, probe: probe)
+        w.saveAsPresentationDidDismiss(old)
+        w.saveAsParentSheetDidEnd(old) // An unrelated event with an attachment is insufficient.
+        XCTAssertNil(w.saveAsRequest)
+        clear = true
+        w.saveAsParentSheetDidEnd(old)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
+    }
+
+    func testParentEndBeforeProbeTeardownStillRecoversWithoutSecondEvent() throws {
+        let (w, d) = try fixture()
+        w.saveSheetDetachmentObserver = nil
+        w.saveSheetParentIsClear = { true }
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let probe = UUID()
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: probe))
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.saveAsParentSheetDidEnd(old) // No captured/observed attachment yet.
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertNil(w.saveAsRequest)
+        w.saveAsProbeEnded(old, probe: probe)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
+    }
+
+    func testClaimWithoutMaterializedProbeCanCompleteAtDismissalOnClearParent() throws {
+        let (w, d) = try fixture()
+        w.saveSheetDetachmentObserver = nil
+        w.saveSheetParentIsClear = { true }
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertNil(w.saveAsRequest)
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertFalse(w.saveAsProbeBegan(old, probe: UUID()))
+        w.cancelDocumentSave(next)
+    }
+
 }
