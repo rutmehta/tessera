@@ -1,0 +1,231 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling TesseraFFI TesseraFFI.swift
+[3/6] Write Objects.LinkFileList
+[4/6] Linking Tessera
+[6/7] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[6/8] Write Objects.LinkFileList
+[7/8] Linking TesseraPackageTests
+Build complete! (49.08s)
+Test Suite 'Selected tests' started at 2026-09-28 16:06:42.953.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 16:06:42.955.
+Test Suite 'OfflineLibraryRoutingTests' started at 2026-09-28 16:06:42.955.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testAvailabilityPermissionErrorDoesNotBecomeOffline]' started.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testAvailabilityPermissionErrorDoesNotBecomeOffline]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testCachedModeRefusesCatalogMutationAndRequiresLexicalAbsoluteFolder]' started.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testCachedModeRefusesCatalogMutationAndRequiresLexicalAbsoluteFolder]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testEmptyCachedSessionStaysEmptyAndProvidesReconnectGuidance]' started.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testEmptyCachedSessionStaysEmptyAndProvidesReconnectGuidance]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testExplicitReopenObservesOnlineOfflineTransitions]' started.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testExplicitReopenObservesOnlineOfflineTransitions]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testOnlineAliasCapturesCanonicalFolderForDisconnectedRelaunch]' started.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testOnlineAliasCapturesCanonicalFolderForDisconnectedRelaunch]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testOrdinaryOnlineErrorDoesNotFallBackToCache]' started.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testOrdinaryOnlineErrorDoesNotFallBackToCache]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testUnavailableRelaunchUsesCachedDeclarationsWithoutScanOrListing]' started.
+Test Case '-[TesseraCoreTests.OfflineLibraryRoutingTests testUnavailableRelaunchUsesCachedDeclarationsWithoutScanOrListing]' passed (0.000 seconds).
+Test Suite 'OfflineLibraryRoutingTests' passed at 2026-09-28 16:06:42.970.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.015 (0.016) seconds
+Test Suite 'PreviewEventsTests' started at 2026-09-28 16:06:42.970.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' passed (0.022 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' passed (0.090 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' passed (0.000 seconds).
+Test Suite 'PreviewEventsTests' passed at 2026-09-28 16:06:43.086.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.116 (0.116) seconds
+Test Suite 'SmartPreviewNativeWorkflowTests' started at 2026-09-28 16:06:43.086.
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [457.602625, 191.785709, 221.37837499999998]; GPU [315.064083, 1.5801669999999999, 7.312209]
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' passed (4.625 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [448.183542, 189.263708, 217.019833]; GPU [275.549875, 1.479666, 6.769]
+develop Smart Preview L0 calibration [first, tone, WB] ms: CPU [170.883541, 168.805917, 165.89083399999998]; GPU [27.517542, 2.0950830000000003, 12.50625]
+develop Smart Preview L0 calibration [first, tone, WB] ms: CPU [169.866125, 167.77949999999998, 169.619291]; GPU [25.790667, 3.359417, 15.761416]
+develop original L2 calibration [first, tone, WB] ms: CPU [444.187541, 189.309625, 218.23245899999998]; GPU [264.90891700000003, 1.735958, 6.876708]
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (4.808 seconds).
+Test Suite 'SmartPreviewNativeWorkflowTests' passed at 2026-09-28 16:06:52.519.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 9.433 (9.433) seconds
+Test Suite 'SmartPreviewThumbnailTests' started at 2026-09-28 16:06:52.519.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testCancelledRetryWaitTerminatesWithoutAnotherNativeCall]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testCancelledRetryWaitTerminatesWithoutAnotherNativeCall]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testExplicitRoleChoosesExactlyOneAPIAndNeverFallsBack]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testExplicitRoleChoosesExactlyOneAPIAndNeverFallsBack]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testInvalidatedProxyWorkerCannotRepopulateCacheOrDeliverOldResult]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testInvalidatedProxyWorkerCannotRepopulateCacheOrDeliverOldResult]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalCacheCannotSatisfySameImageProxyRequest]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalCacheCannotSatisfySameImageProxyRequest]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalErrorsRemainTerminalWithoutRetry]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalErrorsRemainTerminalWithoutRetry]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPendingProxyUsesBufferedReadyEventAndKeepsSource]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPendingProxyUsesBufferedReadyEventAndKeepsSource]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPersistentProxyFailureHasBoundedCallsAndNoPendingPlaceholderFlight]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPersistentProxyFailureHasBoundedCallsAndNoPendingPlaceholderFlight]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testReconnectDropsProxyFlightAndDoesNotShareOriginalCache]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testReconnectDropsProxyFlightAndDoesNotShareOriginalCache]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testSupersessionDuringRetrySuppressesOldRetryAndDeliversReplacement]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testSupersessionDuringRetrySuppressesOldRetryAndDeliversReplacement]' passed (0.009 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testTransientProxyErrorRetriesWithinSameFlightThenDelivers]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testTransientProxyErrorRetriesWithinSameFlightThenDelivers]' passed (0.007 seconds).
+Test Suite 'SmartPreviewThumbnailTests' passed at 2026-09-28 16:06:52.587.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.067 (0.068) seconds
+Test Suite 'SmartPreviewUITests' started at 2026-09-28 16:06:52.587.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testAbsentPreferenceDefaultsToOriginalAndPreservesExplicitSavedChoice]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testAbsentPreferenceDefaultsToOriginalAndPreservesExplicitSavedChoice]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testAssetMutationsInvalidateThumbnailsBeforeAndAfterNativeDrain]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testAssetMutationsInvalidateThumbnailsBeforeAndAfterNativeDrain]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBadgesDescribeOfflinePendingConflictAndActualRoute]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBadgesDescribeOfflinePendingConflictAndActualRoute]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBatchCancelDrainsCurrentPhotoThenStopsAndRetainsOutcome]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testBatchCancelDrainsCurrentPhotoThenStopsAndRetainsOutcome]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testClearedSelectionAndSeparateOwnerIgnoreOldCompletion]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testClearedSelectionAndSeparateOwnerIgnoreOldCompletion]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testConflictFailedAndDirtySyncAreNotSuccessAndDirtyDiscardNeverCallsNative]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testConflictFailedAndDirtySyncAreNotSuccessAndDirtyDiscardNeverCallsNative]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testFailedValidationCannotUsePresentationAsOpeningAuthority]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testFailedValidationCannotUsePresentationAsOpeningAuthority]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testLocalProxySaveKeepsThumbnailWarningButOpeningValidatesAgain]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testLocalProxySaveKeepsThumbnailWarningButOpeningValidatesAgain]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOfflineAndPendingLibraryBadgesDisclosePreSyncThumbnail]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOfflineAndPendingLibraryBadgesDisclosePreSyncThumbnail]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOfflineExistingPreviewOffersExplicitUseRatherThanRebuildOrSync]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOfflineExistingPreviewOffersExplicitUseRatherThanRebuildOrSync]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOnlyCleanMissingPreviewFallsBackToAvailableOriginal]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOnlyCleanMissingPreviewFallsBackToAvailableOriginal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOpeningCancelsIfSelectionChangesAwayAndBackDuringRead]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOpeningCancelsIfSelectionChangesAwayAndBackDuringRead]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOpeningFollowsReplacementSamePhotoStatusRead]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOpeningFollowsReplacementSamePhotoStatusRead]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOriginalSaveDoesNotInventProxyPresentation]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testOriginalSaveDoesNotInventProxyPresentation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testProxyRenderedLibraryCopyKeepsSaveWarningWithoutLastSyncedClaim]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testProxyRenderedLibraryCopyKeepsSaveWarningWithoutLastSyncedClaim]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRapidSelectionOnlyDecodesActiveAndLatestPhoto]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRapidSelectionOnlyDecodesActiveAndLatestPhoto]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRepeatedSelectionAndOpeningShareOneStatusRead]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRepeatedSelectionAndOpeningShareOneStatusRead]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRouteUsesRequestedSessionAndNeverFallsBackAfterProxyFailure]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testRouteUsesRequestedSessionAndNeverFallsBackAfterProxyFailure]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSavedStateInvalidationDoesNotAutomaticallyHashAssets]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSavedStateInvalidationDoesNotAutomaticallyHashAssets]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionGenerationSuppressesOldInfoCompletion]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionGenerationSuppressesOldInfoCompletion]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionReadStartedBeforeBatchCannotOverwriteNewOutcome]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testSelectionReadStartedBeforeBatchCannotOverwriteNewOutcome]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testStaleOpenerCannotRetargetCurrentSelectionOrStartAnotherRead]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewUITests testStaleOpenerCannotRetargetCurrentSelectionOrStartAnotherRead]' passed (0.000 seconds).
+Test Suite 'SmartPreviewUITests' passed at 2026-09-28 16:06:52.594.
+	 Executed 22 tests, with 0 failures (0 unexpected) in 0.007 (0.008) seconds
+Test Suite 'ThumbnailFlightDrainTests' started at 2026-09-28 16:06:52.594.
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testCachedHitNeedsNoFlightHandle]' started.
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testCachedHitNeedsNoFlightHandle]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testCancelledCoalescedSubscriberSharesRunningDrain]' started.
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testCancelledCoalescedSubscriberSharesRunningDrain]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testCancelledPendingReplacementWaitsForOlderSameKeyWorker]' started.
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testCancelledPendingReplacementWaitsForOlderSameKeyWorker]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testInvalidateDetachesSubscriberButWaitsForRunningWorkerDrain]' started.
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testInvalidateDetachesSubscriberButWaitsForRunningWorkerDrain]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testPendingOnlyCancellationDrainsImmediately]' started.
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testPendingOnlyCancellationDrainsImmediately]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testRemoveAllAndLoaderReleaseDoNotStrandRunningDrain]' started.
+Test Case '-[TesseraCoreTests.ThumbnailFlightDrainTests testRemoveAllAndLoaderReleaseDoNotStrandRunningDrain]' passed (0.007 seconds).
+Test Suite 'ThumbnailFlightDrainTests' passed at 2026-09-28 16:06:52.624.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.029 (0.029) seconds
+Test Suite 'ThumbnailQueueTests' started at 2026-09-28 16:06:52.624.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancelAndImmediatelyResubscribeDoesNotOverlapSameKey]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancelAndImmediatelyResubscribeDoesNotOverlapSameKey]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancellingSharedSubscriberKeepsOtherTierAndSubscriber]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancellingSharedSubscriberKeepsOtherTierAndSubscriber]' passed (0.009 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testGridAndFilmstripShareOneDecodedImage]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testGridAndFilmstripShareOneDecodedImage]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLateSubscriberAfterCacheEvictionStillReceivesResult]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLateSubscriberAfterCacheEvictionStillReceivesResult]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLoupeIsNextAdmissionAheadOfThumbnailBacklog]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLoupeIsNextAdmissionAheadOfThumbnailBacklog]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testMixedTiersShareViewportPendingBudget]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testMixedTiersShareViewportPendingBudget]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testPendingCancellationRemovesSubscriberSynchronously]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testPendingCancellationRemovesSubscriberSynchronously]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testReentrantInvalidationPreventsOtherSharedDeliveryAndCanReload]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testReentrantInvalidationPreventsOtherSharedDeliveryAndCanReload]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandRequestsKeepOnlyNewestBoundedBacklog]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandRequestsKeepOnlyNewestBoundedBacklog]' passed (0.415 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandReversalDeliversOnlyFinalViewport]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandReversalDeliversOnlyFinalViewport]' passed (0.520 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testViewportOwnersResizeAndReleaseBound]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testViewportOwnersResizeAndReleaseBound]' passed (0.002 seconds).
+Test Suite 'ThumbnailQueueTests' passed at 2026-09-28 16:06:53.584.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.960 (0.960) seconds
+Test Suite 'ThumbnailViewportTests' started at 2026-09-28 16:06:53.584.
+Test Case '-[TesseraCoreTests.ThumbnailViewportTests testHiddenRetainedGridDoesNotContributeViewportBudget]' started.
+Test Case '-[TesseraCoreTests.ThumbnailViewportTests testHiddenRetainedGridDoesNotContributeViewportBudget]' passed (0.078 seconds).
+Test Suite 'ThumbnailViewportTests' passed at 2026-09-28 16:06:53.662.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.078 (0.078) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 16:06:53.662.
+	 Executed 69 tests, with 0 failures (0 unexpected) in 10.705 (10.708) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 16:06:53.662.
+	 Executed 69 tests, with 0 failures (0 unexpected) in 10.705 (10.710) seconds
+P08 20k retained subscribers: 68
+P08 20k forward/reverse: peak pending=24, active=4, subscribers=24, delivered=24, traceMs=519.3882919847965
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

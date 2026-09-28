@@ -1,0 +1,18 @@
+{
+  "/Volumes/betterSSD/tessera-validation/smart-previews/swift-full-final/build/arm64-apple-macosx/release/Tessera": {
+    "sha256": "510735dd93c7f99c21a578d98ab39b0ae8452ded8dc6733a231b02d927e61298",
+    "bytes": 117436984
+  },
+  "/Volumes/betterSSD/tessera-validation/smart-previews/swift-full-final/build/arm64-apple-macosx/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests": {
+    "sha256": "4e7a92ac1a26bccd688b8880795eb6b8cc999f26e3199d6c442b98077192607e",
+    "bytes": 158143344
+  },
+  "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a": {
+    "sha256": "456758e564b4d73cbd8a9dbd79cbc54eacbe1000e2536f1e659138306ee9fe38",
+    "bytes": 300487424
+  },
+  "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW": {
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+    "bytes": 16646144
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a": {
+    "sha256": "456758e564b4d73cbd8a9dbd79cbc54eacbe1000e2536f1e659138306ee9fe38",
+    "bytes": 300487424
+  },
+  "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/libtessera_ffi.a": {
+    "sha256": "456758e564b4d73cbd8a9dbd79cbc54eacbe1000e2536f1e659138306ee9fe38",
+    "bytes": 300487424
+  },
+  "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/libtessera_ffi.dylib": {
+    "sha256": "7eda41c90231fda229d312ab71c9d3851dc8bdb663e18f401d67b750c6729772",
+    "bytes": 85033616
+  },
+  "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/TesseraFFI/TesseraFFI.swift": {
+    "sha256": "29c3c952411bcab52c458ca2a07a48fea1e5c21047aab0b16980e2475126f913",
+    "bytes": 1145074
+  },
+  "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": {
+    "sha256": "bac698ba64bbf69a7ff0d126edd400e30e9bc7d7e062824072d7a1cf50939955",
+    "bytes": 290891
+  },
+  "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/CTesseraFFI/module.modulemap": {
+    "sha256": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "bytes": 132
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "commit": "fbd0f266443091af45ca973f06a470b84c988383",
+  "base": "c1f9d4e00c14ce4d7614706fed63963e9b6afe4a",
+  "files": {
+    "crates/image-core/src/resident_render.rs": "1be632029a48e32c5600a4f11ef1d2191957043adacd7859b65527068dfe839b",
+    "crates/image-core/src/smart_preview_render.rs": "f861646fc1b9bc69e3c5d8d6f0670cd4719a3e8a20795319c0df1bef34b920ce",
+    "crates/image-core/tests/smart_preview.rs": "2d7b5f576e979231e9e5ad11ca06f2f695de75d5bd7b99da5835ba4fe0811eb1",
+    "crates/pipeline-cpu/src/lens_plan.rs": "f6478da14e71a9ad67f13edc05f69be8554b4c0896304a8e91e4541e45766ba7",
+    "crates/pipeline-cpu/src/smart_preview.rs": "eed404174143b28d470ca888e3291d46a580c36f3f73f49b749992cbf6233ecb",
+    "crates/pipeline-cpu/tests/smart_preview.rs": "01a4786f5135ff5eadbd77b796f2fa9535614723fd9503457d76769b972edbeb",
+    "crates/pipeline-gpu/src/lens.rs": "a83ea8bbdf6ea650d08425b4edd37be54fdb4c02d414e0dd55d6de0acc0f2042",
+    "crates/pipeline-gpu/tests/smart_preview.rs": "c6da29f13a7886e451d57e1204b8c34c5cfc5175fb477a6acf58900c9692b201",
+    "crates/tessera-ffi/src/backend.rs": "ab6d7b51a0033bf1927670cbc7dc53e6e298563d049998ecd8f9b44b543b228d",
+    "crates/tessera-ffi/src/develop.rs": "f081fa1fddea582da5962479e68bd651bd06115487d24218ee90e74322091597",
+    "crates/tessera-ffi/src/develop/preview_qualification.rs": "42e7795ec723457fed06a2a73174095ad3e25265f9d8fc732d8cd3080ca820a2",
+    "crates/tessera-ffi/src/lib.rs": "f962502ac9bc6eabd287849fae56bc5e13362b47f8e79f4f5a4331b145be3456",
+    "crates/tessera-ffi/src/smart_preview_thumbnail.rs": "9fc0353120c72a3f13a32231bf431de513e145b79f544a1409171bebbdb34801",
+    "crates/tessera-ffi/src/smart_preview_thumbnail/tests.rs": "885a8aaae31762ee54349057d7c29bfca5449ef9c380548b77919f66ebd67235"
+  },
+  "prior_gate_comparison": {
+    "28": {
+      "equal": [
+        "crates/image-core/src/resident_render.rs",
+        "crates/image-core/src/smart_preview_render.rs",
+        "crates/image-core/tests/smart_preview.rs",
+        "crates/pipeline-cpu/src/lens_plan.rs",
+        "crates/pipeline-cpu/src/smart_preview.rs",
+        "crates/pipeline-cpu/tests/smart_preview.rs",
+        "crates/pipeline-gpu/src/lens.rs",
+        "crates/tessera-ffi/src/backend.rs",
+        "crates/tessera-ffi/src/develop.rs",
+        "crates/tessera-ffi/src/develop/preview_qualification.rs",
+        "crates/tessera-ffi/src/lib.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail/tests.rs"
+      ],
+      "changed": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ]
+    },
+    "31": {
+      "equal": [
+        "crates/image-core/src/resident_render.rs",
+        "crates/image-core/src/smart_preview_render.rs",
+        "crates/image-core/tests/smart_preview.rs",
+        "crates/pipeline-cpu/src/lens_plan.rs",
+        "crates/pipeline-cpu/src/smart_preview.rs",
+        "crates/pipeline-cpu/tests/smart_preview.rs",
+        "crates/pipeline-gpu/src/lens.rs",
+        "crates/tessera-ffi/src/backend.rs",
+        "crates/tessera-ffi/src/develop.rs",
+        "crates/tessera-ffi/src/develop/preview_qualification.rs",
+        "crates/tessera-ffi/src/lib.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail/tests.rs"
+      ],
+      "changed": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ]
+    },
+    "32": {
+      "equal": [
+        "crates/image-core/src/resident_render.rs",
+        "crates/image-core/src/smart_preview_render.rs",
+        "crates/image-core/tests/smart_preview.rs",
+        "crates/pipeline-cpu/src/lens_plan.rs",
+        "crates/pipeline-cpu/src/smart_preview.rs",
+        "crates/pipeline-cpu/tests/smart_preview.rs",
+        "crates/pipeline-gpu/src/lens.rs",
+        "crates/tessera-ffi/src/backend.rs",
+        "crates/tessera-ffi/src/develop.rs",
+        "crates/tessera-ffi/src/develop/preview_qualification.rs",
+        "crates/tessera-ffi/src/lib.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail/tests.rs"
+      ],
+      "changed": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ]
+    },
+    "33": {
+      "equal": [
+        "crates/image-core/src/resident_render.rs",
+        "crates/image-core/src/smart_preview_render.rs",
+        "crates/image-core/tests/smart_preview.rs",
+        "crates/pipeline-cpu/src/lens_plan.rs",
+        "crates/pipeline-cpu/src/smart_preview.rs",
+        "crates/pipeline-cpu/tests/smart_preview.rs",
+        "crates/pipeline-gpu/src/lens.rs",
+        "crates/tessera-ffi/src/backend.rs",
+        "crates/tessera-ffi/src/develop.rs",
+        "crates/tessera-ffi/src/develop/preview_qualification.rs",
+        "crates/tessera-ffi/src/lib.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail/tests.rs"
+      ],
+      "changed": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ]
+    },
+    "36": {
+      "equal": [
+        "crates/image-core/src/resident_render.rs",
+        "crates/image-core/src/smart_preview_render.rs",
+        "crates/image-core/tests/smart_preview.rs",
+        "crates/pipeline-cpu/src/lens_plan.rs",
+        "crates/pipeline-cpu/src/smart_preview.rs",
+        "crates/pipeline-cpu/tests/smart_preview.rs",
+        "crates/pipeline-gpu/src/lens.rs",
+        "crates/pipeline-gpu/tests/smart_preview.rs",
+        "crates/tessera-ffi/src/backend.rs",
+        "crates/tessera-ffi/src/develop.rs",
+        "crates/tessera-ffi/src/develop/preview_qualification.rs",
+        "crates/tessera-ffi/src/lib.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail.rs",
+        "crates/tessera-ffi/src/smart_preview_thumbnail/tests.rs"
+      ],
+      "changed": []
+    }
+  },
+  "only_final_delta": "rustfmt layout of is_multiple_of test fixture, refreshed by36; product bytes identical"
+}

@@ -1,0 +1,6428 @@
+{
+  "fixture_blake3": "df562403774a8c7e249fa52d229e35834af45e9eadca9ade92f31fac45c24fb0",
+  "lifecycle": [
+    {
+      "cycle": 0,
+      "level": 2,
+      "phase": 0,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 0,
+      "level": 2,
+      "phase": 1,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 0,
+      "level": 2,
+      "phase": 2,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 0,
+      "deadline_ms": 5000,
+      "release_ms": 0.013417,
+      "released": true
+    },
+    {
+      "cycle": 1,
+      "level": 2,
+      "phase": 0,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 1,
+      "level": 2,
+      "phase": 1,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 1,
+      "level": 2,
+      "phase": 2,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 1,
+      "deadline_ms": 5000,
+      "release_ms": 0.01225,
+      "released": true
+    },
+    {
+      "cycle": 2,
+      "level": 2,
+      "phase": 0,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 2,
+      "level": 2,
+      "phase": 1,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 2,
+      "level": 2,
+      "phase": 2,
+      "resident": false,
+      "submissions": 0
+    },
+    {
+      "cycle": 2,
+      "deadline_ms": 5000,
+      "release_ms": 0.011083,
+      "released": true
+    }
+  ],
+  "proxy_dimensions": [
+    1640,
+    1092
+  ],
+  "rows": [
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 135.30783399999999,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 135.15337499999998,
+      "generation": 1,
+      "interactive": false,
+      "label": "first_surface",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-first_surface.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 0.25,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "as_shot",
+          "temperature": 5500.0,
+          "tint": 0.0
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 131.325792,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 131.071917,
+      "generation": 2,
+      "interactive": false,
+      "label": "warm_exposure_1",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-warm_exposure_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 0.75,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "as_shot",
+          "temperature": 5500.0,
+          "tint": 0.0
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 131.117708,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 130.872375,
+      "generation": 3,
+      "interactive": false,
+      "label": "warm_exposure_2",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-warm_exposure_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "as_shot",
+          "temperature": 5500.0,
+          "tint": 0.0
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 134.509,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 134.25104199999998,
+      "generation": 4,
+      "interactive": false,
+      "label": "warm_wb_1",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-warm_wb_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 4200.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 129.685666,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 129.4375,
+      "generation": 5,
+      "interactive": false,
+      "label": "warm_wb_2",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-warm_wb_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 135.71675,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 135.48024999999998,
+      "generation": 6,
+      "interactive": true,
+      "label": "interactive_1",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-interactive_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.1,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 132.035292,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 131.79637499999998,
+      "generation": 7,
+      "interactive": true,
+      "label": "interactive_2",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-interactive_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.2,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 129.600834,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        820,
+        546
+      ],
+      "format": "edr",
+      "frame_render_ms": 129.316292,
+      "generation": 8,
+      "interactive": false,
+      "label": "settled",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "640x426-settled.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 1,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.25,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        640,
+        426
+      ],
+      "viewport_index": 0
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        0
+      ],
+      "delivery_ms": 155.356916,
+      "dimensions": [
+        1640,
+        1092
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 155.179833,
+      "generation": 9,
+      "interactive": false,
+      "label": "first_surface",
+      "level": 0,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-first_surface.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.25,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        0
+      ],
+      "delivery_ms": 156.309916,
+      "dimensions": [
+        1640,
+        1092
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 156.073292,
+      "generation": 10,
+      "interactive": false,
+      "label": "warm_exposure_1",
+      "level": 0,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-warm_exposure_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 0.75,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        0
+      ],
+      "delivery_ms": 153.423041,
+      "dimensions": [
+        1640,
+        1092
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 153.190583,
+      "generation": 11,
+      "interactive": false,
+      "label": "warm_exposure_2",
+      "level": 0,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-warm_exposure_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        0
+      ],
+      "delivery_ms": 154.46875,
+      "dimensions": [
+        1640,
+        1092
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 154.230875,
+      "generation": 12,
+      "interactive": false,
+      "label": "warm_wb_1",
+      "level": 0,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-warm_wb_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 4200.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        0
+      ],
+      "delivery_ms": 150.379709,
+      "dimensions": [
+        1640,
+        1092
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 150.117125,
+      "generation": 13,
+      "interactive": false,
+      "label": "warm_wb_2",
+      "level": 0,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-warm_wb_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        0
+      ],
+      "delivery_ms": 152.064375,
+      "dimensions": [
+        1640,
+        1092
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 151.832625,
+      "generation": 14,
+      "interactive": true,
+      "label": "interactive_1",
+      "level": 0,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-interactive_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.1,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        1
+      ],
+      "delivery_ms": 130.801291,
+      "dimensions": [
+        820,
+        546
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 130.55349999999999,
+      "generation": 15,
+      "interactive": true,
+      "label": "interactive_2",
+      "level": 1,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-interactive_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.2,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        0
+      ],
+      "delivery_ms": 149.544792,
+      "dimensions": [
+        1640,
+        1092
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        1640,
+        1092
+      ],
+      "format": "edr",
+      "frame_render_ms": 149.307083,
+      "generation": 16,
+      "interactive": false,
+      "label": "settled",
+      "level": 0,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "1280x852-settled.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 0,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.25,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        1280,
+        852
+      ],
+      "viewport_index": 1
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        2
+      ],
+      "delivery_ms": 124.985958,
+      "dimensions": [
+        410,
+        273
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 124.80325,
+      "generation": 17,
+      "interactive": false,
+      "label": "first_surface",
+      "level": 2,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-first_surface.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.25,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        2
+      ],
+      "delivery_ms": 129.457916,
+      "dimensions": [
+        410,
+        273
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 129.234958,
+      "generation": 18,
+      "interactive": false,
+      "label": "warm_exposure_1",
+      "level": 2,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-warm_exposure_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 0.75,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        2
+      ],
+      "delivery_ms": 124.32404199999999,
+      "dimensions": [
+        410,
+        273
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 124.103458,
+      "generation": 19,
+      "interactive": false,
+      "label": "warm_exposure_2",
+      "level": 2,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-warm_exposure_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        2
+      ],
+      "delivery_ms": 127.787667,
+      "dimensions": [
+        410,
+        273
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 127.561,
+      "generation": 20,
+      "interactive": false,
+      "label": "warm_wb_1",
+      "level": 2,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-warm_wb_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 4200.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        2
+      ],
+      "delivery_ms": 134.21466700000002,
+      "dimensions": [
+        410,
+        273
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 133.99229200000002,
+      "generation": 21,
+      "interactive": false,
+      "label": "warm_wb_2",
+      "level": 2,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-warm_wb_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.0,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        3
+      ],
+      "delivery_ms": 127.210334,
+      "dimensions": [
+        205,
+        137
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 126.987083,
+      "generation": 22,
+      "interactive": true,
+      "label": "interactive_1",
+      "level": 3,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-interactive_1.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.1,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        3
+      ],
+      "delivery_ms": 129.26858299999998,
+      "dimensions": [
+        205,
+        137
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 129.060916,
+      "generation": 23,
+      "interactive": true,
+      "label": "interactive_2",
+      "level": 3,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-interactive_2.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.2,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    },
+    {
+      "backend": "CPU ×10 Smart Preview",
+      "delivered_levels": [
+        2
+      ],
+      "delivery_ms": 133.31795799999998,
+      "dimensions": [
+        410,
+        273
+      ],
+      "dispatches": 0,
+      "display_dimensions": [
+        410,
+        273
+      ],
+      "format": "edr",
+      "frame_render_ms": 133.007167,
+      "generation": 24,
+      "interactive": false,
+      "label": "settled",
+      "level": 2,
+      "open_ms": 32.74083400000001,
+      "pixel_file": "320x213-settled.rgb32f",
+      "pixel_readback_bytes": 0,
+      "plan_level": 2,
+      "resident_surface": false,
+      "route": "proxy-cpu",
+      "settings": {
+        "camera_profile": {
+          "amount": 100.0,
+          "calibration": {
+            "blue_hue": 0.0,
+            "blue_saturation": 0.0,
+            "green_hue": 0.0,
+            "green_saturation": 0.0,
+            "red_hue": 0.0,
+            "red_saturation": 0.0,
+            "shadow_tint": 0.0
+          },
+          "look": null,
+          "profile": {
+            "digest": "",
+            "name": ""
+          },
+          "working_space": "linear_rec2020"
+        },
+        "color": {
+          "grading": {
+            "balance": 0.0,
+            "blending": 50.0,
+            "global": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "highlights": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "midtones": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            },
+            "shadows": {
+              "hue": 0.0,
+              "luminance": 0.0,
+              "saturation": 0.0
+            }
+          },
+          "hsl": {
+            "hue": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "luminance": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            },
+            "saturation": {
+              "aqua": 0.0,
+              "blue": 0.0,
+              "green": 0.0,
+              "magenta": 0.0,
+              "orange": 0.0,
+              "purple": 0.0,
+              "red": 0.0,
+              "yellow": 0.0
+            }
+          },
+          "lut": null,
+          "point_colors": [],
+          "saturation": 0.0,
+          "vibrance": 0.0
+        },
+        "decode": {
+          "frame_index": 0,
+          "pixel_shift_merge": false
+        },
+        "demosaic": {
+          "method": "auto",
+          "model": null
+        },
+        "denoise": {
+          "amount": 50.0,
+          "chroma_only": false,
+          "method": {
+            "kind": "off"
+          }
+        },
+        "detail": {
+          "noise_reduction": {
+            "color": 25.0,
+            "color_detail": 50.0,
+            "color_smoothness": 50.0,
+            "luminance": 0.0,
+            "luminance_contrast": 0.0,
+            "luminance_detail": 50.0
+          },
+          "sharpening": {
+            "amount": 40.0,
+            "detail": 25.0,
+            "masking": 0.0,
+            "radius": 1.0
+          }
+        },
+        "effects": {
+          "grain": {
+            "amount": 0.0,
+            "roughness": 50.0,
+            "size": 25.0
+          },
+          "lens_blur": null,
+          "vignette": {
+            "amount": 0.0,
+            "feather": 50.0,
+            "highlights": 0.0,
+            "midpoint": 50.0,
+            "roundness": 0.0,
+            "style": "highlight_priority"
+          }
+        },
+        "geometry": {
+          "constrain_crop": false,
+          "crop": {
+            "angle": 0.0,
+            "aspect": null,
+            "rect": {
+              "bottom": 1.0,
+              "left": 0.0,
+              "right": 1.0,
+              "top": 0.0
+            }
+          },
+          "orientation": 1,
+          "transform": {
+            "aspect": 0.0,
+            "horizontal": 0.0,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "rotate": 0.0,
+            "scale": 100.0,
+            "vertical": 0.0
+          },
+          "upright": {
+            "guides": [],
+            "mode": "off"
+          }
+        },
+        "lens": {
+          "chromatic_aberration_scale": 100.0,
+          "defringe_green": {
+            "amount": 0.0,
+            "hue_range": [
+              60.0,
+              110.0
+            ]
+          },
+          "defringe_purple": {
+            "amount": 0.0,
+            "hue_range": [
+              270.0,
+              330.0
+            ]
+          },
+          "distortion_scale": 100.0,
+          "manual_distortion": 0.0,
+          "manual_vignetting": 0.0,
+          "manual_vignetting_midpoint": 50.0,
+          "profile": {
+            "kind": "auto"
+          },
+          "remove_chromatic_aberration": true,
+          "softness_correction": 0.0,
+          "vignetting_scale": 100.0
+        },
+        "linearize": {
+          "highlight_reconstruction": "reconstruct_color"
+        },
+        "locals": {
+          "adjustments": [],
+          "retouch": []
+        },
+        "output": {
+          "gamut_mapping": "perceptual",
+          "hdr": true,
+          "hdr_headroom_stops": 2.0,
+          "proof_profile": null
+        },
+        "tone": {
+          "blacks": 0.0,
+          "clarity": 0.0,
+          "contrast": 0.0,
+          "curves": {
+            "blue": [],
+            "green": [],
+            "luminance": [],
+            "parametric": {
+              "darks": 0.0,
+              "highlight_split": 75.0,
+              "highlights": 0.0,
+              "lights": 0.0,
+              "midtone_split": 50.0,
+              "shadow_split": 25.0,
+              "shadows": 0.0
+            },
+            "red": [],
+            "rgb": []
+          },
+          "dehaze": 0.0,
+          "display_transform": "native",
+          "exposure": 1.25,
+          "highlights": 0.0,
+          "shadows": 0.0,
+          "texture": 0.0,
+          "whites": 0.0
+        },
+        "white_balance": {
+          "mode": "custom",
+          "temperature": 5500.0,
+          "tint": 3.4482048
+        }
+      },
+      "submissions": 0,
+      "uploads": 0,
+      "viewport": [
+        320,
+        213
+      ],
+      "viewport_index": 2
+    }
+  ]
+}

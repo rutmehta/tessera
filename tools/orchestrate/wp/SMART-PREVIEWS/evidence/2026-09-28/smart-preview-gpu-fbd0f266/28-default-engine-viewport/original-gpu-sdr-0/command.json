@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--lib",
+    "--release",
+    "engine_iosurface_matched_viewport_qualification",
+    "--",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "TESSERA_QUALIFY_ROUTE": "original-gpu",
+    "TESSERA_QUALIFY_FORMAT": "sdr",
+    "TESSERA_QUALIFY_OUT": "/Volumes/betterSSD/tessera-validation/smart-previews/gpu-integration/28-default-engine-viewport/original-gpu-sdr-0",
+    "TESSERA_RENDER_BACKEND": "gpu"
+  }
+}

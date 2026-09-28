@@ -1,0 +1,13 @@
+Diff in /Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/pipeline-gpu/tests/smart_preview.rs:98:
+         (0..w * h)
+             .map(|i| {
+                 if metadata.cfa_layout.channel_at(i % w, i / w) == 0 {
+-                    if (i % w).is_multiple_of(4) { -500000. } else { -100000. }
++                    if (i % w).is_multiple_of(4) {
++                        -500000.
++                    } else {
++                        -100000.
++                    }
+                 } else {
+                     0.3
+                 }

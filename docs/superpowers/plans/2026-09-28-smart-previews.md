@@ -69,9 +69,11 @@ Files: Swift EngineLibrary/reference adapters, AppModel Develop opener, AppComma
 - [x] Show original/proxy/offline/stale/conflict state with accessibility labels; generation-safe completion cannot replace newer selection/status.
 - [x] UI/model tests for transitions, source choice and failed export. Actual supported app workflow with Sony ARW: build, edit, offline restart/save, reconnect/export; retain original hash.
 
-UI/model gates and actual Swift/native Sony offline workflow pass on `c1f9d4e0`, merged `89b78881`. Actual packaged-app local-profile Sony build/offline edit/process restart/sync/full original export/offline export refusal/Compare passed (GUI-COMPLETION.md). Interactive performance remains open.
+UI/model gates and actual Swift/native Sony offline workflow pass on `c1f9d4e0`, merged `89b78881`. Actual packaged-app local-profile Sony build/offline edit/process restart/sync/full original export/offline export refusal/Compare passed (GUI-COMPLETION.md). Calibrated GPU editing is qualified and merged8e100b80: actual Engine surface-delivery timings/pixel comparisons, CPU fallback and resource-release gates pass. Physical input-to-display timing remains the separate Develop presentation task.
 
 ## Completion gate
 
-- [ ] Independent component and whole-branch reviews, relevant strict tests, codec size/fidelity and interactive performance measurements.
-- [ ] Preserve all evidence and failures; update board with exact commit/outcomes. Merge only accepted components; do not call the feature complete before end-to-end gates.
+- [x] Independent component and whole-branch reviews, relevant strict tests, codec size/fidelity and interactive performance measurements.
+- [x] Preserve all evidence and failures; update board with exact commit/outcomes. Merge only accepted components; do not call the feature complete before end-to-end gates.
+
+Completed bounded Smart Preview implementation: main8e100b80, candidatefbd0f266, portable evidence smart-preview-gpu-fbd0f266. Original remains default; GPU support/latency/camera and GUI scope limits are in VALIDATION.md.

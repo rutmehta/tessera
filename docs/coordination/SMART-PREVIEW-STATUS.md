@@ -1,12 +1,16 @@
 # Editable Smart Preview status
 
-## Current implementation — 2026-09-28 19:04 UTC
+## Accepted implementation — 2026-09-28
 
-Smart Preview generation, explicit proxy editing, offline Library, local edit/save/reopen, reconnect synchronization and local proxy thumbnails are integrated on main `89b78881`. B supplied Swift controls/routing/retry; A integrated and qualified the native/desktop bridge. Full Swift:689 XCTest cases,1 skipped,0 failures plus5 Swift Testing cases; strict optimized product and actual Sony offline workflows pass. Native thumbnail:187 FFI tests and28 previews tests pass (3 existing ignored). Evidence `62e4ee5b`, `cae2004d` records source/artifact hashes and retained failures.
+Smart Previews are implemented on main, including calibrated Metal rendering in `8e100b80` (candidate `fbd0f266`). Build a compact camera-linear preview, explicitly select it for editing, continue with the original offline, save/reopen local edits, then synchronize when the original reconnects. Edits remain a recipe; full-quality export requires the original. Cached Library thumbnails and Compare support offline proxies.
 
-Current Compact proxy is1640×1092 and7,319,246 bytes for the16,646,144-byte Sony RAW (56.03% smaller); it retains camera-linear editing data rather than a finished JPEG. Legacy Detail/v1 assets remain readable. Edits are stored as a recipe and full-quality export uses the original; proxy/source ownership and conflict guards remain enforced.
+Original remains the default editing source. Selected proxies calibrate CPU/Metal automatically; mapped geometry and unsupported GPU operations retain the CPU reference path. HDR presentation settings survive generation, saved edits and reopen. The Sony sample proxy is1640×1092 and7,319,246bytes versus16,646,144-byte RAW (56.03% smaller). Legacy assets remain readable.
 
-Original remains the default. CPU proxy rendering has not established a speed advantage over the existing Original Metal renderer. The opt-in GPU candidate is applied only in the feature checkout for qualification: its first actual Metal suite passed8 and failed2 numerical-parity checks. It is unaccepted and not merged. No accelerated, physical input-to-display, cross-camera or packaged-app GUI claim is made. Actual local-profile GUI build/offline edit/separate-process restart/reconnect sync and Original-setting persistence passed; evidence `6c38697e`. GUI full4920×3276 export, offline full-quality export refusal and two-proxy Compare also passed; root verified output hashes/dimensions and viewed the decoded export. External-volume profile startup and performance acceptance remain open.
+Qualified on the preserved Sony fixture and Apple M4:13 fresh actual Engine SDR/EDR processes,312 measured frames,15 bounded resource-release cycles,63 matching-dimension pixel comparisons (9 adaptive mismatches excluded). Warm matching-output proxy edits measured11–72× faster than CPU proxies in small samples. Automatic calibration costs about0.6–0.8seconds on opening; Original Metal is often faster, so this is not a speedup claim over Original. Physical input-to-screen timing and cross-camera fidelity remain separate work.
+
+Full desktop regression:689 XCTest cases,1 existing skip,0 failures plus5 Swift Testing cases; focused69 and strict optimized product pass with the exact matching native archive. Actual Swift RAW offline/edit/save/reopen/sync and thumbnail tests pass. Earlier local-profile packaged GUI build/offline process restart/reconnect/full4920×3276 export/offline-export refusal/Compare checks remain preserved. External-volume profile startup remains a separate unqualified configuration.
+
+Evidence: `tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/smart-preview-gpu-fbd0f266/VALIDATION.md`. Root verified7020 Git inputs and archive SHA256456758e564b4d73cbd8a9dbd79cbc54eacbe1000e2536f1e659138306ee9fe38. All earlier failures are retained. Raw rendered pixels remain on BetterSSD with hashes; portable logs/source snapshots/reviews are in Git.
 
 ## Historical implementation checkpoints
 ## Current implementation — 2026-09-28 17:04 UTC

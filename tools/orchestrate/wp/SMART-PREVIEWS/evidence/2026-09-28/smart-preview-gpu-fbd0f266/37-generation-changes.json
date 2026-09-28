@@ -1,0 +1,6 @@
+{
+  "apps/mac/build/ffi/libtessera_ffi.a": {
+    "before": "daf4b5d190449f3b22943a2a25990e3e286bc691e14be3b846a128733eb9a72c",
+    "after": "456758e564b4d73cbd8a9dbd79cbc54eacbe1000e2536f1e659138306ee9fe38"
+  }
+}

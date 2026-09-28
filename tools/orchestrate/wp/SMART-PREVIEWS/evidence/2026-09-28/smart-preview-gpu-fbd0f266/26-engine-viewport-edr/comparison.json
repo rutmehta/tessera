@@ -1,0 +1,1055 @@
+[
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "first_surface",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 6.0736805686789545e-05,
+      "rmse": 8.627566381522575e-05,
+      "p95_absolute_pixel_error": 0.00015763833489218504,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.0020520574575059233,
+      "rmse": 0.003651246343573082,
+      "p95_absolute_pixel_error": 0.006476828749750696,
+      "max": 0.20279966273777839
+    },
+    "delivery_ms": {
+      "original": 351.61274999999995,
+      "cpu_proxy": 133.519958,
+      "gpu_proxy": 31.364625
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 4.257023892362813
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "warm_exposure_1",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00010152586300007924,
+      "rmse": 0.0001401139226668822,
+      "p95_absolute_pixel_error": 0.000244140625,
+      "max": 0.000976562500000444
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.0032570799389440596,
+      "rmse": 0.005754141295358011,
+      "p95_absolute_pixel_error": 0.010281797865747011,
+      "max": 0.3072187866963121
+    },
+    "delivery_ms": {
+      "original": 1.9820419999999999,
+      "cpu_proxy": 130.174583,
+      "gpu_proxy": 6.191084
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 21.026137426014575
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "warm_exposure_2",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00012500720191762157,
+      "rmse": 0.00017489697087283998,
+      "p95_absolute_pixel_error": 0.0003507372359154992,
+      "max": 0.0016279623542034827
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.0040551131668979685,
+      "rmse": 0.0071378690115091676,
+      "p95_absolute_pixel_error": 0.012802197899617118,
+      "max": 0.3693277667945525
+    },
+    "delivery_ms": {
+      "original": 1.917375,
+      "cpu_proxy": 131.78775000000002,
+      "gpu_proxy": 5.889832999999999
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 22.375464635414964
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "warm_wb_1",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00012132869831491543,
+      "rmse": 0.00017982837474810233,
+      "p95_absolute_pixel_error": 0.0002459673814370067,
+      "max": 0.001953125000000444
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.004131577109243452,
+      "rmse": 0.007355232127671848,
+      "p95_absolute_pixel_error": 0.012913703918457142,
+      "max": 0.42088327945118054
+    },
+    "delivery_ms": {
+      "original": 8.371917,
+      "cpu_proxy": 133.67100000000002,
+      "gpu_proxy": 19.852375
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 6.7332498000868926
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "warm_wb_2",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00012928518881445973,
+      "rmse": 0.000185611284735885,
+      "p95_absolute_pixel_error": 0.00041961669921875,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.003968178882204871,
+      "rmse": 0.0069438477395418925,
+      "p95_absolute_pixel_error": 0.012745581882098733,
+      "max": 0.303698546449902
+    },
+    "delivery_ms": {
+      "original": 8.201625,
+      "cpu_proxy": 132.380583,
+      "gpu_proxy": 19.6205
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 6.747054509314238
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "interactive_1",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00014270642363431495,
+      "rmse": 0.00020323516011834446,
+      "p95_absolute_pixel_error": 0.00045292814012976024,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.004320504382022678,
+      "rmse": 0.007550441990010787,
+      "p95_absolute_pixel_error": 0.013872082804289698,
+      "max": 0.3258571524015603
+    },
+    "delivery_ms": {
+      "original": 2.07525,
+      "cpu_proxy": 130.712541,
+      "gpu_proxy": 6.574667
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 19.88124128568032
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "interactive_2",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00015679811305830053,
+      "rmse": 0.00022141954405488005,
+      "p95_absolute_pixel_error": 0.0004728075484154992,
+      "max": 0.000976562500000444
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.004696013293762587,
+      "rmse": 0.008196616921965433,
+      "p95_absolute_pixel_error": 0.015076073122696099,
+      "max": 0.3481053735168873
+    },
+    "delivery_ms": {
+      "original": 1.780125,
+      "cpu_proxy": 131.73475000000002,
+      "gpu_proxy": 6.064708
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 21.72153218258818
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      640,
+      426
+    ],
+    "label": "settled",
+    "gpu_level": 1,
+    "cpu_level": 1,
+    "original_level": 2,
+    "dimensions": {
+      "gpu": [
+        820,
+        546
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        1230,
+        819
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00016291159792361978,
+      "rmse": 0.00022849418014688383,
+      "p95_absolute_pixel_error": 0.0004785027302486311,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.0048926400076747,
+      "rmse": 0.008534750689565605,
+      "p95_absolute_pixel_error": 0.015707314853937476,
+      "max": 0.36008873455960844
+    },
+    "delivery_ms": {
+      "original": 1.645875,
+      "cpu_proxy": 132.00637500000002,
+      "gpu_proxy": 5.538334
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 23.835033242848848
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "first_surface",
+    "gpu_level": 0,
+    "cpu_level": 0,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        1640,
+        1092
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00016290112360964188,
+      "rmse": 0.00022869529714955036,
+      "p95_absolute_pixel_error": 0.0004786101865097425,
+      "max": 0.0013197777976452496
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.004877878306867955,
+      "rmse": 0.007169119531920586,
+      "p95_absolute_pixel_error": 0.014785444232779499,
+      "max": 0.2720433179761318
+    },
+    "delivery_ms": {
+      "original": 120.588291,
+      "cpu_proxy": 152.09675000000001,
+      "gpu_proxy": 3.265458
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 46.57746325324044
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "warm_exposure_1",
+    "gpu_level": 0,
+    "cpu_level": 0,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        1640,
+        1092
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 9.533597136016602e-05,
+      "rmse": 0.00013656094407654235,
+      "p95_absolute_pixel_error": 0.000244140625,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.00318640120036559,
+      "rmse": 0.004703314331203437,
+      "p95_absolute_pixel_error": 0.00969338752854021,
+      "max": 0.18517963819100874
+    },
+    "delivery_ms": {
+      "original": 4.718375,
+      "cpu_proxy": 150.929416,
+      "gpu_proxy": 2.833625
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 53.26372261678945
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "warm_exposure_2",
+    "gpu_level": 0,
+    "cpu_level": 0,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        1640,
+        1092
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.0001293794601852263,
+      "rmse": 0.00018601976638730152,
+      "p95_absolute_pixel_error": 0.00041961669921875,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.003962041553372592,
+      "rmse": 0.005835121330463769,
+      "p95_absolute_pixel_error": 0.01203413412604587,
+      "max": 0.22618599634775038
+    },
+    "delivery_ms": {
+      "original": 5.85175,
+      "cpu_proxy": 149.844584,
+      "gpu_proxy": 2.63225
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 56.92642568145123
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "warm_wb_1",
+    "gpu_level": 0,
+    "cpu_level": 0,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        1640,
+        1092
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00012173920907086542,
+      "rmse": 0.00018052066776441984,
+      "p95_absolute_pixel_error": 0.0002539191447513689,
+      "max": 0.001953125000000444
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.004139055732585775,
+      "rmse": 0.005998320848290032,
+      "p95_absolute_pixel_error": 0.012059883332586785,
+      "max": 0.3119845054519006
+    },
+    "delivery_ms": {
+      "original": 64.642916,
+      "cpu_proxy": 153.63945800000002,
+      "gpu_proxy": 2.640417
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 58.18757340223155
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "warm_wb_2",
+    "gpu_level": 0,
+    "cpu_level": 0,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        1640,
+        1092
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.0001293794601852263,
+      "rmse": 0.00018601976638730152,
+      "p95_absolute_pixel_error": 0.00041961669921875,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.003962041553372592,
+      "rmse": 0.005835121330463769,
+      "p95_absolute_pixel_error": 0.01203413412604587,
+      "max": 0.22618599634775038
+    },
+    "delivery_ms": {
+      "original": 3.618208,
+      "cpu_proxy": 149.825875,
+      "gpu_proxy": 2.840417
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 52.7478447706798
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "interactive_1",
+    "gpu_level": 0,
+    "cpu_level": 0,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        1640,
+        1092
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00014257610876338575,
+      "rmse": 0.00020316933940945595,
+      "p95_absolute_pixel_error": 0.0004521759463028685,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.004311223914635845,
+      "rmse": 0.006344200157542284,
+      "p95_absolute_pixel_error": 0.01308496233443096,
+      "max": 0.24390696219995056
+    },
+    "delivery_ms": {
+      "original": 3.795375,
+      "cpu_proxy": 149.754417,
+      "gpu_proxy": 3.460666
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 43.27329392666036
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "interactive_2",
+    "gpu_level": 0,
+    "cpu_level": 1,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        820,
+        546
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.005958556931903221,
+      "rmse": 0.009986555865751028,
+      "p95_absolute_pixel_error": 0.019123567661768315,
+      "max": 0.3904359441407974
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.00468327707305295,
+      "rmse": 0.006886124291516805,
+      "p95_absolute_pixel_error": 0.014200902320970099,
+      "max": 0.2624232441606652
+    },
+    "delivery_ms": {
+      "original": 3.7504589999999998,
+      "cpu_proxy": 131.226083,
+      "gpu_proxy": 2.527958
+    },
+    "same_proxy_render_dimensions": false
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      1280,
+      852
+    ],
+    "label": "settled",
+    "gpu_level": 0,
+    "cpu_level": 0,
+    "original_level": 1,
+    "dimensions": {
+      "gpu": [
+        1640,
+        1092
+      ],
+      "cpu": [
+        1640,
+        1092
+      ],
+      "original": [
+        2460,
+        1638
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00016290112360964188,
+      "rmse": 0.00022869529714955036,
+      "p95_absolute_pixel_error": 0.0004786101865097425,
+      "max": 0.0013197777976452496
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.004877878306867955,
+      "rmse": 0.007169119531920586,
+      "p95_absolute_pixel_error": 0.014785444232779499,
+      "max": 0.2720433179761318
+    },
+    "delivery_ms": {
+      "original": 5.884416,
+      "cpu_proxy": 151.27770800000002,
+      "gpu_proxy": 2.522917
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 59.96142877470801
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "first_surface",
+    "gpu_level": 2,
+    "cpu_level": 2,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        410,
+        273
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.0001629478764699214,
+      "rmse": 0.00022810795463567,
+      "p95_absolute_pixel_error": 0.00047775053642162835,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.009696232763607048,
+      "rmse": 0.017980848975205063,
+      "p95_absolute_pixel_error": 0.033452291443875015,
+      "max": 0.4057466748734593
+    },
+    "delivery_ms": {
+      "original": 12.334875,
+      "cpu_proxy": 127.45424999999999,
+      "gpu_proxy": 5.8843749999999995
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 21.659776951672864
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "warm_exposure_1",
+    "gpu_level": 2,
+    "cpu_level": 2,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        410,
+        273
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 9.531540257409142e-05,
+      "rmse": 0.00013600022359103368,
+      "p95_absolute_pixel_error": 0.000244140625,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.006332851327295037,
+      "rmse": 0.011821028772946414,
+      "p95_absolute_pixel_error": 0.021833822760783106,
+      "max": 0.2808800549574302
+    },
+    "delivery_ms": {
+      "original": 1.3765830000000001,
+      "cpu_proxy": 125.33295799999999,
+      "gpu_proxy": 5.5107919999999995
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 22.74318428276734
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "warm_exposure_2",
+    "gpu_level": 2,
+    "cpu_level": 2,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        410,
+        273
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00012978386191574203,
+      "rmse": 0.00018614653516352395,
+      "p95_absolute_pixel_error": 0.00041961669921875,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.007876335830849814,
+      "rmse": 0.014649809050114712,
+      "p95_absolute_pixel_error": 0.027192581427488233,
+      "max": 0.340781681974169
+    },
+    "delivery_ms": {
+      "original": 1.425292,
+      "cpu_proxy": 125.77566700000001,
+      "gpu_proxy": 6.276541
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 20.03900986227924
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "warm_wb_1",
+    "gpu_level": 2,
+    "cpu_level": 2,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        410,
+        273
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00012153815215068508,
+      "rmse": 0.00018055012529562468,
+      "p95_absolute_pixel_error": 0.0002441406250000555,
+      "max": 0.001953125000000444
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.008166639823932977,
+      "rmse": 0.015713864054981486,
+      "p95_absolute_pixel_error": 0.02727290945993205,
+      "max": 0.4717243893045773
+    },
+    "delivery_ms": {
+      "original": 3.538583,
+      "cpu_proxy": 131.880375,
+      "gpu_proxy": 4.942125000000001
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 26.684953334850892
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "warm_wb_2",
+    "gpu_level": 2,
+    "cpu_level": 2,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        410,
+        273
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.00012978386191574203,
+      "rmse": 0.00018614653516352395,
+      "p95_absolute_pixel_error": 0.00041961669921875,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.007876335830849814,
+      "rmse": 0.014649809050114712,
+      "p95_absolute_pixel_error": 0.027192581427488233,
+      "max": 0.340781681974169
+    },
+    "delivery_ms": {
+      "original": 1.120708,
+      "cpu_proxy": 139.586125,
+      "gpu_proxy": 4.875875
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 28.627912938703314
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "interactive_1",
+    "gpu_level": 2,
+    "cpu_level": 3,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        205,
+        137
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.013645263199528433,
+      "rmse": 0.027891219839665794,
+      "p95_absolute_pixel_error": 0.04708794249055481,
+      "max": 0.6485968934538193
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.008570519099346627,
+      "rmse": 0.01592073264163838,
+      "p95_absolute_pixel_error": 0.029570888465560552,
+      "max": 0.3658038931833185
+    },
+    "delivery_ms": {
+      "original": 1.4526249999999998,
+      "cpu_proxy": 133.174042,
+      "gpu_proxy": 4.868542
+    },
+    "same_proxy_render_dimensions": false
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "interactive_2",
+    "gpu_level": 2,
+    "cpu_level": 3,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        205,
+        137
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.014819268036289739,
+      "rmse": 0.030235936812050855,
+      "p95_absolute_pixel_error": 0.051224739898538374,
+      "max": 0.6979394384393286
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.00930946669273126,
+      "rmse": 0.01727318368196367,
+      "p95_absolute_pixel_error": 0.0321109485178489,
+      "max": 0.39206749284771103
+    },
+    "delivery_ms": {
+      "original": 1.469625,
+      "cpu_proxy": 266.259208,
+      "gpu_proxy": 5.043667
+    },
+    "same_proxy_render_dimensions": false
+  },
+  {
+    "run": "proxy-gpu-edr-0",
+    "viewport": [
+      320,
+      213
+    ],
+    "label": "settled",
+    "gpu_level": 2,
+    "cpu_level": 2,
+    "original_level": 3,
+    "dimensions": {
+      "gpu": [
+        410,
+        273
+      ],
+      "cpu": [
+        410,
+        273
+      ],
+      "original": [
+        615,
+        410
+      ]
+    },
+    "cpu_proxy_vs_gpu_proxy": {
+      "mae": 0.0001629478764699214,
+      "rmse": 0.00022810795463567,
+      "p95_absolute_pixel_error": 0.00047775053642162835,
+      "max": 0.000976562500000222
+    },
+    "original_vs_gpu_proxy_spatial_difference": {
+      "mae": 0.009696232763607048,
+      "rmse": 0.017980848975205063,
+      "p95_absolute_pixel_error": 0.033452291443875015,
+      "max": 0.4057466748734593
+    },
+    "delivery_ms": {
+      "original": 2.7860419999999997,
+      "cpu_proxy": 124.616541,
+      "gpu_proxy": 4.924875
+    },
+    "same_proxy_render_dimensions": true,
+    "matched_proxy_delivery_speedup": 25.30349318510622
+  }
+]

@@ -1,0 +1,65 @@
+{
+  "commit": "fbd0f266443091af45ca973f06a470b84c988383",
+  "git_blob_count": 7020,
+  "gates": [
+    {
+      "snapshot": "28-default-engine-viewport/before.json",
+      "matched_git_files": 1358,
+      "changed_git_files": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ],
+      "non_git_files": []
+    },
+    {
+      "snapshot": "31-default-ffi-all.sources-before.json",
+      "matched_git_files": 7019,
+      "changed_git_files": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ],
+      "non_git_files": [
+        "apps/mac/build/ffi/CTesseraFFI.h",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap",
+        "apps/mac/build/ffi/TesseraFFI.swift",
+        "apps/mac/build/ffi/libtessera_ffi.a"
+      ]
+    },
+    {
+      "snapshot": "32-default-public-workflow.sources-before.json",
+      "matched_git_files": 7019,
+      "changed_git_files": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ],
+      "non_git_files": [
+        "apps/mac/build/ffi/CTesseraFFI.h",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap",
+        "apps/mac/build/ffi/TesseraFFI.swift",
+        "apps/mac/build/ffi/libtessera_ffi.a"
+      ]
+    },
+    {
+      "snapshot": "33-default-strict.sources-before.json",
+      "matched_git_files": 7019,
+      "changed_git_files": [
+        "crates/pipeline-gpu/tests/smart_preview.rs"
+      ],
+      "non_git_files": [
+        "apps/mac/build/ffi/CTesseraFFI.h",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap",
+        "apps/mac/build/ffi/TesseraFFI.swift",
+        "apps/mac/build/ffi/libtessera_ffi.a"
+      ]
+    },
+    {
+      "snapshot": "36-final-formatted-gpu.sources-before.json",
+      "matched_git_files": 7020,
+      "changed_git_files": [],
+      "non_git_files": [
+        "apps/mac/build/ffi/CTesseraFFI.h",
+        "apps/mac/build/ffi/CTesseraFFI.modulemap",
+        "apps/mac/build/ffi/TesseraFFI.swift",
+        "apps/mac/build/ffi/libtessera_ffi.a"
+      ]
+    }
+  ],
+  "note": "Only earlier test-formatting delta allowed; final36 must match. Ignored archive remains separate."
+}

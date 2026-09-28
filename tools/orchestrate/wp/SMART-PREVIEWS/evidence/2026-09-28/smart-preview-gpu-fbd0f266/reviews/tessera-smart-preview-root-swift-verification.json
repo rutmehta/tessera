@@ -1,0 +1,27 @@
+{
+  "candidate": "fbd0f266",
+  "archive_sha256": "456758e564b4d73cbd8a9dbd79cbc54eacbe1000e2536f1e659138306ee9fe38",
+  "gates": [
+    {
+      "gate": "38-swift-focused-actual",
+      "matched_git_inputs": 7020,
+      "exit": 0,
+      "frozen": true,
+      "log_sha256": "17a62bbf6933692282d06be957cdf0ff999cb615b54c3f44fcae949974e3d505"
+    },
+    {
+      "gate": "39-swift-full",
+      "matched_git_inputs": 7020,
+      "exit": 0,
+      "frozen": true,
+      "log_sha256": "5e35776ad6b89ec10de8df253d4af6959445a189b200824aa38087cfa16cb9de"
+    },
+    {
+      "gate": "40-swift-strict-product",
+      "matched_git_inputs": 7020,
+      "exit": 0,
+      "frozen": true,
+      "log_sha256": "47c0d6e44a3556cbb80c265d61bc69422e70cc9499dc949cf92d38e6e67312f3"
+    }
+  ]
+}

@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Smart Preview acceleration integrated; Save As runtime active — 2026-09-28
+
+Main8e100b80 integrates qualified candidatefbd0f266. Selected proxies now calibrate Metal automatically; Original remains the source default, with exact CPU fallback for mapped geometry. Actual Engine SDR/EDR, HDR recipe/thumbnail preservation, offline public workflow, resource release, full Swift689/1skip0fail+5 and strict product gates passed. Root independently matched7020 tracked Git inputs and the exact regenerated archive; main product/native/Cargo bytes equal the tested candidate. Evidence: `tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/smart-preview-gpu-fbd0f266/VALIDATION.md`. No speedup over Original, cross-camera, physical scanout or new packaged-GPU GUI claim is implied. Calibration opening cost0.6–0.8seconds and retained numerical failures are explicit.
+
+The GPU worker released the compiler/GPU lane. Save As reviewer now runs combined native/regeneration/Swift gates in preserved render-resource-bounds checkout at5f34221d, which merges Bcfb511e5 with accepted GPUmain. B resultf687664d remains accepted pending runtime/main integration, not completed. Latest Git mailbox poll had no new/invalid/expired messages. B existing writer and source ownership remain unchanged; A alone merges main.
+
+Older engine queue was reconciled: M2-45d was already merged; no duplicate work. The previously missing bounded private RAW capture ownership plan is now reviewed and queued after these priorities. No capture implementation or decoder/render claim yet.
+
 ## Actual Engine SDR qualification and B source receipt — 2026-09-28 19:42 UTC
 
 Experimental proxy GPU route now passes eight fresh actual Engine SDR processes (192 frames), with resident Metal surfaces and zero timed pixel readback on GPU routes. Root checked each exit, source/fixture freeze, frame count and comparison record:42 equal-dimension proxy pairs meet unchanged SDR tolerance;6 adaptive dimension mismatches are excluded. Maximum normalized matched pixel error0.003861. This is single-fixture surface-delivery evidence, not physical input-to-present or a speedup over Original. Geometry maps deliberately select CPU after retained failed fidelity experiments. Strict20 and actual opt-in offline/edit/reopen/reconnect/conflict/full-original-export21 pass with source freezes. Candidate remains unmerged and opt-in; Original remains default. Narrow HDR presentation-policy compatibility is in implementation with independent review; general legacy SDR validation remains intact.

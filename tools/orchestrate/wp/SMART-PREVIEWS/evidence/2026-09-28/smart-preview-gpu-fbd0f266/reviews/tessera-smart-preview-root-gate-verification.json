@@ -1,0 +1,369 @@
+{
+  "scope": "Root independent checks of recorded actual Engine outputs, not final immutable-source or physical-display acceptance",
+  "waves": [
+    {
+      "name": "17-engine-viewport-sdr",
+      "processes": [
+        {
+          "run": "original-auto-sdr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "6353fb5b8c9b0fe317a7c00a47c4ef9de1623692dac4b1d2cb68ac0c41225470"
+        },
+        {
+          "run": "original-gpu-sdr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "a303484b805520ee069bd2ea5bc1c54ac3a7ca27ccf813f9b5f6edeaf7d1a7ee"
+        },
+        {
+          "run": "original-gpu-sdr-1",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "c9447856d20df5405ccdc863f2a8d3fefe244a9877a1835e4532e29796bed70c"
+        },
+        {
+          "run": "proxy-auto-sdr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "e89dffe748f85573e322bf2ad9dc8356359d9191a02ee7d2d18f680d951f2ab4"
+        },
+        {
+          "run": "proxy-cpu-sdr-0",
+          "frames": 24,
+          "resident_frames": 0,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "4c5ddba3e2dfef253e5be4596e76219521011ddafb311898b7318cfeb0c3a0e1"
+        },
+        {
+          "run": "proxy-cpu-sdr-1",
+          "frames": 24,
+          "resident_frames": 0,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "8a40189c5616b7191e5ebf999589fcff61e40faf0ad87ea50e091534cf904aa6"
+        },
+        {
+          "run": "proxy-gpu-sdr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "d067f253b19ab5e0ca4216aae7c87dcd8fa5bbd6f3759d597367917cfb633170"
+        },
+        {
+          "run": "proxy-gpu-sdr-1",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "2a61ec53307e53769c1bf12035fb7bbdba9d2c98b952b9bdb9b2c7e3c5c8ac7d"
+        }
+      ],
+      "same_dimension_pairs": 42,
+      "excluded_dimension_pairs": 6,
+      "max_matched_normalized_error": 0.003860293887555599,
+      "max_matched_mae": 1.49214672259987e-07,
+      "comparison_sha256": "2213bd8a1c11dc7a96c098d099d40ea011b7323492f353308d4cd76903840b33"
+    },
+    {
+      "name": "26-engine-viewport-edr",
+      "processes": [
+        {
+          "run": "original-auto-edr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "e14ab778fbe6976bb20bc4a788d63b5b5733995b94479631cd5f6b4adf9dc02c"
+        },
+        {
+          "run": "original-gpu-edr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "8e2eef90d8f466b279922b46303cdb96559f726095381bc57c5aec307ba5e59d"
+        },
+        {
+          "run": "proxy-auto-edr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "e8c73493714c1ca5df2170fe5c1dd490ede43b685a1402a9d0466c7880c7361b"
+        },
+        {
+          "run": "proxy-cpu-edr-0",
+          "frames": 24,
+          "resident_frames": 0,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "fc7aef63182cdcf82f7c2a1886a63bcd4d1e52f8cdbfc04d37f6f5a102721e7c"
+        },
+        {
+          "run": "proxy-gpu-edr-0",
+          "frames": 24,
+          "resident_frames": 24,
+          "exit": 0,
+          "freeze": true,
+          "timed_pixel_readback_bytes": 0,
+          "result_sha256": "52790bd97d6cd6bc284173f9469cce591fc203a6b53ab51f0c11b3e745ea5545"
+        }
+      ],
+      "same_dimension_pairs": 21,
+      "excluded_dimension_pairs": 3,
+      "max_matched_normalized_error": 0.001953125000000444,
+      "max_matched_mae": 0.0001629478764699214,
+      "comparison_sha256": "d41dc41f194d533260ef46932a8d0ef82486a267e0b8828bbcc4e1398852d546"
+    }
+  ],
+  "native_gates": [
+    {
+      "name": "20-strict",
+      "exit": 0,
+      "freeze": true,
+      "log_sha256": "f4c1b6420a15101b278318f8cde82a8b188d29627e117a6fffb3750dd6e186ac"
+    },
+    {
+      "name": "21-optin-public-workflow",
+      "exit": 0,
+      "freeze": true,
+      "log_sha256": "968bb8ff4b110374addb1ab52635fd03a24373043800b9728562e6a3d4029592"
+    },
+    {
+      "name": "24-hdr-generation-and-legacy",
+      "exit": 0,
+      "freeze": true,
+      "log_sha256": "ec68ea7318696848b03fd1ad80a3bee986089cbbb81d11c5028e1fb4b333f105"
+    },
+    {
+      "name": "25-hdr-thumbnail",
+      "exit": 0,
+      "freeze": true,
+      "log_sha256": "d88b99c0ccbf4269d786881c44331178ef9c6772dd5a4f39198ea67c7de73faf"
+    },
+    {
+      "name": "27-ffi-all",
+      "exit": 0,
+      "freeze": true,
+      "log_sha256": "8ef14d1a1eb1ac10e7aa3aed377d0e6f5e790af398d015f43cfe86cee1df602a"
+    }
+  ],
+  "default_route": {
+    "wave": "28-default-engine-viewport",
+    "processes": [
+      {
+        "run": "original-auto-edr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "d525fbd65f12f0bd056c7f6b427898d65d384b6f6d746f8b7c0e449da95b7e84"
+      },
+      {
+        "run": "original-auto-sdr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "88f469a2131c341b4026a833784262a38557c8ca0a62622ceb1ccf94a253d133"
+      },
+      {
+        "run": "original-gpu-edr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "36383c9c42e512b857ea7f0f0e85c2524bd0645f2b12ce149b0e57c3331b30f6"
+      },
+      {
+        "run": "original-gpu-sdr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "12c42fa76a0d1be3dbfaa73262c594127e3aa4da54532123e8e1616bdc03d151"
+      },
+      {
+        "run": "original-gpu-sdr-1",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "35b51860bcfd5382855bff45dab139bdd27f8378731030c647580929ec5762dc"
+      },
+      {
+        "run": "proxy-auto-edr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [
+          {
+            "cycle": 0,
+            "deadline_ms": 5000,
+            "release_ms": 0.013709,
+            "released": true
+          },
+          {
+            "cycle": 1,
+            "deadline_ms": 5000,
+            "release_ms": 0.011667,
+            "released": true
+          },
+          {
+            "cycle": 2,
+            "deadline_ms": 5000,
+            "release_ms": 0.011916000000000001,
+            "released": true
+          }
+        ],
+        "result_sha256": "bfe5662b3f0c8d44a595f3268fad23b1c59bbebcc4e681e8922dc06963706256"
+      },
+      {
+        "run": "proxy-auto-sdr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [
+          {
+            "cycle": 0,
+            "deadline_ms": 5000,
+            "release_ms": 0.012916,
+            "released": true
+          },
+          {
+            "cycle": 1,
+            "deadline_ms": 5000,
+            "release_ms": 0.012959,
+            "released": true
+          },
+          {
+            "cycle": 2,
+            "deadline_ms": 5000,
+            "release_ms": 0.012833,
+            "released": true
+          }
+        ],
+        "result_sha256": "6e81bc81056ca9fab4066292ab7cd9dc2b1386eb8790445f3fba3ed5b32ce4a7"
+      },
+      {
+        "run": "proxy-cpu-edr-0",
+        "frames": 24,
+        "resident_frames": 0,
+        "releases": [
+          {
+            "cycle": 0,
+            "deadline_ms": 5000,
+            "release_ms": 0.013417,
+            "released": true
+          },
+          {
+            "cycle": 1,
+            "deadline_ms": 5000,
+            "release_ms": 0.01225,
+            "released": true
+          },
+          {
+            "cycle": 2,
+            "deadline_ms": 5000,
+            "release_ms": 0.011083,
+            "released": true
+          }
+        ],
+        "result_sha256": "217c4640b930d1516853b18fa0ea344df1c1b07c619857d66acff0c7295f29b0"
+      },
+      {
+        "run": "proxy-cpu-sdr-0",
+        "frames": 24,
+        "resident_frames": 0,
+        "releases": [
+          {
+            "cycle": 0,
+            "deadline_ms": 5000,
+            "release_ms": 0.0135,
+            "released": true
+          },
+          {
+            "cycle": 1,
+            "deadline_ms": 5000,
+            "release_ms": 0.013584,
+            "released": true
+          },
+          {
+            "cycle": 2,
+            "deadline_ms": 5000,
+            "release_ms": 0.014957999999999999,
+            "released": true
+          }
+        ],
+        "result_sha256": "c5916956aa07d5762137df711140a77070cac4ba8a275d6d4417641f60578adb"
+      },
+      {
+        "run": "proxy-cpu-sdr-1",
+        "frames": 24,
+        "resident_frames": 0,
+        "releases": [
+          {
+            "cycle": 0,
+            "deadline_ms": 5000,
+            "release_ms": 0.012084,
+            "released": true
+          },
+          {
+            "cycle": 1,
+            "deadline_ms": 5000,
+            "release_ms": 0.012542,
+            "released": true
+          },
+          {
+            "cycle": 2,
+            "deadline_ms": 5000,
+            "release_ms": 0.015375000000000002,
+            "released": true
+          }
+        ],
+        "result_sha256": "a403157fb7857874012e02a62909768fa004f08d86c39c84ef7706ce8bf5169c"
+      },
+      {
+        "run": "proxy-gpu-edr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "cdeb1ac06f0ae54a267739d54620d95b85f06b014602658d22305fbaccbbce1a"
+      },
+      {
+        "run": "proxy-gpu-sdr-0",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "5f4e3d462290c0d4d3b45aade28b47fed92143774364acc0acb809507e6dca90"
+      },
+      {
+        "run": "proxy-gpu-sdr-1",
+        "frames": 24,
+        "resident_frames": 24,
+        "releases": [],
+        "result_sha256": "e231aec096fc29fd3c21e8f479b4c45b29b8d6ae507b934d9411c4fed43a1922"
+      }
+    ],
+    "matched_pairs": 63,
+    "excluded_adaptive_pairs": 9,
+    "lifecycle_released_cycles": 15,
+    "comparison_sha256": "300b2b78f3870220e4cdd5e87fcd7ab64e310ae4a960970b585a04584dbbd790"
+  }
+}

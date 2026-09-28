@@ -1,0 +1,2503 @@
+{
+  "retained_root": "/Volumes/betterSSD/tessera-validation/smart-previews/gpu-integration",
+  "included_in_portable": false,
+  "reason": "roughly8GB retained separately; rawpixel hashes and all derivedcomparisons included",
+  "files": {
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "c5fd89faffb26f2d417baf23cadcc318524ebbb5a66174000ed21e79635aa547",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "55e9764c1e2ba2024edca641531ff8ab1dd099279a5955c620e4dddbc61da21d",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "94465f9f2168ff049325bfc21fa67ccc7e474507b539690bbf712c58a2fc203a",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "2e1b95ac61b64396ca0a3ef6e2431edb5909f36a57d4cbbb5be69d9ef704c1f8",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "e836c0a0e0784c2707b41fd4ba11df3efe9bc845c597d2b6236c23a0a7250db7",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "8f0639df8cc76663ac7ac0907a250ac2a4c7be6145e3541faa8d34f25e26faba",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "43b64dba2c0371bc10fb42c825fcb6b9c172e5e33423a8a70b3eb064e7b86152",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "8d5f63b3a184e3767f8d21457c0eaca6fee03d6456a79e16ed85a4071d5bfa6a",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-settled.rgb32f": {
+      "sha256": "ffc1d59bca593a2e2ebf718f1cb3c82e0dbe9dc160c29c65b1edd5b3807ddfb3",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "60abc10a8b4fc4b84c05e675b4a02c5544cbcc624a9c08585360b7b66b707a3b",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "b6c93882fb1611d7031696af878e497fa5d440ae1b00787cfc9ae3be796d1995",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "ec5caf07367304ebb52d04ebb86c9c87b9a2cb1fc161ee5893e4f5a07f8efbe8",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "5a52fadf37ff98b12e000da0a5f3ce7f0f790b1bcfe7540cfe9700d1f325ced5",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/320x213-settled.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8df05aba4b2a60eeb31b4c3716b52900e3ad0f4557432ff39abc6fc9b7db20fb",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-gpu-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "9f0a40d06f0d084adaf1c990052fc306f7c45b5dba820269adc1f964e0c61048",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "adb4a9971c36600e65e8534ce92fc68cd1930ed11962f7f38ce70f62eb0899da",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "7fe2af0810dff4e43f313663c1dcb3cb82bf9df633f6c25fa08f977ec77c4653",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "706fb991ed7beffe2c20e1b95526b72fe84422b47e8836494b8f10fea25cee4b",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "a6b5c0918227c12433263dbb38452ee8e75148210424b87f1750a1d5be7c5e70",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "21b8937d911ceba81977beb33ba9b89c2b35fea8159050e4ddab6854985351e3",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "4006fe2b75f759d3416e8ae5657bd029eb722ef591c203521b8f21da611a56cd",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "0c80c4fc3a7be976c97f271480fcddda8aac79c9c6b2511d98cfc79c2823d77d",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "875e3ee7968c05a6b1556a68b65b929ebd1c0ab458fd3b910a3d175e5fe97d35",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-settled.rgb32f": {
+      "sha256": "0aa43ccae839d53126a1378c19481cca5c776087aa4898b1a4b1253f8dbb820b",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "806e2dbd5afdeb3eced1c29270b563d793efab9a24360e6b08f2e7d27b748333",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "5a73ceda0edfae28103956c08f17b430ef7533c98d2e758757e90cd46228cceb",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "1a9262fac7d95d4e66fe8830b58f26bdb2e2f84b8410a1089e6c6ad48a0e2569",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "7a4f7aa69ae171c5a7481091765835fab1c66d91af9bec0ffcb0f45d10f8a40a",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "970bbde9189c58ab1384daa0bfe3a4ef02d0e047a6434620b1c52926d6cc91ff",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/320x213-settled.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8f43e025ad438aeff3a36b05a8508b303c998f658b476c100cab37d63bdc52e3",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-gpu-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "6a393198edc92f7eb95524bcf26f24200ca093ee558ba317d1843a150130bc65",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "c5fd89faffb26f2d417baf23cadcc318524ebbb5a66174000ed21e79635aa547",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "55e9764c1e2ba2024edca641531ff8ab1dd099279a5955c620e4dddbc61da21d",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "94465f9f2168ff049325bfc21fa67ccc7e474507b539690bbf712c58a2fc203a",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "2e1b95ac61b64396ca0a3ef6e2431edb5909f36a57d4cbbb5be69d9ef704c1f8",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "e836c0a0e0784c2707b41fd4ba11df3efe9bc845c597d2b6236c23a0a7250db7",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "8f0639df8cc76663ac7ac0907a250ac2a4c7be6145e3541faa8d34f25e26faba",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "43b64dba2c0371bc10fb42c825fcb6b9c172e5e33423a8a70b3eb064e7b86152",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "8d5f63b3a184e3767f8d21457c0eaca6fee03d6456a79e16ed85a4071d5bfa6a",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-settled.rgb32f": {
+      "sha256": "ffc1d59bca593a2e2ebf718f1cb3c82e0dbe9dc160c29c65b1edd5b3807ddfb3",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "60abc10a8b4fc4b84c05e675b4a02c5544cbcc624a9c08585360b7b66b707a3b",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "b6c93882fb1611d7031696af878e497fa5d440ae1b00787cfc9ae3be796d1995",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "ec5caf07367304ebb52d04ebb86c9c87b9a2cb1fc161ee5893e4f5a07f8efbe8",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "5a52fadf37ff98b12e000da0a5f3ce7f0f790b1bcfe7540cfe9700d1f325ced5",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/320x213-settled.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8df05aba4b2a60eeb31b4c3716b52900e3ad0f4557432ff39abc6fc9b7db20fb",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-auto-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "9f0a40d06f0d084adaf1c990052fc306f7c45b5dba820269adc1f964e0c61048",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "ae89ed65bbf3ee190f94f644ef0c8906c746f6d7646b66a67d2fb0ec3920d060",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "2a398cfce67abcdd376e37752254ff4e0262ac7b87df813adf8817dc0d3a00fb",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "3809b4cb32832052a672a7f226fcd0104e578b668f2b4492fcf64ec5a418d65c",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "3579b2f22e4ebac8491820e29544d7463d5b2b5bf467db61fa07238b92e45532",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "ae89ed65bbf3ee190f94f644ef0c8906c746f6d7646b66a67d2fb0ec3920d060",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "14edac6cf7b25b7f8c3aca87a298dc25d97b9212ef74b889b4818d8ded9230e1",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "623504b7aed35fccae365e3b37d7676e36b59fd4995081ff53e3eae45e8e06e9",
+      "bytes": 337020
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "b7d1d25e04caf594dc7858692cc4d73c6c7f09580893b92762d237484c594218",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "c0c21db5314439dd0c215c3bebe66f05cd1219297b0198365d41224d2f62fe8d",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "e3bd157e7ab7be989c84eac5b478c257990b12515ae867d31fd36898767ac754",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "ae3db57685590b8a66fb70cc1dad3a6e977d168691a39afee28ca95884f42243",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "1cc43217fb49be8e16781988ce6515a612a6922bfe1f3d6bfbcbb77858544e0f",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-settled.rgb32f": {
+      "sha256": "3bf2264b79e01deece5778e74113b386cc8544582981bc0a4c95f6a490285703",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "5c98a7a9b0c46e2f7474481e41ebe6817762c8c78a2f09086ebc307436b2c697",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "acb64b04a348719f2b56bdaee90ff63b1e3568d19e96804b982f753d1afedcb5",
+      "bytes": 337020
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "f248b1742a6719f9f2559195e9eee5aa6f42ec367bbbe2e153e255a919cb1a0c",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "f248b1742a6719f9f2559195e9eee5aa6f42ec367bbbe2e153e255a919cb1a0c",
+      "bytes": 21490560
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "40a1e4f24f85cd30d82a019904cb7ef4d83e8fb170a25b263d06f845232d26b9",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "3809b4cb32832052a672a7f226fcd0104e578b668f2b4492fcf64ec5a418d65c",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "0858ba0110670a9926ed941af2e414f17cb8d9f1956bfd61589928239221e90b",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/320x213-settled.rgb32f": {
+      "sha256": "ae3db57685590b8a66fb70cc1dad3a6e977d168691a39afee28ca95884f42243",
+      "bytes": 1343160
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "1cc43217fb49be8e16781988ce6515a612a6922bfe1f3d6bfbcbb77858544e0f",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/proxy-cpu-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "e580ccd626709b3e4bdc2e87f05404e36882dbbf37f33fefb59ad1eb3f62fd38",
+      "bytes": 5372640
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "adb4a9971c36600e65e8534ce92fc68cd1930ed11962f7f38ce70f62eb0899da",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "7fe2af0810dff4e43f313663c1dcb3cb82bf9df633f6c25fa08f977ec77c4653",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "706fb991ed7beffe2c20e1b95526b72fe84422b47e8836494b8f10fea25cee4b",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "a6b5c0918227c12433263dbb38452ee8e75148210424b87f1750a1d5be7c5e70",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "21b8937d911ceba81977beb33ba9b89c2b35fea8159050e4ddab6854985351e3",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "4006fe2b75f759d3416e8ae5657bd029eb722ef591c203521b8f21da611a56cd",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "0c80c4fc3a7be976c97f271480fcddda8aac79c9c6b2511d98cfc79c2823d77d",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "875e3ee7968c05a6b1556a68b65b929ebd1c0ab458fd3b910a3d175e5fe97d35",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-settled.rgb32f": {
+      "sha256": "0aa43ccae839d53126a1378c19481cca5c776087aa4898b1a4b1253f8dbb820b",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "806e2dbd5afdeb3eced1c29270b563d793efab9a24360e6b08f2e7d27b748333",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "5a73ceda0edfae28103956c08f17b430ef7533c98d2e758757e90cd46228cceb",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "1a9262fac7d95d4e66fe8830b58f26bdb2e2f84b8410a1089e6c6ad48a0e2569",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "7a4f7aa69ae171c5a7481091765835fab1c66d91af9bec0ffcb0f45d10f8a40a",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "970bbde9189c58ab1384daa0bfe3a4ef02d0e047a6434620b1c52926d6cc91ff",
+      "bytes": 12088440
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/320x213-settled.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8f43e025ad438aeff3a36b05a8508b303c998f658b476c100cab37d63bdc52e3",
+      "bytes": 48353760
+    },
+    "26-engine-viewport-edr/original-auto-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "6a393198edc92f7eb95524bcf26f24200ca093ee558ba317d1843a150130bc65",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-first_surface.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "e84da8403aa9f7e50466f2b73db1c9bddc5320baa21fa859dd5313eadf3c3ac0",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-warm_wb_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "cd345e756b2f138f260d276d3cf888663d712a26163c65984ff3eed58c977a55",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-settled.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "6ae227cb2badbc7ab6d6819449a8123d55c7c43cdd014acc0d405604ef6a3c29",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-interactive_1.rgb32f": {
+      "sha256": "7520b9717d82e7e0b63530f79e140288897492ddb3636f0826c8f826e3781391",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-interactive_1.rgb32f": {
+      "sha256": "fc78190e6daef46419624625f8a59998b6bd89f7f4bfc772beea87a0a2e48319",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-warm_wb_2.rgb32f": {
+      "sha256": "cb51e8716f9b751ba4a483769f72fd65333bc306d5fce84b77089c57a99e3d57",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "1ef76cc78d3422e127f893ad30e6ba5e3260b3800859e8bd9cadb86197ee6366",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-first_surface.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-interactive_2.rgb32f": {
+      "sha256": "e01af5eb7a71a1b2ff64217a04185f7bef81f9f169a72f1e3e1af302526f34b4",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-settled.rgb32f": {
+      "sha256": "ef2619980f384cb08ade0093c0d76c51eb3d7aa91d15417c6eedf14a58686856",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "1b3f3ae167c823e868aeef73da01bdfa8c7ae4959050f54bf4fe75e059332498",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-first_surface.rgb32f": {
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-interactive_2.rgb32f": {
+      "sha256": "6f33fea89df460f04c055693f0b55ac0c86b12671794d84c5fd17850565a5355",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-warm_wb_1.rgb32f": {
+      "sha256": "dc8e52bcdc056587ec8e03fb4599e411f48ca26d174dab9ef73e04ac718a6b3a",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-interactive_1.rgb32f": {
+      "sha256": "7f25458ab5fe87e227999d03af240a5c744e34aec74b669aade55bcf59a1279d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/320x213-settled.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/1280x852-interactive_2.rgb32f": {
+      "sha256": "c9fd9abdfc5095c422dd5a047751623f38bfd9b8d15db3bd06dc839c4b5aa5f2",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-1/640x426-warm_wb_1.rgb32f": {
+      "sha256": "8305664fce97626fa18625fba6939b2b619f04a34f7d0df658390dd3c9104eb1",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "e84da8403aa9f7e50466f2b73db1c9bddc5320baa21fa859dd5313eadf3c3ac0",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "cd345e756b2f138f260d276d3cf888663d712a26163c65984ff3eed58c977a55",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "6ae227cb2badbc7ab6d6819449a8123d55c7c43cdd014acc0d405604ef6a3c29",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "7520b9717d82e7e0b63530f79e140288897492ddb3636f0826c8f826e3781391",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "fc78190e6daef46419624625f8a59998b6bd89f7f4bfc772beea87a0a2e48319",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "cb51e8716f9b751ba4a483769f72fd65333bc306d5fce84b77089c57a99e3d57",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "1ef76cc78d3422e127f893ad30e6ba5e3260b3800859e8bd9cadb86197ee6366",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "e01af5eb7a71a1b2ff64217a04185f7bef81f9f169a72f1e3e1af302526f34b4",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "ef2619980f384cb08ade0093c0d76c51eb3d7aa91d15417c6eedf14a58686856",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "1b3f3ae167c823e868aeef73da01bdfa8c7ae4959050f54bf4fe75e059332498",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "6f33fea89df460f04c055693f0b55ac0c86b12671794d84c5fd17850565a5355",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "dc8e52bcdc056587ec8e03fb4599e411f48ca26d174dab9ef73e04ac718a6b3a",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "7f25458ab5fe87e227999d03af240a5c744e34aec74b669aade55bcf59a1279d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "c9fd9abdfc5095c422dd5a047751623f38bfd9b8d15db3bd06dc839c4b5aa5f2",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "8305664fce97626fa18625fba6939b2b619f04a34f7d0df658390dd3c9104eb1",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "c5fd89faffb26f2d417baf23cadcc318524ebbb5a66174000ed21e79635aa547",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "55e9764c1e2ba2024edca641531ff8ab1dd099279a5955c620e4dddbc61da21d",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "94465f9f2168ff049325bfc21fa67ccc7e474507b539690bbf712c58a2fc203a",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "2e1b95ac61b64396ca0a3ef6e2431edb5909f36a57d4cbbb5be69d9ef704c1f8",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "e836c0a0e0784c2707b41fd4ba11df3efe9bc845c597d2b6236c23a0a7250db7",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "8f0639df8cc76663ac7ac0907a250ac2a4c7be6145e3541faa8d34f25e26faba",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "43b64dba2c0371bc10fb42c825fcb6b9c172e5e33423a8a70b3eb064e7b86152",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "8d5f63b3a184e3767f8d21457c0eaca6fee03d6456a79e16ed85a4071d5bfa6a",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-settled.rgb32f": {
+      "sha256": "ffc1d59bca593a2e2ebf718f1cb3c82e0dbe9dc160c29c65b1edd5b3807ddfb3",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "60abc10a8b4fc4b84c05e675b4a02c5544cbcc624a9c08585360b7b66b707a3b",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "b6c93882fb1611d7031696af878e497fa5d440ae1b00787cfc9ae3be796d1995",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "ec5caf07367304ebb52d04ebb86c9c87b9a2cb1fc161ee5893e4f5a07f8efbe8",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "5a52fadf37ff98b12e000da0a5f3ce7f0f790b1bcfe7540cfe9700d1f325ced5",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/320x213-settled.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8df05aba4b2a60eeb31b4c3716b52900e3ad0f4557432ff39abc6fc9b7db20fb",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-gpu-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "9f0a40d06f0d084adaf1c990052fc306f7c45b5dba820269adc1f964e0c61048",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-first_surface.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "4a2dff189474d37ced1b843a7832cf2eec27a9e37ad45f0b4bab695a3d3b9b55",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-warm_wb_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "54398cee9acf23329a7960c1a471ceb7972c9468c838c372857d815ef450ed65",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-settled.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "437fae4c6eb3098d8598519ecf3177c836158834be27539a5668d08dc7ca01a1",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-interactive_1.rgb32f": {
+      "sha256": "fda0eb685ed7b633e2456ec6f6725041703252c29d19f5cc8ea200d5ee4bace1",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-interactive_1.rgb32f": {
+      "sha256": "7a34d6bf2df5d7f1630e563947f57dd7c1f8c3a03c9e7f5bd2ab271439972ec6",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-warm_wb_2.rgb32f": {
+      "sha256": "48786ca6582cf8325ac146a463a1d528ed2e5ffaa7ab5342ddf03ba6875b0fea",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "77df288fea774642c90ffa2d65d840c5e31d38c1bc85e3adfa498da01e3ff2e0",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-first_surface.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-interactive_2.rgb32f": {
+      "sha256": "301a4224cce123369246089c4fa7923f023410cadbf8e455ae3369a496e4b4c2",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-settled.rgb32f": {
+      "sha256": "9dea8c1a5824916df54ef342ca7ea388061660127fc0fa1a10085b115c03185f",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "7a1b8c98515d37fcb18a9aa2e07660de6106b61821063a7d9a1f96411cc7181b",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-first_surface.rgb32f": {
+      "sha256": "605ab38751effead6a5e4c37c155c85ddf92db08a4833a245d5cdb20b8d809fe",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-interactive_2.rgb32f": {
+      "sha256": "35701115b0cf50fe298d264b34dc89453c742a4770b53e95aaf7481ed7a111c0",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-warm_wb_1.rgb32f": {
+      "sha256": "9314e07680a98b9fd22f5200abebb9ea57ba83851895ab6925e4122440b5ff8d",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-interactive_1.rgb32f": {
+      "sha256": "39ab70bc12930f89b83c94ea1bb7e0d99f04cadbfc281d6ff075e91b15e88247",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/320x213-settled.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/1280x852-interactive_2.rgb32f": {
+      "sha256": "86305b3b215daca0e5c4d1eaec2c7fd3d2505cb070492f0765b626fc47567a28",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-1/640x426-warm_wb_1.rgb32f": {
+      "sha256": "a39315b2f72e377fa3cd2284c980a0165d960f7b4d2e6328018b79f6a8ac3b65",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "4a2dff189474d37ced1b843a7832cf2eec27a9e37ad45f0b4bab695a3d3b9b55",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "54398cee9acf23329a7960c1a471ceb7972c9468c838c372857d815ef450ed65",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "437fae4c6eb3098d8598519ecf3177c836158834be27539a5668d08dc7ca01a1",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "fda0eb685ed7b633e2456ec6f6725041703252c29d19f5cc8ea200d5ee4bace1",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "7a34d6bf2df5d7f1630e563947f57dd7c1f8c3a03c9e7f5bd2ab271439972ec6",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "48786ca6582cf8325ac146a463a1d528ed2e5ffaa7ab5342ddf03ba6875b0fea",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "77df288fea774642c90ffa2d65d840c5e31d38c1bc85e3adfa498da01e3ff2e0",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "301a4224cce123369246089c4fa7923f023410cadbf8e455ae3369a496e4b4c2",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "9dea8c1a5824916df54ef342ca7ea388061660127fc0fa1a10085b115c03185f",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "7a1b8c98515d37fcb18a9aa2e07660de6106b61821063a7d9a1f96411cc7181b",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "605ab38751effead6a5e4c37c155c85ddf92db08a4833a245d5cdb20b8d809fe",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "35701115b0cf50fe298d264b34dc89453c742a4770b53e95aaf7481ed7a111c0",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "9314e07680a98b9fd22f5200abebb9ea57ba83851895ab6925e4122440b5ff8d",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "39ab70bc12930f89b83c94ea1bb7e0d99f04cadbfc281d6ff075e91b15e88247",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "86305b3b215daca0e5c4d1eaec2c7fd3d2505cb070492f0765b626fc47567a28",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "a39315b2f72e377fa3cd2284c980a0165d960f7b4d2e6328018b79f6a8ac3b65",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "adb4a9971c36600e65e8534ce92fc68cd1930ed11962f7f38ce70f62eb0899da",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "7fe2af0810dff4e43f313663c1dcb3cb82bf9df633f6c25fa08f977ec77c4653",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "706fb991ed7beffe2c20e1b95526b72fe84422b47e8836494b8f10fea25cee4b",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "a6b5c0918227c12433263dbb38452ee8e75148210424b87f1750a1d5be7c5e70",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "21b8937d911ceba81977beb33ba9b89c2b35fea8159050e4ddab6854985351e3",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "4006fe2b75f759d3416e8ae5657bd029eb722ef591c203521b8f21da611a56cd",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "0c80c4fc3a7be976c97f271480fcddda8aac79c9c6b2511d98cfc79c2823d77d",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "875e3ee7968c05a6b1556a68b65b929ebd1c0ab458fd3b910a3d175e5fe97d35",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-settled.rgb32f": {
+      "sha256": "0aa43ccae839d53126a1378c19481cca5c776087aa4898b1a4b1253f8dbb820b",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "806e2dbd5afdeb3eced1c29270b563d793efab9a24360e6b08f2e7d27b748333",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "5a73ceda0edfae28103956c08f17b430ef7533c98d2e758757e90cd46228cceb",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "1a9262fac7d95d4e66fe8830b58f26bdb2e2f84b8410a1089e6c6ad48a0e2569",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "7a4f7aa69ae171c5a7481091765835fab1c66d91af9bec0ffcb0f45d10f8a40a",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "970bbde9189c58ab1384daa0bfe3a4ef02d0e047a6434620b1c52926d6cc91ff",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/320x213-settled.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8f43e025ad438aeff3a36b05a8508b303c998f658b476c100cab37d63bdc52e3",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-gpu-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "6a393198edc92f7eb95524bcf26f24200ca093ee558ba317d1843a150130bc65",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "e84da8403aa9f7e50466f2b73db1c9bddc5320baa21fa859dd5313eadf3c3ac0",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "cd345e756b2f138f260d276d3cf888663d712a26163c65984ff3eed58c977a55",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "6ae227cb2badbc7ab6d6819449a8123d55c7c43cdd014acc0d405604ef6a3c29",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "7520b9717d82e7e0b63530f79e140288897492ddb3636f0826c8f826e3781391",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "fc78190e6daef46419624625f8a59998b6bd89f7f4bfc772beea87a0a2e48319",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "cb51e8716f9b751ba4a483769f72fd65333bc306d5fce84b77089c57a99e3d57",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "1ef76cc78d3422e127f893ad30e6ba5e3260b3800859e8bd9cadb86197ee6366",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "e01af5eb7a71a1b2ff64217a04185f7bef81f9f169a72f1e3e1af302526f34b4",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "ef2619980f384cb08ade0093c0d76c51eb3d7aa91d15417c6eedf14a58686856",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "1b3f3ae167c823e868aeef73da01bdfa8c7ae4959050f54bf4fe75e059332498",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "6f33fea89df460f04c055693f0b55ac0c86b12671794d84c5fd17850565a5355",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "dc8e52bcdc056587ec8e03fb4599e411f48ca26d174dab9ef73e04ac718a6b3a",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "7f25458ab5fe87e227999d03af240a5c744e34aec74b669aade55bcf59a1279d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "c9fd9abdfc5095c422dd5a047751623f38bfd9b8d15db3bd06dc839c4b5aa5f2",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "8305664fce97626fa18625fba6939b2b619f04a34f7d0df658390dd3c9104eb1",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-first_surface.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "24ff08be8d9a71a405ac3d7b947ddec5aafcdca04cbc6a389639685f98cb432a",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-warm_wb_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "70ebbe5eb36b5d66e013856e4823d20d2ca2a0b0b8dd300b12afecfa15de7381",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-settled.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "3ca8e2813e9f5d746c2613a150ebb26bae540d9f885a0aaed8309dc244f40f7b",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-interactive_1.rgb32f": {
+      "sha256": "28a357b5295f960ea871b749213f376617f478b8bd6578cee3e76e3b072ec69d",
+      "bytes": 337020
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-interactive_1.rgb32f": {
+      "sha256": "8f34246dc3e3f720b90a069a86ce8d297b25a7ba03b89cdb309df0b31553d049",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-warm_wb_2.rgb32f": {
+      "sha256": "272ee1797e31d1178d862bd01e2a394a3404317ea0dfa7ba999600ac74f9bc6c",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "fba2498d5833ad89820bf5849053e07e1382382052e7d8574ef56a5ccdc18aff",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-first_surface.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-settled.rgb32f": {
+      "sha256": "6fd4538a8fcd7dc4d4b52863875371790b5369bea8b62b32c5c148845b1744b0",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "e1b2a3d13b1fa666a7257365ff839b589ddb1fa34f4ce6ff113cef30d0d6c7a1",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-first_surface.rgb32f": {
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-interactive_2.rgb32f": {
+      "sha256": "1e3e18ae526fee17a956ee42be82ff6ecd6af29335ab27ffd1702c111be7cde8",
+      "bytes": 337020
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-warm_wb_1.rgb32f": {
+      "sha256": "bd04167ef60d7ad9eca741b51b4802aa27282b065c5f72531c20da84c23cc1f3",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-interactive_1.rgb32f": {
+      "sha256": "5b51b3ac91e67c0e4f7e2a872c5f2233a77ed1bf669795e41790fcbe258b2c26",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/320x213-settled.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/1280x852-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-1/640x426-warm_wb_1.rgb32f": {
+      "sha256": "d3f1aa948422ea9690b7937a921603becdea4eb9065c0c3626b9c2369252d7a7",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "c5fd89faffb26f2d417baf23cadcc318524ebbb5a66174000ed21e79635aa547",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "55e9764c1e2ba2024edca641531ff8ab1dd099279a5955c620e4dddbc61da21d",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "e95a18e2f255da0db436d1035a96656f1571e4863d60a6859f84a7ca5fb2a785",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "94465f9f2168ff049325bfc21fa67ccc7e474507b539690bbf712c58a2fc203a",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "2e1b95ac61b64396ca0a3ef6e2431edb5909f36a57d4cbbb5be69d9ef704c1f8",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "e836c0a0e0784c2707b41fd4ba11df3efe9bc845c597d2b6236c23a0a7250db7",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "8f0639df8cc76663ac7ac0907a250ac2a4c7be6145e3541faa8d34f25e26faba",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "43b64dba2c0371bc10fb42c825fcb6b9c172e5e33423a8a70b3eb064e7b86152",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "8d5f63b3a184e3767f8d21457c0eaca6fee03d6456a79e16ed85a4071d5bfa6a",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-settled.rgb32f": {
+      "sha256": "ffc1d59bca593a2e2ebf718f1cb3c82e0dbe9dc160c29c65b1edd5b3807ddfb3",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "60abc10a8b4fc4b84c05e675b4a02c5544cbcc624a9c08585360b7b66b707a3b",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "b6c93882fb1611d7031696af878e497fa5d440ae1b00787cfc9ae3be796d1995",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "8cff72911acf551c7b751ff951378d6a9acf4ca4046f5b5b9b34d7cf8041737e",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "ec5caf07367304ebb52d04ebb86c9c87b9a2cb1fc161ee5893e4f5a07f8efbe8",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "5ada9e7320ec1477a021aa56660f48102fe3d5de82d102483b45ef5c3ec8b1df",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "5a52fadf37ff98b12e000da0a5f3ce7f0f790b1bcfe7540cfe9700d1f325ced5",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/320x213-settled.rgb32f": {
+      "sha256": "51f62549754ed07deac478458bdbe4ff871150e77c09001fed15dbe47fd118ba",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8df05aba4b2a60eeb31b4c3716b52900e3ad0f4557432ff39abc6fc9b7db20fb",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-auto-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "9f0a40d06f0d084adaf1c990052fc306f7c45b5dba820269adc1f964e0c61048",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "ae89ed65bbf3ee190f94f644ef0c8906c746f6d7646b66a67d2fb0ec3920d060",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "2a398cfce67abcdd376e37752254ff4e0262ac7b87df813adf8817dc0d3a00fb",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "3809b4cb32832052a672a7f226fcd0104e578b668f2b4492fcf64ec5a418d65c",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "3579b2f22e4ebac8491820e29544d7463d5b2b5bf467db61fa07238b92e45532",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "ae89ed65bbf3ee190f94f644ef0c8906c746f6d7646b66a67d2fb0ec3920d060",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "14edac6cf7b25b7f8c3aca87a298dc25d97b9212ef74b889b4818d8ded9230e1",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "623504b7aed35fccae365e3b37d7676e36b59fd4995081ff53e3eae45e8e06e9",
+      "bytes": 337020
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "b7d1d25e04caf594dc7858692cc4d73c6c7f09580893b92762d237484c594218",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "c0c21db5314439dd0c215c3bebe66f05cd1219297b0198365d41224d2f62fe8d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "e3bd157e7ab7be989c84eac5b478c257990b12515ae867d31fd36898767ac754",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "ae3db57685590b8a66fb70cc1dad3a6e977d168691a39afee28ca95884f42243",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "1cc43217fb49be8e16781988ce6515a612a6922bfe1f3d6bfbcbb77858544e0f",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-settled.rgb32f": {
+      "sha256": "3bf2264b79e01deece5778e74113b386cc8544582981bc0a4c95f6a490285703",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "5c98a7a9b0c46e2f7474481e41ebe6817762c8c78a2f09086ebc307436b2c697",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "acb64b04a348719f2b56bdaee90ff63b1e3568d19e96804b982f753d1afedcb5",
+      "bytes": 337020
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "f248b1742a6719f9f2559195e9eee5aa6f42ec367bbbe2e153e255a919cb1a0c",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "f248b1742a6719f9f2559195e9eee5aa6f42ec367bbbe2e153e255a919cb1a0c",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "40a1e4f24f85cd30d82a019904cb7ef4d83e8fb170a25b263d06f845232d26b9",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "3809b4cb32832052a672a7f226fcd0104e578b668f2b4492fcf64ec5a418d65c",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "0858ba0110670a9926ed941af2e414f17cb8d9f1956bfd61589928239221e90b",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/320x213-settled.rgb32f": {
+      "sha256": "ae3db57685590b8a66fb70cc1dad3a6e977d168691a39afee28ca95884f42243",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "1cc43217fb49be8e16781988ce6515a612a6922bfe1f3d6bfbcbb77858544e0f",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "e580ccd626709b3e4bdc2e87f05404e36882dbbf37f33fefb59ad1eb3f62fd38",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "24ff08be8d9a71a405ac3d7b947ddec5aafcdca04cbc6a389639685f98cb432a",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "70ebbe5eb36b5d66e013856e4823d20d2ca2a0b0b8dd300b12afecfa15de7381",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "3ca8e2813e9f5d746c2613a150ebb26bae540d9f885a0aaed8309dc244f40f7b",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "28a357b5295f960ea871b749213f376617f478b8bd6578cee3e76e3b072ec69d",
+      "bytes": 337020
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "8f34246dc3e3f720b90a069a86ce8d297b25a7ba03b89cdb309df0b31553d049",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "272ee1797e31d1178d862bd01e2a394a3404317ea0dfa7ba999600ac74f9bc6c",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "fba2498d5833ad89820bf5849053e07e1382382052e7d8574ef56a5ccdc18aff",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "6fd4538a8fcd7dc4d4b52863875371790b5369bea8b62b32c5c148845b1744b0",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "e1b2a3d13b1fa666a7257365ff839b589ddb1fa34f4ce6ff113cef30d0d6c7a1",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "1e3e18ae526fee17a956ee42be82ff6ecd6af29335ab27ffd1702c111be7cde8",
+      "bytes": 337020
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "bd04167ef60d7ad9eca741b51b4802aa27282b065c5f72531c20da84c23cc1f3",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "5b51b3ac91e67c0e4f7e2a872c5f2233a77ed1bf669795e41790fcbe258b2c26",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/proxy-cpu-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "d3f1aa948422ea9690b7937a921603becdea4eb9065c0c3626b9c2369252d7a7",
+      "bytes": 5372640
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "adb4a9971c36600e65e8534ce92fc68cd1930ed11962f7f38ce70f62eb0899da",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "7fe2af0810dff4e43f313663c1dcb3cb82bf9df633f6c25fa08f977ec77c4653",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-settled.rgb32f": {
+      "sha256": "ba442ecc1dc56657e8cc1558dedfe172c138e736eefccc592d3118f868032c5d",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "706fb991ed7beffe2c20e1b95526b72fe84422b47e8836494b8f10fea25cee4b",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "a6b5c0918227c12433263dbb38452ee8e75148210424b87f1750a1d5be7c5e70",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "21b8937d911ceba81977beb33ba9b89c2b35fea8159050e4ddab6854985351e3",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "4006fe2b75f759d3416e8ae5657bd029eb722ef591c203521b8f21da611a56cd",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "0c80c4fc3a7be976c97f271480fcddda8aac79c9c6b2511d98cfc79c2823d77d",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-first_surface.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "875e3ee7968c05a6b1556a68b65b929ebd1c0ab458fd3b910a3d175e5fe97d35",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-settled.rgb32f": {
+      "sha256": "0aa43ccae839d53126a1378c19481cca5c776087aa4898b1a4b1253f8dbb820b",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "806e2dbd5afdeb3eced1c29270b563d793efab9a24360e6b08f2e7d27b748333",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-first_surface.rgb32f": {
+      "sha256": "5a73ceda0edfae28103956c08f17b430ef7533c98d2e758757e90cd46228cceb",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "1a9262fac7d95d4e66fe8830b58f26bdb2e2f84b8410a1089e6c6ad48a0e2569",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "680e41f63d601d708f1c1da241a016029b79bd548a2179517bb4e506cb9d58f5",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "7a4f7aa69ae171c5a7481091765835fab1c66d91af9bec0ffcb0f45d10f8a40a",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "cb0fc97af5747f29a891b889fada612e2f8ee4eece569c4d9a88c9291da85fa7",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "970bbde9189c58ab1384daa0bfe3a4ef02d0e047a6434620b1c52926d6cc91ff",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-edr-0/320x213-settled.rgb32f": {
+      "sha256": "ec70496ffd900324a7e580a7b0b19e762c8cf8370bf14c676816f5c7d55554bf",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-edr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "8f43e025ad438aeff3a36b05a8508b303c998f658b476c100cab37d63bdc52e3",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-edr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "6a393198edc92f7eb95524bcf26f24200ca093ee558ba317d1843a150130bc65",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "4a2dff189474d37ced1b843a7832cf2eec27a9e37ad45f0b4bab695a3d3b9b55",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "54398cee9acf23329a7960c1a471ceb7972c9468c838c372857d815ef450ed65",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "437fae4c6eb3098d8598519ecf3177c836158834be27539a5668d08dc7ca01a1",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "fda0eb685ed7b633e2456ec6f6725041703252c29d19f5cc8ea200d5ee4bace1",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "7a34d6bf2df5d7f1630e563947f57dd7c1f8c3a03c9e7f5bd2ab271439972ec6",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "48786ca6582cf8325ac146a463a1d528ed2e5ffaa7ab5342ddf03ba6875b0fea",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "77df288fea774642c90ffa2d65d840c5e31d38c1bc85e3adfa498da01e3ff2e0",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "301a4224cce123369246089c4fa7923f023410cadbf8e455ae3369a496e4b4c2",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "9dea8c1a5824916df54ef342ca7ea388061660127fc0fa1a10085b115c03185f",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "7a1b8c98515d37fcb18a9aa2e07660de6106b61821063a7d9a1f96411cc7181b",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "605ab38751effead6a5e4c37c155c85ddf92db08a4833a245d5cdb20b8d809fe",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "35701115b0cf50fe298d264b34dc89453c742a4770b53e95aaf7481ed7a111c0",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "9314e07680a98b9fd22f5200abebb9ea57ba83851895ab6925e4122440b5ff8d",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "39ab70bc12930f89b83c94ea1bb7e0d99f04cadbfc281d6ff075e91b15e88247",
+      "bytes": 12088440
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "86305b3b215daca0e5c4d1eaec2c7fd3d2505cb070492f0765b626fc47567a28",
+      "bytes": 48353760
+    },
+    "28-default-engine-viewport/original-auto-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "a39315b2f72e377fa3cd2284c980a0165d960f7b4d2e6328018b79f6a8ac3b65",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-first_surface.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "e84da8403aa9f7e50466f2b73db1c9bddc5320baa21fa859dd5313eadf3c3ac0",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-warm_wb_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "cd345e756b2f138f260d276d3cf888663d712a26163c65984ff3eed58c977a55",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-settled.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "6ae227cb2badbc7ab6d6819449a8123d55c7c43cdd014acc0d405604ef6a3c29",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-interactive_1.rgb32f": {
+      "sha256": "7520b9717d82e7e0b63530f79e140288897492ddb3636f0826c8f826e3781391",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-interactive_1.rgb32f": {
+      "sha256": "fc78190e6daef46419624625f8a59998b6bd89f7f4bfc772beea87a0a2e48319",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-warm_wb_2.rgb32f": {
+      "sha256": "cb51e8716f9b751ba4a483769f72fd65333bc306d5fce84b77089c57a99e3d57",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "1ef76cc78d3422e127f893ad30e6ba5e3260b3800859e8bd9cadb86197ee6366",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-first_surface.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-interactive_2.rgb32f": {
+      "sha256": "e01af5eb7a71a1b2ff64217a04185f7bef81f9f169a72f1e3e1af302526f34b4",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-settled.rgb32f": {
+      "sha256": "ef2619980f384cb08ade0093c0d76c51eb3d7aa91d15417c6eedf14a58686856",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "1b3f3ae167c823e868aeef73da01bdfa8c7ae4959050f54bf4fe75e059332498",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-first_surface.rgb32f": {
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-interactive_2.rgb32f": {
+      "sha256": "6f33fea89df460f04c055693f0b55ac0c86b12671794d84c5fd17850565a5355",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-warm_wb_1.rgb32f": {
+      "sha256": "dc8e52bcdc056587ec8e03fb4599e411f48ca26d174dab9ef73e04ac718a6b3a",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-interactive_1.rgb32f": {
+      "sha256": "7f25458ab5fe87e227999d03af240a5c744e34aec74b669aade55bcf59a1279d",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/320x213-settled.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/1280x852-interactive_2.rgb32f": {
+      "sha256": "c9fd9abdfc5095c422dd5a047751623f38bfd9b8d15db3bd06dc839c4b5aa5f2",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-1/640x426-warm_wb_1.rgb32f": {
+      "sha256": "8305664fce97626fa18625fba6939b2b619f04a34f7d0df658390dd3c9104eb1",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "e84da8403aa9f7e50466f2b73db1c9bddc5320baa21fa859dd5313eadf3c3ac0",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "cd345e756b2f138f260d276d3cf888663d712a26163c65984ff3eed58c977a55",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "6ae227cb2badbc7ab6d6819449a8123d55c7c43cdd014acc0d405604ef6a3c29",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "7520b9717d82e7e0b63530f79e140288897492ddb3636f0826c8f826e3781391",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "fc78190e6daef46419624625f8a59998b6bd89f7f4bfc772beea87a0a2e48319",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "cb51e8716f9b751ba4a483769f72fd65333bc306d5fce84b77089c57a99e3d57",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "1ef76cc78d3422e127f893ad30e6ba5e3260b3800859e8bd9cadb86197ee6366",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "e01af5eb7a71a1b2ff64217a04185f7bef81f9f169a72f1e3e1af302526f34b4",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "ef2619980f384cb08ade0093c0d76c51eb3d7aa91d15417c6eedf14a58686856",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "1b3f3ae167c823e868aeef73da01bdfa8c7ae4959050f54bf4fe75e059332498",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "6f33fea89df460f04c055693f0b55ac0c86b12671794d84c5fd17850565a5355",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "dc8e52bcdc056587ec8e03fb4599e411f48ca26d174dab9ef73e04ac718a6b3a",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "7f25458ab5fe87e227999d03af240a5c744e34aec74b669aade55bcf59a1279d",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "c9fd9abdfc5095c422dd5a047751623f38bfd9b8d15db3bd06dc839c4b5aa5f2",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-gpu-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "8305664fce97626fa18625fba6939b2b619f04a34f7d0df658390dd3c9104eb1",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-first_surface.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "4a2dff189474d37ced1b843a7832cf2eec27a9e37ad45f0b4bab695a3d3b9b55",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-warm_wb_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "54398cee9acf23329a7960c1a471ceb7972c9468c838c372857d815ef450ed65",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-settled.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "437fae4c6eb3098d8598519ecf3177c836158834be27539a5668d08dc7ca01a1",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-interactive_1.rgb32f": {
+      "sha256": "fda0eb685ed7b633e2456ec6f6725041703252c29d19f5cc8ea200d5ee4bace1",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-interactive_1.rgb32f": {
+      "sha256": "7a34d6bf2df5d7f1630e563947f57dd7c1f8c3a03c9e7f5bd2ab271439972ec6",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-warm_wb_2.rgb32f": {
+      "sha256": "48786ca6582cf8325ac146a463a1d528ed2e5ffaa7ab5342ddf03ba6875b0fea",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "77df288fea774642c90ffa2d65d840c5e31d38c1bc85e3adfa498da01e3ff2e0",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-first_surface.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-interactive_2.rgb32f": {
+      "sha256": "301a4224cce123369246089c4fa7923f023410cadbf8e455ae3369a496e4b4c2",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-settled.rgb32f": {
+      "sha256": "9dea8c1a5824916df54ef342ca7ea388061660127fc0fa1a10085b115c03185f",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "7a1b8c98515d37fcb18a9aa2e07660de6106b61821063a7d9a1f96411cc7181b",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-first_surface.rgb32f": {
+      "sha256": "605ab38751effead6a5e4c37c155c85ddf92db08a4833a245d5cdb20b8d809fe",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-interactive_2.rgb32f": {
+      "sha256": "35701115b0cf50fe298d264b34dc89453c742a4770b53e95aaf7481ed7a111c0",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-warm_wb_1.rgb32f": {
+      "sha256": "9314e07680a98b9fd22f5200abebb9ea57ba83851895ab6925e4122440b5ff8d",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-interactive_1.rgb32f": {
+      "sha256": "39ab70bc12930f89b83c94ea1bb7e0d99f04cadbfc281d6ff075e91b15e88247",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/320x213-settled.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/1280x852-interactive_2.rgb32f": {
+      "sha256": "86305b3b215daca0e5c4d1eaec2c7fd3d2505cb070492f0765b626fc47567a28",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-1/640x426-warm_wb_1.rgb32f": {
+      "sha256": "a39315b2f72e377fa3cd2284c980a0165d960f7b4d2e6328018b79f6a8ac3b65",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "4a2dff189474d37ced1b843a7832cf2eec27a9e37ad45f0b4bab695a3d3b9b55",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "54398cee9acf23329a7960c1a471ceb7972c9468c838c372857d815ef450ed65",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "437fae4c6eb3098d8598519ecf3177c836158834be27539a5668d08dc7ca01a1",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "fda0eb685ed7b633e2456ec6f6725041703252c29d19f5cc8ea200d5ee4bace1",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "7a34d6bf2df5d7f1630e563947f57dd7c1f8c3a03c9e7f5bd2ab271439972ec6",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "48786ca6582cf8325ac146a463a1d528ed2e5ffaa7ab5342ddf03ba6875b0fea",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "77df288fea774642c90ffa2d65d840c5e31d38c1bc85e3adfa498da01e3ff2e0",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "301a4224cce123369246089c4fa7923f023410cadbf8e455ae3369a496e4b4c2",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "9dea8c1a5824916df54ef342ca7ea388061660127fc0fa1a10085b115c03185f",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "7a1b8c98515d37fcb18a9aa2e07660de6106b61821063a7d9a1f96411cc7181b",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "605ab38751effead6a5e4c37c155c85ddf92db08a4833a245d5cdb20b8d809fe",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "35701115b0cf50fe298d264b34dc89453c742a4770b53e95aaf7481ed7a111c0",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "9314e07680a98b9fd22f5200abebb9ea57ba83851895ab6925e4122440b5ff8d",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "39ab70bc12930f89b83c94ea1bb7e0d99f04cadbfc281d6ff075e91b15e88247",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "86305b3b215daca0e5c4d1eaec2c7fd3d2505cb070492f0765b626fc47567a28",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-gpu-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "a39315b2f72e377fa3cd2284c980a0165d960f7b4d2e6328018b79f6a8ac3b65",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "e84da8403aa9f7e50466f2b73db1c9bddc5320baa21fa859dd5313eadf3c3ac0",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "cd345e756b2f138f260d276d3cf888663d712a26163c65984ff3eed58c977a55",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "cd1215271e79aaeef6b18e96f6ea88b0ea0eb040e0b182e8612139c93d06dff6",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "6ae227cb2badbc7ab6d6819449a8123d55c7c43cdd014acc0d405604ef6a3c29",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "7520b9717d82e7e0b63530f79e140288897492ddb3636f0826c8f826e3781391",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "fc78190e6daef46419624625f8a59998b6bd89f7f4bfc772beea87a0a2e48319",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "cb51e8716f9b751ba4a483769f72fd65333bc306d5fce84b77089c57a99e3d57",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "1ef76cc78d3422e127f893ad30e6ba5e3260b3800859e8bd9cadb86197ee6366",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "e01af5eb7a71a1b2ff64217a04185f7bef81f9f169a72f1e3e1af302526f34b4",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "ef2619980f384cb08ade0093c0d76c51eb3d7aa91d15417c6eedf14a58686856",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "1b3f3ae167c823e868aeef73da01bdfa8c7ae4959050f54bf4fe75e059332498",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "6f33fea89df460f04c055693f0b55ac0c86b12671794d84c5fd17850565a5355",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "a30e36b87fa70b168065b8311755945041292ec9c9bf6c454ebb685759a63f50",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "dc8e52bcdc056587ec8e03fb4599e411f48ca26d174dab9ef73e04ac718a6b3a",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "97c270cc6125cd75827aa0fac5f7e2c9a75d5bfabea69668b2fff4b022e0a973",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "7f25458ab5fe87e227999d03af240a5c744e34aec74b669aade55bcf59a1279d",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "a5347a3f707eaf7cfabf41b949386908da0080bc0120fc4ef780eabd9577bc4d",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "c9fd9abdfc5095c422dd5a047751623f38bfd9b8d15db3bd06dc839c4b5aa5f2",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-auto-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "8305664fce97626fa18625fba6939b2b619f04a34f7d0df658390dd3c9104eb1",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-first_surface.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "24ff08be8d9a71a405ac3d7b947ddec5aafcdca04cbc6a389639685f98cb432a",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-warm_wb_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "70ebbe5eb36b5d66e013856e4823d20d2ca2a0b0b8dd300b12afecfa15de7381",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-settled.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "3ca8e2813e9f5d746c2613a150ebb26bae540d9f885a0aaed8309dc244f40f7b",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-interactive_1.rgb32f": {
+      "sha256": "28a357b5295f960ea871b749213f376617f478b8bd6578cee3e76e3b072ec69d",
+      "bytes": 337020
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-interactive_1.rgb32f": {
+      "sha256": "8f34246dc3e3f720b90a069a86ce8d297b25a7ba03b89cdb309df0b31553d049",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-warm_wb_2.rgb32f": {
+      "sha256": "272ee1797e31d1178d862bd01e2a394a3404317ea0dfa7ba999600ac74f9bc6c",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "fba2498d5833ad89820bf5849053e07e1382382052e7d8574ef56a5ccdc18aff",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-first_surface.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-settled.rgb32f": {
+      "sha256": "6fd4538a8fcd7dc4d4b52863875371790b5369bea8b62b32c5c148845b1744b0",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "e1b2a3d13b1fa666a7257365ff839b589ddb1fa34f4ce6ff113cef30d0d6c7a1",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-first_surface.rgb32f": {
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-interactive_2.rgb32f": {
+      "sha256": "1e3e18ae526fee17a956ee42be82ff6ecd6af29335ab27ffd1702c111be7cde8",
+      "bytes": 337020
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-warm_wb_1.rgb32f": {
+      "sha256": "bd04167ef60d7ad9eca741b51b4802aa27282b065c5f72531c20da84c23cc1f3",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-interactive_1.rgb32f": {
+      "sha256": "5b51b3ac91e67c0e4f7e2a872c5f2233a77ed1bf669795e41790fcbe258b2c26",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/320x213-settled.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/1280x852-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-1/640x426-warm_wb_1.rgb32f": {
+      "sha256": "d3f1aa948422ea9690b7937a921603becdea4eb9065c0c3626b9c2369252d7a7",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "24ff08be8d9a71a405ac3d7b947ddec5aafcdca04cbc6a389639685f98cb432a",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "70ebbe5eb36b5d66e013856e4823d20d2ca2a0b0b8dd300b12afecfa15de7381",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "d0fefe6f4985d50008b2488b48c2c0739e011a2bea2492f548436c933d980f43",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "3ca8e2813e9f5d746c2613a150ebb26bae540d9f885a0aaed8309dc244f40f7b",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "28a357b5295f960ea871b749213f376617f478b8bd6578cee3e76e3b072ec69d",
+      "bytes": 337020
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "8f34246dc3e3f720b90a069a86ce8d297b25a7ba03b89cdb309df0b31553d049",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "272ee1797e31d1178d862bd01e2a394a3404317ea0dfa7ba999600ac74f9bc6c",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "fba2498d5833ad89820bf5849053e07e1382382052e7d8574ef56a5ccdc18aff",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "6fd4538a8fcd7dc4d4b52863875371790b5369bea8b62b32c5c148845b1744b0",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "e1b2a3d13b1fa666a7257365ff839b589ddb1fa34f4ce6ff113cef30d0d6c7a1",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "1e3e18ae526fee17a956ee42be82ff6ecd6af29335ab27ffd1702c111be7cde8",
+      "bytes": 337020
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "149531fb1026d22aecddf285f985a7ff06e6dba2827712823bd64bcb29fc386d",
+      "bytes": 21490560
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "bd04167ef60d7ad9eca741b51b4802aa27282b065c5f72531c20da84c23cc1f3",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "8f0efebc22d772536110a67a6facf88e6e9569a2f49bb160873d9cd38569988f",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "5b51b3ac91e67c0e4f7e2a872c5f2233a77ed1bf669795e41790fcbe258b2c26",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "70d22b2c358aabbbd9fc91f03daa363e72aecd691f9e553c4f92baa8bd20b2a3",
+      "bytes": 1343160
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "16c96ec6943fd848049aa771ca17b8bb57fd25a99f7ceddd798934ead68e990d",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/proxy-cpu-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "d3f1aa948422ea9690b7937a921603becdea4eb9065c0c3626b9c2369252d7a7",
+      "bytes": 5372640
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-first_surface.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-warm_wb_1.rgb32f": {
+      "sha256": "4a2dff189474d37ced1b843a7832cf2eec27a9e37ad45f0b4bab695a3d3b9b55",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-warm_wb_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-warm_exposure_1.rgb32f": {
+      "sha256": "54398cee9acf23329a7960c1a471ceb7972c9468c838c372857d815ef450ed65",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-settled.rgb32f": {
+      "sha256": "9fc13082cd2f306feaa4d10069818cf2d92bf6eb4c4fcec1fbaa35dba3d26051",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-warm_exposure_1.rgb32f": {
+      "sha256": "437fae4c6eb3098d8598519ecf3177c836158834be27539a5668d08dc7ca01a1",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-interactive_1.rgb32f": {
+      "sha256": "fda0eb685ed7b633e2456ec6f6725041703252c29d19f5cc8ea200d5ee4bace1",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-interactive_1.rgb32f": {
+      "sha256": "7a34d6bf2df5d7f1630e563947f57dd7c1f8c3a03c9e7f5bd2ab271439972ec6",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-warm_wb_2.rgb32f": {
+      "sha256": "48786ca6582cf8325ac146a463a1d528ed2e5ffaa7ab5342ddf03ba6875b0fea",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-warm_exposure_1.rgb32f": {
+      "sha256": "77df288fea774642c90ffa2d65d840c5e31d38c1bc85e3adfa498da01e3ff2e0",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-first_surface.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-interactive_2.rgb32f": {
+      "sha256": "301a4224cce123369246089c4fa7923f023410cadbf8e455ae3369a496e4b4c2",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-settled.rgb32f": {
+      "sha256": "9dea8c1a5824916df54ef342ca7ea388061660127fc0fa1a10085b115c03185f",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-warm_exposure_2.rgb32f": {
+      "sha256": "7a1b8c98515d37fcb18a9aa2e07660de6106b61821063a7d9a1f96411cc7181b",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-first_surface.rgb32f": {
+      "sha256": "605ab38751effead6a5e4c37c155c85ddf92db08a4833a245d5cdb20b8d809fe",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-interactive_2.rgb32f": {
+      "sha256": "35701115b0cf50fe298d264b34dc89453c742a4770b53e95aaf7481ed7a111c0",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-warm_wb_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-warm_exposure_2.rgb32f": {
+      "sha256": "4b29e46e708c915480761e966c528ac0b548f19cdbdba789409d7070b0555060",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-warm_wb_1.rgb32f": {
+      "sha256": "9314e07680a98b9fd22f5200abebb9ea57ba83851895ab6925e4122440b5ff8d",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-warm_exposure_2.rgb32f": {
+      "sha256": "04cc31a05391f7c4579e45059b3060220e8e779dd8eb9d4a596bb92b28f7c496",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-interactive_1.rgb32f": {
+      "sha256": "39ab70bc12930f89b83c94ea1bb7e0d99f04cadbfc281d6ff075e91b15e88247",
+      "bytes": 12088440
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/320x213-settled.rgb32f": {
+      "sha256": "cf12cbd8a055c7ba26794be1218999fb39f7afad2ee45744c67cdbbde5ad5207",
+      "bytes": 3025800
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/1280x852-interactive_2.rgb32f": {
+      "sha256": "86305b3b215daca0e5c4d1eaec2c7fd3d2505cb070492f0765b626fc47567a28",
+      "bytes": 48353760
+    },
+    "17-engine-viewport-sdr/original-auto-sdr-0/640x426-warm_wb_1.rgb32f": {
+      "sha256": "a39315b2f72e377fa3cd2284c980a0165d960f7b4d2e6328018b79f6a8ac3b65",
+      "bytes": 12088440
+    }
+  }
+}

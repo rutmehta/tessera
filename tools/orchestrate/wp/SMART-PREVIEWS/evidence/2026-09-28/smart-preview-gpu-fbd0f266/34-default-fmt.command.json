@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "fmt",
+    "--all",
+    "--",
+    "--check"
+  ],
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "CARGO_BUILD_JOBS": "2",
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+  "MACOSX_DEPLOYMENT_TARGET": "15.0",
+  "TESSERA_SMART_PREVIEW_GPU": null,
+  "TESSERA_RENDER_BACKEND": null
+}
