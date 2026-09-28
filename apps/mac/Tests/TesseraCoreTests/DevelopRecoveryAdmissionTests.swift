@@ -7,7 +7,7 @@ import TesseraFFI
 @testable import TesseraCore
 
 /// Physical-source admission coverage for coordinator reservations.
-/// These tests stay separate from the AppModel navigation tests owned by Resource.
+/// AppModel admission cases can join this dedicated file after their source API is frozen.
 @MainActor
 final class DevelopRecoveryAdmissionTests: XCTestCase {
     private struct Fixture {
@@ -17,6 +17,7 @@ final class DevelopRecoveryAdmissionTests: XCTestCase {
         let hardLink: EngineLibrary
         let unrelated: EngineLibrary
         let firstImageID: String
+        let samePathImageID: String
         let hardLinkImageID: String
         let unrelatedImageID: String
     }
@@ -29,7 +30,7 @@ final class DevelopRecoveryAdmissionTests: XCTestCase {
         defer { gate.finish() }
 
         XCTAssertFalse(coordinator.canOpen(owner: fixture.first, imageID: fixture.firstImageID))
-        XCTAssertFalse(coordinator.canOpen(owner: fixture.samePath, imageID: fixture.firstImageID),
+        XCTAssertFalse(coordinator.canOpen(owner: fixture.samePath, imageID: fixture.samePathImageID),
                        "A second library instance for the same path shares the source reservation")
         XCTAssertFalse(coordinator.canOpen(owner: fixture.hardLink, imageID: fixture.hardLinkImageID),
                        "A hard link names the same physical source")
@@ -43,14 +44,14 @@ final class DevelopRecoveryAdmissionTests: XCTestCase {
         }
         XCTAssertTrue(coordinator.hasActiveReservations)
         XCTAssertFalse(coordinator.isUnreservedForHostMutation(owner: fixture.samePath,
-                                                               imageID: fixture.firstImageID),
+                                                               imageID: fixture.samePathImageID),
                        "Result settlement must not release the reservation before finish")
         gate.finish()
 
         XCTAssertFalse(coordinator.hasActiveReservations)
         XCTAssertTrue(coordinator.canOpen(owner: fixture.hardLink, imageID: fixture.hardLinkImageID))
         XCTAssertTrue(coordinator.isUnreservedForHostMutation(owner: fixture.samePath,
-                                                               imageID: fixture.firstImageID))
+                                                               imageID: fixture.samePathImageID))
     }
 
     func testLaterConflictingAliasGateWaitsForEarlierReservationBeforeClosing() async throws {
@@ -64,7 +65,8 @@ final class DevelopRecoveryAdmissionTests: XCTestCase {
             try ref.engine.openDevelopSession(imageId: ref.imageID), counter: closeCounter)
         let controller = try DevelopController(session: session, itemID: fixture.first.items[0].id,
                                                imageID: fixture.firstImageID)
-        _ = coordinator.register(owner: fixture.first, controller: controller, displayName: "photo.jpg")
+        let sessionID = coordinator.register(owner: fixture.first, controller: controller,
+                                             displayName: "photo.jpg")
 
         let earlier = coordinator.reserveObserve(owner: fixture.first, imageIDs: [fixture.firstImageID])
         let later = coordinator.reserveInitiate(owner: fixture.hardLink, imageIDs: [fixture.hardLinkImageID])
@@ -78,9 +80,11 @@ final class DevelopRecoveryAdmissionTests: XCTestCase {
         XCTAssertTrue(blockers.isEmpty, "The earlier gate owns the work; no close attempt belongs to the later gate")
         XCTAssertEqual(closeCounter.count, 0, "The blocked gate must not begin closing the aliased session")
 
-        guard case .saved = await earlier.result() else {
-            return XCTFail("The earlier observation gate should settle")
+        guard case .blocked(let activeSessions) = await earlier.result() else {
+            return XCTFail("The observation gate must remain blocked by the active editor")
         }
+        XCTAssertEqual(activeSessions.count, 1)
+        XCTAssertTrue(activeSessions.contains(sessionID))
         XCTAssertEqual(closeCounter.count, 0, "An observe-only gate must not close Develop")
         earlier.finish()
 
@@ -110,10 +114,11 @@ final class DevelopRecoveryAdmissionTests: XCTestCase {
         let unrelated = try EngineLibrary.scan(folder: unrelatedFolder,
                                                appSupport: root.appendingPathComponent("support-d"))
         let firstImageID = try XCTUnwrap(first.items.first?.engineImage?.imageID)
+        let samePathImageID = try XCTUnwrap(samePath.items.first?.engineImage?.imageID)
         let hardLinkImageID = try XCTUnwrap(hardLink.items.first?.engineImage?.imageID)
         let unrelatedImageID = try XCTUnwrap(unrelated.items.first?.engineImage?.imageID)
         return Fixture(root: root, first: first, samePath: samePath, hardLink: hardLink,
-                       unrelated: unrelated, firstImageID: firstImageID,
+                       unrelated: unrelated, firstImageID: firstImageID, samePathImageID: samePathImageID,
                        hardLinkImageID: hardLinkImageID, unrelatedImageID: unrelatedImageID)
     }
 
