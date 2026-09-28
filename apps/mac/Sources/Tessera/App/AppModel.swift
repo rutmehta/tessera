@@ -367,7 +367,6 @@ final class AppModel {
         Task { [weak self] in
             let result = await task.value
             guard let self else { return }
-            self.publishDevelopClose(result, sessionID: sessionID)
             switch result {
             case .saved:
                 if let blocked = self.blockedSavedNavigation,
