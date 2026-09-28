@@ -1,0 +1,12 @@
+{
+  "full_exit": 1,
+  "xctest_executed": 508,
+  "xctest_skipped": 1,
+  "xctest_failures": 1,
+  "swift_testing_passed": 5,
+  "rasterized_psd_copy_passed": 4,
+  "focused_layout_exit": 1,
+  "focused_layout_failed": 1,
+  "failure": "AgentReviewLayoutTests.swift:69 missing cached .preview CGImage after 15 s",
+  "source_head": "729962d92524b0a6ed79675f05d2e1f3a3598670"
+}

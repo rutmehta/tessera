@@ -1,0 +1,16 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-09-27 19:56:37.400.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 19:56:37.401.
+Test Suite 'AgentReviewLayoutTests' started at 2026-09-27 19:56:37.401.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' started.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' passed (34.115 seconds).
+Test Suite 'AgentReviewLayoutTests' passed at 2026-09-27 19:57:11.516.
+	 Executed 1 test, with 0 failures (0 unexpected) in 34.115 (34.115) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 19:57:11.516.
+	 Executed 1 test, with 0 failures (0 unexpected) in 34.115 (34.115) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 19:57:11.516.
+	 Executed 1 test, with 0 failures (0 unexpected) in 34.115 (34.116) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,19 @@
+{
+  "command": [
+    "cargo",
+    "clippy",
+    "--locked",
+    "-p",
+    "tessera-ffi",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit": 101,
+  "passed": null,
+  "expected_min_passed": null,
+  "accepted": false,
+  "started_unix": 1790552362.835468,
+  "elapsed_seconds": 48.03999590873718
+}

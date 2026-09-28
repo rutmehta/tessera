@@ -1,0 +1,64 @@
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[3/5] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/5] Linking TesseraPackageTests
+Build complete! (25.47s)
+Test Suite 'Selected tests' started at 2026-09-27 20:16:34.386.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 20:16:34.388.
+Test Suite 'AgentReviewLayoutTests' started at 2026-09-27 20:16:34.388.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview]' started.
+<unknown>:0: error: -[TesseraCoreTests.AgentReviewLayoutTests testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview] : failed: caught error: "InvalidTransition { 
+  phase: idle
+  targetPhase: failed(deinit)
+}"
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview]' failed (2.809 seconds).
+Test Suite 'AgentReviewLayoutTests' failed at 2026-09-27 20:16:37.197.
+	 Executed 1 test, with 1 failure (1 unexpected) in 2.809 (2.809) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 20:16:37.197.
+	 Executed 1 test, with 1 failure (1 unexpected) in 2.809 (2.809) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 20:16:37.197.
+	 Executed 1 test, with 1 failure (1 unexpected) in 2.809 (2.811) seconds
+[review-refresh-test] scanned
+[review-refresh-test] agent settled and catalog drained
+[review-refresh-test] initial preview ready
+[review-refresh-test] recipe serialized
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

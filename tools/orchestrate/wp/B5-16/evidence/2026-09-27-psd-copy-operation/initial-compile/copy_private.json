@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "tessera-ffi",
+    "--lib",
+    "document::psd_copy::tests"
+  ],
+  "exit": 101,
+  "passed": 0,
+  "expected_min_passed": 8,
+  "accepted": false,
+  "started_unix": 1790550460.068141,
+  "elapsed_seconds": 72.67941999435425
+}

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "tessera-ffi",
+    "--test",
+    "document_transform_ui",
+    "rasterized_copy_handle_precancel_retry_and_close"
+  ],
+  "exit": 0,
+  "passed": 1,
+  "expected_min_passed": 1,
+  "accepted": true,
+  "started_unix": 1790552328.104529,
+  "elapsed_seconds": 28.454602003097534
+}
