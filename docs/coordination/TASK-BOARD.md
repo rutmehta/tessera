@@ -6,10 +6,10 @@
 | --- | --- | --- | --- |
 | Recovery and saved-pixel admission | A | DONE bounded slice, main2760ebeb | 599 XCTest/1 skip/0 failures +5 Swift Testing and real retry/reopen GUI; global Quit/all-writer durability remain separate. |
 | PSD pre-rasterization format checks | A + B source | DONE bounded slice, main08e86f39 | 51 selected Rust tests + formatting/strict Clippy; no memory-budget or RSS claim. |
-| Clear stale recovery status after Retry | Luna | RUNNING sole compiler lane | Behavioral RED confirmed old message survives; test7135 correction and preserve newer status. |
+| Clear stale recovery status after Retry | A / Luna | DONE main291857e1 | Genuine RED1 failure, final19 recovery-admission tests passed/direct0; newer status preserved. 23 evidence payloads verified. |
 | Save As lifecycle | B source; A reviewer Sol | HOLD acceptance; source integration849f123f ready | Actual e51 Cancel/repeat failure preserved. B accepted ordering follow-up36b2b1ad; queue01a0e6c7-dc05-7e62-9238-397089333b68. Test native-end-before-dismiss with live probe; then trace-free RED/green/GUI. |
-| Staged Library filters/facets | Luna next | READY tests-onlyf0155326 | Actual nine-test RED, narrow AppModel port, focused/adjacent gates; preserve current recovery/status and Document APIs. |
-| Develop stale-writer conflict | Resource Sol | IN PROGRESS source/tests only | Audit found full saves bypass shared gate. Prepare tiny lost-update RED before implementation; preserve independent ratings and partial-commit repair. No lease or batch Apply. |
+| Staged Library filters/facets | Luna | SOURCE preparation | Rebase tests-onlyf015 onto main291857e1 status fix; wait for heavy lane, then actual nine-test RED and narrow AppModel port. |
+| Develop stale-writer conflict | Resource Sol | RUNNING sole compiler lane | Tests-only78b23ada: actual lost-update RED, then gated ownerbaseline fix and focused/adjacent/strict gates. Preserve ratings and partial-commit repair; no lease or batch Apply. |
 
 One heavy A lane; B remains source-only with paused heartbeat. Current user preview57591 stays unchanged. Only A integrates main. Earlier sections below are retained history and are superseded by this queue.
 

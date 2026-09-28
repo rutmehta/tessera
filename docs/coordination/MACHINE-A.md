@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Recovery status integrated; next writer gate — 2026-09-28 07:00 UTC
+
+Main291857e1 includes the tested recovery-status fix: genuine tests-only RED1 failure, final19 recovery-admission tests/direct0, 23 verified portable payloads. All Swift Sources/Tests match tested7135ea13. Only the intended ignored FFI archive was prepared from local19f9 to matching8ab before testing and restored; this is explicitly recorded, not an identical archive-before/after claim. Root verification initially stopped on that difference/missing assumed filenames, then verified actual source/head records and preserved8ab archive hashes without altering evidence.
+
+Resource Sol now owns sole compiler lane for native Develop writer conflict regression78b23ada; Luna prepares staged-filter tests against accepted status fix source-only. Save As integration010617b8 remains UNRUN and unaccepted: five non-gap cases plus one deliberately unsatisfied fully unseen native-lifetime regression. B resultc29e8af1 accepted for review; no failure waiver. New design requestac23f8dc-8b72-4784-8122-efff55bd2042, SSH queue01a0e6cc-b666-7db1-b229-aa40ad1eea33 accepted, asks identity-owned native Save As presentation plan. Peer receipt pending at publication. B remains source-only/heartbeat paused, A alone merges main, normal user preview57591 untouched.
+
+
 ## Save As failure isolated; parallel follow-up — 2026-09-28 06:49 UTC
 
 - Recovery product is integrated on main `2760ebeb`; PSD preflight is integrated on `08e86f39` with 51 selected native tests and strict checks. These are completed integrations, not merely staged candidates.
