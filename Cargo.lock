@@ -4100,9 +4100,12 @@ dependencies = [
 name = "raw-decode"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "criterion",
  "engine-api",
+ "libc",
  "libraw-ffi",
+ "tempfile",
 ]
 
 [[package]]
