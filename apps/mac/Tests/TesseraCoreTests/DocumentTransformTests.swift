@@ -19,10 +19,11 @@ final class DocumentTransformTests: XCTestCase {
 
     @MainActor
     func testTransformReturnAndEnterUseTheSameModifierGuard() {
-        for key: UInt16 in [36, 76] {
+        for key in [UInt16(36), 76] {
             XCTAssertEqual(DocumentTransforms.keyAction(keyCode: key, modifiers: []), .apply)
             XCTAssertEqual(DocumentTransforms.keyAction(keyCode: key, modifiers: [.command]), .apply)
-            for mods: NSEvent.ModifierFlags in [.shift, .option, .control, [.command, .shift]] {
+            let blocked: [NSEvent.ModifierFlags] = [.shift, .option, .control, [.command, .shift]]
+            for mods in blocked {
                 XCTAssertNil(DocumentTransforms.keyAction(keyCode: key, modifiers: mods))
             }
         }
@@ -30,9 +31,10 @@ final class DocumentTransformTests: XCTestCase {
 
     @MainActor
     func testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys() {
-        for key: UInt16 in [51, 117] {
+        for key in [UInt16(51), 117] {
             XCTAssertEqual(DocumentTransforms.keyAction(keyCode: key, modifiers: []), .removePin)
-            for mods: NSEvent.ModifierFlags in [.command, .shift, .option, .control] {
+            let blocked: [NSEvent.ModifierFlags] = [.command, .shift, .option, .control]
+            for mods in blocked {
                 XCTAssertNil(DocumentTransforms.keyAction(keyCode: key, modifiers: mods))
             }
         }
