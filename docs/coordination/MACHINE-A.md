@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Functional Smart Preview GUI acceptance complete — 2026-09-28 19:28 UTC
+
+Main implementation `89b78881` and full Swift/strict evidence `62e4ee5b` now also have actual local-profile GUI lifecycle/export/Compare acceptance (`6c38697e`, `c373329d`). Offline edits persisted through a separate process, dirty discard refused, reconnect sync succeeded, and Original editing retained settings. Actual export decoded4920×3276; root checked hashes/dimensions and visually inspected the decoded JPEG. Offline full-quality export failed honestly with no output. Two filename-distinct proxy records rendered in offline Compare. Only copied fixtures were used; source RAW unchanged, owned app closed.
+
+B status `e04583b6` published these outcomes through Git; publication is not peer receipt or wakeup. Nine prior B Smart Preview results have completed integration receipts. No redundant SSH wake or writer change. Save As source review `2e152b26` is ready, with native prerequisite/combined-generation gates outstanding.
+
+FFI owns runtime now. The experimental GPU geometry route failed unchanged fidelity checks even with exact coordinates/separated arithmetic; geometry is being explicitly routed to CPU. Independent source review cleared matching capability/dispatch and honest backend capability labels. Supported no-map GPU cases still require fresh tests, actual Engine execution and latency measurements. No GPU merge/default change/performance acceptance yet. Initial external-volume test-profile startup failure remains separately unresolved; default local-profile GUI succeeded. Current task board has an authoritative owner/state table at its top.
+
 ## Actual GUI offline editing and reconnect verified — 2026-09-28 19:18 UTC
 
 The isolated final08 app now passes the observed local-profile workflow: build preview; ordinary quit; hold only copied original folder; new process opens cached read-only Library with visible thumbnail; explicitly edit proxy to exposure+1.00/temperature5700K; save; quit/relaunch offline with the edited rendering/settings preserved; refuse dirty discard; quit/restore copied original; Sync succeeds1/1; Original editor retains both settings. Owned app is closed. Root independently verified all47 final owned-file hashes; original/source RAW bytes remain unchanged. Native CUA AX/screenshots were observed in the agent tool transcript; no screenshot files are fabricated.
