@@ -40,7 +40,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
     func testReplaceCancelAndDuplicateAcceptanceCannotWrite() throws {
         let (w, d) = try fixture()
         w.saveFileExists = { _ in true }
-        var reply: ((Bool) -> Void)?
+        var reply: (@MainActor (Bool) -> Void)?
         w.saveReplacePrompt = { _, done in reply = done }
         var writes = 0
         w.saveWriter = { _, _, done in writes += 1; done(.success(())) }
@@ -70,7 +70,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
 
     func testAdmittedWriteSurvivesCancelAndSettlesActualOutcomeOnce() throws {
         let (w, d) = try fixture()
-        var finish: ((Result<Void, Error>) -> Void)?
+        var finish: (@MainActor (Result<Void, Error>) -> Void)?
         var writes = 0
         w.saveWriter = { _, _, done in writes += 1; finish = done }
         var outcomes: [DocumentSaveOutcome] = []
@@ -103,7 +103,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
     func testLostWindowWhileReplacingSettlesFailureAndIgnoresLateApproval() throws {
         let (w, d) = try fixture()
         w.saveFileExists = { _ in true }
-        var reply: ((Bool) -> Void)?
+        var reply: (@MainActor (Bool) -> Void)?
         w.saveReplacePrompt = { _, done in reply = done }
         var outcomes: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
@@ -112,4 +112,38 @@ final class DocumentSaveSettlementTests: XCTestCase {
         reply?(true)
         XCTAssertEqual(outcomes, [.failed("Document window closed before save")])
     }
+    func testWrongControllerAndIdentitylessDismissCannotCancelReplacement() throws {
+        let (w, d) = try fixture()
+        let other = try DocumentController(backend: StubDocumentBackend())
+        var outcomes: [DocumentSaveOutcome] = []
+        let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        let real = try XCTUnwrap(w.saveAsRequest)
+        let impostor = SaveAsRequest(id: id, doc: other, name: real.name, folder: real.folder)
+        w.finishSaveAs(impostor)
+        w.saveAsRequest = nil // Shell setter carries no identity; sheet callback must settle.
+        XCTAssertEqual(w.saveAsRequest?.id, id)
+        XCTAssertTrue(outcomes.isEmpty)
+        w.saveAsSheetDidDisappear(id)
+        XCTAssertEqual(outcomes, [.cancelled])
+    }
+
+    func testOldWriteCompletionPreservesNewSheetAndBlocksSameDocumentWrite() throws {
+        let (w, d) = try fixture()
+        let other = try DocumentController(backend: StubDocumentBackend())
+        var finish: (@MainActor (Result<Void, Error>) -> Void)?
+        w.saveWriter = { _, _, done in finish = done }
+        var first: [DocumentSaveOutcome] = []
+        w.saveForPreparation(d, saveAs: true) { first.append($0) }
+        let r = try XCTUnwrap(w.saveAsRequest)
+        w.finishSaveAs(r)
+        var conflict: [DocumentSaveOutcome] = []
+        w.saveForPreparation(d, saveAs: true) { conflict.append($0) }
+        XCTAssertEqual(conflict, [.failed("A save for this document is still running")])
+        let next = w.saveForPreparation(other, saveAs: true) { _ in }
+        finish?(.success(())); finish?(.success(()))
+        XCTAssertEqual(first.count, 1)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
+    }
+
 }
