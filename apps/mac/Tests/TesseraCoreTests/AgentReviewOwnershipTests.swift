@@ -291,6 +291,78 @@ final class AgentReviewOwnershipTests: XCTestCase {
         await restored.close()
     }
 
+    func testRejectedDevelopPatchRemainsPendingForRetry() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        controller.onNeedsFlush = {} // Keep the patch queued until each explicit attempt.
+        var sentPatches: [String] = []
+        var failures: [String] = []
+        controller.onPatchSent = { sentPatches.append($0) }
+        controller.onFailure = { failures.append($0) }
+        controller.set(.exposure, 1.25, interactive: true)
+        session.rejectNextSettings()
+
+        _ = controller.flushPending()
+        XCTAssertEqual(failures, [InjectedDevelopSessionFailure.settings.localizedDescription])
+        XCTAssertEqual(sentPatches.count, 1)
+        session.clearSettingsRejection()
+        XCTAssertTrue(controller.flushPending(), "Retry sends the retained coalesced patch")
+        XCTAssertEqual(sentPatches.count, 2)
+        XCTAssertEqual(sentPatches[0], sentPatches[1])
+
+        session.resume.signal()
+        try await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 1.25, "The retried patch is durable")
+        try await reopened.close()
+    }
+
+    func testConcurrentCloseCallersShareFailureAndSessionCanRetry() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        controller.onNeedsFlush = {}
+        controller.set(.exposure, 1.25, interactive: true)
+        session.failNextClose()
+
+        let first = Task { await closeFailure(controller) }
+        try await settle { session.closeCount == 1 }
+        var secondStarted = false
+        let second = Task {
+            secondStarted = true
+            return await closeFailure(controller)
+        }
+        try await settle { secondStarted }
+        session.resume.signal()
+
+        let firstFailure = await first.value
+        let secondFailure = await second.value
+        XCTAssertEqual(firstFailure, InjectedDevelopSessionFailure.close.localizedDescription)
+        XCTAssertEqual(secondFailure, firstFailure, "Concurrent callers observe the same close failure")
+        XCTAssertFalse(controller.closed, "A failed close leaves the controller recoverable")
+        XCTAssertEqual(session.closeCount, 1, "Concurrent callers share one backend close attempt")
+
+        session.resume.signal()
+        try await controller.close()
+        XCTAssertTrue(controller.closed)
+        XCTAssertEqual(session.closeCount, 2, "A later close retries the retained session")
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 1.25)
+        try await reopened.close()
+    }
+
+    private func closeFailure(_ controller: DevelopController) async -> String? {
+        do {
+            try await controller.close()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     func testAcceptWaitsForAlreadyClosingDevelopSave() async throws {
         let f = try fixture()
         let entry = try await run(f)
@@ -669,7 +741,13 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
     let resume = DispatchSemaphore(value: 0)
     private let lock = NSLock()
     private var closes = 0
+    private var settingsRejections = 0
+    private var closeFailures = 0
     var closeCount: Int { lock.withLock { closes } }
+
+    func rejectNextSettings() { lock.withLock { settingsRejections += 1 } }
+    func clearSettingsRejection() { lock.withLock { settingsRejections = 0 } }
+    func failNextClose() { lock.withLock { closeFailures += 1 } }
 
     init(_ wrapped: DevelopSession) {
         self.wrapped = wrapped
@@ -683,11 +761,35 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
     override func setListener(listener: DevelopListener?) { wrapped.setListener(listener: listener) }
     override func setMaskListener(listener: MaskListener?) { wrapped.setMaskListener(listener: listener) }
     override func setSettings(jsonPatch: String, interactive: Bool) throws {
+        let reject = lock.withLock {
+            guard settingsRejections > 0 else { return false }
+            settingsRejections -= 1
+            return true
+        }
+        if reject { throw InjectedDevelopSessionFailure.settings }
         try wrapped.setSettings(jsonPatch: jsonPatch, interactive: interactive)
     }
     override func close() throws {
-        lock.withLock { closes += 1 }
+        let fail = lock.withLock {
+            closes += 1
+            guard closeFailures > 0 else { return false }
+            closeFailures -= 1
+            return true
+        }
         resume.wait()
+        if fail { throw InjectedDevelopSessionFailure.close }
         try wrapped.close()
+    }
+}
+
+private enum InjectedDevelopSessionFailure: LocalizedError {
+    case settings
+    case close
+
+    var errorDescription: String? {
+        switch self {
+        case .settings: "injected set_settings rejection"
+        case .close: "injected session close failure"
+        }
     }
 }
