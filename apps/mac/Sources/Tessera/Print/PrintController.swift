@@ -42,14 +42,17 @@ final class PrintController {
     private(set) var thumbnails: [Int: CGImage] = [:]
     var previewPage = 0
     private(set) var progress: Progress?
+    private(set) var starting = false
     var error: String?
 
     @ObservationIgnored var onMessage: (String, [String]) -> Void = { _, _ in }
+    @ObservationIgnored var acquireSaveGate: ((Set<String>) -> DevelopRecoveryCoordinator.Gate?)?
     @ObservationIgnored private var cancelFlag: CancelFlag?
     @ObservationIgnored private var requests: [PreviewRequest] = []
+    @ObservationIgnored private var previewGeneration = UUID()
     @ObservationIgnored private var cancelled = false
 
-    var isRunning: Bool { progress != nil }
+    var isRunning: Bool { progress != nil || starting }
 
     private static func makePrintInfo() -> NSPrintInfo {
         // swiftlint:disable:next force_cast
@@ -82,21 +85,31 @@ final class PrintController {
 
     // MARK: Sheet
 
-    func prepare(items: [PhotoItem], title: String, loader: ThumbnailLoader) {
+    func prepare(items: [PhotoItem], title: String, loader: ThumbnailLoader,
+                 gate: DevelopRecoveryCoordinator.Gate? = nil) {
         guard !isRunning else { return }
+        let generation = UUID()
+        previewGeneration = generation
         self.items = items
         self.title = title
         error = nil
         previewPage = 0
         thumbnails = [:]
-        requests.forEach { $0.cancel() }
+        // A cancelled subscriber can detach before a non-interruptible engine
+        // preview read drains. Let earlier flights settle under their own gate.
         requests = []
         if profiles.isEmpty { profiles = printerProfiles() }
         if settings.profilePath == nil { settings.profilePath = profiles.first?.path }
         for (i, item) in items.enumerated() {
             if let r = loader.request(item, tier: .thumbnail, completion: { [weak self] image in
+                guard self?.previewGeneration == generation else { return }
                 self?.thumbnails[i] = image
             }) { requests.append(r) }
+        }
+        let pending = requests
+        Task {
+            for request in pending { await request.waitForCompletion() }
+            gate?.finish()
         }
     }
 
@@ -185,46 +198,61 @@ final class PrintController {
         case .matte: .matte
         case .glossy: .glossy
         }
-        let cancel = CancelFlag()
-        cancelFlag = cancel
-        error = nil
-        progress = Progress(done: 0, total: requests.count, current: "", output: output)
         let names = items.map(\.name)
-        Task.detached(priority: .userInitiated) {
-            var pictures: [Int: CGImage] = [:]
-            var failures: [String] = []
-            for (i, (name, id)) in requests.enumerated() {
-                if cancel.isCancelled() { break }
-                await MainActor.run { self.progress?.current = name; self.progress?.done = i }
-                do {
-                    let image = try engine.renderForPrint(
-                        request: PrintRenderRequest(imageId: id, maxWidth: box.width, maxHeight: box.height,
-                                                    sharpening: sharpening, profile: profile),
-                        cancel: cancel)
-                    if let cg = Self.cgImage(image) { pictures[i] = cg } else { failures.append("\(name): unusable pixels") }
-                } catch {
+        guard let gate = acquireSaveGate?(Set(requests.map { $0.1 })) else {
+            error = "This print target is no longer available for a saved read"
+            completion?(false)
+            return
+        }
+        starting = true
+        Task {
+            defer { gate.finish() }
+            guard await gate.result().isSaved,
+                  self.items.compactMap({ $0.engineImage?.imageID }) == requests.map({ $0.1 }),
+                  self.settings == settings else {
+                starting = false
+                error = "Finish saving the photo before Print"
+                completion?(false)
+                return
+            }
+            let cancel = CancelFlag()
+            cancelFlag = cancel
+            error = nil
+            progress = Progress(done: 0, total: requests.count, current: "", output: output)
+            starting = false
+            let (rendered, failed, wasCancelled) = await Task.detached(priority: .userInitiated) {
+                var pictures: [Int: CGImage] = [:]
+                var failures: [String] = []
+                for (i, (name, id)) in requests.enumerated() {
                     if cancel.isCancelled() { break }
-                    failures.append("\(name): \(error.localizedDescription)")
+                    await MainActor.run { self.progress?.current = name; self.progress?.done = i }
+                    do {
+                        let image = try engine.renderForPrint(
+                            request: PrintRenderRequest(imageId: id, maxWidth: box.width, maxHeight: box.height,
+                                                        sharpening: sharpening, profile: profile),
+                            cancel: cancel)
+                        if let cg = Self.cgImage(image) { pictures[i] = cg }
+                        else { failures.append("\(name): unusable pixels") }
+                    } catch {
+                        if cancel.isCancelled() { break }
+                        failures.append("\(name): \(error.localizedDescription)")
+                    }
                 }
+                return (pictures, failures, cancel.isCancelled())
+            }.value
+            progress?.done = requests.count
+            cancelFlag = nil
+            guard !wasCancelled else {
+                progress = nil
+                onMessage("Printing cancelled", [])
+                completion?(false)
+                return
             }
-            let wasCancelled = cancel.isCancelled()
-            let rendered = pictures
-            let failed = failures
-            await MainActor.run {
-                self.progress?.done = requests.count
-                self.cancelFlag = nil
-                guard !wasCancelled else {
-                    self.progress = nil
-                    self.onMessage("Printing cancelled", [])
-                    completion?(false)
-                    return
-                }
-                let composer = PrintComposer(layout: settings.layout, pageSize: page, picture: { rendered[$0] },
-                                             caption: { names[$0] }, fallbackAspect: { _ in 1.5 }, count: names.count)
-                let ok = self.produce(output, composer: composer, settings: settings, window: window, failures: failed)
-                self.progress = nil
-                completion?(ok)
-            }
+            let composer = PrintComposer(layout: settings.layout, pageSize: page, picture: { rendered[$0] },
+                                         caption: { names[$0] }, fallbackAspect: { _ in 1.5 }, count: names.count)
+            let ok = produce(output, composer: composer, settings: settings, window: window, failures: failed)
+            progress = nil
+            completion?(ok)
         }
     }
 
@@ -349,4 +377,3 @@ struct PrintProgressBar: View {
         }
     }
 }
-

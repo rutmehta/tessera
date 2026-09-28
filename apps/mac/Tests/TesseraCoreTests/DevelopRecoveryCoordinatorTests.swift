@@ -40,17 +40,17 @@ final class DevelopRecoveryCoordinatorTests: XCTestCase {
         let ref = try XCTUnwrap(item.engineImage)
 
         model.openDevelop(for: item)
-        await model.pendingDevelopSaveBarrier(imageID: ref.imageID, library: library).value
+        await settleDevelop(model, imageID: ref.imageID, owner: library)
         XCTAssertEqual(openCount, 1)
         XCTAssertNotNil(model.develop)
 
         closeGate.failNextClose()
         model.closeDevelop()
-        await model.pendingDevelopSaveBarrier(imageID: ref.imageID, library: library).value
+        await settleDevelop(model, imageID: ref.imageID, owner: library)
         XCTAssertEqual(closeGate.failureCount, 1, "The test must reach the injected close failure")
 
         model.openDevelop(for: item)
-        await model.pendingDevelopSaveBarrier(imageID: ref.imageID, library: library).value
+        await settleDevelop(model, imageID: ref.imageID, owner: library)
         XCTAssertEqual(openCount, 1, "A failed close must keep this owner/photo out of normal reopen admission")
     }
 
@@ -87,12 +87,12 @@ final class DevelopRecoveryCoordinatorTests: XCTestCase {
         let staleController = try DevelopController(session: session, itemID: item.id, imageID: ref.imageID)
         closeGate.failNextClose()
         opener.resume(returning: staleController)
-        await model.pendingDevelopSaveBarrier(imageID: ref.imageID, library: f.library).value
+        await settleDevelop(model, imageID: ref.imageID, owner: f.library)
         XCTAssertEqual(closeGate.failureCount, 1, "The stale controller cleanup must reach the injected failure")
 
         model.install(f.library)
         model.openDevelop(for: item)
-        await model.pendingDevelopSaveBarrier(imageID: ref.imageID, library: f.library).value
+        await settleDevelop(model, imageID: ref.imageID, owner: f.library)
         XCTAssertEqual(openCount, 1, "A failed stale-open cleanup must block same-owner/photo reopen")
     }
 
@@ -108,6 +108,12 @@ final class DevelopRecoveryCoordinatorTests: XCTestCase {
         let library = try EngineLibrary.scan(folder: folder, appSupport: support)
         let other = try EngineLibrary.scan(folder: otherFolder, appSupport: support)
         return Fixture(library: library, otherLibrary: other, support: support)
+    }
+
+    private func settleDevelop(_ model: AppModel, imageID: String, owner: EngineLibrary) async {
+        let gate = model.pendingDevelopSaveBarrier(imageID: imageID, library: owner)
+        _ = await gate.result()
+        gate.finish()
     }
 
     private static func writePhoto(to folder: URL) throws {

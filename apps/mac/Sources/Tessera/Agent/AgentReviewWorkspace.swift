@@ -137,7 +137,13 @@ private struct ReviewCurrentPreview: View {
         let generation = model.agent.reviewGeneration
         let barrier = model.pendingDevelopSaveBarrier(imageID: selected, library: owner)
         loadTask = Task {
-            await barrier.value
+            defer { barrier.finish() }
+            guard await barrier.result().isSaved else {
+                if !Task.isCancelled, loadToken == token, model.engineLibrary === owner,
+                   model.reviewNavigation.selectedID == selected,
+                   model.agent.reviewGeneration == generation { loading = false }
+                return
+            }
             guard !Task.isCancelled, loadToken == token, model.engineLibrary === owner,
                   model.reviewNavigation.selectedID == selected, model.agent.reviewGeneration == generation else { return }
             // A just-closed session may have saved after this item's previous preview was cached.
@@ -147,10 +153,15 @@ private struct ReviewCurrentPreview: View {
                       model.reviewNavigation.selectedID == selected, model.agent.reviewGeneration == generation else { return }
                 image = next
                 loading = false
+                barrier.finish()
             }
             // ThumbnailLoader reports successful delivery only; a failed decode must not spin forever.
             try? await Task.sleep(for: .seconds(30))
-            if !Task.isCancelled, loadToken == token { loading = false }
+            if !Task.isCancelled, loadToken == token {
+                request?.cancel()
+                request = nil
+                loading = false
+            }
         }
     }
 }

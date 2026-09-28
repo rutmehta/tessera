@@ -410,7 +410,6 @@ final class AgentController {
             targets: capturedTargets,
             selectedImageID: app.reviewNavigation.selectedID,
             anchorImageID: app.reviewNavigation.anchorID)
-        writeResumeRecord(intent, for: lib)
         let cancel = CancelFlag()
         cancelFlag = cancel
         error = nil
@@ -426,9 +425,26 @@ final class AgentController {
         runningSources = Set(images.compactMap { sourceKey(imageID: $0, library: lib) })
         let closeBarrier = app.prepareForAgent(imageIDs: Set(images), library: lib)
         Task {
+            defer { closeBarrier.finish() }
             // The captured owner can finish offscreen, but all of its prior
             // Develop saves must land before the agent reads the recipes.
-            await closeBarrier.value
+            guard await closeBarrier.result().isSaved, self.runID == job else {
+                if self.runID == job {
+                    self.progress = nil
+                    self.cancelFlag = nil
+                    self.runID = nil
+                    self.runningLibrary = nil
+                    self.runningImages.removeAll()
+                    self.runningSources.removeAll()
+                    self.clearSourceKeysIfIdle()
+                    if app.engineLibrary === lib {
+                        self.error = "Finish saving the photo before Auto edit"
+                        app.statusMessage = self.error
+                    }
+                }
+                return
+            }
+            self.writeResumeRecord(intent, for: lib)
             let result = await Task.detached(priority: .userInitiated) {
                 Result { try lib.engine.runAgent(request: request, cancel: cancel, listener: relay) }
             }.value
@@ -571,7 +587,13 @@ final class AgentController {
         let imageID = entry.imageID
         let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
         Task {
-            await closeBarrier.value
+            defer { closeBarrier.finish() }
+            guard await closeBarrier.result().isSaved else {
+                self.finishMutation(imageID)
+                completion(false)
+                if app.engineLibrary === lib { app.statusMessage = "Finish saving the photo before accepting" }
+                return
+            }
             guard self.currentItem(for: target) != nil else {
                 self.finishMutation(imageID)
                 completion(false)
@@ -609,7 +631,12 @@ final class AgentController {
         let imageID = entry.imageID
         let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
         Task {
-            await closeBarrier.value
+            defer { closeBarrier.finish() }
+            guard await closeBarrier.result().isSaved else {
+                self.finishMutation(imageID)
+                if app.engineLibrary === lib { app.statusMessage = "Finish saving the photo before reverting" }
+                return
+            }
             guard self.currentItem(for: target) != nil else { self.finishMutation(imageID); return }
             let result = await Task.detached { Result { try lib.engine.revertAgentEdit(imageId: imageID, groupId: group) } }.value
             self.finishMutation(imageID)

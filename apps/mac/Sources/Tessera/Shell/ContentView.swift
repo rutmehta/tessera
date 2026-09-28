@@ -33,6 +33,24 @@ struct ContentView: View {
                                                 max: Theme.Width.sidebarMax)
         } detail: {
             VStack(spacing: 0) {
+                ForEach(model.developRecoveries) { recovery in
+                    if case .failed(let message) = recovery.phase {
+                        HStack(spacing: Theme.Space.m) {
+                            Text("Could not finish saving \(recovery.displayName): \(message)")
+                                .lineLimit(2)
+                            Spacer(minLength: Theme.Space.m)
+                            Button("Retry Save") { model.retryDevelopRecovery(recovery.id) }
+                            if model.canKeepEditingDevelopRecovery(recovery.id) {
+                                Button("Keep Editing") { model.keepEditingDevelopRecovery() }
+                            }
+                        }
+                        .font(Theme.Fonts.caption)
+                        .padding(.horizontal, Theme.Space.gutter)
+                        .padding(.vertical, Theme.Space.s)
+                        .background(Theme.panel)
+                        .accessibilityIdentifier("develop-save-recovery")
+                    }
+                }
                 if model.viewMode != .document { WorkspaceHeader(model: model) }
                 if model.isEngineBacked, model.source != .people, model.isLibraryWorkspace {
                     FilterBar(library: model.collections, model: model)

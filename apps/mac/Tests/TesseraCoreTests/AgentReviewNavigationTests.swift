@@ -129,7 +129,8 @@ final class AgentReviewNavigationTests: XCTestCase {
         firstController.set(.exposure, 1.25, interactive: true)
         model.returnFromPhotoEdit()
         let previewBarrier = model.pendingDevelopSaveBarrier(imageID: selected.imageID, library: try XCTUnwrap(model.engineLibrary))
-        await previewBarrier.value
+        _ = await previewBarrier.result()
+        previewBarrier.finish()
         model.editReviewedPhoto() // Same native loupe/shown ID must reopen the closed session.
         try await settle { model.developStatus == .ready }
         XCTAssertEqual(model.develop?.imageID, selected.imageID)
@@ -308,7 +309,10 @@ final class AgentReviewNavigationTests: XCTestCase {
             if changeOwner { model.loadStubItems(count: 2) }
             else { model.select(position: 1) }
             if laterStatus { model.statusMessage = "A newer operation completed" }
-            await model.pendingDevelopSaveBarrier(imageID: try XCTUnwrap(item.engineImage?.imageID), library: owner).value
+            let gate = model.pendingDevelopSaveBarrier(
+                imageID: try XCTUnwrap(item.engineImage?.imageID), library: owner)
+            _ = await gate.result()
+            gate.finish()
             // Drain the handoff continuation after its captured barrier settles.
             try await Task.sleep(for: .milliseconds(40))
             XCTAssertTrue(model.documents.documents.isEmpty)

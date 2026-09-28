@@ -632,7 +632,8 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertEqual(f.model.developStatus, .loading)
         let barrier = f.model.prepareForAgent(imageIDs: [f.a.imageIDs[0]], library: f.a)
         XCTAssertEqual(f.model.developStatus, .loading, "A's barrier must preserve B's loading state")
-        await barrier.value
+        _ = await barrier.result()
+        barrier.finish()
         try await settle { f.model.develop != nil }
         let controller = try XCTUnwrap(f.model.develop)
         XCTAssertEqual(controller.imageID, f.b.imageIDs[0])
