@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import XCTest
@@ -14,6 +15,40 @@ final class DocumentTransformTests: XCTestCase {
     private func close(_ a: CGPoint, _ b: CGPoint, _ eps: Double = 1e-6, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertEqual(Double(a.x), Double(b.x), accuracy: eps, file: file, line: line)
         XCTAssertEqual(Double(a.y), Double(b.y), accuracy: eps, file: file, line: line)
+    }
+
+    @MainActor
+    func testTransformReturnAndEnterUseTheSameModifierGuard() {
+        for key: UInt16 in [36, 76] {
+            XCTAssertEqual(DocumentTransforms.keyAction(keyCode: key, modifiers: []), .apply)
+            XCTAssertEqual(DocumentTransforms.keyAction(keyCode: key, modifiers: [.command]), .apply)
+            for mods: NSEvent.ModifierFlags in [.shift, .option, .control, [.command, .shift]] {
+                XCTAssertNil(DocumentTransforms.keyAction(keyCode: key, modifiers: mods))
+            }
+        }
+    }
+
+    @MainActor
+    func testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys() {
+        for key: UInt16 in [51, 117] {
+            XCTAssertEqual(DocumentTransforms.keyAction(keyCode: key, modifiers: []), .removePin)
+            for mods: NSEvent.ModifierFlags in [.command, .shift, .option, .control] {
+                XCTAssertNil(DocumentTransforms.keyAction(keyCode: key, modifiers: mods))
+            }
+        }
+        XCTAssertEqual(DocumentTransforms.keyAction(keyCode: 53, modifiers: []), .cancel)
+        XCTAssertNil(DocumentTransforms.keyAction(keyCode: 53, modifiers: [.command]))
+        XCTAssertNil(DocumentTransforms.keyAction(keyCode: 0, modifiers: []))
+    }
+
+    @MainActor
+    func testTransformKeyRoutingIgnoresOnlyIncidentalFlags() {
+        let incidental: NSEvent.ModifierFlags = [.numericPad, .function, .capsLock]
+        XCTAssertEqual(DocumentTransforms.keyAction(keyCode: 76, modifiers: incidental), .apply)
+        XCTAssertEqual(DocumentTransforms.keyAction(keyCode: 117, modifiers: incidental), .removePin)
+        XCTAssertEqual(DocumentTransforms.keyAction(keyCode: 53, modifiers: incidental), .cancel)
+        XCTAssertNil(DocumentTransforms.keyAction(keyCode: 36, modifiers: incidental.union(.shift)))
+        XCTAssertNil(DocumentTransforms.keyAction(keyCode: 51, modifiers: incidental.union(.command)))
     }
 
     // MARK: Warp
