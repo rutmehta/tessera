@@ -146,4 +146,8 @@ fn legacy_save_as_still_replaces_existing_destination() {
         .unwrap();
     assert!(std::fs::read(&path).unwrap().starts_with(b"TSRDOC\0\x01"));
     assert!(!session.info().unwrap().dirty);
+
+    std::fs::write(&path, b"changed-after-save-as").unwrap();
+    session.save().unwrap();
+    assert!(std::fs::read(&path).unwrap().starts_with(b"TSRDOC\0\x01"));
 }
