@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::post_recipe_failure_advances_owner_baseline_for_newer_local_edit -- --exact --nocapture

@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::flush_without_new_edit_repairs_sidecars_after_recipe_write_failure -- --exact --nocapture

@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::failed_develop_sidecar_repair_waits_for_each_explicit_flush -- --exact --nocapture
