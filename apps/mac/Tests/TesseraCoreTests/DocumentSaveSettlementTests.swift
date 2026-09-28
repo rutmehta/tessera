@@ -46,7 +46,9 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.saveWriter = { _, _, done in writes += 1; done(.success(())) }
         var outcomes: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
-        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        let presented = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(presented.id))
+        w.finishSaveAs(presented)
         w.saveAsPresentationDidDismiss(try XCTUnwrap(w.saveAsPresentationID))
         reply?(false); reply?(true)
         XCTAssertEqual(writes, 0)
@@ -61,6 +63,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var outcomes: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
         var r = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(r.id))
         r.folder = URL(fileURLWithPath: "/new")
         w.finishSaveAs(r)
         XCTAssertEqual(outcomes.count, 1)
@@ -78,6 +81,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var outcomes: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
         let r = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(r.id))
         w.finishSaveAs(r); w.finishSaveAs(r)
         w.cancelDocumentSave(id)
         XCTAssertTrue(outcomes.isEmpty)
@@ -93,6 +97,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var old: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { old.append($0) }
         let r = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(r.id))
         var next: [DocumentSaveOutcome] = []
         let nextID = w.saveForPreparation(d, saveAs: true) { next.append($0) }
         w.finishSaveAs(r); w.saveAsSheetDidDisappear(r.id)
@@ -110,7 +115,9 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.saveReplacePrompt = { _, done in reply = done }
         var outcomes: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
-        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        let presented = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(presented.id))
+        w.finishSaveAs(presented)
         w.saveAsPresentationDidDismiss(id)
         w.documentSaveWindowLost(id)
         reply?(true)
@@ -140,6 +147,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var first: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { first.append($0) }
         let r = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(r.id))
         w.finishSaveAs(r)
         var conflict: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { conflict.append($0) }
@@ -160,7 +168,9 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.saveReplacePrompt = { _, done in prompts += 1; reply = done }
         var outcomes: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
-        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        let presented = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(presented.id))
+        w.finishSaveAs(presented)
         w.saveAsSheetDidDisappear(id)
         XCTAssertEqual(prompts, 0)
         XCTAssertTrue(outcomes.isEmpty)
@@ -178,7 +188,9 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.saveReplacePrompt = { _, _ in prompts += 1 }
         var outcomes: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
-        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        let presented = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(presented.id))
+        w.finishSaveAs(presented)
         w.cancelDocumentSave(id)
         w.saveAsPresentationDidDismiss(id)
         XCTAssertEqual(prompts, 0)
@@ -192,7 +204,9 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.saveReplacePrompt = { _, _ in prompts += 1 }
         var old: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { old.append($0) }
-        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        let presented = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(presented.id))
+        w.finishSaveAs(presented)
         let replacement = w.saveForPreparation(d, saveAs: true) { _ in }
         XCTAssertNil(w.saveAsRequest, "next sheet waits for old native dismissal")
         w.saveAsPresentationDidDismiss(id)
@@ -211,11 +225,65 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.saveReplacePrompt = { _, _ in prompts += 1 }
         var outcomes: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
-        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        let presented = try XCTUnwrap(w.saveAsRequest)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(presented.id))
+        w.finishSaveAs(presented)
         w.documentSaveWindowLost(id)
         w.saveAsPresentationDidDismiss(id)
         XCTAssertEqual(prompts, 0)
         XCTAssertEqual(outcomes, [.failed("Document window closed before save")])
+    }
+
+    func testBeginCancelBeginWithoutAppearanceDoesNotQueueForever() throws {
+        let (w, d) = try fixture()
+        var first: [DocumentSaveOutcome] = []
+        let firstID = w.saveForPreparation(d, saveAs: true) { first.append($0) }
+        XCTAssertNil(w.saveAsPresentationID)
+        w.cancelDocumentSave(firstID)
+        let secondID = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertEqual(first, [.cancelled])
+        XCTAssertEqual(w.saveAsRequest?.id, secondID)
+        XCTAssertNil(w.saveAsPresentationID)
+        w.cancelDocumentSave(secondID)
+    }
+
+    func testSupersedeUnclaimedRequestNeedsNoNativeDismissal() throws {
+        let (w, d) = try fixture()
+        var first: [DocumentSaveOutcome] = []
+        let old = w.saveForPreparation(d, saveAs: true) { first.append($0) }
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(first, [.cancelled])
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertNil(w.saveAsPresentationID)
+        w.cancelDocumentSave(next)
+    }
+
+    func testClaimBeforeOnAppearRetainsNativeDismissalBarrier() throws {
+        let (w, d) = try fixture()
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        w.cancelDocumentSave(old) // The content was claimed, but onAppear has not run.
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertNil(w.saveAsRequest)
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertNil(w.saveAsPresentationID)
+        w.cancelDocumentSave(next)
+    }
+
+    func testLateClaimOfCancelledRequestSerializesNewRequest() throws {
+        let (w, d) = try fixture()
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.cancelDocumentSave(old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        XCTAssertNil(w.saveAsRequest)
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
     }
 
 }
