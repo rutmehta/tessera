@@ -1035,7 +1035,13 @@ impl Engine {
             crate::image_edit_admission::EditSource::Original
         })?;
         let (snapshot, image, persistence) = if proxy {
-            let (journal, local, image, path) = self.load_smart_preview(id)?;
+            #[cfg(all(test, target_os = "macos"))]
+            let mut observation = proxy_cache_contracts::Probe::default();
+            let (journal, local, image, path) = self.load_smart_preview_observed(
+                id,
+                #[cfg(all(test, target_os = "macos"))]
+                Some(&mut observation),
+            )?;
             crate::smart_preview::reconcile_acknowledged_intent(&journal)?;
             let doc = crate::smart_preview::validate_local_document(&local.recipe)?;
             if path.is_file()
@@ -1049,6 +1055,8 @@ impl Engine {
                 ));
             }
             crate::smart_preview::validate_proxy_recipe(&image, &doc.recipe)?;
+            #[cfg(all(test, target_os = "macos"))]
+            self.observe_proxy_validation(observation, &doc.recipe.settings);
             let snapshot = DevelopDiskSnapshot {
                 image_id: id,
                 path,
@@ -6251,4 +6259,4 @@ pub(crate) mod preview_qualification;
 
 // Source-only Task 2 contracts; no production selection or cache wiring.
 #[cfg(all(test, target_os = "macos"))]
-mod proxy_cache_contracts;
+pub(crate) mod proxy_cache_contracts;

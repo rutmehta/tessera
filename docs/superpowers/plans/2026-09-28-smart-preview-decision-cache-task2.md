@@ -35,3 +35,47 @@ The winner matrix now asserts the actual returned session.info().backend on both
 Probe now includes publication count. Explicit overrides and unversioned-external routing must leave lookups, hits, publications and entrycount unchanged; explicit CPU/Metal also leave measurement count unchanged and return their actual requested backend. Real mapped-geometry edit must bypass lookup/publication. Device unavailable/lost and failed-calibration controls assert actualCPU fallback; device failure clears entries. Failed-calibration on emptycache must publish nothing. Counts must later be emitted at actual cache insert/lookup and measurement boundaries, never assigned from a control label.
 
 Full identity oracle now also compares copied owner bytes, original digest/length (independently against both decoded container and disposable original), proxy dimensions, tier, encoding, and container format version from the validated fixture header. These complement fullcontainer/incarnation/generation/documentdigest assertions. Header/original reads occur only in the test oracle; no extra production decode/journal/path read is authorized by this change. All six tests remain UNRUN, and production wiring remains absent.
+
+
+## Authorized instrumentation-only checkpoint (source, unrun)
+
+Attempt `01-red` remains instrumentation RED: five failures reached the first
+actual-backend assertion because the no-op MeasuredCpu control allowed automatic
+Metal selection. The existing cold-validation group passed. No cache behavior
+assertion was reached, and its immutable runner/logs remain unchanged.
+
+The coordinator subsequently authorized Engine-local cfg(test) instrumentation
+without cache integration. A scalar-only control/probe mutex is added to test
+Engines; ordinary selection passes no observer. Original selection still passes
+None. Actual CPU/Metal constructors and existing winner rule remain shared with
+ordinary selection. Only test measurement outcomes/preference/device availability
+are controlled. No mutex is held across device construction, capability queries,
+measurement, or rendering. DeviceLost currently means controlled unavailability
+at a later selection, not a simulated driver failure while a frame is in flight.
+
+Validated identity is copied from the already-decoded container and already-open
+journal into a stack observation, committed only after process/prefix and sidecar
+validation succeeds. No original/container/journal reread was added. The existing
+full recipe HDR policy is recorded separately from the real candidate GPU's
+normalized capability query. `key_hdr` fields are policy observations here; no key
+or cache exists in the Engine. No cache counter is incremented or populated.
+
+One additional ignored test checks real CPU and Metal materialization with two
+uncached opens for both SDR and HDR, fresh/released Renderer allocations, two
+validation/measurement/capability events, and zero lookup/hit/publication/entry
+counts. It also checks corruption cannot reach selection, real override backend
+materialization, unavailable-device CPU fallback and calibration-error CPU fallback.
+Controlled samples are not GPU execution/performance evidence.
+
+The original six contract bodies and their assertion ordering are retained. Their
+next expected failure is the first missing entries/publication assertion in prime;
+missing reuse is a later, still-latent requirement. New control GREEN and unchanged
+contracts RED must be observed under a new immutable runner/source pin when runtime
+is granted. No compiler, formatter, test, app or GPU was run for this checkpoint.
+
+The external dependency checklist remains mandatory before cache wiring:
+`/tmp/tessera-proxy-cache-external-dependency-checklist.md` (host-local review).
+This stage never reuses any decision, so every external/geometry route bypasses
+reuse. UnversionedExternal currently leaves ordinary uncached calibration intact;
+it does not pretend to inspect an actual mutable resolver. No eligibility guard,
+external-content guarantee, device-loss eviction, or cache speedup is claimed.

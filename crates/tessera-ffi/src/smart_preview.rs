@@ -193,13 +193,26 @@ impl Engine {
         &self,
         id: ImageId,
     ) -> Result<(SmartPreviewJournal, JournalSnapshot, RawImage, PathBuf)> {
+        self.load_smart_preview_observed(
+            id,
+            #[cfg(all(test, target_os = "macos"))]
+            None,
+        )
+    }
+    pub(crate) fn load_smart_preview_observed(
+        &self,
+        id: ImageId,
+        #[cfg(all(test, target_os = "macos"))]
+        observation: Option<&mut crate::develop::proxy_cache_contracts::Probe>,
+    ) -> Result<(SmartPreviewJournal, JournalSnapshot, RawImage, PathBuf)> {
         let (journal, snapshot) = self
             .local_smart_preview(id)?
             .ok_or_else(|| failure("Smart Preview missing"))?;
-        let decoded = CameraLinearProxy::decode_persistent(&bounded_bytes(
-            &self.smart_dir(id)?.join("pixels.tsp"),
-            MAX_PROXY_BYTES,
-        )?)?;
+        let container = bounded_bytes(&self.smart_dir(id)?.join("pixels.tsp"), MAX_PROXY_BYTES)?;
+        let decoded = CameraLinearProxy::decode_persistent(&container)?;
+        #[cfg(all(test, target_os = "macos"))]
+        let format_version = u32::from_le_bytes(container[8..12].try_into().unwrap());
+        drop(container);
         if decoded.original_byte_length != snapshot.source_len
             || decoded.proxy.original_content_digest() != snapshot.source_digest
         {
@@ -216,6 +229,20 @@ impl Engine {
         let mut render_id = ImageId(u128::from_le_bytes(identity));
         if render_id == id {
             render_id.0 ^= 1;
+        }
+        #[cfg(all(test, target_os = "macos"))]
+        if let Some(p) = observation {
+            p.owner = id.0.to_le_bytes();
+            p.original_digest = decoded.proxy.original_content_digest();
+            p.original_length = decoded.original_byte_length;
+            p.dimensions = [decoded.proxy.pixels().width(), decoded.proxy.pixels().height()];
+            p.tier = Some(decoded.proxy.tier());
+            p.encoding = Some(decoded.encoding);
+            p.format_version = format_version;
+            p.full_container = decoded.container_digest;
+            p.incarnation = journal.incarnation_for_test();
+            p.generation = snapshot.generation;
+            p.recipe_digest = snapshot.recipe_digest;
         }
         let image = RawImage::from_camera_linear_proxy(id, render_id, Arc::new(decoded.proxy))?;
         Ok((journal, snapshot, image, path))

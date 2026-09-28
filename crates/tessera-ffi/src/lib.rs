@@ -199,6 +199,8 @@ pub trait EngineEventListener: Send + Sync {
 }
 #[derive(uniffi::Object)]
 pub struct Engine {
+    #[cfg(all(test, target_os = "macos"))]
+    proxy_selection_test: Mutex<develop::proxy_cache_contracts::SelectionState>,
     db: std::path::PathBuf,
     catalog: Mutex<Catalog>,
     previews: previews::PreviewStore,
@@ -258,7 +260,14 @@ impl Engine {
         if image.camera_linear_proxy().is_some() {
             // Explicit proxy selection calibrates independently of Original.
             // Unsupported tails/maps retain scalar CPU fallback on every edit.
-            let backend = backend::select_proxy(image, settings, || self.shared_gpu());
+            #[cfg(all(test, target_os = "macos"))]
+            let observer = self.proxy_selection_test.lock().unwrap().control
+                .map(|_| &self.proxy_selection_test);
+            let backend = backend::select_proxy(
+                image, settings, || self.shared_gpu(),
+                #[cfg(all(test, target_os = "macos"))]
+                observer,
+            );
             // Selection/capability label, not per-frame telemetry. Proxy maps
             // (captured distortion, crop, transform, upright) use scalar CPU.
             let name = if backend.name.starts_with("Metal (") {
@@ -350,6 +359,8 @@ impl Engine {
             previews::PreviewStore::new(Path::new(&app_support_dir).join("previews"), 512 << 20)
                 .map_err(failure)?;
         Ok(Arc::new_cyclic(|this| Self {
+            #[cfg(all(test, target_os = "macos"))]
+            proxy_selection_test: Mutex::new(Default::default()),
             db,
             catalog: Mutex::new(Catalog { index, reader }),
             previews,

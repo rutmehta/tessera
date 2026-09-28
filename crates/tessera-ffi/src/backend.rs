@@ -156,7 +156,10 @@ pub(crate) fn select(
     image: &RawImage,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
 ) -> Backend {
-    select_at(image, &DevelopSettings::default(), 2, gpu)
+    select_at(image, &DevelopSettings::default(), 2, gpu,
+        #[cfg(all(test, target_os = "macos"))]
+        None,
+    )
 }
 
 /// Explicit proxy route: actual immutable-prefix-compatible settings and default
@@ -165,6 +168,8 @@ pub(crate) fn select_proxy(
     image: &RawImage,
     settings: &DevelopSettings,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
+    #[cfg(all(test, target_os = "macos"))]
+    observer: Option<&std::sync::Mutex<crate::develop::proxy_cache_contracts::SelectionState>>,
 ) -> Backend {
     // Match Develop's pre-surface default screen level. Explicit surface-size
     // and adaptive-level benchmarks remain required before enabling by default.
@@ -180,13 +185,18 @@ pub(crate) fn select_proxy(
     let mut pixels = settings.clone();
     pixels.output.hdr = false;
     pixels.output.hdr_headroom_stops = 0.;
-    select_at(image, &pixels, level, gpu)
+    select_at(image, &pixels, level, gpu,
+        #[cfg(all(test, target_os = "macos"))]
+        observer,
+    )
 }
 fn select_at(
     image: &RawImage,
     settings: &DevelopSettings,
     level: u8,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
+    #[cfg(all(test, target_os = "macos"))]
+    observer: Option<&std::sync::Mutex<crate::develop::proxy_cache_contracts::SelectionState>>,
 ) -> Backend {
     let config = RendererConfig::default();
     let cpu = Backend::new(
@@ -195,7 +205,23 @@ fn select_at(
         format!("CPU ×{}", config.threads),
     );
     let preference = std::env::var("TESSERA_RENDER_BACKEND").unwrap_or_default();
+    #[cfg(all(test, target_os = "macos"))]
+    use crate::develop::proxy_cache_contracts::SelectionControl;
+    #[cfg(all(test, target_os = "macos"))]
+    let control = observer.and_then(|s| s.lock().unwrap().control);
+    #[cfg(all(test, target_os = "macos"))]
+    let preference = match control {
+        Some(SelectionControl::ExplicitCpu) => "cpu".to_owned(),
+        Some(SelectionControl::ExplicitMetal) => "gpu".to_owned(),
+        Some(_) => String::new(),
+        None => preference,
+    };
     if preference.eq_ignore_ascii_case("cpu") {
+        return cpu;
+    }
+    #[cfg(all(test, target_os = "macos"))]
+    if matches!(control, Some(SelectionControl::DeviceUnavailable | SelectionControl::DeviceLost)) {
+        // Test-only unavailable-device seam. No backend or cached decision retained.
         return cpu;
     }
     let Some(device) = gpu() else {
@@ -225,10 +251,35 @@ fn select_at(
     if preference.eq_ignore_ascii_case("gpu") {
         return gpu;
     }
-    match (
+    #[cfg(all(test, target_os = "macos"))]
+    if let Some(state) = observer {
+        // Query the actual candidate, never the selected CPU winner. Drop all
+        // temporary renderer ownership before locking scalar observation state.
+        let supported = gpu.renderer().can_render_resident(image, settings);
+        let mut state = state.lock().unwrap();
+        state.probe.capability_checks += 1;
+        state.probe.capability_hdr = settings.output.hdr;
+        state.probe.capability_headroom = settings.output.hdr_headroom_stops;
+        state.probe.capability_supported = supported.unwrap_or(false);
+        state.probe.measurements += 1;
+    }
+    let measured = || (
         measure_at(&cpu.renderer(), image, settings, level),
         measure_at(&gpu.renderer(), image, settings, level),
-    ) {
+    );
+    #[cfg(all(test, target_os = "macos"))]
+    let samples = match control {
+        Some(SelectionControl::MeasuredCpu) => (Ok([1.; 3]), Ok([2.; 3])),
+        Some(SelectionControl::MeasuredMetal) => (Ok([2.; 3]), Ok([1.; 3])),
+        Some(SelectionControl::CalibrationFailure) => (
+            Err(engine_api::EngineError::internal("controlled calibration failure")),
+            Ok([1.; 3]),
+        ),
+        _ => measured(),
+    };
+    #[cfg(not(all(test, target_os = "macos")))]
+    let samples = measured();
+    match samples {
         (Ok(c), Ok(g)) => {
             eprintln!(
                 "develop {} L{level} calibration [first, tone, WB] ms: CPU {c:?}; GPU {g:?}",

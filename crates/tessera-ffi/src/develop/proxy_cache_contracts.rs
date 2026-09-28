@@ -1,26 +1,46 @@
-//! Task 2 opt-in Engine contracts; observation/control stubs only, integration UNIMPLEMENTED.
+//! Task 2 opt-in Engine contracts; selection instrumentation only; decision cache remains UNIMPLEMENTED.
 //! Real RAW copy/prefix preparation; controlled selection is not actual Metal performance evidence.
 use super::*;
 use std::{fs, path::PathBuf, time::Instant};
 use serde_json::json;
 
 #[derive(Clone, Copy)]
-enum SelectionControl { MeasuredCpu, MeasuredMetal, CalibrationFailure, DeviceUnavailable, DeviceLost, ExplicitCpu, ExplicitMetal, UnversionedExternal }
+pub(crate) enum SelectionControl { MeasuredCpu, MeasuredMetal, CalibrationFailure, DeviceUnavailable, DeviceLost, ExplicitCpu, ExplicitMetal, UnversionedExternal }
 #[derive(Clone, Default, Debug, PartialEq)]
-struct Probe {
-    validations: u64, lookups: u64, hits: u64, measurements: u64, publications: u64, entries: usize,
-    capability_checks: u64, capability_hdr: bool, capability_headroom: f32,
-    key_hdr: bool, key_headroom: f32,
-    owner: [u8; 16], original_digest: [u8; 32], original_length: u64, dimensions: [u32; 2],
-    tier: Option<pipeline_cpu::SmartPreviewTier>, encoding: Option<pipeline_cpu::SmartPreviewEncoding>, format_version: u32,
-    full_container: [u8; 32], incarnation: [u8; 32], generation: u64, recipe_digest: [u8; 32],
+pub(crate) struct Probe {
+    pub(crate) validations: u64, pub(crate) lookups: u64, pub(crate) hits: u64, pub(crate) measurements: u64, pub(crate) publications: u64, pub(crate) entries: usize,
+    pub(crate) capability_supported: bool, pub(crate) capability_checks: u64, pub(crate) capability_hdr: bool, pub(crate) capability_headroom: f32,
+    pub(crate) key_hdr: bool, pub(crate) key_headroom: f32,
+    pub(crate) owner: [u8; 16], pub(crate) original_digest: [u8; 32], pub(crate) original_length: u64, pub(crate) dimensions: [u32; 2],
+    pub(crate) tier: Option<pipeline_cpu::SmartPreviewTier>, pub(crate) encoding: Option<pipeline_cpu::SmartPreviewEncoding>, pub(crate) format_version: u32,
+    pub(crate) full_container: [u8; 32], pub(crate) incarnation: [u8; 32], pub(crate) generation: u64, pub(crate) recipe_digest: [u8; 32],
+}
+#[derive(Default)]
+pub(crate) struct SelectionState {
+    pub(crate) control: Option<SelectionControl>,
+    pub(crate) probe: Probe,
 }
 impl Engine {
-    /// Stub. Future hook is Engine-local and controls measurement/device/override
-    /// policy only AFTER real source/recipe validation, never fakes asset validity.
-    fn cache_control_for_test(&self, _control: SelectionControl) {}
-    fn cache_probe_for_test(&self) -> Probe { Probe::default() }
+    fn cache_control_for_test(&self, control: SelectionControl) {
+        self.proxy_selection_test.lock().unwrap().control = Some(control);
+    }
+    fn cache_probe_for_test(&self) -> Probe {
+        self.proxy_selection_test.lock().unwrap().probe.clone()
+    }
+    pub(crate) fn observe_proxy_validation(&self, identity: Probe, settings: &engine_api::recipe::DevelopSettings) {
+        let mut state = self.proxy_selection_test.lock().unwrap();
+        let old = &state.probe;
+        state.probe = Probe {
+            validations: old.validations + 1,
+            measurements: old.measurements,
+            capability_checks: old.capability_checks,
+            key_hdr: settings.output.hdr,
+            key_headroom: settings.output.hdr_headroom_stops,
+            ..identity
+        };
+    }
 }
+
 struct Cycle { backend: String, renderer: std::sync::Weak<image_core::Renderer> }
 impl Cycle {
     fn assert_backend(&self, metal: bool) {
@@ -194,4 +214,45 @@ fn cache_does_not_override_active_editor_or_retain_failed_open_lease() {
     let valid = fs::read(f.local.join("pixels.tsp")).unwrap(); corrupt(&f, "container");
     assert!(f.engine.clone().open_smart_preview_develop_session(f.id.clone()).is_err());
     fs::write(f.local.join("pixels.tsp"), valid).unwrap(); f.cycle();
+}
+
+#[test]
+#[ignore = "actual backend materialization; simulated samples, not performance evidence"]
+fn uncached_selection_controls_materialize_real_backends_without_cache() {
+    for hdr in [false, true] {
+        for control in [SelectionControl::MeasuredCpu, SelectionControl::MeasuredMetal] {
+            let f = Fixture::new(hdr);
+            f.engine.cache_control_for_test(control);
+            let first = f.cycle();
+            let second = f.cycle();
+            for cycle in [&first, &second] {
+                cycle.assert_backend(matches!(control, SelectionControl::MeasuredMetal));
+                assert!(cycle.renderer.upgrade().is_none());
+            }
+            assert!(!std::sync::Weak::ptr_eq(&first.renderer, &second.renderer));
+            let p = f.engine.cache_probe_for_test();
+            assert_eq!(p.validations, 2);
+            assert_eq!(p.measurements, 2);
+            assert_eq!(p.capability_checks, 2);
+            assert!(p.capability_supported, "fixture must be eligible on the real GPU candidate");
+            assert!(!p.capability_hdr);
+            assert_eq!(p.capability_headroom, 0.);
+            assert_eq!(p.key_hdr, hdr);
+            assert_eq!(p.key_headroom, if hdr { 2. } else { 0. });
+            assert_eq!((p.lookups, p.hits, p.publications, p.entries), (0, 0, 0, 0));
+            corrupt(&f, "container");
+            assert!(f.engine.clone().open_smart_preview_develop_session(f.id.clone()).is_err());
+            assert_eq!(f.engine.cache_probe_for_test(), p);
+        }
+    }
+    for control in [SelectionControl::ExplicitCpu, SelectionControl::ExplicitMetal,
+        SelectionControl::DeviceUnavailable, SelectionControl::DeviceLost,
+        SelectionControl::CalibrationFailure] {
+        let f = Fixture::new(false);
+        f.engine.cache_control_for_test(control);
+        f.cycle().assert_backend(matches!(control, SelectionControl::ExplicitMetal));
+        let p = f.engine.cache_probe_for_test();
+        assert_eq!(p.measurements, u64::from(matches!(control, SelectionControl::CalibrationFailure)));
+        assert_eq!((p.lookups, p.hits, p.publications, p.entries), (0, 0, 0, 0));
+    }
 }

@@ -109,6 +109,9 @@ pub(crate) fn local_regular_file(root: &Path, id: ImageId, name: &str) -> StoreR
 }
 
 impl SmartPreviewJournal {
+    #[cfg(all(test, target_os = "macos"))]
+    pub(crate) fn incarnation_for_test(&self) -> [u8; 32] { self.incarnation }
+
     /// Read-only admission: never creates store directories and never touches originals.
     pub(crate) fn read_local_snapshot(
         root: &Path,
