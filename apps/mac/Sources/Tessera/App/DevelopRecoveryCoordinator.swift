@@ -93,11 +93,17 @@ final class DevelopRecoveryCoordinator {
         var recipient: SessionID?
     }
 
+    private struct ClosedSession {
+        let id: SessionID
+        let key: Key?
+        let controller: ObjectIdentifier
+    }
+
     private(set) var presentations: [Presentation] = []
     @ObservationIgnored private var records: [SessionID: Record] = [:]
     @ObservationIgnored private var gates: [UUID: GateRecord] = [:]
     @ObservationIgnored private var opens: [UUID: OpenTicket] = [:]
-    @ObservationIgnored private var closedSessions: [SessionID] = []
+    @ObservationIgnored private var closedSessions: [ClosedSession] = []
     @ObservationIgnored private var generation: UInt64 = 0
 
     var hasUnresolvedSessions: Bool { !records.isEmpty || !opens.isEmpty }
@@ -162,7 +168,10 @@ final class DevelopRecoveryCoordinator {
         guard let ticket = opens.removeValue(forKey: token) else { return }
         if let controller = ticket.produced {
             let handedOff = ticket.recipient.map { id in
-                records[id]?.controller === controller || closedSessions.contains(id)
+                (records[id]?.controller === controller && records[id]?.key == ticket.key)
+                    || closedSessions.contains {
+                        $0.id == id && $0.key == ticket.key && $0.controller == ObjectIdentifier(controller)
+                    }
             } ?? false
             if !handedOff {
                 let id = register(owner: ticket.owner, controller: controller, displayName: controller.imageID)
@@ -179,7 +188,7 @@ final class DevelopRecoveryCoordinator {
 
     func requestClose(_ id: SessionID) -> Task<Outcome, Never> {
         guard let record = records[id] else {
-            if closedSessions.contains(id) { return Task { .saved } }
+            if closedSessions.contains(where: { $0.id == id }) { return Task { .saved } }
             return Task { .failed(sessionID: id, message: "Develop session is no longer available") }
         }
         if let task = record.task { return task }
@@ -209,7 +218,8 @@ final class DevelopRecoveryCoordinator {
         switch outcome {
         case .saved:
             records.removeValue(forKey: id)
-            closedSessions.append(id)
+            closedSessions.append(ClosedSession(id: id, key: record.key,
+                                                controller: ObjectIdentifier(record.controller)))
             if closedSessions.count > 128 { closedSessions.removeFirst(closedSessions.count - 128) }
         case .failed(_, let message):
             record.phase = .failed(message)
