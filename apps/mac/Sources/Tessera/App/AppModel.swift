@@ -2069,7 +2069,9 @@ final class AppModel {
         // mutation began. Do not create a new stale session after that barrier.
         if let owner = engineLibrary, let ref = item.engineImage,
            agent.isMutating(imageID: ref.imageID, library: owner) { return }
-        if develop?.itemID == item.id, developLibrary === engineLibrary {
+        if let controller = develop, let owner = engineLibrary, let ref = item.engineImage,
+           developLibrary === owner, controller.imageID == ref.imageID {
+            if controller.itemID != item.id { controller.relink(itemID: item.id) }
             liveObservers.forEach { $0.developDidChange() }
             return
         }
@@ -2108,8 +2110,9 @@ final class AppModel {
                 let id = self.install(develop: controller, library: owner)
                 recovery.transferOpen(token: token, to: id)
             } catch {
-                guard let self, !Task.isCancelled, self.engineLibrary === owner,
-                      self.focusedItem?.id == item.id else { return }
+                guard let self, !Task.isCancelled, self.activeDevelopOpen == token,
+                      generation == self.loadGeneration, self.engineLibrary === owner,
+                      self.focusedItem?.engineImage?.imageID == ref.imageID else { return }
                 self.developStatus = .unavailable(error.localizedDescription)
             }
         }
