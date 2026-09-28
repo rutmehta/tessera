@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Inspector compilation active; RAW ownership reviewed — 2026-09-28 21:00 UTC
+
+Save As remains accepted main3bad015a, evidence c3263fa1/f5dc7308 and three completed B receipts published. Remaining B inspector candidate ddb28101 passed independent16-file review; A prepared clean combinedf1089ba5 in reused render-resource-bounds checkout. Product bytes equal B; four inherited FFI artifacts match accepted SaveAs archive5b7e5eba. Inspector worker now owns compiler lane for focused/model/layout/adjacent/full/strict; GUI remains unrun. Exact-source Python runner regressions7pass. Broader runner remains excluded: Transform setup and resource-hold policy reconciliation requested source-only from B as cf3510b8, SSH queue01a0e9d0 accepted; no duplicate writer or app workloads.
+
+RAW ownership intermediate01409e82 on codex/private-raw-capture passed12 ownership/full30/strict/fmt and independent8202Git-input review. Evidence b602c426 preserves RED compile/behavioral failures and subsequent passing gates. Five fixture hashes were first observed after initial full run and unchanged after final; no invented before-first-run baseline. Public capture still Unsupported, branch unmerged. Codec prepares Task2 bounded stream/sealed hash tests source-only while inspector compiles; decoder/render/consumer integration remains outside this slice.
+
+
 ## Checked Save As accepted on main — 2026-09-28 20:56 UTC
 
 Main3bad015a integrates qualified1e45baae after native/focused/adjacent/full/strict and real isolated GUI acceptance. All apps/crates/Cargo inputs on merge equal tested candidate exactly. Full703 XCTest/1skip0fail plus5 Swift Testing; actual Sony workflows retained. Root verified7804 Git inputs, exact archive/bindings,89 packaged GUI payload hashes and all4 final disposable outputs. Actual existing-destination Cancel preserved sentinel bytes/inode and dirty title; new-name and affirmative Replace each closed/reopened with the expected layer edit. Owned app exited normally. Late appearance remains native/Swift barrier coverage, not a claimed GUI race. Historical Saved HUD after edit/cancel is a recorded UI clarity limitation.
