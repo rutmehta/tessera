@@ -1,0 +1,15 @@
+{
+  "provenance": "Native owner reports full command below. Focused94 result is preserved but exact filter command was not provided to reviewer at packaging time; it is not reconstructed from test names.",
+  "cwd": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac",
+  "full_release_argv": [
+    "swift",
+    "test",
+    "-c",
+    "release",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-validation/m258-current/swiftpm-d53a969e"
+  ],
+  "full_success_source": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393",
+  "focused_scope": "Eight corrected wrapped-real-session test suites;94passes, subset of full",
+  "additional_environment": "No additional environment or jobs flags asserted by reviewer; only explicitly supplied argv recorded."
+}
