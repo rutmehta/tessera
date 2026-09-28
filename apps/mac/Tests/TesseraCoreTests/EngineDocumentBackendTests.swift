@@ -31,7 +31,45 @@ final class EngineDocumentBackendTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: path), bytes)
         XCTAssertEqual(try backend.saveAs(path: path.path, intent: .replaceConfirmed), .saved)
         XCTAssertThrowsError(try backend.saveAs(path: dir.appendingPathComponent("missing/out.tessera-doc").path,
-                                               intent: .createIfAbsent))
+                                               intent: .createIfAbsent)) { error in
+            XCTAssertTrue(error is DocumentError, "ordinary FFI failure must be bridged, got \(error)")
+        }
+    }
+
+    // SOURCE ONLY / UNRUN: conflict against a different destination must preserve
+    // the dirty document's existing identity and its earlier successful saved node.
+    func testDirtyCheckedSaveConflictAtDifferentTargetPreservesIdentityAndSavedMarker() throws {
+        let dir = try temp()
+        let docs = EngineDocumentEngine.for(try engine(dir))
+        let backend = try docs.newDocument(width: 4, height: 4, depth: .u8, profile: nil)
+        defer { backend.close() }
+        let original = dir.appendingPathComponent("original.tessera-doc")
+        XCTAssertEqual(try backend.saveAs(path: original.path, intent: .createIfAbsent), .saved)
+        let originalBytes = try Data(contentsOf: original)
+        XCTAssertFalse(try backend.info().dirty)
+        _ = try backend.addLayer(kind: .pixel, name: "Unsaved change", parent: nil, index: nil)
+        let before = try backend.info()
+        XCTAssertTrue(before.dirty)
+        let target = dir.appendingPathComponent("different.tessera-doc")
+        let sentinel = Data("other file".utf8)
+        try sentinel.write(to: target)
+        XCTAssertEqual(try backend.saveAs(path: target.path, intent: .createIfAbsent), .destinationExists)
+        let after = try backend.info()
+        XCTAssertEqual(after.path, before.path)
+        XCTAssertEqual(after.title, before.title)
+        XCTAssertTrue(after.dirty)
+        XCTAssertEqual(after.historyHead, before.historyHead)
+        XCTAssertEqual(try Data(contentsOf: target), sentinel)
+        XCTAssertEqual(try Data(contentsOf: original), originalBytes)
+        XCTAssertThrowsError(try backend.saveAs(path: dir.appendingPathComponent("missing/out.tessera-doc").path,
+                                               intent: .createIfAbsent)) { error in
+            XCTAssertTrue(error is DocumentError, "I/O must remain a bridged error, got \(error)")
+        }
+        XCTAssertEqual(try backend.info().path, before.path)
+        XCTAssertEqual(try backend.info().title, before.title)
+        XCTAssertTrue(try backend.info().dirty)
+        _ = try backend.undo()
+        XCTAssertFalse(try backend.info().dirty, "undo to the earlier saved node must still be clean")
     }
 
     // MARK: Record conversion
