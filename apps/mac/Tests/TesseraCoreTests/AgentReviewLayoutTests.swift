@@ -44,16 +44,10 @@ final class AgentReviewLayoutTests: XCTestCase {
         let revision = model.libraryRevision
 
         let imageID = try XCTUnwrap(item.engineImage?.imageID)
-        var recipe = try XCTUnwrap(JSONSerialization.jsonObject(with:
-            Data(library.engine.getRecipe(imageId: imageID).utf8)) as? [String: Any])
-        var settings = try XCTUnwrap(recipe["settings"] as? [String: Any])
-        var tone = try XCTUnwrap(settings["tone"] as? [String: Any])
-        tone["exposure"] = 1.25
-        settings["tone"] = tone
-        recipe["settings"] = settings
-        let recipeData = try JSONSerialization.data(withJSONObject: recipe, options: [.sortedKeys])
-        print("[review-refresh-test] recipe serialized")
-        try library.engine.setRecipeJson(imageId: imageID, json: String(decoding: recipeData, as: UTF8.self))
+        let session = try library.engine.openDevelopSession(imageId: imageID)
+        try session.setSettings(jsonPatch: #"{"tone":{"exposure":1.25}}"#, interactive: false)
+        try session.flush()
+        try session.close()
         print("[review-refresh-test] recipe written")
         try ShellHarness.writeJPEG(photo, shade: 180)
         try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(5)], ofItemAtPath: photo.path)
