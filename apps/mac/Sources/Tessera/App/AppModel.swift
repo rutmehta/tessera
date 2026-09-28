@@ -1089,7 +1089,8 @@ final class AppModel {
         pendingLayeredCopyRequestID = request.id
         guard let owner = request.library, let imageID = request.item.engineImage?.imageID else {
             pendingLayeredCopyRequestID = nil
-            guard !developRecovery.hasUnresolvedSessions else {
+            guard !developRecovery.hasUnresolvedSessions,
+                  !developRecovery.hasActiveReservations else {
                 statusMessage = "Finish saving the photo before opening Layers"
                 return
             }
@@ -1097,12 +1098,11 @@ final class AppModel {
             documents.editInLayers(request.item)
             return
         }
-        if developLibrary === owner, develop?.imageID == imageID { closeDevelop() }
         let selected = selection
         let focusedKey = focusedItem.map { workspaceKey(for: $0) }
         let source = self.source
         let view = viewMode
-        let barrier = pendingDevelopSaveBarrier(imageID: imageID, library: owner)
+        let barrier = prepareForRecipeRead(imageIDs: [imageID], library: owner)
         let savingMessage = "Saving photo before opening Layers…"
         layeredCopyStatusOwner = request.id
         statusMessage = savingMessage
