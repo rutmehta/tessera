@@ -1,0 +1,16 @@
+{
+  "name": "focused",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--lib",
+    "recipe_write_tests",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "elapsed_seconds": 11.404484272003174
+}

@@ -1,0 +1,16 @@
+{
+  "name": "clippy",
+  "command": [
+    "cargo",
+    "clippy",
+    "-p",
+    "tessera-ffi",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit": 101,
+  "timed_out": false,
+  "elapsed_seconds": 141.05272698402405
+}

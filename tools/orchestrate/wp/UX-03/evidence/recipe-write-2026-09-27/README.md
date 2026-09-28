@@ -1,0 +1,9 @@
+# Internal recipe write gate validation, 2026-09-27
+
+The test-first source checkpoint `78520df5` failed as expected with only E0432 (`crate::recipe_write` absent). `red-78520df5/` retains the exact five-file source snapshot, hash manifest, direct exit 101, and complete log.
+
+The initial implementation `a312b13f` passed all six focused tests. `green1-source/` retains the exact implementation source snapshot, hashes, direct exit, and log. The adjacent selection unit test (1/0), all `tessera-ffi/tests/api.rs` integration tests (3/0), and repository format check passed on that same implementation. The first strict Clippy run failed only on dormant internal revision-helper `dead_code` warnings and one test initializer lint; `adjacent-a312b13f/` preserves every direct exit and log, including that failure.
+
+The lint-scoped candidate `c734074a` changed only item-level expectations for currently unconsumed internal revision helpers and the test initializer. `final-c734074a/` retains the exact six-file source snapshot, hash manifest, direct exits, and complete logs: focused six tests 6/0, `cargo fmt --all -- --check` exit 0, and `cargo clippy -p tessera-ffi --all-targets -- -D warnings` exit 0. Both Cargo test and Clippy runs used `CARGO_BUILD_JOBS=2`, `RAYON_NUM_THREADS=2`, and the external `/Volumes/betterSSD/tessera-cache/target` cache. Each command had a 600-second watchdog and did not time out.
+
+Scope is two Engine writers only (`set_selection`, `set_recipe_json`) plus an internal full-byte revision/gate. These gates do not prove batch Apply, a durable CAS, external-process exclusion, protection of other recipe writers, or multi-file atomicity of recipe, XMP, and index persistence. The source branch predates newer PSD changes; a combined-current-main gate is required before integration.

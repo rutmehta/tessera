@@ -1,0 +1,73 @@
+[package]
+license = "Apache-2.0"
+name = "tessera-ffi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+tether = { path = "../tether" }
+jobs = { path = "../jobs" }
+engine-api = { path = "../engine-api" }
+index = { path = "../index" }
+sidecar = { path = "../sidecar" }
+previews = { path = "../previews" }
+raw-decode = { path = "../raw-decode" }
+cull = { path = "../cull" }
+library = { path = "../library" }
+import-lrcat = { path = "../import-lrcat" }
+color-mgmt = { path = "../color-mgmt" }
+image-core = { path = "../image-core" }
+pipeline-cpu = { path = "../pipeline-cpu" }
+pipeline-gpu = { path = "../pipeline-gpu" }
+ml-runtime = { path = "../ml-runtime" }
+ml-segment = { path = "../ml-segment" }
+# Layered-editor tools (WP B5-04).
+brush = { path = "../brush" }
+selection = { path = "../selection" }
+export = { path = "../export" }
+ml-enhance = { path = "../ml-enhance" }
+merge = { path = "../merge" }
+ml-faces = { path = "../ml-faces" }
+ml-quality = { path = "../ml-quality" }
+ml-caption = { path = "../ml-caption" }
+ml-embed = { path = "../ml-embed" }
+style-profile = { path = "../style-profile" }
+agent = { path = "../agent" }
+compositor = { path = "../compositor" }
+psd = { path = "../psd" }
+# Live shapes and vector masks (WP B5-11).
+vector = { path = "../vector" }
+gpu-core = { path = "../gpu-core" }
+wgpu.workspace = true
+bytemuck.workspace = true
+png.workspace = true
+tiff = "0.10"
+jpeg-encoder = "0.6"
+lcms2.workspace = true
+anyhow.workspace = true
+blake3.workspace = true
+uniffi = { workspace = true, features = ["cli"] }
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+image = { workspace = true, features = ["png"] }
+kamadak-exif.workspace = true
+half.workspace = true
+# Filters and smart filters in document mode (WP B5-05).
+filters = { path = "../filters" }
+# Editable text layers: layout for the Type tool's caret (WP B5-10).
+typography = { path = "../typography" }
+# Non-destructive warp / perspective / puppet / content-aware scale stages (WP B5-12).
+transform = { path = "../transform" }
+
+[dev-dependencies]
+import-lrcat = { path = "../import-lrcat", features = ["fixture"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "focused",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "tessera-ffi",
+      "--lib",
+      "recipe_write_tests",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 11.404484272003174
+  },
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 1.970663070678711
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "tessera-ffi",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 15.56034803390503
+  }
+]

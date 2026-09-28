@@ -1,0 +1,63 @@
+[
+  {
+    "name": "selection-lib",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "tessera-ffi",
+      "--lib",
+      "selection_survives_reopen_and_incremental_scan",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 0.7528221607208252
+  },
+  {
+    "name": "api-integration",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "tessera-ffi",
+      "--test",
+      "api",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 29.42080783843994
+  },
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 1.9503259658813477
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "tessera-ffi",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 101,
+    "timed_out": false,
+    "elapsed_seconds": 141.05272698402405
+  }
+]

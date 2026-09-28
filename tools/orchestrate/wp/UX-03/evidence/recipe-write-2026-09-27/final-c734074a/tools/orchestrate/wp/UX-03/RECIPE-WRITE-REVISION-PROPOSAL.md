@@ -1,0 +1,29 @@
+# Internal recipe write revision: test-first checkpoint
+
+Status: **UNRUN / proposal only**. This checkpoint contains tests and test-only module wiring, not the `recipe_write` implementation. It was prepared from `origin/main` `b00968af` after the rendered-export metadata merge. The focused RED must be observed and recorded before production edits.
+
+## Narrow first slice
+
+Add an internal, process-wide gate keyed by the **resolved recipe sidecar destination** (`Sidecar::paths(image).recipe`), then use it in exactly `Engine::set_selection` and `Engine::set_recipe_json`. Both currently hold only their own `Engine` catalog mutex while reading and persisting a recipe, XMP, and rebuildable index. Two `Engine` instances can therefore overlap on the same destination. Resolve the image ID to a path under the catalog mutex, release it, acquire the destination gate, reacquire the catalog mutex, verify that ID still resolves to the same image path, then read and persist. Keep the destination guard through recipe/XMP/index completion and release it before notifying listeners. A path change fails rather than silently writing to a different source. Do not hold the catalog mutex while waiting for the gate.
+
+The internal `RecipeRevision` records the full **raw** recipe sidecar bytes and the selected XMP packet path/presence/bytes. `capture_revision` must acquire the destination gate for both reads so no participating writer can interleave recipe and XMP snapshots. Hash these with a domain-separated BLAKE3 digest and retain the destination gate state plus its monotonic epoch. `Recipe::recipe_hash()` is a render cache key and excludes selection, history, IDs, and unknown fields; it cannot serve as a write revision. The raw digest observes unknown envelope bytes even though current `RecipeDocument` serialization does **not** preserve unknown envelope members. This slice does not claim lossless persistence of them.
+
+Use a weak-value lock table only if each retained `RecipeRevision` holds a strong `Arc` to its key state. Otherwise pruning and recreation can reset the epoch while an old token survives. A write guard advances the epoch conservatively on every participating attempt, including an error or same-byte write. Check overflow rather than wrapping. A later atomic compare-and-write must compare key identity, epoch, and current raw bytes **while the destination guard is held**; `WriteGuard::matches_revision` must reuse its held lock and never reacquire it. This patch does not expose that operation to batch Apply.
+
+The key resolves the existing destination path. `.edits/<stem>.json` is shared by same-stem image extensions. `catalog::document` rejects a sidecar whose recipe `image_id` belongs to another image, so this patch serializes the collision but does not redefine its persistence format. Resolve an existing `.edits` symlink when forming the key; if it does not yet exist, use the canonical image parent plus `.edits/<stem>.json`. External symlink replacement and external-process writes remain outside the in-process guarantee.
+
+## Proposed regressions
+
+`crates/tessera-ffi/src/recipe_write_tests.rs` supplies six tiny tests: valid documents with equal actual render hashes but different selection/history/sync bytes, then an unknown-envelope-only byte change with equal decoded `RecipeDocument`, plus XMP bytes and selected-path changes; retained-token weak-key ABA after table churn; capture waiting for a participating write; same-stem destination and existing image-ID rejection; and one held-gate serialization case for each of the two Engine writers. Both writers must leave matching recipe, XMP, and index state. The JPEGs are 2×2. A `#[cfg(test)]` one-shot observer on the destination gate is signaled only after a test-only `try_lock` probe in the common gate admission path confirms that the actual destination mutex is contended, just before the blocking acquisition. Tests install it after holding the gate and wait for that deterministic contention handshake; another destination on the **same Engine instance** must finish while the first is held, proving the catalog mutex was released before waiting. The observer must not acquire the write mutex, delay the caller, or change production behavior. Channel timeouts are watchdogs, not evidence of reaching the gate. No sleeps, RAW decoding, GPU, or large catalog fixture.
+
+First focused RED command after the compiler slot is released:
+
+```sh
+CARGO_BUILD_JOBS=2 RAYON_NUM_THREADS=2 cargo test -p tessera-ffi --lib recipe_write_tests -- --nocapture
+```
+
+The expected initial failure is unresolved `crate::recipe_write`; preserve direct exit, log, source hashes, and toolchain version. After a reviewed implementation, rerun the six focused tests, existing adjacent `tessera-ffi` recipe/selection tests, and strict crate validation within a bounded timeout. Do not broaden to a full application gate in this slice.
+
+## Explicit remaining bypasses
+
+Develop's open-session writer, Agent and MCP edits, Culling's multi-image transaction, Lightroom import, merge publication, XMP-only metadata writes, and external processes do not use this first gate. A legacy `set_recipe_json` call may still contain stale settings; serializing its read/write does not make its input a CAS request. Pending Develop saves also remain a batch race. `persist` writes recipe, then XMP, then the index: the individual sidecar renames are atomic, but the three outputs are **not** a multi-file transaction, and there is no parent-directory fsync or rollback on a later failure. The gate serializes only the two adopted in-process read/modify/write sequences; it does not make those outputs durably atomic. Do not enable batch Apply UI or claim every recipe writer is protected until those owners and a durable run-specific revert contract are addressed separately.

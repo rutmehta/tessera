@@ -1,0 +1,30 @@
+{
+  "head": "c734074ac5318b0f93ce548cebb522cefad98c05",
+  "status": "clean",
+  "files": {
+    "Cargo.lock": {
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    "crates/tessera-ffi/Cargo.toml": {
+      "sha256": "3d44fb1fc0c21eff4d7a2de2cad0a3c65e2599855087eee380716fc65e83a0d4",
+      "bytes": 2297
+    },
+    "crates/tessera-ffi/src/lib.rs": {
+      "sha256": "92c9cf4a322cd6bae1425cd1cd7972702d0ca9af16cdba72944d5d710cc61e78",
+      "bytes": 21222
+    },
+    "crates/tessera-ffi/src/recipe_write.rs": {
+      "sha256": "43bb4d405b06c50cbf3bc0d031a4534c33ccba1d1890cfb48a0b057d75a19928",
+      "bytes": 7618
+    },
+    "crates/tessera-ffi/src/recipe_write_tests.rs": {
+      "sha256": "432021a2d890cdb9d7cd8442a1f9911d92c98a32f2d7c8828d7171bf51ef8bac",
+      "bytes": 11796
+    },
+    "tools/orchestrate/wp/UX-03/RECIPE-WRITE-REVISION-PROPOSAL.md": {
+      "sha256": "a945a8f6339a07d127ad1047a8a688b3acc00fd0af952feb94967a882f74a253",
+      "bytes": 5841
+    }
+  }
+}

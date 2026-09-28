@@ -1,0 +1,16 @@
+{
+  "name": "selection-lib",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--lib",
+    "selection_survives_reopen_and_incremental_scan",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "elapsed_seconds": 0.7528221607208252
+}
