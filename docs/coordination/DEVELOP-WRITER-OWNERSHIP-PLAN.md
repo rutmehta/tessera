@@ -1,6 +1,6 @@
 # Develop full-save owner conflict: test-first checkpoint
 
-Status: **tests UNRUN; no production behavior changed**. Branch `codex/develop-owner-conflict` starts at main `5219495191d677a5350cac1d012d7eb15362258a`. This is a narrow precursor to Stage C in `tools/orchestrate/wp/UX-03/DEVELOP-WRITER-LEASE-PROPOSAL.md`, not a Develop lease or batch write API. The source audit is `/tmp/tessera-recipe-stagec-next-audit.md`.
+Status: the initial three-test gate at `546c19c1` observed the intended stale-save RED and two passing controls. The expanded cases at `73589dce` are **UNRUN**; initial production candidate `28a7017a` failed compilation, and its narrow error-conversion correction has not yet been gated. Branch `codex/develop-owner-conflict` starts at main `5219495191d677a5350cac1d012d7eb15362258a`. This is a narrow precursor to Stage C in `tools/orchestrate/wp/UX-03/DEVELOP-WRITER-LEASE-PROPOSAL.md`, not a Develop lease or batch write API. The source audit is `/tmp/tessera-recipe-stagec-next-audit.md`.
 
 ## Failure and intended boundary
 
