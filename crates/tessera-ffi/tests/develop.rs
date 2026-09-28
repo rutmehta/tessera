@@ -216,6 +216,50 @@ fn exposure(session: &DevelopSession) -> f64 {
     v["tone"]["exposure"].as_f64().unwrap()
 }
 
+/// Reports setter wall time, not shader/sink or input-to-display time.
+#[test]
+#[ignore = "designated RAW performance measurement on a shared host"]
+fn bench_upright_setter_boundary() {
+    let h = harness("ARW").expect("designated Sony ARW fixture required");
+    let mut open = Open::new(&h.engine, &h.image_id);
+    open.attach((1280, 900), 3);
+    open.next_final();
+    let mut times = Vec::new();
+    for i in 0..101 {
+        let patch = format!(
+            r#"{{"geometry":{{"upright":{{"mode":"auto"}}}},"tone":{{"exposure":{}}}}}"#,
+            i as f64 / 100.0
+        );
+        let start = Instant::now();
+        open.session
+            .set_settings_identified(patch, true, Some(i + 1))
+            .unwrap();
+        times.push(start.elapsed().as_secs_f64() * 1000.0);
+    }
+    let deadline = Instant::now() + Duration::from_secs(120);
+    loop {
+        let frame = open
+            .frames
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap();
+        if frame.input_id == Some(101) {
+            assert_eq!(
+                frame.histogram.as_ref().unwrap().generation,
+                frame.generation
+            );
+            break;
+        }
+    }
+    times.sort_by(f64::total_cmp);
+    println!(
+        "UPRIGHT_SETTER samples={} median_ms={} p95_ms={} max_ms={}",
+        times.len(),
+        times[50],
+        times[95],
+        times[100]
+    );
+}
+
 fn mean(h: &[u32]) -> f64 {
     let n: u64 = h.iter().map(|&c| u64::from(c)).sum();
     h.iter()

@@ -179,6 +179,14 @@ pub struct SurfacePlan {
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct FrameInfo {
+    /// Identity supplied by the host, not the render generation.
+    pub input_id: Option<u64>,
+    /// Actual worker entry in CACurrentMediaTime's monotonic clock (macOS).
+    pub job_dequeued_time: Option<f64>,
+    /// True only when render_surface_as actually produced this frame.
+    pub resident: bool,
+    /// Histogram for this exact frame; no synchronous host fetch is needed.
+    pub histogram: Option<Histogram>,
     /// Surface written, or 0 when no surface is attached.
     pub surface_id: u32,
     pub level: u8,
@@ -253,6 +261,8 @@ pub struct HistoryGroupState {
 /// A rendered 1:1 detail crop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct DetailPreview {
+    /// Engine state identity; validate again on the host immediately before display.
+    pub revision: u64,
     /// Top-left of the crop in level-0 active-area pixels (sensor orientation).
     pub x: u32,
     pub y: u32,
@@ -319,6 +329,7 @@ impl Frame {
 }
 
 struct State {
+    input_id: Option<u64>,
     recipe: Recipe,
     live: DevelopSettings,
     /// Calibration/model backend installed for this session, never persisted as a recipe edit.
@@ -619,6 +630,8 @@ pub(crate) struct Shared {
     // release an IOSurface while a submitted write is still in flight.
     render_serial: Mutex<()>,
     generation: AtomicU64,
+    // Counts requests even when interactive work is coalesced before a new generation.
+    detail_revision: AtomicU64,
     listener: Mutex<Option<Arc<dyn DevelopListener>>>,
     save: Mutex<SaveState>,
     save_cv: Condvar,
@@ -1043,6 +1056,7 @@ impl Engine {
                 screen_level,
                 job: None,
                 generation: 0,
+                input_id: None,
                 histogram: Histogram::default(),
                 frame: None,
                 closed: false,
@@ -1060,6 +1074,7 @@ impl Engine {
             }),
             render_serial: Mutex::new(()),
             generation: AtomicU64::new(0),
+            detail_revision: AtomicU64::new(0),
             listener: Mutex::new(None),
             save: Mutex::new(SaveState::default()),
             save_cv: Condvar::new(),
@@ -1487,6 +1502,35 @@ impl Shared {
         }
     }
 
+    /// Worker-only admission. Leased callback/presentation surfaces cannot be
+    /// overwritten. Cancellation/close interrupts backpressure; never wait on main.
+    fn render_surface(
+        &self,
+        generation: u64,
+        ctx: &JobContext,
+    ) -> engine_api::EngineResult<Option<Arc<Surface>>> {
+        loop {
+            ctx.cancellation.check()?;
+            {
+                let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                if st.closed || st.generation != generation {
+                    return Err(engine_api::EngineError::Cancelled);
+                }
+                let ids: Vec<_> = st.surfaces.iter().map(|s| s.id()).collect();
+                let Some(start) = st.next_surface.candidate(&ids) else {
+                    return Ok(None);
+                };
+                for offset in 0..st.surfaces.len() {
+                    let s = &st.surfaces[(start + offset) % st.surfaces.len()];
+                    if !s.is_in_use() {
+                        return Ok(Some(s.clone()));
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
     fn renderer_snapshot(&self, settings: &DevelopSettings) -> Renderer {
         renderer_snapshot(
             &self.renderer,
@@ -1536,6 +1580,17 @@ impl Shared {
 
     /// Cancels the running render and submits a new one for the live settings.
     fn render(self: &Arc<Self>, st: &mut State, interactive: bool) {
+        self.render_identified(st, interactive, None);
+    }
+
+    fn render_identified(
+        self: &Arc<Self>,
+        st: &mut State,
+        interactive: bool,
+        input_id: Option<u64>,
+    ) {
+        self.detail_revision.fetch_add(1, Ordering::SeqCst);
+        st.input_id = input_id;
         if st.closed {
             return;
         }
@@ -1584,24 +1639,10 @@ impl Shared {
         };
         st.rendered = Some(settings.clone());
         let target = st.screen_level;
-        let area = self.image.level_extent(target).area();
-        let resident = renderer
-            .can_render_resident(&self.image, &settings)
-            .unwrap_or(false);
-        let class = RenderClass::of(&settings, resident);
-        let first = if interactive {
-            // Measured adaptation governs resident renders; the static pixel
-            // budget remains a prior only for non-resident heavy recipes.
-            let budget = if !resident && area > DRAG_BUDGET_PX {
-                1
-            } else {
-                0
-            };
-            (target + st.drag[class as usize].offset.max(budget)).min(MAX_LEVEL)
-        } else {
-            target
-        };
-        let finest = if interactive { first } else { target };
+        // Only snapshot here. Residency can develop L0 for automatic Upright;
+        // the worker resolves the actual level before touching any surface.
+        let first = target;
+        let finest = target;
         let viewport = Viewport {
             rect: self.full_rect(),
             finest_level: finest,
@@ -1618,6 +1659,8 @@ impl Shared {
         let output = st.output();
         let surface = Arc::new(Mutex::new(None));
         let sink = Arc::new(Mutex::new(LevelSink {
+            input_id: st.input_id,
+            job_dequeued_time: None,
             output,
             surface: surface.clone(),
             shared: Arc::downgrade(self),
@@ -1630,10 +1673,11 @@ impl Shared {
             dirty: dirty.map(stage_name),
             current: None,
             screen_level: target,
-            adapt: interactive.then_some(class),
+            adapt: None,
         }));
         let cpu_sink = sink.clone();
         let job = DevelopJob {
+            drag: interactive.then_some(st.drag),
             sink,
             surface,
             inner: ProgressiveRenderJob {
@@ -1662,7 +1706,8 @@ impl Shared {
         if st.interactive_in_flight == Some(generation) {
             st.interactive_in_flight = None;
             if std::mem::take(&mut st.interactive_pending) {
-                self.render(st, true);
+                let input_id = st.input_id;
+                self.render_identified(st, true, input_id);
             }
         }
     }
@@ -1872,6 +1917,7 @@ impl Shared {
         if let Ok(mut st) = self.state.lock() {
             st.closed = true;
             st.closing = false;
+            self.detail_revision.fetch_add(1, Ordering::SeqCst);
             st.generation += 1;
             self.generation.store(st.generation, Ordering::SeqCst);
             if let Some(job) = st.job.take() {
@@ -1884,6 +1930,8 @@ impl Shared {
 
 /// Collects one render's tiles level by level, writing them into the ring.
 struct LevelSink {
+    input_id: Option<u64>,
+    job_dequeued_time: Option<f64>,
     /// SDR encoded or EDR display-linear tiles (matches the ring).
     output: RenderOutput,
     surface: SurfaceDestination,
@@ -1990,6 +2038,7 @@ impl LevelSink {
         };
         let [r, g, b, y] = hist;
         let is_overlay;
+        let histogram;
         {
             let Ok(mut st) = shared.state.lock() else {
                 return;
@@ -2011,6 +2060,7 @@ impl LevelSink {
                     generation: self.generation,
                 };
             }
+            histogram = (!is_overlay).then(|| st.histogram.clone());
             st.rendered_level = Some(done.level);
             if let Some(class) = self.adapt.filter(|_| done.level == self.finest_level) {
                 st.drag[class as usize].record(render_ms);
@@ -2033,6 +2083,10 @@ impl LevelSink {
         }
         if let Some(listener) = shared.listener() {
             listener.frame_ready(FrameInfo {
+                input_id: self.input_id,
+                job_dequeued_time: self.job_dequeued_time,
+                resident: lazy_pixels,
+                histogram,
                 surface_id: done.surface.as_ref().map_or(0, |s| s.id()),
                 level: done.level,
                 width,
@@ -2193,7 +2247,23 @@ fn accumulate(hist: &mut Hist, tile: &Tile) {
 }
 
 /// Reports failures of the wrapped render to the session listener.
+#[cfg(target_os = "macos")]
+fn dequeue_time() -> Option<f64> {
+    #[link(name = "QuartzCore", kind = "framework")]
+    unsafe extern "C" {
+        fn CACurrentMediaTime() -> f64;
+    }
+    // Same clock used by Swift's input trace and CAMetalDrawable.presentedTime.
+    Some(unsafe { CACurrentMediaTime() })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn dequeue_time() -> Option<f64> {
+    None
+}
+
 struct DevelopJob {
+    drag: Option<[DragLevel; 2]>,
     sink: Arc<Mutex<LevelSink>>,
     surface: SurfaceDestination,
     inner: ProgressiveRenderJob,
@@ -2208,7 +2278,11 @@ impl Job for DevelopJob {
     fn priority(&self) -> Priority {
         self.inner.priority
     }
-    fn run(self: Box<Self>, ctx: &JobContext) -> engine_api::EngineResult<()> {
+    fn run(mut self: Box<Self>, ctx: &JobContext) -> engine_api::EngineResult<()> {
+        self.sink
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .job_dequeued_time = dequeue_time();
         let shared = self.shared.clone();
         let generation = self.generation;
         let owner = shared.upgrade();
@@ -2217,14 +2291,40 @@ impl Job for DevelopJob {
             .map(|s| s.render_serial.lock().unwrap_or_else(|e| e.into_inner()));
         let result = (|| {
             ctx.cancellation.check()?;
+            if owner
+                .as_ref()
+                .is_none_or(|s| s.generation.load(Ordering::SeqCst) != generation)
+            {
+                return Err(engine_api::EngineError::Cancelled);
+            }
+            // Immutable recipe/image/renderer snapshots, no session state lock.
+            let resident = self
+                .inner
+                .renderer
+                .can_render_resident(&self.inner.image, &self.inner.settings)
+                .unwrap_or(false);
+            ctx.cancellation.check()?;
+            if let Some(drag) = self.drag {
+                let class = RenderClass::of(&self.inner.settings, resident);
+                let target = self.inner.viewport.finest_level;
+                let budget = u8::from(
+                    !resident && self.inner.image.level_extent(target).area() > DRAG_BUDGET_PX,
+                );
+                let level = (target + drag[class as usize].offset.max(budget)).min(MAX_LEVEL);
+                self.inner.viewport.finest_level = level;
+                self.inner.viewport.coarsest_level = level;
+                let mut sink = self.sink.lock().unwrap_or_else(|e| e.into_inner());
+                sink.first_level = level;
+                sink.finest_level = level;
+                let (cols, rows) =
+                    Renderer::output_extent(&self.inner.image, &self.inner.settings, level)
+                        .unwrap_or_else(|_| self.inner.image.level_extent(level))
+                        .tile_grid(TILE_SIZE);
+                sink.expected = vec![(level, (cols * rows) as usize)];
+                sink.adapt = Some(class);
+            }
             let destination = if let Some(owner) = &owner {
-                let st = owner.state.lock().unwrap_or_else(|e| e.into_inner());
-                if st.generation != generation {
-                    return Err(engine_api::EngineError::Cancelled);
-                }
-                st.next_surface
-                    .candidate(&st.surfaces.iter().map(|s| s.id()).collect::<Vec<_>>())
-                    .map(|i| st.surfaces[i].clone())
+                owner.render_surface(generation, ctx)?
             } else {
                 return Err(engine_api::EngineError::Cancelled);
             };
@@ -2593,6 +2693,16 @@ impl DevelopSession {
     /// Setting `white_balance.temperature`/`tint` without a mode switches to
     /// `custom`. Not recorded in history until `commit`.
     pub fn set_settings(&self, json_patch: String, interactive: bool) -> Result<()> {
+        self.set_settings_identified(json_patch, interactive, None)
+    }
+
+    /// Like set_settings, carrying the causal host input through coalescing.
+    pub fn set_settings_identified(
+        &self,
+        json_patch: String,
+        interactive: bool,
+        input_id: Option<u64>,
+    ) -> Result<()> {
         let patch: Value = serde_json::from_str(&json_patch).map_err(failure)?;
         let mut st = self.shared.edit_lock()?;
         let mut value = serde_json::to_value(&st.live).map_err(failure)?;
@@ -2625,8 +2735,10 @@ impl DevelopSession {
             && st.rendered.as_ref() == Some(&renderable_with(&next, !st.crop_editing))
             && presentation(&next, st.float_ring(), st.display_headroom) == st.output();
         st.live = next;
+        st.input_id = input_id;
         if !unchanged {
-            self.shared.render(&mut st, interactive);
+            self.shared
+                .render_identified(&mut st, interactive, input_id);
         }
         Ok(())
     }
@@ -2954,6 +3066,16 @@ impl DevelopSession {
         Ok(changed)
     }
 
+    /// Lock-free invalidation identity for detail crops, including coalesced mask
+    /// edits and AI rasters that change before their viewport callback arrives.
+    pub fn detail_revision(&self) -> u64 {
+        use image_core::mask_cache::MaskHooks;
+        self.shared
+            .detail_revision
+            .load(Ordering::SeqCst)
+            .wrapping_add(masks::Hooks(self.shared.masks.clone()).revision())
+    }
+
     /// Renders a 1:1 (level 0) crop of the live settings centred on
     /// (`center_x`, `center_y`), normalized active-area coordinates in sensor
     /// orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
@@ -2970,9 +3092,10 @@ impl DevelopSession {
     ) -> Result<DetailPreview> {
         let s = &self.shared;
         let surface = Surface::lookup(iosurface_id, width, height).map_err(failure)?;
-        let (mut settings, version) = {
+        let (mut settings, version, revision) = {
             let st = s.edit_lock()?;
-            (st.drawn(), st.recipe.process_version)
+            (st.drawn(), st.recipe.process_version, self.detail_revision())
+        };
         };
         settings.geometry = Default::default();
         settings.effects = Default::default();
@@ -3031,6 +3154,7 @@ impl DevelopSession {
             })
             .map_err(failure)?;
         Ok(DetailPreview {
+            revision,
             x,
             y,
             width: w,
@@ -3257,15 +3381,7 @@ impl Job for MaskJob {
             }
         };
         ctx.cancellation.check()?;
-        let surface = {
-            let st = shared.state.lock().unwrap_or_else(|e| e.into_inner());
-            if st.generation != self.generation {
-                return Err(engine_api::EngineError::Cancelled);
-            }
-            st.next_surface
-                .candidate(&st.surfaces.iter().map(|s| s.id()).collect::<Vec<_>>())
-                .map(|i| st.surfaces[i].clone())
-        };
+        let surface = shared.render_surface(self.generation, ctx)?;
         let (w, h) = match &surface {
             Some(s) => (source.width.min(s.width()), source.height.min(s.height())),
             None => (source.width, source.height),
@@ -3311,6 +3427,10 @@ impl Job for MaskJob {
         }
         if let Some(listener) = shared.listener() {
             listener.frame_ready(FrameInfo {
+                input_id: None,
+                job_dequeued_time: None,
+                resident: false,
+                histogram: None,
                 surface_id: surface.as_ref().map_or(0, |s| s.id()),
                 level: self.level,
                 width: w,
@@ -3852,6 +3972,75 @@ mod tests {
         let row = rows.remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         (dir, photo, engine, row.id, session)
+    }
+
+    #[test]
+    fn coalesced_frames_keep_causal_identity_and_matching_histogram() {
+        struct Listener(std::sync::mpsc::Sender<FrameInfo>);
+        impl DevelopListener for Listener {
+            fn frame_ready(&self, frame: FrameInfo) {
+                self.0.send(frame).unwrap();
+            }
+            fn render_failed(&self, message: String) {
+                panic!("{message}");
+            }
+            fn saved(&self, _: String) {}
+        }
+        let dir = tempfile::tempdir().unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
+            .save(dir.path().join("one.jpg"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.clone().open_develop_session(row.id).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        session.set_listener(Some(Arc::new(Listener(tx))));
+        // Hold the render worker, not state. Both synchronous mutations return.
+        let serial = session.shared.render_serial.lock().unwrap();
+        session
+            .set_settings_identified(r#"{"tone":{"exposure":0.3}}"#.into(), true, Some(41))
+            .unwrap();
+        let detail_revision = session.detail_revision();
+        let generation = session.shared.lock().unwrap().generation;
+        session
+            .set_settings_identified(r#"{"tone":{"exposure":0.7}}"#.into(), true, Some(42))
+            .unwrap();
+        assert_eq!(session.shared.lock().unwrap().generation, generation);
+        assert!(
+            session.detail_revision() > detail_revision,
+            "coalesced edits must invalidate detail before a new viewport generation"
+        );
+        drop(serial);
+        for expected in [41, 42] {
+            let frame = rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            assert_eq!(frame.input_id, Some(expected));
+            assert_eq!(
+                frame.histogram.as_ref().unwrap().generation,
+                frame.generation
+            );
+            assert!(!frame.resident); // No attached IOSurface: real fallback route.
+            #[cfg(target_os = "macos")]
+            assert!(frame.job_dequeued_time.unwrap() <= dequeue_time().unwrap());
+        }
+        session.commit("Exposure".into()).unwrap();
+        session.reset().unwrap();
+        let reset_generation = session.shared.lock().unwrap().generation;
+        loop {
+            let frame = rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            if frame.generation == reset_generation {
+                assert_eq!(
+                    frame.input_id, None,
+                    "reset must not reuse the slider identity"
+                );
+                break;
+            }
+        }
     }
 
     #[test]
@@ -5819,6 +6008,8 @@ mod m2_49_overlay_tests {
             (st.generation, st.drawn())
         };
         let sink = LevelSink {
+            input_id: None,
+            job_dequeued_time: None,
             output: RenderOutput::Display,
             surface: Default::default(),
             shared: Arc::downgrade(&session.shared),
