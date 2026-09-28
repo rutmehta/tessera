@@ -846,8 +846,10 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
         guard rw > 0, rh > 0 else { return nil }
         // The CPU stub computes every `step`-th texel beyond its budget and repeats it.
         let budget = interactive ? Self.interactiveBudget : Self.finalBudget
-        var step = 1
-        while (rw / step) * (rh / step) > budget { step *= 2 }
+        var sampledStep = 1
+        while (rw / sampledStep) * (rh / sampledStep) > budget { sampledStep *= 2 }
+        // Freeze the completed budget calculation before concurrent row bands capture it.
+        let step = sampledStep
         let scale = Float(1 << level)
         let comp = StubCompositor(state)
         IOSurfaceLock(target.surface, [], nil)
