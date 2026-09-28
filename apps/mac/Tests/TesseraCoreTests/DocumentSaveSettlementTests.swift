@@ -514,4 +514,28 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.cancelDocumentSave(next)
     }
 
+    func testAllProbeLeasesMustEndAndStaleTeardownCannotReleaseSuccessor() throws {
+        let (w, d) = try fixture()
+        w.saveSheetDetachmentObserver = nil
+        w.saveSheetParentIsClear = { true }
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let first = UUID(), second = UUID()
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: first))
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: second))
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertFalse(w.saveAsProbeBegan(old, probe: UUID()), "dismissal seals old generation")
+        w.saveAsProbeEnded(old, probe: first)
+        w.saveAsProbeEnded(old, probe: UUID())
+        XCTAssertNil(w.saveAsRequest)
+        w.saveAsProbeEnded(old, probe: second)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertTrue(w.saveAsPresentationWillPresent(next))
+        w.saveAsProbeEnded(old, probe: second)
+        XCTAssertEqual(w.saveAsPresentationID, next)
+        w.cancelDocumentSave(next)
+        w.saveAsPresentationDidDismiss(next)
+    }
+
 }
