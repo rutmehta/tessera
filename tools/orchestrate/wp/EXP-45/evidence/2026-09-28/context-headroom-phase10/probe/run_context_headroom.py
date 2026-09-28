@@ -13,6 +13,23 @@ TARGETS = {'default': None, 'target8': '8', 'target16': '16'}
 def sha_bytes(value): return hashlib.sha256(value).hexdigest()
 def sha_file(path): return sha_bytes(path.read_bytes())
 
+def icc_fingerprint(data):
+    assert len(data) >= 128 and int.from_bytes(data[:4], 'big') == len(data)
+    timestamp = [int.from_bytes(data[i:i+2], 'big') for i in range(24, 36, 2)]
+    normalized = data[:24] + data[36:]
+    return {'bytes': len(data), 'raw_sha256': sha_bytes(data),
+            'creation_time_fields': timestamp,
+            'sha256_excluding_creation_time_24_35': sha_bytes(normalized)}
+
+def assert_icc_diff_only_creation_time(actual_path, retained_path):
+    actual, retained = actual_path.read_bytes(), retained_path.read_bytes()
+    assert len(actual) == len(retained)
+    assert int.from_bytes(actual[:4], 'big') == len(actual)
+    assert int.from_bytes(retained[:4], 'big') == len(retained)
+    assert actual[:24] == retained[:24] and actual[36:] == retained[36:]
+    return {'actual': icc_fingerprint(actual), 'retained': icc_fingerprint(retained),
+            'differing_offsets': [i for i, (x, y) in enumerate(zip(retained, actual)) if x != y]}
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--run-root', required=True, type=Path, help='new, empty directory on the validation volume')
@@ -117,7 +134,6 @@ def main():
                 assert image['provider_bytes'] == expected['provider_bytes']
                 assert image['provider_sha256'] == expected['provider_sha256']
                 assert image['input_icc_bytes'] == expected['input_icc_bytes']
-                assert image['input_icc_sha256'] == expected['input_icc_sha256']
                 assert image['headroom'] == expected['headroom']
                 for field in ['color_space', 'input_color_space_present', 'input_color_space_model',
                               'input_color_space_components', 'bits_per_component', 'bits_per_pixel',
@@ -131,6 +147,10 @@ def main():
                 assert provider.stat().st_size == image['provider_bytes'] and sha_file(provider) == image['provider_sha256']
                 assert pixels.stat().st_size == 80 * 16 * 16
                 assert icc.stat().st_size == image['input_icc_bytes'] and sha_file(icc) == image['input_icc_sha256']
+                retained_icc = PHASE8.parent / name / 'imageio' / icc.name
+                assert retained_icc.is_file()
+                assert sha_file(retained_icc) == expected['returned_colorspace_icc']['sha256']
+                image['icc_vs_phase8'] = assert_icc_diff_only_creation_time(icc, retained_icc)
                 image['artifacts'] = {
                     'provider': {'bytes': provider.stat().st_size, 'sha256': sha_file(provider)},
                     'drawn_rgba_f32': {'bytes': pixels.stat().st_size, 'sha256': sha_file(pixels)},
@@ -151,7 +171,7 @@ def main():
                     old = previous['runs']['imageio'][name][mode]
                     new = record[mode]
                     assert new['provider_sha256'] == old['provider_sha256']
-                    assert new['input_icc_sha256'] == old['input_icc_sha256']
+                    assert new['input_icc_bytes'] == old['input_icc_bytes']
                     assert new['headroom'] == old['headroom']
                     assert abs(new['rgb_max'] - old['rgb_max']) < 1e-5
                     assert record[mode]['artifacts']['drawn_rgba_f32']['sha256'] == old['drawn_rgba_f32']['sha256']
@@ -165,7 +185,10 @@ def main():
                 a, b = default[mode], target[mode]
                 target['delta_vs_default'][mode] = {
                     'provider_identical': a['artifacts']['provider']['sha256'] == b['artifacts']['provider']['sha256'],
-                    'icc_identical': a['artifacts']['returned_icc']['sha256'] == b['artifacts']['returned_icc']['sha256'],
+                    'icc_equal_except_creation_time': (a['icc_vs_phase8']['actual']['sha256_excluding_creation_time_24_35'] == b['icc_vs_phase8']['actual']['sha256_excluding_creation_time_24_35']),
+                    'icc_raw_sha256_identical': a['artifacts']['returned_icc']['sha256'] == b['artifacts']['returned_icc']['sha256'],
+                    'icc_creation_time_default': a['icc_vs_phase8']['actual']['creation_time_fields'],
+                    'icc_creation_time_target': b['icc_vs_phase8']['actual']['creation_time_fields'],
                     'same_headroom': a['headroom'] == b['headroom'],
                     'draw_identical': a['artifacts']['drawn_rgba_f32']['sha256'] == b['artifacts']['drawn_rgba_f32']['sha256'],
                     'rgb_max_delta': b['rgb_max'] - a['rgb_max'],
