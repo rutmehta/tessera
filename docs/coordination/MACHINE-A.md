@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Above-8 ImageIO control established — 2026-09-28 09:06 UTC
+
+Phase1 evidence main e5aceab6 contains86 verified payloads; unmodified Google ISO controls and representative-bit copies were not recognized by ImageIO/CI. Phase2 main b89674a5 contains49 verified payloads: isolated explicit-denominator copies preserve exact rational values and reference decoder bytes, but ImageIO now recognizes auxiliary data and reaches13.934 pixels/headroom16 on this A host. CoreImage reaches13.942; retained A in the same run remains ImageIO7.983762/headroom8 and CoreImage16. Original A core4pass/1fail is unchanged. Raw “too few samples” diagnostics are retained before valid JSON; not hidden.
+
+Next bounded experiment is approved in isolated fixture copies only: A's equivalent4000000/1000000 headroom/gainMax fields→4/1 and admitted Google explicit control→4000000/1000000. No lengths, image data, ICC, other metadata or product code changes. Reviewer owns sole native lane; Resource and Luna review serializer/integration source independently. B source request remains reserved and unacknowledged with host unreachable; no duplicate queue dispatch.
+
 ## Evidence published; independent HDR control underway — 2026-09-28 08:50 UTC
 
 Native destination/FFI portable evidence is main `23f49958`; root verified all 52 payload hashes before importing. Resource released its compiler lane. B request8638c362 still has no receipt; default SSH reported Host down and a separate read-only IPv6 probe timed out. No queue message was accepted. Preserve B's reserved source scope until actual delivery/receipt or explicit reassignment.
