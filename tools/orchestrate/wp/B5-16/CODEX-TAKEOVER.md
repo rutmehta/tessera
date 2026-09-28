@@ -517,3 +517,14 @@ unseen-lifetime regression remain requirements, not waived. SDK confirms sheets 
 members but does NOT explicitly prove queued-only endSheet completion. Native queued cancellation,
 parent-close drainage and release of bounded context remain mandatory A acceptance gates; no synthetic
 notification/absence proof and no claim of leak-free or ready product. B resource/heartbeat hold unchanged.
+
+## 2026-09-28 — checked Save As Swift source handoff
+
+Request8638c362 source complete on origin/codex/save-destination-swift at0f820dff, exact81cc08eb base.
+Tests7b7a5dcb/8976f2fe precede product3d4b34f4. New required checked backend API/explicit generated
+mapping, typed UI intent/conflict, unique atomic stub stage, save-gate-before-path-read and captured
+saved head. Confirmed Replace and legacy path replacement retained. Presenter/AppModel/Rust/generated
+sources unchanged. Handoff file SAVE-DESTINATION-SWIFT-HANDOFF.md on the source branch lists limits,
+including non-atomic cleanup identity checks under hostile directory mutation. B compile/tests/GUI
+remain UNRUN and resource/heartbeat hold intact. A owns coherent f451870f archive and all gates/main.
+No runtime or user-preview acceptance claimed. Git result0a6d71e8-aed9-4b10-9222-3150ce72f194.
