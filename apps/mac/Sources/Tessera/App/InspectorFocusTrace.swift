@@ -30,7 +30,6 @@ final class InspectorFocusTrace {
         var keyDown: Bool
         var keyCode: UInt16
         var modifiers: UInt
-        var eventNumber: Int
         var timestamp: Double
         var document: Bool
         var ownedKeyWindow: Bool
@@ -161,7 +160,8 @@ final class InspectorFocusTrace {
         let window = event.window
         let input = Input(keyDown: event.type == .keyDown, keyCode: event.keyCode,
             modifiers: event.modifierFlags.intersection(.deviceIndependentFlagsMask).rawValue,
-            eventNumber: event.eventNumber, timestamp: event.timestamp, document: document,
+            // NSEvent.eventNumber is mouse-only. Sequence + timestamp identify keyboard records.
+            timestamp: event.timestamp, document: document,
             ownedKeyWindow: window != nil && window === NSApp.keyWindow && window === ownedWindow,
             blockedWindow: window == nil || window is NSPanel || window?.attachedSheet != nil
                 || window?.sheetParent != nil || NSApp.modalWindow != nil,
