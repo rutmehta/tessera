@@ -1,3 +1,9 @@
+## Cache scaffold RED classified accurately; runtime released
+
+At exact `480b272e`, compile passed and the six opt-in Engine tests ran: one existing cold source-validation control passed, five new groups failed, zero ignored. All five failures occur at the first expected CPU backend assertion because deterministic selection hooks are still no-op and actual automatic selection chose Metal. Later cache assertions were not reached. This is instrumentation RED, not established missing-cache behavior or a product pass. Source/fixture/runner freezes passed; independent review is active before a bounded instrumentation-first checkpoint. Runtime is released.
+
+Inspector partial GUI evidence is published on main `e04fce18`; root rehashed 89 package files, three fixture/document files and the strict executable, and verified the owned process absent. B has accepted the keyboard routing correction request. No inspector product merge or full GUI acceptance.
+
 ## GUI checkpoint closed; cache integration RED lane active
 
 The inspector worker ordinarily quit its owned app and anchored package-path process lookup found no process. It reports that the saved 492-point History request survives a small-window clamp to 244 displayed points and a separate-process explicit-profile restart, then returns to 492 when enlarged. Channels selection and collapse persisted. GUI report and final file hashes are being finalized; keyboard acceptance and remaining matrix stay pending.
