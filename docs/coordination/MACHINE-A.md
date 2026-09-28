@@ -1,6 +1,6 @@
 # Machine A recovery status
 
-## Current coordinator checkpoint — 2026-09-28 03:09 UTC
+## Current coordinator checkpoint — 2026-09-28 03:18 UTC
 
 - **DONE native save retry** main `d4274a68`, tested `85de2860`: 21 Develop
   plus two adjacent tests, strict/fmt passed; repair reads current disk recipe.
@@ -34,15 +34,20 @@
   a failed receipt; revised result `3aa90667` has a completed source-plan receipt.
   Requests `3efd98f3` and `58434c0c` reached B through existing-chat SSH queues
   and received peer acknowledgements/results. No product/runtime claim follows.
-- **Luna owns next compiler slot** for AppModel admission behavioral RED tests
-  in `codex/develop-recovery-red-tests`; opener seam `58e1b39f` independently
-  source-reviewed. Merge Core main before gate; tests not yet frozen or run.
-  Scope: failed active close and failed stale-open cleanup must block reopening
-  the same owner/image. Direct strong-retention proof awaits registry API.
-- **Resource Sol owns AppModel product implementation next** in safely reused
-  resource worktree; source-only concrete contract review while Luna prepares RED.
-  Follow accepted registry/navigation/consumer plan; no ignored-result shim may
-  count as safe migration. A alone merges. Discard and Stage C lease remain blocked.
+- **AppModel admission RED confirmed** on `b928219d`, opener seam `58e1b39f`:
+  two tests, two intended open-count2-versus1 failures, direct exit1. Both injected
+  active-close/stale-open-cleanup failures were reached; no fixture error or hang.
+  Root checked raw log. Luna packages evidence; compiler released. The tests prove
+  normal reopening is wrongly admitted, not full retention or UI recovery.
+- **Resource Sol implementing AppModel recovery** in `codex/develop-app-recovery`.
+  Accepted API draft `b98dd299` is on main `3d5528fa`: observed recovery records,
+  ownerless-session identity, scoped reservation release, strong open-ticket
+  ownership independent of weak AppModel callbacks. Integrate seam/tests, then
+  implement coherent registry/navigation/consumer failure barriers. Independent
+  source review precedes next gate. Luna owns additional dedicated tests.
+  No AppModel product acceptance yet; B Document adapter waits API freeze.
+  Discard, output read reservations, complete quit restoration, and Stage C lease
+  remain unaccepted. A alone owns main merges.
 - **B status** `5ddb6abe` published through Git only, no new SSH wake/peer receipt
   claimed. B owns Document adapters after A API freeze; workload hold and paused
   heartbeat stay. Existing request/revision deliveries and peer results verified.
