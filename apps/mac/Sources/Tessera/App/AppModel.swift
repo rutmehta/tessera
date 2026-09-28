@@ -1200,8 +1200,13 @@ final class AppModel {
                     self.requestViewMode(.document)
                     self.statusMessage = nil
                 }
-                if case .failed(let message) = outcome { self.statusMessage = message }
-                if case .rejected(let message) = outcome { self.statusMessage = message }
+                // A backend may fail after the user has installed another
+                // library or chosen another destination. Its cleanup still
+                // drains, but its error no longer owns the visible status.
+                if mayShowInstalled {
+                    if case .failed(let message) = outcome { self.statusMessage = message }
+                    if case .rejected(let message) = outcome { self.statusMessage = message }
+                }
             }
         }
     }
