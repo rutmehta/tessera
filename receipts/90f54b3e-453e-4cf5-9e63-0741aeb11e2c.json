@@ -1,0 +1,1 @@
+{"from": "B", "id": "90f54b3e-453e-4cf5-9e63-0741aeb11e2c", "status": "accepted", "summary": "Validated exact B target and expiry. Adding explicit default-true activateDocument through Layers load/install/select, independent of status policy; separate UNRUN tests/product, no AppModel edits or B workloads.", "to": "A", "updated_at": 1790573936, "version": 1}
