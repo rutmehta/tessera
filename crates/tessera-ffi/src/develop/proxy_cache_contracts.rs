@@ -44,6 +44,7 @@ pub(crate) struct Probe {
 #[derive(Default)]
 pub(crate) struct SelectionState {
     pub(crate) control: Option<SelectionControl>,
+    pub(crate) cache_disabled: bool,
     pub(crate) probe: Probe,
 }
 impl Engine {
@@ -62,6 +63,7 @@ impl Engine {
         let old = &state.probe;
         state.probe = Probe {
             validations: old.validations + 1,
+            lookups: old.lookups, hits: old.hits, publications: old.publications, entries: old.entries,
             measurements: old.measurements,
             capability_checks: old.capability_checks,
             key_hdr: settings.output.hdr,
@@ -478,6 +480,7 @@ fn uncached_selection_controls_materialize_real_backends_without_cache() {
             SelectionControl::MeasuredMetal,
         ] {
             let f = Fixture::new(hdr);
+            f.engine.proxy_selection_test.lock().unwrap().cache_disabled = true;
             f.engine.cache_control_for_test(control);
             let first = f.cycle();
             let second = f.cycle();
@@ -517,6 +520,7 @@ fn uncached_selection_controls_materialize_real_backends_without_cache() {
         SelectionControl::CalibrationFailure,
     ] {
         let f = Fixture::new(false);
+        f.engine.proxy_selection_test.lock().unwrap().cache_disabled = true;
         f.engine.cache_control_for_test(control);
         f.cycle()
             .assert_backend(matches!(control, SelectionControl::ExplicitMetal));
@@ -526,5 +530,28 @@ fn uncached_selection_controls_materialize_real_backends_without_cache() {
             u64::from(matches!(control, SelectionControl::CalibrationFailure))
         );
         assert_eq!((p.lookups, p.hits, p.publications, p.entries), (0, 0, 0, 0));
+    }
+}
+
+
+#[test]
+#[ignore = "copied RAW; actual named profile/LUT settings bypass, no resolver-content claim"]
+fn persisted_external_settings_bypass_lookup_and_publication() {
+    for patch in [json!({"camera_profile":{"profile":"mutable-profile.dcp"}}),
+        json!({"color":{"lut":{"style":"mutable-lut","amount":0.0}}})] {
+        let f = Fixture::new(false);
+        f.prime(SelectionControl::MeasuredCpu);
+        let session = f.open();
+        session.set_settings(patch.to_string(), false).unwrap();
+        session.flush().unwrap(); session.close().unwrap(); drop(session);
+        let before = f.engine.cache_probe_for_test();
+        f.cycle();
+        let after = f.engine.cache_probe_for_test();
+        assert_eq!(after.validations, before.validations + 1);
+        assert_eq!(after.lookups, before.lookups);
+        assert_eq!(after.hits, before.hits);
+        assert_eq!(after.publications, before.publications);
+        assert_eq!(after.entries, before.entries);
+        assert_eq!(after.measurements, before.measurements + 1);
     }
 }

@@ -79,3 +79,59 @@ This stage never reuses any decision, so every external/geometry route bypasses
 reuse. UnversionedExternal currently leaves ordinary uncached calibration intact;
 it does not pretend to inspect an actual mutable resolver. No eligibility guard,
 external-content guarantee, device-loss eviction, or cache speedup is claimed.
+
+
+## Authorized decision reuse implementation — source checkpoint, UNRUN
+
+After independent acceptance of instrumentation e4f573d2 and observed missing
+initial-entry RED, the coordinator authorized production cache wiring source-only.
+No timing claim, runtime gate, or rollout acceptance follows from this checkpoint.
+
+Engine now owns `proxy_decision_cache::Store`, a fixed 16-entry Cache plus Mutex
+and monotonic epoch; compile-time bounds cover both Cache and Store <=8 KiB.
+Entries contain only key/decision/fixed samples/ordinals/timestamps. Full container,
+original digest/length, owner, dimensions, explicit tier AND encoding/format,
+journal incarnation/generation/document digest travel by copied AssetIdentity from
+the original successful load into resource selection. Existing public tuple callers
+retain a wrapper. No second original, container or journal read was added.
+
+Lookup occurs after stable-ID admission and all existing source/sidecar/document/
+prefix checks; current GPU operators must also construct successfully and the
+shared device must report healthy. Only normalized actual candidate GPU capability
+permits reuse, including measured-CPU hits. Full presentation settings remain in
+the key alongside ordered graph/config and explicit adapter/capability descriptor.
+Engine's OnceLock cannot replace its device; generation1 is valid only under that
+existing lifecycle. A future replacement API must change generation and clear.
+
+External admission requires default camera profile, no LUT/proof profile, no
+locals/retouch and no lens blur, plus NativeCurrent (currently Native2), and real
+resident capability (which rejects mapped geometry). Captured Auto lens prefix
+remains container-bound. Explicit overrides return before lookup/publication.
+Unavailable/lost device/context failure clears advisory records and retains CPU
+fallback. Calibration errors/invalid samples never publish. Key failure bypasses
+without introducing a new open error. Poison clears records and leaves the Store
+poisoned so subsequent operations bypass, rather than authorizing recovered state.
+
+Hits return newly constructed CPU/Metal Backend operators; no warmed render cache
+survives a closed session. Misses preserve existing six measurements and winner
+rule; completion timestamp is captured before the bounded publication lock, and
+hits do not extend it. Duplicate concurrent misses remain allowed. No mutex is
+held during file reads, key encoding, capability, operator creation or rendering.
+
+Scalar validation observation now preserves cumulative lookup/hit/publication/
+entry counters. The unchanged six original integration bodies remain intact.
+The separately accepted uncached control explicitly disables only decision reuse
+through an Engine-local cfg(test) bit; its two-measurement/zero-cache assertions
+remain unchanged. New tests cover encoding tag key sensitivity, Store byte bound,
+poisoned-store bypass, actual external settings admission, and persisted named
+profile/LUT bypass through public proxy open. Pure external tests include proof,
+disabled locals/lens blur, and nonnative process; these are dependency admission
+contracts, not a claim that mutable external assets are resolved or content hashed.
+
+Source-only: no formatter/compiler/test/GPU/app/benchmark run. Required next step
+is independent code review, then root-granted compile plus pure cache tests, eight
+ignored integration groups, existing native workflows/full/strict/fmt as assigned.
+Historical six-group runner must not silently omit the new external group; retain
+prior runners and freeze a new test inventory. First-frame performance, actual
+uncontrolled calibration, broad lifecycle, archive and Swift qualification remain
+subsequent tasks. Original default and public FFI signatures are unchanged.

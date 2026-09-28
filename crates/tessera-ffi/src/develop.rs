@@ -997,7 +997,7 @@ impl Engine {
         } else {
             engine_api::recipe::SourceKind::Raw
         };
-        let resources = self.develop_render_resources(&image, &recipe.settings)?;
+        let resources = self.develop_render_resources(&image, &recipe, None)?;
         let settings = session_renderable(&recipe.settings, true, false);
         let input = resources.depth_input(&image, settings, recipe.process_version)?;
         Ok(resources
@@ -1034,10 +1034,10 @@ impl Engine {
         } else {
             crate::image_edit_admission::EditSource::Original
         })?;
-        let (snapshot, image, persistence) = if proxy {
+        let (snapshot, image, persistence, calibration_identity) = if proxy {
             #[cfg(all(test, target_os = "macos"))]
             let mut observation = proxy_cache_contracts::Probe::default();
-            let (journal, local, image, path) = self.load_smart_preview_observed(
+            let (journal, local, image, path, identity) = self.load_smart_preview_observed(
                 id,
                 #[cfg(all(test, target_os = "macos"))]
                 Some(&mut observation),
@@ -1068,6 +1068,7 @@ impl Engine {
                 snapshot,
                 image,
                 DevelopPersistence::SmartPreview(Mutex::new(journal)),
+                Some(identity),
             )
         } else {
             self.require_smart_preview_synced(id)?;
@@ -1076,7 +1077,7 @@ impl Engine {
             let persistence = DevelopPersistence::Original(
                 snapshot.lease.as_ref().expect("original lease").authority(),
             );
-            (snapshot, image, persistence)
+            (snapshot, image, persistence, None)
         };
         let path = snapshot.path;
         let mut recipe = snapshot.recipe;
@@ -1085,7 +1086,7 @@ impl Engine {
         } else {
             engine_api::recipe::SourceKind::Raw
         };
-        let resources = self.develop_render_resources(&image, &recipe.settings)?;
+        let resources = self.develop_render_resources(&image, &recipe, calibration_identity)?;
         let screen_level = default_level(&image);
         let shared = Arc::new(Shared {
             engine: Arc::downgrade(&self),
@@ -1217,9 +1218,10 @@ impl Engine {
     fn develop_render_resources(
         &self,
         image: &RawImage,
-        settings: &DevelopSettings,
+        recipe: &Recipe,
+        calibration_identity: Option<crate::backend::proxy_decision_cache::AssetIdentity>,
     ) -> Result<DevelopRenderResources> {
-        let (renderer, backend) = self.develop_renderer(image, settings);
+        let (renderer, backend) = self.develop_renderer(image, &recipe.settings, calibration_identity, recipe.process_version);
         let masks = masks::MaskShared::new(image);
         renderer
             .mask_cache()

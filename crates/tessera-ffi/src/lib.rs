@@ -199,6 +199,7 @@ pub trait EngineEventListener: Send + Sync {
 }
 #[derive(uniffi::Object)]
 pub struct Engine {
+    proxy_decisions: backend::proxy_decision_cache::Store,
     #[cfg(all(test, target_os = "macos"))]
     proxy_selection_test: Mutex<develop::proxy_cache_contracts::SelectionState>,
     db: std::path::PathBuf,
@@ -256,6 +257,8 @@ impl Engine {
         &self,
         image: &image_core::RawImage,
         settings: &core::DevelopSettings,
+        identity: Option<backend::proxy_decision_cache::AssetIdentity>,
+        process: engine_api::recipe::ProcessVersion,
     ) -> (Arc<image_core::Renderer>, String) {
         if image.camera_linear_proxy().is_some() {
             // Explicit proxy selection calibrates independently of Original.
@@ -271,6 +274,7 @@ impl Engine {
                 image,
                 settings,
                 || self.shared_gpu(),
+                identity.map(|asset| backend::ProxyReuse { asset, store: &self.proxy_decisions, settings, process }),
                 #[cfg(all(test, target_os = "macos"))]
                 observer,
             );
@@ -365,6 +369,7 @@ impl Engine {
             previews::PreviewStore::new(Path::new(&app_support_dir).join("previews"), 512 << 20)
                 .map_err(failure)?;
         Ok(Arc::new_cyclic(|this| Self {
+            proxy_decisions: Default::default(),
             #[cfg(all(test, target_os = "macos"))]
             proxy_selection_test: Mutex::new(Default::default()),
             db,

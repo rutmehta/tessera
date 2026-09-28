@@ -1,5 +1,4 @@
-//! Bounded pure calibration-decision storage. No Engine integration yet.
-//! Module remains cfg(test) until separately reviewed validated-source integration.
+//! Bounded Engine-local calibration decisions. No image/backend ownership.
 use engine_api::{
     EngineResult,
     recipe::{DevelopSettings, ProcessVersion},
@@ -9,84 +8,94 @@ use image_core::RendererConfig;
 const CAPACITY: usize = 16;
 const TTL_NS: u64 = 30_000_000_000;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Key([u8; 32]);
+pub(crate) struct Key([u8; 32]);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Decision {
+pub(crate) enum Decision {
     Cpu,
     Metal,
 }
 #[derive(Clone, Copy, Debug)]
-struct Samples {
-    cpu: [f64; 3],
-    gpu: [f64; 3],
+pub(crate) struct Samples {
+    pub(crate) cpu: [f64; 3],
+    pub(crate) gpu: [f64; 3],
 }
 #[derive(Clone, Copy, Debug)]
-enum SelectionOutcome {
+pub(crate) enum SelectionOutcome {
     Measured(Samples),
+    #[cfg(test)]
     ExplicitOverride,
+    #[cfg(test)]
     Unavailable,
+    #[cfg(test)]
     CalibrationFailed,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Override {
+pub(crate) enum Override {
     Auto,
+    #[cfg(test)]
     Cpu,
+    #[cfg(test)]
     Metal,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Eligibility {
+pub(crate) enum Eligibility {
     SelfContained,
+    #[cfg(test)]
     MappedGeometry,
+    #[cfg(test)]
     UnsupportedTail,
+    #[cfg(test)]
     ExternalAssetUnversioned,
+    #[cfg(test)]
     DeviceUnhealthy,
 }
 #[derive(Clone, Copy, Debug)]
-struct Policy {
-    preference: Override,
-    eligibility: Eligibility,
+pub(crate) struct Policy {
+    pub(crate) preference: Override,
+    pub(crate) eligibility: Eligibility,
 }
-const AUTO: Policy = Policy {
+pub(crate) const AUTO: Policy = Policy {
     preference: Override::Auto,
     eligibility: Eligibility::SelfContained,
 };
 
 /// Copied only after actual source validation (Task 2), never source authority.
 #[derive(Clone, Copy, Debug)]
-struct AssetIdentity {
-    owner: [u8; 16],
-    container_digest: [u8; 32],
-    original_digest: [u8; 32],
-    original_length: u64,
-    incarnation: [u8; 32],
-    journal_generation: u64,
-    recipe_digest: [u8; 32],
-    dimensions: [u32; 2],
-    tier: u8,
-    format_version: u32,
+pub(crate) struct AssetIdentity {
+    pub(crate) owner: [u8; 16],
+    pub(crate) container_digest: [u8; 32],
+    pub(crate) original_digest: [u8; 32],
+    pub(crate) original_length: u64,
+    pub(crate) incarnation: [u8; 32],
+    pub(crate) journal_generation: u64,
+    pub(crate) recipe_digest: [u8; 32],
+    pub(crate) dimensions: [u32; 2],
+    pub(crate) tier: u8,
+    pub(crate) encoding: u8,
+    pub(crate) format_version: u32,
 }
 #[derive(Clone, Copy, Debug)]
-struct DeviceIdentity {
-    generation: u64,
+pub(crate) struct DeviceIdentity {
+    pub(crate) generation: u64,
     /// Versioned complete adapter backend/vendor/device/driver descriptor hash.
-    adapter_fingerprint: [u8; 32],
+    pub(crate) adapter_fingerprint: [u8; 32],
     /// bit0 timestamp queries; bit1 shader_f16; bit2 rgba16float storage; bit3 passthrough.
-    capability_flags: u8,
+    pub(crate) capability_flags: u8,
 }
-struct KeyInputs<'a> {
-    asset: AssetIdentity,
-    settings: &'a DevelopSettings,
-    recipe_process: ProcessVersion,
-    config: &'a RendererConfig,
-    device: DeviceIdentity,
-    calibration_level: u8,
-    calibration_extent: [u32; 2],
-    sink_policy_version: u32,
-    selector_policy_version: u32,
+pub(crate) struct KeyInputs<'a> {
+    pub(crate) asset: AssetIdentity,
+    pub(crate) settings: &'a DevelopSettings,
+    pub(crate) recipe_process: ProcessVersion,
+    pub(crate) config: &'a RendererConfig,
+    pub(crate) device: DeviceIdentity,
+    pub(crate) calibration_level: u8,
+    pub(crate) calibration_extent: [u32; 2],
+    pub(crate) sink_policy_version: u32,
+    pub(crate) selector_policy_version: u32,
 }
 
 /// Advisory key error means cache bypass at integration, never a new open error.
-fn key(input: &KeyInputs<'_>) -> EngineResult<Key> {
+pub(crate) fn key(input: &KeyInputs<'_>) -> EngineResult<Key> {
     use serde::Serialize;
     // JSON itself encodes nonfinite floats as null: explicitly reject them
     // recursively before hashing without allocating a Value/tree or byte Vec.
@@ -104,7 +113,7 @@ fn key(input: &KeyInputs<'_>) -> EngineResult<Key> {
         &a.recipe_digest,
         &a.dimensions[0].to_le_bytes(),
         &a.dimensions[1].to_le_bytes(),
-        &[a.tier],
+        &[a.tier, a.encoding],
         &a.format_version.to_le_bytes(),
     ] {
         h.update(bytes);
@@ -179,18 +188,19 @@ struct Entry {
     last_used: u64,
     samples: Samples,
 }
-struct Cache {
+pub(crate) struct Cache {
     entries: [Option<Entry>; CAPACITY],
     ordinal: u64,
 }
 impl Cache {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             entries: [None; CAPACITY],
             ordinal: 0,
         }
     }
     fn allowed(&mut self, policy: Policy) -> bool {
+        #[cfg(test)]
         if policy.eligibility == Eligibility::DeviceUnhealthy {
             self.clear();
             return false;
@@ -225,12 +235,14 @@ impl Cache {
         self.ordinal
     }
     /// now_ns is measurement completion, not start. Cache hits never change it.
-    fn insert(&mut self, key: Key, outcome: SelectionOutcome, policy: Policy, now_ns: u64) -> bool {
+    pub(crate) fn insert(&mut self, key: Key, outcome: SelectionOutcome, policy: Policy, now_ns: u64) -> bool {
         if !self.allowed(policy) {
             return false;
         }
-        let SelectionOutcome::Measured(samples) = outcome else {
-            return false;
+        let samples = match outcome {
+            SelectionOutcome::Measured(samples) => samples,
+            #[cfg(test)]
+            _ => return false,
         };
         if !samples
             .cpu
@@ -269,7 +281,7 @@ impl Cache {
         });
         true
     }
-    fn lookup(&mut self, key: Key, policy: Policy, now_ns: u64) -> Option<Decision> {
+    pub(crate) fn lookup(&mut self, key: Key, policy: Policy, now_ns: u64) -> Option<Decision> {
         if !self.allowed(policy) {
             return None;
         }
@@ -292,13 +304,14 @@ impl Cache {
         );
         Some(entry.decision)
     }
-    fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.entries.iter().flatten().count()
     }
-    fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.entries.fill(None);
         self.ordinal = 0;
     }
+    #[cfg(test)]
     fn set_ordinal_for_test(&mut self, ordinal: u64) {
         self.ordinal = ordinal;
     }
@@ -309,3 +322,48 @@ mod finite;
 
 #[cfg(test)]
 mod tests;
+
+/// Fixed cache plus mutex/clock bookkeeping remains bounded; no heap ownership.
+pub(crate) struct Store {
+    cache: std::sync::Mutex<Cache>,
+    started: std::time::Instant,
+}
+impl Default for Store {
+    fn default() -> Self {
+        Self { cache: std::sync::Mutex::new(Cache::new()), started: std::time::Instant::now() }
+    }
+}
+impl Store {
+    fn now(&self) -> u64 { self.started.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64 }
+    pub(crate) fn lookup(&self, key: Key) -> Option<Decision> {
+        // Poison is advisory failure, never a new image-open error. Clear retained
+        // records but leave poison set, so this Engine permanently bypasses reuse.
+        match self.cache.lock() {
+            Ok(mut cache) => cache.lookup(key, AUTO, self.now()),
+            Err(e) => { e.into_inner().clear(); None }
+        }
+    }
+    pub(crate) fn publish(&self, key: Key, samples: Samples) -> bool {
+        let completed_ns = self.now();
+        match self.cache.lock() {
+            Ok(mut cache) => cache.insert(key, SelectionOutcome::Measured(samples), AUTO, completed_ns),
+            Err(e) => { e.into_inner().clear(); false }
+        }
+    }
+    pub(crate) fn clear(&self) { self.cache.lock().unwrap_or_else(|e| e.into_inner()).clear(); }
+    #[cfg(all(test, target_os = "macos"))]
+    pub(crate) fn len(&self) -> usize { self.cache.lock().unwrap_or_else(|e| e.into_inner()).len() }
+}
+const _: () = assert!(std::mem::size_of::<Store>() <= 8192);
+
+/// Names/paths are not content identity. Captured prefix corrections remain
+/// container-bound; Auto lens does not resolve a new profile in this route.
+pub(crate) fn self_contained(settings: &DevelopSettings, process: ProcessVersion) -> bool {
+    process == ProcessVersion::NATIVE_CURRENT
+        && settings.camera_profile == Default::default()
+        && settings.color.lut.is_none()
+        && settings.output.proof_profile.is_none()
+        && settings.locals.adjustments.is_empty()
+        && settings.locals.retouch.is_empty()
+        && settings.effects.lens_blur.is_none()
+}

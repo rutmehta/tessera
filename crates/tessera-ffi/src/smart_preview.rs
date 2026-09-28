@@ -193,11 +193,12 @@ impl Engine {
         &self,
         id: ImageId,
     ) -> Result<(SmartPreviewJournal, JournalSnapshot, RawImage, PathBuf)> {
-        self.load_smart_preview_observed(
+        let (journal, snapshot, image, path, _) = self.load_smart_preview_observed(
             id,
             #[cfg(all(test, target_os = "macos"))]
             None,
-        )
+        )?;
+        Ok((journal, snapshot, image, path))
     }
     pub(crate) fn load_smart_preview_observed(
         &self,
@@ -205,13 +206,12 @@ impl Engine {
         #[cfg(all(test, target_os = "macos"))] observation: Option<
             &mut crate::develop::proxy_cache_contracts::Probe,
         >,
-    ) -> Result<(SmartPreviewJournal, JournalSnapshot, RawImage, PathBuf)> {
+    ) -> Result<(SmartPreviewJournal, JournalSnapshot, RawImage, PathBuf, crate::backend::proxy_decision_cache::AssetIdentity)> {
         let (journal, snapshot) = self
             .local_smart_preview(id)?
             .ok_or_else(|| failure("Smart Preview missing"))?;
         let container = bounded_bytes(&self.smart_dir(id)?.join("pixels.tsp"), MAX_PROXY_BYTES)?;
         let decoded = CameraLinearProxy::decode_persistent(&container)?;
-        #[cfg(all(test, target_os = "macos"))]
         let format_version = u32::from_le_bytes(container[8..12].try_into().unwrap());
         drop(container);
         if decoded.original_byte_length != snapshot.source_len
@@ -231,6 +231,17 @@ impl Engine {
         if render_id == id {
             render_id.0 ^= 1;
         }
+        let identity = crate::backend::proxy_decision_cache::AssetIdentity {
+            owner: id.0.to_le_bytes(), container_digest: decoded.container_digest,
+            original_digest: decoded.proxy.original_content_digest(),
+            original_length: decoded.original_byte_length,
+            incarnation: journal.incarnation(), journal_generation: snapshot.generation,
+            recipe_digest: snapshot.recipe_digest,
+            dimensions: [decoded.proxy.pixels().width(), decoded.proxy.pixels().height()],
+            tier: match decoded.proxy.tier() { pipeline_cpu::SmartPreviewTier::Detail2560 => 1, pipeline_cpu::SmartPreviewTier::Compact2048 => 2 },
+            encoding: match decoded.encoding { pipeline_cpu::SmartPreviewEncoding::F32 => 1, pipeline_cpu::SmartPreviewEncoding::F16 => 2 },
+            format_version,
+        };
         #[cfg(all(test, target_os = "macos"))]
         if let Some(p) = observation {
             p.owner = id.0.to_le_bytes();
@@ -244,12 +255,12 @@ impl Engine {
             p.encoding = Some(decoded.encoding);
             p.format_version = format_version;
             p.full_container = decoded.container_digest;
-            p.incarnation = journal.incarnation_for_test();
+            p.incarnation = journal.incarnation();
             p.generation = snapshot.generation;
             p.recipe_digest = snapshot.recipe_digest;
         }
         let image = RawImage::from_camera_linear_proxy(id, render_id, Arc::new(decoded.proxy))?;
-        Ok((journal, snapshot, image, path))
+        Ok((journal, snapshot, image, path, identity))
     }
 }
 
