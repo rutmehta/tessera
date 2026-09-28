@@ -62,6 +62,7 @@ private final class DocumentSaveNativeObservers {
 private final class DocumentSaveNativeDismissal {
     var swiftDismissed = false
     var nativeDetached = false
+    var observedAttachment = false
     var parent: NSWindow?
     var sheet: NSWindow?
     var removeObservers: (() -> Void)?
@@ -436,19 +437,31 @@ final class DocumentWorkspace {
         }
         if let state = nativeSaveDismissals.removeValue(forKey: id) {
             state.removeObservers?(); state.removeObservers = nil
+            // A queued request on the closing parent cannot become a new sheet.
+            if let next = queuedSaveAs, let operation = saveOperations[next.id],
+               (state.parent != nil && operation.presentingWindow === state.parent)
+                || saveHasWindow?() == false {
+                settleDocumentSave(next.id, .failed("Document window closed before save"))
+            }
             completeSaveAsPresentationDismissal(id)
         }
     }
 
     func captureSaveAsSheetWindow(_ id: UUID, window: NSWindow) {
-        guard saveAsPresentationID == id, let operation = saveOperations[id],
-              operation.phase == .choosing else { return }
-        operation.saveSheetWindow = window
+        // The logical operation may already have settled while this claimed
+        // presentation is still appearing. Native ownership outlives that operation.
+        guard saveAsPresentationID == id, let state = nativeSaveDismissals[id],
+              !state.nativeDetached else { return }
+        if let captured = state.sheet, captured !== window { return }
+        state.sheet = window
+        if state.parent?.attachedSheet === window { state.observedAttachment = true }
+        saveOperations[id]?.saveSheetWindow = window
     }
 
-    private func observeNativeSaveSheetDismissal(_ operation: DocumentSaveOperation) -> Bool {
-        let id = operation.id
+    private func trackNativeSavePresentation(_ id: UUID) {
+        guard nativeSaveDismissals[id] == nil else { return }
         let state = DocumentSaveNativeDismissal()
+        state.parent = saveOperations[id]?.presentingWindow ?? window
         nativeSaveDismissals[id] = state
         let detached: @MainActor () -> Void = { [weak self, weak state] in
             guard let self, let state, self.nativeSaveDismissals[id] === state else { return }
@@ -457,21 +470,24 @@ final class DocumentWorkspace {
         }
         if let saveSheetDetachmentObserver {
             state.removeObservers = saveSheetDetachmentObserver(id, detached)
-            return true
+            return
         }
-        guard let parent = operation.presentingWindow, let sheet = operation.saveSheetWindow,
-              parent.attachedSheet === sheet, sheet.sheetParent === parent else {
-            nativeSaveDismissals.removeValue(forKey: id)
-            settleDocumentSave(id, .failed("Could not identify the active Save As sheet"))
-            return false
-        }
-        state.parent = parent; state.sheet = sheet
-        // Install BEFORE clearing the SwiftUI item. A didEndSheet event is only
-        // relevant when the captured old sheet is actually detached from its parent.
-        let ended = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification,
-                                                           object: parent, queue: .main) { [weak parent, weak sheet] _ in
+        // Missing parent/sheet is not proof of detachment. A later probe may
+        // capture the appearing sheet, or explicit window loss releases the claim.
+        guard let parent = state.parent else { return }
+        let began = NotificationCenter.default.addObserver(forName: NSWindow.didBeginSheetNotification,
+                                                           object: parent, queue: .main) { [weak self, weak state] _ in
             MainActor.assumeIsolated {
-                guard let parent, let sheet,
+                guard let self, let state, self.nativeSaveDismissals[id] === state,
+                      let sheet = state.sheet, state.parent?.attachedSheet === sheet else { return }
+                state.observedAttachment = true
+            }
+        }
+        let ended = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification,
+                                                           object: parent, queue: .main) { [weak self, weak state] _ in
+            MainActor.assumeIsolated {
+                guard let self, let state, self.nativeSaveDismissals[id] === state,
+                      state.observedAttachment, let parent = state.parent, let sheet = state.sheet,
                       DocumentSaveSheetAttachment.hasDetached(
                         capturedSheet: ObjectIdentifier(sheet),
                         parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }) else { return }
@@ -482,8 +498,21 @@ final class DocumentWorkspace {
                                                             object: parent, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.documentSaveWindowLost(id) }
         }
-        let observers = DocumentSaveNativeObservers([ended, closed])
+        let observers = DocumentSaveNativeObservers([began, ended, closed])
         state.removeObservers = { observers.remove() }
+    }
+
+    private func observeNativeSaveSheetDismissal(_ operation: DocumentSaveOperation) -> Bool {
+        // Tracking starts at claim, before any cancellation can clear the item.
+        // Reuse that ownership rather than replacing it at Save submission.
+        guard let state = nativeSaveDismissals[operation.id] else { return false }
+        if saveSheetDetachmentObserver != nil { return true }
+        guard let parent = state.parent, let sheet = state.sheet,
+              parent.attachedSheet === sheet else {
+            settleDocumentSave(operation.id, .failed("Could not identify the active Save As sheet"))
+            return false
+        }
+        state.observedAttachment = true
         return true
     }
 
@@ -491,7 +520,7 @@ final class DocumentWorkspace {
         guard nativeSaveDismissals[id] === state, state.nativeDetached, state.swiftDismissed else { return }
         nativeSaveDismissals.removeValue(forKey: id)
         state.removeObservers?(); state.removeObservers = nil
-        completeSaveAsPresentationDismissal(id)
+        completeSaveAsPresentationDismissal(id, nativeParent: state.parent)
     }
 
     private func presentDocumentSaveSheet(_ request: SaveAsRequest) {
@@ -512,6 +541,7 @@ final class DocumentWorkspace {
     func saveAsPresentationWillPresent(_ id: UUID) -> Bool {
         if let current = saveAsPresentationID { return current == id }
         saveAsPresentationID = id
+        trackNativeSavePresentation(id)
         if presentedSaveAs?.id != id {
             if let requested = presentedSaveAs { queuedSaveAs = requested }
             presentedSaveAs = nil
@@ -531,7 +561,7 @@ final class DocumentWorkspace {
         completeSaveAsPresentationDismissal(id)
     }
 
-    private func completeSaveAsPresentationDismissal(_ id: UUID) {
+    private func completeSaveAsPresentationDismissal(_ id: UUID, nativeParent: NSWindow? = nil) {
         guard saveAsPresentationID == id else { return }
         saveAsPresentationID = nil
         if presentedSaveAs?.id == id { presentedSaveAs = nil }
@@ -544,6 +574,10 @@ final class DocumentWorkspace {
         if let request = queuedSaveAs {
             queuedSaveAs = nil
             if saveOperations[request.id]?.phase == .choosing, activeSavePrompt == request.id {
+                guard nativeParent?.attachedSheet == nil else {
+                    settleDocumentSave(request.id, .failed("Another sheet is still attached to the document window"))
+                    return
+                }
                 presentDocumentSaveSheet(request)
             }
         }
