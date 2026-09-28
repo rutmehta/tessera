@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --release --test document_save_destination -- --test-threads=1
