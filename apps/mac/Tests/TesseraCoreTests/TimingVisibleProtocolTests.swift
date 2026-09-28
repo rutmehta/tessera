@@ -25,8 +25,8 @@ final class TimingVisibleProtocolTests: XCTestCase {
     func testRejectsStaleNonceAndWrongProcessWindowOrSession() {
         for permit in [handshake(nonce: "stale", time: 10.5), handshake(pid: 42, time: 10.5),
                        handshake(window: 9, time: 10.5), handshake(session: "other", time: 10.5),
-                       handshake(bundleURL: "/tmp/Other.app", time: 10.5),
-                       handshake(launchDate: 1_800_000_001, time: 10.5)] {
+                       handshake(time: 10.5, bundleURL: "/tmp/Other.app"),
+                       handshake(time: 10.5, launchDate: 1_800_000_001)] {
             var protocolState = TimingVisibleIntervalProtocol(ready: handshake())
             XCTAssertFalse(protocolState.acceptStart(permit, now: 10.6, visible: true))
             XCTAssertEqual(protocolState.phase, .failed)
