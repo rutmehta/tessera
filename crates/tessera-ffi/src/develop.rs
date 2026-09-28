@@ -608,6 +608,10 @@ pub(crate) struct Shared {
     rgb_denoiser: Arc<image_core::MlPostDemosaicDenoise>,
     backend: String,
     state: Mutex<State>,
+    /// The Develop-owned fields last read or authoritatively published by
+    /// this session. The save worker updates this from its published snapshot,
+    /// never from newer UI state that arrived during I/O.
+    owner_baseline: Mutex<Recipe>,
     // Held through GPU completion and publication: cancelled jobs cannot
     // release an IOSurface while a submitted write is still in flight.
     render_serial: Mutex<()>,
@@ -937,6 +941,7 @@ impl Engine {
         };
         let path = PathBuf::from(path);
         let mut recipe = catalog::document(&path, id)?.recipe;
+        let owner_baseline = recipe.clone();
         let image = RawImage::open(id, &path)?;
         recipe.source_kind = if image.source_kind() == "rgb" {
             engine_api::recipe::SourceKind::Rgb
@@ -976,6 +981,7 @@ impl Engine {
                     .ok_or_else(|| failure("missing support directory"))?,
             )?),
             backend,
+            owner_baseline: Mutex::new(owner_baseline),
             state: Mutex::new(State {
                 live: recipe.settings.clone(),
                 cfa_configured: false,
@@ -1037,10 +1043,23 @@ impl Engine {
         image_id: &str,
         path: &Path,
         recipe: &Recipe,
-    ) -> std::result::Result<String, SaveFailure> {
+        baseline: &Recipe,
+    ) -> std::result::Result<(String, Recipe), SaveFailure> {
         let id = parse_id(image_id).map_err(SaveFailure::full)?;
+        let gate = crate::recipe_write::gate_for(path).map_err(SaveFailure::full)?;
+        let _write = gate.begin_write().map_err(SaveFailure::full)?;
         let mut c = self.lock().map_err(SaveFailure::full)?;
+        if Path::new(&Self::path(&c, image_id).map_err(SaveFailure::full)?) != path {
+            return Err(SaveFailure::full(failure(
+                "image path changed before Develop save",
+            )));
+        }
         let mut doc = catalog::document(path, id).map_err(SaveFailure::full)?;
+        if !same_develop_owner_fields(&doc.recipe, baseline) {
+            return Err(SaveFailure::full(failure(
+                "conflict: Develop-owned recipe fields changed on disk",
+            )));
+        }
         doc.recipe.process_version = recipe.process_version;
         doc.recipe.settings = recipe.settings.clone();
         doc.recipe.history = recipe.history.clone();
@@ -1074,7 +1093,7 @@ impl Engine {
                 &catalog::EmbeddedMetadata,
             )
             .map_err(|error| SaveFailure::after_recipe(error, &doc.recipe))?;
-        Ok(doc.recipe.recipe_hash().to_string())
+        Ok((doc.recipe.recipe_hash().to_string(), doc.recipe))
     }
 
     /// Complete auxiliary outputs after a recipe was already published. Read
@@ -1107,6 +1126,15 @@ fn same_develop_fields(left: &Recipe, right: &Recipe) -> bool {
         && left.source_kind == right.source_kind
         && left.settings == right.settings
         && left.history == right.history
+}
+
+/// The editor's disk baseline is distinct from the repair path's comparison.
+/// Selection and top-level unknown members belong to other writers and are
+/// merged from the latest disk document; allocation counters are owner state.
+fn same_develop_owner_fields(left: &Recipe, right: &Recipe) -> bool {
+    same_develop_fields(left, right)
+        && left.ids.next_mask == right.ids.next_mask
+        && left.ids.next_retouch == right.ids.next_retouch
 }
 
 /// Before a surface is attached: the level whose long edge is ≤ 2048 px.
@@ -1459,7 +1487,23 @@ impl Shared {
             let st = self.lock().map_err(SaveFailure::full)?;
             (st.recipe.clone(), st.frame.clone())
         };
-        let hash = engine.save_develop(&self.image_id, &self.path, &recipe)?;
+        let baseline = self
+            .owner_baseline
+            .lock()
+            .map_err(SaveFailure::full)?
+            .clone();
+        let (hash, published) =
+            match engine.save_develop(&self.image_id, &self.path, &recipe, &baseline) {
+                Ok(saved) => saved,
+                Err(failed) => {
+                    if let Some(published) = &failed.published {
+                        *self.owner_baseline.lock().map_err(SaveFailure::full)? =
+                            (**published).clone();
+                    }
+                    return Err(failed);
+                }
+            };
+        *self.owner_baseline.lock().map_err(SaveFailure::full)? = published;
         if let Some(frame) =
             frame.filter(|f| f.settings == session_renderable(&recipe.settings, true, false))
             && let Err(e) = self.store_previews(&engine, &recipe, &frame)
@@ -3438,14 +3482,18 @@ mod tests {
     #[test]
     fn open_develop_editor_does_not_overwrite_newer_engine_settings() {
         let (_dir, photo, engine, id, session) = tiny_develop_session("owner-conflict.jpg");
-        let mut newer: Recipe = serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+        let mut newer: Recipe =
+            serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
         newer
             .edit(EditMeta::user("Newer edit", now_ms()), |settings| {
                 settings.tone.exposure = 1.2;
             })
             .unwrap();
         engine
-            .set_recipe_json(id.clone(), String::from_utf8(newer.to_json().unwrap()).unwrap())
+            .set_recipe_json(
+                id.clone(),
+                String::from_utf8(newer.to_json().unwrap()).unwrap(),
+            )
             .unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let published_bytes = std::fs::read(&recipe_path).unwrap();
@@ -3489,7 +3537,10 @@ mod tests {
         session.flush().unwrap();
         let saved = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe).unwrap();
         assert_eq!(saved.recipe.settings.tone.exposure, 0.4);
-        assert_eq!(saved.recipe.selection.grade, Some(engine_api::recipe::Grade::Two));
+        assert_eq!(
+            saved.recipe.selection.grade,
+            Some(engine_api::recipe::Grade::Two)
+        );
     }
 
     #[test]
@@ -3517,7 +3568,10 @@ mod tests {
             .unwrap();
         session.flush().unwrap();
         let saved = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe).unwrap();
-        assert_eq!(saved.recipe.source_kind, engine_api::recipe::SourceKind::Rgb);
+        assert_eq!(
+            saved.recipe.source_kind,
+            engine_api::recipe::SourceKind::Rgb
+        );
         assert_eq!(saved.recipe.settings.tone.exposure, 0.3);
     }
 
