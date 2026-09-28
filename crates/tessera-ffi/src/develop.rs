@@ -5518,4 +5518,59 @@ mod depth_histogram_read_only_contract_tests {
             "unexpected depth cache-miss error: {error}"
         );
     }
+
+    #[test]
+    fn engine_histogram_rejects_unsupported_saved_process_with_a_populated_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("unsupported-process.jpg");
+        image::RgbImage::from_pixel(32, 24, image::Rgb([55, 92, 131]))
+            .save(&photo)
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let editor = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        let valid_input = editor.shared.depth_input().unwrap();
+        let pixel_count = (valid_input.width() * valid_input.height()) as usize;
+        cache_depth_for_input(
+            engine.db.parent().unwrap(),
+            &valid_input,
+            vec![0.0; pixel_count],
+        );
+
+        let mut saved = catalog::document(&photo, parse_id(&row.id).unwrap()).unwrap();
+        saved.recipe.process_version = engine_api::recipe::ProcessVersion {
+            family: engine_api::recipe::ProcessFamily::Adobe,
+            revision: 99,
+        };
+        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&photo).recipe, &saved).unwrap();
+
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
+        assert_eq!(
+            writer_count, 1,
+            "fixture has only its visible editor writer"
+        );
+        let error = engine
+            .clone()
+            .depth_histogram(row.id)
+            .expect_err("unsupported saved process must fail despite an input cache hit");
+        assert!(
+            error.to_string().contains("unsupported process version"),
+            "the error must come from saved process validation, not depth cache miss: {error}"
+        );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count,
+            "process validation must not require a temporary writer session"
+        );
+        drop(editor);
+    }
 }
