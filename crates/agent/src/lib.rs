@@ -125,7 +125,7 @@ impl Agent {
         })
     }
     pub fn perceive(&mut self, path: &Path) -> Result<PerceptionPacket> {
-        let image = self.console.open_image(path)?;
+        let image = self.console.open_image_only(path)?;
         let mut description = self.console.describe_image(image)?;
         if let Ok(exif) = exif::Reader::new()
             .read_from_container(&mut std::io::BufReader::new(std::fs::File::open(path)?))

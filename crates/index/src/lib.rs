@@ -193,7 +193,40 @@ impl Core {
         sidecars: &dyn SidecarReader,
         metadata: &dyn MetadataProvider,
     ) -> Result<usize> {
-        let root_path = root.as_ref().canonicalize()?;
+        self.scan_scope(root.as_ref(), None, sidecars, metadata)
+    }
+
+    /// Refresh one original after its sidecars changed, without discovering or
+    /// reading siblings. The same indexing transaction and change triggers as a
+    /// folder scan apply, but the walk is rooted at the admitted file itself.
+    pub fn scan_file(
+        &mut self,
+        path: impl AsRef<Path>,
+        sidecars: &dyn SidecarReader,
+        metadata: &dyn MetadataProvider,
+    ) -> Result<usize> {
+        let path = path.as_ref().canonicalize()?;
+        if !path.is_file() {
+            return Err(engine_api::error::EngineError::invalid(
+                "path",
+                "expected an original file",
+            )
+            .into());
+        }
+        let parent = path.parent().ok_or_else(|| {
+            engine_api::error::EngineError::invalid("path", "image has no folder")
+        })?;
+        self.scan_scope(parent, Some(&path), sidecars, metadata)
+    }
+
+    fn scan_scope(
+        &mut self,
+        root: &Path,
+        only_file: Option<&Path>,
+        sidecars: &dyn SidecarReader,
+        metadata: &dyn MetadataProvider,
+    ) -> Result<usize> {
+        let root_path = root.canonicalize()?;
         let root = root_path.as_path();
         if !root.is_dir() {
             return Err(
@@ -207,7 +240,10 @@ impl Core {
             self.conn
                 .query_row("SELECT id FROM root WHERE path=?", [&root_s], |r| r.get(0))?;
         let mut changed = 0;
-        for entry in WalkDir::new(root).follow_links(false).into_iter() {
+        for entry in WalkDir::new(only_file.unwrap_or(root))
+            .follow_links(false)
+            .into_iter()
+        {
             let entry = entry?;
             if !entry.file_type().is_file() || !is_image(entry.path()) {
                 continue;

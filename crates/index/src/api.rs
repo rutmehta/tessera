@@ -89,6 +89,18 @@ impl Index {
     ) -> EngineResult<usize> {
         self.0.scan(root, sidecars, metadata).map_err(Into::into)
     }
+    /// Refresh an admitted original without enumerating or reading sibling files.
+    pub fn scan_file(
+        &mut self,
+        path: impl AsRef<Path>,
+        sidecars: &dyn SidecarReader,
+        metadata: &dyn MetadataProvider,
+    ) -> EngineResult<usize> {
+        self.0
+            .scan_file(path, sidecars, metadata)
+            .map_err(Into::into)
+    }
+
     pub fn search(&self, query: &Query) -> EngineResult<Vec<ImageId>> {
         super::semantic::require_provider(query)?;
         self.0.search(query).map_err(Into::into)

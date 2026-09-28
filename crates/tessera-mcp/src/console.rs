@@ -45,17 +45,29 @@ impl Console {
         result.into()
     }
     pub fn open_image(&mut self, path: impl AsRef<Path>) -> EngineResult<ImageId> {
-        let path = path.as_ref().canonicalize()?;
+        self.open_image_scope(path.as_ref(), false)
+    }
+    /// Open one admitted input without discovering or reading sibling originals.
+    /// Batch agents use this after fixing their target availability snapshot.
+    pub fn open_image_only(&mut self, path: impl AsRef<Path>) -> EngineResult<ImageId> {
+        self.open_image_scope(path.as_ref(), true)
+    }
+    fn open_image_scope(&mut self, path: &Path, only_file: bool) -> EngineResult<ImageId> {
+        let path = path.canonicalize()?;
         if !path.is_file() {
             return Err(EngineError::invalid("path", "expected an image file"));
         }
-        // The catalog's public scanner indexes directories. It owns stable IDs and metadata.
-        self.index.scan(
-            path.parent()
-                .ok_or_else(|| EngineError::invalid("path", "missing parent"))?,
-            &catalog::Reader,
-            &catalog::Reader,
-        )?;
+        if only_file {
+            self.index
+                .scan_file(&path, &catalog::Reader, &catalog::Reader)?;
+        } else {
+            self.index.scan(
+                path.parent()
+                    .ok_or_else(|| EngineError::invalid("path", "missing parent"))?,
+                &catalog::Reader,
+                &catalog::Reader,
+            )?;
+        }
         for id in self.index.search(&Query {
             limit: usize::MAX,
             ..Default::default()
