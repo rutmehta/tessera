@@ -1,59 +1,37 @@
 # Tessera task board — Machine A coordinator
 
-## Current coordinator checkpoint — 2026-09-28 01:41 UTC
+## Current coordinator checkpoint — 2026-09-28 02:25 UTC
 
-- **Stage A native save retry DONE**, main `d4274a68`, tested product `85de2860`.
-  Root verified all 113 source hashes and direct exits; independent Sol review
-  found no blocker. Develop 21/0, adjacent JPEG 1/0 and recipe/history 1/0,
-  formatting and strict Clippy passed. Partial-save retry repairs XMP/index from
-  current disk recipe; concurrent flush callers retain the failed outcome.
-  Portable evidence: `tools/orchestrate/wp/UX-03/evidence/develop-save-retry-2026-09-27/`.
-  Earlier failures and raw-log trailing blank lines remain preserved.
-- **Root owns the compiler** for current-FFI/full Release integration of native
-  close lifecycle and Swift rejected-patch retention. Both targeted gates passed;
-  full combined gate is pending. Luna source-plans Core result-bearing close;
-  Resource Sol packages native evidence, no duplicate builds.
-- **Stage B close recovery remains in progress**. Native lifecycle is staged,
-  Core close result and AppModel recovery/navigation/quit UI remain unimplemented.
-  Stage C lease/CAS stays blocked; no all-writer exclusion or transaction claim.
-- **B source review completed**: request `651c9cf1`, SSH queue
-  `01a0e5ab-efbd-7030-832c-197eb1659ba9`, accepted receipt and peer result
-  `65bd203a` verified. Review `32db07de` preserved on main `23f54c0d`; A completed
-  result receipt after source verification. Mask retention, cancelled-open owner
-  cleanup and last-window quit added to Stage B. A traced export/print save-error
-  suppression in `20ef8599`. These are unimplemented requirements. B hold and
-  paused heartbeat remain unchanged.
-- **B mask retention source candidate assigned**: request `a25ad2ff`, existing-chat
-  SSH queue `01a0e5b3-ae20-70e2-a513-4c7bf7551799` transport accepted; B
-  accepted Git receipt verified. Only mask extension and a new dedicated fault-test file;
-  ordinary settings controller/AppModel excluded. B tests remain UNRUN, A gates.
-- Native close setup runs `39551980`/`0a1a7462` had fixture row/fault-path
-  errors and remain preserved separately from valid behavioral RED `6222f410`.
-- Normal user preview PID57591 remains untouched. A alone merges main.
-
-Latest integration (2026-09-28 02:09 UTC): root owns compiler for frozen
-`b7e8b04a` in workspace-redesign / codex/develop-retry-integration. Exact native
-`5478efe1` plus Swift `96fac819`; 1,626 tracked source files frozen. Current FFI
-build passed (archive8ab43f64). Generated close checksum/binding updated in
-`40d3054e`; all other1625 source hashes unchanged. Focused41 then full Release516+5
-gates are running against that fresh bridge. NO main merge
-of these candidates yet. Swift final39/0 direct0 verified; source72b64733 and
-tests05caa0f5. Prior hung test semaphore and missing-forwarder SIGSEGV retained.
-Native f5 runtime41unit/9Develop-integration/3mask-integration passed (3+1ignored);
-final547 formatting-equivalent conditional correction passed late-mask1/0 and
-strictClippy/fmt. Earlier setup and strict failures remain preserved.
-B initial mask986512b6 review blocked successful-reentrant-edit liveness;
-result48f8e3c2 failed source acceptance. Revision request13fb8907 / SSH queue
-01a0e5c1-7602-7e12-a2d4-968944a95998 received by B; result737e0d32 returns
-revised candidate639da049 and 11 UNRUN tests. A accepted result for source review; independent review finds no blocker after
-revision. Runtime remains UNRUN. Safe first RED is the rejected-component test
-from test-only9ee4957d; do not run its recursive-reentry test on old implementation
-(stack overflow), and later4tests require new internal task API. Queue A validation
-after current combined gate. No B workloads authorized.
-Luna source-plans Core result-bearing close next; AppModel/UI recovery unimplemented.
+- **DONE native save retry**, main `d4274a68`, tested `85de2860`:21Develop plus
+  two adjacent tests, strict/fmt passed. Explicit repair reads current disk recipe.
+- **DONE bounded native close lifecycle and Swift rejected-settings retention**,
+  main `01ac555e`, exact tested `40d3054e`. Fresh native archive `8ab43f64`, matching
+  regenerated Swift checksum; focused41/0 and full Release516XCTest/1existing skip/
+  0failures +5SwiftTesting, directexit0. Root verified1626source hashes and exact
+  product equality after merge. Native41unit +9Develop-integration +3mask-integration
+  and final strict/fmt passed; ignored tests remain excluded. All earlier test
+  setup failures, semaphore stall, wrapper SIGSEGV and lint failure are preserved.
+  Evidence: `tools/orchestrate/wp/UX-03/evidence/develop-retry-integration-2026-09-28/`.
+- **Luna owns compiler** for B mask retention validation. Baseline `36f5845d` on
+  tested integration40d, matching8abFFI. Run ONLY safe rejected-component RED;
+  baseline nested reentry would recurse indefinitely. Then revised B639da049
+  product/11tests and adjacent mask controls. Initial B986512b6 source review
+  failed liveness; revised source review has no blocker, runtime UNRUN.
+- **B communication verified**: requesta25ad2ff and revision13fb8907 delivered via
+  existing-chat SSH queues; peer results48f8e3c2 and737e0d32 received and validated.
+  First result failed source acceptance; revised result accepted for A validation,
+  NOT completed. No B workloads, main merges or heartbeat restart authorized.
+- **NEXT Core result-bearing close**, amended source plan `d1cf2926` on main;
+  no implementation. Retain failures/sharedattempt, block host edits duringclose,
+  and propagate actual settings/mask errors. Then AppModel strong recovery owner,
+  navigation/Review/Layers/Agent/export/print/quit gates and Retry/Keep Editing UI.
+  Discard and Stage C lease/CAS remain blocked. Ignored close results are unsafe;
+  native improvements alone do not make app-level recovery complete.
+- Normal user preview PID57591 remains untouched on older65fa build. It does not
+  acquire merged changes automatically. A alone owns main merges. No new GUI or
+  performance/resource acceptance claimed by the automated gate.
 
 This checkpoint supersedes older in-progress ownership entries below.
-
 
 Updated: 2026-09-28 00:58 UTC
 
