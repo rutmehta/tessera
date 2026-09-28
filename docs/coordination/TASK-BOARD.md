@@ -13,8 +13,10 @@
   reentrant callback regressions in `codex/develop-patch-retry`. Prior 33-test
   Swift gate passed; added regression and final candidate still pending. Its old
   FFI archive does not establish current-native combined app acceptance.
-- **Stage B native lifecycle tests in progress**: Resource Sol froze three UNRUN
-  RED cases at `39551980`; native plan main `c7f1e651`. Stage C lease/CAS stays blocked.
+- **Stage B native lifecycle tests in progress**: Resource Sol captured three valid behavioral
+  RED cases at `6222f410` (failed-close State.closed and live worker after success);
+  source implementation is active, compiler returned to Luna. Native plan main
+  `c7f1e651`; Stage C lease/CAS stays blocked.
   No failed-close recovery, all-writer exclusion or multi-file atomicity claim.
 - **B source review completed**: request `651c9cf1`, SSH queue
   `01a0e5ab-efbd-7030-832c-197eb1659ba9`, accepted receipt and peer result
@@ -24,11 +26,11 @@
   suppression in `20ef8599`. These are unimplemented requirements. B hold and
   paused heartbeat remain unchanged.
 - **B mask retention source candidate assigned**: request `a25ad2ff`, existing-chat
-  SSH queue `01a0e5b3-ae20-70e2-a513-4c7bf7551799` transport accepted; peer
-  receipt pending. Only mask extension and a new dedicated fault-test file;
+  SSH queue `01a0e5b3-ae20-70e2-a513-4c7bf7551799` transport accepted; B
+  accepted Git receipt verified. Only mask extension and a new dedicated fault-test file;
   ordinary settings controller/AppModel excluded. B tests remain UNRUN, A gates.
-- Native close first RED `39551980` failed fixture row lookup before lifecycle
-  assertions; preserved as setup failure, not a behavioral RED. Correction pending.
+- Native close setup runs `39551980`/`0a1a7462` had fixture row/fault-path
+  errors and remain preserved separately from valid behavioral RED `6222f410`.
 - Normal user preview PID57591 remains untouched. A alone merges main.
 
 This checkpoint supersedes older in-progress ownership entries below.
