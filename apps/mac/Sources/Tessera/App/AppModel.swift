@@ -743,6 +743,16 @@ final class AppModel {
         navigateAfterDevelopSave { [weak self] in self?.commitSetSource(s) }
     }
 
+    /// Saving a new smart album opens it and clears the temporary filter as
+    /// one navigation after any active Develop close.
+    func showSavedSmartAlbum(id: Int64, name: String, clearFilter: Bool) {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            self.commitSetSource(.smartAlbum(id: id, name: name))
+            if clearFilter { self.collections.commitFilter(LibraryFilter()) }
+        }
+    }
+
     private func commitSetSource(_ s: LibrarySource) {
         if isPhotoEditing || isReviewing { commitReturnToLibrary(grid: false) }
         let opening = s == .people && source != .people
@@ -1448,6 +1458,45 @@ final class AppModel {
         }
     }
 
+    /// A grid double-click is one navigation: its selection must survive the
+    /// Develop close along with the requested Loupe mode.
+    func selectAndShowInLoupe(position: Int) {
+        let sourceRevision = libraryRevision
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, self.libraryRevision == sourceRevision else { return }
+            self.commitSelect(position: position, extend: false)
+            self.viewMode = .loupe
+        }
+    }
+
+    /// Tether auto-advance keeps Compare open, but otherwise selects and opens
+    /// the newly filed frame as one admitted action.
+    func selectAndAutoAdvance(id: Int) {
+        guard positionOfID.indices.contains(id), positionOfID[id] >= 0 else { return }
+        let sourceRevision = libraryRevision
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, self.libraryRevision == sourceRevision,
+                  self.positionOfID.indices.contains(id), self.positionOfID[id] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[id], extend: false)
+            if self.viewMode != .compare { self.viewMode = .loupe }
+        }
+    }
+
+    /// A tether tile first tries the current source, then its session album.
+    /// Both the fallback source and final selection share the same save gate.
+    func revealTetherItem(_ id: Int, fallbackAlbum: String?) {
+        let sourceRevision = libraryRevision
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, self.libraryRevision == sourceRevision else { return }
+            if !(self.positionOfID.indices.contains(id) && self.positionOfID[id] >= 0),
+               let fallbackAlbum {
+                self.commitSetSource(.album(fallbackAlbum))
+            }
+            guard self.positionOfID.indices.contains(id), self.positionOfID[id] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[id], extend: false)
+        }
+    }
+
     private func commitSelect(position: Int, extend: Bool) {
         guard !visible.isEmpty else { return }
         let p = min(max(position, 0), visible.count - 1)
@@ -1911,6 +1960,16 @@ final class AppModel {
         navigateAfterDevelopSave { [weak self] in self?.commitEnterCompare() }
     }
 
+    /// The Compare menu command returns from Edit/Review and opens Compare in
+    /// the same saved navigation, so a pending close cannot discard the return.
+    func requestLibraryCompare() {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.commitEnterCompare()
+        }
+    }
+
     private func commitEnterCompare() {
         guard let f = focus else { return }
         var ids: [Int]
@@ -2345,6 +2404,16 @@ final class AppModel {
     /// Inspection callers (People and tether) retain Library Loupe and its culling keys.
     func showInLoupe(_ itemID: Int) {
         navigateAfterDevelopSave { [weak self] in self?.commitShowInLoupe(itemID) }
+    }
+
+    /// A People face's Show in Loupe command also leaves the People source.
+    /// Keep that source change and focus change in one saved navigation.
+    func showInAllPhotosLoupe(_ itemID: Int) {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            self.commitSetSource(.all)
+            self.commitShowInLoupe(itemID)
+        }
     }
 
     private func commitShowInLoupe(_ itemID: Int) {

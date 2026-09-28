@@ -500,8 +500,8 @@ final class LibraryModel {
         guard ok, let id else { return }
         editor = nil
         reloadNodes()
-        app?.setSource(.smartAlbum(id: id, name: name))
-        if draft.editing == nil { filter = LibraryFilter() }
+        if let app { app.showSavedSmartAlbum(id: id, name: name, clearFilter: draft.editing == nil) }
+        else if draft.editing == nil { commitFilter(LibraryFilter()) }
         libraryChanged("Saved smart album “\(name)”")
     }
 

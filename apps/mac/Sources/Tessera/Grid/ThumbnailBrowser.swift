@@ -148,8 +148,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         collectionView.backgroundColors = [.clear]
         collectionView.register(ThumbnailCell.self, forItemWithIdentifier: ThumbnailCell.identifier)
         collectionView.onDoubleClick = { [weak model] p in
-            model?.select(position: p)
-            model?.requestViewMode(.loupe)
+            model?.selectAndShowInLoupe(position: p)
         }
 
         collectionView.autoresizingMask = style == .grid ? [.width] : []

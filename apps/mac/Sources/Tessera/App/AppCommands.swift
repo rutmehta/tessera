@@ -76,7 +76,7 @@ struct AppCommands: Commands {
                 model.requestLibraryViewMode(.grid)
             }
             Button("Loupe    (E / Return)") { model.requestLibraryViewMode(.loupe) }
-            Button("Compare    (C)") { model.returnToLibrary(); model.enterCompare() }
+            Button("Compare    (C)") { model.requestLibraryCompare() }
             Button("Layered Documents") { model.requestViewMode(.document) }
             Divider()
             Group {

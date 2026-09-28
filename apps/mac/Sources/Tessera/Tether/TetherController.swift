@@ -483,8 +483,7 @@ final class TetherController {
         }
         if let key = pendingFocus, let id = lib.itemOfImage[key] {
             pendingFocus = nil
-            app.select(id: id)
-            if app.focusedItem?.id == id, app.viewMode != .compare { app.requestViewMode(.loupe) }
+            app.selectAndAutoAdvance(id: id)
         }
         decisionsDidChange()
     }
@@ -502,11 +501,7 @@ final class TetherController {
             return
         }
         if loupe { app.showInLoupe(id) } else {
-            app.select(id: id)
-            if app.focusedItem?.id != id, let album = sessionAlbum {
-                app.setSource(.album(album))
-                app.select(id: id)
-            }
+            app.revealTetherItem(id, fallbackAlbum: sessionAlbum)
         }
         NSApp.keyWindow?.makeFirstResponder(nil)
     }

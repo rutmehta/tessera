@@ -407,7 +407,7 @@ private struct FaceMemberChip: View {
             }
             .disabled(person.members.count < 2)
             Divider()
-            Button("Show in Loupe") { model.setSource(.all); model.showInLoupe(member.face.item) }
+            Button("Show in Loupe") { model.showInAllPhotosLoupe(member.face.item) }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(name), face \(member.face.ordinal + 1)\(member.confirmed ? ", confirmed" : "")")
