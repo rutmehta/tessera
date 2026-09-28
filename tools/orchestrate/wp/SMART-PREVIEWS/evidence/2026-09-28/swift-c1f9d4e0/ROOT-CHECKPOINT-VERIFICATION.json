@@ -1,0 +1,38 @@
+{
+  "ref": "c1f9d4e0",
+  "git_inputs": 7018,
+  "mismatches": [],
+  "artifacts": {
+    "apps/mac/build/ffi/CTesseraFFI.h": "bac698ba64bbf69a7ff0d126edd400e30e9bc7d7e062824072d7a1cf50939955",
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/TesseraFFI.swift": "29c3c952411bcab52c458ca2a07a48fea1e5c21047aab0b16980e2475126f913",
+    "apps/mac/build/ffi/libtessera_ffi.a": "daf4b5d190449f3b22943a2a25990e3e286bc691e14be3b846a128733eb9a72c"
+  },
+  "runs": {
+    "02-actual-thumbnail": {
+      "exit": 0,
+      "freeze": true,
+      "matches_checked_source": true
+    },
+    "05-actual-offline-workflow": {
+      "exit": 0,
+      "freeze": true,
+      "matches_checked_source": true
+    },
+    "06-focused-swift": {
+      "exit": 0,
+      "freeze": true,
+      "matches_checked_source": true
+    },
+    "07-strict-product": {
+      "exit": 0,
+      "freeze": true,
+      "matches_checked_source": true
+    },
+    "08-full-swift": {
+      "exit": 0,
+      "freeze": true,
+      "matches_checked_source": true
+    }
+  }
+}

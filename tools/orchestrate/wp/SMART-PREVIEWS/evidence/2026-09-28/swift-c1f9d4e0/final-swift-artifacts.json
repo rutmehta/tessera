@@ -1,0 +1,10 @@
+{
+  "/Volumes/betterSSD/tessera-validation/smart-previews/swift-full-final/build/release/Tessera": {
+    "bytes": 119932872,
+    "sha256": "9eec2d010a6240ce1214beb76ce48a727cf4640c91630c3e29039a077e746a47"
+  },
+  "/Volumes/betterSSD/tessera-validation/smart-previews/swift-full-final/build/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests": {
+    "bytes": 158099168,
+    "sha256": "758150d31e872d142220f738aef7d13135dbf6d9654c17d4379f7ee8081a6e1a"
+  }
+}

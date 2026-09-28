@@ -1,5 +1,20 @@
 # Tessera task board — Machine A coordinator
 
+## Smart Preview desktop implementation integrated — 2026-09-28 19:00 UTC
+
+Main `89b78881` integrates feature `c1f9d4e0`: Compact camera-linear previews, explicit proxy editing, offline cached Library, local edits/reopen/reconnect synchronization, and saved-edit proxy thumbnails with bounded retry. Original remains the default editing source and full-quality export uses the original. Main product/native/Cargo files exactly match the tested feature; newer coordination records and evidence are preserved.
+
+| Work | Owner | Verified state | Next action |
+| --- | --- | --- | --- |
+| Native local thumbnails | A codec; independent review | `4cf91289`:187 FFI tests,28 previews tests passed;3 existing performance tests ignored; strict/fmt pass. Root verified7016 immutable Git inputs. Native evidence `cae2004d`. | Monitor with UI workload; no speed claim. |
+| Desktop integration and B routing/retry | A integration; B source | Full Swift08:689 XCTest cases,1 skipped,0 failures;5 Swift Testing cases pass. Focused67 and strict optimized product pass. Root verified7018 Git inputs plus4 generated/archive artifacts, unchanged across gates. | Publish scoped completed B receipts. |
+| Actual Sony proxy workflow | A codec | Real Swift/native offline thumbnail and edit/save/new-Engine offline reopen/reconnect sync pass individually and in full suite. Preserved original hashes checked by tests. | Packaged-app visible GUI and separate-process restart remain separate acceptance work. |
+| Proxy GPU acceleration | A FFI next; independent review | Consolidated candidate and actual Engine/IOSurface harness source-approved, UNRUN/unapplied at this checkpoint. | One serialized build/GPU lane; qualify actual Metal work, pixels and comparable frame latency before default decisions. |
+
+The existing small-window Document layout expected failure and one existing skipped test are retained; this is not a claim that all historical GUI issues are resolved. Generated UniFFI output has three whitespace-only lines flagged by plain diff-check; coherent generated output is preserved and handwritten diff-check passes. Previous thumbnail failure14, native strict/fmt failures and initial full Swift failure remain durable evidence. No packaged-app GUI, physical input-to-present, cross-camera fidelity, or accelerated performance acceptance is implied.
+
+B remains source-only with its existing writer and Document/SaveAs ownership. Latest compact native snapshot confirms completed retry source handoff `d40354e4`; `notLoaded` does not negate the peer result/receipt. Git status message `c2b22d9b` published the preceding validation checkpoint; publication is not peer receipt. A remains sole main integrator. Other UI/UX and engine board work is preserved below.
+
 ## Swift offline workflow passed; thumbnail implementation in native testing — 2026-09-28 18:38 UTC
 
 Feature checkpoint `4b5f9c70` passes the actual Swift cached Library → proxy IOSurface edit/save → offline reopen → reconnect/synchronize workflow (run13). Original photo and hidden sidecar hashes are unchanged. This creates new Engine objects, not a separate-process restart or a packaged-app GUI acceptance. Root verified 7,014 immutable Git inputs and four generated/archive artifacts for runs13/15/16. Portable evidence is committed in `d6ac99fc`, under `swift-4b5f9c70`.

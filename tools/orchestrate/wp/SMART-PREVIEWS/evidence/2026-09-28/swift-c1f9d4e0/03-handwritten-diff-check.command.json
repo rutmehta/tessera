@@ -1,0 +1,16 @@
+{
+  "command": [
+    "git",
+    "diff",
+    "--check",
+    "--",
+    ".",
+    ":!apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+    ":!apps/mac/Sources/CTesseraFFI/CTesseraFFI.h"
+  ],
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "CARGO_BUILD_JOBS": "2",
+  "MACOSX_DEPLOYMENT_TARGET": "15.0",
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "TESSERA_SMART_PREVIEW_RAW": null
+}

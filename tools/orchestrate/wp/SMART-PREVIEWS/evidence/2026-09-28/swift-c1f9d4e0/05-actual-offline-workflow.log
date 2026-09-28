@@ -1,0 +1,20 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.11s)
+Test Suite 'Selected tests' started at 2026-09-28 14:49:55.238.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 14:49:55.239.
+Test Suite 'SmartPreviewNativeWorkflowTests' started at 2026-09-28 14:49:55.239.
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [445.11366699999996, 188.272959, 256.87775]; GPU [266.214917, 1.7024169999999998, 7.618166]
+develop L2 calibration [first, tone, WB] ms: CPU [461.878917, 189.422125, 217.923667]; GPU [289.70770899999997, 1.755791, 7.8778749999999995]
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (4.517 seconds).
+Test Suite 'SmartPreviewNativeWorkflowTests' passed at 2026-09-28 14:49:59.756.
+	 Executed 1 test, with 0 failures (0 unexpected) in 4.517 (4.517) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 14:49:59.756.
+	 Executed 1 test, with 0 failures (0 unexpected) in 4.517 (4.517) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 14:49:59.756.
+	 Executed 1 test, with 0 failures (0 unexpected) in 4.517 (4.518) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

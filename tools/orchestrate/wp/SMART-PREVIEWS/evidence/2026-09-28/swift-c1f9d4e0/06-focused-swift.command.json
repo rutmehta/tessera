@@ -1,0 +1,19 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "--package-path",
+    "apps/mac",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-validation/smart-previews/swift-full-final/build",
+    "-c",
+    "release",
+    "--filter",
+    "SmartPreviewUITests|SmartPreviewThumbnailTests|OfflineLibraryRoutingTests|ThumbnailQueueTests|ThumbnailFlightDrainTests|PreviewEventsTests|ThumbnailViewportTests"
+  ],
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "CARGO_BUILD_JOBS": "2",
+  "MACOSX_DEPLOYMENT_TARGET": "15.0",
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "TESSERA_SMART_PREVIEW_RAW": null
+}

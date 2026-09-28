@@ -65,9 +65,11 @@ Native acceptance: e1eca7ba, merged on main before ff0459fc. Final171 FFI unit t
 
 Files: Swift EngineLibrary/reference adapters, AppModel Develop opener, AppCommands Library menu and ThumbnailCell status; generated FFI bindings only from accepted native API.
 
-- [ ] Batch Build/Discard actions, cancellation/per-item results and explicit proxy-use preference/source selection.
-- [ ] Show original/proxy/offline/stale/conflict state with accessibility labels; generation-safe completion cannot replace newer selection/status.
+- [x] Batch Build/Discard actions, cancellation/per-item results and explicit proxy-use preference/source selection.
+- [x] Show original/proxy/offline/stale/conflict state with accessibility labels; generation-safe completion cannot replace newer selection/status.
 - [ ] UI/model tests for transitions, source choice and failed export. Actual supported app workflow with Sony ARW: build, edit, offline restart/save, reconnect/export; retain original hash.
+
+UI/model gates and actual Swift/native Sony offline workflow pass on `c1f9d4e0`, merged `89b78881`. Separate-process/packaged-app acceptance and interactive performance remain open.
 
 ## Completion gate
 

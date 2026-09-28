@@ -1,0 +1,22 @@
+{
+  "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": {
+    "before": "8af3a36e804fd7337c1026be55dc68aa4e610e65fc8a0bbb05c95305f6db2dc6",
+    "after": "bac698ba64bbf69a7ff0d126edd400e30e9bc7d7e062824072d7a1cf50939955"
+  },
+  "apps/mac/build/ffi/CTesseraFFI.h": {
+    "before": "8af3a36e804fd7337c1026be55dc68aa4e610e65fc8a0bbb05c95305f6db2dc6",
+    "after": "bac698ba64bbf69a7ff0d126edd400e30e9bc7d7e062824072d7a1cf50939955"
+  },
+  "apps/mac/build/ffi/TesseraFFI.swift": {
+    "before": "d6e706bda66a3c675254bfbf230c78852780351aa67dbe445fdd12d0593ccecc",
+    "after": "29c3c952411bcab52c458ca2a07a48fea1e5c21047aab0b16980e2475126f913"
+  },
+  "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": {
+    "before": "d6e706bda66a3c675254bfbf230c78852780351aa67dbe445fdd12d0593ccecc",
+    "after": "29c3c952411bcab52c458ca2a07a48fea1e5c21047aab0b16980e2475126f913"
+  },
+  "apps/mac/build/ffi/libtessera_ffi.a": {
+    "before": "2d2ab32b5cdc73338eb3e58088f261622c23d5c46cbb8ea1a4eaf29867ed15e5",
+    "after": "daf4b5d190449f3b22943a2a25990e3e286bc691e14be3b846a128733eb9a72c"
+  }
+}
