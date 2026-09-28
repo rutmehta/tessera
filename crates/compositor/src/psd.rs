@@ -110,8 +110,11 @@ fn checked_len(a: usize, b: usize) -> EngineResult<usize> {
 /// callers must count from the same immutable snapshot they later convert.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PsdCopyEstimateInput {
+    /// Canvas extent used by the output PSD/PSB.
     pub canvas: Extent,
+    /// Depth of exported channel samples.
     pub depth: Depth,
+    /// Named alpha and spot planes retained in addition to RGB/merged alpha.
     pub saved_channels: usize,
     /// An imported PSD's negative layer count already requires merged alpha.
     pub retained_merged_alpha: bool,
@@ -126,10 +129,15 @@ pub struct PsdCopyEstimateInput {
 /// workspaces, and operating-system allocations are outside this estimate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PsdCopyEstimate {
+    /// Checked sum of the documented modeled pixel payloads.
     pub modeled_pixel_bytes: usize,
+    /// RGB, retained merged alpha if any, and saved planes.
     pub guaranteed_composite_channels: usize,
+    /// Composite channels if the rendered content needs merged alpha.
     pub possible_composite_channels: usize,
+    /// Decoded bytes for guaranteed planes, validated by the PSD encoder rule.
     pub guaranteed_composite_bytes: usize,
+    /// Decoded bytes if merged alpha is emitted; informational only.
     pub possible_composite_bytes: usize,
 }
 
