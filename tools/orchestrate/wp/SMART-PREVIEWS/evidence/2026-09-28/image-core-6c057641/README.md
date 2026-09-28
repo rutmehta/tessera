@@ -1,0 +1,1 @@
+Bounded image-core route6c057641. Full Release 94 passed/0 failed/2ignored; focused persisted7 passed. Strict Release all-target Clippy, fmt, direct exits0. Root independently verified 6935 Git blobs and identical before/after manifests. Review clean. Actual FFI/UI offline save/reconnect and original/proxy performance comparison remain pending.
