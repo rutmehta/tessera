@@ -100,6 +100,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(test)]
+static FAIL_AFTER_DEVELOP_RECIPE: Mutex<Option<PathBuf>> = Mutex::new(None);
+
 /// Interactive drags on screen levels larger than this render one level
 /// coarser until the drag is committed.
 pub const DRAG_BUDGET_PX: u64 = 4_200_000;
@@ -938,6 +941,16 @@ impl Engine {
         doc.record_write("tessera-mac", now_ms())?;
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
         sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(path).recipe, &doc)?;
+        #[cfg(test)]
+        {
+            let mut fault = FAIL_AFTER_DEVELOP_RECIPE
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if fault.as_deref() == Some(path) {
+                *fault = None;
+                return Err(failure("injected post-recipe failure"));
+            }
+        }
         sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)?;
         c.index.scan(
             path.parent()
@@ -3049,6 +3062,43 @@ impl DevelopSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flush_without_new_edit_repairs_sidecars_after_recipe_write_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let photo = dir.path().join("retry.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        *FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(photo.clone());
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        let first = session.flush().unwrap_err();
+        assert!(first.to_string().contains("injected post-recipe failure"));
+        let recipe: Recipe = serde_json::from_str(&engine.get_recipe(row.id.clone()).unwrap())
+            .unwrap();
+        assert_eq!(recipe.settings.tone.exposure, 0.7);
+
+        session.flush().unwrap();
+        let xmp = sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo)).unwrap();
+        assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 0.7);
+        assert_eq!(
+            engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
+            recipe.recipe_hash().to_string()
+        );
+    }
 
     #[test]
     fn jpeg_develop_session_renders_nonblack() {
