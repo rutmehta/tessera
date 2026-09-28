@@ -563,3 +563,13 @@ preview asks reconnect. No failed-open fallback. Retains status-cost/thumbnail
 follow-up. Combined15 tests UNRUN; A native/compiler/GUI/main gates remain. No B
 workloads, writer/heartbeat changes. A measurement motivates default; B made no
 benchmark or generalized speed/compression claim. SaveAs3ca3e9c9 preserved.
+
+### Review bcf6cb50 — proxy save presentation retention
+
+Published codex/smart-preview-ui78b647ea. Tests2c51982c/d2fa3526; product8d35e9f6.
+Successful save forwards completing controller source; proxy save retains separate
+presentation-only local-save/last-sync thumbnail warning and historical offline
+label. Routing snapshots still invalidate and opening needs fresh native status;
+no autosave asset reads. Fresh clean online-ready/removal retires presentation.
+18 tests UNRUN on B; A's initial8 c6d05aa3 pass does not cover this candidate.
+SaveAs3ca3e9c9 intact. No B workloads/heartbeat/writer changes; A compiler/GUI/main.
