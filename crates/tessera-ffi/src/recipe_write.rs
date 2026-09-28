@@ -268,12 +268,11 @@ impl Drop for LeaseReservation {
     fn drop(&mut self) {
         // Do not panic during teardown. The gate is retained by this token,
         // and owner is always cleared only when the matching ID still owns it.
-        if let Ok(_epoch) = self.state.epoch.lock() {
-            if let Ok(mut owner) = self.state.owner.lock()
-                && *owner == Some(self.id)
-            {
-                *owner = None;
-            }
+        if let Ok(_epoch) = self.state.epoch.lock()
+            && let Ok(mut owner) = self.state.owner.lock()
+            && *owner == Some(self.id)
+        {
+            *owner = None;
         }
     }
 }
