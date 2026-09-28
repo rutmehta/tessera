@@ -82,9 +82,10 @@ fn public_engine_offline_restart_sync_original_export_and_conflict() {
     assert_eq!(source_before, fixture_before);
     let support = dir.path().join("support");
     let engine = Engine::open(support.to_string_lossy().into()).unwrap();
-    engine
+    let catalog_folder = engine
         .index_folder(photos.to_string_lossy().into())
-        .unwrap();
+        .unwrap()
+        .path;
     let images = engine.list_images(ImageQuery::default()).unwrap();
     assert_eq!(images.len(), 1);
     let id = images[0].id.clone();
@@ -197,10 +198,15 @@ fn public_engine_offline_restart_sync_original_export_and_conflict() {
     fs::rename(&photos, &offline).unwrap();
     let engine = Engine::open(support.to_string_lossy().into()).unwrap();
     let library = engine
-        .open_smart_preview_library_session(photos.to_string_lossy().into())
+        .open_smart_preview_library_session(catalog_folder.clone())
         .unwrap();
     let rows = library.images().unwrap();
-    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        rows.len(),
+        1,
+        "requested catalog folder {:?}",
+        catalog_folder
+    );
     assert_eq!(rows[0].id, id);
     assert!(library.grade_images(vec![id.clone()], 3).is_err());
     assert!(
