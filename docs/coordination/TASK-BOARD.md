@@ -27,7 +27,8 @@
   lease/CAS remain blocked. Existing callers that ignore close failure are unsafe.
 - **B source-only planning:** request `3efd98f3` asks for concrete AppModel recovery
   slices and deterministic tests. SSH queue `01a0e5e1-4676-7cd1-b874-89d4a06dc690`
-  accepted transport; peer receipt not yet verified. No B workloads, main merges
+  accepted transport; exact-target accepted peer receipt verified at 02:39 UTC.
+  Existing B chat also reports active planning. No B workloads, main merges
   or heartbeat restart. A alone owns main merges.
 - Normal user preview PID57591 remains untouched on older65fa build; merging
   main does not update that package. No new performance acceptance claimed.
