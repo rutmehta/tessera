@@ -44,7 +44,7 @@ fn synthetic_bayer_with_samples(values: Vec<f32>) -> RawImage {
         SENSOR_WIDTH,
         SENSOR_HEIGHT,
         RGGB,
-        [8, 6, 280, 276],
+        [8, 6, 272, 270],
     ));
     RawImage::new(
         engine_api::id::ImageId(0x0050_524f_4649_4c45),
@@ -145,6 +145,8 @@ fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
         metadata: image.metadata(),
     };
     let reference = render_linear_scaled(&settings, &source, 1).unwrap();
+    assert_eq!(reference.width(), extent.width);
+    assert_eq!(reference.height(), extent.height);
     let mut reference_planes = vec![vec![0.0f32; extent.area() as usize]; 3];
     let mut reference_tiles = Vec::new();
     for coord in reference.coords() {
