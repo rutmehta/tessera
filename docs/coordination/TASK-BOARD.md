@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current execution queue — 2026-09-28 10:00 UTC
+## Current execution queue — 2026-09-28 10:08 UTC
 
 | Task | Owner | Verified state | Next action |
 | --- | --- | --- | --- |
@@ -13,7 +13,7 @@
 | Save As native ownership | B source; A integration/GUI | DONE main `11b31be6`. Product d695 passed 90 focused, full 642 XCTest/1 skip/0 failures +5 Swift Testing; actual isolated create/Replace/cancel/repeat/reopen passed. Test-only a927 passed actual parent close during native folder chooser. | Evidence cc9eb6f4, ede27821 and integration parent-modal manifest; historical RED and failed probes retained. Result d9b94a94 completed. No full 643 rerun, leak-proof or preview-refresh claim. |
 | Save As destination safety | A native; B Swift source reserved | Native 75a1b9a6 passed 11 selected tests + fmt/strict; test-only 2a22145b pins actual directory conflict and passes focused/fmt/strict. Generated checkpoint 81cc08eb built arm64 archive f451870f, input hashes verified. | B request 8638c362 published; SSH delivery failed “Host is down”, no queue ID or receipt. Preserve B ownership, retry existing request when reachable. No full product/UI acceptance. |
 | ISO gain-map interoperability control | A / completed Luna diagnostics; Astra review | Geometry comparison completed: 80×16 baselines reproduced; 640×128 uniform stays16 and split stays8 in ImageIO, reference/CI16. Root verified40 saved payloads and all native exits; Astra independently checked all20 float outputs and profiles. | Phase8 main7bcf77ad (163 payloads) and phase9 sourceeebc6325 (97 payloads) independently verified/imported. HDR-stats changes no provider/pixel/profile/property bytes. Native lane released; no further runtime experiment selected. Warnings occur only in successful uniform controls; no causal warning claim. Original core4pass/1fail and unmerged product remain. |
-| Develop writer lease prerequisites | A / writer_lease_readiness Luna | Audit identifies saved-recipe histogram still constructing a full writer session. Tests-only source preparation on codex/depth-histogram-readonly in reused clean workspace-redesign checkout. | Tests-only77eb68d0 frozen; exclusive compiler lane granted for genuine behavioral RED and missing-model control. Production waits RED and independent factoring review; no lease activation. |
+| Develop writer lease prerequisites | A / writer_lease_readiness Luna | Audit identifies saved-recipe histogram still constructing a full writer session. Tests-only source preparation on codex/depth-histogram-readonly in reused clean workspace-redesign checkout. | Tests77eb68d0 produced intended writer-count2vs1 RED/direct101; missing-model control1pass/direct0. Root verified logs and source hashes. Move inactive Cargo cache to BetterSSD before further compilation, add saved-process regression, then reviewed read-only factoring. No lease activation. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 

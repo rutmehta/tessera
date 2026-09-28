@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Histogram RED confirmed; cache relocation before further builds — 2026-09-28 10:08 UTC
+
+Tests-only77eb68d0 compiled and failed the intended no-temporary-writer assertion: actual2 workers versus expected1, Cargo direct101. The saved-state histogram assertions preceding it passed; publication assertions after the failing line were not reached. Separate cold-cache/missing-model control passed1/direct0. Root verified raw logs and all3 frozen source hashes against exact Git blobs. Existing tiny backend calibration ran; no benchmark acceptance is inferred.
+
+This first build mistakenly used the old internal worktree target despite the BetterSSD instruction. Internal space is3.1GiB; BetterSSD has3.1TiB. Further compilation is held while the inactive cache is preserved/verified on BetterSSD and the old path becomes a compatibility symlink. No source/evidence deletion is authorized. Astra reviewed shared read-only factoring and requested a saved unsupported-process regression; Luna owns that tests-first follow-up and implementation after cache relocation. Root already authorized the bounded production change once these review conditions are met.
+
+Read-only B retry now fails mDNS hostname resolution; still no queue delivery or receipt. Existing request remains reserved without duplicate dispatch. User preview and B resource hold remain unchanged.
+
 ## Public HDR option ruled out; engine RED gate next — 2026-09-28 10:00 UTC
 
 Phase8 geometry evidence is main7bcf77ad (163 verified portable payloads). Phase9 sourceeebc6325 contributes97 payloads independently verified against exact Git blobs and imported here. Documented compute-HDR-stats enabled only for HDR changes no provider, rendered-float, ICC or ordinary property bytes on three original80×16 fixtures. Root checked36 payload hashes/pair equality; Astra independently scanned all12 float outputs and confirmed defaults exactly match phase8. All six direct exits0. Original gain-map core4pass/1fail remains unresolved; prototype stays unmerged. No further HDR runtime experiment selected or product fix inferred.
