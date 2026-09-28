@@ -3361,7 +3361,13 @@ mod tests {
         let xmp = sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo)).unwrap();
         assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 0.7);
         assert_eq!(
-            engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
+            engine
+                .list_images(crate::ImageQuery::default())
+                .unwrap()
+                .into_iter()
+                .find(|image| image.id == row.id)
+                .unwrap()
+                .recipe_hash,
             recipe.recipe_hash().to_string()
         );
         assert!(
@@ -3480,7 +3486,13 @@ mod tests {
         let xmp = sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo)).unwrap();
         assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 1.2);
         assert_eq!(
-            engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
+            engine
+                .list_images(crate::ImageQuery::default())
+                .unwrap()
+                .into_iter()
+                .find(|image| image.id == row.id)
+                .unwrap()
+                .recipe_hash,
             foreign_disk.recipe_hash().to_string()
         );
         assert!(saved.0.lock().unwrap().is_empty());
