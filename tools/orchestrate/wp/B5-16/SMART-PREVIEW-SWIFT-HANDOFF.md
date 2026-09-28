@@ -79,3 +79,13 @@ Library thumbnail/AX and selected menu warning retain “Smart Preview · Local 
 Opening uses only a newly available validated routing snapshot, never presentation state. Regression asserts warning survives proxy-save invalidation with no extra reads, opener performs a new read, clean fresh result replaces the warning, failed validation cannot open using presentation, and Original save does not invent a proxy badge. Existing status coalescing, default Original, explicit saved preference, offline action and native revalidation contracts remain unchanged.
 
 Source/whitespace inspection only; no builds/tests/apps/benchmarks or heartbeat/writer changes on B. A owns native compilation, all current tests and integrated GUI validation, including actual autosave callback source identity and thumbnail/AX/menu warning persistence.
+
+## Review 06afa311 — follow replacement status checks during opening
+
+Validated exact B target and accepted before changes. Tests-first `a0a6389e`; production `dd84ed57`. Combined suite **20 methods, all UNRUN on B**. This follow-up changes only SmartPreviewController product source and its existing test file; proxy-save presentation fix remains intact.
+
+Opening now captures a photo-selection identity separately from status-read generation. After the captured task drains, a newer same-photo Check Status generation is awaited instead of treating its temporarily missing snapshot as failure. Each repeat follows a real observed generation replacement; no timer, polling, busy retry, native error fallback or duplicate status read. A photo change invalidates opening even if selection changes back to the same image before the old read finishes. Task cancellation and batch admission remain checked. Native opening still revalidates independently.
+
+Two gated-read regression: hold read 1, prove opener captured it, request explicit same-photo refresh, complete read 1, hold read 2, prove opener now awaits generation 2 without completing, release read 2 and require its exact snapshot with exactly two native calls. Negative control changes selection away and back and requires CancellationError without reviving the old opener. Internal nonescaping `willWait` observer identifies the exact captured-await boundary for deterministic tests; production passes a no-op. XCTest deadlines are failure bounds, not product timing workarounds.
+
+Source inspection and git diff --check only. A must compile/run all current tests and validate Check Status during actual opening. No offline Library startup/relaunch changes or speculative bindings: waiting for A's exact cached-preview-session API contract. No B workloads/apps/benchmarks/heartbeat/writer changes. A owns runtime and main.
