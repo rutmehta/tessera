@@ -1,6 +1,6 @@
 # Machine A recovery status
 
-## Broader Develop native gates verified — 2026-09-28 12:29 UTC
+## Broader Develop native gates verified — 2026-09-28 12:27 UTC
 
 At generated checkpointabe317c0 (Rust exactlyc1c3), original three-crate Release command passed579 named tests,0failed,29ignored across94 summaries;9 zero-pass summaries are not additional tests. Strict Clippy retry, fmt and workspace check exited0. Initial Clippy wrapper used zsh's read-only `status` variable and failed to record an exit; its raw successful-looking output is retained but not counted as a verified direct success. Retry has explicit direct0. All6419 before/after-release/after-gates inputs are byte-identical SHA256f3be2fd7fe084bbb6883d6b0eff7db6c3dc1a16a74e78e13d14e8c375720ecb4. Astra verified1177 native Git blobs against the source checkpoint. Root independently read exits/raw summaries and manifest hashes. LibRaw warnings remain recorded.
 
