@@ -1,0 +1,100 @@
+apps/mac/Sources/Tessera/Grid/ThumbnailBrowser.swift:75:        !model.isReviewing && !model.isReviewEditing && model.source != .people && (style == .filmstrip || model.viewMode == .grid)
+apps/mac/Sources/Tessera/Grid/ThumbnailBrowser.swift:152:            model?.viewMode = .loupe
+apps/mac/Sources/Tessera/App/TesseraApp.swift:136:            model.openFolder(URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true))
+apps/mac/Sources/Tessera/App/TesseraApp.swift:138:            model.openFolder(last)
+apps/mac/Sources/Tessera/Shell/ContentView.swift:48:                            .opacity(model.viewMode == .grid ? 1 : 0)
+apps/mac/Sources/Tessera/Shell/ContentView.swift:49:                            .allowsHitTesting(model.viewMode == .grid)
+apps/mac/Sources/Tessera/Shell/ContentView.swift:51:                            .opacity(model.viewMode == .loupe ? 1 : 0)
+apps/mac/Sources/Tessera/Shell/ContentView.swift:52:                            .allowsHitTesting(model.viewMode == .loupe)
+apps/mac/Sources/Tessera/Shell/ContentView.swift:53:                        if model.viewMode == .loupe {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:57:                        if model.viewMode == .compare, model.compare != nil {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:60:                        if model.viewMode == .document {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:85:                if model.viewMode == .loupe, model.source != .people, !model.assist.faces.isEmpty {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:95:                if model.viewMode == .document {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:130:                   idealWidth: model.viewMode == .document ? Self.documentDetailMinWidth : nil, maxWidth: .infinity)
+apps/mac/Sources/Tessera/Shell/ContentView.swift:132:            .navigationTitle(model.viewMode == .document ? (model.documents.current?.title ?? "Tessera")
+apps/mac/Sources/Tessera/Shell/ContentView.swift:170:                if model.viewMode == .document {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:248:        if model.viewMode == .document {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:268:            if model.viewMode == .document {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:269:                Button("Library") { model.viewMode = .grid }
+apps/mac/Sources/Tessera/Shell/ContentView.swift:303:            if model.viewMode == .document, !model.documents.documents.isEmpty {
+apps/mac/Sources/Tessera/Shell/ContentView.swift:311:            if model.viewMode == .grid {
+apps/mac/Sources/Tessera/Loupe/LoupeToolOverlay.swift:447:        let loupe = model.viewMode == .loupe
+apps/mac/Sources/Tessera/Loupe/LoupeView.swift:71:        guard model.viewMode == .loupe else { return }
+apps/mac/Sources/Tessera/Loupe/LoupeView.swift:118:        guard model.viewMode == .loupe, let develop = model.develop, develop.itemID == shownID else { return }
+apps/mac/Sources/Tessera/App/AppCommands.swift:10:    private var docMode: Bool { model.viewMode == .document }
+apps/mac/Sources/Tessera/App/AppCommands.swift:28:                    Button(url.path) { model.openFolder(url) }
+apps/mac/Sources/Tessera/App/AppCommands.swift:76:                if model.isPhotoEditing || model.isReviewing { model.returnToLibrary(grid: true) } else { model.viewMode = .grid }
+apps/mac/Sources/Tessera/App/AppCommands.swift:78:            Button("Loupe    (E / Return)") { model.returnToLibrary(); model.viewMode = .loupe }
+apps/mac/Sources/Tessera/App/AppCommands.swift:80:            Button("Layered Documents") { model.viewMode = .document }
+apps/mac/Sources/Tessera/Agent/AgentReviewWorkspace.swift:138:        let barrier = model.pendingDevelopSaveBarrier(imageID: selected, library: owner)
+apps/mac/Sources/Tessera/App/TimingSelfTest.swift:45:                    model.viewMode = .loupe
+apps/mac/Sources/Tessera/App/MaskTools.swift:58:    var ready: Bool { model.developStatus == .ready && develop != nil && model.viewMode == .loupe }
+apps/mac/Sources/Tessera/App/MaskTools.swift:352:        let group = active && overlayOn && model.viewMode == .loupe ? list.selectedID : nil
+apps/mac/Sources/Tessera/App/MaskTools.swift:388:        guard model.viewMode == .loupe, model.developStatus == .ready else { return false }
+apps/mac/Sources/Tessera/Inspector/TransformPanel.swift:41:        guard model.viewMode == .loupe else { model.statusMessage = "Guided Upright works in the loupe (E)"; return }
+apps/mac/Sources/Tessera/Tether/TetherController.swift:244:            app.openFolder(folder, message: "Tether session folder \(folder.lastPathComponent)") { app, loaded in
+apps/mac/Sources/Tessera/Tether/TetherController.swift:487:            if app.focusedItem?.id == id, app.viewMode != .compare { app.viewMode = .loupe }
+apps/mac/Sources/Tessera/App/KeyRouter.swift:78:        return model.viewMode == .document
+apps/mac/Sources/Tessera/App/KeyRouter.swift:94:        if model.viewMode == .document, DocumentText.shared.routeSessionKey(event) { return true }
+apps/mac/Sources/Tessera/App/KeyRouter.swift:98:        if model.viewMode == .document, handleToolLetterOverKeyOwner(event) { return true }
+apps/mac/Sources/Tessera/App/KeyRouter.swift:100:        if model.viewMode == .document { return handleDocument(event) }
+apps/mac/Sources/Tessera/App/KeyRouter.swift:113:        let loupe = model.viewMode == .loupe
+apps/mac/Sources/Tessera/App/KeyRouter.swift:114:        let comparing = model.viewMode == .compare
+apps/mac/Sources/Tessera/App/KeyRouter.swift:129:        case 36, 76: model.viewMode = loupe ? .grid : .loupe; return true      // Return / Enter
+apps/mac/Sources/Tessera/App/KeyRouter.swift:130:        case 53: if loupe { model.viewMode = .grid; return true }; return false  // Esc
+apps/mac/Sources/Tessera/App/KeyRouter.swift:157:        case "g": model.viewMode = .grid
+apps/mac/Sources/Tessera/App/KeyRouter.swift:158:        case "e": model.viewMode = .loupe
+apps/mac/Sources/Tessera/Sidebar/SidebarView.swift:362:        case .folder(let url): model.openFolder(url)
+apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:113:        app?.viewMode = .document
+apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:348:        if app?.viewMode == .document, current != nil { close() } else { NSApp.keyWindow?.performClose(nil) }
+apps/mac/Sources/Tessera/App/DevelopTools.swift:139:        guard !cropActive, let d = develop, model.viewMode == .loupe, var g = storedCrop() else {
+apps/mac/Sources/Tessera/Agent/AgentController.swift:427:        let closeBarrier = app.prepareForAgent(imageIDs: Set(images), library: lib)
+apps/mac/Sources/Tessera/Agent/AgentController.swift:572:        let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
+apps/mac/Sources/Tessera/Agent/AgentController.swift:610:        let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
+apps/mac/Sources/Tessera/App/AppModel.swift:216:                closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:219:            if viewMode == .compare, compare == nil {
+apps/mac/Sources/Tessera/App/AppModel.swift:221:                viewMode = oldValue
+apps/mac/Sources/Tessera/App/AppModel.swift:227:                modeBeforeCompare = viewMode == .document ? .grid : viewMode
+apps/mac/Sources/Tessera/App/AppModel.swift:328:        lightroomImport.openLibrary = { [weak self] folder, message in self?.openFolder(folder, message: message) }
+apps/mac/Sources/Tessera/App/AppModel.swift:367:                MainActor.assumeIsolated { self?.openFolder(url) }
+apps/mac/Sources/Tessera/App/AppModel.swift:370:            openFolder(url)
+apps/mac/Sources/Tessera/App/AppModel.swift:380:    func openFolder(_ url: URL, message: String? = nil, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
+apps/mac/Sources/Tessera/App/AppModel.swift:456:        if viewMode == .review {
+apps/mac/Sources/Tessera/App/AppModel.swift:458:            viewMode = .grid
+apps/mac/Sources/Tessera/App/AppModel.swift:468:        closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:474:        if viewMode == .compare { viewMode = modeBeforeCompare }
+apps/mac/Sources/Tessera/App/AppModel.swift:606:        viewMode = .grid
+apps/mac/Sources/Tessera/App/AppModel.swift:751:            if let id = remap(d.itemID) { d.relink(itemID: id) } else { closeDevelop() }
+apps/mac/Sources/Tessera/App/AppModel.swift:760:                if viewMode == .compare { viewMode = modeBeforeCompare }
+apps/mac/Sources/Tessera/App/AppModel.swift:841:    var isReviewing: Bool { viewMode == .review }
+apps/mac/Sources/Tessera/App/AppModel.swift:901:        if developLibrary === owner, develop?.imageID == imageID { closeDevelop() }
+apps/mac/Sources/Tessera/App/AppModel.swift:906:        let barrier = pendingDevelopSaveBarrier(imageID: imageID, library: owner)
+apps/mac/Sources/Tessera/App/AppModel.swift:922:                  self.isLibraryWorkspace, self.source == source, self.viewMode == view,
+apps/mac/Sources/Tessera/App/AppModel.swift:954:        viewMode = .loupe
+apps/mac/Sources/Tessera/App/AppModel.swift:963:        closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:980:            viewMode = compare == nil ? .loupe : .compare
+apps/mac/Sources/Tessera/App/AppModel.swift:982:            viewMode = grid ? .grid : saved.view
+apps/mac/Sources/Tessera/App/AppModel.swift:1022:    func pendingDevelopSaveBarrier(imageID: String, library owner: EngineLibrary) -> Task<Void, Never> {
+apps/mac/Sources/Tessera/App/AppModel.swift:1043:        closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:1049:        viewMode = .review
+apps/mac/Sources/Tessera/App/AppModel.swift:1086:        closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:1091:        viewMode = .review
+apps/mac/Sources/Tessera/App/AppModel.swift:1156:        if viewMode == .document { documents.current?.selectAll(); return }
+apps/mac/Sources/Tessera/App/AppModel.swift:1166:        if let d = develop, d.itemID != focusedItem?.id { closeDevelop() }
+apps/mac/Sources/Tessera/App/AppModel.swift:1181:        if viewMode == .compare {
+apps/mac/Sources/Tessera/App/AppModel.swift:1212:        let cols = viewMode == .grid ? max(gridColumns, 1) : 1
+apps/mac/Sources/Tessera/App/AppModel.swift:1324:        if viewMode == .document {
+apps/mac/Sources/Tessera/App/AppModel.swift:1359:        if viewMode == .document {
+apps/mac/Sources/Tessera/App/AppModel.swift:1603:        modeBeforeCompare = viewMode == .compare ? modeBeforeCompare : viewMode
+apps/mac/Sources/Tessera/App/AppModel.swift:1605:        viewMode = .compare
+apps/mac/Sources/Tessera/App/AppModel.swift:1611:        viewMode = modeBeforeCompare
+apps/mac/Sources/Tessera/App/AppModel.swift:1673:        closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:1752:    func closeDevelop() {
+apps/mac/Sources/Tessera/App/AppModel.swift:1787:    func prepareForAgent(imageIDs: Set<String>, library owner: EngineLibrary) -> Task<Void, Never> {
+apps/mac/Sources/Tessera/App/AppModel.swift:1789:            closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:2036:        viewMode = .loupe
+apps/mac/Sources/Tessera/App/AppModel.swift:2050:    func releaseDevelop(for itemIDs: Set<Int>) async {
+apps/mac/Sources/Tessera/App/AppModel.swift:2056:        closeDevelop()
+apps/mac/Sources/Tessera/App/AppModel.swift:2072:        if viewMode == .loupe, let item = focusedItem, itemIDs.contains(item.id), develop == nil {
+apps/mac/Sources/Tessera/App/AppModel.swift:2080:        viewMode = .grid
