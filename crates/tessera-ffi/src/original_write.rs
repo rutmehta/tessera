@@ -15,6 +15,8 @@ use std::{
     sync::Arc,
 };
 
+type OriginalTargets = Vec<(ImageId, PathBuf)>;
+
 pub(crate) struct OriginalWriteReservation {
     // Release destination protection first, then image admission.
     _destinations: Vec<recipe_write::DevelopLease>,
@@ -23,6 +25,27 @@ pub(crate) struct OriginalWriteReservation {
 }
 impl OriginalWriteReservation {
     pub(crate) fn acquire(support: &Path, images: &[(ImageId, PathBuf)]) -> Result<Self> {
+        Self::prepare(support, images, false).map(|(reservation, _)| reservation)
+    }
+    /// Agent runs report an unavailable original per item. All IDs and dirty
+    /// journals remain admitted first, including unavailable targets. The fixed
+    /// availability vector follows caller order and cannot change on reconnect.
+    pub(crate) fn acquire_agent(
+        support: &Path,
+        images: &[(ImageId, PathBuf)],
+    ) -> Result<(Self, Vec<bool>)> {
+        let (reservation, available) = Self::prepare(support, images, true)?;
+        let admitted = images
+            .iter()
+            .map(|target| available.contains(target))
+            .collect();
+        Ok((reservation, admitted))
+    }
+    fn prepare(
+        support: &Path,
+        images: &[(ImageId, PathBuf)],
+        allow_unavailable: bool,
+    ) -> Result<(Self, OriginalTargets)> {
         let mut images = images.to_vec();
         images.sort_by(|a, b| a.0.0.cmp(&b.0.0).then(a.1.cmp(&b.1)));
         images.dedup();
@@ -39,9 +62,14 @@ impl OriginalWriteReservation {
         }
         // Every image is admitted before any sidecar can be published. Dirty
         // journals fail locally, before destination_key canonicalizes a volume.
-        for (id, path) in &images {
+        for (id, _) in &images {
             require_clean_journal(support, *id)?;
-            if !path.is_file() {
+        }
+        let mut available = Vec::new();
+        for (id, path) in images {
+            if path.is_file() {
+                available.push((id, path));
+            } else if !allow_unavailable {
                 return Err(failure(
                     "original unavailable: reconnect the original before changing its sidecars",
                 ));
@@ -49,7 +77,7 @@ impl OriginalWriteReservation {
         }
         let mut gates: Vec<Arc<recipe_write::GateState>> = Vec::new();
         let mut destinations = Vec::new();
-        for (_, path) in &images {
+        for (_, path) in &available {
             let gate = recipe_write::gate_for(path)?;
             if gates.iter().any(|previous| Arc::ptr_eq(previous, &gate)) {
                 continue;
@@ -57,11 +85,14 @@ impl OriginalWriteReservation {
             destinations.push(gate.reserve_external(path)?);
             gates.push(gate);
         }
-        Ok(Self {
-            _destinations: destinations,
-            _images: reservations,
-            authorized: images,
-        })
+        Ok((
+            Self {
+                _destinations: destinations,
+                _images: reservations,
+                authorized: available.clone(),
+            },
+            available,
+        ))
     }
     pub(crate) fn validate(&self, id: ImageId, path: &Path) -> Result<()> {
         if !self

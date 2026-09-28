@@ -459,12 +459,10 @@ impl Engine {
         let doc = catalog::document(path, id)?;
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
         Sidecar::write_xmp(catalog::xmp_path(path), &packet)?;
-        c.index.scan(
-            path.parent()
-                .ok_or_else(|| failure("image has no folder"))?,
-            &catalog::Sidecars,
-            &catalog::EmbeddedMetadata,
-        )?;
+        // Resync only this admitted original. A folder scan could discover a
+        // target excluded as unavailable at admission after it reconnects.
+        c.index
+            .scan_file(path, &catalog::Sidecars, &catalog::EmbeddedMetadata)?;
         drop(c);
         Ok(())
     }
@@ -619,8 +617,16 @@ impl Engine {
             .iter()
             .map(|i| Ok((parse_id(&i.image_id)?, self.image_path(&i.image_id)?)))
             .collect::<Result<Vec<_>>>()?;
-        let admission =
-            crate::original_write::OriginalWriteReservation::acquire(self.support_dir()?, &images)?;
+        let (admission, available) =
+            crate::original_write::OriginalWriteReservation::acquire_agent(
+                self.support_dir()?,
+                &images,
+            )?;
+        let available_indices: Vec<_> = available
+            .iter()
+            .enumerate()
+            .filter_map(|(index, available)| available.then_some(index))
+            .collect();
         let total = images.len() as u32;
         let name = |p: &Path| {
             p.file_name()
@@ -659,36 +665,52 @@ impl Engine {
             }
             Ok(())
         };
-        let mut errors: Vec<(usize, String)> = Vec::new();
+        let mut errors: Vec<(usize, String)> = available
+            .iter()
+            .enumerate()
+            .filter(|(_, available)| !**available)
+            .map(|(index, _)| {
+                (
+                    index,
+                    "original unavailable: reconnect the original and start a new agent run".into(),
+                )
+            })
+            .collect();
         let mut cancelled = false;
         let batch = images.len() > 1
             && request
                 .images
                 .iter()
                 .any(|i| i.burst.is_some() || !i.people.is_empty());
-        if batch {
-            let inputs: Vec<BatchInput> = request
-                .images
+        if batch && !available_indices.is_empty() {
+            let inputs: Vec<BatchInput> = available_indices
                 .iter()
-                .zip(&images)
-                .map(|(i, (_, path))| BatchInput {
-                    path: path.clone(),
-                    burst: i.burst.clone(),
-                    people: i.people.clone(),
+                .map(|&index| BatchInput {
+                    path: images[index].1.clone(),
+                    burst: request.images[index].burst.clone(),
+                    people: request.images[index].people.clone(),
                 })
                 .collect();
-            progress(0, name(&images[0].1), "Planning a consistent shoot");
+            progress(
+                0,
+                name(&images[available_indices[0]].1),
+                "Planning a consistent shoot",
+            );
             let result = agent.edit_batch_with_progress(
                 &inputs,
                 reborrow(&mut planner),
                 instruction,
                 false,
                 &mut |i, _report| {
-                    let (id, path) = &images[i];
+                    let original_index = available_indices[i];
+                    let (id, path) = &images[original_index];
                     finish(*id, path).map_err(|e| anyhow::anyhow!("{e}"))?;
                     progress(
-                        i + 1,
-                        images.get(i + 1).map(|(_, p)| name(p)).unwrap_or_default(),
+                        original_index + 1,
+                        available_indices
+                            .get(i + 1)
+                            .map(|&index| name(&images[index].1))
+                            .unwrap_or_default(),
                         "Editing",
                     );
                     if cancel.is_cancelled() {
@@ -706,6 +728,9 @@ impl Engine {
             }
         } else {
             for (n, (id, path)) in images.iter().enumerate() {
+                if !available[n] {
+                    continue;
+                }
                 if cancel.is_cancelled() {
                     cancelled = true;
                     break;
@@ -738,9 +763,17 @@ impl Engine {
                 .iter()
                 .find(|(i, _)| *i == n || *i == usize::MAX)
                 .map(|(_, e)| e.clone());
-            let recipe = catalog::document(path, *id)?.recipe;
-            let mut item =
-                review_item(&id.to_string(), path, &recipe).unwrap_or_else(|| AgentReviewItem {
+            // Unavailable-at-admission entries never read sidecars, even if the
+            // locator reappeared while another image's agent callback ran.
+            let recipe = if available[n] {
+                Some(catalog::document(path, *id)?.recipe)
+            } else {
+                None
+            };
+            let mut item = recipe
+                .as_ref()
+                .and_then(|recipe| review_item(&id.to_string(), path, recipe))
+                .unwrap_or_else(|| AgentReviewItem {
                     image_id: id.to_string(),
                     name: name(path),
                     group_id: None,
@@ -856,5 +889,270 @@ impl Engine {
             Ok(())
         })?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod batch_admission_tests {
+    use super::*;
+    use crate::{
+        ImageQuery,
+        image_edit_admission::{self, EditSource},
+        smart_preview_store::SmartPreviewJournal,
+    };
+    use std::sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+    };
+
+    struct Fixture {
+        _root: tempfile::TempDir,
+        engine: Arc<Engine>,
+        folder: PathBuf,
+        ids: Vec<String>,
+        paths: Vec<PathBuf>,
+        original_bytes: Vec<Vec<u8>>,
+    }
+    fn fixture() -> Fixture {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("photos");
+        std::fs::create_dir(&folder).unwrap();
+        let folder = folder.canonicalize().unwrap();
+        let mut paths = Vec::new();
+        for i in 0..3 {
+            let path = folder.join(format!("{i}.jpg"));
+            image::RgbImage::from_pixel(32 + i, 24, image::Rgb([80 + i as u8 * 20, 90, 70]))
+                .save(&path)
+                .unwrap();
+            paths.push(path);
+        }
+        let engine = Engine::open(root.path().join("support").to_string_lossy().into()).unwrap();
+        engine
+            .index_folder(folder.to_string_lossy().into())
+            .unwrap();
+        let images = engine.list_images(ImageQuery::default()).unwrap();
+        let ids = paths
+            .iter()
+            .map(|path| {
+                images
+                    .iter()
+                    .find(|image| engine.image_path(&image.id).unwrap() == *path)
+                    .unwrap()
+                    .id
+                    .clone()
+            })
+            .collect();
+        let original_bytes = paths
+            .iter()
+            .map(|path| std::fs::read(path).unwrap())
+            .collect();
+        Fixture {
+            _root: root,
+            engine,
+            folder,
+            ids,
+            paths,
+            original_bytes,
+        }
+    }
+    fn request(f: &Fixture, grouped: bool) -> AgentRunRequest {
+        AgentRunRequest {
+            images: f
+                .ids
+                .iter()
+                .map(|id| AgentImageInput {
+                    image_id: id.clone(),
+                    burst: grouped.then(|| "same-burst".into()),
+                    people: vec![],
+                })
+                .collect(),
+            library_folder: f.folder.to_string_lossy().into(),
+            provider: AgentProvider::Scripted,
+            guardrails: AgentGuardrails {
+                allow_masks: false,
+                allow_crop: false,
+                allow_skin_retouch: false,
+                visual_critic: false,
+                max_iterations: 1,
+                time_budget_seconds: 30,
+            },
+            instruction: None,
+        }
+    }
+    struct ReconnectMissing {
+        id: ImageId,
+        path: PathBuf,
+        bytes: Vec<u8>,
+        restored: AtomicBool,
+        progress: Mutex<Vec<AgentRunProgress>>,
+    }
+    impl AgentRunListener for ReconnectMissing {
+        fn on_progress(&self, progress: AgentRunProgress) {
+            self.progress.lock().unwrap().push(progress);
+            assert!(
+                image_edit_admission::gate_for(self.id)
+                    .unwrap()
+                    .begin_write()
+                    .is_err(),
+                "missing target keeps its ID reservation"
+            );
+            if !self.restored.swap(true, Ordering::SeqCst) {
+                std::fs::write(&self.path, &self.bytes).unwrap();
+                let path = Sidecar::paths(&self.path).recipe;
+                std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+                std::fs::write(
+                    path,
+                    b"external marker: must never be read or replaced by this run",
+                )
+                .unwrap();
+            }
+        }
+    }
+    fn mixed_run(grouped: bool) {
+        let f = fixture();
+        std::fs::remove_file(&f.paths[1]).unwrap();
+        let listener = Arc::new(ReconnectMissing {
+            id: parse_id(&f.ids[1]).unwrap(),
+            path: f.paths[1].clone(),
+            bytes: f.original_bytes[1].clone(),
+            restored: AtomicBool::new(false),
+            progress: Mutex::new(Vec::new()),
+        });
+        let report = f
+            .engine
+            .run_agent(
+                request(&f, grouped),
+                CancelFlag::new(),
+                Some(listener.clone()),
+            )
+            .unwrap();
+        assert_eq!(report.items.len(), 3);
+        assert!(!report.cancelled);
+        for i in [0, 2] {
+            let item = report
+                .items
+                .iter()
+                .find(|item| item.image_id == f.ids[i])
+                .unwrap();
+            assert!(
+                item.error.is_none(),
+                "valid original must produce a review item: {:?}",
+                item.error
+            );
+            assert!(item.group_id.is_some());
+            assert!(Sidecar::paths(&f.paths[i]).recipe.is_file());
+        }
+        let missing = report
+            .items
+            .iter()
+            .find(|item| item.image_id == f.ids[1])
+            .unwrap();
+        assert!(
+            missing
+                .error
+                .as_deref()
+                .unwrap()
+                .contains("original unavailable")
+        );
+        assert!(missing.group_id.is_none());
+        assert!(missing.steps.is_empty());
+        assert_eq!(
+            std::fs::read(Sidecar::paths(&f.paths[1]).recipe).unwrap(),
+            b"external marker: must never be read or replaced by this run"
+        );
+        assert!(!Sidecar::paths(&f.paths[1]).xmp.exists());
+        for (path, bytes) in f.paths.iter().zip(&f.original_bytes) {
+            assert_eq!(&std::fs::read(path).unwrap(), bytes);
+        }
+        let progress = listener.progress.lock().unwrap();
+        assert!(progress.iter().all(|p| p.total == 3));
+        assert_eq!(progress.last().unwrap().done, 3);
+        if grouped {
+            let edited: Vec<_> = progress
+                .iter()
+                .filter(|p| p.phase == "Editing")
+                .map(|p| p.done)
+                .collect();
+            assert_eq!(
+                edited,
+                vec![1, 3],
+                "filtered batch callbacks map to original positions"
+            );
+        }
+    }
+    #[test]
+    fn independent_agent_batch_keeps_missing_item_error_and_edits_available_targets() {
+        mixed_run(false);
+    }
+    #[test]
+    fn coherent_agent_batch_remaps_filtered_indices_and_never_retries_missing_target() {
+        mixed_run(true);
+    }
+
+    #[test]
+    fn dirty_or_active_missing_target_blocks_entire_agent_run_before_other_writes() {
+        for blocked in [
+            None,
+            Some(EditSource::Original),
+            Some(EditSource::SmartPreview),
+        ] {
+            let f = fixture();
+            let id = parse_id(&f.ids[1]).unwrap();
+            std::fs::remove_file(&f.paths[1]).unwrap();
+            let mut retained_journal = None;
+            let lease = if let Some(source) = blocked {
+                Some(
+                    image_edit_admission::gate_for(id)
+                        .unwrap()
+                        .reserve_develop(source)
+                        .unwrap(),
+                )
+            } else {
+                let bytes = serde_json::to_vec(&sidecar::RecipeDocument {
+                    recipe: Recipe::new(id),
+                    ..Default::default()
+                })
+                .unwrap();
+                let mut journal = SmartPreviewJournal::create(
+                    f.engine.support_dir().unwrap(),
+                    id,
+                    [8; 32],
+                    99,
+                    bytes.clone(),
+                    None,
+                    None,
+                )
+                .unwrap();
+                journal.save_recipe(bytes).unwrap();
+                retained_journal = Some(journal);
+                None
+            };
+            let error = f
+                .engine
+                .run_agent(request(&f, true), CancelFlag::new(), None)
+                .unwrap_err()
+                .to_string();
+            if blocked.is_none() {
+                assert!(error.contains("needs sync"));
+            } else {
+                assert!(error.contains("active"));
+            }
+            for i in [0, 2] {
+                assert!(!Sidecar::paths(&f.paths[i]).recipe.exists());
+                assert!(!Sidecar::paths(&f.paths[i]).xmp.exists());
+                assert_eq!(std::fs::read(&f.paths[i]).unwrap(), f.original_bytes[i]);
+                assert!(
+                    image_edit_admission::gate_for(parse_id(&f.ids[i]).unwrap())
+                        .unwrap()
+                        .begin_write()
+                        .is_ok()
+                );
+            }
+            assert!(!f.paths[1].exists());
+            if let Some(journal) = retained_journal {
+                assert!(journal.snapshot().unwrap().dirty);
+            }
+            drop(lease);
+        }
     }
 }
