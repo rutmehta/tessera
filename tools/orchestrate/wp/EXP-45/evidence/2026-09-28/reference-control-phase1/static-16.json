@@ -1,0 +1,35 @@
+{
+  "file": "fixtures/reference-16.jpg",
+  "sha256": "6c8c2bad6287de3c51ea6b1a5d4ce203b0edd66d046958acd7cb7631109567a4",
+  "bytes": 1895,
+  "primary_soi": "ffd8",
+  "iso_urn_offsets": [
+    612,
+    1485
+  ],
+  "iso_version_fields": [
+    [
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "mpf_marker_offset": 648,
+  "exiftool_mpimage2_offset": 1479,
+  "exiftool_mpimage2_length": 416,
+  "aux_soi": "ffd8",
+  "aux_eoi": "ffd9",
+  "aux_sha256": "d3f01478d2b3af26c3c6d80a6417b33f066992ee229c5a730bb473cc72dc24d8",
+  "aux_iso_urn_at": 6,
+  "two_jpeg_soi_offsets": [
+    0,
+    1479
+  ]
+}

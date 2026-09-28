@@ -1,0 +1,10 @@
+{
+  "source": "fixtures/reference-16.jpg",
+  "source_sha256": "6c8c2bad6287de3c51ea6b1a5d4ce203b0edd66d046958acd7cb7631109567a4",
+  "patched": "fixtures/reference-16-representative.jpg",
+  "patched_sha256": "66ced9d5787f648fcd8489923f9b6a2f226c1d918c1d366fdb5140de0436eb02",
+  "offset": 702,
+  "before": "00030000",
+  "after": "20030000",
+  "changed_byte_count": 1
+}

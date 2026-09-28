@@ -1,0 +1,55 @@
+[1/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/byte_pointer_data_destination.cc.o
+[2/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/byte_buffer.cc.o
+[3/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/data_context.cc.o
+[4/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/data_line_map.cc.o
+[5/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/data_range_tracking_destination.cc.o
+[6/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/data_segment.cc.o
+[7/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/data_scanner.cc.o
+[8/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/data_segment_data_source.cc.o
+[9/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/istream_ref_data_source.cc.o
+[10/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/message_handler.cc.o
+[11/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/message_writer.cc.o
+[12/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/ostream_ref_data_destination.cc.o
+[13/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/base/string_ref_data_source.cc.o
+[14/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/extras/base64_decoder_data_destination.cc.o
+[15/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/gcontainer/gcontainer.cc.o
+[16/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_image_extractor.cc.o
+[17/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_info_builder.cc.o
+[18/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_marker.cc.o
+[19/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_scanner.cc.o
+[20/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_segment.cc.o
+[21/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_segment_builder.cc.o
+[22/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_segment_lister.cc.o
+[23/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_xmp_data_extractor.cc.o
+[24/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_xmp_info.cc.o
+[25/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/jpeg/jpeg_xmp_info_builder.cc.o
+[26/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/modp_b64/modp_b64.cc.o
+[27/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_attribute_rule.cc.o
+[28/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/utils/file_utils.cc.o
+[29/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_cdata_and_comment_rules.cc.o
+[30/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_element_rules.cc.o
+[31/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_handler.cc.o
+[32/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_pi_rule.cc.o
+[33/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_reader.cc.o
+[34/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_rule.cc.o
+[35/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_token_context.cc.o
+[36/55] Building CXX object CMakeFiles/image_io.dir/third_party/image_io/src/xml/xml_writer.cc.o
+[37/55] Linking CXX static library libimage_io.a
+[38/55] Building CXX object CMakeFiles/core.dir/lib/src/editorhelper.cpp.o
+[39/55] Building CXX object CMakeFiles/core.dir/lib/src/gainmapmath.cpp.o
+[40/55] Building CXX object CMakeFiles/core.dir/lib/src/gainmapmetadata.cpp.o
+[41/55] Building CXX object CMakeFiles/core.dir/lib/src/icc.cpp.o
+[42/55] Building CXX object CMakeFiles/core.dir/lib/src/jpegdecoderhelper.cpp.o
+[43/55] Building CXX object CMakeFiles/core.dir/lib/src/jpegencoderhelper.cpp.o
+[44/55] Building CXX object CMakeFiles/core.dir/lib/src/jpegrutils.cpp.o
+[45/55] Building CXX object CMakeFiles/core.dir/lib/src/jpegr.cpp.o
+[46/55] Building CXX object CMakeFiles/core.dir/lib/src/multipictureformat.cpp.o
+[47/55] Building CXX object CMakeFiles/core.dir/lib/src/ultrahdr_api.cpp.o
+[48/55] Building CXX object CMakeFiles/core.dir/lib/src/dsp/arm/editorhelper_neon.cpp.o
+[49/55] Building CXX object CMakeFiles/core.dir/lib/src/dsp/arm/gainmapmath_neon.cpp.o
+[50/55] Linking CXX static library libcore.a
+[51/55] Linking CXX shared library libuhdr.1.4.0.dylib
+[52/55] Creating library symlink libuhdr.1.dylib libuhdr.dylib
+[53/55] Linking CXX static library libuhdr.a
+[54/55] Building CXX object CMakeFiles/ultrahdr_app.dir/examples/ultrahdr_app.cpp.o
+[55/55] Linking CXX executable ultrahdr_app

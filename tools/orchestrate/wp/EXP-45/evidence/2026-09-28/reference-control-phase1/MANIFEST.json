@@ -1,0 +1,279 @@
+{
+  "upstream_git_head": "d52a0d13814ca399fc8a07e23de1d2c63f0e8404",
+  "upstream_git_status": "",
+  "host": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83",
+  "machine": "arm64",
+  "sdk": "26.5",
+  "files": {
+    "libultrahdr/CMakeLists.txt": {
+      "sha256": "3a7b7ac24f9171b716e2f0125e08bcff1fdadfe95385399a0c57970536405708",
+      "bytes": 33647
+    },
+    "libultrahdr/lib/src/jpegr.cpp": {
+      "sha256": "f769117ad46489ac564040c1599879b95a483785f847d0f48de0c4a726b0cb44",
+      "bytes": 117512
+    },
+    "libultrahdr/lib/src/multipictureformat.cpp": {
+      "sha256": "c27bf859d5c820ab1ed972b10671697a3e2fdadb697f4bfc1f401b5a3b11054a",
+      "bytes": 4084
+    },
+    "libultrahdr/lib/src/gainmapmetadata.cpp": {
+      "sha256": "3e70f5a1f45a980679db6d083abad02117c25e6e01188c35c76182ea74b11d13",
+      "bytes": 19594
+    },
+    "libultrahdr/ultrahdr_api.h": {
+      "sha256": "0d29e65bf0bc40d04a87f0ad9a3c9adace8a045d0e0533835ae97f4343bc5ff9",
+      "bytes": 42302
+    },
+    "build/ultrahdr_app": {
+      "sha256": "b0dc0a8c4643ddeff6b89d3f31a39a7e2a0929b16afc9c9e5e840b200a2dbb27",
+      "bytes": 589264
+    },
+    "build/libuhdr.1.4.0.dylib": {
+      "sha256": "6b7247ba61330add27f8a05c2f35a8834be03a9582a63858d9c14d9240e84e74",
+      "bytes": 591728
+    },
+    "imageio-probe.m": {
+      "sha256": "ec4edae214ad54569bd0e76b95452352de24ff57bd31055648414fb53c7ace3d",
+      "bytes": 6591
+    },
+    "imageio-probe": {
+      "sha256": "950c42f9c93943d2ee252dad1a24abf0459b112a43e1b2bd92b575e3f3aa5619",
+      "bytes": 56288
+    },
+    "coreimage-probe.m": {
+      "sha256": "459b4ab14b4720af0faf3ea89c687d1857c9cd371277de137a08d230ff8c9b9f",
+      "bytes": 3471
+    },
+    "coreimage-probe": {
+      "sha256": "156d559589f1fe693cf6bdea0a04ef89472e6f2224528052059579380b3a13f3",
+      "bytes": 54144
+    },
+    "fixtures/base.jpg": {
+      "sha256": "2832a2dde02912ee5f66af8ddfae7f21db95ef65962103bf922709fabeffd18e",
+      "bytes": 747
+    },
+    "fixtures/base.ppm": {
+      "sha256": "63695e637ee121732e1c3cb21c4d988488d76747ba08f178ab0433297bca2e40",
+      "bytes": 3853
+    },
+    "fixtures/cap-16.cfg": {
+      "sha256": "f598211428bcfce84fd98b931c99f165c8d61f5513d7f66b7b48f3139f85d973",
+      "bytes": 140
+    },
+    "fixtures/cap-4.cfg": {
+      "sha256": "5d869ae30a6993de071227b534ce21b7c3a774a9ae82c81bb836ae47c3662cb3",
+      "bytes": 138
+    },
+    "fixtures/decoded-16-representative.cfg": {
+      "sha256": "f598211428bcfce84fd98b931c99f165c8d61f5513d7f66b7b48f3139f85d973",
+      "bytes": 140
+    },
+    "fixtures/decoded-16-representative.raw": {
+      "sha256": "bbddc6f6788ca1d72f79b14329812622f24ee2ac20e62f45dd252078705baa4a",
+      "bytes": 10240
+    },
+    "fixtures/decoded-16.cfg": {
+      "sha256": "f598211428bcfce84fd98b931c99f165c8d61f5513d7f66b7b48f3139f85d973",
+      "bytes": 140
+    },
+    "fixtures/decoded-16.raw": {
+      "sha256": "bbddc6f6788ca1d72f79b14329812622f24ee2ac20e62f45dd252078705baa4a",
+      "bytes": 10240
+    },
+    "fixtures/decoded-4-representative.cfg": {
+      "sha256": "5d869ae30a6993de071227b534ce21b7c3a774a9ae82c81bb836ae47c3662cb3",
+      "bytes": 138
+    },
+    "fixtures/decoded-4-representative.raw": {
+      "sha256": "e463b79d6701c718ba8e8ab748c431c1c11b062ef513954e422afc9a63b9c7bd",
+      "bytes": 10240
+    },
+    "fixtures/decoded-4.cfg": {
+      "sha256": "5d869ae30a6993de071227b534ce21b7c3a774a9ae82c81bb836ae47c3662cb3",
+      "bytes": 138
+    },
+    "fixtures/decoded-4.raw": {
+      "sha256": "e463b79d6701c718ba8e8ab748c431c1c11b062ef513954e422afc9a63b9c7bd",
+      "bytes": 10240
+    },
+    "fixtures/gain.jpg": {
+      "sha256": "3d93a0b1f14348bc40cbc55ebeed616fad771281a7e63ad3054f670e90a35907",
+      "bytes": 347
+    },
+    "fixtures/gain.pgm": {
+      "sha256": "9d9293b6cf23f44eb580d7a9066cd2439457310efcd3e6af3f323ddaa88050ab",
+      "bytes": 1293
+    },
+    "fixtures/reference-16-representative.jpg": {
+      "sha256": "66ced9d5787f648fcd8489923f9b6a2f226c1d918c1d366fdb5140de0436eb02",
+      "bytes": 1895
+    },
+    "fixtures/reference-16.jpg": {
+      "sha256": "6c8c2bad6287de3c51ea6b1a5d4ce203b0edd66d046958acd7cb7631109567a4",
+      "bytes": 1895
+    },
+    "fixtures/reference-4-representative.jpg": {
+      "sha256": "bc905bee5302cc1c207daa777729646fa864fbed2182f12724a88975aaf4d20f",
+      "bytes": 1895
+    },
+    "fixtures/reference-4.jpg": {
+      "sha256": "a4564ba16f3febd8330bc751e181209bf9a8bfd1b4118d7ec004db9a724315ce",
+      "bytes": 1895
+    },
+    "native/coreimage.json": {
+      "sha256": "ee807f7f62f95874dfcc7712a78aed6196dcefc90bd6da13e7d2d259134562dd",
+      "bytes": 4375
+    },
+    "native/imageio.json": {
+      "sha256": "30d975a6fb0da9bbfa3f759a5cda0d3d40e7367617e64347a62771f3963f43bf",
+      "bytes": 9577
+    },
+    "native/representative/coreimage.json": {
+      "sha256": "3e2fff9fd62724f5980dec7e650a51c175232cd658714fb9f174bb2fa24bc5e9",
+      "bytes": 2450
+    },
+    "native/representative/imageio.json": {
+      "sha256": "e67423bbb03236909413d3ba370352155bc6ba901f3bb3ce206ad1ab87c5acfb",
+      "bytes": 6544
+    },
+    "native/coreimage.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "native/imageio.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "native/representative/coreimage.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "native/representative/imageio.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build.log": {
+      "sha256": "85114b153cc9f5abaca3853ee305a4ed4cc17c05b9c4271dfedd566720b5c7ce",
+      "bytes": 5075
+    },
+    "configure.log": {
+      "sha256": "63f922203a72b8fb813994360cf82f1a98c6646735a16d74ab023c93dbd71da9",
+      "bytes": 1395
+    },
+    "coreimage-compile.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "decode-16-representative.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "decode-16.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "decode-4-representative.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "decode-4.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "encode-16.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "encode-4.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "imageio-compile.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "decode-16-representative.json": {
+      "sha256": "b0da078703689f83aa49754e0936826627cf905f088f9228d25b3be627ab3df1",
+      "bytes": 451
+    },
+    "decode-16.json": {
+      "sha256": "28731dd90a99630cb2d5d92e8bcb409cd9433b3b1244e5422b5b9899b58c2fcc",
+      "bytes": 821
+    },
+    "decode-4-representative.json": {
+      "sha256": "2dc831cd1c665f83eccd6828e90a62b3a7f3f25ae0ff603d66dd0a91ea01a126",
+      "bytes": 449
+    },
+    "decode-4.json": {
+      "sha256": "070535940745ebee154968ea5586fecbf4f9b297d72b206d056a08ac31eaeac7",
+      "bytes": 831
+    },
+    "encode-16.json": {
+      "sha256": "b0c9e0060658e6a64aaaa7723504ec434b940f3c7e02b52c28f64ed6cb984005",
+      "bytes": 368
+    },
+    "encode-4.json": {
+      "sha256": "5eaf8dc7d69d2c28e50c4d27d4af90ef3ef350ca505f83209e3e69ac92f145b2",
+      "bytes": 366
+    },
+    "mpf-patch-16.json": {
+      "sha256": "c409c6bcb3b41a6e7fec948449978c85a172b82c2235674b11bfe2d1e050bce8",
+      "bytes": 367
+    },
+    "mpf-patch-4.json": {
+      "sha256": "985382a65bee6b7ac245c0c4c6007554a768a47bdfad0acc3633490024db24ef",
+      "bytes": 365
+    },
+    "source.json": {
+      "sha256": "11fedc8fd927396598bfdb0ed9c37fdfd7266acfe66ff6b90735614a9b4cb5fd",
+      "bytes": 120
+    },
+    "static-16.json": {
+      "sha256": "71aeb3817402febf423a35e1c0d033c6217e43c7b49fd46013536f7251bc8a66",
+      "bytes": 633
+    },
+    "static-4.json": {
+      "sha256": "056b63488749db91e574dcd09acd86ab46398ab33bc6ee2187184beae340f06a",
+      "bytes": 632
+    },
+    "ISO-MPF-COMPARISON.json": {
+      "sha256": "4f1716d6773e09e8134b9e18f48dc983057293beccfdaa0714fb84175ff47e30",
+      "bytes": 4516
+    },
+    "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg": {
+      "sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+      "bytes": 1956
+    },
+    "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/probe.m": {
+      "sha256": "255f194ab82dc6fd31918597be2e4bb1ea1b6bf8294fb6bd9732aecc0e257c38",
+      "bytes": 5791
+    },
+    "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/coreimage-probe.m": {
+      "sha256": "928aba6c5f6bc28b9dcb521c9e5279e5ee39158a8b20ba29bb7b5f5121f0a332",
+      "bytes": 3612
+    },
+    "RESULTS.md": {
+      "sha256": "ad7b650780c28d47b29cff557d8ad6dc76b322b2fa86b68f8a58448c6139326f",
+      "bytes": 5271
+    },
+    "build/CMakeCache.txt": {
+      "sha256": "087ac88fcf462b849cf0b58af62ed6679d694d284b0efc33cbe2ae5cdb9401bf",
+      "bytes": 19523
+    },
+    "mpf-representative.txt": {
+      "sha256": "6ff2cc0c6b8cfe93167a91a24c235ce3088b6dc43b16df80632a41978ffaa5fb",
+      "bytes": 316
+    }
+  },
+  "direct_exits": {
+    "build.exit": 0,
+    "configure.exit": 0,
+    "coreimage-compile.exit": 0,
+    "imageio-compile.exit": 0,
+    "native/coreimage.exit": 0,
+    "native/imageio.exit": 0,
+    "native/representative/coreimage.exit": 0,
+    "native/representative/imageio.exit": 0
+  }
+}

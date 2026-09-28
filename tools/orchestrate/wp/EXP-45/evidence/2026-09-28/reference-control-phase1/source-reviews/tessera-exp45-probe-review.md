@@ -1,0 +1,31 @@
+# EXP-45 retained probe source review (read-only)
+
+Reviewed the independent-control plan at origin/main 4a802b713b822d38f36ef14b1ddb2abf496ce7f7 and retained probe/evidence from codex/gainmap-restoration c7164602ea96464f1d87bfb007e6dbc5b3f8f45b. No source, runtime, or build changes were made.
+
+## Findings that affect interpretation
+
+1. **Do not interpret ImageIO provider bytes as linear pixel values.** In tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/probe.m, decode() copies and hashes the CGDataProvider bytes, then separately asks CoreGraphics to draw the CGImage into a kCGColorSpaceExtendedLinearSRGB RGBAf bitmap. The retained HDR provider is 10 bits/component, 32 bits/pixel, bitmap info 204806, row bytes 320. These fields do not establish whether the packed channels are linear, their transfer function, or the meaning of the fourth/padding bits. The report's packed-field maxima are explicitly codes, not luminance. Keep provider bytes for identity/byte comparison only; base any >8x claim on decoded floating-point pixels in a named, common linear space.
+
+2. **The HDR CGImage color interpretation is under-recorded.** The probe reports CGColorSpaceCopyName(CGImageGetColorSpace(image)), but the HDR result is "unknown" while the SDR result names kCGColorSpaceSRGB; it does not record CGColorSpaceGetModel, component count, ICC/profile bytes, or an explicit null-vs-unnamed distinction. It then draws that HDR image into extended-linear-sRGB, which causes CoreGraphics to perform the conversion under that unspecified/unnamed source-space condition. This is a concrete confounder when comparing ImageIO to the Core Image probe, which explicitly sets both working and output spaces to extended-linear-sRGB. Record the HDR image's color-space name/model/component count and ICC/profile data when available, and describe the measured outcome as a decoder/color-path difference until the input interpretation is established. Do not infer that a decoder clamp is proven from the 8x result alone.
+
+3. **The EDR target option is not a decoder-target test.** probe.m sets CGContextSetEDRTargetHeadroom(ctx, 0) on the destination bitmap context (whose initial value is already 0), then calls CGContextDrawImage. The retained results show setting zero succeeds and pixels/provider bytes do not change. This tests draw/tone-map context behavior, not a requested ImageIO decode headroom. The current Apple SDK headers searched by the retained report do not expose a public ImageIO decode-target-headroom key. Do not invent one; record that ImageIO's decoder target is unknown/unset. The float and luma-scaling variants also leave provider format/bytes and rendered peaks unchanged, but they do not eliminate source-color-space ambiguity.
+
+4. **The Core Image probe is a useful Apple-path control, not an independent ISO oracle.** headroom/coreimage-probe.m explicitly uses the software renderer, extended-linear-sRGB working/output spaces, and RGBAf output. It compares default kCIImageExpandToHDR with imageByApplyingGainMap:headroom: at requested 2/4/16. Both produce about 2/4/16 on the retained files. This is strong evidence that a distinct Apple API path renders the same 4-stop file above 8, but does not independently validate the ISO parser/encoder or establish ImageIO's intended HDR representation.
+
+5. **Pin and record the reference decoder's pixel contract.** The plan correctly requires the libultrahdr decoder to qualify the control by actual measured output, not encoder success or declared capacity. For comparability, capture exact decoder API/options and output format (channel order, sample type/bit depth, transfer function, color primaries/profile, and whether values are relative to SDR white). Convert its output into the same defined linear RGB space used for ImageIO before checking the bright patch against 8x. A raw PQ/encoded output or packed channel threshold is not a linear headroom measurement. Also record the reference decoder's SDR/base output separately from its HDR output; keep the requested and actual measured peaks distinct.
+
+## Retained evidence supporting these points
+
+- headroom/RESULTS.md: original 4-stop ImageIO peak 7.98376226 versus independent reconstructed peak 16; original 4% assertion remains failed. ImageIO reports CGImage headroom 8. The 1/2-stop cases pass. EDR-target-zero, luma-off, and float variants did not change bytes or drawn result.
+- headroom/results.json: HDR ImageIO color_space "unknown", 10 bpc / 32 bpp / bitmap info 204806; HDR drawn patch peaks about 1.99593, 4.00309, and 7.98376. SDR names sRGB and peaks at 1.
+- headroom/metadata.json: source JPEG is RGB with embedded sRGB profile; it does not establish the HDR CGImage's own source color space.
+- headroom/independent-reconstruction.json: independent base+gain reconstruction peaks 2, 4, and 16, with retained JPEG/auxiliary hashes and ISO rationals.
+- headroom/coreimage/results.json: software Core Image default expansion and explicit gain-map application both report peaks ~2, ~4, and ~16 in its explicitly configured extended-linear-sRGB RGBAf output.
+- docs/coordination/EXP45-INDEPENDENT-CONTROL-PLAN.md: the positive-control qualification, simultaneous same-host ImageIO comparison, and non-substitution/held-acceptance wording are sound. Preserve those conditions and the old failed tolerance result.
+
+## Practical diagnostic cautions
+
+- Keep the original A assertion and failure as-is; neither Core Image nor a third-party reference decoder turns it into a pass.
+- If the qualified libultrahdr control reaches >8 in its own normalized linear output but ImageIO also stops at 8, that says the control is independently capable of >8; compare ImageIO's metadata association and source/output color interpretation before assigning a cause.
+- If ImageIO exceeds 8 only after explicit color normalization or a profile is supplied, report that as a changed decode/render path, not proof that the earlier measurement was merely a bad threshold.
+- The plan's requirement to compare profile/ICC/XMP and ISO/MPF association is appropriate: reference output may carry legacy XMP as well as ISO metadata, so preserve and report that difference rather than stripping it for apparent parity.

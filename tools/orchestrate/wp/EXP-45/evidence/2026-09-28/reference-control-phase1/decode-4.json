@@ -1,0 +1,42 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "fixtures/reference-4.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "fixtures/decoded-4.cfg",
+    "-z",
+    "fixtures/decoded-4.raw"
+  ],
+  "exit": 0,
+  "output_exists": true,
+  "output_sha256": "e463b79d6701c718ba8e8ab748c431c1c11b062ef513954e422afc9a63b9c7bd",
+  "bytes": 10240,
+  "metadata": "--maxContentBoost 4\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 4\n--useBaseColorSpace 1\n",
+  "patch_centers": {
+    "13": [
+      0.2054443359375,
+      0.2054443359375,
+      0.2054443359375,
+      1.0
+    ],
+    "39": [
+      0.865234375,
+      0.865234375,
+      0.865234375,
+      1.0
+    ],
+    "66": [
+      3.486328125,
+      3.486328125,
+      3.486328125,
+      1.0
+    ]
+  }
+}
