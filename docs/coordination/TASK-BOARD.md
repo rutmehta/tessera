@@ -70,7 +70,9 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    retained. Rawrevision APIs are tested but not yet consumed by production CAS.
    Only set_selection/set_recipe_json diskRMW serialized, not otherwriters,
    staleJSONprotection or multi-filetransactions. BatchApply remains blocked.
-   Resource Sol revises Develop failure/lifecycle contract source-only: close
+   Resource Sol owns compiler for StageA Develop partial-save retry RED/fix.
+   Proposal staged/published maina59c8fd5. Luna source-plans StageB recoverable
+   close/error-aware barriers; exclusivelease StageC remainsblocked. Current close
    currently drops saveerrors; retained sessions can mutate afterclose; histogram
    helper opens temporarysession; retry afterpartialcommit needs explicit state.
    No exclusivelease activation until failure-safeclose/read-onlypaths covered.
@@ -84,7 +86,7 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    Format preflight DONE main372dbbcc, exactfinal26845eed production/testbytes:
    expectedfutureDecode RED preserved, v1control and final4roundtrip/strictfmt/
    clippy pass. Rootverifiedhashes/rawlogs and independentreview accepted.
-   Nativeformat v1 remains, no RAWnode/schema/UI; compiler/desktop nowfree. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
+   Nativeformat v1 remains, no RAWnode/schema/UI; desktop free, compiler Resource. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
    evidence/2026-09-27. CUA screenshots inline only, no local export available.
 4. **B — resource hold:** completed PSD receipts b7294f0e/ccb9e8f1 published.
    Result628f798f and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c published
