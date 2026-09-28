@@ -1,0 +1,180 @@
+[0/1] Planning build
+Building for production...
+[0/6] Write sources
+[2/6] Write swift-version--58304C5D6DBC2206.txt
+[4/7] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[5/8] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:728:21: warning: 'where' only applies to the second pattern match in this 'case'
+726 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+727 |         switch e.keyCode {
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:730:22: warning: 'where' only applies to the second pattern match in this 'case'
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+731 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+732 |             return false
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[5/9] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[6/9] Linking Tessera
+[8/10] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[9/11] Compiling TesseraPackageTests runner.swift
+[9/11] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[10/11] Linking TesseraPackageTests
+Build complete! (143.02s)
+Test Suite 'Selected tests' started at 2026-09-27 22:55:34.514.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 22:55:34.514.
+Test Suite 'DevelopCloseResultTests' started at 2026-09-27 22:55:34.515.
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testAdmissionFailureCallbackCannotReenterIndefinitely]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.959416, 0.41162499999999996, 0.429542]; GPU [3.476708, 5.357666, 4.102291999999999]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testAdmissionFailureCallbackCannotReenterIndefinitely]' passed (0.065 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testCancelingOneWaiterDoesNotCancelSharedNativeClose]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.40700000000000003, 0.26079199999999997, 0.262084]; GPU [2.567542, 0.556125, 0.727125]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testCancelingOneWaiterDoesNotCancelSharedNativeClose]' passed (0.023 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testCloseInvalidatesDeferredMaskDrain]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.57575, 0.278583, 0.282583]; GPU [6.989666000000001, 0.654292, 0.849625]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testCloseInvalidatesDeferredMaskDrain]' passed (0.046 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testCloseInvalidatesDeferredSettingsDrain]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.419834, 0.29975, 0.302209]; GPU [5.36, 2.329208, 0.879417]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testCloseInvalidatesDeferredSettingsDrain]' passed (0.044 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testClosingRejectsMutationsBeforeChangingHostState]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.389208, 0.267208, 0.290667]; GPU [2.933333, 0.80025, 0.679333]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testClosingRejectsMutationsBeforeChangingHostState]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.40287500000000004, 0.293541, 0.284709]; GPU [5.682417, 2.278083, 0.6525409999999999]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry]' passed (0.041 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testDelayedCallbackChildKeepsOriginOutcomeAfterIndependentRetry]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.37641600000000003, 0.266667, 0.25083300000000003]; GPU [3.2749580000000003, 0.812375, 0.865541]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testDelayedCallbackChildKeepsOriginOutcomeAfterIndependentRetry]' passed (0.036 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testFailureCallbackCloseDoesNotStartAutomaticRetry]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.393334, 0.268, 0.2775]; GPU [2.888958, 0.596917, 0.674625]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testFailureCallbackCloseDoesNotStartAutomaticRetry]' passed (0.025 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testMaskFlushFailurePreventsNativeCloseAndRetainsPendingValue]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.64625, 0.30112500000000003, 0.334166]; GPU [4.597417, 0.8147500000000001, 0.7881659999999999]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testMaskFlushFailurePreventsNativeCloseAndRetainsPendingValue]' passed (0.041 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testPatchCallbackCloseJoinsPublishedAttempt]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.396042, 0.261083, 0.28150000000000003]; GPU [3.0685000000000002, 0.650541, 0.718958]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testPatchCallbackCloseJoinsPublishedAttempt]' passed (0.038 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAerror: Process '/Applications/Xcode.app/Contents/Developer/usr/bin/xctest -XCTest TesseraCoreTests.DevelopCloseResultTests/testAdmissionFailureCallbackCannotReenterIndefinitely,TesseraCoreTests.DevelopCloseResultTests/testCancelingOneWaiterDoesNotCancelSharedNativeClose,TesseraCoreTests.DevelopCloseResultTests/testCloseInvalidatesDeferredMaskDrain,TesseraCoreTests.DevelopCloseResultTests/testCloseInvalidatesDeferredSettingsDrain,TesseraCoreTests.DevelopCloseResultTests/testClosingRejectsMutationsBeforeChangingHostState,TesseraCoreTests.DevelopCloseResultTests/testConcurrentCloseCallersShareFailureAndSessionCanRetry,TesseraCoreTests.DevelopCloseResultTests/testDelayedCallbackChildKeepsOriginOutcomeAfterIndependentRetry,TesseraCoreTests.DevelopCloseResultTests/testFailureCallbackCloseDoesNotStartAutomaticRetry,TesseraCoreTests.DevelopCloseResultTests/testMaskFlushFailurePreventsNativeCloseAndRetainsPendingValue,TesseraCoreTests.DevelopCloseResultTests/testPatchCallbackCloseJoinsPublishedAttempt,TesseraCoreTests.DevelopCloseResultTests/testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable,TesseraCoreTests.DevelopCloseResultTests/testSuccessfulCloseDrainsOnceAndIsIdempotent,TesseraCoreTests.DevelopCloseResultTests/testUnencodableSettingsBlockCloseAndRemainPending /Volumes/betterSSD/tessera-cache/swift/develop-close-core-e967/arm64-apple-macosx/release/TesseraPackageTests.xctest' exited with unexpected signal code 6
+ndRemainsRetryable]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.392042, 0.250958, 0.24875]; GPU [6.210917, 2.576542, 1.7405000000000002]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable]' passed (0.042 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testSuccessfulCloseDrainsOnceAndIsIdempotent]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.559375, 0.254917, 0.24312499999999998]; GPU [3.639417, 0.834041, 0.901458]
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testSuccessfulCloseDrainsOnceAndIsIdempotent]' passed (0.036 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testUnencodableSettingsBlockCloseAndRemainPending]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.37591600000000003, 0.25625000000000003, 0.274375]; GPU [3.717583, 0.862834, 0.965375]
+freed pointer was not the last allocation◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -9,45 +9,11 @@ public struct MaskParamKey: Hashable, Sendable {
     public init(group: UInt32, name: String) { self.group = group; self.name = name }
 }
 
-/// MainActor-only in-flight bookkeeping lives beside the mask extension so the
-/// ordinary Develop settings/close owner needs no additional storage or API.
-@MainActor
-private final class MaskFlushFlight {
-    var brushSamples: [(x: Double, y: Double, pressure: Double)] = []
-}
-
 /// Masking on the develop session (M2-14). Structural edits (add, delete, modes) go to the engine at
 /// once; drags — local sliders, the amount slider, gradient handles and brush samples — are
 /// coalesced to one engine call per display frame through the same `onNeedsFlush` tick as the
 /// Basic sliders. Nothing here commits: callers commit one undo step on mouse-up.
 extension DevelopController {
-    private static var maskFlushFlights: [ObjectIdentifier: MaskFlushFlight] = [:]
-    private static var maskFollowOnDrains: [ObjectIdentifier: (id: UUID, task: Task<Void, Never>)] = [:]
-
-    /// Internal observation for deterministic source tests; awaiting does not trigger work.
-    var scheduledMaskFlushTask: Task<Void, Never>? {
-        Self.maskFollowOnDrains[ObjectIdentifier(self)]?.task
-    }
-
-    func invalidateDeferredMaskFlush() {
-        Self.maskFollowOnDrains.removeValue(forKey: ObjectIdentifier(self))?.task.cancel()
-    }
-
-    private func scheduleMaskFollowOnDrain() {
-        let identity = ObjectIdentifier(self)
-        guard Self.maskFollowOnDrains[identity] == nil else { return }
-        let id = UUID()
-        let task = Task { @MainActor [weak self] in
-            guard Self.maskFollowOnDrains[identity]?.id == id else { return }
-            Self.maskFollowOnDrains.removeValue(forKey: identity)
-            guard !Task.isCancelled, let self, !self.closing, !self.closed else { return }
-            // One batch per queued task: synchronous handlers cannot recurse.
-            // A successful second generation may enqueue one further task.
-            self.flushMaskPending()
-        }
-        Self.maskFollowOnDrains[identity] = (id, task)
-    }
-
     /// `'L008'`: one byte per pixel, imported by Metal as `.r8Unorm`.
     public static let overlayPixelFormat: UInt32 = 0x4C30_3038
 
@@ -56,7 +22,6 @@ extension DevelopController {
     public func maskGroups() -> [MaskGroupInfo] { (try? session.maskGroups()) ?? [] }
 
     private func run<T>(_ body: () throws -> T) -> T? {
-        guard admitsMutation() else { return nil }
         flushPending()
         do { return try body() } catch { onFailure?(error.localizedDescription); return nil }
     }
@@ -92,7 +57,6 @@ extension DevelopController {
 
     /// Name, visibility, amount, invert. Interactive changes (the amount slider) are coalesced.
     public func updateMaskGroup(_ group: UInt32, _ patch: MaskGroupPatch, interactive: Bool) {
-        guard admitsMutation() else { return }
         if interactive {
             var merged = pendingMaskGroup[group]?.patch ?? MaskGroupPatch(name: nil, enabled: nil, amount: nil, invert: nil)
             merged.name = patch.name ?? merged.name
@@ -109,7 +73,6 @@ extension DevelopController {
 
     /// A local slider value; interactive values are coalesced per display frame.
     public func setMaskParam(_ group: UInt32, _ name: String, _ value: Double, interactive: Bool) {
-        guard admitsMutation() else { return }
         let key = MaskParamKey(group: group, name: name)
         if interactive {
             pendingMaskParams[key] = Float(value)
@@ -122,7 +85,6 @@ extension DevelopController {
 
     /// Gradient handle drags: the latest definition per frame; final values are sent at once.
     public func setMaskComponent(_ group: UInt32, _ index: Int, json: String, interactive: Bool) {
-        guard admitsMutation() else { return }
         if interactive {
             pendingComponent = (group, UInt32(index), json)
             requestFlush()
@@ -136,7 +98,6 @@ extension DevelopController {
 
     /// Starts a stroke (a new group when `group` is nil); returns the group painted into.
     public func beginBrushStroke(group: UInt32?, radius: Double, feather: Double, flow: Double, erase: Bool) -> UInt32? {
-        guard admitsMutation() else { return nil }
         let id = run {
             try session.beginBrushStroke(groupId: group, brush: BrushSettings(radius: Float(radius), feather: Float(feather),
                                                                              flow: Float(flow), erase: erase))
@@ -148,20 +109,12 @@ extension DevelopController {
 
     /// Records a sample; sent with the next display-frame flush.
     public func addBrushSample(x: Double, y: Double, pressure: Double) {
-        guard admitsMutation() else { return }
         guard pendingStroke != nil else { return }
-        if let flight = Self.maskFlushFlights[ObjectIdentifier(self)] {
-            // Acknowledging the older batch must not overwrite samples delivered
-            // synchronously by a reentrant callback while that batch is submitted.
-            flight.brushSamples.append((x, y, pressure))
-            return
-        }
         if pendingStroke?.add(x: x, y: y, pressure: pressure) == true { requestFlush() }
     }
 
     /// Sends the remaining samples and ends the stroke (then commit).
     public func endBrushStroke() {
-        guard admitsMutation() else { return }
         guard var stroke = pendingStroke else { return }
         pendingStroke = nil
         let rest = stroke.finish()
@@ -191,7 +144,6 @@ extension DevelopController {
 
     /// Allocates two R8 overlay surfaces of the planned size (idempotent per size).
     public func attachMaskOverlaySurfaces() throws {
-        try requireMutation()
         guard let plan else { return }
         if let s = maskOverlaySurfaces.values.first, IOSurfaceGetWidth(s) == Int(plan.width),
            IOSurfaceGetHeight(s) == Int(plan.height), maskOverlaySurfaces.count == 2 { return }
@@ -211,7 +163,6 @@ extension DevelopController {
 
     /// Shows `group` in the overlay after every frame (nil: off).
     public func setMaskOverlay(_ group: UInt32?) {
-        guard admitsMutation() else { return }
         do {
             if group != nil { try attachMaskOverlaySurfaces() }
             try session.setMaskOverlay(groupId: group)
@@ -236,37 +187,10 @@ extension DevelopController {
             || pendingStroke?.isEmpty == false
     }
 
-    /// Attempts coalesced mask changes. Bool is attempt semantics, not save success.
-    /// Accepted operations are removed individually; rejection retains the suffix.
+    /// Sends the coalesced mask changes (called from `flushPending`). Returns whether any was sent.
     @discardableResult
     func flushMaskPending() -> Bool {
-        guard !closing, !closed else { return false }
-        return flushMaskPendingResult(allowClosing: false).attempted
-    }
-
-    /// Close consumes the actual backend error; display-link callers keep Bool attempt semantics.
-    func flushMaskPendingResult(allowClosing: Bool) -> (attempted: Bool, error: Error?) {
-        let identity = ObjectIdentifier(self)
-        guard Self.maskFlushFlights[identity] == nil else { return (false, nil) }
-        // Any explicit consuming attempt supersedes previously scheduled work,
-        // including an attempt that rejects or discovers a closed/empty queue.
-        Self.maskFollowOnDrains.removeValue(forKey: identity)?.task.cancel()
-        guard !closed, (!closing || allowClosing), hasPendingMaskChanges else { return (false, nil) }
-        let flight = MaskFlushFlight()
-        Self.maskFlushFlights[identity] = flight
-        var succeeded = false
-        defer {
-            Self.maskFlushFlights.removeValue(forKey: identity)
-            // On failure the old coalescer is intact; on success it has already
-            // acknowledged exactly the accepted batch. Append only newer samples.
-            for sample in flight.brushSamples {
-                _ = pendingStroke?.add(x: sample.x, y: sample.y, pressure: sample.pressure)
-            }
-            // Do not depend on an optional or synchronous host handler to make
-            // progress, and never schedule an automatic retry of a failed batch.
-            if succeeded, !closed, !closing, hasPendingMaskChanges { scheduleMaskFollowOnDrain() }
-        }
-        var failure: Error?
+        guard !closed, hasPendingMaskChanges else { return false }
         do {
             if var stroke = pendingStroke, !stroke.isEmpty {
                 try session.addBrushPoints(points: stroke.take())
@@ -274,47 +198,21 @@ extension DevelopController {
             }
             if let c = pendingComponent {
                 pendingComponent = nil
-                do {
-                    try session.setMaskComponent(groupId: c.group, index: c.index, definitionJson: c.json, interactive: true)
-                } catch {
-                    // The existing component queue is latest-only. A newer
-                    // definition supersedes the rejected snapshot, never vice versa.
-                    if pendingComponent == nil { pendingComponent = c }
-                    throw error
-                }
+                try session.setMaskComponent(groupId: c.group, index: c.index, definitionJson: c.json, interactive: true)
             }
-            for id in pendingMaskGroup.keys.sorted() {
-                guard let p = pendingMaskGroup.removeValue(forKey: id) else { continue }
-                do {
-                    try session.updateMaskGroup(groupId: id, patch: p.patch, interactive: p.interactive)
-                } catch {
-                    if let newer = pendingMaskGroup[id] {
-                        var restored = p.patch
-                        restored.name = newer.patch.name ?? restored.name
-                        restored.enabled = newer.patch.enabled ?? restored.enabled
-                        restored.amount = newer.patch.amount ?? restored.amount
-                        restored.invert = newer.patch.invert ?? restored.invert
-                        pendingMaskGroup[id] = (restored, newer.interactive)
-                    } else { pendingMaskGroup[id] = p }
-                    throw error
-                }
+            let groups = pendingMaskGroup
+            pendingMaskGroup.removeAll()
+            for (id, p) in groups.sorted(by: { $0.key < $1.key }) {
+                try session.updateMaskGroup(groupId: id, patch: p.patch, interactive: p.interactive)
             }
-            for key in pendingMaskParams.keys.sorted(by: { ($0.group, $0.name) < ($1.group, $1.name) }) {
-                guard let value = pendingMaskParams.removeValue(forKey: key) else { continue }
-                do {
-                    try session.setMaskParam(groupId: key.group, name: key.name, value: value, interactive: true)
-                } catch {
-                    if pendingMaskParams[key] == nil { pendingMaskParams[key] = value }
-                    throw error
-                }
+            let params = pendingMaskParams
+            pendingMaskParams.removeAll()
+            for (key, value) in params.sorted(by: { ($0.key.group, $0.key.name) < ($1.key.group, $1.key.name) }) {
+                try session.setMaskParam(groupId: key.group, name: key.name, value: value, interactive: true)
             }
-            succeeded = true
         } catch {
-            failure = error
-            // Restore before invoking observers: a recovery callback may enqueue
-            // newer coalesced values; the reentrancy gate prevents nested replay.
             onFailure?(error.localizedDescription)
         }
-        return (true, failure)
+        return true
     }
 }

@@ -1,0 +1,1 @@
+swift test --configuration release --scratch-path /Volumes/betterSSD/tessera-cache/swift/develop-close-core-e967 --jobs 2 --filter DevelopCloseResultTests
