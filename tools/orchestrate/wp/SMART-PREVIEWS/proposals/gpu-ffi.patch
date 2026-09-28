@@ -1,0 +1,167 @@
+diff --git a/crates/tessera-ffi/src/backend.rs b/crates/tessera-ffi/src/backend.rs
+--- a/crates/tessera-ffi/src/backend.rs
++++ b/crates/tessera-ffi/src/backend.rs
+@@ -74,9 +74,18 @@
+ fn gpu_is_faster(cpu: [f64; 3], gpu: [f64; 3]) -> bool {
+     cpu.iter().chain(&gpu).all(|v| v.is_finite() && *v > 0.) && gpu[1] < cpu[1] && gpu[2] < cpu[2]
+ }
++#[cfg(test)]
+ fn measure(renderer: &Renderer, image: &RawImage) -> EngineResult<[f64; 3]> {
+-    let mut s = DevelopSettings::default();
+-    let extent = image.level_extent(2);
++    measure_at(renderer, image, &DevelopSettings::default(), 2)
++}
++fn measure_at(
++    renderer: &Renderer,
++    image: &RawImage,
++    settings: &DevelopSettings,
++    level: u8,
++) -> EngineResult<[f64; 3]> {
++    let mut s = settings.clone();
++    let extent = Renderer::output_extent(image, &s, level)?;
+     let rect = PixelRect::full(extent);
+     // Match the actual develop sink on both backends. Timing GPU pixel
+     // readback here can reject a faster zero-copy presentation path.
+@@ -87,16 +96,20 @@
+     let mut times = [0.; 3];
+     for (i, time) in times.iter_mut().enumerate() {
+         if i == 1 {
+-            s.tone.exposure = 0.25;
++            s.tone.exposure += 0.25;
+         }
+         if i == 2 {
+-            s.white_balance.mode = WhiteBalanceMode::Daylight;
++            s.white_balance.mode = if matches!(s.white_balance.mode, WhiteBalanceMode::Daylight) {
++                WhiteBalanceMode::AsShot
++            } else {
++                WhiteBalanceMode::Daylight
++            };
+         }
+         let start = Instant::now();
+-        let histogram = match renderer.render_surface(image, &s, 2, surface.id(), &cancel)? {
++        let histogram = match renderer.render_surface(image, &s, level, surface.id(), &cancel)? {
+             Some(histogram) => histogram,
+             None => {
+-                let tiles = renderer.render_region(image, &s, 2, rect)?;
++                let tiles = renderer.render_region(image, &s, level, rect)?;
+                 crate::develop::write_level(Some(&surface), &tiles)
+                     .map_err(engine_api::EngineError::internal)?
+             }
+@@ -137,6 +150,25 @@
+ /// shared with layered-document sessions), or `None` without Metal.
+ pub(crate) fn select(
+     image: &RawImage,
++    gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
++) -> Backend {
++    select_at(image, &DevelopSettings::default(), 2, gpu)
++}
++
++/// Qualification-only proxy route: actual immutable-prefix-compatible settings,
++/// actual L0 IOSurface sink, and no reuse of the original's backend decision.
++/// Caller keeps this opt-in until the complete viewport path is measured.
++pub(crate) fn select_proxy(
++    image: &RawImage,
++    settings: &DevelopSettings,
++    gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
++) -> Backend {
++    select_at(image, settings, 0, gpu)
++}
++fn select_at(
++    image: &RawImage,
++    settings: &DevelopSettings,
++    level: u8,
+     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
+ ) -> Backend {
+     let config = RendererConfig::default();
+@@ -170,11 +202,18 @@
+         return gpu;
+     }
+     match (
+-        measure(&cpu.renderer(), image),
+-        measure(&gpu.renderer(), image),
++        measure_at(&cpu.renderer(), image, settings, level),
++        measure_at(&gpu.renderer(), image, settings, level),
+     ) {
+         (Ok(c), Ok(g)) => {
+-            eprintln!("develop L2 calibration [first, tone, WB] ms: CPU {c:?}; GPU {g:?}");
++            eprintln!(
++                "develop {} L{level} calibration [first, tone, WB] ms: CPU {c:?}; GPU {g:?}",
++                if image.camera_linear_proxy().is_some() {
++                    "Smart Preview"
++                } else {
++                    "original"
++                }
++            );
+             if gpu_is_faster(c, g) {
+                 return gpu;
+             }
+diff --git a/crates/tessera-ffi/src/lib.rs b/crates/tessera-ffi/src/lib.rs
+--- a/crates/tessera-ffi/src/lib.rs
++++ b/crates/tessera-ffi/src/lib.rs
+@@ -251,8 +251,16 @@
+     fn develop_renderer(
+         &self,
+         image: &image_core::RawImage,
++        settings: &core::DevelopSettings,
+     ) -> (Arc<image_core::Renderer>, String) {
+         if image.camera_linear_proxy().is_some() {
++            // Source-only qualification switch. Never changes source preference or
++            // original backend OnceLock. Unsupported tails/levels retain scalar fallback.
++            if std::env::var("TESSERA_SMART_PREVIEW_GPU").as_deref() == Ok("1") {
++                let backend = backend::select_proxy(image, settings, || self.shared_gpu());
++                let name = format!("{} Smart Preview (L0; coarse CPU fallback)", backend.name);
++                return (Arc::new(backend.renderer()), name);
++            }
+             return (
+                 Arc::new(image_core::Renderer::new(Default::default())),
+                 "CPU Smart Preview".into(),
+diff --git a/crates/tessera-ffi/src/develop.rs b/crates/tessera-ffi/src/develop.rs
+--- a/crates/tessera-ffi/src/develop.rs
++++ b/crates/tessera-ffi/src/develop.rs
+@@ -997,7 +997,7 @@
+         } else {
+             engine_api::recipe::SourceKind::Raw
+         };
+-        let resources = self.develop_render_resources(&image)?;
++        let resources = self.develop_render_resources(&image, &recipe.settings)?;
+         let settings = session_renderable(&recipe.settings, true, false);
+         let input = resources.depth_input(&image, settings, recipe.process_version)?;
+         Ok(resources
+@@ -1077,7 +1077,7 @@
+         } else {
+             engine_api::recipe::SourceKind::Raw
+         };
+-        let resources = self.develop_render_resources(&image)?;
++        let resources = self.develop_render_resources(&image, &recipe.settings)?;
+         let screen_level = default_level(&image);
+         let shared = Arc::new(Shared {
+             engine: Arc::downgrade(&self),
+@@ -1206,8 +1206,12 @@
+         })
+     }
+ 
+-    fn develop_render_resources(&self, image: &RawImage) -> Result<DevelopRenderResources> {
+-        let (renderer, backend) = self.develop_renderer(image);
++    fn develop_render_resources(
++        &self,
++        image: &RawImage,
++        settings: &DevelopSettings,
++    ) -> Result<DevelopRenderResources> {
++        let (renderer, backend) = self.develop_renderer(image, settings);
+         let masks = masks::MaskShared::new(image);
+         renderer
+             .mask_cache()
+@@ -1647,9 +1651,10 @@
+         st.rendered = Some(settings.clone());
+         let target = st.screen_level;
+         let area = self.image.level_extent(target).area();
+-        let resident = renderer
+-            .can_render_resident(&self.image, &settings)
+-            .unwrap_or(false);
++        let resident = (self.image.camera_linear_proxy().is_none() || target == 0)
++            && renderer
++                .can_render_resident(&self.image, &settings)
++                .unwrap_or(false);
+         let class = RenderClass::of(&settings, resident);
+         let first = if interactive {
+             // Measured adaptation governs resident renders; the static pixel

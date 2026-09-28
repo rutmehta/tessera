@@ -1,0 +1,488 @@
+--- a/crates/pipeline-cpu/src/lib.rs
++++ b/crates/pipeline-cpu/src/lib.rs
+@@ -30,7 +30,9 @@
+ mod optics;
+ mod render;
+ mod smart_preview;
+-pub use smart_preview::{CameraLinearProxy, DecodedSmartPreview, SmartPreviewEncoding};
++pub use smart_preview::{
++    CameraLinearProxy, DecodedSmartPreview, SmartPreviewEncoding, SmartPreviewTier,
++};
+ mod upright;
+ pub use display::{
+     MAX_HDR_HEADROOM, SigmoidSettings, display, display_float, display_linear, hdr_sigmoid_ln_a,
+--- a/crates/pipeline-cpu/src/smart_preview.rs
++++ b/crates/pipeline-cpu/src/smart_preview.rs
+@@ -14,6 +14,22 @@
+     },
+ };
+ use raw_decode::{CfaImage, RawMetadata};
++
++/// Explicit pre-edit spatial quality tier; neither tier changes the color pipeline.
++#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
++pub enum SmartPreviewTier {
++    Compact2048,
++    #[default]
++    Detail2560,
++}
++impl SmartPreviewTier {
++    pub const fn max_edge(self) -> u32 {
++        match self {
++            Self::Compact2048 => 2048,
++            Self::Detail2560 => 2560,
++        }
++    }
++}
+ 
+ /// Owned camera-linear active-area pixels, before camera matrices and WB.
+ ///
+@@ -39,9 +55,10 @@
+     lens: LensSettings,
+     original_content_digest: [u8; 32],
+     scale: u32,
++    tier: SmartPreviewTier,
+ }
+ impl CameraLinearProxy {
+-    pub const GENERATOR_REVISION: u32 = 1;
++    pub const GENERATOR_REVISION: u32 = 2;
+     pub const MAX_EDGE: u32 = 2560;
+     /// Caller supplies the verified original byte digest, not a path identity.
+     /// Only Native revision 2 and raw denoise Off are admitted. A downstream
+@@ -53,6 +70,28 @@
+         process: ProcessVersion,
+         original_content_digest: [u8; 32],
+         context: &LensContext<'_>,
++    ) -> EngineResult<Self> {
++        Self::generate_with_tier(
++            image,
++            metadata,
++            settings,
++            process,
++            original_content_digest,
++            context,
++            SmartPreviewTier::Detail2560,
++        )
++    }
++
++    /// Same immutable pre-edit boundary with an explicit spatial tier. Reduction
++    /// uses complete demosaiced camera-linear pixels, before calibration and WB.
++    pub fn generate_with_tier(
++        image: &CfaImage,
++        metadata: &RawMetadata,
++        settings: &DevelopSettings,
++        process: ProcessVersion,
++        original_content_digest: [u8; 32],
++        context: &LensContext<'_>,
++        tier: SmartPreviewTier,
+     ) -> EngineResult<Self> {
+         if process.family != ProcessFamily::Native || process.revision != 2 {
+             return Err(required("Native revision 2 required"));
+@@ -77,7 +116,7 @@
+             crate::render::camera_linear_prefix(settings, image, metadata, context, None, None)?;
+         let scale = metadata.default_crop[2]
+             .max(metadata.default_crop[3])
+-            .div_ceil(Self::MAX_EDGE)
++            .div_ceil(tier.max_edge())
+             .max(1);
+         let pixels = camera.downsample_crop(metadata.default_crop, scale)?;
+         // Image::new enforces finite payload even when an upstream operator
+@@ -94,6 +133,7 @@
+             lens: settings.lens.clone(),
+             original_content_digest,
+             scale,
++            tier,
+         })
+     }
+     pub fn pixels(&self) -> &Image {
+@@ -104,6 +144,9 @@
+     }
+     pub fn original_content_digest(&self) -> [u8; 32] {
+         self.original_content_digest
++    }
++    pub fn tier(&self) -> SmartPreviewTier {
++        self.tier
+     }
+     pub fn scale(&self) -> u32 {
+         self.scale
+--- a/crates/pipeline-cpu/src/smart_preview_codec.rs
++++ b/crates/pipeline-cpu/src/smart_preview_codec.rs
+@@ -1,6 +1,7 @@
+-//! Version 1 internal camera-linear container, not DNG. Planar LE f16/f32 + zstd.
++//! Version 2 internal camera-linear container, not DNG. Planar LE f16/f32 + zstd.
++//! Reads legacy version 1 as Detail2560; all new writes explicitly record the tier.
+ //! The source digest and byte length are caller assertions, not source verification.
+-use super::CameraLinearProxy;
++use super::{CameraLinearProxy, SmartPreviewTier};
+ use crate::{CorrectionSource, Image, ManualCaSettings, ResolvedLens};
+ use engine_api::{
+     EngineError, EngineResult,
+@@ -35,6 +36,8 @@
+ #[serde(deny_unknown_fields)]
+ struct Snapshot {
+     generator: u32,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    tier: Option<SmartPreviewTier>,
+     width: u32,
+     height: u32,
+     scale: u32,
+@@ -214,7 +217,7 @@
+ /// Freeze the version-1 nested object shape independently of the recipe's
+ /// permissive serde defaults. Typed decoding still runs first to reject duplicate
+ /// known members, then this check rejects missing and unknown nested members.
+-fn validate_nested_schema(bytes: &[u8]) -> EngineResult<()> {
++fn validate_nested_schema(bytes: &[u8], version: u32) -> EngineResult<()> {
+     use serde_json::Value;
+     fn keys(v: &Value, expected: &[&str]) -> EngineResult<()> {
+         let object = v
+@@ -226,6 +229,9 @@
+         Ok(())
+     }
+     let v: Value = serde_json::from_slice(bytes).map_err(invalid)?;
++    if version == 1 && v.get("tier").is_some() {
++        return Err(invalid("legacy version 1 must not declare a tier"));
++    }
+     keys(&v["decode"], &["frame_index", "pixel_shift_merge"])?;
+     keys(&v["linearize"], &["highlight_reconstruction"])?;
+     keys(&v["demosaic"], &["method", "model"])?;
+@@ -353,6 +359,7 @@
+         }
+         let snapshot = Snapshot {
+             generator: Self::GENERATOR_REVISION,
++            tier: Some(self.tier),
+             width: self.pixels.width(),
+             height: self.pixels.height(),
+             scale: self.scale,
+@@ -388,7 +395,7 @@
+         }
+         let mut out = Vec::with_capacity(HEADER + metadata.len() + compressed.len());
+         out.extend_from_slice(MAGIC);
+-        out.extend_from_slice(&1_u32.to_le_bytes());
++        out.extend_from_slice(&2_u32.to_le_bytes());
+         out.extend_from_slice(&(metadata.len() as u32).to_le_bytes());
+         out.extend_from_slice(&(compressed.len() as u64).to_le_bytes());
+         out.extend_from_slice(&(raw_len as u64).to_le_bytes());
+@@ -405,10 +412,11 @@
+     /// Verify framing, container/payload hashes, bounded decompression, and snapshot semantics.
+     /// This never verifies source photo bytes and never estimates lens corrections.
+     pub fn decode_persistent(bytes: &[u8]) -> EngineResult<DecodedSmartPreview> {
+-        if bytes.len() < HEADER
+-            || &bytes[..8] != MAGIC
+-            || u32::from_le_bytes(bytes[8..12].try_into().unwrap()) != 1
+-        {
++        if bytes.len() < HEADER || &bytes[..8] != MAGIC {
++            return Err(invalid("magic/version/header"));
++        }
++        let version = u32::from_le_bytes(bytes[8..12].try_into().unwrap());
++        if !matches!(version, 1 | 2) {
+             return Err(invalid("magic/version/header"));
+         }
+         let metadata_len = u32::from_le_bytes(bytes[12..16].try_into().unwrap()) as usize;
+@@ -427,16 +435,18 @@
+         }
+         let s: Snapshot =
+             serde_json::from_slice(&bytes[HEADER..HEADER + metadata_len]).map_err(invalid)?;
+-        validate_nested_schema(&bytes[HEADER..HEADER + metadata_len])?;
+-        if s.generator != Self::GENERATOR_REVISION
+-            || s.original_byte_length == 0
+-            || length(s.width, s.height, s.encoding)? as u64 != raw_len
+-        {
++        validate_nested_schema(&bytes[HEADER..HEADER + metadata_len], version)?;
++        let tier = match (version, s.generator, s.tier) {
++            (1, 1, None) => SmartPreviewTier::Detail2560,
++            (2, Self::GENERATOR_REVISION, Some(tier)) => tier,
++            _ => return Err(invalid("inconsistent container version/generator/tier")),
++        };
++        if s.original_byte_length == 0 || length(s.width, s.height, s.encoding)? as u64 != raw_len {
+             return Err(invalid("generator/source/payload length"));
+         }
+         let metadata = s.metadata.restore()?;
+         let [_, _, cw, ch] = metadata.default_crop;
+-        if s.scale != cw.max(ch).div_ceil(Self::MAX_EDGE).max(1)
++        if s.scale != cw.max(ch).div_ceil(tier.max_edge()).max(1)
+             || s.width != cw.div_ceil(s.scale)
+             || s.height != ch.div_ceil(s.scale)
+         {
+@@ -563,6 +573,7 @@
+                 lens: s.lens,
+                 original_content_digest: s.original_digest,
+                 scale: s.scale,
++                tier,
+             },
+         })
+     }
+@@ -613,31 +624,44 @@
+             lens: s.lens,
+             original_content_digest: [1; 32],
+             scale: 1,
++            tier: SmartPreviewTier::Detail2560,
+         }
+     }
+     #[test]
+     fn finite_signed_hdr_uses_f16_only_within_error_bound() {
+-        let p = fixture(&[-0.13, 3.7, 0.000000035, 65504.]);
+-        let d = CameraLinearProxy::decode_persistent(&p.encode_persistent(50).unwrap()).unwrap();
+-        assert_eq!(d.encoding, SmartPreviewEncoding::F16);
+-        for (a, b) in p
+-            .pixels
+-            .planes()
+-            .iter()
+-            .flatten()
+-            .zip(d.proxy.pixels.planes().iter().flatten())
+-        {
+-            assert!((f64::from(*a) - f64::from(*b)).abs() <= 0.0005 * f64::from(*a).abs() + 3e-8);
+-        }
+-        assert!(d.proxy.pixels.planes()[0][0] < 0.);
+-        assert!(d.proxy.pixels.planes()[0][1] > 1.);
++        for tier in [SmartPreviewTier::Detail2560, SmartPreviewTier::Compact2048] {
++            let mut p = fixture(&[-0.13, 3.7, 0.000000035, 65504.]);
++            p.tier = tier;
++            let d =
++                CameraLinearProxy::decode_persistent(&p.encode_persistent(50).unwrap()).unwrap();
++            assert_eq!(d.encoding, SmartPreviewEncoding::F16);
++            for (a, b) in p
++                .pixels
++                .planes()
++                .iter()
++                .flatten()
++                .zip(d.proxy.pixels.planes().iter().flatten())
++            {
++                assert!(
++                    (f64::from(*a) - f64::from(*b)).abs() <= 0.0005 * f64::from(*a).abs() + 3e-8
++                );
++            }
++            assert!(d.proxy.pixels.planes()[0][0] < 0.);
++            assert!(d.proxy.pixels.planes()[0][1] > 1.);
++            assert_eq!(d.proxy.tier(), tier);
++        }
+     }
+     #[test]
+     fn f16_overflow_uses_exact_f32_for_entire_payload() {
+-        let p = fixture(&[-100000., 100000., f32::MAX, -f32::MAX]);
+-        let d = CameraLinearProxy::decode_persistent(&p.encode_persistent(50).unwrap()).unwrap();
+-        assert_eq!(d.encoding, SmartPreviewEncoding::F32);
+-        assert_eq!(d.proxy.pixels.planes(), p.pixels.planes());
++        for tier in [SmartPreviewTier::Detail2560, SmartPreviewTier::Compact2048] {
++            let mut p = fixture(&[-100000., 100000., f32::MAX, -f32::MAX]);
++            p.tier = tier;
++            let d =
++                CameraLinearProxy::decode_persistent(&p.encode_persistent(50).unwrap()).unwrap();
++            assert_eq!(d.encoding, SmartPreviewEncoding::F32);
++            assert_eq!(d.proxy.pixels.planes(), p.pixels.planes());
++            assert_eq!(d.proxy.tier(), tier);
++        }
+     }
+     #[test]
+     fn image_estimated_sample_is_restored_without_reresolution() {
+--- a/crates/pipeline-cpu/tests/smart_preview_codec.rs
++++ b/crates/pipeline-cpu/tests/smart_preview_codec.rs
+@@ -4,7 +4,7 @@
+ };
+ use pipeline_cpu::{
+     CameraLinearProxy, LensContext, ManualCaSettings, RenderSource, SmartPreviewEncoding,
+-    render_linear_scaled,
++    SmartPreviewTier, render_linear_scaled,
+ };
+ use raw_decode::{CfaImage, CfaLayout, RawMetadata};
+ fn fixture(w: u32, h: u32) -> (CfaImage, RawMetadata) {
+@@ -423,6 +423,11 @@
+     use std::time::Instant;
+     let path = std::env::var("TESSERA_CODEC_RAW_FIXTURE").unwrap();
+     let output = std::path::PathBuf::from(std::env::var("TESSERA_CODEC_OUTPUT_DIR").unwrap());
++    let tier = match std::env::var("TESSERA_CODEC_TIER").as_deref() {
++        Ok("compact2048") => SmartPreviewTier::Compact2048,
++        Ok("detail2560") | Err(std::env::VarError::NotPresent) => SmartPreviewTier::Detail2560,
++        _ => panic!("TESSERA_CODEC_TIER must be compact2048 or detail2560"),
++    };
+     let source_bytes = std::fs::read(&path).unwrap();
+     let source_digest = *blake3::hash(&source_bytes).as_bytes();
+     let mut source = raw_decode::RawSource::open(&path).unwrap();
+@@ -432,13 +437,14 @@
+     let raw_decode_ms = start.elapsed().as_secs_f64() * 1000.;
+     let settings = DevelopSettings::default();
+     let start = Instant::now();
+-    let proxy = CameraLinearProxy::generate(
++    let proxy = CameraLinearProxy::generate_with_tier(
+         &cfa,
+         &metadata,
+         &settings,
+         ProcessVersion::NATIVE_CURRENT,
+         source_digest,
+         &LensContext::default(),
++        tier,
+     )
+     .unwrap();
+     let generation_ms = start.elapsed().as_secs_f64() * 1000.;
+@@ -482,6 +488,7 @@
+     let report = serde_json::json!({
+         "original_bytes": source_bytes.len(), "original_blake3": blake3::Hash::from(source_digest).to_hex().to_string(),
+         "sensor_dimensions": [metadata.width, metadata.height], "original_crop": metadata.default_crop,
++        "tier": format!("{tier:?}"), "max_edge": tier.max_edge(),
+         "proxy_dimensions": [proxy.pixels().width(), proxy.pixels().height()], "scale": proxy.scale(),
+         "proxy_encoded_bytes": encoded.len(), "encoding": format!("{:?}", reopened.encoding),
+         "raw_decode_ms": raw_decode_ms, "generation_ms": generation_ms, "encode_ms": encode_ms, "decode_ms": decode_ms,
+@@ -494,11 +501,163 @@
+         *blake3::hash(&std::fs::read(&path).unwrap()).as_bytes(),
+         source_digest
+     );
+-    std::fs::write(output.join("sony-camera-linear.clp"), encoded).unwrap();
++    let (asset_name, report_name) = match tier {
++        SmartPreviewTier::Detail2560 => ("sony-camera-linear.clp", "sony-measurement.json"),
++        SmartPreviewTier::Compact2048 => (
++            "sony-compact2048-camera-linear.clp",
++            "sony-compact2048-measurement.json",
++        ),
++    };
++    std::fs::write(output.join(asset_name), encoded).unwrap();
+     std::fs::write(
+-        output.join("sony-measurement.json"),
++        output.join(report_name),
+         serde_json::to_vec_pretty(&report).unwrap(),
+     )
+     .unwrap();
+     println!("{report}");
+ }
++
++#[test]
++fn explicit_tiers_round_trip_with_validated_scale_and_unchanged_default() {
++    let (cfa, metadata) = fixture(4920, 9);
++    let settings = DevelopSettings::default();
++    let default = CameraLinearProxy::generate(
++        &cfa,
++        &metadata,
++        &settings,
++        ProcessVersion::NATIVE_CURRENT,
++        [7; 32],
++        &LensContext::default(),
++    )
++    .unwrap();
++    for (tier, scale, width, height) in [
++        (SmartPreviewTier::Detail2560, 2, 2460, 5),
++        (SmartPreviewTier::Compact2048, 3, 1640, 3),
++    ] {
++        let proxy = CameraLinearProxy::generate_with_tier(
++            &cfa,
++            &metadata,
++            &settings,
++            ProcessVersion::NATIVE_CURRENT,
++            [7; 32],
++            &LensContext::default(),
++            tier,
++        )
++        .unwrap();
++        assert_eq!(
++            (
++                proxy.scale(),
++                proxy.pixels().width(),
++                proxy.pixels().height()
++            ),
++            (scale, width, height)
++        );
++        if tier == SmartPreviewTier::Detail2560 {
++            assert_eq!(default.pixels().planes(), proxy.pixels().planes());
++            assert_eq!(default.tier(), tier);
++        }
++        let bytes = proxy.encode_persistent(123).unwrap();
++        let decoded = CameraLinearProxy::decode_persistent(&bytes).unwrap();
++        assert_eq!(decoded.proxy.tier(), tier);
++        assert_eq!(decoded.proxy.scale(), scale);
++        assert_eq!(
++            decoded.proxy.original_metadata().default_crop,
++            metadata.default_crop
++        );
++        for (a, b) in proxy
++            .pixels()
++            .planes()
++            .iter()
++            .flatten()
++            .zip(decoded.proxy.pixels().planes().iter().flatten())
++        {
++            assert!((f64::from(*a) - f64::from(*b)).abs() <= 0.0005 * f64::from(*a).abs() + 3e-8);
++        }
++        let mut edited = settings.clone();
++        edited.white_balance.mode = WhiteBalanceMode::Custom;
++        edited.white_balance.temperature = 4200.;
++        edited.white_balance.tint = 13.;
++        edited.tone.exposure = 0.7;
++        let before = render_linear_scaled(&edited, &RenderSource::CameraLinear(&proxy), 1).unwrap();
++        let after =
++            render_linear_scaled(&edited, &RenderSource::CameraLinear(&decoded.proxy), 1).unwrap();
++        for (a, b) in before
++            .planes()
++            .iter()
++            .flatten()
++            .zip(after.planes().iter().flatten())
++        {
++            assert!((a - b).abs() <= 0.003 * a.abs() + 0.0005);
++        }
++        let mismatched = change_json(&bytes, |v| {
++            v["tier"] = serde_json::json!(if tier == SmartPreviewTier::Detail2560 {
++                "Compact2048"
++            } else {
++                "Detail2560"
++            })
++        });
++        assert!(CameraLinearProxy::decode_persistent(&mismatched).is_err());
++    }
++}
++
++#[test]
++fn legacy_v1_detail_decodes_but_new_container_requires_explicit_supported_tier() {
++    let bytes = proxy().encode_persistent(100).unwrap();
++    assert_eq!(u32::from_le_bytes(bytes[8..12].try_into().unwrap()), 2);
++    let mut legacy = change_json(&bytes, |v| {
++        v.as_object_mut().unwrap().remove("tier");
++        v["generator"] = serde_json::json!(1);
++    });
++    legacy[8..12].copy_from_slice(&1_u32.to_le_bytes());
++    resign(&mut legacy);
++    let decoded = CameraLinearProxy::decode_persistent(&legacy).unwrap();
++    assert_eq!(decoded.proxy.tier(), SmartPreviewTier::Detail2560);
++    assert_eq!(decoded.proxy.scale(), 1);
++    assert_eq!(
++        decoded.proxy.pixels().planes(),
++        CameraLinearProxy::decode_persistent(&bytes)
++            .unwrap()
++            .proxy
++            .pixels()
++            .planes()
++    );
++    let upgraded = decoded.proxy.encode_persistent(100).unwrap();
++    assert_eq!(u32::from_le_bytes(upgraded[8..12].try_into().unwrap()), 2);
++    assert!(CameraLinearProxy::decode_persistent(&upgraded).is_ok());
++    for tier in [serde_json::Value::Null, serde_json::json!("Future4096")] {
++        assert!(
++            CameraLinearProxy::decode_persistent(&change_json(&bytes, |v| v["tier"] = tier))
++                .is_err()
++        );
++    }
++    assert!(
++        CameraLinearProxy::decode_persistent(&change_json(&bytes, |v| {
++            v.as_object_mut().unwrap().remove("tier");
++        }))
++        .is_err()
++    );
++    assert!(
++        CameraLinearProxy::decode_persistent(
++            &change_json(&legacy, |v| v["tier"] = serde_json::json!("Compact2048"))
++        )
++        .is_err()
++    );
++    assert!(
++        CameraLinearProxy::decode_persistent(
++            &change_json(&bytes, |v| v["generator"] = serde_json::json!(1))
++        )
++        .is_err()
++    );
++}
++
++#[test]
++fn legacy_v1_rejects_even_null_tier_metadata() {
++    let bytes = proxy().encode_persistent(100).unwrap();
++    let mut legacy = change_json(&bytes, |v| {
++        v["generator"] = serde_json::json!(1);
++        v["tier"] = serde_json::Value::Null;
++    });
++    legacy[8..12].copy_from_slice(&1_u32.to_le_bytes());
++    resign(&mut legacy);
++    assert!(CameraLinearProxy::decode_persistent(&legacy).is_err());
++}

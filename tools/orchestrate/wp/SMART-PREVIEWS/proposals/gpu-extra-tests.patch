@@ -1,0 +1,348 @@
+--- a/crates/pipeline-gpu/tests/smart_preview.rs
++++ b/crates/pipeline-gpu/tests/smart_preview.rs
+@@ -10,7 +10,9 @@
+     },
+     tile::Tile,
+ };
+-use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig, TileCache};
++use image_core::{
++    Headroom, PixelRect, RawImage, RenderOutput, Renderer, RendererConfig, TileCache,
++};
+ use pipeline_cpu::{CameraLinearProxy, LensContext, ManualCaSettings, SmartPreviewEncoding};
+ use pipeline_gpu::{GpuContext, GpuStageOp};
+ use std::sync::Arc;
+@@ -375,6 +377,216 @@
+     }
+ }
+ 
++// These guide slopes straddle the original/proxy pixel-axis classification
++// boundary because the odd short edge is rounded up during scale-two reduction.
++#[test]
++fn reduced_nonsquare_guided_geometry_uses_proxy_dimensions_and_matches_scalar() {
++    use engine_api::recipe::settings::{GuideLine, LensProfileSource, UprightMode};
++    let (width, height) = (2563, 67);
++    let metadata = common::metadata(width, height, common::RGGB, [1, 1, 2561, 63]);
++    let cfa = raw_decode::CfaImage::from_linear(
++        width,
++        height,
++        common::samples(width, height, common::RGGB),
++    )
++    .unwrap();
++    let mut settings = DevelopSettings::default();
++    settings.lens.profile = LensProfileSource::None;
++    settings.lens.remove_chromatic_aberration = false;
++    let proxy = CameraLinearProxy::generate(
++        &cfa,
++        &metadata,
++        &settings,
++        ProcessVersion::NATIVE_CURRENT,
++        [171; 32],
++        &LensContext::default(),
++    )
++    .unwrap();
++    let proxy = CameraLinearProxy::decode_persistent(&proxy.encode_persistent(1000).unwrap())
++        .unwrap()
++        .proxy;
++    assert_eq!(proxy.scale(), 2);
++    assert_eq!(
++        (proxy.pixels().width(), proxy.pixels().height()),
++        (1281, 32)
++    );
++    settings.geometry.upright.mode = UprightMode::Guided;
++    settings.geometry.upright.guides = vec![
++        GuideLine {
++            start: [0.2, 0.09],
++            end: [0.22, 0.9],
++        },
++        GuideLine {
++            start: [0.8, 0.09],
++            end: [0.78, 0.9],
++        },
++    ];
++    let guides: Vec<_> = settings
++        .geometry
++        .upright
++        .guides
++        .iter()
++        .map(|g| {
++            let start = g.start.map(|v| 2. * f64::from(v) - 1.);
++            let end = g.end.map(|v| 2. * f64::from(v) - 1.);
++            let dx = (end[0] - start[0]).abs();
++            let dy = (end[1] - start[1]).abs();
++            assert!(
++                dx * 2561. > dy * 63.,
++                "original dimensions would infer Horizontal"
++            );
++            assert!(
++                dx * 1281. < dy * 32.,
++                "actual proxy dimensions must infer Vertical"
++            );
++            lens::Guide {
++                start,
++                end,
++                axis: lens::GuideAxis::Vertical,
++            }
++        })
++        .collect();
++    let expected_upright = lens::guided_upright(&guides)
++        .unwrap()
++        .homography
++        .inverse()
++        .unwrap();
++    assert_ne!(expected_upright, lens::Homography::IDENTITY);
++    let plan = proxy.resident_tail_plan(&settings).unwrap().unwrap();
++    assert!(plan.ca.is_none());
++    for (actual, expected) in plan
++        .map
++        .as_ref()
++        .unwrap()
++        .upright
++        .0
++        .iter()
++        .flatten()
++        .zip(expected_upright.0.iter().flatten())
++    {
++        assert!(
++            (actual - expected).abs() <= 1e-10,
++            "wrong Guided frame: {actual} != {expected}"
++        );
++    }
++    settings.geometry.crop.rect.left = 0.03;
++    settings.geometry.crop.rect.right = 0.94;
++    let image =
++        RawImage::from_camera_linear_proxy(ImageId(171), ImageId(10171), Arc::new(proxy)).unwrap();
++    let cpu = Renderer::new(Default::default());
++    let context = Arc::new(GpuContext::new().unwrap());
++    for budget in [0, 64 << 20] {
++        let gpu = Arc::new(GpuStageOp::with_cache_budget(context.clone(), budget));
++        let renderer = Renderer::with_ops(
++            gpu.clone(),
++            Arc::new(TileCache::new(budget)),
++            RendererConfig {
++                cache_budget_bytes: budget,
++                ..Default::default()
++            },
++        );
++        assert!(renderer.can_render_resident(&image, &settings).unwrap());
++        let rect = PixelRect::full(Renderer::output_extent(&image, &settings, 0).unwrap());
++        for output in [
++            RenderOutput::SceneLinear,
++            RenderOutput::Display,
++            RenderOutput::DisplayLinear(Headroom::new(4.)),
++        ] {
++            let expected = cpu
++                .render_region_as(&image, &settings, 0, rect, output)
++                .unwrap();
++            for _ in 0..2 {
++                let before = gpu.stats();
++                let actual = renderer
++                    .render_region_as(&image, &settings, 0, rect, output)
++                    .unwrap();
++                assert!(
++                    gpu.stats().submissions > before.submissions,
++                    "must exercise GPU, not scalar fallback"
++                );
++                assert!(gpu.stats().last_resident_dispatches > 0);
++                compare(&actual, &expected, output == RenderOutput::Display);
++            }
++        }
++    }
++}
++
++#[test]
++fn display_linear_tiles_keep_scene_signed_hdr_until_the_display_transform() {
++    let context = Arc::new(GpuContext::new().unwrap());
++    let cpu = Renderer::new(Default::default());
++    for hdr in [false, true] {
++        let (image, mut settings) = fixture(173 + u128::from(hdr), hdr, false);
++        settings.tone.exposure = 2.;
++        let rect = PixelRect::full(image.active_extent());
++        for budget in [0, 64 << 20] {
++            let gpu = Arc::new(GpuStageOp::with_cache_budget(context.clone(), budget));
++            let renderer = Renderer::with_ops(
++                gpu.clone(),
++                Arc::new(TileCache::new(budget)),
++                RendererConfig {
++                    cache_budget_bytes: budget,
++                    ..Default::default()
++                },
++            );
++            let expected_scene = cpu
++                .render_region_as(&image, &settings, 0, rect, RenderOutput::SceneLinear)
++                .unwrap();
++            let actual_scene = renderer
++                .render_region_as(&image, &settings, 0, rect, RenderOutput::SceneLinear)
++                .unwrap();
++            compare(&actual_scene, &expected_scene, false);
++            if hdr {
++                assert!(
++                    actual_scene.iter().any(|t| t
++                        .samples::<f32>()
++                        .unwrap()
++                        .iter()
++                        .any(|v| *v < 0.))
++                );
++                assert!(
++                    actual_scene.iter().any(|t| t
++                        .samples::<f32>()
++                        .unwrap()
++                        .iter()
++                        .any(|v| *v > 1.))
++                );
++            }
++            for headroom in [1., 4.] {
++                let output = RenderOutput::DisplayLinear(Headroom::new(headroom));
++                let expected = cpu
++                    .render_region_as(&image, &settings, 0, rect, output)
++                    .unwrap();
++                for _ in 0..2 {
++                    let before = gpu.stats();
++                    let actual = renderer
++                        .render_region_as(&image, &settings, 0, rect, output)
++                        .unwrap();
++                    assert!(gpu.stats().submissions > before.submissions);
++                    compare(&actual, &expected, false);
++                    // DisplayLinear intentionally maps into [0, headroom]; negative
++                    // preservation is checked above in SceneLinear, not after gamut mapping.
++                    assert!(actual.iter().all(|t| {
++                        t.samples::<f32>()
++                            .unwrap()
++                            .iter()
++                            .all(|v| v.is_finite() && (0.0..=headroom).contains(v))
++                    }));
++                    if !hdr && headroom > 1. {
++                        assert!(
++                            actual.iter().any(|t| t
++                                .samples::<f32>()
++                                .unwrap()
++                                .iter()
++                                .any(|v| *v > 1.))
++                        );
++                    }
++                }
++            }
++        }
++    }
++}
++
+ #[cfg(target_os = "macos")]
+ mod surface_checks {
+     use super::*;
+@@ -496,4 +708,117 @@
+                 .is_err()
+         );
+     }
++
++    #[test]
++    fn camera_linear_half_surface_matches_scalar_edr_with_no_pixel_readback() {
++        let context = Arc::new(GpuContext::new().unwrap());
++        let cpu = Renderer::new(Default::default());
++        for hdr in [false, true] {
++            let (image, mut settings) = fixture(180 + u128::from(hdr), hdr, false);
++            settings.tone.exposure = 2.;
++            let extent = image.active_extent();
++            let rect = PixelRect::full(extent);
++            let headroom = 4.;
++            let output = RenderOutput::DisplayLinear(Headroom::new(headroom));
++            let expected = cpu
++                .render_region_as(&image, &settings, 0, rect, output)
++                .unwrap();
++            for budget in [0, 64 << 20] {
++                let gpu = Arc::new(GpuStageOp::with_cache_budget(context.clone(), budget));
++                let renderer = Renderer::with_ops(
++                    gpu.clone(),
++                    Arc::new(TileCache::new(budget)),
++                    RendererConfig {
++                        cache_budget_bytes: budget,
++                        ..Default::default()
++                    },
++                );
++                let surface = surface(extent.width, extent.height, 8, *b"RGhA");
++                for _ in 0..2 {
++                    let before = gpu.stats();
++                    let histogram = renderer
++                        .render_surface_as(
++                            &image,
++                            &settings,
++                            0,
++                            surface.id(),
++                            output,
++                            &CancellationToken::new(),
++                        )
++                        .unwrap()
++                        .expect("qualified proxy L0 surface");
++                    let after = gpu.stats();
++                    assert!(after.submissions > before.submissions);
++                    assert!(after.last_resident_dispatches > 0);
++                    assert_eq!(after.pixel_readback_bytes, before.pixel_readback_bytes);
++                    assert!(after.histogram_readbacks > before.histogram_readbacks);
++                    for channel in histogram {
++                        assert_eq!(channel.iter().sum::<u32>(), extent.width * extent.height);
++                    }
++                    let bytes = read(&surface, extent.width, extent.height, 8);
++                    assert_eq!(
++                        bytes.len(),
++                        extent.width as usize * extent.height as usize * 8
++                    );
++                    let pixels: Vec<_> = bytes
++                        .as_chunks::<2>()
++                        .0
++                        .iter()
++                        .map(|b| half::f16::from_le_bytes(*b).to_f32())
++                        .collect();
++                    let mut above_white = false;
++                    for tile in &expected {
++                        let layout = tile.layout();
++                        assert_eq!(layout.halo, 0);
++                        let samples = tile.samples::<f32>().unwrap();
++                        let plane = layout.plane_len();
++                        let (ox, oy) = tile.coord().pixel_origin(engine_api::tile::TILE_SIZE);
++                        for y in 0..layout.extent.height as usize {
++                            for x in 0..layout.extent.width as usize {
++                                let i = y * layout.extent.width as usize + x;
++                                let o =
++                                    ((oy as usize + y) * extent.width as usize + ox as usize + x)
++                                        * 4;
++                                for c in 0..3 {
++                                    let actual = pixels[o + c];
++                                    let reference = samples[c * plane + i];
++                                    assert!(
++                                        actual.is_finite() && (0.0..=headroom).contains(&actual)
++                                    );
++                                    // Existing camera-linear tile tolerance plus IEEE binary16
++                                    // nearest rounding: 2^-11 relative + 2^-25 absolute.
++                                    let tile_error = 0.0005 * reference.abs() + 0.0002;
++                                    let half_error =
++                                        (reference.abs() + tile_error) / 2048. + 1. / 33554432.;
++                                    assert!(
++                                        (actual - reference).abs() <= tile_error + half_error,
++                                        "half surface {actual} != scalar {reference}"
++                                    );
++                                    above_white |= actual > 1.;
++                                }
++                                assert_eq!(pixels[o + 3], 1.0);
++                            }
++                        }
++                    }
++                    if !hdr {
++                        assert!(
++                            above_white,
++                            "EDR surface must preserve highlights above SDR white"
++                        );
++                    }
++                    let cancel = CancellationToken::new();
++                    cancel.cancel();
++                    let frozen = read(&surface, extent.width, extent.height, 8);
++                    let before = gpu.stats();
++                    assert!(
++                        renderer
++                            .render_surface_as(&image, &settings, 0, surface.id(), output, &cancel)
++                            .is_err()
++                    );
++                    assert_eq!(gpu.stats().submissions, before.submissions);
++                    assert_eq!(read(&surface, extent.width, extent.height, 8), frozen);
++                }
++            }
++        }
++    }
+ }
