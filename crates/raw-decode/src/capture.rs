@@ -771,3 +771,6 @@ impl CapturedRaw {
         }
     }
 }
+
+mod decode;
+pub use decode::DecodedCapturedCfa;
