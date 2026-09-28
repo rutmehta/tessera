@@ -1,0 +1,20 @@
+Building for debugging...
+[0/5] Write swift-version--58304C5D6DBC2206.txt
+[2/5] Emitting module TesseraCoreTests
+[3/5] Compiling TesseraCoreTests TimingVisibleProtocolTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/TimingVisibleProtocolTests.swift:28:63: error: argument 'time' must precede argument 'bundleURL'
+26 |         for permit in [handshake(nonce: "stale", time: 10.5), handshake(pid: 42, time: 10.5),
+27 |                        handshake(window: 9, time: 10.5), handshake(session: "other", time: 10.5),
+28 |                        handshake(bundleURL: "/tmp/Other.app", time: 10.5),
+   |                                                               `- error: argument 'time' must precede argument 'bundleURL'
+29 |                        handshake(launchDate: 1_800_000_001, time: 10.5)] {
+30 |             var protocolState = TimingVisibleIntervalProtocol(ready: handshake())
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/TimingVisibleProtocolTests.swift:29:61: error: argument 'time' must precede argument 'launchDate'
+27 |                        handshake(window: 9, time: 10.5), handshake(session: "other", time: 10.5),
+28 |                        handshake(bundleURL: "/tmp/Other.app", time: 10.5),
+29 |                        handshake(launchDate: 1_800_000_001, time: 10.5)] {
+   |                                                             `- error: argument 'time' must precede argument 'launchDate'
+30 |             var protocolState = TimingVisibleIntervalProtocol(ready: handshake())
+31 |             XCTAssertFalse(protocolState.acceptStart(permit, now: 10.6, visible: true))
+error: fatalError

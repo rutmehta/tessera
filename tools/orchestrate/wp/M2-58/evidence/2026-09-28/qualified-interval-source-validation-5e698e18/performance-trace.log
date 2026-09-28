@@ -1,0 +1,22 @@
+Building for debugging...
+[0/4] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.11s)
+Test Suite 'Selected tests' started at 2026-09-28 09:38:53.198.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 09:38:53.199.
+Test Suite 'PerformanceTraceTests' started at 2026-09-28 09:38:53.199.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testBoundedTraceReportsDropsAndPreservesIdentity]' started.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testBoundedTraceReportsDropsAndPreservesIdentity]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testDisabledTraceDoesNotRecord]' started.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testDisabledTraceDoesNotRecord]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testSpanDurationAndConcurrentCallbacks]' started.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testSpanDurationAndConcurrentCallbacks]' passed (0.000 seconds).
+Test Suite 'PerformanceTraceTests' passed at 2026-09-28 09:38:53.201.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 09:38:53.201.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 09:38:53.201.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

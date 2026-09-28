@@ -1,0 +1,34 @@
+Building for debugging...
+[0/4] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.10s)
+Test Suite 'Selected tests' started at 2026-09-28 09:39:05.000.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 09:39:05.000.
+Test Suite 'DetailPreviewSchedulingTests' started at 2026-09-28 09:39:05.001.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testEngineMutationRejectsDetailBeforeViewportCallback]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testEngineMutationRejectsDetailBeforeViewportCallback]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testModelNotifiesBeforeMutationAndSettlesAfterFinalSetter]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testModelNotifiesBeforeMutationAndSettlesAfterFinalSetter]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSettingsChangingBeforeCompletionRejectsOldDetail]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSettingsChangingBeforeCompletionRejectsOldDetail]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' passed (0.000 seconds).
+Test Suite 'DetailPreviewSchedulingTests' passed at 2026-09-28 09:39:05.004.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 09:39:05.004.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 09:39:05.004.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.003 (0.005) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

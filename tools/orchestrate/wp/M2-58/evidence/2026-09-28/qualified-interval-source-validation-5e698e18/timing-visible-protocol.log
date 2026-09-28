@@ -1,0 +1,33 @@
+Building for debugging...
+[0/6] Write sources
+[1/6] Write swift-version--58304C5D6DBC2206.txt
+[3/6] Compiling TesseraCoreTests TimingVisibleProtocolTests.swift
+[4/6] Emitting module TesseraCoreTests
+[5/8] Compiling TesseraPackageTests runner.swift
+[6/8] Emitting module TesseraPackageTests
+[6/8] Write Objects.LinkFileList
+[7/8] Linking TesseraPackageTests
+Build complete! (3.17s)
+Test Suite 'Selected tests' started at 2026-09-28 09:38:28.370.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 09:38:28.371.
+Test Suite 'TimingVisibleProtocolTests' started at 2026-09-28 09:38:28.371.
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testAcceptsOneMatchingStartAndEndInterval]' started.
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testAcceptsOneMatchingStartAndEndInterval]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testHandshakeUsesStableSnakeCaseRunnerFields]' started.
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testHandshakeUsesStableSnakeCaseRunnerFields]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testRejectsDuplicateStartEarlyEndAndTimeout]' started.
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testRejectsDuplicateStartEarlyEndAndTimeout]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testRejectsNonfinitePermitAndIntervalTimes]' started.
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testRejectsNonfinitePermitAndIntervalTimes]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testRejectsStaleNonceAndWrongProcessWindowOrSession]' started.
+Test Case '-[TesseraCoreTests.TimingVisibleProtocolTests testRejectsStaleNonceAndWrongProcessWindowOrSession]' passed (0.000 seconds).
+Test Suite 'TimingVisibleProtocolTests' passed at 2026-09-28 09:38:28.373.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 09:38:28.373.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 09:38:28.374.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.004) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

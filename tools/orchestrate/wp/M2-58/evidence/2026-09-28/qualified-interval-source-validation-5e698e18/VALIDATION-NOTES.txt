@@ -1,0 +1,43 @@
+M2-58 qualified interval source validation
+
+Checkout: /Users/rutmehta/.codex/worktrees/workspace-redesign/tessera
+Branch: codex/m258-current-reconciliation
+Source HEAD: 5e698e1836c2cf050b00d8ae7c8f8f93c3161edb (pushed to origin)
+Pre-existing worktree item: untracked `target` symlink to /Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated; preserved.
+
+Toolchain snapshot (captured during this validation):
+- Apple Swift 6.3.3 (swift-driver 1.148.6), arm64-apple-macosx26.0.
+- Python 3.14.7.
+- Swift package tests used the package's default serial test execution; no `--parallel` flag or custom Swift environment variables.
+
+Python analyzer command:
+`python3 -m unittest tools/bench/test_app_timing_visible.py`
+Raw output: python-tests.log; direct exit: python-tests.direct.exit (0); 17 tests passed.
+
+Focused SwiftPM Debug commands (each raw log and .direct.exit are named below; each exited 0):
+`swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-validation/m258-current/qualified-interval-9bf95af/swiftpm --filter TimingVisibleProtocolTests`
+`swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-validation/m258-current/qualified-interval-9bf95af/swiftpm --filter TimingSelfTestLaunchModeTests`
+`swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-validation/m258-current/qualified-interval-9bf95af/swiftpm --filter PerformanceTraceTests`
+`swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-validation/m258-current/qualified-interval-9bf95af/swiftpm --filter DetailPreviewSchedulingTests`
+`swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-validation/m258-current/qualified-interval-9bf95af/swiftpm --filter LatestFrameMailboxTests`
+`swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-validation/m258-current/qualified-interval-9bf95af/swiftpm --filter DevelopTests`
+Named XCTest total: 27 (5 + 4 + 3 + 9 + 2 + 4), all passed. Swift Testing reports zero selected tests in each focused filter; these are not included in the XCTest total. The DevelopTests suite exercised real fixtures and printed timing calibration output; it was correctness validation, not performance acceptance.
+
+Source correction:
+Commit 5e698e18 changes only the argument order in two TimingVisibleProtocolTests helper calls. The initial unredirected focused cold build returned exit 1; the exact same pre-fix compile failure was rerun and preserved as focused-unfixed.log with focused-unfixed.direct.exit=1. Error: helper requires `time:` before `bundleURL:` or `launchDate:`. No XCTest case ran on those compile failures. The first cold attempt had only tool-session output, not a durable raw file.
+
+Full Release command:
+`swift test -c release --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-validation/m258-current/qualified-interval-9bf95af/swiftpm`
+
+Three full-suite attempts are distinct and preserved; do not add their case counts:
+1. swift-release-full.log has completed suite summary 666 XCTest, 1 skipped, 0 failures (191.109s) plus 5 Swift Testing passes, but its exec session expired before direct exit was returned. Treat as observed summary only, not accepted direct-exit evidence.
+2. swift-release-full-direct-exit.log has the same 666/1-skip/0-failure summary and 5 Swift Testing passes. Its wrapper then failed because zsh's readonly special parameter `status` was assigned; tool returned wrapper error `zsh:1: read-only variable: status`, with no child direct-exit file. Preserve as wrapper failure, not accepted direct-exit evidence.
+3. swift-release-full-exit-captured.log was run by a Python subprocess wrapper that writes the child return code to swift-release-full-exit-captured.direct.exit. Direct child exit is 0. The log reports 666 XCTest, 1 skipped, 0 failures (188.715s), then 5 Swift Testing passes. This is the accepted full Release result.
+
+Before/after provenance:
+- release-inputs-before.sha256 and release-inputs-after.sha256 are full `git ls-files` SHA-256 manifests; they compare identical.
+- release-generated-before.sha256 and release-generated-after.sha256 compare identical for CTesseraFFI.h, TesseraFFI.swift, and the FFI archive.
+- Archive: /Volumes/betterSSD/tessera-validation/m258-current/ffi-07d924df/libtessera_ffi.a, SHA-256 07d924df6866bdf5404452dcdf54a21976d88322b5858c9c0cb3a91191027414.
+- Generated TesseraFFI.swift SHA-256 0efe51ef8c1d9fed5ba7cfb5abb5db442977ddf8ae09036e60926b79a3b041e4; CTesseraFFI.h SHA-256 61dbdf84ac99ddfd08ed258cab10f97b0d235fbdc3ddb61f795a2b081e9d65c3.
+- No Rust, FFI, generated bindings, app launch, GUI, capture, or permission UI action occurred in this validation.
+- Raw vendor/model warning lines in Release output are preserved. No P01 benchmark, visible-window, scanout, or P11 actual appearance/gesture acceptance is claimed.

@@ -1,0 +1,3 @@
+61dbdf84ac99ddfd08ed258cab10f97b0d235fbdc3ddb61f795a2b081e9d65c3  apps/mac/Sources/CTesseraFFI/CTesseraFFI.h
+0efe51ef8c1d9fed5ba7cfb5abb5db442977ddf8ae09036e60926b79a3b041e4  apps/mac/Sources/TesseraFFI/TesseraFFI.swift
+07d924df6866bdf5404452dcdf54a21976d88322b5858c9c0cb3a91191027414  apps/mac/build/ffi/libtessera_ffi.a

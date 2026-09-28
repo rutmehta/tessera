@@ -1,0 +1,20 @@
+Building for debugging...
+[0/4] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.17s)
+Test Suite 'Selected tests' started at 2026-09-28 09:39:13.536.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 09:39:13.536.
+Test Suite 'LatestFrameMailboxTests' started at 2026-09-28 09:39:13.536.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testDelayedDrainOnlyTakesNewestAndSchedulesOnce]' started.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testDelayedDrainOnlyTakesNewestAndSchedulesOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testLateOldGenerationCannotReplacePendingOrDeliveredFrame]' started.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testLateOldGenerationCannotReplacePendingOrDeliveredFrame]' passed (0.000 seconds).
+Test Suite 'LatestFrameMailboxTests' passed at 2026-09-28 09:39:13.537.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 09:39:13.537.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 09:39:13.537.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
