@@ -70,3 +70,18 @@ no mutation launched. Export's saved-versus-live source boundary remains a sourc
 audit item, not a verified guarantee. These are implementation requirements and
 unrun acceptance cases, not completed behavior. Stage A native retry is now merged
 (main d4274a68); native failed-close recovery remains separate.
+
+### Export/Print source boundary confirmed by A
+
+`AppModel+Output.swift:68` and `:98` call `try? d.session.flush()` before
+presenting Export and Print. They neither submit the controller's pending settings
+and mask queues nor propagate a native save failure. ExportController.start
+(:273–289) and watermark preview (:218–237) then invoke `exportBatch`; native
+`export.rs:803–814` reads the authoritative disk recipe/XMP under the catalog lock.
+This is a saved-recipe reader, not a snapshot of unsubmitted visible controls.
+Stage B must route these launch paths through a result-bearing host-and-native
+save barrier, including matching owner/image pending cleanup recovery. Do not
+claim the catalog lock flushes host edits or repairs a prior failed save. Initial
+acceptance must inject host patch rejection and native post-recipe failure and
+assert no export/print launch until retry succeeds. These checks are UNRUN and
+no output product behavior changed in this source audit.
