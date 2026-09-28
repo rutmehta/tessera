@@ -68,12 +68,13 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    set_selection/set_recipe_json. Same-Engine lockprogress, coherent capture and
    final recipe/XMP/index checks included. StaleJSON/CAS/otherwriters and atomic
    multi-file transaction are outside scope; BatchApply remains blocked.
-3. **Luna — desktop released:** validationapps closed; normal65fa userpreview
-   untouched. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
+3. **Luna — desktop released; UX05 source contract:** validationapps closed; normal65fa userpreview
+   untouched. Draft true liveRAW graph/persistence boundary and minimum next
+   dependency without editing B-owned Document implementation. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
    evidence/2026-09-27. CUA screenshots inline only, no local export available.
 4. **B — resource hold:** completed PSD receipts b7294f0e/ccb9e8f1 published.
    Result628f798f and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c published
-   for source-package reconciliation. Queue acceptance is not yet peerreceipt.
+   for source-package reconciliation. Existing B chat acknowledged receipt at cursor15 and is reconciling packages.
    No B workloads/heartbeat restart. A remains sole main merger.
 
 Review persistence DONE main7adc4fa2 (494XCTest/1skip/0fail+5 and tinyGUI).

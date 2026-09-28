@@ -14,8 +14,8 @@ stub visibility checked without20k load; Release Debugmenu absent, not separatel
 verified. No complexstackGUI, largefilecancel latency or broadperformance claim.
 
 Two pending B PSD receipts completed with evidence. Result628f798f sent through
-Git and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c accepted; peerreceipt not yet
-observed. B hold remains. Resource Sol holds compiler for reviewed78520df5 six
+Git and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c accepted; existing B chat acknowledged
+receipt at cursor15 and is reconciling packages. B hold remains. Resource Sol holds compiler for reviewed78520df5 six
 recipe-write RED tests then narrow implementation; Luna validationapps closed.
 User65fa preview stays open untouched. DirectJSON InvalidTransition remains an
 unresolved diagnostic, documented separately; supported Develop regression passes.
