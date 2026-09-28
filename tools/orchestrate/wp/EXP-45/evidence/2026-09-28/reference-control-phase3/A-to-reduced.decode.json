@@ -1,0 +1,22 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "rational-swap/A-to-reduced.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "rational-swap/A-to-reduced.cfg",
+    "-z",
+    "rational-swap/A-to-reduced.raw"
+  ],
+  "exit": 0,
+  "bytes": 10240,
+  "sha256": "61cf27b4757daa75048dc3c4d44e4520838872ee7096e23df001442a91547aa5",
+  "bright_center_r": 16.0,
+  "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+}

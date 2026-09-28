@@ -1,0 +1,12 @@
+{
+  "checkout": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera",
+  "head": "c7164602ea96464f1d87bfb007e6dbc5b3f8f45b",
+  "tracked_status_snapshot": " M apps/tessera-cli/src/export.rs\n M crates/engine-api/src/tools.rs\n M crates/export/src/hdr.rs\n M crates/export/src/lib.rs\n M crates/tessera-ffi/src/export.rs\n M crates/tessera-mcp/src/exports.rs\n?? apps/tessera-cli/tests/gain_map_hosts.rs\n?? crates/export/src/gain_map.rs\n?? crates/export/tests/gain_map.rs\n?? crates/export/tests/support/gain_map_coreimage.m\n?? crates/export/tests/support/gain_map_coreimage.rs\n?? crates/export/tests/support/gain_map_fixture.rs\n?? crates/export/tests/support/gain_map_imageio.rs\n?? crates/tessera-ffi/tests/gain_map_hosts.rs\n?? crates/tessera-mcp/tests/gain_map_hosts.rs\n?? tools/coordination/\n?? tools/orchestrate/wp/M2-45d/GAINMAP-PLAN.md\n",
+  "product_source": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/crates/export/src/gain_map.rs",
+  "product_source_sha256": "ca69cbb41b8e5901bdb1f5286a36ca7c2b3f0c81b4018c5ab6442d319fbb3dec",
+  "product_source_bytes": 7434,
+  "retained_A_fixture": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+  "retained_A_fixture_sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+  "retained_A_fixture_bytes": 1956,
+  "product_source_unchanged_by_this_experiment": true
+}

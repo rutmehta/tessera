@@ -1,0 +1,3 @@
+# EXP-45 phase 3 portable evidence
+
+This bundle contains the reciprocal fixed-width rational-representation comparison: exact transformation and independent static-validation scripts, changed ranges, original source provenance, reference decoder byte-identity records, raw native stdout including warnings, parsed summaries, direct exits, and both tiny transformed JPEGs. `RESULTS.md` and `MANIFEST.json` are byte-identical to the external phase-3 files at packaging time. The original A JPEG is in the immutable phase-1 bundle; the qualified Google explicit source JPEG is in phase 2. Upstream checkout and compiled binaries remain external, with hashes in phase-1 `MANIFEST.json`. No Tessera product code or original gate was modified.

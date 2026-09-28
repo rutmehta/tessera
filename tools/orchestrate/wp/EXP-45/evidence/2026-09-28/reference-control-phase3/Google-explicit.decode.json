@@ -1,0 +1,22 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "denominator-explicit/reference-16-explicit.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "rational-swap/Google-explicit.cfg",
+    "-z",
+    "rational-swap/Google-explicit.raw"
+  ],
+  "exit": 0,
+  "bytes": 10240,
+  "sha256": "bbddc6f6788ca1d72f79b14329812622f24ee2ac20e62f45dd252078705baa4a",
+  "bright_center_r": 13.9453125,
+  "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+}
