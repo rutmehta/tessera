@@ -5,6 +5,34 @@ import TesseraCore
 import TesseraFFI
 import UniformTypeIdentifiers
 
+/// Terminal settlement of backend source capture and optional workspace install.
+enum DocumentLoadOutcome: Equatable, Sendable {
+    case installed
+    case rejected(String)
+    case failed(String)
+    case workspaceReleased
+}
+
+@MainActor
+private final class DocumentLoadSettlement {
+    let engine: any DocumentEngine
+    private var completed = false
+    private var completion: (@MainActor (DocumentLoadOutcome) -> Void)?
+    init(engine: any DocumentEngine, completion: @escaping @MainActor (DocumentLoadOutcome) -> Void) {
+        self.engine = engine; self.completion = completion
+    }
+    func claim() -> Bool {
+        guard !completed else { return false }
+        completed = true
+        return true
+    }
+    func finish(_ outcome: DocumentLoadOutcome) {
+        let callback = completion
+        completion = nil
+        callback?(outcome)
+    }
+}
+
 /// A save result is distinct from permission to continue a cancelled close intent.
 enum DocumentSaveOutcome: Equatable {
     case saved(URL?, continuationCancelled: Bool)
@@ -148,27 +176,55 @@ final class DocumentWorkspace {
         }
     }
 
-    /// Opens through `engine`: synchronously on the stub, off the main thread on the engine (opening
-    /// decodes files and renders library images at full resolution), then installs the document.
+    // Tests hold backend completion without native decode, disk or GPU work.
+    @ObservationIgnored var documentLoadExecutor: ((any DocumentEngine,
+        @escaping @Sendable (any DocumentEngine) throws -> any DocumentBackend,
+        @escaping @MainActor (Result<any DocumentBackend, Error>) -> Void) -> Void)?
+    @ObservationIgnored private var openingToken: UUID?
+
+    /// Completion retains the captured engine until actual backend return and
+    /// installation/orphan cleanup, even if the workspace no longer exists.
     private func load(_ what: String, engine: any DocumentEngine, done: String,
+                      completion: @escaping @MainActor (DocumentLoadOutcome) -> Void = { _ in },
                       _ body: @escaping @Sendable (any DocumentEngine) throws -> any DocumentBackend) {
-        if engine is StubDocumentEngine {
-            do {
-                try install(body(engine))
-                say(done)
-            } catch { say("\(what): \(error.localizedDescription)") }
-            return
-        }
+        let token = UUID()
+        openingToken = token
         opening = what
         say("\(what)…")
-        Task { @MainActor [weak self] in
-            let result = await Task.detached(priority: .userInitiated) { Result { try body(engine) } }.value
-            guard let self else { return }
-            self.opening = nil
-            do {
-                try self.install(result.get())
-                self.say(done)
-            } catch { self.say("\(what): \(error.localizedDescription)") }
+        let settlement = DocumentLoadSettlement(engine: engine, completion: completion)
+        let receive: @MainActor (Result<any DocumentBackend, Error>) -> Void = { [weak self, settlement] result in
+            guard settlement.claim() else { return }
+            guard let self else {
+                if case .success(let backend) = result { backend.close() }
+                // Failure is still reported faithfully when no workspace remains.
+                if case .failure(let error) = result { settlement.finish(.failed(error.localizedDescription)) }
+                else { settlement.finish(.workspaceReleased) }
+                return
+            }
+            if self.openingToken == token { self.openingToken = nil; self.opening = nil }
+            switch result {
+            case .success(let backend):
+                do {
+                    try self.install(backend)
+                    self.say(done)
+                    settlement.finish(.installed)
+                } catch {
+                    backend.close()
+                    self.say("\(what): \(error.localizedDescription)")
+                    settlement.finish(.failed(error.localizedDescription))
+                }
+            case .failure(let error):
+                self.say("\(what): \(error.localizedDescription)")
+                settlement.finish(.failed(error.localizedDescription))
+            }
+        }
+        if let documentLoadExecutor { documentLoadExecutor(engine, body, receive) }
+        else if engine is StubDocumentEngine { receive(Result { try body(engine) }) }
+        else {
+            Task { @MainActor in
+                let result = await Task.detached(priority: .userInitiated) { Result { try body(engine) } }.value
+                receive(result)
+            }
         }
     }
 
@@ -199,26 +255,37 @@ final class DocumentWorkspace {
     /// Library ▸ Edit in Layers (⌘E): the focused image, developed, as a new document. Engine images
     /// open on their own engine by image id (`open_document_from_image(id, developed: true)`); the stub
     /// takes the file.
-    func editInLayers(_ item: PhotoItem?) {
-        guard let item else { say("Edit in Layers: select a photo first"); return }
+    /// Release saved-pixel reservations from completion, never on method return.
+    /// Rejections/stub loads may settle synchronously. There is no early cancellation
+    /// signal: completion follows backend return, including when the UI disappears.
+    func editInLayers(_ item: PhotoItem?,
+                      completion: @escaping @MainActor (DocumentLoadOutcome) -> Void = { _ in }) {
+        guard let item else {
+            let message = "Edit in Layers: select a photo first"
+            say(message); completion(.rejected(message)); return
+        }
         let what = "Edit \(item.name) in Layers", done = "Editing \(item.name) in layers"
         if !(engineOverride is StubDocumentEngine), let ref = item.engineImage {
             let id = ref.imageID
-            load(what, engine: EngineDocumentEngine.for(ref.engine), done: done) {
+            load(what, engine: EngineDocumentEngine.for(ref.engine), done: done, completion: completion) {
                 try $0.openDocumentFromImage(imageId: id, developed: true)
             }
             return
         }
         let engine = self.engine
-        guard let url = item.url else { say("Edit in Layers needs a photo file (stub items have none)"); return }
+        guard let url = item.url else {
+            let message = "Edit in Layers needs a photo file (stub items have none)"
+            say(message); completion(.rejected(message)); return
+        }
         if engine is StubDocumentEngine {
             let id = "file:\(url.path)"
-            load(what, engine: engine, done: done) { try $0.openDocumentFromImage(imageId: id, developed: true) }
+            load(what, engine: engine, done: done, completion: completion) { try $0.openDocumentFromImage(imageId: id, developed: true) }
         } else if item.kind == .raw {
-            say("Edit in Layers: open the photo's folder to edit a RAW on the engine")
+            let message = "Edit in Layers: open the photo's folder to edit a RAW on the engine"
+            say(message); completion(.rejected(message))
         } else {
             let path = url.path
-            load(what, engine: engine, done: done) { try $0.openDocument(path: path) }
+            load(what, engine: engine, done: done, completion: completion) { try $0.openDocument(path: path) }
         }
     }
 
