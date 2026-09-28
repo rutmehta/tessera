@@ -101,7 +101,8 @@ use std::{
 };
 
 #[cfg(test)]
-static FAIL_AFTER_DEVELOP_RECIPE: Mutex<Option<(PathBuf, usize)>> = Mutex::new(None);
+static FAIL_AFTER_DEVELOP_RECIPE: Mutex<std::collections::BTreeMap<PathBuf, usize>> =
+    Mutex::new(std::collections::BTreeMap::new());
 
 /// Interactive drags on screen levels larger than this render one level
 /// coarser until the drag is committed.
@@ -946,8 +947,7 @@ impl Engine {
             let mut fault = FAIL_AFTER_DEVELOP_RECIPE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            if let Some((fault_path, remaining)) = fault.as_mut()
-                && fault_path == path
+            if let Some(remaining) = fault.get_mut(path)
                 && *remaining > 0
             {
                 *remaining -= 1;
@@ -3082,9 +3082,10 @@ mod tests {
             .unwrap()
             .remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
-        *FAIL_AFTER_DEVELOP_RECIPE
+        FAIL_AFTER_DEVELOP_RECIPE
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some((session.shared.path.clone(), 1));
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(session.shared.path.clone(), 1);
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
@@ -3122,9 +3123,10 @@ mod tests {
             .unwrap()
             .remove(0);
         let session = engine.clone().open_develop_session(row.id).unwrap();
-        *FAIL_AFTER_DEVELOP_RECIPE
+        FAIL_AFTER_DEVELOP_RECIPE
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some((session.shared.path.clone(), 2));
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(session.shared.path.clone(), 2);
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
@@ -3160,9 +3162,10 @@ mod tests {
             .unwrap()
             .remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
-        *FAIL_AFTER_DEVELOP_RECIPE
+        FAIL_AFTER_DEVELOP_RECIPE
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some((session.shared.path.clone(), 1));
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(session.shared.path.clone(), 1);
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
