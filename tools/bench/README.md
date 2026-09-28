@@ -84,9 +84,11 @@ M2-21c measurements provide historical context, not interchangeable baselines.
 launches only with `open -g` and `--nonactivating`. See `apps/mac/README.md` for
 the commands, output schema limits and exit codes. Do not interpret its nested
 instrumented-main-span p95 as a whole-main-thread occupancy percentile. Input and
-generation identity remain separate until the Rust FFI exposes the missing causal
-join, dequeue timestamp and per-frame residency; null metrics are not performance
-passes. Background occlusion can prevent presentation entirely.
+generation identity remain separate, joined only by the identified settings FFI
+callback. M2-58 carries actual worker-entry time and resident/fallback outcome.
+The summary uses the first actual presentation per causal input, never sink time
+or callback delivery as a substitute. Null metrics are not performance passes;
+background occlusion can prevent presentation entirely.
 
 On accessory launches macOS may suppress SwiftUI's initial window. Timing mode
 therefore hosts the real `ContentView` in a nonactivating, non-key/main `NSPanel`,
