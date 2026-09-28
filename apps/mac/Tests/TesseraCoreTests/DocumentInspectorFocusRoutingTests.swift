@@ -23,7 +23,7 @@ final class DocumentInspectorFocusRoutingTests: XCTestCase {
         let responder = window.firstResponder.map { "\(type(of: $0)) \(ObjectIdentifier($0))" } ?? "nil"
         var lines = ["\(stage): firstResponder=\(responder); fullKeyboardAccess=\(NSApp.isFullKeyboardAccessEnabled)"]
         for view in views(host) {
-            lines.append("\(type(of: view)) \(ObjectIdentifier(view)) bounds=\(view.bounds) accepts=\(view.acceptsFirstResponder) AXfocused=\(view.isAccessibilityFocused()) AXid=\(view.accessibilityIdentifier() ?? "nil") AXlabel=\(view.accessibilityLabel() ?? "nil")")
+            lines.append("\(type(of: view)) \(ObjectIdentifier(view)) bounds=\(view.bounds) accepts=\(view.acceptsFirstResponder) AXfocused=\(view.isAccessibilityFocused()) AXid=\(view.accessibilityIdentifier()) AXlabel=\(view.accessibilityLabel() ?? "nil")")
         }
         let text = lines.joined(separator: "\n")
         print(text)
