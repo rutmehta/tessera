@@ -167,105 +167,67 @@ struct SaveAsRequest: Identifiable {
     }
 }
 
-/// Captures the actual window hosting this Save As content, not an arbitrary
-/// attached sheet discovered later from the application's current main window.
-struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
-    let workspace: DocumentWorkspace
-    let requestID: UUID
-    // Internal reporting seam for a reused, already-attached view regression.
-    var reportWindow: @MainActor (DocumentWorkspace, UUID, NSWindow) -> Void = { owner, id, window in
-        owner.captureSaveAsSheetWindow(id, window: window)
+private final class DocumentSaveHostCloseObservation {
+    private let token: NSObjectProtocol
+    @MainActor init(window: NSWindow, closed: @escaping @MainActor () -> Void) {
+        token = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification,
+            object: window, queue: .main) { _ in MainActor.assumeIsolated { closed() } }
     }
-    final class ProbeView: NSView {
-        var capture: ((NSWindow) -> Void)?
-        var ownerIdentity: ObjectIdentifier?
-        var requestIdentity: UUID?
-        var finishOwnership: (() -> Void)?
-        func endOwnership() {
-            capture = nil
-            let finish = finishOwnership
-            finishOwnership = nil
-            ownerIdentity = nil; requestIdentity = nil
-            finish?()
+    deinit { NotificationCenter.default.removeObserver(token) }
+}
+
+/// A bridge incarnation owns a fresh UUID, even if SwiftUI replaces it on the
+/// same NSWindow. Updates and teardown never register an old incarnation anew.
+struct DocumentSaveParentBridge: NSViewRepresentable {
+    let presenter: DocumentSavePresenter
+    final class ParentView: NSView {
+        let bindingID = UUID()
+        let presenter: DocumentSavePresenter
+        private var closeObservation: DocumentSaveHostCloseObservation?
+        private weak var boundWindow: NSWindow?
+        init(presenter: DocumentSavePresenter) {
+            self.presenter = presenter
+            super.init(frame: .zero)
+            presenter.registerBinding(bindingID)
         }
+        required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if let window { capture?(window) }
+            refresh()
         }
-    }
-    func makeNSView(context: Context) -> ProbeView {
-        let view = ProbeView()
-        refreshCapture(on: view)
-        return view
-    }
-    func updateNSView(_ view: ProbeView, context: Context) {
-        refreshCapture(on: view)
-    }
-    static func dismantleNSView(_ view: ProbeView, coordinator: ()) {
-        if let window = view.window { view.capture?(window) }
-        view.endOwnership()
-    }
-    func refreshCapture(on view: ProbeView) {
-        let id = requestID
-        if view.ownerIdentity != ObjectIdentifier(workspace) || view.requestIdentity != id {
-            view.endOwnership()
-            view.ownerIdentity = ObjectIdentifier(workspace)
-            view.requestIdentity = id
-            let probe = UUID()
-            if workspace.saveAsProbeBegan(id, probe: probe) {
-                view.finishOwnership = { [weak workspace] in workspace?.saveAsProbeEnded(id, probe: probe) }
+        func refresh() {
+            guard let window else {
+                closeObservation = nil; boundWindow = nil
+                presenter.clearWindow(bindingID)
+                return
+            }
+            if boundWindow !== window {
+                boundWindow = window
+                let capturedWindowID = ObjectIdentifier(window)
+                closeObservation = DocumentSaveHostCloseObservation(window: window) { [weak self] in
+                    guard let self else { return }
+                    self.presenter.removeBinding(self.bindingID, windowID: capturedWindowID)
+                }
+            }
+            presenter.updateBinding(bindingID, windowID: ObjectIdentifier(window)) { [weak window] _, content, actions in
+                guard let window else { return nil }
+                return AppKitDocumentSaveSession(parent: window, content: content, actions: actions)
             }
         }
-        let report = reportWindow
-        view.capture = { [weak workspace] window in
-            guard let workspace else { return }
-            report(workspace, id, window)
-        }
-        // Reuse may not produce another viewDidMoveToWindow callback.
-        if let window = view.window { view.capture?(window) }
-    }
-}
-
-/// Non-observable identity latch: capturing sheet content must not rely on an
-/// onAppear state update, which may never occur after a synchronous cancellation.
-@MainActor
-private final class DocumentSavePresentationCapture {
-    var id: UUID?
-    func claim(_ request: SaveAsRequest, in workspace: DocumentWorkspace) -> Bool {
-        if let id, id != request.id { return false }
-        guard workspace.saveAsPresentationWillPresent(request.id) else { return false }
-        id = request.id
-        return true
-    }
-}
-
-/// Keeps native dismissal paired with the item SwiftUI actually consumed.
-struct DocumentSaveAsPresentation: ViewModifier {
-    @Bindable var workspace: DocumentWorkspace
-    @State private var capture = DocumentSavePresentationCapture()
-
-    func body(content: Content) -> some View {
-        content.sheet(item: Binding(get: { workspace.saveAsRequest }, set: { _ in }), onDismiss: {
-            guard let id = capture.id else { return }
-            capture.id = nil
-            workspace.saveAsPresentationDidDismiss(id)
-        }) { request in
-            // Capture synchronously at the content boundary, including the
-            // appearing-but-not-yet-onAppear interval. Merely setting the item
-            // in the workspace does not claim this presentation identity.
-            if capture.claim(request, in: workspace) {
-                SaveAsSheet(workspace: workspace, request: request)
-                    .background(DocumentSaveSheetWindowProbe(workspace: workspace, requestID: request.id)
-                        .frame(width: 0, height: 0))
-            }
+        func shutdown() {
+            closeObservation = nil; boundWindow = nil
+            presenter.removeBinding(bindingID)
         }
     }
+    func makeNSView(context: Context) -> ParentView { ParentView(presenter: presenter) }
+    func updateNSView(_ view: ParentView, context: Context) { view.refresh() }
+    static func dismantleNSView(_ view: ParentView, coordinator: ()) { view.shutdown() }
 }
 
 /// File ▸ Save As…: name (focused on open, `document.saveAs.name`), format and folder.
 struct SaveAsSheet: View {
-    @Bindable var workspace: DocumentWorkspace
     @State var request: SaveAsRequest
+    let actions: DocumentSavePresentationActions
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -307,7 +269,7 @@ struct SaveAsSheet: View {
         } leading: {
             EmptyView()
         } actions: {
-            Button("Cancel") { workspace.cancelDocumentSave(request.id) }
+            Button("Cancel") { actions.cancel() }
                 .keyboardShortcut(.cancelAction).sheetButton()
                 .accessibilityIdentifier("document.saveAs.cancel")
             Button("Save") { save() }
@@ -317,7 +279,6 @@ struct SaveAsSheet: View {
                 .accessibilityIdentifier("document.saveAs.save")
         }
         .frame(width: 520, height: 330)
-        .onDisappear { workspace.saveAsSheetDidDisappear(request.id) }
         .onAppear {
             // The field takes the keyboard as the sheet opens (after SwiftUI installs it).
             DispatchQueue.main.async { MainActor.assumeIsolated { nameFocused = true } }
@@ -326,17 +287,12 @@ struct SaveAsSheet: View {
 
     private func save() {
         guard request.isValid else { return }
-        workspace.finishSaveAs(request)
+        actions.submit(request)
     }
 
     private func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose a Folder"
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        panel.directoryURL = request.folder
-        panel.prompt = "Choose"
-        if panel.runModal() == .OK, let url = panel.url { request.folder = url }
+        actions.chooseFolder(request.folder) { url in
+            if let url { request.folder = url }
+        }
     }
 }

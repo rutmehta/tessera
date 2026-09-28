@@ -160,7 +160,7 @@ struct ContentView: View {
         .sheet(isPresented: Binding(get: { model.documents.showExportFlat }, set: { model.documents.showExportFlat = $0 })) {
             ExportFlatSheet(workspace: model.documents)
         }
-        .modifier(DocumentSaveAsPresentation(workspace: model.documents))
+        .background(DocumentSaveParentBridge(presenter: model.documents.savePresenter).frame(width: 0, height: 0))
         .sheet(isPresented: $model.showDefectSweep) {
             DefectSweepSheet(model: model)
         }
