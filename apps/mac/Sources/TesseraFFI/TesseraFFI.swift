@@ -4089,6 +4089,13 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func saveAs(path: String) throws 
     
     /**
+     * Saves only if the destination is absent, or replaces a path after the
+     * caller has explicitly confirmed that action. Existing Save As remains
+     * available to legacy callers with its replacing behavior.
+     */
+    func saveAsChecked(path: String, intent: DocumentSaveDestinationIntent) throws  -> DocumentSaveAsResult
+    
+    /**
      * Replaces an adjustment layer's parameters (`compositor::Adjustment`
      * JSON); `interactive` as for `set_opacity`.
      */
@@ -5351,6 +5358,22 @@ open func saveAs(path: String)throws   {try rustCallWithError(FfiConverterTypeBr
         FfiConverterString.lower(path),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Saves only if the destination is absent, or replaces a path after the
+     * caller has explicitly confirmed that action. Existing Save As remains
+     * available to legacy callers with its replacing behavior.
+     */
+open func saveAsChecked(path: String, intent: DocumentSaveDestinationIntent)throws  -> DocumentSaveAsResult  {
+    return try  FfiConverterTypeDocumentSaveAsResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_save_as_checked(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),
+        FfiConverterTypeDocumentSaveDestinationIntent_lower(intent),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -26436,6 +26459,144 @@ public func FfiConverterTypeDocLayerKind_lower(_ value: DocLayerKind) -> RustBuf
 
 
 
+/**
+ * A checked Save As collision is a normal, typed non-success outcome.
+ */
+
+public enum DocumentSaveAsResult: Equatable, Hashable {
+    
+    case saved
+    case destinationExists
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocumentSaveAsResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentSaveAsResult: FfiConverterRustBuffer {
+    typealias SwiftType = DocumentSaveAsResult
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentSaveAsResult {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .saved
+        
+        case 2: return .destinationExists
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocumentSaveAsResult, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .saved:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .destinationExists:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentSaveAsResult_lift(_ buf: RustBuffer) throws -> DocumentSaveAsResult {
+    return try FfiConverterTypeDocumentSaveAsResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentSaveAsResult_lower(_ value: DocumentSaveAsResult) -> RustBuffer {
+    return FfiConverterTypeDocumentSaveAsResult.lower(value)
+}
+
+
+
+/**
+ * The destination policy chosen for a checked Save As operation.
+ */
+
+public enum DocumentSaveDestinationIntent: Equatable, Hashable {
+    
+    case createIfAbsent
+    case replaceConfirmed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocumentSaveDestinationIntent: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentSaveDestinationIntent: FfiConverterRustBuffer {
+    typealias SwiftType = DocumentSaveDestinationIntent
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentSaveDestinationIntent {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .createIfAbsent
+        
+        case 2: return .replaceConfirmed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocumentSaveDestinationIntent, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .createIfAbsent:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .replaceConfirmed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentSaveDestinationIntent_lift(_ buf: RustBuffer) throws -> DocumentSaveDestinationIntent {
+    return try FfiConverterTypeDocumentSaveDestinationIntent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentSaveDestinationIntent_lower(_ value: DocumentSaveDestinationIntent) -> RustBuffer {
+    return FfiConverterTypeDocumentSaveDestinationIntent.lower(value)
+}
+
+
+
 
 public enum EngineEvent: Equatable, Hashable {
     
@@ -34297,6 +34458,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_save_as() != 45094) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_as_checked() != 46144) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_set_adjustment_json() != 34764) {

@@ -124,6 +124,20 @@ pub enum DocDepth {
     F32,
 }
 
+/// The destination policy chosen for a checked Save As operation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum DocumentSaveDestinationIntent {
+    CreateIfAbsent,
+    ReplaceConfirmed,
+}
+
+/// A checked Save As collision is a normal, typed non-success outcome.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum DocumentSaveAsResult {
+    Saved,
+    DestinationExists,
+}
+
 impl From<DocDepth> for compositor::Depth {
     fn from(d: DocDepth) -> Self {
         match d {
@@ -2110,31 +2124,23 @@ impl DocumentSession {
     /// (with the flattened composite for compatibility), and makes it the
     /// document's path.
     pub fn save_as(&self, path: String) -> Result<()> {
-        let path = PathBuf::from(path);
-        io::save_kind(&path)?;
-        // B5-14: the file is written from a snapshot, outside the lock.
-        let _order = self.shared.saving.lock().map_err(failure)?;
-        self.save_snapshot(&path)?;
-        let title = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        let mut st = self.shared.lock()?;
-        st.title = title;
-        st.path = Some(path.clone());
-        drop(st);
-        // Later opens of the new file find this session.
-        if let (Ok(canon), Some(engine)) =
-            (std::fs::canonicalize(&path), self.shared.engine.upgrade())
-            && let Some(me) = engine.document_session(self.shared.id.clone())
-        {
-            engine
-                .documents
-                .lock()
-                .by_key
-                .insert(canon.to_string_lossy().into_owned(), Arc::downgrade(&me));
-        }
+        self.save_as_with_mode(path, io::CommitMode::Replace)?;
         Ok(())
+    }
+
+    /// Saves only if the destination is absent, or replaces a path after the
+    /// caller has explicitly confirmed that action. Existing Save As remains
+    /// available to legacy callers with its replacing behavior.
+    pub fn save_as_checked(
+        &self,
+        path: String,
+        intent: DocumentSaveDestinationIntent,
+    ) -> Result<DocumentSaveAsResult> {
+        let mode = match intent {
+            DocumentSaveDestinationIntent::CreateIfAbsent => io::CommitMode::CreateIfAbsent,
+            DocumentSaveDestinationIntent::ReplaceConfirmed => io::CommitMode::Replace,
+        };
+        self.save_as_with_mode(path, mode)
     }
 
     /// Exports the flattened composite at full resolution: PNG/TIFF keep
@@ -2168,10 +2174,53 @@ impl DocumentSession {
 }
 
 impl DocumentSession {
+    fn save_as_with_mode(
+        &self,
+        path: String,
+        mode: io::CommitMode,
+    ) -> Result<DocumentSaveAsResult> {
+        let path = PathBuf::from(path);
+        io::save_kind(&path)?;
+        // B5-14: the file is written from a snapshot, outside the lock.
+        let _order = self.shared.saving.lock().map_err(failure)?;
+        let outcome = self.save_snapshot_with_mode(&path, mode)?;
+        if outcome == DocumentSaveAsResult::DestinationExists {
+            return Ok(outcome);
+        }
+        let title = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let mut st = self.shared.lock()?;
+        st.title = title;
+        st.path = Some(path.clone());
+        drop(st);
+        // Later opens of the new file find this session.
+        if let (Ok(canon), Some(engine)) =
+            (std::fs::canonicalize(&path), self.shared.engine.upgrade())
+            && let Some(me) = engine.document_session(self.shared.id.clone())
+        {
+            engine
+                .documents
+                .lock()
+                .by_key
+                .insert(canon.to_string_lossy().into_owned(), Arc::downgrade(&me));
+        }
+        Ok(outcome)
+    }
     /// B5-14 (P14): commits a pending drag and snapshots the document under
     /// the lock, writes the file without it (edits, frames and undo go on),
     /// then records the saved node. Callers hold `Shared::saving`.
     fn save_snapshot(&self, path: &std::path::Path) -> Result<()> {
+        self.save_snapshot_with_mode(path, io::CommitMode::Replace)?;
+        Ok(())
+    }
+
+    fn save_snapshot_with_mode(
+        &self,
+        path: &std::path::Path,
+        mode: io::CommitMode,
+    ) -> Result<DocumentSaveAsResult> {
         let (doc, node) = {
             let mut st = self.shared.lock()?;
             st.open()?;
@@ -2182,10 +2231,12 @@ impl DocumentSession {
             }
             (st.doc.share(), st.doc.history().current())
         };
-        io::save(&doc, path)?;
+        let outcome = io::save_with_mode(&doc, path, mode)?;
         drop(doc);
-        self.shared.lock()?.saved_node = Some(node);
-        Ok(())
+        if outcome == DocumentSaveAsResult::Saved {
+            self.shared.lock()?.saved_node = Some(node);
+        }
+        Ok(outcome)
     }
 }
 

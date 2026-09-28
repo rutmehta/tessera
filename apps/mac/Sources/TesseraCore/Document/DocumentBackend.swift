@@ -304,6 +304,15 @@ public enum DocExportColor: String, CaseIterable, Sendable {
 }
 
 /// `EngineError` variants a document call can raise.
+/// Explicit admission for the opt-in checked Save As path. Legacy save APIs
+/// retain their replacing semantics; backends never infer this intent from disk.
+public enum DocSaveDestinationIntent: Equatable, Sendable {
+    case createIfAbsent, replaceConfirmed
+}
+public enum DocSaveAsResult: Equatable, Sendable {
+    case saved, destinationExists
+}
+
 public enum DocumentError: LocalizedError, Equatable {
     case notFound(String)
     case invalid(String)
@@ -421,6 +430,7 @@ public protocol DocumentBackend: AnyObject, Sendable {
     // Output
     func save() throws
     func saveAs(path: String) throws
+    func saveAs(path: String, intent: DocSaveDestinationIntent) throws -> DocSaveAsResult
     func exportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
     func close()
 }
