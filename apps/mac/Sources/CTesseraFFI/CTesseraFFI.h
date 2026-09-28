@@ -716,6 +716,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_engine_smart_preview_info(uint64_t ptr, 
 RustBuffer uniffi_tessera_ffi_fn_method_engine_synchronize_smart_preview(uint64_t ptr, RustBuffer image_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SMART_PREVIEW_THUMBNAIL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SMART_PREVIEW_THUMBNAIL
+RustBuffer uniffi_tessera_ffi_fn_method_engine_smart_preview_thumbnail(uint64_t ptr, RustBuffer image_id, uint32_t max_px, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_ACTIVE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_ACTIVE
 int8_t uniffi_tessera_ffi_fn_method_engine_tether_active(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -3546,6 +3551,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_smart_preview_info(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SYNCHRONIZE_SMART_PREVIEW
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SYNCHRONIZE_SMART_PREVIEW
 uint16_t uniffi_tessera_ffi_checksum_method_engine_synchronize_smart_preview(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SMART_PREVIEW_THUMBNAIL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SMART_PREVIEW_THUMBNAIL
+uint16_t uniffi_tessera_ffi_checksum_method_engine_smart_preview_thumbnail(void
     
 );
 #endif

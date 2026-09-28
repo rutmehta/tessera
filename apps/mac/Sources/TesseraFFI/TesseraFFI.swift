@@ -7567,6 +7567,13 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func synchronizeSmartPreview(imageId: String) throws  -> SmartPreviewInfo
     
     /**
+     * Explicit Smart Preview pixels, including saved offline edits. Never falls back
+     * to originals. Dispatch this bounded local read off the UI thread, as for previews.
+     * A cold request returns pending; PreviewReady also signals terminal failures.
+     */
+    func smartPreviewThumbnail(imageId: String, maxPx: UInt32) throws  -> PreviewResponse
+    
+    /**
      * Whether this catalog has a tether session on this thread.
      */
     func tetherActive()  -> Bool
@@ -8399,6 +8406,22 @@ open func synchronizeSmartPreview(imageId: String)throws  -> SmartPreviewInfo  {
     uniffi_tessera_ffi_fn_method_engine_synchronize_smart_preview(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Explicit Smart Preview pixels, including saved offline edits. Never falls back
+     * to originals. Dispatch this bounded local read off the UI thread, as for previews.
+     * A cold request returns pending; PreviewReady also signals terminal failures.
+     */
+open func smartPreviewThumbnail(imageId: String, maxPx: UInt32)throws  -> PreviewResponse  {
+    return try  FfiConverterTypePreviewResponse_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_smart_preview_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
     )
 })
 }
@@ -33806,6 +33829,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_synchronize_smart_preview() != 5803) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_smart_preview_thumbnail() != 32945) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_tether_active() != 50297) {
