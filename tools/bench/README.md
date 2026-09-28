@@ -96,8 +96,17 @@ ordered behind other windows. This measures a background diagnostic host, not a
 foreground-drag equivalent. The runner requires `grid_appeared`; loaded model rows
 without a mounted view are a failed run, not a zero-cost first grid.
 
-`test_app_timing.py`, `test_provenance.py`, and `test_performance_foundations.py`
-are standard-library Python tests. `TraceChecks.swift` exercises the real trace
+`app_timing_visible.py` is an opt-in capability check for the same isolated
+self-test in a regular foreground window. It requires a unique, provenance-pinned
+test app, copied fixture, and disposable app-support directory. Its foreground
+and window samples corroborate the app's actual-present trace; because the
+self-test begins before sampling starts, this mode does **not** establish a
+P01 benchmark interval or performance result. A later measured interval needs
+an explicit start barrier and shared clock observations.
+
+`test_app_timing.py`, `test_app_timing_visible.py`, `test_provenance.py`, and
+`test_performance_foundations.py` are standard-library Python tests.
+`TraceChecks.swift` exercises the real trace
 buffer without linking FFI, and `LoupeResourceChecks.swift` exercises the actual
 renderer resource initialization and retained reuse without creating an app window.
 The corresponding XCTest coverage runs with the full Swift test suite.

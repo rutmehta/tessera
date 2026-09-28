@@ -60,6 +60,7 @@ struct TesseraApp: App {
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --nonactivating   background audits: accessory policy, no activation, ignores --front
+///   --timing-visible  opt in to the regular-window host for an isolated timing capability run
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
 ///   --new-document    (test aid) create a layered document (2400 × 1600; one blank layer on the engine, sample layers
 ///                     on the stub) after launch. Documents use the engine unless --stub-library is given
@@ -96,6 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyRouter: KeyRouter?
     private var backgroundAuditWindow: BackgroundAuditWindow?
     private let nonactivating = ProcessInfo.processInfo.arguments.contains("--nonactivating")
+    private let timingSelfTestMode = TimingSelfTestLaunchMode.resolve(arguments: ProcessInfo.processInfo.arguments)
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(nonactivating ? .accessory : .regular)
@@ -111,8 +113,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if timingSelfTestMode == .conflictingArguments {
+            FileHandle.standardError.write(Data("timing self-test requires one explicit host mode; --timing-visible cannot be combined with --nonactivating and requires a timing self-test\n".utf8))
+            NSApp.terminate(nil)
+            return
+        }
         // Background diagnostics must not open updater UI or perform scheduled network checks.
-        if !nonactivating { _ = updaterController }
+        if !nonactivating && timingSelfTestMode.shouldStartUpdater { _ = updaterController }
         let model = AppModel.shared
         keyRouter = KeyRouter(model: model)
         keyRouter?.install()
@@ -195,13 +202,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 MainActor.assumeIsolated { model.requestScrollBenchmark() }
             }
         }
-        if args.contains("--timing-selftest") || args.contains("--timing-grid-only") {
-            if nonactivating {
+        if timingSelfTestMode == .background || timingSelfTestMode == .visible {
+            if timingSelfTestMode == .background {
                 let panel = BackgroundAuditWindow(model: model)
                 backgroundAuditWindow = panel
                 panel.order(.below, relativeTo: 0)
             }
-            runTimingSelfTest(model: model)
+            runTimingSelfTest(model: model, mode: timingSelfTestMode)
         }
     }
 
