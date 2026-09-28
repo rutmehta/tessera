@@ -1,0 +1,1 @@
+19f9f5487752e2588c6febe99d126905cad7d9986285d2aebf633dfaeba2b427  apps/mac/build/ffi/libtessera_ffi.a
