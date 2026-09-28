@@ -1,0 +1,11 @@
+{
+  "head": "0e64a277da166b90b1f4852bad1b9f6827afad39",
+  "base": "858147a3183c98b9e15118495a75da3bc2ddd0d0",
+  "cherry_picked": "c39697c43645c812c72e95dc871bb6a9615e1088",
+  "changed_files": [
+    "apps/mac/Tests/TesseraCoreTests/DocumentInspectorFocusRoutingTests.swift"
+  ],
+  "test_sha256": "366efdd609bcbe1b6fb1bcc89d09070d7a5cbb26954a216f3937057ec4587fe1",
+  "matches_B": true,
+  "preserved_ref": "codex/b516-qualified-858147a3"
+}

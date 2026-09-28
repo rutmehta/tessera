@@ -1,0 +1,31 @@
+{
+  "head": "0e64a277da166b90b1f4852bad1b9f6827afad39",
+  "direct_exit": 1,
+  "xctest": {
+    "executed": 34,
+    "passed": 33,
+    "failed": 1,
+    "skipped": 0
+  },
+  "diagnostic_disposition": "incomplete native host identification; router assertions not reached",
+  "failure_line": 70,
+  "hosted_responder": "KeyViewProxy",
+  "after_name_Tab_responder": "_SystemTextFieldFieldEditor",
+  "fullKeyboardAccess": true,
+  "native_load_identifier_found": false,
+  "runtime_released": true,
+  "freeze": {
+    "head_equal": true,
+    "source_equal": true,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true,
+    "elapsed_seconds": 163.00815862463787
+  },
+  "warnings": [
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentInspectorFocusRoutingTests.swift:26:212: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]"
+  ]
+}

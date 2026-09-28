@@ -1,0 +1,3 @@
+# Hosted-focus diagnostic did not reproduce the target focus
+
+Verified all 8384 source entries as the independently verified 858147a3 baseline plus the exact single B test blob; before/after source, archive/bindings and fixture agree. Direct exit1: 34 tests, one failure, zero skips. The new hosted test cannot find Load LUT as an NSView carrying its AX identifier. It fails before routing assertions. Recorded hosted responder KeyViewProxy and after-name-Tab field editor; fullKeyboardAccess=true. These are diagnostic observations, not the actual GUI Load-button responder identity. 33 other tests passed. Compile warnings retained. No production correction or GUI acceptance.

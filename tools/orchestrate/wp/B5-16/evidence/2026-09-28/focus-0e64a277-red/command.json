@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "swift",
+    "test",
+    "--package-path",
+    "apps/mac",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+    "-c",
+    "release",
+    "--jobs",
+    "2",
+    "--filter",
+    "DocumentInspectorFocusRoutingTests|DocumentHistoryHeightControlTests|DocumentKeyRoutingTests|KeyFocusTests|DocumentVectorVerifyFixesTests"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera",
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+  },
+  "reused_scratch": "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build",
+  "source_delta": [
+    "apps/mac/Tests/TesseraCoreTests/DocumentInspectorFocusRoutingTests.swift"
+  ]
+}

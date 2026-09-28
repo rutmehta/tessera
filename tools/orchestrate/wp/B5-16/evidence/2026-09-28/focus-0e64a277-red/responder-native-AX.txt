@@ -1,0 +1,31 @@
+hosted: firstResponder=KeyViewProxy ObjectIdentifier(0x0000000c3a57aa00); fullKeyboardAccess=true
+NSHostingView<ModifiedContent<PropertiesPanel, _FrameLayout>> ObjectIdentifier(0x0000000c3b450a00) bounds=(0.0, 0.0, 288.0, 848.0) accepts=false AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57aa00) bounds=(0.0, 0.0, 93.0, 20.0) accepts=true AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57b300) bounds=(0.0, 0.0, 54.0, 16.0) accepts=true AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<PlatformTextFieldAdaptor>> ObjectIdentifier(0x0000000c3a68ea00) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitTextField ObjectIdentifier(0x0000000c3b7c6800) bounds=(0.0, 0.0, 208.0, 21.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_NSCoreHostingView<AppKitTextField> ObjectIdentifier(0x0000000c3a68ed80) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+NSSimpleLabel ObjectIdentifier(0x0000000c3a57a100) bounds=(0.0, 0.0, 200.0, 14.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd0c80) bounds=(0.0, 0.0, 93.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd1180) bounds=(0.0, 0.0, 46.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<Checkbox>> ObjectIdentifier(0x0000000c3a68e680) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil
+FocusRingNSButton ObjectIdentifier(0x0000000c3a57ad00) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=
+_NSCoreHostingView<AppKitButton> ObjectIdentifier(0x0000000c3a68c380) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil
+after-name-Tab: firstResponder=_SystemTextFieldFieldEditor ObjectIdentifier(0x0000000c3b7c6c00); fullKeyboardAccess=true
+NSHostingView<ModifiedContent<PropertiesPanel, _FrameLayout>> ObjectIdentifier(0x0000000c3b450a00) bounds=(0.0, 0.0, 288.0, 848.0) accepts=false AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57aa00) bounds=(0.0, 0.0, 93.0, 20.0) accepts=true AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57b300) bounds=(0.0, 0.0, 54.0, 16.0) accepts=true AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<PlatformTextFieldAdaptor>> ObjectIdentifier(0x0000000c3a68ea00) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitTextField ObjectIdentifier(0x0000000c3b7c6800) bounds=(0.0, 0.0, 208.0, 21.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_NSCoreHostingView<AppKitTextField> ObjectIdentifier(0x0000000c3a68ed80) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+NSSimpleLabel ObjectIdentifier(0x0000000c3a57a100) bounds=(0.0, 0.0, 200.0, 14.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_NSKeyboardFocusClipView ObjectIdentifier(0x0000000c3a68df80) bounds=(4.0, 4.0, 200.0, 14.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_SystemTextFieldFieldEditor ObjectIdentifier(0x0000000c3b7c6c00) bounds=(0.0, 0.0, 200.0, 14.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_NSTextSelectionView ObjectIdentifier(0x0000000c3bbd0f00) bounds=(0.0, 0.0, 0.0, 0.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_NSTextRenderingSurfacesGroupView ObjectIdentifier(0x0000000c3bbd0780) bounds=(0.0, 0.0, 0.0, 0.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_NSTextContentView ObjectIdentifier(0x0000000c3bbd0280) bounds=(0.0, 0.0, 0.0, 0.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd0c80) bounds=(0.0, 0.0, 93.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd1180) bounds=(0.0, 0.0, 46.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<Checkbox>> ObjectIdentifier(0x0000000c3a68e680) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil
+FocusRingNSButton ObjectIdentifier(0x0000000c3a57ad00) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=
+_NSCoreHostingView<AppKitButton> ObjectIdentifier(0x0000000c3a68c380) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil

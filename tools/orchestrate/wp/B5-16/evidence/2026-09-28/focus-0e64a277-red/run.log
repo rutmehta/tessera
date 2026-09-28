@@ -1,0 +1,203 @@
+[0/1] Planning build
+Building for production...
+[0/6] Write sources
+[1/6] Write swift-version--58304C5D6DBC2206.txt
+[3/7] Compiling TesseraFFI TesseraFFI.swift
+[4/8] Compiling TesseraCore AppDefaultsIsolation.swift
+[5/9] Compiling Tessera AISettingsView.swift
+[5/9] Write Objects.LinkFileList
+[6/9] Linking Tessera
+[8/10] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentInspectorFocusRoutingTests.swift:26:212: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+ 24 |         var lines = ["\(stage): firstResponder=\(responder); fullKeyboardAccess=\(NSApp.isFullKeyboardAccessEnabled)"]
+ 25 |         for view in views(host) {
+ 26 |             lines.append("\(type(of: view)) \(ObjectIdentifier(view)) bounds=\(view.bounds) accepts=\(view.acceptsFirstResponder) AXfocused=\(view.isAccessibilityFocused()) AXid=\(view.accessibilityIdentifier() ?? "nil") AXlabel=\(view.accessibilityLabel() ?? "nil")")
+    |                                                                                                                                                                                                                    `- warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+ 27 |         }
+ 28 |         let text = lines.joined(separator: "\n")
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[9/11] Compiling TesseraPackageTests runner.swift
+[9/11] Write Objects.LinkFileList
+[10/11] Linking TesseraPackageTests
+Build complete! (153.66s)
+Test Suite 'Selected tests' started at 2026-09-28 18:52:42.277.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 18:52:42.278.
+Test Suite 'DocumentHistoryHeightControlTests' started at 2026-09-28 18:52:42.278.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' passed (0.062 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' passed (0.796 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' passed (0.009 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' passed (0.003 seconds).
+Test Suite 'DocumentHistoryHeightControlTests' passed at 2026-09-28 18:52:43.153.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.874 (0.875) seconds
+Test Suite 'DocumentInspectorFocusRoutingTests' started at 2026-09-28 18:52:43.153.
+Test Case '-[TesseraCoreTests.DocumentInspectorFocusRoutingTests testHostedPropertiesNameToLoadLUTRetainsNavigationAndActivation]' started.
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentInspectorFocusRoutingTests.swift:70: error: -[TesseraCoreTests.DocumentInspectorFocusRoutingTests testHostedPropertiesNameToLoadLUTRetainsNavigationAndActivation] : XCTUnwrap failed: expected non-nil value of type "NSView" - diagnostic requires actual Load LUT native host; see responder/AX attachment if SwiftUI exposes it differently
+Test Case '-[TesseraCoreTests.DocumentInspectorFocusRoutingTests testHostedPropertiesNameToLoadLUTRetainsNavigationAndActivation]' failed (0.943 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorFocusRoutingTests testViewportRetainsTabToggleAndSpacePan]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorFocusRoutingTests testViewportRetainsTabToggleAndSpacePan]' passed (0.014 seconds).
+Test Suite 'DocumentInspectorFocusRoutingTests' failed at 2026-09-28 18:52:44.110.
+	 Executed 2 tests, with 1 failure (0 unexpected) in 0.957 (0.957) seconds
+Test Suite 'DocumentKeyRoutingTests' started at 2026-09-28 18:52:44.110.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' passed (0.001 seconds).
+Test Suite 'DocumentKeyRoutingTests' passed at 2026-09-28 18:52:44.124.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.013 (0.014) seconds
+Test Suite 'DocumentVectorVerifyFixesTests' started at 2026-09-28 18:52:44.124.
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testAutoNamedTextLayerNameFollowsItsFirstLine]' started.
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testAutoNamedTextLayerNameFollowsItsFirstLine]' passed (0.239 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testKeyboardStepsOfAShapeSliderAreOneHistoryNode]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testKeyboardStepsOfAShapeSliderAreOneHistoryNode]' passed (1.404 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testLayersRowShowsAVectorMaskThumbnailNextToTheRasterMask]' started.
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testLayersRowShowsAVectorMaskThumbnailNextToTheRasterMask]' passed (0.098 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewAreaTextResizedBeforeTheFirstApplyIsOneAddText]' started.
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewAreaTextResizedBeforeTheFirstApplyIsOneAddText]' passed (0.105 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewStrokeTakesTheForegroundOrAContrastingColourNotTheFill]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewStrokeTakesTheForegroundOrAContrastingColourNotTheFill]' passed (0.060 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPathSelectionClickOnEmptyCanvasDeselects]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPathSelectionClickOnEmptyCanvasDeselects]' passed (0.093 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPenDraftKeepsThePreviousAnchorsHandles]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPenDraftKeepsThePreviousAnchorsHandles]' passed (0.057 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPropertiesReportTheShapesRealBoundsLiveDuringDrags]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPropertiesReportTheShapesRealBoundsLiveDuringDrags]' passed (0.078 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testRejectedRecolourRevertsTheColourWell]' started.
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testRejectedRecolourRevertsTheColourWell]' passed (0.383 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testStatusHintsFollowTheToolAndPenState]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testStatusHintsFollowTheToolAndPenState]' passed (0.079 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testToolLettersWorkWhileASliderOrTheLayersListHasTheKeyboard]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testToolLettersWorkWhileASliderOrTheLayersListHasTheKeyboard]' passed (0.068 seconds).
+Test Suite 'DocumentVectorVerifyFixesTests' passed at 2026-09-28 18:52:46.790.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 2.664 (2.666) seconds
+Test Suite 'KeyFocusTests' started at 2026-09-28 18:52:46.790.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' passed (0.003 seconds).
+Test Suite 'KeyFocusTests' passed at 2026-09-28 18:52:46.843.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.052 (0.053) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-28 18:52:46.843.
+	 Executed 34 tests, with 1 failure (0 unexpected) in 4.561 (4.565) seconds
+Test Suite 'Selected tests' failed at 2026-09-28 18:52:46.843.
+	 Executed 34 tests, with 1 failure (0 unexpected) in 4.561 (4.566) seconds
+hosted: firstResponder=KeyViewProxy ObjectIdentifier(0x0000000c3a57aa00); fullKeyboardAccess=true
+NSHostingView<ModifiedContent<PropertiesPanel, _FrameLayout>> ObjectIdentifier(0x0000000c3b450a00) bounds=(0.0, 0.0, 288.0, 848.0) accepts=false AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57aa00) bounds=(0.0, 0.0, 93.0, 20.0) accepts=true AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57b300) bounds=(0.0, 0.0, 54.0, 16.0) accepts=true AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<PlatformTextFieldAdaptor>> ObjectIdentifier(0x0000000c3a68ea00) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitTextField ObjectIdentifier(0x0000000c3b7c6800) bounds=(0.0, 0.0, 208.0, 21.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_NSCoreHostingView<AppKitTextField> ObjectIdentifier(0x0000000c3a68ed80) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+NSSimpleLabel ObjectIdentifier(0x0000000c3a57a100) bounds=(0.0, 0.0, 200.0, 14.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd0c80) bounds=(0.0, 0.0, 93.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd1180) bounds=(0.0, 0.0, 46.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<Checkbox>> ObjectIdentifier(0x0000000c3a68e680) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil
+FocusRingNSButton ObjectIdentifier(0x0000000c3a57ad00) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=
+_NSCoreHostingView<AppKitButton> ObjectIdentifier(0x0000000c3a68c380) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil
+after-name-Tab: firstResponder=_SystemTextFieldFieldEditor ObjectIdentifier(0x0000000c3b7c6c00); fullKeyboardAccess=true
+NSHostingView<ModifiedContent<PropertiesPanel, _FrameLayout>> ObjectIdentifier(0x0000000c3b450a00) bounds=(0.0, 0.0, 288.0, 848.0) accepts=false AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57aa00) bounds=(0.0, 0.0, 93.0, 20.0) accepts=true AXfocused=false AXid= AXlabel=nil
+KeyViewProxy ObjectIdentifier(0x0000000c3a57b300) bounds=(0.0, 0.0, 54.0, 16.0) accepts=true AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<PlatformTextFieldAdaptor>> ObjectIdentifier(0x0000000c3a68ea00) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitTextField ObjectIdentifier(0x0000000c3b7c6800) bounds=(0.0, 0.0, 208.0, 21.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_NSCoreHostingView<AppKitTextField> ObjectIdentifier(0x0000000c3a68ed80) bounds=(0.0, 0.0, 208.0, 21.0) accepts=false AXfocused=false AXid= AXlabel=nil
+NSSimpleLabel ObjectIdentifier(0x0000000c3a57a100) bounds=(0.0, 0.0, 200.0, 14.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_NSKeyboardFocusClipView ObjectIdentifier(0x0000000c3a68df80) bounds=(4.0, 4.0, 200.0, 14.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_SystemTextFieldFieldEditor ObjectIdentifier(0x0000000c3b7c6c00) bounds=(0.0, 0.0, 200.0, 14.0) accepts=true AXfocused=false AXid= AXlabel=nil
+_NSTextSelectionView ObjectIdentifier(0x0000000c3bbd0f00) bounds=(0.0, 0.0, 0.0, 0.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_NSTextRenderingSurfacesGroupView ObjectIdentifier(0x0000000c3bbd0780) bounds=(0.0, 0.0, 0.0, 0.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_NSTextContentView ObjectIdentifier(0x0000000c3bbd0280) bounds=(0.0, 0.0, 0.0, 0.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd0c80) bounds=(0.0, 0.0, 93.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+_FocusRingView ObjectIdentifier(0x0000000c3bbd1180) bounds=(0.0, 0.0, 46.0, 20.0) accepts=false AXfocused=false AXid= AXlabel=nil
+AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<Checkbox>> ObjectIdentifier(0x0000000c3a68e680) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil
+FocusRingNSButton ObjectIdentifier(0x0000000c3a57ad00) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=
+_NSCoreHostingView<AppKitButton> ObjectIdentifier(0x0000000c3a68c380) bounds=(0.0, 0.0, 16.0, 16.0) accepts=false AXfocused=false AXid= AXlabel=nil
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
