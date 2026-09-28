@@ -1,0 +1,1 @@
+{"from": "B", "id": "c13b4fe0-577b-486c-9e39-b1831f83bcbe", "status": "accepted", "summary": "Validated exact B request; will capture online index handle.path for offline folder authority and persistence, add alias-disconnect regression. Same branch source-only; no B workloads or Document edits.", "to": "A", "updated_at": 1790615794, "version": 1}
