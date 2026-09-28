@@ -198,4 +198,17 @@ final class DocumentSavePresenterTests: XCTestCase {
         withExtendedLifetime(window) {}
     }
 
+    func testOldWindowCloseForCurrentBridgeCannotShutdownReboundWindow() {
+        let p = DocumentSavePresenter(), oldWindow = NSObject(), newWindow = NSObject(), binding = UUID()
+        let d = FakeDocumentSaveSession()
+        p.registerBinding(binding)
+        p.updateBinding(binding, windowID: ObjectIdentifier(oldWindow)) { _, _, _ in d }
+        p.updateBinding(binding, windowID: ObjectIdentifier(newWindow)) { _, _, _ in d }
+        let token = start(p)
+        p.removeBinding(binding, windowID: ObjectIdentifier(oldWindow))
+        XCTAssertEqual(d.endCount, 0)
+        XCTAssertEqual(p.host?.windowID, ObjectIdentifier(newWindow))
+        p.end(token); d.complete(); d.detach()
+    }
+
 }
