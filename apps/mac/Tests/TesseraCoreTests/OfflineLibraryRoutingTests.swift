@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import TesseraCore
+@testable import Tessera
 
 /// Source-only contract tests. Native cached-session factory and app relaunch are A gates.
 final class OfflineLibraryRoutingTests: XCTestCase {
@@ -76,4 +77,55 @@ final class OfflineLibraryRoutingTests: XCTestCase {
         XCTAssertThrowsError(try LibraryOpenRouter.validateFolderPath("/Volumes/a/../b"))
         XCTAssertEqual(try LibraryOpenRouter.validateFolderPath(folder.path), folder.path)
     }
+
+    /// Real native online index, then a removed alias AND original. The offline
+    /// closure observes the path supplied by the same persistence adapter as AppModel.
+    /// Execution belongs to A; no proxy asset fixture/GUI acceptance is implied.
+    @MainActor
+    func testOnlineAliasCapturesCanonicalFolderForDisconnectedRelaunch() throws {
+        let fm = FileManager.default
+        let scratch = fm.temporaryDirectory.appendingPathComponent("offline-alias-\(UUID().uuidString)")
+        try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: scratch) }
+        let original = scratch.appendingPathComponent("photos", isDirectory: true)
+        let alias = scratch.appendingPathComponent("friendly-alias", isDirectory: true)
+        try fm.createDirectory(at: original, withIntermediateDirectories: true)
+        try fm.createSymbolicLink(at: alias, withDestinationURL: original)
+        // Expected canonical identity is captured while the original is ONLINE.
+        let expected = original.resolvingSymlinksInPath().path
+        XCTAssertNotEqual(alias.path, expected)
+        let library = try EngineLibrary.scan(folder: alias, appSupport: scratch.appendingPathComponent("support"))
+        XCTAssertEqual(library.folder?.path, expected)
+        XCTAssertEqual(library.title, "friendly-alias")
+
+        let suite = "offline-alias-history-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = AppModel()
+        model.rememberOpenedFolder(library, replacing: alias, defaults: defaults)
+        let saved = try XCTUnwrap(defaults.string(forKey: "LastFolderPath"))
+        XCTAssertEqual(saved, expected)
+        let recent = try XCTUnwrap(defaults.stringArray(forKey: "RecentFolderPaths"))
+        XCTAssertEqual(recent.first, expected)
+        XCTAssertFalse(recent.contains(alias.path))
+        XCTAssertEqual(model.recentFolders.first?.path, expected)
+
+        try fm.removeItem(at: alias)
+        try fm.moveItem(at: original, to: scratch.appendingPathComponent("disconnected-photos"))
+        // Use real absence detection; only the cached native adapter is replaced.
+        var cachedCalls = 0
+        let opened: String = try LibraryOpenRouter.open(folder: URL(fileURLWithPath: saved, isDirectory: true),
+            original: { _ in XCTFail("Disconnected relaunch must not scan/list originals"); return "wrong" },
+            cached: { folder in
+                cachedCalls += 1
+                XCTAssertEqual(folder.path, expected)
+                XCTAssertNotEqual(folder.path, alias.path)
+                return folder.path
+            })
+        XCTAssertEqual(opened, expected)
+        XCTAssertEqual(cachedCalls, 1)
+        XCTAssertFalse(fm.fileExists(atPath: original.path))
+        XCTAssertFalse(fm.fileExists(atPath: alias.path))
+    }
+
 }
