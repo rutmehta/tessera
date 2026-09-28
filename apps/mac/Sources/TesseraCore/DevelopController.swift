@@ -96,6 +96,10 @@ public final class DevelopController {
     private var settings: [String: Any] = [:]
     private var pending: [String: Any] = [:]
     private var pendingInteractive = false
+    private var settingsFlushInFlight = false
+    private var settingsFlushRequested = false
+    private var deferredSettingsFlushID = UUID()
+    private(set) var deferredSettingsFlush: Task<Void, Never>?
     private var surfaces: [UInt32: IOSurfaceRef] = [:]
     /// The attached ring is RGBA16F (EDR).
     public private(set) var surfacesAreFloat = false
@@ -159,6 +163,7 @@ public final class DevelopController {
             return
         }
         guard !closed else { return }
+        invalidateDeferredSettingsFlush()
         // The pending flush itself rejects closed controllers. Finish submitting
         // their coalesced patches before closing the backend session.
         _ = flushPending()
@@ -374,23 +379,71 @@ public final class DevelopController {
         try? reloadSettings()
     }
 
-    /// Sends the coalesced patch, if any. Returns whether something was sent.
+    /// Sends the coalesced patch, if any. Returns whether a patch was attempted. Rejected
+    /// engine writes are reported through `onFailure`.
     @discardableResult
     public func flushPending() -> Bool {
         let span = PerformanceTrace.shared.begin("flush", session: timingSession, input: timingInput)
         defer { PerformanceTrace.shared.end(span) }
         let masks = flushMaskPending()
         guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return masks }
-        pending.removeAll()
+        guard !settingsFlushInFlight else {
+            settingsFlushRequested = true
+            return masks
+        }
+        invalidateDeferredSettingsFlush()
+        let patch = pending
+        let interactive = pendingInteractive
+        pending.removeAll(keepingCapacity: true)
+        pendingInteractive = false
+        settingsFlushInFlight = true
         onPatchSent?(json)
         let ffiSpan = PerformanceTrace.shared.begin("ffi", session: timingSession, input: timingInput)
         defer { PerformanceTrace.shared.end(ffiSpan) }
+        var accepted = false
         do {
-            try session.setSettings(jsonPatch: json, interactive: pendingInteractive)
+            try session.setSettings(jsonPatch: json, interactive: interactive)
+            accepted = true
         } catch {
+            let newerPending = !pending.isEmpty
+            let newerInteractive = pendingInteractive
+            pending = Self.merge(patch, pending, keepNulls: true)
+            pendingInteractive = newerPending ? (interactive && newerInteractive) : interactive
             onFailure?(error.localizedDescription)
         }
+        settingsFlushInFlight = false
+        let shouldFlushNewerSettings = settingsFlushRequested
+        settingsFlushRequested = false
+        if accepted, shouldFlushNewerSettings, !pending.isEmpty {
+            scheduleDeferredSettingsFlush()
+        }
         return true
+    }
+
+    private func invalidateDeferredSettingsFlush() {
+        deferredSettingsFlushID = UUID()
+        deferredSettingsFlush?.cancel()
+        deferredSettingsFlush = nil
+    }
+
+    /// Handles a requested reentrant noninteractive update after the current settings call
+    /// returns. Deferring both the host notification and fallback flush prevents recursive
+    /// backend calls when a host handles `onNeedsFlush` synchronously.
+    private func scheduleDeferredSettingsFlush() {
+        deferredSettingsFlushID = UUID()
+        let generation = deferredSettingsFlushID
+        deferredSettingsFlush?.cancel()
+        deferredSettingsFlush = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self, !Task.isCancelled,
+                  self.deferredSettingsFlushID == generation, !self.closed else { return }
+            self.deferredSettingsFlush = nil
+            if let onNeedsFlush = self.onNeedsFlush {
+                onNeedsFlush()
+            } else {
+                _ = self.flushPending()
+            }
+        }
     }
 
     /// Makes everything since the last commit one undo step labelled `label`.

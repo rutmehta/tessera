@@ -265,6 +265,246 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertNil(try f.b.engine.agentProvenance(imageId: f.b.imageIDs[0]))
     }
 
+    func testRejectedDevelopPatchRemainsPendingForRetry() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        controller.onNeedsFlush = {} // Keep the patch queued until each explicit attempt.
+        var sentPatches: [String] = []
+        var failures: [String] = []
+        controller.onPatchSent = { sentPatches.append($0) }
+        controller.onFailure = { failures.append($0) }
+        controller.set(.exposure, 1.25, interactive: true)
+        session.rejectNextSettings()
+
+        _ = controller.flushPending()
+        XCTAssertEqual(failures, [InjectedDevelopSessionFailure.settings.localizedDescription])
+        XCTAssertEqual(sentPatches.count, 1)
+        session.clearSettingsRejection()
+        XCTAssertTrue(controller.flushPending(), "Retry sends the retained coalesced patch")
+        XCTAssertEqual(sentPatches.count, 2)
+        XCTAssertEqual(sentPatches.dropFirst().first, sentPatches.first,
+                       "Retry must resend the retained coalesced patch")
+        XCTAssertEqual(session.settingsInteractive, [true, true],
+                       "A retry keeps the original interactive preview semantics")
+
+        session.resume.signal()
+        await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 1.25, "The retried patch is durable")
+        await reopened.close()
+    }
+
+    func testRejectedDevelopPatchPreservesReentrantNewerSettings() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        controller.onNeedsFlush = {}
+        var sentPatches: [String] = []
+        controller.onPatchSent = { patch in
+            sentPatches.append(patch)
+            if sentPatches.count == 1 {
+                // This noninteractive update asks to flush reentrantly while the older
+                // patch is still in flight. It must wait until that attempt resolves.
+                controller.apply(patch: [
+                    "tone": ["exposure": 0.5],
+                    "white_balance": ["mode": "as_shot"],
+                ], interactive: false)
+            }
+        }
+        controller.apply(patch: ["tone": ["exposure": 1.25, "contrast": 0.3]], interactive: true)
+        session.rejectNextSettings()
+
+        _ = controller.flushPending()
+        XCTAssertEqual(sentPatches.count, 1, "Reentrant flush cannot overtake the in-flight patch")
+        XCTAssertEqual(session.settingsInteractive, [true], "The failed attempt retains its original mode")
+        XCTAssertTrue(controller.flushPending(), "A later explicit flush sends the retained merged patch")
+        XCTAssertEqual(sentPatches.count, 2)
+        XCTAssertEqual(session.settingsInteractive, [true, false],
+                       "The newer noninteractive change keeps its final-render semantics")
+        let retry = try XCTUnwrap(sentPatches.dropFirst().first)
+        let patch = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(retry.utf8)) as? [String: Any])
+        let tone = try XCTUnwrap(patch["tone"] as? [String: Any])
+        XCTAssertEqual((tone["exposure"] as? NSNumber)?.doubleValue, 0.5,
+                       "The rejected older value must not replace the reentrant newer value")
+        XCTAssertEqual((tone["contrast"] as? NSNumber)?.doubleValue, 0.3,
+                       "The rejected patch's untouched field must survive the reentrant merge")
+        let whiteBalance = try XCTUnwrap(patch["white_balance"] as? [String: Any])
+        XCTAssertEqual(whiteBalance["mode"] as? String, "as_shot",
+                       "Unrelated newer settings remain coalesced with the retry")
+
+        session.resume.signal()
+        await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 0.5)
+        XCTAssertEqual(reopened.value(.contrast), 0.3)
+        await reopened.close()
+    }
+
+    func testDevelopFailureCallbackCanQueueAnotherPatchForExplicitRetry() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        controller.onNeedsFlush = {}
+        var sentPatches: [String] = []
+        controller.onPatchSent = { sentPatches.append($0) }
+        controller.onFailure = { _ in
+            controller.apply(patch: ["white_balance": ["mode": "as_shot"]], interactive: false)
+        }
+        session.rejectNextSettings()
+
+        controller.set(.exposure, 1.25, interactive: true)
+        XCTAssertTrue(controller.flushPending())
+        XCTAssertEqual(sentPatches.count, 1, "Failure does not automatically retry from its callback")
+        XCTAssertEqual(session.settingsInteractive, [true])
+        XCTAssertTrue(controller.flushPending(), "A later explicit flush retries both queued settings")
+        XCTAssertEqual(sentPatches.count, 2)
+        XCTAssertEqual(session.settingsInteractive, [true, false])
+        let retry = try XCTUnwrap(sentPatches.dropFirst().first)
+        let patch = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(retry.utf8)) as? [String: Any])
+        let tone = try XCTUnwrap(patch["tone"] as? [String: Any])
+        XCTAssertEqual((tone["exposure"] as? NSNumber)?.doubleValue, 1.25)
+        let whiteBalance = try XCTUnwrap(patch["white_balance"] as? [String: Any])
+        XCTAssertEqual(whiteBalance["mode"] as? String, "as_shot")
+
+        session.resume.signal()
+        await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 1.25)
+        XCTAssertEqual(reopened.value(at: ["white_balance", "mode"]) as? String, "as_shot")
+        await reopened.close()
+    }
+
+    func testFailedFinalPatchKeepsFinalRenderModeWhenNewerInteractivePatchArrives() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        controller.onNeedsFlush = {}
+        var sentPatches: [String] = []
+        controller.onPatchSent = { patch in
+            sentPatches.append(patch)
+            if sentPatches.count == 1 {
+                controller.apply(patch: ["tone": ["exposure": 0.5]], interactive: true)
+            }
+        }
+        session.rejectNextSettings()
+
+        controller.apply(patch: ["tone": ["exposure": 1.25, "contrast": 0.3]], interactive: false)
+        XCTAssertEqual(sentPatches.count, 1)
+        XCTAssertEqual(session.settingsInteractive, [false])
+        XCTAssertTrue(controller.flushPending())
+        XCTAssertEqual(session.settingsInteractive, [false, false],
+                       "A failed final patch must keep the merged retry on the final-render path")
+        let retry = try XCTUnwrap(sentPatches.dropFirst().first)
+        let patch = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(retry.utf8)) as? [String: Any])
+        let tone = try XCTUnwrap(patch["tone"] as? [String: Any])
+        XCTAssertEqual((tone["exposure"] as? NSNumber)?.doubleValue, 0.5)
+        XCTAssertEqual((tone["contrast"] as? NSNumber)?.doubleValue, 0.3)
+
+        session.resume.signal()
+        await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 0.5)
+        XCTAssertEqual(reopened.value(.contrast), 0.3)
+        await reopened.close()
+    }
+
+    func testSuccessfulReentrantNoninteractivePatchFlushesAfterCurrentAttempt() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        var sentPatches: [String] = []
+        var callbackDepth = 0
+        var maximumCallbackDepth = 0
+        controller.onPatchSent = { patch in
+            callbackDepth += 1
+            maximumCallbackDepth = max(maximumCallbackDepth, callbackDepth)
+            sentPatches.append(patch)
+            if sentPatches.count == 1 {
+                controller.set(.exposure, 0.5, interactive: false)
+            } else if sentPatches.count == 2 {
+                controller.set(.exposure, 0.25, interactive: false)
+            }
+            callbackDepth -= 1
+        }
+
+        controller.set(.exposure, 1.25, interactive: true)
+        try await settle { sentPatches.count == 3 }
+        XCTAssertEqual(maximumCallbackDepth, 1, "Reentrant settings updates are deferred, not recursively sent")
+        XCTAssertEqual(session.settingsInteractive, [true, false, false])
+
+        session.resume.signal()
+        await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 0.25)
+        await reopened.close()
+    }
+
+    func testExplicitRejectedRetryCancelsAnOlderDeferredFlush() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        var sentPatches: [String] = []
+        controller.onNeedsFlush = { _ = controller.flushPending() }
+        controller.onPatchSent = { patch in
+            sentPatches.append(patch)
+            if sentPatches.count == 1 { controller.set(.exposure, 0.5, interactive: false) }
+        }
+
+        controller.set(.exposure, 1.25, interactive: true)
+        let queuedFlush = try XCTUnwrap(controller.deferredSettingsFlush)
+        session.rejectNextSettings()
+        XCTAssertTrue(controller.flushPending()) // An explicit retry consumes the pending patch and fails.
+        await queuedFlush.value
+        XCTAssertEqual(sentPatches.count, 2, "The obsolete scheduled flush cannot retry a rejected write")
+        XCTAssertEqual(session.settingsInteractive, [true, false])
+
+        XCTAssertTrue(controller.flushPending(), "Only a later explicit retry attempts the failed patch")
+        XCTAssertEqual(sentPatches.count, 3)
+        XCTAssertEqual(sentPatches.dropFirst().first, sentPatches.dropFirst(2).first)
+        XCTAssertEqual(session.settingsInteractive, [true, false, false])
+        session.resume.signal()
+        await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 0.5)
+        await reopened.close()
+    }
+
+    func testSynchronousNeedsFlushHandlerDoesNotReenterBackendCall() async throws {
+        let f = try fixture()
+        let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
+        defer { session.resume.signal() }
+        let controller = try DevelopController(session: session, itemID: 0, imageID: f.a.imageIDs[0])
+        var sentPatches: [String] = []
+        var callbackDepth = 0
+        var maximumCallbackDepth = 0
+        controller.onNeedsFlush = { _ = controller.flushPending() }
+        controller.onPatchSent = { patch in
+            callbackDepth += 1
+            maximumCallbackDepth = max(maximumCallbackDepth, callbackDepth)
+            sentPatches.append(patch)
+            if sentPatches.count == 1 { controller.set(.exposure, 0.5, interactive: false) }
+            callbackDepth -= 1
+        }
+
+        controller.set(.exposure, 1.25, interactive: true)
+        try await settle { sentPatches.count == 2 }
+        XCTAssertEqual(maximumCallbackDepth, 1, "The host notification runs after the current backend call")
+        XCTAssertEqual(session.settingsInteractive, [true, false])
+
+        session.resume.signal()
+        await controller.close()
+        let reopened = try await DevelopController.open(try XCTUnwrap(f.a.items[0].engineImage), itemID: 0)
+        XCTAssertEqual(reopened.value(.exposure), 0.5)
+        await reopened.close()
+    }
+
     func testConcurrentCloseWaitsForOneActualSessionFlush() async throws {
         let f = try fixture()
         let session = BlockingCloseSession(try f.a.engine.openDevelopSession(imageId: f.a.imageIDs[0]))
@@ -669,7 +909,13 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
     let resume = DispatchSemaphore(value: 0)
     private let lock = NSLock()
     private var closes = 0
+    private var settingsRejections = 0
+    private var sentInteractive: [Bool] = []
     var closeCount: Int { lock.withLock { closes } }
+    var settingsInteractive: [Bool] { lock.withLock { sentInteractive } }
+
+    func rejectNextSettings() { lock.withLock { settingsRejections += 1 } }
+    func clearSettingsRejection() { lock.withLock { settingsRejections = 0 } }
 
     init(_ wrapped: DevelopSession) {
         self.wrapped = wrapped
@@ -679,10 +925,18 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
     override func info() -> DevelopInfo { wrapped.info() }
     override func historyState() throws -> HistoryState { try wrapped.historyState() }
     override func getSettingsJson() throws -> String { try wrapped.getSettingsJson() }
+    override func getHistogram() throws -> Histogram { try wrapped.getHistogram() }
     override func ignoredSettings() throws -> [String] { try wrapped.ignoredSettings() }
     override func setListener(listener: DevelopListener?) { wrapped.setListener(listener: listener) }
     override func setMaskListener(listener: MaskListener?) { wrapped.setMaskListener(listener: listener) }
     override func setSettings(jsonPatch: String, interactive: Bool) throws {
+        let reject = lock.withLock {
+            sentInteractive.append(interactive)
+            guard settingsRejections > 0 else { return false }
+            settingsRejections -= 1
+            return true
+        }
+        if reject { throw InjectedDevelopSessionFailure.settings }
         try wrapped.setSettings(jsonPatch: jsonPatch, interactive: interactive)
     }
     override func close() throws {
@@ -690,4 +944,10 @@ private final class BlockingCloseSession: DevelopSession, @unchecked Sendable {
         resume.wait()
         try wrapped.close()
     }
+}
+
+private enum InjectedDevelopSessionFailure: LocalizedError {
+    case settings
+
+    var errorDescription: String? { "injected set_settings rejection" }
 }
