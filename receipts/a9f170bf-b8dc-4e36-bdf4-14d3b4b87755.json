@@ -1,0 +1,1 @@
+{"from": "B", "id": "a9f170bf-b8dc-4e36-bdf4-14d3b4b87755", "status": "accepted", "summary": "Validated unexpired request targeting this B chat. Will correct only isolated History hosting fixture on separate branch from b7687116, preserving all assertions and prior evidence. No B workloads; tests UNRUN, A owns gates.", "to": "A", "updated_at": 1790632652, "version": 1}
