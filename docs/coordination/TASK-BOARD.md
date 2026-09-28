@@ -1,5 +1,34 @@
 # Tessera task board — Machine A coordinator
 
+## Recovery tests passed; Document replacement remains blocked — 2026-09-28 04:06 UTC
+
+- **Verified focused recovery gate:** exact `338e2878`, product `c4a86c05`,
+  13 XCTest cases / zero failures / direct exit 0. Root read the raw log and
+  direct-exit record. Nine state, two physical-alias/reservation and two existing
+  AppModel admission cases passed. This is not full AppModel acceptance.
+- **Document GUI failed:** exact `5ad1cbcc` passed 16 focused/adjacent tests,
+  but existing-file Save As dismissed without a Replace confirmation for both
+  same and distinct destinations. New-file save and Cancel passed. Evidence
+  `81734bce` is on main `7978b98d`; original failures remain preserved. The
+  isolated GUI app is closed; normal preview PID57591 remains untouched.
+- **B correction under review:** peer completed request `031a10ea`; result
+  `0802848a` supplied dismissal handshake `ae0cd8e4` and Shell adapter `c7f28b6c`.
+  A accepted for review, then failed source acceptance: cancel before appearance
+  can retain an unshown presentation ID indefinitely. Follow-up request
+  `ca97f793-cf44-4810-b500-a02f7f501653` published; SSH queue
+  `01a0e630-ea24-72a1-ac25-35c479df1f58` accepted. Peer receipt pending.
+- **Active owners:** Luna adds AppModel navigation regressions against frozen
+  `61e453d7` and owns the single compiler slot. Resource Sol implements native
+  preview-flight drain acknowledgment: subscriber cancellation is not native
+  completion, so current Review/Print reservations are not yet proven safe.
+  Reviewer Sol independently checks output lifetime and the window-close guard.
+  Later source checkpoints remain UNRUN. No product merge from this wave.
+- **Next:** finish these regressions, review B's revised presentation lifecycle,
+  rerun bounded focused/full gates, then repeat isolated Save As and recovery GUI
+  tests. A alone owns main merges. B stays source-only with its workload hold and
+  paused heartbeat; published messages are not counted as peer receipt.
+
+
 
 
 
