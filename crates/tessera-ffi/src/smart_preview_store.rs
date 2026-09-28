@@ -87,7 +87,50 @@ pub struct JournalSnapshot {
     pub dirty: bool,
 }
 
+/// Existing generated-store files only. Reject links before any content read.
+/// Callers hold image read admission against participating in-process writers.
+pub(crate) fn local_regular_file(root: &Path, id: ImageId, name: &str) -> StoreResult<PathBuf> {
+    let previews = fs::canonicalize(root)?.join("smart-previews");
+    let directory = previews.join(id.to_string());
+    for path in [&previews, &directory] {
+        if !fs::symlink_metadata(path)?.file_type().is_dir() {
+            return Err(StoreError::Corrupt(
+                "Smart Preview directory must not be a symlink".into(),
+            ));
+        }
+    }
+    let path = directory.join(name);
+    if !fs::symlink_metadata(&path)?.file_type().is_file() {
+        return Err(StoreError::Corrupt(
+            "Smart Preview file must be a regular non-symlink file".into(),
+        ));
+    }
+    Ok(path)
+}
+
 impl SmartPreviewJournal {
+    /// Read-only admission: never creates store directories and never touches originals.
+    pub(crate) fn read_local_snapshot(
+        root: &Path,
+        id: ImageId,
+    ) -> StoreResult<([u8; 32], JournalSnapshot)> {
+        let path = local_regular_file(root, id, "journal.json")?;
+        // Same canonical per-record process lock as writers, without directory creation.
+        let guard = {
+            let mut table = LOCKS
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock()
+                .map_err(|_| StoreError::LockPoisoned)?;
+            table
+                .entry(path.clone())
+                .or_insert_with(|| Arc::new(Mutex::new(())))
+                .clone()
+        };
+        let _lock = lock_guard(&guard)?;
+        let record = read_record(&path, id)?;
+        Ok((record.incarnation, record.snapshot()))
+    }
+
     /// Create a clean journal from the recipe owner and exact original sidecar baseline.
     /// `root` must be an existing application-support directory; generated store
     /// entries are synchronized beneath it before this call succeeds.
