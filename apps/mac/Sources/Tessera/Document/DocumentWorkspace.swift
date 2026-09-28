@@ -598,18 +598,19 @@ final class DocumentWorkspace {
         return true
     }
 
+    private func observeCapturedSaveSheetAttachment(_ id: UUID) {
+        guard saveAsPresentationID == id, let state = nativeSaveDismissals[id],
+              let parent = state.parent, let sheet = state.sheet,
+              parent.attachedSheet === sheet else { return }
+        state.observedAttachment = true
+    }
+
     /// Native SwiftUI sheet completion, not content onDisappear. ID remains owned
     /// until this boundary so stale nil binding writes cannot dismiss a successor.
     func saveAsPresentationDidDismiss(_ id: UUID) {
         guard saveAsPresentationID == id else { return }
         if let state = nativeSaveDismissals[id] {
-            // The first probe can precede native attachment with no later update.
-            // At dismissal, record only the captured parent's actual ownership
-            // of the captured sheet; didEnd must still prove its detachment.
-            if let parent = state.parent, let sheet = state.sheet,
-               parent.attachedSheet === sheet {
-                state.observedAttachment = true
-            }
+            observeCapturedSaveSheetAttachment(id)
             state.swiftDismissed = true // Seals this generation against new view leases.
             finishTerminalSavePresentationIfReady(id, state)
             finishNativeSaveDismissalIfReady(id, state)
@@ -722,6 +723,10 @@ final class DocumentWorkspace {
 
     private func settleDocumentSave(_ id: UUID, _ outcome: DocumentSaveOutcome) {
         guard let operation = saveOperations.removeValue(forKey: id) else { return }
+        // Cancel/supersession can clear the item before native end and before
+        // SwiftUI onDismiss. Retain actual identity evidence while still attached.
+        // An unseen lifetime remains unproven; a parent-only end is insufficient.
+        observeCapturedSaveSheetAttachment(id)
         if let observer = operation.windowObserver { NotificationCenter.default.removeObserver(observer) }
         if let alert = operation.replaceAlert, let parent = alert.window.sheetParent {
             parent.endSheet(alert.window, returnCode: .cancel)
