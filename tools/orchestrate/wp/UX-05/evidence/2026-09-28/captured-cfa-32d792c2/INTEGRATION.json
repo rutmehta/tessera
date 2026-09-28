@@ -1,0 +1,22 @@
+{
+  "candidate": "32d792c25d65e4f1c551f8abab360b52432b3d3d",
+  "main": "e9f0850e91f1267bd06db7816ef8870695979912",
+  "base": "3a395c69b6946660daf2d30a595149d5ef26e144",
+  "owned_paths": [
+    "crates/raw-decode/src/capture.rs",
+    "crates/raw-decode/src/capture/decode.rs",
+    "crates/raw-decode/src/capture/tests.rs",
+    "crates/raw-decode/src/capture/tests/decode.rs",
+    "docs/superpowers/plans/2026-09-28-captured-cfa-decoder.md"
+  ],
+  "overlap": [],
+  "dependency_drift": [],
+  "merge_conflict_markers": false,
+  "candidate_source_hashes": {
+    "crates/raw-decode/src/capture.rs": "f35865b50a6e2a6cf0fc1a36b7c77cd6e6118e74119410ac171befdef0348551",
+    "crates/raw-decode/src/capture/decode.rs": "0cac31d7a7f98ec3f990c29dc095153c6b373a10d6f5aabcd1d16bfd6d9e1aa7",
+    "crates/raw-decode/src/capture/tests.rs": "891acbce476dfbcfa7a63cd2b578373dab36d02775f82583714a4e90d0190b34",
+    "crates/raw-decode/src/capture/tests/decode.rs": "427789ecf095b154d9bbbe038a8b5abac2a0280c96e10c9cabe0b38ffdefcd75",
+    "docs/superpowers/plans/2026-09-28-captured-cfa-decoder.md": "77ba3cee77e01ebf27bb58804cd9199d1d85c6100e69337120cfa3b6aa2737f9"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "command": [
+    "cargo",
+    "clippy",
+    "-p",
+    "raw-decode",
+    "--release",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "CARGO_BUILD_JOBS": "2",
+    "TESSERA_CAPTURED_CFA_FIXTURES": "/Users/rutmehta/Developer/tessera/fixtures/raw",
+    "RAW_DECODE_FIXTURES": "/Users/rutmehta/Developer/tessera/fixtures/raw"
+  },
+  "start": "2026-09-28T21:47:50.946966+00:00"
+}

@@ -1,0 +1,14 @@
+{
+  "main_merge": "95bfadcf1e176545f075c32d90b190ef07732a66",
+  "qualified_candidate": "32d792c25d65e4f1c551f8abab360b52432b3d3d",
+  "owned_files_equal": [
+    "crates/raw-decode/src/capture.rs",
+    "crates/raw-decode/src/capture/decode.rs",
+    "crates/raw-decode/src/capture/tests.rs",
+    "crates/raw-decode/src/capture/tests/decode.rs",
+    "docs/superpowers/plans/2026-09-28-captured-cfa-decoder.md"
+  ],
+  "dependency_source_drift": false,
+  "portable_payloads_verified": 55,
+  "qualification": "Independent8627-input verification;11focused plus2actual5-family cases,71ordinaryfull,strict/fmt. No fresh build/fullworkspace/nonUnix/render claim."
+}

@@ -1,0 +1,11 @@
+# Captured CFA decoder integration preparation
+
+Candidate 32d792c25d65e4f1c551f8abab360b52432b3d3d; current main e9f0850e91f1267bd06db7816ef8870695979912; mergebase3a395c69b6946660daf2d30a595149d5ef26e144. Exactly five changed paths, listed in INTEGRATION.json. Changed-path overlap with main: []. Dependency source drift in Cargo/engine-api/libraw-ffi/raw-decode: []. Read-only merge-tree reports no conflict markers: True.
+
+Root may merge exactcandidate with --no-ff after final independent approval and rechecking currentmain identity/overlap. No merge/main edit performed by this preparation. Preserve current main inspector/coordination updates. No archive or bindings regeneration: API is additive raw-decode-only and has no FFI/Swift caller. Exact merged owned files and unchanged decoder dependencies can be compared to frozen qualification; a fresh raw-decode/full/strict/fmt gate is required if relevant source drifts, otherwise existing exactinput evidence can be scoped honestly. No GUI acceptance claim.
+
+This bundle contains decoder evidence only: sixruns01–06 with commands/directlogs/exits and before/after source+fixture hash maps, FINAL-CHECKPOINT, runner, fixture-env authority, approved plan and available reviews. Failed01 retained (10fail/1controlpass/2ignored). Actual03 separately executes bothignored tests and positively names allfivefamilies. Earlier capture Tasks1–3 evidence is already preserved onmain and intentionally not copied.
+
+Positive actual qualification: SonyARW4928x3276/16,144,128samples; FujiRAF4992x3296/16,453,632; NikonNEF7424x4924/36,555,776; CanonCR36288x4056/25,504,128; CFA DNG5216x3472/18,109,952. Exactu16 samples/fullmetadata compared after replacement of isolated originalCOPY and cleanup of private stage/nativeowner. Sony actual cancellation boundaries also executed. Fixture originals stayed unchanged in allsixrun hashpairs. Fullsuite68unit+3integration passes with2explicitignored separatelyexecuted03; strict/fmt pass.
+
+No photos, nativearchives, binaries, buildtrees, caches or symlinkedfixturetrees included. Manifests contain hashes/paths, never photo bytes. No repeated oldcapture datasets. NativeRPC/preemptivecancellation/decompressedmemory/render/recipe/catalog/FFI guarantees remain outofscope. Final review pending at packaging; root will append when received.

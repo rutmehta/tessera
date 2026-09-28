@@ -1,0 +1,108 @@
+{
+  "head": "32d792c25d65e4f1c551f8abab360b52432b3d3d",
+  "base": "3a395c69b6946660daf2d30a595149d5ef26e144",
+  "git_blob_count": 8627,
+  "all_final_git_blobs_equal_checkpoint": true,
+  "gates": {
+    "01-red": {
+      "direct_exit": 101,
+      "source_freeze": true,
+      "fixture_freeze": true,
+      "matches_final_git": false,
+      "log_sha256": "a129e421b47b36c81e5eaed0f8df869060b6a6a81be2a5f0b1b950bf9e4c220b",
+      "test_results": [
+        "test result: FAILED. 1 passed; 10 failed; 2 ignored; 0 measured; 57 filtered out; finished in 0.05s"
+      ],
+      "source_count": 8627
+    },
+    "02-green": {
+      "direct_exit": 0,
+      "source_freeze": true,
+      "fixture_freeze": true,
+      "matches_final_git": true,
+      "log_sha256": "18e3fc692248031f6a45e08de37aca91de3f456b4cb17e12d8b6a7f4083fe2cd",
+      "test_results": [
+        "test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 57 filtered out; finished in 0.07s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s"
+      ],
+      "source_count": 8627
+    },
+    "03-five-family": {
+      "direct_exit": 0,
+      "source_freeze": true,
+      "fixture_freeze": true,
+      "matches_final_git": true,
+      "log_sha256": "8f361b842de9f680383c4099f3855c06333295856bc54a7fb34f224b6610ad53",
+      "test_results": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 1.53s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s"
+      ],
+      "source_count": 8627
+    },
+    "04-full": {
+      "direct_exit": 0,
+      "source_freeze": true,
+      "fixture_freeze": true,
+      "matches_final_git": true,
+      "log_sha256": "4b756b618dc468e161f6523c620d7e8dc1e88a43f0874f628ecd568b33f8bd40",
+      "test_results": [
+        "test result: ok. 68 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.92s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ],
+      "source_count": 8627
+    },
+    "05-strict": {
+      "direct_exit": 0,
+      "source_freeze": true,
+      "fixture_freeze": true,
+      "matches_final_git": true,
+      "log_sha256": "d73cfa4bf20aeb9a5dea0dc6777419941e15e3e42ff499aad9bdf6d95aea8a3d",
+      "test_results": [],
+      "source_count": 8627
+    },
+    "06-fmt": {
+      "direct_exit": 0,
+      "source_freeze": true,
+      "fixture_freeze": true,
+      "matches_final_git": true,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "test_results": [],
+      "source_count": 8627
+    }
+  },
+  "findings": [],
+  "fixtures_current_equal_all_before_after": true,
+  "fixtures": {
+    "sample.dng": {
+      "bytes": 36433920,
+      "sha256": "914f27df1ab095446c5db058703719f4a3749adedbfb9f353a3e85fa4f8f9b58"
+    },
+    "fuji-raf.RAF": {
+      "bytes": 33786880,
+      "sha256": "330fc84b597e7be6d7477aad5715705efaa99d4663eb05aa47e1250d6f421549"
+    },
+    "sony-arw.ARW": {
+      "bytes": 16646144,
+      "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+    },
+    "nikon-nef.NEF": {
+      "bytes": 44169458,
+      "sha256": "26d58c21ed3019af5a22ef6bc02f017b863aad9eafcf84252ed375cd495c0efb"
+    },
+    "canon-cr3.CR3": {
+      "bytes": 20948692,
+      "sha256": "15384b775867ec4c42b11882837f1e368cedc0561832ffab271221e6bb80be4c"
+    }
+  },
+  "actual_family_lines": [
+    "EXERCISED captured CFA sony-arw.ARW: 4928x3276, 16144128 owned samples",
+    "EXERCISED captured CFA fuji-raf.RAF: 4992x3296, 16453632 owned samples",
+    "EXERCISED captured CFA nikon-nef.NEF: 7424x4924, 36555776 owned samples",
+    "EXERCISED captured CFA canon-cr3.CR3: 6288x4056, 25504128 owned samples",
+    "EXERCISED captured CFA sample.dng: 5216x3472, 18109952 owned samples"
+  ],
+  "worktree_head": "32d792c25d65e4f1c551f8abab360b52432b3d3d",
+  "worktree_status": "",
+  "verdict": "Approved for closed owned CFA decoding only; no decoder memory bound or render/recipe integration claim."
+}

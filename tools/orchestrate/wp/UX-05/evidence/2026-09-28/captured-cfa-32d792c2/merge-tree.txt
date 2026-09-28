@@ -1,0 +1,822 @@
+merged
+  result 100644 951df1f18270dd5bbb4047e7b59baaba771db186 crates/raw-decode/src/capture.rs
+  our    100644 8503b7f629d71473329e1ed6bcb94db48ec99169 crates/raw-decode/src/capture.rs
+@@ -771,3 +771,6 @@
+         }
+     }
+ }
++
++mod decode;
++pub use decode::DecodedCapturedCfa;
+added in remote
+  their  100644 da3619aab4342826e790c9f79fd909ab95c623d1 crates/raw-decode/src/capture/decode.rs
+@@ -0,0 +1,136 @@
++//! Closed decoding of a retained capture into owned sensor samples and metadata.
++use super::{CapturedAssetIdentity, CapturedRaw};
++use crate::{CfaU16, RawMetadata, RawSource};
++use engine_api::{
++    EngineError, EngineResult, jobs::CancellationToken, pinned_raw::PinnedRawDecoderRoute,
++};
++use std::path::Path;
++
++/// Owned packed sensor integers and metadata, usable after capture-stage removal.
++/// No normalization, demosaic, recipe, rendering or native-memory bound is implied.
++pub struct DecodedCapturedCfa {
++    pub image: CfaU16,
++    pub metadata: RawMetadata,
++    pub identity: CapturedAssetIdentity,
++    pub route: PinnedRawDecoderRoute,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(super) enum DecodePhase {
++    Classified,
++    Opened,
++    Decoded,
++}
++
++impl CapturedRaw {
++    /// Decode the captured CFA route, retaining its stage through native reads.
++    /// Cancellation is checked between calls, not during native open/unpack.
++    /// A completed phase error takes precedence over concurrent cancellation.
++    pub fn decode_cfa(self, cancel: &CancellationToken) -> EngineResult<DecodedCapturedCfa> {
++        self.decode_closed(cancel, decode_native, |_| {})
++    }
++
++    // Private and concrete output: this is not a public callback/reader escape.
++    fn decode_closed(
++        mut self,
++        cancel: &CancellationToken,
++        decoder: impl FnOnce(
++            &Path,
++            &CancellationToken,
++            &mut dyn FnMut(DecodePhase),
++        ) -> EngineResult<(CfaU16, RawMetadata)>,
++        mut phase: impl FnMut(DecodePhase),
++    ) -> EngineResult<DecodedCapturedCfa> {
++        let result = (|| {
++            cancel.check()?;
++            match self.route {
++                PinnedRawDecoderRoute::LibRawCfaV1 => {}
++            }
++            let linear =
++                crate::linear_dng::is_linear_dng(self.stage.readonly()?).map_err(|error| {
++                    EngineError::Decode {
++                        format: "LinearRaw DNG classifier".into(),
++                        message: error.to_string(),
++                    }
++                })?;
++            phase(DecodePhase::Classified);
++            cancel.check()?;
++            if linear {
++                return Err(EngineError::Unsupported {
++                    what: "LinearRaw DNG is not the captured CFA decoder route".into(),
++                });
++            }
++            let (image, metadata) = decoder(self.stage.path()?, cancel, &mut phase)?;
++            cancel.check()?;
++            if image.width != metadata.width
++                || image.height != metadata.height
++                || image.cfa_layout != metadata.cfa_layout
++            {
++                return Err(EngineError::Decode {
++                    format: "raw".into(),
++                    message: "decoded CFA dimensions/layout differ from metadata".into(),
++                });
++            }
++            Ok(DecodedCapturedCfa {
++                image,
++                metadata,
++                identity: self.identity,
++                route: self.route,
++            })
++        })();
++        // Decoder's inner scope has ended, including RawSource/RawFile destruction.
++        // All failures use this common cleanup path, including pre-cancellation.
++        let pool = self.stage.reservation.pool.clone();
++        let cleanup = self.close();
++        match result {
++            Ok(output) => {
++                cleanup?;
++                Ok(output)
++            }
++            Err(primary) => {
++                if let Err(secondary) = cleanup {
++                    pool.operations.report(&secondary);
++                }
++                Err(primary)
++            }
++        }
++    }
++
++    #[cfg(all(test, unix))]
++    pub(super) fn decode_cfa_with_for_test(
++        self,
++        cancel: &CancellationToken,
++        decoder: impl FnOnce(&Path, &CancellationToken) -> EngineResult<(CfaU16, RawMetadata)>,
++    ) -> EngineResult<DecodedCapturedCfa> {
++        self.decode_closed(cancel, |path, token, _| decoder(path, token), |_| {})
++    }
++
++    #[cfg(all(test, unix))]
++    pub(super) fn decode_cfa_with_phase_for_test(
++        self,
++        cancel: &CancellationToken,
++        phase: impl FnMut(DecodePhase),
++    ) -> EngineResult<DecodedCapturedCfa> {
++        self.decode_closed(cancel, decode_native, phase)
++    }
++}
++
++fn decode_native(
++    path: &Path,
++    cancel: &CancellationToken,
++    phase: &mut dyn FnMut(DecodePhase),
++) -> EngineResult<(CfaU16, RawMetadata)> {
++    let mut source = RawSource::open(path)?;
++    phase(DecodePhase::Opened);
++    cancel.check()?;
++    // Native unpack plus owned sample extraction is one existing synchronous API.
++    // Do not claim cancellation inside either operation.
++    let image = source.decode_cfa_u16()?;
++    phase(DecodePhase::Decoded);
++    cancel.check()?;
++    let metadata = source.metadata();
++    cancel.check()?;
++    // Explicitly close the native stream before returning only owned Rust values.
++    drop(source);
++    Ok((image, metadata))
++}
+merged
+  result 100644 61b47c5b8503bf8c6d97476fa960bccc5cff089b crates/raw-decode/src/capture/tests.rs
+  our    100644 8721d94daa2ff308cd30052f16a57acba73d9743 crates/raw-decode/src/capture/tests.rs
+@@ -444,3 +444,6 @@
+ 
+ #[cfg(unix)]
+ mod consumer;
++
++#[cfg(unix)]
++pub(super) mod decode;
+added in remote
+  their  100644 f25cfd6201b524c02702de82ac7e6de682b9794c crates/raw-decode/src/capture/tests/decode.rs
+@@ -0,0 +1,568 @@
++//! Closed adapter contracts; synthetic protocol controls are not actual decoding.
++use super::*;
++use crate::{CfaLayout, CfaU16, RawMetadata, RawSource};
++use std::{path::PathBuf, sync::mpsc, time::Duration};
++
++fn owner(pool: &CapturePool, source: &Path) -> CapturedRaw {
++    pool.capture(
++        source,
++        PinnedRawDecoderRoute::LibRawCfaV1,
++        "ARW",
++        None,
++        &CancellationToken::new(),
++    )
++    .unwrap()
++}
++fn synthetic_output() -> (CfaU16, RawMetadata) {
++    (
++        CfaU16 {
++            width: 2,
++            height: 2,
++            data: vec![1, 2, 3, 4],
++            cfa_layout: CfaLayout::Bayer([[0, 1], [1, 2]]),
++        },
++        RawMetadata {
++            make: "synthetic".into(),
++            model: "protocol-only".into(),
++            lens: None,
++            iso: 100.0,
++            shutter_s: 0.01,
++            aperture: 2.0,
++            focal_mm: 50.0,
++            capture_time: 0,
++            orientation: 1,
++            width: 2,
++            height: 2,
++            cfa_layout: CfaLayout::Bayer([[0, 1], [1, 2]]),
++            black_levels: [0.0; 4],
++            white_level: 100,
++            as_shot_wb: [1.0; 4],
++            camera_to_xyz: engine_api::color::ColorMatrix3([
++                [1.0, 0.0, 0.0],
++                [0.0, 1.0, 0.0],
++                [0.0, 0.0, 1.0],
++            ]),
++            cam_xyz: [[0.0; 3]; 4],
++            rgb_cam: [[0.0; 4]; 3],
++            default_crop: [0, 0, 2, 2],
++            has_gain_map: false,
++            has_opcode_list: false,
++            opcode_lists: [None, None, None],
++        },
++    )
++}
++fn clean(pool: &CapturePool) {
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++    assert_eq!(fs::read_dir(pool.directory_for_test()).unwrap().count(), 0);
++}
++
++// Break caught: invalid bytes are accepted or a failed native decode leaks stage.
++#[test]
++fn actual_invalid_raw_returns_decode_and_releases_stage() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("invalid.raw");
++    fs::write(&source, b"not a RAW").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    assert!(matches!(
++        owner(&pool, &source).decode_cfa(&CancellationToken::new()),
++        Err(EngineError::Decode { .. })
++    ));
++    clean(&pool);
++}
++
++// Break caught: recognized LinearRaw silently falls through to the CFA backend.
++#[test]
++fn linear_raw_classifier_refuses_cfa_route_before_decoder_entry() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("linear.bin");
++    let mut bytes = b"II\x2a\x00\x08\x00\x00\x00\x01\x00".to_vec();
++    bytes.extend_from_slice(&262u16.to_le_bytes());
++    bytes.extend_from_slice(&3u16.to_le_bytes());
++    bytes.extend_from_slice(&1u32.to_le_bytes());
++    bytes.extend_from_slice(&34892u16.to_le_bytes());
++    bytes.extend_from_slice(&[0; 6]);
++    fs::write(&source, bytes).unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let called = AtomicUsize::new(0);
++    let result =
++        owner(&pool, &source).decode_cfa_with_for_test(&CancellationToken::new(), |_, _| {
++            called.fetch_add(1, Ordering::SeqCst);
++            Ok(synthetic_output())
++        });
++    assert!(matches!(result, Err(EngineError::Unsupported { .. })));
++    assert_eq!(called.load(Ordering::SeqCst), 0);
++    clean(&pool);
++}
++
++// Break caught: malformed classification falls through to a different backend.
++#[test]
++fn malformed_classifier_is_decode_error_without_backend_fallback() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("bad.bin");
++    fs::write(&source, b"II\x2a\x00\x08\x00\x00\x00\x01\x10").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let called = AtomicUsize::new(0);
++    let result =
++        owner(&pool, &source).decode_cfa_with_for_test(&CancellationToken::new(), |_, _| {
++            called.fetch_add(1, Ordering::SeqCst);
++            Ok(synthetic_output())
++        });
++    assert!(matches!(result, Err(EngineError::Decode { .. })));
++    assert_eq!(called.load(Ordering::SeqCst), 0);
++    clean(&pool);
++}
++
++// Break caught: cancellation before or after closed decoding publishes output.
++#[test]
++fn cancelled_protocol_does_not_publish_and_precancel_does_not_enter_decoder() {
++    for before in [true, false] {
++        let root = tempfile::tempdir().unwrap();
++        let source = root.path().join("source.bin");
++        fs::write(&source, b"synthetic bytes").unwrap();
++        let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++        let captured = owner(&pool, &source);
++        let token = CancellationToken::new();
++        if before {
++            token.cancel();
++        }
++        let called = AtomicUsize::new(0);
++        let result = captured.decode_cfa_with_for_test(&token, |_, cancel| {
++            called.fetch_add(1, Ordering::SeqCst);
++            cancel.cancel();
++            Ok(synthetic_output())
++        });
++        assert!(matches!(result, Err(EngineError::Cancelled)));
++        assert_eq!(called.load(Ordering::SeqCst), usize::from(!before));
++        clean(&pool);
++    }
++}
++
++// Test native-like holder: protocol ordering only, not a fake pixel-fidelity claim.
++struct DecoderLifetime {
++    path: PathBuf,
++    dropped: Arc<AtomicUsize>,
++}
++impl Drop for DecoderLifetime {
++    fn drop(&mut self) {
++        assert!(self.path.is_file());
++        self.dropped.store(1, Ordering::SeqCst);
++    }
++}
++
++// Break caught: stage cleanup happens while a decoder is still reading/owned.
++#[test]
++fn closed_decoder_reads_held_a_and_drops_before_unlink_then_owned_output_survives() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"captured A").unwrap();
++    let dropped = Arc::new(AtomicUsize::new(0));
++    let seen = dropped.clone();
++    let ops = TestOperations {
++        remove_file: Arc::new(move |path| {
++            assert_eq!(seen.load(Ordering::SeqCst), 1);
++            fs::remove_file(path)
++        }),
++        ..TestOperations::default()
++    };
++    let pool =
++        CapturePool::create_with_operations_for_test(root.path(), limits(64, 1), ops).unwrap();
++    let captured = owner(&pool, &source);
++    let identity = captured.identity();
++    let stage = captured.path_for_test().to_path_buf();
++    fs::rename(&source, root.path().join("prior.bin")).unwrap();
++    fs::write(&source, b"replacement B").unwrap();
++    let (entered_tx, entered_rx) = mpsc::channel();
++    let (release_tx, release_rx) = mpsc::channel();
++    let worker = std::thread::spawn(move || {
++        captured.decode_cfa_with_for_test(&CancellationToken::new(), |path, _| {
++            let _native = DecoderLifetime {
++                path: path.to_path_buf(),
++                dropped,
++            };
++            entered_tx.send(()).unwrap();
++            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
++            assert_eq!(fs::read(path)?, b"captured A");
++            Ok(synthetic_output())
++        })
++    });
++    let entered = entered_rx.recv_timeout(Duration::from_secs(5));
++    let held = pool.accounting_for_test();
++    let present = stage.is_file();
++    let _ = release_tx.send(());
++    let result = worker.join().unwrap();
++    entered.unwrap();
++    assert_eq!(held, (64, 1));
++    assert!(present);
++    let result = result.unwrap();
++    assert!(!stage.exists());
++    clean(&pool);
++    drop(pool);
++    assert_eq!(result.image.data, [1, 2, 3, 4]);
++    assert_eq!(result.metadata.make, "synthetic");
++    assert_eq!(result.identity, identity);
++    assert_eq!(result.route, PinnedRawDecoderRoute::LibRawCfaV1);
++    assert_eq!(fs::read(source).unwrap(), b"replacement B");
++}
++
++// Break caught: secondary unlink failure hides native/cancel failure or allows a
++// successful output to escape despite cleanup failure. Accounting remains real.
++#[test]
++fn decoder_primary_error_wins_and_success_requires_cleanup() {
++    for fails in [false, true] {
++        let root = tempfile::tempdir().unwrap();
++        let source = root.path().join("source.bin");
++        fs::write(&source, b"protocol").unwrap();
++        let count = Arc::new(AtomicUsize::new(0));
++        let seen = count.clone();
++        let ops = TestOperations {
++            remove_file: Arc::new(move |path| {
++                if seen.fetch_add(1, Ordering::SeqCst) == 0 {
++                    Err(io::Error::other("decode unlink failure"))
++                } else {
++                    fs::remove_file(path)
++                }
++            }),
++            ..TestOperations::default()
++        };
++        let diagnostics = ops.diagnostics.clone();
++        let pool =
++            CapturePool::create_with_operations_for_test(root.path(), limits(64, 1), ops).unwrap();
++        let result =
++            owner(&pool, &source).decode_cfa_with_for_test(&CancellationToken::new(), |_, _| {
++                if fails {
++                    Err(EngineError::Decode {
++                        format: "synthetic".into(),
++                        message: "primary decode failure".into(),
++                    })
++                } else {
++                    Ok(synthetic_output())
++                }
++            });
++        if fails {
++            assert!(
++                matches!(result,Err(EngineError::Decode{ref message,..}) if message=="primary decode failure")
++            );
++        } else {
++            assert!(matches!(result, Err(EngineError::Io { .. })));
++        }
++        assert_eq!(pool.accounting_for_test(), (64, 1));
++        assert_eq!(count.load(Ordering::SeqCst), 1);
++        assert_eq!(
++            diagnostics
++                .lock()
++                .unwrap()
++                .iter()
++                .filter(|d| d.contains("decode unlink failure"))
++                .count(),
++            usize::from(fails)
++        );
++        drop(pool);
++        assert_eq!(count.load(Ordering::SeqCst), 2);
++    }
++}
++
++// Break caught: panic bypasses retained-stage cleanup.
++#[test]
++fn decoder_panic_unwinds_stage_ownership() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"protocol").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let captured = owner(&pool, &source);
++    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++        captured.decode_cfa_with_for_test(&CancellationToken::new(), |path, _| {
++            assert!(path.is_file());
++            panic!("decoder protocol panic")
++        })
++    }));
++    assert!(panic.is_err());
++    clean(&pool);
++}
++
++fn assert_metadata(a: &RawMetadata, b: &RawMetadata) {
++    assert_eq!(
++        (
++            &a.make,
++            &a.model,
++            &a.lens,
++            a.capture_time,
++            a.orientation,
++            a.width,
++            a.height,
++            a.cfa_layout,
++            a.white_level,
++            a.default_crop
++        ),
++        (
++            &b.make,
++            &b.model,
++            &b.lens,
++            b.capture_time,
++            b.orientation,
++            b.width,
++            b.height,
++            b.cfa_layout,
++            b.white_level,
++            b.default_crop
++        )
++    );
++    assert_eq!(
++        (a.has_gain_map, a.has_opcode_list, &a.opcode_lists),
++        (b.has_gain_map, b.has_opcode_list, &b.opcode_lists)
++    );
++    assert_eq!(
++        [a.iso, a.shutter_s, a.aperture, a.focal_mm].map(f32::to_bits),
++        [b.iso, b.shutter_s, b.aperture, b.focal_mm].map(f32::to_bits)
++    );
++    assert_eq!(
++        a.black_levels.map(f32::to_bits),
++        b.black_levels.map(f32::to_bits)
++    );
++    assert_eq!(
++        a.as_shot_wb.map(f32::to_bits),
++        b.as_shot_wb.map(f32::to_bits)
++    );
++    assert_eq!(
++        a.camera_to_xyz.0.map(|r| r.map(f64::to_bits)),
++        b.camera_to_xyz.0.map(|r| r.map(f64::to_bits))
++    );
++    assert_eq!(
++        a.cam_xyz.map(|r| r.map(f32::to_bits)),
++        b.cam_xyz.map(|r| r.map(f32::to_bits))
++    );
++    assert_eq!(
++        a.rgb_cam.map(|r| r.map(f32::to_bits)),
++        b.rgb_cam.map(|r| r.map(f32::to_bits))
++    );
++}
++
++// Actual decoder qualification: explicit opt-in; missing fixtures are not evidence
++// of five-camera support. Run with --nocapture and inventory originals before/after.
++#[test]
++#[ignore = "requires explicit five-family TESSERA_CAPTURED_CFA_FIXTURES qualification"]
++fn actual_cfa_fixtures_return_owned_samples_after_original_copy_replacement() {
++    let directory = std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES")
++        .expect("qualification requires explicit five-family fixture directory");
++    for (name, suffix) in [
++        ("sony-arw.ARW", "ARW"),
++        ("fuji-raf.RAF", "RAF"),
++        ("nikon-nef.NEF", "NEF"),
++        ("canon-cr3.CR3", "CR3"),
++        ("sample.dng", "DNG"),
++    ] {
++        let original = PathBuf::from(&directory).join(name);
++        assert!(original.is_file(), "required fixture {name}");
++        let root = tempfile::tempdir().unwrap();
++        let copy = root.path().join("relocated.bin");
++        fs::copy(&original, &copy).unwrap();
++        let mut direct = RawSource::open(&copy).unwrap();
++        let expected = direct.decode_cfa_u16().unwrap();
++        let metadata = direct.metadata();
++        drop(direct);
++        let len = fs::metadata(&copy).unwrap().len();
++        let pool = CapturePool::create(
++            root.path(),
++            CaptureLimits {
++                max_asset_bytes: len,
++                max_staged_bytes: len,
++                max_live_captures: 1,
++            },
++        )
++        .unwrap();
++        let captured = pool
++            .capture(
++                &copy,
++                PinnedRawDecoderRoute::LibRawCfaV1,
++                suffix,
++                None,
++                &CancellationToken::new(),
++            )
++            .unwrap();
++        let identity = captured.identity();
++        assert_eq!(captured.suffix(), suffix.to_ascii_lowercase());
++        let stage = captured.path_for_test().to_path_buf();
++        assert_eq!(
++            stage.extension().unwrap().to_str().unwrap(),
++            suffix.to_ascii_lowercase()
++        );
++        let private_dir = pool.directory_for_test().to_path_buf();
++        drop(pool);
++        fs::rename(&copy, root.path().join("original-moved")).unwrap();
++        fs::write(&copy, b"invalid replacement B").unwrap();
++        let decoded = captured.decode_cfa(&CancellationToken::new()).unwrap();
++        assert!(!stage.exists());
++        assert!(!private_dir.exists());
++        assert_eq!(
++            (
++                decoded.image.width,
++                decoded.image.height,
++                decoded.image.cfa_layout
++            ),
++            (expected.width, expected.height, expected.cfa_layout)
++        );
++        assert_eq!(decoded.image.data, expected.data);
++        assert_metadata(&decoded.metadata, &metadata);
++        assert_eq!(decoded.identity, identity);
++        assert_eq!(decoded.route, PinnedRawDecoderRoute::LibRawCfaV1);
++        assert_eq!(fs::read(&copy).unwrap(), b"invalid replacement B");
++        eprintln!(
++            "EXERCISED captured CFA {name}: {}x{}, {} owned samples",
++            decoded.image.width,
++            decoded.image.height,
++            decoded.image.data.len()
++        );
++    }
++}
++
++use super::super::decode::DecodePhase;
++
++// Break caught: native open starts after successful classification even though
++// cancellation was requested. Invalid RAW would Decode-fail if open were attempted.
++#[test]
++fn cancellation_after_classification_prevents_native_open() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"not raw").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let captured = owner(&pool, &source);
++    let token = CancellationToken::new();
++    let mut phases = Vec::new();
++    let result = captured.decode_cfa_with_phase_for_test(&token, |phase| {
++        phases.push(phase);
++        if phase == DecodePhase::Classified {
++            token.cancel();
++        }
++    });
++    assert!(matches!(result, Err(EngineError::Cancelled)));
++    assert_eq!(phases, [DecodePhase::Classified]);
++    clean(&pool);
++}
++
++// Break caught: a completed decoder error is overwritten by a concurrent cancel.
++#[test]
++fn completed_decoder_error_precedes_concurrent_cancellation() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"protocol").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let token = CancellationToken::new();
++    let result = owner(&pool, &source).decode_cfa_with_for_test(&token, |_, cancel| {
++        cancel.cancel();
++        Err(EngineError::Decode {
++            format: "synthetic".into(),
++            message: "completed failure".into(),
++        })
++    });
++    assert!(
++        matches!(result,Err(EngineError::Decode{ref message,..}) if message=="completed failure")
++    );
++    clean(&pool);
++}
++
++// Break caught: output pairs incompatible sensor plane and metadata dimensions/layout.
++#[test]
++fn closed_result_requires_matching_sensor_dimensions_and_layout() {
++    for mismatch in ["size", "layout"] {
++        let root = tempfile::tempdir().unwrap();
++        let source = root.path().join("source.bin");
++        fs::write(&source, b"protocol").unwrap();
++        let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++        let result =
++            owner(&pool, &source).decode_cfa_with_for_test(&CancellationToken::new(), |_, _| {
++                let (image, mut metadata) = synthetic_output();
++                if mismatch == "size" {
++                    metadata.width = 3;
++                } else {
++                    metadata.cfa_layout = CfaLayout::Unsupported;
++                }
++                Ok((image, metadata))
++            });
++        assert!(
++            matches!(result, Err(EngineError::Decode { .. })),
++            "{mismatch}"
++        );
++        clean(&pool);
++    }
++}
++
++// Actual native boundaries, not fake drop instrumentation. Both named phases
++// follow successful calls; no claim of cancellation inside LibRaw open/unpack.
++#[test]
++#[ignore = "requires explicit Sony CFA fixture for native cancellation boundaries"]
++fn actual_native_success_boundaries_observe_cancellation_before_publication() {
++    let directory =
++        std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES").expect("fixture directory required");
++    for stop in [DecodePhase::Opened, DecodePhase::Decoded] {
++        let root = tempfile::tempdir().unwrap();
++        let source = root.path().join("copy.arw");
++        fs::copy(PathBuf::from(&directory).join("sony-arw.ARW"), &source).unwrap();
++        let n = fs::metadata(&source).unwrap().len();
++        let pool = CapturePool::create(
++            root.path(),
++            CaptureLimits {
++                max_asset_bytes: n,
++                max_staged_bytes: n,
++                max_live_captures: 1,
++            },
++        )
++        .unwrap();
++        let captured = owner(&pool, &source);
++        let token = CancellationToken::new();
++        let mut phases = Vec::new();
++        let result = captured.decode_cfa_with_phase_for_test(&token, |phase| {
++            phases.push(phase);
++            if phase == stop {
++                token.cancel();
++            }
++        });
++        assert!(matches!(result, Err(EngineError::Cancelled)));
++        assert_eq!(phases.last(), Some(&stop));
++        clean(&pool);
++    }
++}
++
++// Break caught: cleanup failure overrides cancellation after successful decoding.
++#[test]
++fn cancelled_decode_preserves_primary_error_when_unlink_fails() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"protocol").unwrap();
++    let calls = Arc::new(AtomicUsize::new(0));
++    let count = calls.clone();
++    let operations = TestOperations {
++        remove_file: Arc::new(move |path| {
++            if count.fetch_add(1, Ordering::SeqCst) == 0 {
++                Err(io::Error::other("cancel cleanup denied"))
++            } else {
++                fs::remove_file(path)
++            }
++        }),
++        ..TestOperations::default()
++    };
++    let diagnostics = operations.diagnostics.clone();
++    let pool = CapturePool::create_with_operations_for_test(root.path(), limits(64, 1), operations)
++        .unwrap();
++    let token = CancellationToken::new();
++    let captured = owner(&pool, &source);
++    let stage = captured.path_for_test().to_path_buf();
++    let result = captured.decode_cfa_with_for_test(&token, |_, cancel| {
++        cancel.cancel();
++        Ok(synthetic_output())
++    });
++    assert!(matches!(result, Err(EngineError::Cancelled)));
++    assert_eq!(pool.accounting_for_test(), (64, 1));
++    assert!(stage.exists());
++    assert_eq!(
++        diagnostics
++            .lock()
++            .unwrap()
++            .iter()
++            .filter(|d| d.contains("cancel cleanup denied"))
++            .count(),
++        1
++    );
++    assert_eq!(calls.load(Ordering::SeqCst), 1);
++    drop(pool);
++    assert_eq!(calls.load(Ordering::SeqCst), 2);
++    assert!(!stage.exists());
++}
+added in remote
+  their  100644 71707ed36fb6394356a79d319a2a31cec0fbb601 docs/superpowers/plans/2026-09-28-captured-cfa-decoder.md
+@@ -0,0 +1,89 @@
++# Closed Captured RAW Decoder Adapter Implementation Plan
++
++> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. No workers, implementation, compiler, decoder execution or GUI until root grants that scope/lane. This document is source-only planning.
++
++**Goal:** Consume an already verified CapturedRaw, retain its private stage through classification, LibRaw open/unpack and metadata extraction, and return only owned CFA samples/metadata plus captured identity.
++
++**Architecture:** Add one closed synchronous decoder method inside raw-decode::capture. It admits only the stored LibRawCfaV1 route, rejects recognized LinearRaw DNG before LibRaw, opens only the private staged filename, and destroys all native decoder handles before explicit stage cleanup. The returned concrete Rust type contains no path, stream, callback, decoder pointer or capture owner.
++
++**Tech Stack:** Existing Rust raw-decode, libraw-ffi/LibRaw0.22.2, engine-api CancellationToken and errors; no new dependency, archive or FFI binding.
++
++**Spec:** docs/coordination/LIVE-RAW-CAPTURE-POLICY.md; docs/coordination/LIVE-RAW-PINNED-SOURCE-PROPOSAL.md. Capture Tasks1–3 are already accepted at af5473d8 and root merged main1b073b0c/evidence1ad19650. Do not redo them.
++
++## Actual source findings
++
++1. `crates/raw-decode/src/lib.rs:179–232`: RawSource owns a PathBuf and live RawFile; open does not unpack. decode_cfa_u16 calls unpack, copies samples, validates plane, and returns CfaU16. Returning RawSource would be a lazy/path escape and is specifically unsuitable.
++2. `crates/libraw-ffi/src/lib.rs:63–91`: RawFile::open calls libraw_open_file with a Unix CString filename. Native handle remains live; unpack is a later synchronous native call. No read-buffer API is exposed. The private stage filename is therefore necessary internally, and must remain available through the whole native lifetime.
++3. `crates/libraw-ffi/src/lib.rs:93–115`: cfa_data copies native samples row-by-row into Vec<u16>. Metadata at147–194 copies strings, arrays and each opcode payload into owned Vecs (each native opcode <4MiB). RawFile Drop at196–199 closes native allocations/stream. Returned CfaU16 and RawMetadata contain no borrowed LibRaw references.
++4. `crates/raw-decode/src/lib.rs:235–260`: existing decode_cfa float path normalizes black/white and clamps to0..1.2. The smallest ownership adapter should use decode_cfa_u16, preserving packed sensor integers and metadata without adding a normalized/rendered-output policy. This is not a RawImage/image-core adapter.
++5. `crates/image-core/src/source.rs:57–75`: broad RawImage::open first opens a Rust File for LinearRaw classification, then may take an RGB path or separately open RawSource. Do NOT call it: it broadens the frozen CFA route, requires image identity, introduces dependency direction/render semantics, and can choose several filename-based backends.
++6. `crates/raw-decode/src/linear_dng.rs:21–58`: bounded Read+Seek classifier checks the first IFD; CFA DNG remains on LibRaw, recognized LinearRaw requires another decoder. Run this classifier on the captured readonly descriptor (not original). A positive LinearRaw result returns Unsupported for this route; classifier error returns Decode, without fallback. No generic RGB/ImageIO recognition is needed; LibRaw CFA validation rejects non-CFA output.
++7. `crates/raw-decode/src/lib.rs:193–206`: metadata reads dimensions/calibration from sensor_info. Call metadata after unpack, matching existing image-core ordering. Check decoded dimensions/layout agree with metadata; retain EXIF orientation unapplied, raw opcode bytes, black/white values, WB/matrices and crop verbatim. This is not proof calibration is usable for rendering.
++8. Current libraw-ffi::RawFile::open directly imports std::os::unix. Accepted capture likewise admits Unix and returns Unsupported elsewhere. No non-Unix decoder build/support claim follows; don't introduce a weaker pathname workaround.
++
++## Global constraints and explicit limitations
++
++- Original pathname is not stored by CapturedRaw and is never an adapter argument. All probes/metadata/unpack use the private stage or native handle opened from it. Replacing original A with B after capture cannot redirect this adapter.
++- Captured identity names the captured stream, which may be mixed under concurrent in-place source writes. It is not an atomic source snapshot. Decoding does not strengthen that guarantee or create atomic RAW+recipe capture.
++- CapturedRaw is held bytes; DecodedCapturedCfa is owned decoded output. Neither implies recipe/catalog identity, dependency binding, render admission, pixel reproducibility or persistent availability.
++- Capture byte quotas bound staged bytes, NOT decompressed memory or LibRaw RSS. Existing cfa_data reserves/copies width*height after native unpack; it has no caller allocation budget. This smallest ownership slice makes no decoder-memory bound claim. If a hard native/output allocation limit is required before enabling a caller, that is an additional reviewed libraw-ffi change, not satisfied by a post-allocation dimension check. LibRaw exposes rawparams.max_raw_memory_mb internally, but the Rust wrapper neither configures it nor offers a hard cross-decoder guarantee.
++- Cancellation is cooperative between classifier/open/unpack/metadata/copy phases. No native progress callback exists in wrapper; a request cannot interrupt libraw_open_file or libraw_unpack mid-call. Check cancellation immediately after each, before publishing output. No hard wall-time or preemptive-cancel claim. RawSource::decode_cfa_u16 combines native unpack and owned sample extraction; without modifying that API, there is no cancellation hook between those two operations. Test hooks must describe the actual before/after decode_cfa_u16 boundary, not claim an intermediate native callback.
++- No embedded-preview extraction, demosaic, float normalization, color transform, lens resolution, ICC, recipe, catalog, export, document node, public FFI or Swift change.
++- At each completed phase, preserve its error before checking cancellation; if the phase succeeded, cancellation wins before the next native action or output publication. Pre-cancellation prevents all probing. Cleanup never overrides an existing decoder/classifier/cancellation error.
++- Retain stage ownership on every success/error/panic path. Existing cleanup failure policy remains: return cleanup error on otherwise-successful decode; preserve primary decoder/cancel error and report secondary cleanup failure. Failed cleanup retains quarantine charge.
++
++## Proposed API and files
++
++```rust
++// In raw_decode::capture; fields are owned and safe to move after stage deletion.
++pub struct DecodedCapturedCfa {
++    pub image: crate::CfaU16,
++    pub metadata: crate::RawMetadata,
++    pub identity: CapturedAssetIdentity,
++    pub route: engine_api::pinned_raw::PinnedRawDecoderRoute,
++}
++impl CapturedRaw {
++    pub fn decode_cfa(self, cancel: &CancellationToken)
++        -> EngineResult<DecodedCapturedCfa>;
++}
++```
++
++The method name documents CFA route, and result image is explicitly CfaU16 (not normalized CfaImage). No generic callback, PathBuf, RawSource, RawFile, std::fs::File, reader, lazy iterator or CapturedRaw escapes in the result. Result identity is the previously verified captured identity; no claim that caller-supplied digest proves bytes. Route remains explicit even though only one enum variant is currently accepted.
++
++Owned file map (four files):
++- Modify `crates/raw-decode/src/capture.rs`: private child module + public result re-export; retain existing capture behavior. Existing private pool/cleanup ownership accessible to child.
++- Create `crates/raw-decode/src/capture/decode.rs`: concrete adapter and closed output type; no generic production consumer API.
++- Modify `crates/raw-decode/src/capture/tests.rs`: wire new test module.
++- Create `crates/raw-decode/src/capture/tests/decode.rs`: deterministic protocol/cleanup controls and explicit fixture qualification.
++No Cargo dependency, libraw-ffi implementation, image-core, bindings or global RawSource behavior change in this minimal proposal.
++
++## Task 1: Closed adapter and refusal/lifetime protocol
++
++- [ ] Prepare type/method and tests first, record compilation-only failures separately, then observe behavioral RED before implementation.
++- [ ] On entry, check cancel. Match stored route. Use existing readonly stage File for bounded LinearRaw classification. It may seek; decoder subsequently opens its own independent stage stream. Check cancellation after successful classification and before any native open. Positive LinearRaw -> Unsupported; malformed classifier -> Decode, no fallback.
++- [ ] In an inner function/block returning only owned `(CfaU16, RawMetadata)`, construct RawSource from `self.stage.path()`. Check cancel after open, call decode_cfa_u16, check cancel, extract post-unpack metadata, check cancel, validate dimension/layout consistency without inventing rendering allowlists. Ensure RawSource/native handle is dropped by leaving this inner scope before self.close runs.
++- [ ] Assemble DecodedCapturedCfa only after successful decode and cancellation checks. Explicitly clean stage with existing error-precedence semantics; on cleanup error discard otherwise-successful decoded output and return error. Handle cancelled/error branches through one finishing path rather than early-returning past secondary cleanup reporting. Panic still relies on ordinary unwind/RAII.
++- [ ] Private cfg(test) phase hooks may coordinate/cancel or report a chosen failure, but the output type remains concrete and production always calls the real decoder. Do not use a fake generic callback as evidence that real LibRaw decoded. Test-only fake decoder lifecycle can exercise destruction ordering separately, named as such.
++- [ ] Commit only after focused RED/GREEN and review; public API is unavailable until supported actual fixtures pass Task2.
++
++Deterministic contracts:
++1. Capture malformed synthetic bytes, invoke actual adapter -> Decode; stage removed/charge released and no original reopen. Capture a minimal LinearRaw DNG (reuse existing tests' valid TIFF construction) -> Unsupported before native CFA open; malformed classifier -> Decode. No fallback.
++2. Pre-cancelled owner -> Cancelled, no probe/native open; phase cancel after open/before decode_cfa_u16 and after decode_cfa_u16 (unpack plus sample copy) -> no returned output, decoder dropped before stage unlink. Use deterministic hooks/channels, not sleep-based timing claims.
++3. Inject decoder error while unlink fails -> primary Decode preserved, secondary diagnostic captured, retained stage/charge, bounded final retry. Otherwise-successful synthetic closed output plus unlink failure -> Io, no result published. These are protocol tests, not actual-pixel fidelity tests.
++4. Hold a test decoder at a named read phase; original replaced with B; all private stage probes still read A and stage/quota remain until decoder destruction. Assert drop-order using operation events: decoder-drop precedes remove-file. No test publishes a generic reader/path.
++5. Panic/error controls clean or quarantine the stage via existing RAII. Negative expected-identity capture yields no CapturedRaw and therefore cannot enter adapter (existing gate composition; don't claim it newly fails RED).
++
++## Task 2: Actual decoder qualification and owned-result proof
++
++- [ ] Use copies of existing read-only fixtures in an isolated temp directory. Do not change fixture originals. Capture A, rename/remove that COPY, replace its locator with invalid B, then call actual adapter. Compare against direct existing RawSource decode of A performed before replacement: exact u16 plane, width/height/layout, all RawMetadata fields (floats compare bit representations where needed), opcode payloads, capture identity and orientation.
++- [ ] Minimum representative positive CFA families: existing SonyARW, FujiRAF(XTrans), NikonNEF, CanonCR3, CFA DNG. Existing fixture loader supports these; log precisely which execute. Qualification test is explicitly ignored in ordinary suites; its dedicated --ignored gate requires the environment directory and all five named families, failing if absent. No silent early return or universal pass claim.
++- [ ] After adapter returns, assert stage and private pool directory disappear after owner/pool drop. Then read samples/metadata/opcode bytes from result and compute a checksum; proves output still usable after native handle/stage destruction. Verify original fixture hashes before/after. No full RGB render or external calibration result expected.
++- [ ] Normalized stored suffix + relocation `.bin` control: capture with original ARW route/suffix from a renamed synthetic fixture COPY, confirm real CFA decode independent of original locator spelling. The stage retains recorded `.arw`; LibRaw may inspect contents, but route selection does not change to RGB.
++- [ ] Run focused adapter, all capture tests, full raw-decode Release, affected libraw-ffi existing tests only if wrapper sources change (not planned), strict raw-decode all-targets and fmt. Preserve failing attempts, source manifests, direct exits, fixture hashes. Same explicit shared BetterSSD target/MACOSX15/jobs2. No concurrent GUI/GPU work.
++- [ ] Independent whole-change review before root merges; no implementer main merge. Scope acceptance is owned CFA output under held-byte identity only.
++
++## Feasibility recommendation
++
++Proceed with this raw-decode-only closed CFA-u16 adapter when root prioritizes it. Existing decoding already provides owned buffers; private filename retention solves the real delayed-unpack lifetime seam without exposing paths or pulling in image-core. The meaningful limitations are native decode memory/time and cancellation latency, Unix-only wrapper assumptions, unsupported LinearRaw/RGB routes, and absent recipe/render dependency admission. If the next product caller requires any of those broader guarantees, stop at this owned-output boundary and specify them separately rather than widening the adapter implicitly.
++
++Review clarification: fake decoder drop events test common owner protocol only. Actual RawFile::Drop -> libraw_close ordering must be source-reviewed in the real decoder inner scope; real fixture owned-output tests do not directly instrument native close.

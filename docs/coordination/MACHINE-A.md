@@ -1,3 +1,9 @@
+## Closed captured CFA decoder integrated
+
+Main95bfadcf integrates32d792c2 after independent8627Git-input and5fixture verification. Actual Sony/Fuji/Nikon/Canon/DNG decode passes after replacing only copied originals; owned sample/metadata survives stage/native cleanup.11 ordinary adapter tests,2 explicit actual cases, full71ordinary/2opt-ins separately executed,strict/fmt passed. Root exactfivefile/dependency comparison and portable manifest verification recorded. No rendering/recipe/FFI caller or native-memory bound claim.
+
+Inspector test correction source-approvedcd0b850d now owns serialized runtime for fresh combined/order/layout/full/strict gates. Original failure remains durable. Smart Preview baseline harnessc77e0543 source approved after three evidence fixes; no runtime/cache implementation yet.
+
 ## History gate diagnosis; source correction requested
 
 Combined1d361fa3 focused gate failed65 tests/22 assertions; remaining gates stopped. Exact-binary keyboard-alone15 passes. Plain AppKit diagnostic reproduces AXUnknown and false press return with actual action firing, plus visible readout value, so these direct API assertions do not establish a product accessibility defect. Hosted singleton cleanup is the leading explanation of order-dependent keyboard failures, not yet conclusively isolated. B source correction requestf8417c10 published and SSH queue01a0e9f5 accepted; peer receipt pending. No repeated queue or writer changes. Actual external AX/keyboard GUI acceptance remains required. Diagnostic lane released; all failures/probes retained.

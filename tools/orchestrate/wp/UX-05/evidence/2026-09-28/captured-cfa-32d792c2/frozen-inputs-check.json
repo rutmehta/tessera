@@ -1,0 +1,26 @@
+{
+  "01-red": {
+    "sources_equal": true,
+    "fixtures_equal": true
+  },
+  "02-green": {
+    "sources_equal": true,
+    "fixtures_equal": true
+  },
+  "03-five-family": {
+    "sources_equal": true,
+    "fixtures_equal": true
+  },
+  "04-full": {
+    "sources_equal": true,
+    "fixtures_equal": true
+  },
+  "05-strict": {
+    "sources_equal": true,
+    "fixtures_equal": true
+  },
+  "06-fmt": {
+    "sources_equal": true,
+    "fixtures_equal": true
+  }
+}
