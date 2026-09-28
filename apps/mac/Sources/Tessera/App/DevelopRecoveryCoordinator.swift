@@ -150,8 +150,9 @@ final class DevelopRecoveryCoordinator {
 
     @discardableResult
     func transferOpen(token: UUID, to sessionID: SessionID) -> Bool {
-        guard let produced = opens[token]?.produced,
-              let recipient = records[sessionID], recipient.controller === produced else { return false }
+        guard let ticket = opens[token], let produced = ticket.produced,
+              let recipient = records[sessionID], recipient.controller === produced,
+              recipient.key == ticket.key else { return false }
         opens[token]?.recipient = sessionID
         changed()
         return true
