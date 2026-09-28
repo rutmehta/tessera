@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Follow-on agents limited; B accepted destination work — 2026-09-28 15:25 UTC
+
+Descriptor implementation is complete and pushed mainbed7ff3f, with98 passing engine-api tests/strict/fmt and independent reviews. Completed-status Git message2c518614-f222-4e20-84ca-fdcb58ef25f1 is published; no receipt of that status is claimed.
+
+The next private-capture source-plan agent and Smart Preview feasibility agent both failed with an explicit Codex usage-limit response (reported retry Oct4,2026 3:54PM; timezone unspecified). Neither requested report exists. They are NOT running and no next implementation is accepted. Preserve completed work/evidence; resume these small source tasks once an agent can run, without blindly launching duplicate workers. Root completed only the Smart Preview source inventory in SMART-PREVIEW-STATUS.md: editable lightweight/offline proxies remain NOT IMPLEMENTED; JPEG display caches and reduced-level rendering are separate.
+
+New mailbox headBcbad4852 contains accepted receipt for existing destination request8638c362-1aef-4fda-9117-c5af79e50e92. B explicitly reports beginning bounded source-only Swift implementation on81cc08eb, tests-first/product separate, no builds/tests/apps/heartbeat. This is verified peer handling via Git, not proof of a new SSH queue delivery or completed product. No receipt ACK or duplicate request was sent. Takeover branch remainscd8445349; incoming messages/in_progress/invalid/expired are empty. A retains sole main merges; B source ownership and workload hold remain.
+
+
 ## Pinned descriptor accepted; Smart Preview status clarified — 2026-09-28 15:21 UTC
 
 A integrated exact source083018a9 after task review and fresh whole-branch Astra review cleared it. Full engine-api Release passed98 named tests (63unit+35integration, including20 descriptor tests),0fail/ignored,0doc tests. Strict Clippy and targeted formatting direct0. Root verified6809 tracked inputs and all five changed Git blobs; final aggregateabbedcb6e4b022a3b4d2b173bfb3772ddf69ed7f63377b296a56822b4bc38be2. Root verified114 portable payloads/219806bytes at tools/orchestrate/wp/UX-05/evidence/2026-09-28/pinned-raw-descriptor-083018a9/. Earlier failures and incomplete draft provenance remain explicit. Final merged crates/Cargo/.cargo content is byte-identical to tested candidate; intervening main changes were coordination/plan docs only.
