@@ -1,3 +1,9 @@
+## 2026-09-28 23:26 UTC — cache functional gates pass; focus trace preparation
+
+Cache candidate `adee078f` passes all 22 pure tests, all eight opt-in Engine groups and the affected native regression. FFI retains the exclusive runtime lane for strict/format completion and exact evidence freezing. No cache merge or speedup claim; actual frames, resource release and fixed-baseline performance remain separate gates.
+
+B trace `036749da` is independently source-approved; A is preparing it on qualified inspector `858147a3`, preserving failed hosted diagnostic `0e64a277` separately. Its accepted result remains pending runtime qualification. RAW admission `2b5f30f2` is independently source-approved with 20 unrun tests; the original 18 remain unchanged. Review corrected its initial geometry finding because descriptor construction already enforces neutrality; the added guard is defensive. No renderer is claimed. Mailbox poll has no new messages or invalid targets; accepted inspector results remain in progress because integrated GUI acceptance is incomplete.
+
 ## Actual cache source approved; functional qualification active
 
 Cache candidate `059a45d1` passed independent review of nine exact source hashes, validation ordering, full identity/device keys, bounds/expiry, backend creation and bypass/error behavior. All six original contract bodies remain unchanged. FFI owns the exclusive runtime lane for 22 pure tests, all eight opt-in Engine groups, full affected native regression and strict/format checks. No runtime GREEN, merge or performance claim yet.
