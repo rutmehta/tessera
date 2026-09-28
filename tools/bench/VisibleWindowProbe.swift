@@ -26,9 +26,12 @@ func snapshot(bundleID: String) -> [String: Any] {
     let applications = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
         .filter { !$0.isTerminated }
     let bundleApps: [[String: Any]] = applications.map { app in
-        ["pid": Int(app.processIdentifier),
+        let launchDate: Any
+        if let date = app.launchDate { launchDate = date.timeIntervalSince1970 } else { launchDate = NSNull() }
+        return ["pid": Int(app.processIdentifier),
          "bundle_url": app.bundleURL?.standardizedFileURL.path ?? "",
          "bundle_id": app.bundleIdentifier ?? "",
+         "launch_date": launchDate,
          "name": app.localizedName ?? ""]
     }
     let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -58,8 +61,9 @@ if args.count == 2, args[1] != "--terminate" {
     exit(0)
 }
 
-guard args.count == 5, args[1] == "--terminate", let pid = Int32(args[2]) else {
-    fputs("usage: VisibleWindowProbe <bundle-id> | --terminate <pid> <bundle-id> <bundle-url>\n", stderr)
+guard args.count == 6, args[1] == "--terminate", let pid = Int32(args[2]),
+      let expectedLaunchDate = Double(args[5]) else {
+    fputs("usage: VisibleWindowProbe <bundle-id> | --terminate <pid> <bundle-id> <bundle-url> <launch-date>\n", stderr)
     exit(2)
 }
 let bundleID = args[3]
@@ -67,11 +71,13 @@ let expectedURL = URL(fileURLWithPath: args[4]).standardizedFileURL.path
 guard let app = NSRunningApplication(processIdentifier: pid),
       !app.isTerminated,
       app.bundleIdentifier == bundleID,
-      app.bundleURL?.standardizedFileURL.path == expectedURL else {
-    fputs("refusing termination: PID, bundle ID, or bundle URL does not match the owned launch\n", stderr)
+      app.bundleURL?.standardizedFileURL.path == expectedURL,
+      app.launchDate?.timeIntervalSince1970 == expectedLaunchDate else {
+    fputs("refusing termination: PID, bundle ID, bundle URL, or launch date does not match the owned process\n", stderr)
     exit(3)
 }
 let requested = app.terminate()
 emit(["pid": Int(pid), "bundle_id": bundleID, "bundle_url": expectedURL,
+      "launch_date": expectedLaunchDate,
       "graceful_terminate_requested": requested])
 exit(requested ? 0 : 1)

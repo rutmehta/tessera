@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Visible-window P01 capability check; it never substitutes callback time for presentation."""
+"""Visible foreground corroboration for the P01 trace; not a benchmark interval."""
 import argparse
 import json
 import math
@@ -76,6 +76,19 @@ def validate_provenance(metadata, expected_commit):
         raise ValueError("visible capability requires a Release app")
 
 
+def validate_process_identity(application, expected):
+    """Pin one concrete launch; bundle identity or runner UUID alone is insufficient."""
+    launch_date = application.get("launch_date")
+    if (not isinstance(launch_date, (int, float)) or isinstance(launch_date, bool)
+            or not math.isfinite(launch_date) or launch_date <= 0):
+        raise ValueError("running test app has no valid launch date")
+    actual = {"pid": int(application["pid"]), "bundle_id": application.get("bundle_id"),
+              "bundle_url": application.get("bundle_url"), "launch_date": launch_date}
+    if expected is not None and actual != expected:
+        raise ValueError("test app process identity changed during the capability run")
+    return actual
+
+
 def _digest(path):
     import hashlib
     h = hashlib.sha256()
@@ -132,6 +145,7 @@ class RunArtifacts:
                       "pid": int(application["pid"]),
                       "bundle_id": self.bundle_id,
                       "bundle_url": application["bundle_url"],
+                      "launch_date": application["launch_date"],
                       "ownership_basis": reason}
         self.write_json("owned-app.json", self.owned)
 
@@ -147,7 +161,9 @@ class RunArtifacts:
                 return
             exact = [app for app in observation.get("bundle_apps", [])
                      if app.get("bundle_id") == self.bundle_id
-                     and app.get("bundle_url") and _same_path(app["bundle_url"], self.app)]
+                     and app.get("bundle_url") and _same_path(app["bundle_url"], self.app)
+                     and isinstance(app.get("launch_date"), (int, float))
+                     and math.isfinite(app["launch_date"]) and app["launch_date"] > 0]
             if len(exact) == 1 and len(observation.get("bundle_apps", [])) == 1:
                 self.record_owned(exact[0], "unique bundle absent before launch; exact app URL appeared after this run's open request")
                 return
@@ -167,21 +183,24 @@ class RunArtifacts:
             matches = [app for app in before.get("bundle_apps", [])
                        if int(app["pid"]) == self.owned["pid"]
                        and app.get("bundle_id") == self.bundle_id
-                       and app.get("bundle_url") == self.owned["bundle_url"]]
+                       and app.get("bundle_url") == self.owned["bundle_url"]
+                       and app.get("launch_date") == self.owned["launch_date"]]
             if not matches:
                 cleanup["graceful_terminate_attempted"] = False
                 cleanup["process_already_exited_or_identity_changed"] = True
                 self.write_json("cleanup.json", cleanup)
                 return
             command = [str(self.probe), "--terminate", str(self.owned["pid"]),
-                       self.bundle_id, self.owned["bundle_url"]]
+                       self.bundle_id, self.owned["bundle_url"], str(self.owned["launch_date"])]
             response = subprocess.run(command, check=True, capture_output=True, text=True, timeout=5)
             cleanup["terminate_response"] = json.loads(response.stdout)
             deadline = time.monotonic() + 5
             while time.monotonic() < deadline:
                 observation = _run_probe(self.probe, self.bundle_id, timeout=3)
                 still_running = any(int(app["pid"]) == self.owned["pid"]
+                                    and app.get("bundle_id") == self.bundle_id
                                     and app.get("bundle_url") == self.owned["bundle_url"]
+                                    and app.get("launch_date") == self.owned["launch_date"]
                                     for app in observation.get("bundle_apps", []))
                 if not still_running:
                     cleanup["process_exited"] = True
@@ -263,13 +282,15 @@ def main():
         context.launch_attempted = True
         subprocess.run(launch, check=True, timeout=15)
         test_pid = None
+        pinned_identity = None
         foreground_seen = False
         window_seen = False
         first_pid_time = None
         observations = []
         deadline = time.monotonic() + 180
+        receipt_path = trace_path.with_suffix(trace_path.suffix + ".window.json")
         with observation_path.open("w") as stream:
-            while time.monotonic() < deadline and not trace_path.exists():
+            while time.monotonic() < deadline and not trace_path.is_file():
                 observation = _run_probe(probe, args.expected_bundle_id, timeout=5)
                 elapsed = 0 if first_pid_time is None else time.monotonic() - first_pid_time
                 record = {"elapsed_since_first_pid_seconds": elapsed, "observation": observation}
@@ -284,10 +305,14 @@ def main():
                     launched_app = applications[0]
                     if not launched_app.get("bundle_url") or not _same_path(launched_app["bundle_url"], app):
                         raise ValueError("running bundle URL differs from the verified test app")
-                    test_pid = int(launched_app["pid"])
+                    observed_identity = validate_process_identity(launched_app, pinned_identity)
+                    if observed_identity["bundle_id"] != args.expected_bundle_id:
+                        raise ValueError("running app bundle identifier differs from the verified test app")
                     if context.owned is None:
                         context.record_owned(launched_app,
                                              "bundle absent at preflight; exact bundle ID and app URL observed after this run's launch")
+                        pinned_identity = observed_identity
+                        test_pid = pinned_identity["pid"]
                         first_pid_time = time.monotonic()
                         elapsed = 0
                     foreground_seen, window_seen, _ = validate_visibility_sample(
@@ -295,9 +320,15 @@ def main():
                 elif test_pid is not None and not trace_path.exists():
                     raise ValueError("test app exited before writing its trace")
                 time.sleep(.25)
-        receipt_path = trace_path.with_suffix(trace_path.suffix + ".window.json")
-        if not trace_path.is_file() or not receipt_path.is_file():
-            raise ValueError("timed out without trace and regular-window receipt")
+        if not trace_path.is_file():
+            raise ValueError("timed out without the self-test trace")
+        # The app writes the receipt synchronously before atomically publishing its trace.
+        # Still wait boundedly for both artifacts so an interrupted filesystem write is explicit.
+        receipt_deadline = time.monotonic() + 5
+        while time.monotonic() < receipt_deadline and not receipt_path.is_file():
+            time.sleep(.05)
+        if not receipt_path.is_file():
+            raise ValueError("trace was published without its preceding regular-window receipt")
         receipt = json.loads(receipt_path.read_text())
         if test_pid is None or receipt.get("processID") != test_pid:
             raise ValueError("window receipt process does not match the observed app instance")
@@ -326,11 +357,13 @@ def main():
                                        ("commit", "configuration", "source_sha256", "archive_sha256", "bindings")},
                         "launch_id": launch_id, "bundle_id": args.expected_bundle_id,
                         "bundle_url": str(app), "process_id": test_pid,
+                        "process_launch_date": pinned_identity["launch_date"],
                         "window_number": target["window_id"], "window_receipt": receipt,
                         "foreground_observations": len(observations),
                         "foreground_samples_for_test_app": len(foreground_samples),
                         "foreground_seen": foreground_seen, "visible_window_seen": window_seen,
                         "visibility_limit": "Window-server ordering/overlap and NSWindow occlusion state are evidence of a visible frontmost window, not a pixel-perfect guarantee that every pixel was unobscured.",
+                        "measurement_limit": "Foreground samples corroborate the isolated self-test; they do not bound the P01 measured interval because the self-test starts before sampling begins.",
                         "grid_appeared": any(e.get("name") == "grid_appeared" for e in trace.get("events", [])),
                         "selftest_complete": any(e.get("name") == "selftest_complete" for e in trace.get("events", []))})
         if not summary["grid_appeared"] or not summary["selftest_complete"]:

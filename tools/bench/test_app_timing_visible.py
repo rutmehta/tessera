@@ -58,6 +58,20 @@ class VisibleTimingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Release"):
             visible.validate_provenance({"commit": "abc123", "configuration": "debug"}, "abc123")
 
+    def test_process_identity_includes_one_concrete_launch(self):
+        identity = {"pid": 42, "bundle_id": "dev.tessera.test", "bundle_url": "/tmp/Test.app",
+                    "launch_date": 1_800_000_000.0}
+        self.assertEqual(visible.validate_process_identity(identity, None), identity)
+        replacement = {**identity, "pid": 43}
+        with self.assertRaisesRegex(ValueError, "identity changed"):
+            visible.validate_process_identity(replacement, identity)
+        reused_pid = {**identity, "launch_date": 1_800_000_001.0}
+        with self.assertRaisesRegex(ValueError, "identity changed"):
+            visible.validate_process_identity(reused_pid, identity)
+        missing_date = {key: value for key, value in identity.items() if key != "launch_date"}
+        with self.assertRaisesRegex(ValueError, "launch date"):
+            visible.validate_process_identity(missing_date, None)
+
     def test_foreground_window_requires_no_reported_foreign_occluder(self):
         target = {"owner_pid": 42, "window_id": 7, "layer": 0, "onscreen": True,
                   "bounds": {"x": 0, "y": 0, "width": 100, "height": 100}, "alpha": 1}
