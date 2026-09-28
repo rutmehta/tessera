@@ -1,3 +1,9 @@
+## Actual cache source approved; functional qualification active
+
+Cache candidate `059a45d1` passed independent review of nine exact source hashes, validation ordering, full identity/device keys, bounds/expiry, backend creation and bypass/error behavior. All six original contract bodies remain unchanged. FFI owns the exclusive runtime lane for 22 pure tests, all eight opt-in Engine groups, full affected native regression and strict/format checks. No runtime GREEN, merge or performance claim yet.
+
+RAW admission scaffold `b950941e` compiled and ran 18 synthetic tests: one existing descriptor control passed and 17 failed at Unsupported. Later table rows were not reached. Source/executable freezes passed; independent evidence review is active before pure predicate/arithmetic implementation. No renderer exists. B has accepted trace implementation request `7bd5595f`; this is verified peer receipt, not merely queue acceptance. B remains source-only.
+
 ## Final instrumentation stage under review; actual focus trace implementation requested
 
 FFI reports exact `e4f573d2`: compile, uncached CPU/Metal control, strict and formatting pass. The unchanged six original contracts execute with one existing cold-validation control pass and five failures at missing initial decision publication (entries 0 versus 1), after backend and measurement assertions. Cache is still absent and later reuse assertions remain latent. Earlier instrumentation and formatting failures are preserved. Runtime is released; independent immutable-source review is active before cache implementation.
