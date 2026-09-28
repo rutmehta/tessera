@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Evidence published; independent HDR control underway — 2026-09-28 08:50 UTC
+
+Native destination/FFI portable evidence is main `23f49958`; root verified all 52 payload hashes before importing. Resource released its compiler lane. B request8638c362 still has no receipt; default SSH reported Host down and a separate read-only IPv6 probe timed out. No queue message was accepted. Preserve B's reserved source scope until actual delivery/receipt or explicit reassignment.
+
+Reviewer Sol now owns the sole heavy/native lane for the bounded EXP-45 independent reference diagnostic in EXP45-INDEPENDENT-CONTROL-PLAN.md. Pin libultrahdr source, generate tiny 4×/16× controls, qualify actual ISO/MPF and >8 pixel output independently, then compare on this A host. Original four-stop ImageIO 7.98376226 versus16 failure remains unchanged. No normal preview modification, encoder edit, B workload or acceptance waiver.
+
 ## Native destination gate passed; B transport unavailable — 2026-09-28 08:44 UTC
 
 Native candidate 75a1b9a6 passed 11 selected tests (4 commit, 5 session, native roundtrip, PSD/PSB roundtrip), formatting and strict Clippy. Root verified seven frozen input hashes against Git. Diagnostic observed actual macOS directory `DestinationExists`; test-only 2a22145b tightened that assertion and passed focused/fmt/strict. FFI generation direct0 produced checkpoint 81cc08eb and arm64 archive `f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80`; root verified source-before/after and generated names/hashes. Accepted archive 4a45 remains separate. Portable evidence packaging is in progress; this is not Swift/UI product acceptance.
