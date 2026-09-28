@@ -34,6 +34,153 @@ def validate_trace(trace):
     return summary
 
 
+def _finite_timestamp(value, label):
+    if (not isinstance(value, (int, float)) or isinstance(value, bool)
+            or not math.isfinite(value) or value <= 0):
+        raise ValueError(f"{label} has a missing, non-finite, or non-positive timestamp")
+    return float(value)
+
+
+def validate_qualified_interval(trace, ready, permit, samples, identity, expected_nonce,
+                                minimum_inputs=100, max_sample_gap=0.250):
+    """Validate a nonce-bound, same-process/window/session P01 measurement interval.
+
+    This is deliberately stricter than the legacy background trace summary. It rejects
+    ambiguous event identities instead of relying on dict overwrite/first-event behavior.
+    """
+    if trace.get("dropped") != 0:
+        raise ValueError("trace dropped records")
+    required = {"nonce": expected_nonce, **identity}
+    for label, record in (("ready", ready), ("start permit", permit)):
+        for key, expected in required.items():
+            if record.get(key) != expected:
+                raise ValueError(f"{label} {key} identity does not match the qualified run")
+        _finite_timestamp(record.get("time"), f"{label} record")
+    ready_time = float(ready["time"])
+    permit_time = float(permit["time"])
+    if permit_time < ready_time:
+        raise ValueError("start permit predates app readiness")
+
+    events = trace.get("events", [])
+    markers = {}
+    for name in ("measurement_start", "input_sequence_complete", "measurement_end"):
+        matches = [event for event in events if event.get("name") == name]
+        if len(matches) != 1:
+            raise ValueError(f"expected exactly one {name} marker")
+        marker = matches[0]
+        if marker.get("session") != identity["session"]:
+            raise ValueError(f"{name} marker has the wrong session identity")
+        markers[name] = _finite_timestamp(marker.get("time"), name)
+    start, sequence_done, end = (markers["measurement_start"],
+                                 markers["input_sequence_complete"],
+                                 markers["measurement_end"])
+    if not (permit_time <= start < sequence_done <= end):
+        raise ValueError("measurement markers are out of order or outside the permitted interval")
+
+    input_events = [event for event in events if event.get("name") == "input"
+                    and event.get("session") == identity["session"]
+                    and start <= _finite_timestamp(event.get("time"), "input event") <= end]
+    inputs = {}
+    for event in input_events:
+        input_id = event.get("input")
+        if not isinstance(input_id, int) or isinstance(input_id, bool):
+            raise ValueError("in-interval input has no valid input identity")
+        if input_id in inputs:
+            raise ValueError("duplicate in-interval input identity")
+        inputs[input_id] = event
+
+    final_input = markers.get("input_sequence_complete")
+    sequence_marker = next(event for event in events if event.get("name") == "input_sequence_complete")
+    final_input = sequence_marker.get("input")
+    if final_input not in inputs:
+        raise ValueError("final input is absent from the measured interval")
+    if len(inputs) != 121:
+        raise ValueError(f"the fixed input sequence must contain exactly 121 unique inputs; found {len(inputs)}")
+    ordered_ids = sorted(inputs)
+    if ordered_ids != list(range(ordered_ids[0], ordered_ids[0] + 121)) or final_input != ordered_ids[-1]:
+        raise ValueError("the fixed input sequence is not 121 consecutive inputs ending at the final input")
+    if sequence_done < _finite_timestamp(inputs[final_input].get("time"), "final input"):
+        raise ValueError("input sequence completion predates the final input")
+    ordered_input_times = [_finite_timestamp(inputs[input_id].get("time"), "input event")
+                           for input_id in ordered_ids]
+    if any(value > sequence_done for value in ordered_input_times) or ordered_input_times != sorted(ordered_input_times):
+        raise ValueError("input events are out of order or occur after the fixed sequence completes")
+
+    chain_count = 0
+    final_presented = False
+    input_to_present_ms = []
+    for input_id, input_event in inputs.items():
+        input_time = _finite_timestamp(input_event.get("time"), "input event")
+        dequeues = [event for event in events if event.get("name") == "job_dequeue"
+                    and event.get("session") == identity["session"] and event.get("input") == input_id]
+        callbacks = [event for event in events if event.get("name") == "callback_enqueue"
+                     and event.get("session") == identity["session"] and event.get("input") == input_id]
+        valid_presentations = []
+        for dequeue in dequeues:
+            dequeue_time = _finite_timestamp(dequeue.get("time"), "job dequeue")
+            if not start <= input_time <= dequeue_time <= end:
+                continue
+            frame_key = (dequeue.get("generation"), dequeue.get("level"))
+            if (not isinstance(frame_key[0], int) or isinstance(frame_key[0], bool)
+                    or not isinstance(frame_key[1], int) or isinstance(frame_key[1], bool)):
+                continue
+            matching_callbacks = [event for event in callbacks
+                                  if (event.get("generation"), event.get("level")) == frame_key]
+            if not matching_callbacks:
+                continue
+            for callback in matching_callbacks:
+                callback_time = _finite_timestamp(callback.get("time"), "callback enqueue")
+                if callback.get("residency") not in ("resident", "fallback") or not dequeue_time <= callback_time <= end:
+                    continue
+                matching_presentations = [event for event in events if event.get("name") == "drawable_presented"
+                                          and event.get("session") == identity["session"]
+                                          and event.get("input") == input_id
+                                          and (event.get("generation"), event.get("level")) == frame_key]
+                for presented in matching_presentations:
+                    present_time = _finite_timestamp(presented.get("time"), "actual presentation")
+                    if callback_time <= present_time <= end:
+                        valid_presentations.append((present_time, callback, dequeue, presented))
+        if valid_presentations:
+            # One input may refine through several frame generations. Count its earliest
+            # positive actual presentation, matching the legacy analyzer's one-input rule.
+            chain_count += 1
+            earliest_presentation = min(valid_presentations, key=lambda chain: chain[0])[0]
+            input_to_present_ms.append((earliest_presentation - input_time) * 1000)
+            if input_id == final_input:
+                final_presented = True
+    if not final_presented:
+        raise ValueError("final input lacks an actual presentation inside the measurement end")
+    if chain_count < minimum_inputs:
+        raise ValueError(f"fewer than {minimum_inputs} complete causal presentations inside the interval")
+
+    samples = sorted(samples, key=lambda sample: _finite_timestamp(sample.get("time"), "visibility sample"))
+    bracketing = [sample for sample in samples if start <= float(sample["time"]) <= end]
+    before = [sample for sample in samples if float(sample["time"]) < start]
+    after = [sample for sample in samples if float(sample["time"]) > end]
+    if not before or not after or not bracketing:
+        raise ValueError("visibility samples do not bracket the full measurement interval")
+    relevant = [before[-1], *bracketing, after[0]]
+    max_gap = 0.0
+    for index, sample in enumerate(relevant):
+        if sample.get("pid") != identity["pid"] or sample.get("window_number") != identity["window_number"]:
+            raise ValueError("visibility sample process/window identity changed")
+        if sample.get("frontmost") is not True or sample.get("visible") is not True:
+            raise ValueError("visibility sample did not confirm foreground visible window")
+        if index:
+            gap = float(sample["time"]) - float(relevant[index - 1]["time"])
+            max_gap = max(max_gap, gap)
+            if gap <= 0 or gap > max_sample_gap:
+                raise ValueError("visibility sampling gap exceeds the qualified maximum")
+    return {"measurement_start": start, "measurement_end": end,
+            "causal_presentations": chain_count, "in_interval_inputs": len(inputs),
+            "final_input": final_input, "visibility_samples": len(bracketing),
+            "maximum_observed_sample_gap_seconds": max_gap,
+            "input_to_present_ms": input_to_present_ms,
+            "input_to_present_p50_ms": app_timing.percentile(input_to_present_ms, .5),
+            "input_to_present_p95_ms": app_timing.percentile(input_to_present_ms, .95),
+            "qualified_interval": True}
+
+
 def _intersects(a, b):
     return (a["x"] < b["x"] + b["width"] and a["x"] + a["width"] > b["x"]
             and a["y"] < b["y"] + b["height"] and a["y"] + a["height"] > b["y"])

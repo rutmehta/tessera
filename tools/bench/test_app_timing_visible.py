@@ -15,10 +15,10 @@ def causal_trace(count=100):
     events = []
     for index in range(count):
         base = 10.0 + index
-        common = {"session": "session-a", "input": index + 1, "generation": index + 1,
-                  "level": 0, "residency": "resident"}
+        common = {"session": "session-a", "input": index + 1,
+                  "generation": index + 1, "level": 0, "residency": "resident"}
         events.extend([
-            {"name": "input", "time": base, **common},
+            {"name": "input", "time": base, "session": "session-a", "input": index + 1},
             {"name": "job_dequeue", "time": base + 0.1, **common},
             {"name": "callback_enqueue", "time": base + 0.2, **common},
             {"name": "drawable_presented", "time": base + 0.3, **common},
@@ -26,7 +26,167 @@ def causal_trace(count=100):
     return {"events": events, "dropped": 0}
 
 
+def visibility_samples(start, end, pid=42, window=7):
+    first = start - .05
+    samples = []
+    current = first
+    while current <= end + .05:
+        samples.append({"time": round(current, 6), "pid": pid, "window_number": window,
+                        "frontmost": True, "visible": True})
+        current += .05
+    samples.append({"time": round(end + .05, 6), "pid": pid, "window_number": window,
+                    "frontmost": True, "visible": True})
+    return samples
+
+
 class VisibleTimingTests(unittest.TestCase):
+    def test_qualified_interval_counts_only_complete_chains_inside_one_bound_identity(self):
+        trace = causal_trace(121)
+        trace["events"].extend([
+            {"name": "measurement_start", "time": 9.0, "session": "session-a"},
+            {"name": "input_sequence_complete", "time": 131.4, "session": "session-a", "input": 121},
+            {"name": "measurement_end", "time": 132.0, "session": "session-a"},
+        ])
+        ready = {"nonce": "n-1", "pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7,
+                 "session": "session-a", "time": 8.0}
+        permit = {**ready, "time": 8.8}
+        samples = visibility_samples(9.0, 132.0)
+        result = visible.validate_qualified_interval(
+            trace, ready, permit, samples,
+            {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7,
+             "session": "session-a"}, "n-1")
+        self.assertEqual(result["causal_presentations"], 121)
+        self.assertEqual(result["final_input"], 121)
+
+    def test_qualified_interval_rejects_insufficient_or_incomplete_final_drain(self):
+        trace = causal_trace(121)
+        trace["events"].extend([
+            {"name": "measurement_start", "time": 9.0, "session": "session-a"},
+            {"name": "input_sequence_complete", "time": 131.0, "session": "session-a", "input": 121},
+            {"name": "measurement_end", "time": 131.2, "session": "session-a"},
+        ])
+        ready = {"nonce": "n-1", "pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7,
+                 "session": "session-a", "time": 8.0}
+        samples = visibility_samples(9.0, 131.2)
+        events = trace["events"]
+        trace["events"] = [e for e in events if not (e["name"] == "job_dequeue" and e.get("input") in range(1, 23))]
+        with self.assertRaisesRegex(ValueError, "fewer than 100"):
+            visible.validate_qualified_interval(trace, ready, {**ready, "time": 8.8}, samples,
+                {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}, "n-1")
+        trace["events"] = events
+        trace["events"] = [e for e in events if not (e["name"] == "drawable_presented" and e.get("input") == 121)]
+        with self.assertRaisesRegex(ValueError, "final input"):
+            visible.validate_qualified_interval(trace, ready, {**ready, "time": 8.8}, samples,
+                {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}, "n-1")
+
+        trace["events"] = [e for e in events if not (e["name"] == "drawable_presented" and e.get("input") == 121)] + [{"name": "drawable_presented", "time": 131.3,
+            "session": "session-a", "input": 121, "generation": 121, "level": 0, "residency": "resident"}]
+        with self.assertRaisesRegex(ValueError, "final input"):
+            visible.validate_qualified_interval(trace, ready, {**ready, "time": 8.8}, samples,
+                {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}, "n-1")
+
+    def test_qualified_join_uses_real_input_schema_and_handles_frame_refinement(self):
+        trace = causal_trace(121)
+        frame = {"session": "session-a", "input": 1, "generation": 122, "level": 1,
+                 "residency": "resident"}
+        trace["events"].extend([
+            {"name": "job_dequeue", "time": 10.11, **frame},
+            {"name": "callback_enqueue", "time": 10.12, **frame},
+            {"name": "drawable_presented", "time": 10.13, **frame},
+            {"name": "drawable_presented", "time": 10.14, **frame},
+            {"name": "measurement_start", "time": 9.0, "session": "session-a"},
+            {"name": "input_sequence_complete", "time": 131.0, "session": "session-a", "input": 121},
+            {"name": "measurement_end", "time": 131.2, "session": "session-a"},
+        ])
+        ready = {"nonce": "n-1", "pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7,
+                 "session": "session-a", "time": 8.0}
+        result = visible.validate_qualified_interval(trace, ready, {**ready, "time": 8.8},
+            visibility_samples(9.0, 131.2),
+            {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}, "n-1")
+        self.assertEqual(result["causal_presentations"], 121)
+        wrong_input = dict(trace)
+        wrong_input["events"] = [dict(event) for event in trace["events"]]
+        wrong_input["events"] = [event for event in wrong_input["events"]
+            if not (event.get("name") in ("job_dequeue", "callback_enqueue", "drawable_presented")
+                    and event.get("input") in range(1, 24) and event.get("generation") != 122)]
+        next(event for event in wrong_input["events"] if event.get("name") == "drawable_presented"
+             and event.get("generation") == 122)["input"] = 999
+        with self.assertRaisesRegex(ValueError, "fewer than 100"):
+            visible.validate_qualified_interval(wrong_input, ready, {**ready, "time": 8.8},
+                visibility_samples(9.0, 131.2),
+                {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}, "n-1")
+
+    def test_qualified_metrics_ignore_startup_and_other_sessions(self):
+        trace = causal_trace(121)
+        trace["events"].extend([
+            {"name": "input", "time": 2.0, "session": "session-a", "input": 999},
+            {"name": "job_dequeue", "time": 2.1, "session": "session-a", "input": 999,
+             "generation": 999, "level": 0},
+            {"name": "callback_enqueue", "time": 2.2, "session": "session-a", "input": 999,
+             "generation": 999, "level": 0, "residency": "resident"},
+            {"name": "drawable_presented", "time": 120.0, "session": "session-a", "input": 999,
+             "generation": 999, "level": 0},
+            {"name": "input", "time": 2.0, "session": "other-session", "input": 1},
+            {"name": "job_dequeue", "time": 2.1, "session": "other-session", "input": 1,
+             "generation": 1, "level": 0},
+            {"name": "callback_enqueue", "time": 2.2, "session": "other-session", "input": 1,
+             "generation": 1, "level": 0, "residency": "resident"},
+            {"name": "drawable_presented", "time": 120.0, "session": "other-session", "input": 1,
+             "generation": 1, "level": 0},
+            {"name": "measurement_start", "time": 9.0, "session": "session-a"},
+            {"name": "input_sequence_complete", "time": 131.0, "session": "session-a", "input": 121},
+            {"name": "measurement_end", "time": 131.2, "session": "session-a"},
+        ])
+        ready = {"nonce": "n-1", "pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7,
+                 "session": "session-a", "time": 8.0}
+        result = visible.validate_qualified_interval(trace, ready, {**ready, "time": 8.8},
+            visibility_samples(9.0, 131.2),
+            {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}, "n-1")
+        self.assertEqual(result["causal_presentations"], 121)
+        self.assertEqual(len(result["input_to_present_ms"]), 121)
+        self.assertLess(result["input_to_present_p95_ms"], 1000)
+
+    def test_qualified_interval_rejects_duplicate_markers_and_dropped_records(self):
+        trace = causal_trace(121)
+        trace["events"].extend([
+            {"name": "measurement_start", "time": 9.0, "session": "session-a"},
+            {"name": "input_sequence_complete", "time": 131.0, "session": "session-a", "input": 121},
+            {"name": "measurement_end", "time": 131.2, "session": "session-a"},
+        ])
+        ready = {"nonce": "n-1", "pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7,
+                 "session": "session-a", "time": 8.0}
+        args = (trace, ready, {**ready, "time": 8.8}, visibility_samples(9.0, 131.2),
+                {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}, "n-1")
+        trace["events"].append({"name": "measurement_start", "time": 9.1, "session": "session-a"})
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            visible.validate_qualified_interval(*args)
+        trace["events"].pop()
+        trace["dropped"] = 1
+        with self.assertRaisesRegex(ValueError, "dropped"):
+            visible.validate_qualified_interval(*args)
+
+    def test_qualified_interval_rejects_stale_identity_and_bad_visibility_sampling(self):
+        trace = causal_trace(121)
+        trace["events"].extend([
+            {"name": "measurement_start", "time": 9.0, "session": "session-a"},
+            {"name": "input_sequence_complete", "time": 131.0, "session": "session-a", "input": 121},
+            {"name": "measurement_end", "time": 131.2, "session": "session-a"},
+        ])
+        ready = {"nonce": "n-1", "pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7,
+                 "session": "session-a", "time": 8.0}
+        samples = visibility_samples(9.0, 131.2)
+        identity = {"pid": 42, "bundle_id": "dev.tessera.test", "window_number": 7, "session": "session-a"}
+        args = (trace, ready, {**ready, "time": 8.8}, samples, identity)
+        with self.assertRaisesRegex(ValueError, "nonce"):
+            visible.validate_qualified_interval(*args, expected_nonce="stale")
+        with self.assertRaisesRegex(ValueError, "sampling gap"):
+            visible.validate_qualified_interval(trace, ready, {**ready, "time": 8.8},
+                [samples[0], samples[1], samples[-1]], identity, "n-1")
+        dense = visibility_samples(9.0, 131.2)
+        dense[1]["pid"] = 43
+        with self.assertRaisesRegex(ValueError, "identity"):
+            visible.validate_qualified_interval(trace, ready, {**ready, "time": 8.8}, dense, identity, "n-1")
+
     def test_launch_redirection_targets_exist_before_launch(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
