@@ -18,8 +18,18 @@ TESTS = {
     'channels': (900, ['--new-document', 'ENV:TESSERA_CHANNELS_SELFTEST=@OUT@', 'ENV:TESSERA_CHANNELS_SELFTEST_HOLD=0.3']),
     'text': (1500, ['--new-document', 'ENV:TESSERA_TEXT_SELFTEST=@OUT@']),
     'vector': (1800, ['--new-document', '--vector-selftest=@OUT@']),
-    'transform': (1800, ['--new-document', '--transform-selftest=@OUT@']),
+    # Transform opens its own card. A delayed --new-document startup can replace
+    # that selection with an empty 2400x1600 document while the test awaits a view.
+    'transform': (1800, ['--transform-selftest=@OUT@']),
 }
+
+
+def enforce_resource_hold():
+    # Existing Machine B admission policy, established in 131af17d. Presence is
+    # authoritative; no alternate marker, JSON interpretation or override flag.
+    hold = Path.home() / '.local/state/tessera-resource-hold.json'
+    if hold.exists():
+        raise RuntimeError(f'Tessera workload hold is active: {hold}. Resolve the resource audit before launching app tests.')
 
 
 def validate_log(text, prefix, returncode, timed_out=False):
@@ -69,6 +79,7 @@ def capture_steps(text, prefix, output, evidence, seen):
 
 
 def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
+    enforce_resource_hold()
     prefix = name + '-selftest'
     folder = scratch / name
     folder.mkdir()
@@ -94,6 +105,7 @@ def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
     # --nonactivating requests accessory launch; individual app self-tests may still
     # raise windows. Use only an authorized isolated desktop validation session.
     with log.open('w') as stderr, (evidence / 'stdout.log').open('w') as stdout:
+        enforce_resource_hold()  # Recheck after fixture staging, before the child.
         child = subprocess.Popen([str(binary), '--nonactivating', '--app-dir', str(folder / 'app'),
                                   '--folder', str(folder / 'folder'), *args],
                                  env=environment, stdout=stdout, stderr=stderr)
@@ -119,6 +131,10 @@ def main(argv=None):
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
     parser.add_argument('tests', nargs='*', choices=list(TESTS))
     args = parser.parse_args(argv)
+    try:
+        enforce_resource_hold()
+    except RuntimeError as error:
+        parser.error(str(error))
     root = args.root.resolve()
     binary = root / 'apps/mac/build/Tessera.app/Contents/MacOS/Tessera'
     if not binary.is_file():
@@ -132,6 +148,10 @@ def main(argv=None):
     evidence = Path(os.environ.get('EV', str(root / 'tools/orchestrate/wp/B5-16/evidence/selftests'))) / scratch.name
     failed = False
     for name in args.tests or TESTS:
+        try:
+            enforce_resource_hold()  # A hold raised between cases stops the suite.
+        except RuntimeError as error:
+            parser.error(str(error))
         timeout, arguments = TESTS[name]
         errors = run_test(binary, name, arguments, timeout, scratch, evidence / name, fixtures)
         print(f'[{name}] {"FAIL" if errors else "PASS"}: {evidence / name}', flush=True)
