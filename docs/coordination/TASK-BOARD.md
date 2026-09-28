@@ -1,5 +1,17 @@
 # Tessera task board — Machine A coordinator
 
+## Current blockers and active lanes — 2026-09-28 05:39 UTC
+
+| Lane | Owner | Verified outcome / next action |
+| --- | --- | --- |
+| Recovery Layers handoff | Luna tests; reviewer Sol product; B Document API | `f24534ca` passed 56 focused but full Release FAILED 589 XCTest/1 skip/2 assertions in one Layers cancellation case; five Swift Testing passed. Evidence on main `de30e940`, 27 payloads verified (packaging correction documented). Explicit selection/library navigation invalidation `4e7b28f0` + `4dea6e77` is UNRUN. Three held-close/backend regressions being frozen for a bounded RED check. |
+| Layers mode/status ownership | B source author; A review/test | Internal Document install assigns Document mode while the recipe-read reservation is active, overwriting newer status through rejected navigation. Explicit default-true activation option requested as `90f54b3e-453e-4cf5-9e63-0741aeb11e2c`; SSH queue `01a0e685-9e8c-7ec1-9687-d4deca2b4c6e` accepted, peer receipt pending. A will opt in false and publish mode only after matching completion. |
+| Save As choosing-sheet cancellation | B source; A isolated candidate | Passed 2a94 evidence on main `096c805c`, 22 portable payloads and 12 inputs verified. Product still held. B correction `2cc48419` integrated trace-free as `51de5e8e` with tests `2b902627`/`a1d23830`, UNRUN. Claimed-but-never-attached liveness remains unresolved; follow-up `776e287a` via queue `01a0e680-fa74-77d2-b6ab-8a42477853a4` has verified B accepted receipt. |
+| Staged filter composition | Resource Sol | Separate source-only branch: product `86838901`, final real-person fixture tests `df9fbfd7`, tests-only RED checkpoint `e05a609b`. Seven cases await serial RED/green gates; not included in recovery candidate. |
+| Recovery GUI | Reviewer Sol | Source reviewed and isolated package script prepared only. Must wait for corrected focused/full passes; no recovery app launched. |
+
+A alone merges main. These latest main commits publish evidence/docs, not recovery or Save As product. Preserve original failures, current user preview PID57591, and B source-only workload hold/paused heartbeat. Queue publication is distinguished from peer receipt.
+
 ## Validation and review update — 2026-09-28 05:26 UTC
 
 - Document `2a94a187` passed 32 focused tests and full Release: 569 XCTest, one skip, zero unexpected failures; five Swift Testing passed, direct exit 0. Root read the raw full result. The real same/distinct Save As matrix passed Cancel, Replace, and persisted-content reopening. Diagnostic trace was absent; isolated app closed.
