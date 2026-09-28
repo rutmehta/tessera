@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import XCTest
 @testable import TesseraCore
@@ -92,7 +93,11 @@ final class OfflineLibraryRoutingTests: XCTestCase {
         try fm.createDirectory(at: original, withIntermediateDirectories: true)
         try fm.createSymbolicLink(at: alias, withDestinationURL: original)
         // Expected canonical identity is captured while the original is ONLINE.
-        let expected = original.resolvingSymlinksInPath().path
+        // Foundation may normalize /private/var back to /var; the native catalog
+        // uses POSIX canonical identity. Resolve independently while still online.
+        let canonical = try XCTUnwrap(realpath(original.path, nil))
+        let expected = String(cString: canonical)
+        free(canonical)
         XCTAssertNotEqual(alias.path, expected)
         let library = try EngineLibrary.scan(folder: alias, appSupport: scratch.appendingPathComponent("support"))
         XCTAssertEqual(library.folder?.path, expected)

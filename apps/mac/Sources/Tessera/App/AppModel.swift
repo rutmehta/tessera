@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import SwiftUI
 import TesseraCore
+import struct TesseraFFI.FolderHandle
 import struct TesseraFFI.HistoryState
 import struct TesseraFFI.QueueDelta
 import struct TesseraFFI.SearchResult
