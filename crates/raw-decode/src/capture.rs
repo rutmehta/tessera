@@ -2,7 +2,8 @@
 //!
 //! A capture names a frozen stream, not an atomic snapshot of a mutable source.
 //! Held bytes are not owned decoded pixels and do not establish render admission.
-//! Byte capture is not yet implemented; the current slice owns private stages.
+//! All reads are bounded and identity is derived from the completed private stage.
+//! Metadata comparisons reject observed changes but cannot prove snapshot atomicity.
 
 use engine_api::{
     EngineError, EngineResult, id::Digest, jobs::CancellationToken,
@@ -10,7 +11,7 @@ use engine_api::{
 };
 use std::{
     fs, io,
-    io::Write,
+    io::{Read, Write},
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -69,8 +70,13 @@ struct Reservation {
     active: bool,
 }
 
+enum StageStorage {
+    Writable(NamedTempFile),
+    Sealed { path: TempPath, file: Option<fs::File> },
+}
+
 struct StageGuard {
-    file: Option<NamedTempFile>,
+    storage: Option<StageStorage>,
     reservation: Reservation,
 }
 
@@ -178,8 +184,7 @@ impl CapturePool {
         })
     }
 
-    // Task 2 will call this same stage owner; byte copying is deliberately absent.
-    #[allow(dead_code)]
+    // Both byte capture and ownership tests use this reservation/cleanup path.
     fn allocate_stage(&self, suffix: &str, cancel: &CancellationToken) -> EngineResult<StageGuard> {
         cancel.check()?;
         let mut accounting = self
@@ -216,23 +221,114 @@ impl CapturePool {
             .map_err(|e| EngineError::io_at(self.inner.directory.path(), &e))?;
         file.disable_cleanup(true);
         Ok(StageGuard {
-            file: Some(file),
+            storage: Some(StageStorage::Writable(file)),
             reservation,
         })
     }
 
     pub fn capture(
-        &self,
-        _source: &Path,
-        _route: PinnedRawDecoderRoute,
-        _suffix: &str,
-        _expected: Option<CapturedAssetIdentity>,
-        _cancel: &CancellationToken,
+        &self, source: &Path, route: PinnedRawDecoderRoute, suffix: &str,
+        expected: Option<CapturedAssetIdentity>, cancel: &CancellationToken,
     ) -> EngineResult<CapturedRaw> {
-        Err(EngineError::Unsupported {
-            what: "RAW byte capture is not implemented".into(),
-        })
+        #[cfg(unix)]
+        { self.capture_internal(source, route, suffix, expected, cancel, CaptureIo::default()) }
+        #[cfg(not(unix))]
+        {
+            let _ = (source, route, suffix, expected, cancel);
+            Err(EngineError::Unsupported { what: "RAW capture requires nonblocking regular-file admission".into() })
+        }
     }
+
+    #[cfg(unix)]
+    fn capture_internal(
+        &self, source: &Path, route: PinnedRawDecoderRoute, suffix: &str,
+        expected: Option<CapturedAssetIdentity>, cancel: &CancellationToken,
+        mut io: CaptureIo,
+    ) -> EngineResult<CapturedRaw> {
+        use std::os::unix::fs::OpenOptionsExt;
+        cancel.check()?;
+        let suffix = suffix.to_ascii_lowercase();
+        if suffix.is_empty() || suffix.len() > 16
+            || !suffix.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()) {
+            return Err(EngineError::invalid("suffix", "expected 1–16 ASCII alphanumeric characters"));
+        }
+        let mut original = fs::OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK)
+            .open(source).map_err(|e| EngineError::io_at(source, &e))?;
+        let metadata = original.metadata().map_err(|e| EngineError::io_at(source, &e))?;
+        if !metadata.is_file() || metadata.len() == 0 {
+            return Err(EngineError::invalid("source", "capture requires a nonempty regular file"));
+        }
+        let limit = self.inner.limits.max_asset_bytes;
+        if metadata.len() > limit { return Err(capture_limit()); }
+        let before = SourceStamp::from(&metadata);
+        check_source(source, &original, &before)?;
+        let mut stage = self.allocate_stage(&suffix, cancel)?;
+        let mut buffer = [0u8; CHUNK_BYTES];
+        let mut copied = 0u64;
+        loop {
+            cancel.check()?;
+            let capacity = read_capacity(limit, copied);
+            let read = io.source_read(&mut original, &mut buffer[..capacity]);
+            cancel.check()?;
+            let count = match read {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                result => result.map_err(|e| EngineError::io_at(source, &e))?,
+            };
+            if count > capacity { return Err(invalid_read_count()); }
+            if count == 0 { break; }
+            copied = copied.checked_add(count as u64).ok_or_else(capture_limit)?;
+            if copied > limit { return Err(capture_limit()); }
+            let mut offset = 0;
+            while offset < count {
+                cancel.check()?;
+                let write = io.stage_write(stage.writable()?, &buffer[offset..count]);
+                cancel.check()?;
+                match write {
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(error) => return Err(EngineError::io_at(stage.path()?, &error)),
+                    Ok(0) => return Err(EngineError::io_at(stage.path()?, &io::Error::from(io::ErrorKind::WriteZero))),
+                    Ok(n) if n > count - offset => return Err(invalid_read_count()),
+                    Ok(n) => offset += n,
+                }
+            }
+        }
+        if copied == 0 { return Err(EngineError::invalid("source", "captured stream is empty")); }
+        cancel.check()?;
+        io.after_copy(source, stage.path()?).map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
+        cancel.check()?;
+        io.stage_sync(stage.writable()?).map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
+        cancel.check()?;
+        stage.seal(&mut io)?;
+        cancel.check()?;
+        let mut hasher = blake3::Hasher::new_derive_key(ASSET_DOMAIN);
+        let mut hashed = 0u64;
+        loop {
+            cancel.check()?;
+            let capacity = read_capacity(limit, hashed);
+            let read = io.hash_read(stage.readonly()?, &mut buffer[..capacity]);
+            cancel.check()?;
+            let count = match read {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                result => result.map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?,
+            };
+            if count > capacity { return Err(invalid_read_count()); }
+            if count == 0 { break; }
+            hashed = hashed.checked_add(count as u64).ok_or_else(capture_limit)?;
+            if hashed > limit { return Err(capture_limit()); }
+            hasher.update(&buffer[..count]);
+        }
+        if hashed != copied {
+            return Err(EngineError::Conflict { message: "completed RAW stage length changed".into() });
+        }
+        check_source(source, &original, &before)?;
+        let identity = CapturedAssetIdentity { digest: Digest(*hasher.finalize().as_bytes()), byte_len: hashed };
+        if expected.is_some_and(|expected| expected != identity) {
+            return Err(EngineError::Conflict { message: "captured RAW identity does not match expected bytes".into() });
+        }
+        cancel.check()?;
+        Ok(CapturedRaw { stage, identity, route, suffix })
+    }
+
 }
 
 impl Reservation {
@@ -258,11 +354,12 @@ impl Drop for Reservation {
 
 impl StageGuard {
     fn cleanup(&mut self) -> EngineResult<()> {
-        let Some(file) = self.file.take() else {
-            return Ok(());
+        let Some(storage) = self.storage.take() else { return Ok(()); };
+        // Both states preserve disabled cleanup; close any descriptor before unlink.
+        let path = match storage {
+            StageStorage::Writable(file) => file.into_temp_path(),
+            StageStorage::Sealed { path, file } => { drop(file); path }
         };
-        // Closing the file preserves the disabled TempPath cleanup flag.
-        let path = file.into_temp_path();
         let result = absent_or_removed(self.reservation.pool.operations.remove_file(&path), &path);
         if result.is_ok() {
             self.reservation.release();
@@ -337,7 +434,7 @@ mod tests;
 #[cfg(test)]
 impl StageGuard {
     fn path_for_test(&self) -> &Path {
-        self.file.as_ref().unwrap().path()
+        self.path().unwrap()
     }
 }
 #[cfg(test)]
@@ -375,5 +472,139 @@ impl CapturePool {
                 injected: Some(ops),
             },
         )
+    }
+}
+
+#[cfg(all(test, unix))]
+impl CapturePool {
+    fn capture_with_hooks_for_test(
+        &self, source: &Path, route: PinnedRawDecoderRoute, suffix: &str,
+        expected: Option<CapturedAssetIdentity>, cancel: &CancellationToken,
+        hooks: tests::stream::StreamHooks,
+    ) -> EngineResult<CapturedRaw> {
+        self.capture_internal(source, route, suffix, expected, cancel, CaptureIo { hooks })
+    }
+}
+#[cfg(all(test, unix))]
+impl CapturedRaw {
+    fn path_for_test(&self) -> &Path { self.stage.path().unwrap() }
+    fn readonly_file_for_test(&self) -> &fs::File {
+        match self.stage.storage.as_ref().unwrap() {
+            StageStorage::Sealed { file: Some(file), .. } => file,
+            _ => panic!("capture must retain a sealed readonly descriptor"),
+        }
+    }
+}
+
+
+fn capture_limit() -> EngineError {
+    EngineError::ResourceExhausted { resource: "RAW capture byte limit".into() }
+}
+fn invalid_read_count() -> EngineError {
+    EngineError::from(io::Error::new(io::ErrorKind::InvalidData, "I/O operation returned excess count"))
+}
+fn read_capacity(limit: u64, consumed: u64) -> usize {
+    // create rejects u64::MAX and each loop rejects excess before coming here.
+    (limit - consumed + 1).min(CHUNK_BYTES as u64) as usize
+}
+
+#[cfg(unix)]
+#[derive(PartialEq, Eq)]
+struct SourceStamp { device: u64, inode: u64, length: u64, modified: (i64, i64), changed: (i64, i64) }
+#[cfg(unix)]
+impl From<&fs::Metadata> for SourceStamp {
+    fn from(metadata: &fs::Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
+        Self { device: metadata.dev(), inode: metadata.ino(), length: metadata.len(),
+            modified: (metadata.mtime(), metadata.mtime_nsec()),
+            changed: (metadata.ctime(), metadata.ctime_nsec()) }
+    }
+}
+#[cfg(unix)]
+fn check_source(path: &Path, opened: &fs::File, expected: &SourceStamp) -> EngineResult<()> {
+    let conflict = || EngineError::Conflict { message: "RAW source changed during capture".into() };
+    let handle = opened.metadata().map_err(|_| conflict())?;
+    let locator = fs::metadata(path).map_err(|_| conflict())?;
+    if !handle.is_file() || !locator.is_file()
+        || SourceStamp::from(&handle) != *expected || SourceStamp::from(&locator) != *expected {
+        return Err(conflict());
+    }
+    Ok(())
+}
+
+impl StageGuard {
+    fn path(&self) -> EngineResult<&Path> {
+        match &self.storage {
+            Some(StageStorage::Writable(file)) => Ok(file.path()),
+            Some(StageStorage::Sealed { path, .. }) => Ok(path),
+            None => Err(EngineError::internal("RAW stage already closed")),
+        }
+    }
+    fn writable(&mut self) -> EngineResult<&mut fs::File> {
+        match &mut self.storage {
+            Some(StageStorage::Writable(file)) => Ok(file.as_file_mut()),
+            _ => Err(EngineError::internal("RAW stage is not writable")),
+        }
+    }
+    fn readonly(&mut self) -> EngineResult<&mut fs::File> {
+        match &mut self.storage {
+            Some(StageStorage::Sealed { file: Some(file), .. }) => Ok(file),
+            _ => Err(EngineError::internal("RAW stage has no readonly descriptor")),
+        }
+    }
+    fn seal(&mut self, io: &mut CaptureIo) -> EngineResult<()> {
+        let storage = self.storage.take().ok_or_else(|| EngineError::internal("RAW stage missing"))?;
+        match storage {
+            StageStorage::Writable(file) => {
+                // No fallible operation between closing writer and restoring owner.
+                self.storage = Some(StageStorage::Sealed { path: file.into_temp_path(), file: None });
+            }
+            other => {
+                self.storage = Some(other);
+                return Err(EngineError::internal("RAW stage already sealed"));
+            }
+        }
+        if let Some(StageStorage::Sealed { path, file }) = &mut self.storage {
+            *file = Some(io.readonly_reopen(path).map_err(|e| EngineError::io_at(&*path, &e))?);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct CaptureIo {
+    #[cfg(all(test, unix))]
+    hooks: tests::stream::StreamHooks,
+}
+impl CaptureIo {
+    fn source_read(&mut self, file: &mut fs::File, buffer: &mut [u8]) -> io::Result<usize> {
+        #[cfg(all(test, unix))]
+        if let Some(hook) = &mut self.hooks.source_read { return hook(file, buffer); }
+        file.read(buffer)
+    }
+    fn stage_write(&mut self, file: &mut fs::File, bytes: &[u8]) -> io::Result<usize> {
+        #[cfg(all(test, unix))]
+        if let Some(hook) = &mut self.hooks.stage_write { return hook(file, bytes); }
+        file.write(bytes)
+    }
+    fn stage_sync(&mut self, file: &fs::File) -> io::Result<()> {
+        #[cfg(all(test, unix))]
+        if let Some(hook) = &mut self.hooks.stage_sync { return hook(file); }
+        file.sync_all()
+    }
+    fn after_copy(&mut self, _source: &Path, _stage: &Path) -> io::Result<()> {
+        #[cfg(all(test, unix))]
+        if let Some(hook) = &mut self.hooks.after_copy { return hook(_source, _stage); }
+        Ok(())
+    }
+    fn readonly_reopen(&mut self, path: &Path) -> io::Result<fs::File> {
+        #[cfg(all(test, unix))]
+        if let Some(hook) = &mut self.hooks.readonly_reopen { return hook(path); }
+        fs::File::open(path)
+    }
+    fn hash_read(&mut self, file: &mut fs::File, buffer: &mut [u8]) -> io::Result<usize> {
+        #[cfg(all(test, unix))]
+        if let Some(hook) = &mut self.hooks.hash_read { return hook(file, buffer); }
+        file.read(buffer)
     }
 }
