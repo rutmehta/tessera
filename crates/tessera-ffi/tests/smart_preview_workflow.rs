@@ -93,7 +93,16 @@ fn public_engine_offline_restart_sync_original_export_and_conflict() {
         family: engine_api::recipe::ProcessFamily::Native,
         revision: 2,
     };
+    initial.settings.tone.exposure = 0.25;
     initial.settings.denoise.method = engine_api::recipe::settings::DenoiseMethod::Off;
+    initial
+        .history
+        .record(
+            &initial.history.base.clone(),
+            &initial.settings,
+            engine_api::recipe::EditMeta::user("initial offline baseline", 1),
+        )
+        .unwrap();
     initial.unknown.insert(
         "future_test_value".into(),
         serde_json::json!({"exact":["keep",17]}),
@@ -137,6 +146,28 @@ fn public_engine_offline_restart_sync_original_export_and_conflict() {
     assert_eq!(fs::read(&sidecars.recipe).unwrap(), initial_recipe);
     assert_eq!(fs::read(&sidecars.xmp).unwrap(), initial_xmp);
     assert_eq!(digest(&original), source_before);
+    let clean_recipe = engine.get_recipe(id.clone()).unwrap();
+    drop(engine);
+    let clean_offline = dir.path().join("clean-offline-photo-copy");
+    fs::rename(&photos, &clean_offline).unwrap();
+    let engine = Engine::open(support.to_string_lossy().into()).unwrap();
+    let clean_info = engine.smart_preview_info(id.clone()).unwrap();
+    assert!(matches!(
+        clean_info.state,
+        SmartPreviewState::OriginalOffline
+    ));
+    assert!(!clean_info.dirty);
+    assert_eq!(engine.get_recipe(id.clone()).unwrap(), clean_recipe);
+    assert_eq!(recipe(&engine, &id).settings.tone.exposure, 0.25);
+    let clean_session = engine
+        .clone()
+        .open_smart_preview_develop_session(id.clone())
+        .unwrap();
+    assert_eq!(clean_session.info().image_id, id);
+    clean_session.close().unwrap();
+    drop(clean_session);
+    assert!(!photos.exists());
+    fs::rename(&clean_offline, &photos).unwrap();
     let cull = engine
         .open_cull_session(photos.to_string_lossy().into())
         .unwrap();

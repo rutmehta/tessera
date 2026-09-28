@@ -453,7 +453,12 @@ impl Engine {
         let gate = image_edit_admission::gate_for(id)?;
         let _read = gate.begin_read()?;
         if let Some((_, snapshot)) = self.local_smart_preview(id)?
-            && snapshot.dirty
+            && (snapshot.dirty || {
+                let catalog = self.lock()?;
+                // Indexed ownership is sufficient offline; never canonicalize the
+                // absent original folder or synthesize a default recipe here.
+                !Path::new(&Self::path(&catalog, &image_id)?).is_file()
+            })
         {
             let doc: sidecar::RecipeDocument =
                 serde_json::from_slice(&snapshot.recipe).map_err(failure)?;
