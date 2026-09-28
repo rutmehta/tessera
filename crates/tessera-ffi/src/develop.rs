@@ -3619,7 +3619,7 @@ mod tests {
         value["recipe"]["settings"]["tone"]["future_curve"] = serde_json::json!("preserve");
         std::fs::write(&recipe_path, serde_json::to_vec(&value).unwrap()).unwrap();
         let original_bytes = std::fs::read(&recipe_path).unwrap();
-        let editor = engine.open_develop_session(id).unwrap();
+        let editor = engine.clone().open_develop_session(id).unwrap();
 
         editor
             .set_settings(r#"{"tone":{"exposure":0.6}}"#.into(), false)
@@ -3636,7 +3636,7 @@ mod tests {
         let (dir, photo, first_engine, id, first) = tiny_develop_session("two-editors.jpg");
         let second_engine =
             Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
-        let second = second_engine.open_develop_session(id).unwrap();
+        let second = second_engine.clone().open_develop_session(id).unwrap();
         first
             .set_settings(r#"{"tone":{"exposure":0.8}}"#.into(), false)
             .unwrap();
@@ -3722,11 +3722,11 @@ mod tests {
         engine
             .index_folder(other.parent().unwrap().to_string_lossy().into_owned())
             .unwrap();
-        let other_id = engine
-            .list_images(crate::ImageQuery::default())
-            .unwrap()
+        let rows = engine.list_images(crate::ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 2, "both photos must be indexed");
+        let other_id = rows
             .into_iter()
-            .find(|row| row.path == other.to_string_lossy())
+            .find(|row| row.path.ends_with("/other.jpg"))
             .unwrap()
             .id;
         let gate = crate::recipe_write::gate_for(&photo).unwrap();
