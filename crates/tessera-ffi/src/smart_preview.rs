@@ -202,8 +202,9 @@ impl Engine {
     pub(crate) fn load_smart_preview_observed(
         &self,
         id: ImageId,
-        #[cfg(all(test, target_os = "macos"))]
-        observation: Option<&mut crate::develop::proxy_cache_contracts::Probe>,
+        #[cfg(all(test, target_os = "macos"))] observation: Option<
+            &mut crate::develop::proxy_cache_contracts::Probe,
+        >,
     ) -> Result<(SmartPreviewJournal, JournalSnapshot, RawImage, PathBuf)> {
         let (journal, snapshot) = self
             .local_smart_preview(id)?
@@ -235,7 +236,10 @@ impl Engine {
             p.owner = id.0.to_le_bytes();
             p.original_digest = decoded.proxy.original_content_digest();
             p.original_length = decoded.original_byte_length;
-            p.dimensions = [decoded.proxy.pixels().width(), decoded.proxy.pixels().height()];
+            p.dimensions = [
+                decoded.proxy.pixels().width(),
+                decoded.proxy.pixels().height(),
+            ];
             p.tier = Some(decoded.proxy.tier());
             p.encoding = Some(decoded.encoding);
             p.format_version = format_version;

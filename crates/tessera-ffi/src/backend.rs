@@ -156,7 +156,11 @@ pub(crate) fn select(
     image: &RawImage,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
 ) -> Backend {
-    select_at(image, &DevelopSettings::default(), 2, gpu,
+    select_at(
+        image,
+        &DevelopSettings::default(),
+        2,
+        gpu,
         #[cfg(all(test, target_os = "macos"))]
         None,
     )
@@ -168,8 +172,9 @@ pub(crate) fn select_proxy(
     image: &RawImage,
     settings: &DevelopSettings,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
-    #[cfg(all(test, target_os = "macos"))]
-    observer: Option<&std::sync::Mutex<crate::develop::proxy_cache_contracts::SelectionState>>,
+    #[cfg(all(test, target_os = "macos"))] observer: Option<
+        &std::sync::Mutex<crate::develop::proxy_cache_contracts::SelectionState>,
+    >,
 ) -> Backend {
     // Match Develop's pre-surface default screen level. Explicit surface-size
     // and adaptive-level benchmarks remain required before enabling by default.
@@ -185,7 +190,11 @@ pub(crate) fn select_proxy(
     let mut pixels = settings.clone();
     pixels.output.hdr = false;
     pixels.output.hdr_headroom_stops = 0.;
-    select_at(image, &pixels, level, gpu,
+    select_at(
+        image,
+        &pixels,
+        level,
+        gpu,
         #[cfg(all(test, target_os = "macos"))]
         observer,
     )
@@ -195,8 +204,9 @@ fn select_at(
     settings: &DevelopSettings,
     level: u8,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
-    #[cfg(all(test, target_os = "macos"))]
-    observer: Option<&std::sync::Mutex<crate::develop::proxy_cache_contracts::SelectionState>>,
+    #[cfg(all(test, target_os = "macos"))] observer: Option<
+        &std::sync::Mutex<crate::develop::proxy_cache_contracts::SelectionState>,
+    >,
 ) -> Backend {
     let config = RendererConfig::default();
     let cpu = Backend::new(
@@ -220,7 +230,10 @@ fn select_at(
         return cpu;
     }
     #[cfg(all(test, target_os = "macos"))]
-    if matches!(control, Some(SelectionControl::DeviceUnavailable | SelectionControl::DeviceLost)) {
+    if matches!(
+        control,
+        Some(SelectionControl::DeviceUnavailable | SelectionControl::DeviceLost)
+    ) {
         // Test-only unavailable-device seam. No backend or cached decision retained.
         return cpu;
     }
@@ -263,16 +276,20 @@ fn select_at(
         state.probe.capability_supported = supported.unwrap_or(false);
         state.probe.measurements += 1;
     }
-    let measured = || (
-        measure_at(&cpu.renderer(), image, settings, level),
-        measure_at(&gpu.renderer(), image, settings, level),
-    );
+    let measured = || {
+        (
+            measure_at(&cpu.renderer(), image, settings, level),
+            measure_at(&gpu.renderer(), image, settings, level),
+        )
+    };
     #[cfg(all(test, target_os = "macos"))]
     let samples = match control {
         Some(SelectionControl::MeasuredCpu) => (Ok([1.; 3]), Ok([2.; 3])),
         Some(SelectionControl::MeasuredMetal) => (Ok([2.; 3]), Ok([1.; 3])),
         Some(SelectionControl::CalibrationFailure) => (
-            Err(engine_api::EngineError::internal("controlled calibration failure")),
+            Err(engine_api::EngineError::internal(
+                "controlled calibration failure",
+            )),
             Ok([1.; 3]),
         ),
         _ => measured(),

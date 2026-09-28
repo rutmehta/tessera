@@ -261,10 +261,16 @@ impl Engine {
             // Explicit proxy selection calibrates independently of Original.
             // Unsupported tails/maps retain scalar CPU fallback on every edit.
             #[cfg(all(test, target_os = "macos"))]
-            let observer = self.proxy_selection_test.lock().unwrap().control
+            let observer = self
+                .proxy_selection_test
+                .lock()
+                .unwrap()
+                .control
                 .map(|_| &self.proxy_selection_test);
             let backend = backend::select_proxy(
-                image, settings, || self.shared_gpu(),
+                image,
+                settings,
+                || self.shared_gpu(),
                 #[cfg(all(test, target_os = "macos"))]
                 observer,
             );
