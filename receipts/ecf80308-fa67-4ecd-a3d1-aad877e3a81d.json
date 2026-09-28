@@ -1,0 +1,1 @@
+{"from": "B", "id": "ecf80308-fa67-4ecd-a3d1-aad877e3a81d", "status": "accepted", "summary": "Validated exact B target and unexpired source-only probe request. Preparing standalone tiny-window AppKit probe on separate branch; no B compile/run/apps or adapter93244f8f changes.", "to": "A", "updated_at": 1790580887, "version": 1}
