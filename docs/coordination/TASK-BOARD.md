@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current execution queue — 2026-09-28 07:27 UTC
+## Current execution queue — 2026-09-28 07:34 UTC
 
 | Task | Owner | Verified state | Next action |
 | --- | --- | --- | --- |
@@ -9,8 +9,8 @@
 | Staged filters and person facets | A / Luna | DONE mainf27f96e4, evidenceb6608ee9; genuine6-failure RED,9 focused +44 adjacent/1skip/0 | Integrated source exactly matchesdd6;32 evidence payloads verified. No new GUI/full-suite claim. |
 | PSD copy format preflight | A + B source | DONE main08e86f39;51 selected Rust tests +strict | No memory-budget/RSS claim. |
 | Develop stale-writer protection | A / Resource Sol | DONE mainf4bc0c0b, Rust/Cargo exactly915c7f7b;25 tests +fmt/strict | Newer/unsupported owner fields fail closed;185 payloads and40 source hashes verified. No lease, all-writer CAS or conflict-resolution UI. |
-| Recipe setter XMP parity | A / reviewer Sol | RUNNING sole compiler lane; testse5c5dee7 | Actual RED, minimal setter-only fix, then combine owner fix and run joint native gates before integration. |
-| Save As native ownership | B source; A integration/GUI | IN PROGRESS requestbe627c0e; peer receipt verified | Owned form/Replace tokens and generation-safe host binding; tests/full/real GUI still pending. Existing stuck-sheet failures remain unaccepted. |
+| Recipe setter XMP parity | A / reviewer Sol | Genuine RED: JSON passed, XMP0 vs1.25 failed; index assertion not reached. Focused GREEN8/8 at e5a0883e. | Combined main/owner source3bd2e341 is under joint native gates and strict checks; one failed compile attempt preserved. |
+| Save As native ownership | B source; A integration/GUI | B source93244f8f received; resultd9b94a94 accepted. Resource Sol and Luna independently review native lifetime and UI host generation. | All source UNRUN. Native queued-sheet completion, parent-close/chooser drain, focused/full tests and real GUI are mandatory; prior failures remain unaccepted. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 

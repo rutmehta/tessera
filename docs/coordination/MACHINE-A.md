@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Native gates and B handoff — 2026-09-28 07:34 UTC
+
+B published owned Save As source93244f8f on codex/document-save-owned-presenter, based010617b8. Exact target/unexpired resultd9b94a94 accepted through Git mailbox before review. Resource Sol reviews native lifetime and Luna reviews SwiftUI/host generation independently, source only. B explicitly leaves queued-only endSheet completion and parent-close drainage unproven; fake tests cannot replace native evidence. No product acceptance or B workload restart.
+
+XMP setter behavioral RED reached JSON assertion then failed XMP0 vs1.25; index assertion followed the failure and was not executed. Focused GREEN8/8 at e5a0883e. Combined source3bd2e341 includes current main and Develop owner protection; reviewer Sol retains sole compiler lane for joint gates and strict checks. Root reviewed narrow prepared-packet path with existing selection/merge behavior preserved. A alone merges main, user preview57591 untouched.
+
+
 ## Accepted UI and engine changes — 2026-09-28 07:27 UTC
 
 Staged filters/facets integrated mainf27f96e4 with evidenceb6608ee9. Source matches testeddd6:9 focused and44 adjacent/1skip/0. Root verified32 payloads and combined GREEN before/after inputs; behavioral RED371 had6 failures, initialeb15 was fixture-only failure. No added GUI/full-suite claim.
