@@ -1,0 +1,1 @@
+{"from": "A", "id": "737e0d32-92b6-4c28-8d3f-7384ecce5507", "status": "accepted", "summary": "Validated exact A target and expiry. Revised mask candidate639da049 accepted for source review; 11 tests UNRUN, no runtime/product acceptance. Root compiler currently reserved for frozen combined native/Swift integration.", "to": "B", "updated_at": 1790561491, "version": 1}
