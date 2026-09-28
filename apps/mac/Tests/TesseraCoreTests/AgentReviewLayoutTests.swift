@@ -26,6 +26,7 @@ final class AgentReviewLayoutTests: XCTestCase {
         let runDeadline = Date().addingTimeInterval(30)
         while model.agent.isRunning, Date() < runDeadline { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertFalse(model.agent.isRunning)
+        await withCheckedContinuation { continuation in model.syncLibrary { continuation.resume() } }
         model.enterReview()
         let item = try XCTUnwrap(model.reviewTargetItem)
         let selected = model.reviewNavigation.selectedID
@@ -36,7 +37,7 @@ final class AgentReviewLayoutTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(20))
         }
         let first = try XCTUnwrap(model.loader.cached(item, tier: .preview), "Review must deliver its initial preview")
-        let firstPixel = previewCenterPixel(first)
+        let firstPixel = previewDownsampledPixel(first)
         let revision = model.libraryRevision
 
         let imageID = try XCTUnwrap(item.engineImage?.imageID)
@@ -63,7 +64,7 @@ final class AgentReviewLayoutTests: XCTestCase {
         let refreshDeadline = Date().addingTimeInterval(15)
         var refreshed: CGImage?
         while Date() < refreshDeadline {
-            if let next = model.loader.cached(item, tier: .preview), previewCenterPixel(next) != firstPixel {
+            if let next = model.loader.cached(item, tier: .preview), previewDownsampledPixel(next) != firstPixel {
                 refreshed = next
                 break
             }
@@ -72,7 +73,7 @@ final class AgentReviewLayoutTests: XCTestCase {
         XCTAssertNotNil(refreshed, "Review must deliver pixels from the updated photo without reselection")
     }
 
-    private func previewCenterPixel(_ image: CGImage) -> [UInt8] {
+    private func previewDownsampledPixel(_ image: CGImage) -> [UInt8] {
         var pixel = [UInt8](repeating: 0, count: 4)
         pixel.withUnsafeMutableBytes { bytes in
             let context = CGContext(data: bytes.baseAddress, width: 1, height: 1,
