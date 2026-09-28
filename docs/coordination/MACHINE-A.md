@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Native admission failures reproduced — 2026-09-28 10:51 UTC
+
+Exact tests-onlyd61512ed has two genuine REDs: second Engine opens another editor instead of rejecting admission, and direct recipe setter returns success while the editor is active. Both executed one test and failed the intended assertion/direct101. The separate foreign-disk stale-owner control passed1/direct0, preserving the existing baseline defense. Root read all raw outcomes and verified1177 tracked Rust/Cargo/config hashes against d615; all three before/after manifests are identical. Later no-write/close assertions after RED are not claimed to have run.
+
+Luna is authorized to implement the bounded native lease with lifecycle tests; exact source must be reviewed by root/Astra before GREEN. Required controls include atomic admission/snapshot rollback, original gate identity and destination authentication, selection and read-only histogram remaining allowed, failed close retaining ownership, successful close releasing despite retained Arc, and save-worker final-Arc Drop retaining ownership through actual worker exit. A post-recipe pause holds the gate, so synchronous conflict checks there would deadlock the harness; use a saved-listener barrier after I/O locks have been released. No public ABI change or B-owned source change is planned. Sole native lane stays reserved to Luna; implementation remains unaccepted.
+
+UI controls are now main049bfe95. Read-only SSH retry still fails hostname resolution; existing B request8638c362 remains published without receipt. No duplicate message, writer restart or user-preview change.
+
 ## UI admission rejection controls verified — 2026-09-28 10:45 UTC
 
 Tests-only8cc6bc18 passed focused2 and adjacent34/direct0; the adjacent count includes those2. Root checked the raw exits/summaries, unchanged before/after manifests and311 tracked Git blobs plus accepted archive4a45 (312 frozen inputs). Portable evidence3326cb94 has18 payloads independently checked against committed SHA256SUMS. The test source integrated here is byte-identical to8cc6. This validates current rejection presentation, pending-ticket cleanup, fresh native re-entry and stale-error ownership; it does not prove native lease behavior or full-suite/GUI acceptance. Existing compiler/concurrency/link-version warnings are retained verbatim.
