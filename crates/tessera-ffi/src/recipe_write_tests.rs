@@ -92,6 +92,33 @@ fn retained_revision_prevents_weak_key_epoch_reset_aba() {
 }
 
 #[test]
+fn capture_revision_waits_for_a_participating_write() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = dir.path().join("one.jpg");
+    tiny_jpeg(&image);
+    let gate = gate_for(&image).unwrap();
+    let held = gate.begin_write().unwrap();
+    let contended = gate.observe_next_contended_gate_attempt();
+    let (done_tx, done_rx) = mpsc::channel();
+    let capturing_gate = gate.clone();
+    let capturing_image = image.clone();
+    let worker = thread::spawn(move || {
+        done_tx
+            .send(capturing_gate.capture_revision(&capturing_image))
+            .unwrap();
+    });
+    contended.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(matches!(done_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+    drop(held);
+    let revision = done_rx
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap()
+        .unwrap();
+    worker.join().unwrap();
+    assert!(gate.matches_revision(&revision, &image).unwrap());
+}
+
+#[test]
 fn same_stem_sources_share_the_existing_recipe_destination_gate() {
     let dir = tempfile::tempdir().unwrap();
     let jpg = dir.path().join("same.jpg");
@@ -146,8 +173,10 @@ fn two_engine_writers_wait_for_the_same_destination_gate() {
     // Installed after `held`, so this can only be signaled after the Engine
     // actually reaches this gate and observes its mutex is contended. A
     // test-only try_lock probe in begin_write supplies that handshake.
-    let contended = gate.observe_next_contended_write_attempt();
+    let contended = gate.observe_next_contended_gate_attempt();
     let (done_tx, done_rx) = mpsc::channel();
+    let blocked_id = id.clone();
+    let unrelated_engine = second.clone();
     let worker = thread::spawn(move || {
         let result = second.set_selection(
             id,
@@ -164,7 +193,6 @@ fn two_engine_writers_wait_for_the_same_destination_gate() {
     // A different recipe destination can make progress while `one.jpg` is
     // held. This also catches an Engine that waits while holding its catalog.
     let (other_tx, other_rx) = mpsc::channel();
-    let unrelated_engine = first.clone();
     let unrelated = thread::spawn(move || {
         other_tx
             .send(unrelated_engine.set_selection(
@@ -188,7 +216,36 @@ fn two_engine_writers_wait_for_the_same_destination_gate() {
         .unwrap()
         .unwrap();
     worker.join().unwrap();
-    assert!(Sidecar::paths(&image).recipe.exists());
+    assert_keep_persisted(&first, &image, &blocked_id, Some(1));
+    let unrelated_id = rows
+        .iter()
+        .find(|r| r.path.ends_with("two.jpg"))
+        .unwrap()
+        .id
+        .clone();
+    assert_keep_persisted(&first, &other, &unrelated_id, None);
+}
+
+fn assert_keep_persisted(engine: &Arc<Engine>, image: &Path, id: &str, grade: Option<u8>) {
+    let paths = Sidecar::paths(image);
+    let doc = Sidecar::read_recipe(&paths.recipe).unwrap();
+    let xmp = Sidecar::read_xmp(&paths.xmp).unwrap().selection().unwrap();
+    let indexed = engine
+        .list_images(ImageQuery::default())
+        .unwrap()
+        .into_iter()
+        .find(|row| row.id == id)
+        .unwrap();
+    assert_eq!(
+        doc.recipe.selection.decision,
+        engine_api::recipe::Decision::Keep
+    );
+    assert_eq!(doc.recipe.selection.grade.map(u8::from), grade);
+    assert_eq!(xmp.decision, engine_api::recipe::Decision::Keep);
+    assert_eq!(xmp.grade.map(u8::from), grade);
+    assert_eq!(indexed.selection.decision, Decision::Keep);
+    assert_eq!(indexed.selection.grade, grade);
+    assert_eq!(indexed.recipe_hash, doc.recipe.recipe_hash().to_string());
 }
 
 #[test]
@@ -206,10 +263,12 @@ fn set_recipe_json_waits_for_the_same_destination_gate() {
         .id
         .clone();
     let json = first.get_recipe(id.clone()).unwrap();
+    let written_json = json.clone();
     let gate = gate_for(&image).unwrap();
     let held = gate.begin_write().unwrap();
-    let contended = gate.observe_next_contended_write_attempt();
+    let contended = gate.observe_next_contended_gate_attempt();
     let (done_tx, done_rx) = mpsc::channel();
+    let written_id = id.clone();
     let worker = thread::spawn(move || {
         done_tx.send(second.set_recipe_json(id, json)).unwrap();
     });
@@ -221,4 +280,17 @@ fn set_recipe_json_waits_for_the_same_destination_gate() {
         .unwrap()
         .unwrap();
     worker.join().unwrap();
+    let paths = Sidecar::paths(&image);
+    let doc = Sidecar::read_recipe(&paths.recipe).unwrap();
+    let xmp = Sidecar::read_xmp(&paths.xmp).unwrap().selection().unwrap();
+    let indexed = first
+        .list_images(ImageQuery::default())
+        .unwrap()
+        .into_iter()
+        .find(|row| row.id == written_id)
+        .unwrap();
+    assert_eq!(first.get_recipe(written_id).unwrap(), written_json);
+    assert_eq!(doc.vector_clock.get("tessera-mac"), Some(&1));
+    assert_eq!(xmp, doc.recipe.selection);
+    assert_eq!(indexed.recipe_hash, doc.recipe.recipe_hash().to_string());
 }
