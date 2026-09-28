@@ -1,0 +1,22 @@
+{
+  "head": "2457e9e3a6bb9b3d38dfd401443adbce049b9eaa",
+  "base": "81a6b761d4fa5575772f2c27c86d532a3b540952",
+  "branch": "codex/review-invalid-transition-context",
+  "source_sha256": "da97eb92398237ecd97b34808a18ed3e84413984a094f664eb3ce557b8cd0f59",
+  "source_tar_sha256": "4edfe07bf9c88ca67461f0786681bcaa2d30cd4a728b0b5ad43246f1c6d7b0fd",
+  "ffi_sha256": "0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae",
+  "command": [
+    "swift",
+    "test",
+    "-c",
+    "release",
+    "--jobs",
+    "2",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swiftpm/review-invalid-transition-context-81a",
+    "--filter",
+    "testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac",
+  "status": "frozen_unrun"
+}

@@ -1,0 +1,21 @@
+{
+  "head": "372f28dc8c9507188147b617e990b4424b1a0e3b",
+  "branch": "codex/review-invalid-transition-diagnostic",
+  "source_sha256": "2b0fc66842fd78f3a99a6679ded10dc031558da6229ac1d61b04c63755385924",
+  "source_tar_sha256": "53dc87af13e0622ab6d64fe7cd04880b9e6eb5ba488722d1b34a1a9a31336e9f",
+  "ffi_sha256": "0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae",
+  "command": [
+    "swift",
+    "test",
+    "-c",
+    "release",
+    "--jobs",
+    "2",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swiftpm/psd-current-ffi-release",
+    "--filter",
+    "testDirectRecipeJsonErrorProvenance"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac",
+  "status": "frozen_unrun"
+}
