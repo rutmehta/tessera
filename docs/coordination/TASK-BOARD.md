@@ -18,8 +18,10 @@ A alone merges main. B resource hold/paused heartbeat remains; user preview57591
 | PSD pre-rasterization format checks | A + B source | DONE bounded slice, main08e86f39 | 51 selected Rust tests + formatting/strict Clippy; no memory-budget or RSS claim. |
 | Clear stale recovery status after Retry | A / Luna | DONE main291857e1 | Genuine RED1 failure, final19 recovery-admission tests passed/direct0; newer status preserved. 23 evidence payloads verified. |
 | Save As lifecycle | B source; A reviewer Sol | HOLD acceptance; source integration849f123f ready | Actual e51 Cancel/repeat failure preserved. B accepted ordering follow-up36b2b1ad; queue01a0e6c7-dc05-7e62-9238-397089333b68. Test native-end-before-dismiss with live probe; then trace-free RED/green/GUI. |
-| Staged Library filters/facets | Luna | SOURCE preparation | Rebase tests-onlyf015 onto main291857e1 status fix; wait for heavy lane, then actual nine-test RED and narrow AppModel port. |
-| Develop stale-writer conflict | Resource Sol | RUNNING sole compiler lane | Tests-only78b23ada: actual lost-update RED, then gated ownerbaseline fix and focused/adjacent/strict gates. Preserve ratings and partial-commit repair; no lease or batch Apply. |
+| Staged Library filters/facets | Luna | READY corrected tests371b6a05 | eb15 attempt failed fixture setup (four unclustered people vs assumed two); target assertions unrun. Corrected fixture selects two distinct real IDs; next actual nine-test RED and scoped port. |
+| Develop stale-writer conflict | Resource Sol | RED / source correction | Genuine stale-writer RED546; expanded unknown-member cases expose unsafe erasure. Correct fixture failures preserved. Fix must retain ratings, raw unknown-owner safety and partial-commit retry; no lease/batch Apply. |
+
+Next source audit: Engine.set_recipe_json currently writes selection XMP without Develop values; reviewer checks whether this is an independent parity bug. Conflict tests preserve the bytes actually written and do not assume parity.
 
 One heavy A lane; B remains source-only with paused heartbeat. Current user preview57591 stays unchanged. Only A integrates main. Earlier sections below are retained history and are superseded by this queue.
 
