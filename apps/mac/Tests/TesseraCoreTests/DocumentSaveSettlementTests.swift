@@ -617,4 +617,72 @@ final class DocumentSaveDismissAttachmentTests: XCTestCase {
         w.documentSaveWindowLost(old)
         XCTAssertNil(w.saveAsPresentationID)
     }
+    // UNRUN known-gap regression: expected to fail on 3d08368e, not an acceptance test pass.
+    // No XCTExpectFailure/skip: run separately as a RED contract demonstration on A.
+    func testKnownGapUnobservedAttachmentEndsBeforeDismissalNeedsSuccessorProgress() throws {
+        let parent = ParentWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                                  styleMask: [], backing: .buffered, defer: true)
+        let sheet = window(), w = DocumentWorkspace()
+        w.saveHasWindow = { true }; w.savePresentationWindow = { parent }
+        let d = try DocumentController(backend: StubDocumentBackend())
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: UUID()))
+        w.captureSaveAsSheetWindow(old, window: sheet)
+        parent.simulatedSheet = sheet // Native attachment occurs between observable callbacks.
+        w.cancelDocumentSave(old)
+        parent.simulatedSheet = nil
+        w.saveAsParentSheetDidEnd(old)
+        w.saveAsPresentationDidDismiss(old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        let presented = w.saveAsRequest?.id
+        let retained = w.saveAsPresentationID
+        w.cancelDocumentSave(next); w.documentSaveWindowLost(old)
+        XCTAssertNil(retained, "known gap: no captured attachment evidence, live probe holds claim")
+        XCTAssertEqual(presented, next, "requires an additional identity-bearing lifetime signal")
+    }
+
+    func testUnrelatedEndBeforeDismissalCannotInventCapturedAttachment() throws {
+        let parent = ParentWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                                  styleMask: [], backing: .buffered, defer: true)
+        let sheet = window(), unrelated = window(), w = DocumentWorkspace()
+        w.saveHasWindow = { true }; w.savePresentationWindow = { parent }
+        let d = try DocumentController(backend: StubDocumentBackend())
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: UUID()))
+        w.captureSaveAsSheetWindow(old, window: sheet)
+        parent.simulatedSheet = unrelated // Same parent notification, different native history.
+        w.cancelDocumentSave(old)
+        parent.simulatedSheet = nil
+        w.saveAsParentSheetDidEnd(old)
+        w.saveAsPresentationDidDismiss(old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        XCTAssertNil(w.saveAsRequest)
+        w.cancelDocumentSave(next); w.documentSaveWindowLost(old)
+    }
+
+    func testObservedCapturedAttachmentCanEndBeforeDismissalWithLiveProbe() throws {
+        let parent = ParentWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                                  styleMask: [], backing: .buffered, defer: true)
+        let sheet = window(), w = DocumentWorkspace()
+        w.saveHasWindow = { true }; w.savePresentationWindow = { parent }
+        let d = try DocumentController(backend: StubDocumentBackend())
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: UUID()))
+        parent.simulatedSheet = sheet
+        w.captureSaveAsSheetWindow(old, window: sheet) // Positive identity evidence exists.
+        w.cancelDocumentSave(old)
+        parent.simulatedSheet = nil
+        w.saveAsParentSheetDidEnd(old)
+        XCTAssertEqual(w.saveAsPresentationID, old, "still waits for SwiftUI dismissal")
+        w.saveAsPresentationDidDismiss(old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertNil(w.saveAsPresentationID)
+        w.cancelDocumentSave(next)
+    }
+
 }
