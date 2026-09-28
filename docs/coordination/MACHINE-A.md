@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Source lanes advance while desktop and B remain blocked — 2026-09-28 14:02 UTC
+
+EXP45 boundary-shift preparation was rejected before execution. It changes gain histogram and auxiliary JPEG encoding, so it cannot isolate the proposed edge-registration cause. No runtime or product fix follows; original4pass/1fail remains. See EXP45-BOUNDARY-SHIFT-REJECTED.md. The older next-step note is explicitly superseded.
+
+Luna and Astra now own parallel source-only UX-05 reviews: actual Photo Edit→Layers handoff/recipe ownership and engine graph/persistence/version constraints. This is the existing board task to define true live-RAW continuity, not a claim that rendered copies are live RAW. No B-reserved code changes or GUI/build work. Both preview57591 and blocked test67652 were observed alive by a read-only process check; no app interaction occurred.
+
 ## Qualified interval Release gate verified — 2026-09-28 13:57 UTC
 
 Candidate5e698e18 is pushed. Root and Astra independently read the durable Python-owned child exit0 and full raw Release result:666 XCTest,665 passed,1 skipped,0 failures, plus5 Swift Testing passes. The27 focused Debug tests are a subset, not additional coverage. All6425 before/after tracked inputs are identical (manifest SHA2563eb6e8474432cf96e9c18f576d0a8eb8d8f2affce19e0a0b32e4d9046028373e); native archive07d924df and generated bindings are unchanged. Portable evidence is integrated and pushed as main419c8e9b; root verified37 payloads/3,444,704bytes against the relative manifest. Status fd555bf2-c190-442f-be71-b78f15a63061 was published through Git; no B receipt or wakeup is claimed. The first full run lost its direct exit; the second wrapper failed assigning zsh's read-only status variable. Both raw logs are retained but neither independently passes the full gate. Only the third run has durable child exit0.

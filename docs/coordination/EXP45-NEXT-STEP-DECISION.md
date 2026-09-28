@@ -1,5 +1,9 @@
 # EXP-45: next-step decision (source/evidence only)
 
+## Superseded after preparation review — 2026-09-28 14:02 UTC
+
+The proposed control below was rejected before execution: changing the gain histogram and encoder prevents the claimed isolated inference. See EXP45-BOUNDARY-SHIFT-REJECTED.md. The original note remains below as proposal history, not the selected next runtime.
+
 ## Disposition
 
 The original ImageIO four-stop acceptance remains failed. Phase 10 rules out destination-context headroom as a repair: target 16 leaves A and the independent split-map control at approximately 7.98376 with `CGImage` headroom 8, while the uniform control is approximately 15.95158/headroom 16. No serializer fix is justified by current evidence.
