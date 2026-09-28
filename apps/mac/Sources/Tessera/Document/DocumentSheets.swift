@@ -189,12 +189,15 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
         return view
     }
     func updateNSView(_ view: ProbeView, context: Context) {
+        DocumentSaveAsTrace.emit("probe.update", requestID, DocumentSaveAsTrace.window(view.window))
         refreshCapture(on: view)
     }
     func refreshCapture(on view: ProbeView) {
+        DocumentSaveAsTrace.emit("probe.refresh", requestID, DocumentSaveAsTrace.window(view.window))
         let id = requestID
         let report = reportWindow
         view.capture = { [weak workspace] window in
+            DocumentSaveAsTrace.emit("probe.windowCallback", id, "owner=\(workspace != nil) \(DocumentSaveAsTrace.window(window))")
             guard let workspace else { return }
             report(workspace, id, window)
         }
@@ -209,6 +212,7 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
 private final class DocumentSavePresentationCapture {
     var id: UUID?
     func claim(_ request: SaveAsRequest, in workspace: DocumentWorkspace) -> Bool {
+        DocumentSaveAsTrace.emit("swift.contentClaim", request.id, "captureExists=\(id != nil) matching=\(id == request.id)")
         if let id, id != request.id { return false }
         guard workspace.saveAsPresentationWillPresent(request.id) else { return false }
         id = request.id
@@ -223,6 +227,7 @@ struct DocumentSaveAsPresentation: ViewModifier {
 
     func body(content: Content) -> some View {
         content.sheet(item: Binding(get: { workspace.saveAsRequest }, set: { _ in }), onDismiss: {
+            DocumentSaveAsTrace.emit("swift.onDismiss.callback", capture.id)
             guard let id = capture.id else { return }
             capture.id = nil
             workspace.saveAsPresentationDidDismiss(id)
