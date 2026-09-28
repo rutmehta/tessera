@@ -64,6 +64,36 @@ final class SmartPreviewUITests: XCTestCase {
         XCTAssertNil(controller.snapshots["old"])
     }
 
+    func testSelectionReadStartedBeforeBatchCannotOverwriteNewOutcome() async {
+        let probe = PreviewProbe()
+        let controller = SmartPreviewController(api: probe.api)
+        let oldRead = controller.select(imageID: "old")!
+        await probe.waitForRead()
+        let batch = Task { await controller.run(.build, targets: [.init(id: "old", name: "Old")]) }
+        await probe.waitForBuild()
+        probe.finishBuild(info("old", .dirty, dirty: true))
+        await batch.value
+        probe.finishRead(info("old", .missing))
+        await oldRead.value
+        XCTAssertEqual(controller.selectedInfo?.state, .dirty)
+        XCTAssertTrue(controller.selectedInfo?.hasPendingEdits == true)
+    }
+
+    func testClearedSelectionAndSeparateOwnerIgnoreOldCompletion() async {
+        let probe = PreviewProbe()
+        let oldOwner = SmartPreviewController(api: probe.api)
+        let read = oldOwner.select(imageID: "old")!
+        await probe.waitForRead()
+        oldOwner.select(imageID: nil)
+        let newOwner = SmartPreviewController(api: probe.api)
+        await newOwner.select(imageID: "new")?.value
+        probe.finishRead(info("old", .conflict))
+        await read.value
+        XCTAssertNil(oldOwner.selectedInfo)
+        XCTAssertNil(oldOwner.snapshots["old"])
+        XCTAssertEqual(newOwner.selectedInfo?.imageID, "new")
+    }
+
     func testBatchCancelDrainsCurrentPhotoThenStopsAndRetainsOutcome() async {
         let probe = PreviewProbe()
         let controller = SmartPreviewController(api: probe.api)
