@@ -373,6 +373,7 @@ final class DocumentWorkspace {
     private func beginDocumentSave(_ doc: DocumentController, saveAs: Bool, requiresWindow: Bool,
                                    completion: @escaping (DocumentSaveOutcome) -> Void) -> UUID {
         let id = UUID()
+        traceSaveLifecycle("operation.begin", id)
         guard !doc.isClosed else { completion(.failed("Document is closed")); return id }
         guard !saveOperations.values.contains(where: { $0.document === doc && $0.phase == .writing }) else {
             completion(.failed("A save for this document is still running")); return id
@@ -419,7 +420,17 @@ final class DocumentWorkspace {
             ?? FileManager.default.homeDirectoryForCurrentUser
     }
 
+    private func traceSaveLifecycle(_ event: String, _ id: UUID) {
+        guard DocumentSaveLifecycleTrace.enabled else { return }
+        let state = nativeSaveDismissals[id]
+        let probes = state?.activeProbes.map { $0.uuidString }.sorted().joined(separator: ",") ?? "nil"
+        DocumentSaveLifecycleTrace.emit(event, id,
+            "workspace=\(ObjectIdentifier(self)) claim=\(saveAsPresentationID?.uuidString ?? "nil") presented=\(presentedSaveAs?.id.uuidString ?? "nil") queued=\(queuedSaveAs?.id.uuidString ?? "nil") active=\(activeSavePrompt?.uuidString ?? "nil") phase=\(saveOperations[id].map { String(describing: $0.phase) } ?? "nil") state=\(state != nil) swift=\(state?.swiftDismissed ?? false) native=\(state?.nativeDetached ?? false) observed=\(state?.observedAttachment ?? false) probes=[\(probes)] parent={\(DocumentSaveLifecycleTrace.window(state?.parent))} sheet={\(DocumentSaveLifecycleTrace.window(state?.sheet))}")
+    }
+
     func cancelDocumentSave(_ id: UUID) {
+        traceSaveLifecycle("cancel.enter", id)
+        defer { traceSaveLifecycle("cancel.exit", id) }
         guard let operation = saveOperations[id] else { return }
         if operation.phase == .writing {
             operation.continuationCancelled = true
@@ -427,12 +438,16 @@ final class DocumentWorkspace {
     }
 
     func saveAsSheetDidDisappear(_ id: UUID) {
+        traceSaveLifecycle("swift.contentDisappear.enter", id)
+        defer { traceSaveLifecycle("swift.contentDisappear.exit", id) }
         // Choosing -> replacing/writing hides the sheet deliberately.
         guard saveOperations[id]?.phase == .choosing else { return }
         cancelDocumentSave(id)
     }
 
     func documentSaveWindowLost(_ id: UUID) {
+        traceSaveLifecycle("native.windowLost.enter", id)
+        defer { traceSaveLifecycle("native.windowLost.exit", id) }
         if let operation = saveOperations[id] {
             if operation.phase == .writing { operation.continuationCancelled = true }
             else { settleDocumentSave(id, .failed("Document window closed before save")) }
@@ -450,6 +465,9 @@ final class DocumentWorkspace {
     }
 
     func captureSaveAsSheetWindow(_ id: UUID, window: NSWindow) {
+        traceSaveLifecycle("probe.capture.enter", id)
+        defer { traceSaveLifecycle("probe.capture.exit", id) }
+        DocumentSaveLifecycleTrace.emit("probe.capture.window", id, DocumentSaveLifecycleTrace.window(window))
         // The logical operation may already have settled while this claimed
         // presentation is still appearing. Native ownership outlives that operation.
         guard saveAsPresentationID == id, let state = nativeSaveDismissals[id],
@@ -462,6 +480,9 @@ final class DocumentWorkspace {
 
     @discardableResult
     func saveAsProbeBegan(_ id: UUID, probe: UUID) -> Bool {
+        traceSaveLifecycle("probe.leaseBegin.enter", id)
+        defer { traceSaveLifecycle("probe.leaseBegin.exit", id) }
+        DocumentSaveLifecycleTrace.emit("probe.leaseIdentity", id, "probe=\(probe.uuidString)")
         guard saveAsPresentationID == id, let state = nativeSaveDismissals[id],
               !state.swiftDismissed else { return false }
         state.activeProbes.insert(probe)
@@ -469,11 +490,16 @@ final class DocumentWorkspace {
     }
 
     func saveAsProbeEnded(_ id: UUID, probe: UUID) {
+        traceSaveLifecycle("probe.leaseEnd.enter", id)
+        defer { traceSaveLifecycle("probe.leaseEnd.exit", id) }
+        DocumentSaveLifecycleTrace.emit("probe.leaseIdentity", id, "probe=\(probe.uuidString)")
         guard let state = nativeSaveDismissals[id], state.activeProbes.remove(probe) != nil else { return }
         finishTerminalSavePresentationIfReady(id, state)
     }
 
     private func finishTerminalSavePresentationIfReady(_ id: UUID, _ state: DocumentSaveNativeDismissal) {
+        traceSaveLifecycle("terminal.check.enter", id)
+        defer { traceSaveLifecycle("terminal.check.exit", id) }
         // Dismantle is view teardown, not proof of native detachment. Join it
         // with dismissal of this generation AND the actual parent's clear slot.
         // A content claim that never materialized a probe has no view lease to drain.
@@ -487,6 +513,8 @@ final class DocumentWorkspace {
     }
 
     func saveAsParentSheetDidEnd(_ id: UUID) {
+        traceSaveLifecycle("native.didEnd.enter", id)
+        defer { traceSaveLifecycle("native.didEnd.exit", id) }
         guard let state = nativeSaveDismissals[id] else { return }
         if state.observedAttachment, let parent = state.parent, let sheet = state.sheet,
            DocumentSaveSheetAttachment.hasDetached(capturedSheet: ObjectIdentifier(sheet),
@@ -501,6 +529,8 @@ final class DocumentWorkspace {
     }
 
     private func trackNativeSavePresentation(_ id: UUID) {
+        traceSaveLifecycle("native.track.enter", id)
+        defer { traceSaveLifecycle("native.track.exit", id) }
         guard nativeSaveDismissals[id] == nil else { return }
         let state = DocumentSaveNativeDismissal()
         state.parent = saveOperations[id]?.presentingWindow ?? window
@@ -547,6 +577,8 @@ final class DocumentWorkspace {
     }
 
     private func finishNativeSaveDismissalIfReady(_ id: UUID, _ state: DocumentSaveNativeDismissal) {
+        traceSaveLifecycle("join.check.enter", id)
+        defer { traceSaveLifecycle("join.check.exit", id) }
         guard nativeSaveDismissals[id] === state, state.nativeDetached, state.swiftDismissed else { return }
         nativeSaveDismissals.removeValue(forKey: id)
         state.removeObservers?(); state.removeObservers = nil
@@ -554,6 +586,8 @@ final class DocumentWorkspace {
     }
 
     private func presentDocumentSaveSheet(_ request: SaveAsRequest) {
+        traceSaveLifecycle("successor.request.enter", request.id)
+        defer { traceSaveLifecycle("successor.request.exit", request.id) }
         if saveAsPresentationID != nil {
             queuedSaveAs = request
             presentedSaveAs = nil
@@ -569,6 +603,8 @@ final class DocumentWorkspace {
     /// for a cancelled item must drain before a newer requested sheet can appear.
     @discardableResult
     func saveAsPresentationWillPresent(_ id: UUID) -> Bool {
+        traceSaveLifecycle("swift.claim.enter", id)
+        defer { traceSaveLifecycle("swift.claim.exit", id) }
         if let current = saveAsPresentationID { return current == id }
         saveAsPresentationID = id
         trackNativeSavePresentation(id)
@@ -582,6 +618,8 @@ final class DocumentWorkspace {
     /// Native SwiftUI sheet completion, not content onDisappear. ID remains owned
     /// until this boundary so stale nil binding writes cannot dismiss a successor.
     func saveAsPresentationDidDismiss(_ id: UUID) {
+        traceSaveLifecycle("swift.dismiss.enter", id)
+        defer { traceSaveLifecycle("swift.dismiss.exit", id) }
         guard saveAsPresentationID == id else { return }
         if let state = nativeSaveDismissals[id] {
             state.swiftDismissed = true // Seals this generation against new view leases.
@@ -593,6 +631,8 @@ final class DocumentWorkspace {
     }
 
     private func completeSaveAsPresentationDismissal(_ id: UUID, nativeParent: NSWindow? = nil) {
+        traceSaveLifecycle("presentation.complete.enter", id)
+        defer { traceSaveLifecycle("presentation.complete.exit", id) }
         guard saveAsPresentationID == id else { return }
         saveAsPresentationID = nil
         if presentedSaveAs?.id == id { presentedSaveAs = nil }
@@ -695,6 +735,8 @@ final class DocumentWorkspace {
     }
 
     private func settleDocumentSave(_ id: UUID, _ outcome: DocumentSaveOutcome) {
+        traceSaveLifecycle("operation.settle.enter", id)
+        defer { traceSaveLifecycle("operation.settle.exit", id) }
         guard let operation = saveOperations.removeValue(forKey: id) else { return }
         if let observer = operation.windowObserver { NotificationCenter.default.removeObserver(observer) }
         if let alert = operation.replaceAlert, let parent = alert.window.sheetParent {
