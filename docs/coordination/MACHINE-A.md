@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Reciprocal rational test negative; exact-white control next — 2026-09-28 09:14 UTC
+
+Phase3 evidence main96993579 has63 independently verified portable payloads. A reduced fractions and Google expanded fractions preserve reference-decoder bytes and leave ImageIO outcomes unchanged (A~8, Google~13.934/headroom16). Rational scaling is ruled out for this comparison. No product serializer change is justified. Reviewer now owns sole native lane for an independent producer control with bright base255 instead of240, identical remaining inputs/options and the validated explicit denominator form; reference decoding must establish actual~16 pixels before native comparison. No broader metadata surgery or product edit is authorized.
+
+Luna's source audit also found the gain-map product is uncommitted in the preserved dirty mailbox worktree; c7164602 is evidence-only, not a product commit to cherry-pick. Any eventual isolated port must preserve current main's unconditional development-XMP removal and current native/sidecar policy, and regenerate FFI for the additive record field. No port until a justified fix and coherent gates. B delivery remains unconfirmed/offline; its native destination Swift scope stays reserved.
+
 ## Above-8 ImageIO control established — 2026-09-28 09:06 UTC
 
 Phase1 evidence main e5aceab6 contains86 verified payloads; unmodified Google ISO controls and representative-bit copies were not recognized by ImageIO/CI. Phase2 main b89674a5 contains49 verified payloads: isolated explicit-denominator copies preserve exact rational values and reference decoder bytes, but ImageIO now recognizes auxiliary data and reaches13.934 pixels/headroom16 on this A host. CoreImage reaches13.942; retained A in the same run remains ImageIO7.983762/headroom8 and CoreImage16. Original A core4pass/1fail is unchanged. Raw “too few samples” diagnostics are retained before valid JSON; not hidden.
