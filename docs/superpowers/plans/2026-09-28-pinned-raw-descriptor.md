@@ -35,7 +35,7 @@
 
 ## Task 1: Pure descriptor boundary and validation
 
-**Files:** create `crates/engine-api/src/pinned_raw.rs`; expose module in `crates/engine-api/src/lib.rs`; create `crates/engine-api/tests/pinned_raw.rs`; document bounded invariant in `crates/engine-api/CONTRACTS.md`.
+**Files:** create `crates/engine-api/src/pinned_raw.rs`; expose module in `crates/engine-api/src/lib.rs`; create `crates/engine-api/tests/pinned_raw.rs`; document bounded invariant in `crates/engine-api/CONTRACTS.md`; update the existing contract-version assertion only in `crates/engine-api/tests/m532_channels.rs`. Additive CONTRACT_VERSION moves from 1.6.0 to 1.7.0 per crate policy; existing recipe schema/process/hash semantics remain unchanged.
 
 **Interfaces:** `PinnedRawDescriptor::new(input: PinnedRawInput) -> EngineResult<Self>`, `PinnedRawDescriptor::from_json(bytes: &[u8]) -> EngineResult<Self>`, `to_json(&self) -> EngineResult<Vec<u8>>`, read-only `recipe_json(&self) -> &[u8]`, `input_identity(&self) -> Digest`. `PinnedRawInput` contains declared asset Digest/byte length, recipe ImageId, exact JSON bytes, decoder route, normalized suffix, optional locator hint. Descriptor fields remain private; do not derive public Deserialize that bypasses validation. Use explicit descriptor version in private wire representation and store a RecipeHash verified on reopen.
 

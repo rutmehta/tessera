@@ -1,5 +1,12 @@
 # Tessera task board — Machine A coordinator
 
+## Descriptor focused gate and review — 2026-09-28 15:13 UTC
+
+Candidate12b354fd passes20 focused tests/direct0. Astra reviewed the exact correction and cleared five findings plus three maintainability notes. Root independently rehashed6809 tracked files and all five changed Git blobs; before/after aggregate33d6a78cb2625b47b81151d013cabfef52345bffd642f451555207cbc2af25b8 is identical. Earlier draft compile/behavioral failures remain preserved; their initial untracked-source provenance was incomplete and they are not final gates.
+
+Luna now owns the sole compiler lane for full engine-api Release tests, formatting and strict Clippy. These broader gates and whole-branch review remain pending. Additive public contract version is1.7.0 per crate policy; existing recipe schema, process semantics and golden hashes remain unchanged. No asset verification, source capture, actual decoder/render, app or B-owned edits. B communication remains publication-only while hostname resolution fails; existing request/reservations remain preserved.
+
+
 ## Pinned RAW descriptor implementation — 2026-09-28 14:55 UTC
 
 A is implementing the descriptor-only engine-api boundary on codex/pinned-raw-descriptor from main5f33e174. Luna owns implementation and the sole narrow compiler lane; Astra independently reviews parsing/default/identity edges. No GUI/capture/decoder/FFI or B-owned edits. Plan: docs/superpowers/plans/2026-09-28-pinned-raw-descriptor.md.
