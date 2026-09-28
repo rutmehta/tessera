@@ -59,26 +59,16 @@ extension AppModel {
         guard let lib = engineLibrary else { statusMessage = "Export needs a folder opened on the engine"; return }
         let targets = exportTargets()
         guard !targets.isEmpty else { statusMessage = "Select photos to export"; return }
-        let imageIDs = Set((selectedItems + visibleItems).compactMap { $0.engineImage?.imageID })
-        let selected = selection
-        let revision = libraryRevision
         let preferred: ExportController.Target.Kind = selectionCount > 1 || source == .all ? .selection : .view
-        let gate = prepareForRecipeRead(imageIDs: imageIDs, library: lib)
-        Task { [weak self] in
-            defer { gate.finish() }
-            guard await gate.result().isSaved else {
-                self?.statusMessage = "Finish saving the photo before Export"
-                return
-            }
-            guard let self, self.engineLibrary === lib, self.selection == selected,
-                  self.libraryRevision == revision else { return }
-            self.exporter.acquireSaveGate = { [weak self, lib] ids in
-                guard let self, self.engineLibrary === lib else { return nil }
-                return self.prepareForRecipeRead(imageIDs: ids, library: lib)
-            }
-            self.exporter.prepare(engine: lib.engine, targets: targets, preferred: preferred)
-            self.showExport = true
+        // Preparing the sheet only loads presets and frozen target IDs. The
+        // actual image reads in Start and watermark Render reserve their own
+        // saved-pixel gates for precisely the chosen target.
+        exporter.acquireSaveGate = { [weak self, lib] ids in
+            guard let self, self.engineLibrary === lib else { return nil }
+            return self.prepareForRecipeRead(imageIDs: ids, library: lib)
         }
+        exporter.prepare(engine: lib.engine, targets: targets, preferred: preferred)
+        showExport = true
     }
 
     private func exportDidFinish(_ report: ExportReport, settings: ExportSettings) {
