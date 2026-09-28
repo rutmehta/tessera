@@ -346,4 +346,66 @@ final class DocumentSaveSettlementTests: XCTestCase {
         XCTAssertNil(w.saveAsPresentationID)
     }
 
+    func testChoosingSupersessionWaitsForActualDetachAfterSwiftDismissal() throws {
+        let (w, d) = try fixture()
+        var detach: (@MainActor () -> Void)?
+        var removals = 0
+        w.saveSheetDetachmentObserver = { _, callback in
+            detach = callback; return { removals += 1 }
+        }
+        var outcomes: [DocumentSaveOutcome] = []
+        let old = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertEqual(outcomes, [.cancelled])
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertNil(w.saveAsRequest)
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        XCTAssertNotNil(detach)
+        detach?()
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertEqual(removals, 1)
+        detach?(); w.saveAsPresentationDidDismiss(old); w.cancelDocumentSave(old)
+        XCTAssertEqual(outcomes, [.cancelled])
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertEqual(removals, 1)
+        w.cancelDocumentSave(next)
+    }
+
+    func testChoosingCancelRetainsDrainThroughParentLoss() throws {
+        let (w, d) = try fixture()
+        var detach: (@MainActor () -> Void)?
+        var removals = 0
+        w.saveSheetDetachmentObserver = { _, callback in
+            detach = callback; return { removals += 1 }
+        }
+        var outcomes: [DocumentSaveOutcome] = []
+        let old = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        w.cancelDocumentSave(old)
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        w.documentSaveWindowLost(old)
+        XCTAssertNil(w.saveAsPresentationID)
+        XCTAssertEqual(removals, 1)
+        detach?(); w.documentSaveWindowLost(old)
+        XCTAssertEqual(outcomes, [.cancelled])
+        XCTAssertEqual(removals, 1)
+    }
+
+    func testAppearingCancelledClaimDoesNotInferDetachFromMissingWindow() throws {
+        let (w, d) = try fixture()
+        w.saveSheetDetachmentObserver = nil
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        w.cancelDocumentSave(old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        XCTAssertNil(w.saveAsRequest)
+        w.documentSaveWindowLost(old)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
+    }
+
 }
