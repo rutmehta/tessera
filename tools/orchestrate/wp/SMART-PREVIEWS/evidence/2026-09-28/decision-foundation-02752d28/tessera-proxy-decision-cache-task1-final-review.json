@@ -1,0 +1,39 @@
+{
+  "head": "02752d2845528b378bdeb8d1b7229bd4e68c46c8",
+  "scope": "cfg(test) pure cache/key only; no Engine integration",
+  "gates": {
+    "01-red": {
+      "exit": 101,
+      "frozen": true,
+      "input_count": 8643,
+      "final_blob_mismatches": [
+        "crates/tessera-ffi/src/backend/proxy_decision_cache.rs",
+        "crates/tessera-ffi/src/backend/proxy_decision_cache/tests.rs"
+      ],
+      "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+    },
+    "02-green": {
+      "exit": 0,
+      "frozen": true,
+      "input_count": 8644,
+      "final_blob_mismatches": [],
+      "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+    },
+    "03-strict": {
+      "exit": 0,
+      "frozen": true,
+      "input_count": 8644,
+      "final_blob_mismatches": [],
+      "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+    },
+    "04-fmt": {
+      "exit": 0,
+      "frozen": true,
+      "input_count": 8644,
+      "final_blob_mismatches": [],
+      "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+    }
+  },
+  "verdict": "approved pure Task1",
+  "findings": []
+}

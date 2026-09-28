@@ -1,0 +1,19 @@
+# Pure proxy decision-cache/key Task 1 qualification
+
+Final clean commit02752d2845528b378bdeb8d1b7229bd4e68c46c8, branchcodex/proxy-decision-cache, base3614e21bee508563432a9d235964b76e3c43a02f (frozen baseline product). This is a **pure foundation still compiled only under cfg(test)**. No Engine integration, source-validation bypass, live backend cache rollout, GPU workload, performance candidate or speedup claim.
+
+Preparation2985585f had18purecontracts. Independent review added graphstage/frame/order/count sensitivity and invalidsame-keymeasurement/expiry discrimination inb25663eb, yielding19contracts. Compiled behavioralRED01 direct101:18failed,1existingfixed-layoutcontrolpassed,0ignored. Compilation succeeded; stub unused-field warnings preserved separately from behavior. Only after observedRED were cache/key behaviors implemented. GREEN02 direct0:19passed/0failed/0ignored.03releasealltargetFFIClippy-Dwarnings direct0;04workspacefmtcheck direct0. No fullFFIregression-suite claim. Nativevendorwarnings retained. All runs sources and read-only fixture hash frozen before/after; puretests do not decode/use RAW, fixture hash is preservation evidence only.
+
+Independently checked by implementer: all **8,644 Git blobs** atfinalcommit exactly match GREEN02/strict03/fmt04 fullsource maps. Runs used finalworkingtreebytes atb25663ebHEAD before finalcommit; this distinction is retained in manifests. Finalcommit changes no qualifiedbytes. FINAL-CHECKPOINT.json contains full source map, directexits and loghashes for independent review. Runtime explicitly released to coordinator afterfmt; only evidence work afterward.
+
+## Implemented pure contract
+
+- Fixed16Optionentries <=8192bytes compileassert/test including padding/bookkeeping; noDrop/heap-owning fields. Each entry retains32bytefingerprint,decision,completionns,recencyordinal andfixed6timings. No heavyImage/Backend/Renderer/Surface ownership.
+-30s non-sliding measurement-completionTTL; exactexpiry;pruning;LRUeviction;duplicatepublication single-slot;overflow-safe recencyrenumber;concurrent caller-mutex publication. Nearu64MAX uses checkedelapsed subtraction rather than overflowing absoluteexpiry.
+- Successfully measuredCPU andMetal both reusable; sixfinitepositive samples mandatory; sameexistingstrict tone/WB selectionrule. Explicitoverrides/calibrationfailure/unavailable outcomes notcached. Mapped/unsupported/unversionedasset policies bypass; unhealthydevice clearsbothkinds. These are purepolicy inputs, not claimed realdevice/sourceadmission wiring.
+- Domain/version-framed fullkey includes fullcontainer/original/document/incarnation/owner identity anddimensions/tier/format, complete settings/process versions/effectiveconfig, explicitorderedgraphcount/stagename/frame/flags, devicegeneration/adapterfingerprint/capabilities andcalibrationlevel/extent/sink/policy. Realvalidatedidentity transport isTask2.
+- Recursive serde traversal rejectsNaN/+Inf/-Inf beforeJSONserialization (which can otherwise emitnull). Traversal andhashwriter do not accumulate aValue/tree/byteVec. FullfiniteHDR/headroom retained unchanged; nestedcurve-vector andlast128containerbits tested. Errors remainadvisorykeyfailures forlatercachebypass, notnewimage-openerrors.
+
+Independent source review noted safeconservative falsemiss: out-of-order completedmeasurement publication can prune a newerentry when timestamp appears earlier via checked_sub(None). It cannot authorize staleoutput; no optimalhit-rate/concurrencyperformance claim. No scope expansion to repair advisorymiss needed forTask1.
+
+The preparation plan records its historical stub-only checkpoint; current implementation state is this report/finalcommit. Fullactualsourcevalidation, mutableexternalasset dependency resolution, devicehealth hooks, cachelocking/poisonpolicy, freshoperator construction, hit/calibrationtelemetry andactualEngineA/B areTask2/futuregates. No main merge performed.

@@ -1,0 +1,142 @@
+{
+  "candidate.patch": {
+    "bytes": 37591,
+    "sha256": "bdc12ad35704e8778e6ba146df585eedd89139d55d61d6eb93fc1c210b2ed8e7"
+  },
+  "tessera-proxy-decision-cache-task1-final-review.json": {
+    "bytes": 1205,
+    "sha256": "54829022e2505d478782c71245520bc67f2b6bd36e4b74ed4bca9e3e3e249741"
+  },
+  "VALIDATION.md": {
+    "bytes": 3921,
+    "sha256": "8e6c327004430aec6fdcdfda97a2f8e8866f05305df43eaf6b3baf0091c8ecbc"
+  },
+  "tessera-proxy-decision-cache-task1-final-review.md": {
+    "bytes": 3257,
+    "sha256": "cdf21b56db96c9d93b998472f174a2a84c06e151ded252f6ab1c310d85958d0c"
+  },
+  "gate.py": {
+    "bytes": 1699,
+    "sha256": "c72f105201bae508766f199870ce0ef2c147d1c3edde6e369fb2ce36ce50ea74"
+  },
+  "FINAL-CHECKPOINT.json": {
+    "bytes": 1399488,
+    "sha256": "056eda964f87ba1b734406051dcf6ef1f4e18c75796f8824bf8f24e4509e7db7"
+  },
+  "02-green/before.json": {
+    "bytes": 1398344,
+    "sha256": "f27f6d0d747a42b1367e9eec9270c584151fd3fa778bce6ae4f5ea0a94471389"
+  },
+  "02-green/run.log": {
+    "bytes": 105997,
+    "sha256": "f8ec4696b4b2b68319a2275773710fdd7e9eab6282327d35f841f8e487d16e12"
+  },
+  "02-green/after.json": {
+    "bytes": 1398344,
+    "sha256": "f27f6d0d747a42b1367e9eec9270c584151fd3fa778bce6ae4f5ea0a94471389"
+  },
+  "02-green/command.json": {
+    "bytes": 359,
+    "sha256": "8b4e3ef16e27b162e8a01f70a2c97f6616dda77902ccb93510313f0733442f5f"
+  },
+  "02-green/exit": {
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "02-green/freeze.json": {
+    "bytes": 15,
+    "sha256": "46f17ac9bcbb493e073a31da7d0f731f7c1f291e7f406484573776bb2c26857c"
+  },
+  "01-red/before.json": {
+    "bytes": 1398207,
+    "sha256": "ba66f1d6e231e6b649696985f8001399fbb583033dcd4edb5aa88dd67614d337"
+  },
+  "01-red/run.log": {
+    "bytes": 120523,
+    "sha256": "c3b3b24d306171b27da8fc9bdc8606956d74e3c39a4ee733ef238cee3bfb01ce"
+  },
+  "01-red/after.json": {
+    "bytes": 1398207,
+    "sha256": "ba66f1d6e231e6b649696985f8001399fbb583033dcd4edb5aa88dd67614d337"
+  },
+  "01-red/command.json": {
+    "bytes": 359,
+    "sha256": "8b4e3ef16e27b162e8a01f70a2c97f6616dda77902ccb93510313f0733442f5f"
+  },
+  "01-red/exit": {
+    "bytes": 4,
+    "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+  },
+  "01-red/freeze.json": {
+    "bytes": 15,
+    "sha256": "46f17ac9bcbb493e073a31da7d0f731f7c1f291e7f406484573776bb2c26857c"
+  },
+  "04-fmt/before.json": {
+    "bytes": 1398344,
+    "sha256": "f27f6d0d747a42b1367e9eec9270c584151fd3fa778bce6ae4f5ea0a94471389"
+  },
+  "04-fmt/run.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "04-fmt/after.json": {
+    "bytes": 1398344,
+    "sha256": "f27f6d0d747a42b1367e9eec9270c584151fd3fa778bce6ae4f5ea0a94471389"
+  },
+  "04-fmt/command.json": {
+    "bytes": 275,
+    "sha256": "2c52f56597fbfc10a38cd73cf77dc36b70f4d191ef5bf970dd697d32b6930001"
+  },
+  "04-fmt/exit": {
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "04-fmt/freeze.json": {
+    "bytes": 15,
+    "sha256": "46f17ac9bcbb493e073a31da7d0f731f7c1f291e7f406484573776bb2c26857c"
+  },
+  "03-strict/before.json": {
+    "bytes": 1398344,
+    "sha256": "f27f6d0d747a42b1367e9eec9270c584151fd3fa778bce6ae4f5ea0a94471389"
+  },
+  "03-strict/run.log": {
+    "bytes": 105927,
+    "sha256": "65eaf84f00c97f988631eeb1412364c77869e267e56aa11c2161c4a87ff6a959"
+  },
+  "03-strict/after.json": {
+    "bytes": 1398344,
+    "sha256": "f27f6d0d747a42b1367e9eec9270c584151fd3fa778bce6ae4f5ea0a94471389"
+  },
+  "03-strict/command.json": {
+    "bytes": 343,
+    "sha256": "b76ccc5a37258fa45a469b0339bd1a20ca3e423f17c8925e160ba3e8cf75745a"
+  },
+  "03-strict/exit": {
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "03-strict/freeze.json": {
+    "bytes": 15,
+    "sha256": "46f17ac9bcbb493e073a31da7d0f731f7c1f291e7f406484573776bb2c26857c"
+  },
+  "final-source/docs/superpowers/plans/2026-09-28-smart-preview-decision-cache-task1.md": {
+    "bytes": 6585,
+    "sha256": "46591c871fc5903e3e9038285870314fab045eb9857e52a7ca117437b28a4268"
+  },
+  "final-source/crates/tessera-ffi/src/backend.rs": {
+    "bytes": 12420,
+    "sha256": "f27efaf9f0ebc99781139b859989ce2e050c08b5b25b1a6082d88341ff78e62d"
+  },
+  "final-source/crates/tessera-ffi/src/backend/proxy_decision_cache.rs": {
+    "bytes": 8963,
+    "sha256": "d53aec7856bf254a7679a613aca175565b9a02c787065d932d8522b685d41f66"
+  },
+  "final-source/crates/tessera-ffi/src/backend/proxy_decision_cache/finite.rs": {
+    "bytes": 4358,
+    "sha256": "f84b18c35a3d64933fbb8d5848af2ee9ff3bb7b6b5fa5a88cdfce8a0829cb36b"
+  },
+  "final-source/crates/tessera-ffi/src/backend/proxy_decision_cache/tests.rs": {
+    "bytes": 15097,
+    "sha256": "329be5fcee56061a7364d8194ad14ad578bdc4a936ea207522708fdcc73e7446"
+  }
+}
