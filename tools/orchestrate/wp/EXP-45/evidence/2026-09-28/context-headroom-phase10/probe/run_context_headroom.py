@@ -58,12 +58,34 @@ def main():
             controlled = {k: env[k] for k in ['PROBE_OUTPUT_DIR', 'PROBE_DUMP', 'PROBE_RAW']}
             controlled['PROBE_TARGET_HEADROOM'] = target_value if target_value is not None else 'unset'
             argv = [str(binary), str(source_path)]
-            completed = subprocess.run(argv, cwd=PHASE, env=env, capture_output=True, timeout=60)
-            (run / 'command.json').write_text(json.dumps({'argv': argv, 'cwd': str(PHASE),
-                'controlled_env': controlled, 'cleared_inherited': cleared}, indent=2) + '\n')
+            command_record = {'argv': argv, 'cwd': str(PHASE),
+                'controlled_env': controlled, 'cleared_inherited': cleared,
+                'timeout_seconds': 60}
+            (run / 'command.json').write_text(json.dumps(command_record, indent=2) + '\n')
+            before_hashes = {'source_sha256': sha_file(source), 'binary_sha256': sha_file(binary),
+                             'input_sha256': sha_file(source_path)}
+            (run / 'attempt-freeze-before.json').write_text(json.dumps(before_hashes, indent=2) + '\n')
+            try:
+                completed = subprocess.run(argv, cwd=PHASE, env=env, capture_output=True, timeout=60)
+            except subprocess.TimeoutExpired as timeout:
+                partial_out = timeout.stdout or b''
+                partial_err = timeout.stderr or b''
+                if isinstance(partial_out, str): partial_out = partial_out.encode()
+                if isinstance(partial_err, str): partial_err = partial_err.encode()
+                (run / 'stdout.partial.bin').write_bytes(partial_out)
+                (run / 'stderr.partial.bin').write_bytes(partial_err)
+                (run / 'direct.exit').write_text('timeout after 60 seconds\n')
+                after_hashes = {'source_sha256': sha_file(source), 'binary_sha256': sha_file(binary),
+                                'input_sha256': sha_file(source_path)}
+                (run / 'attempt-freeze-after.json').write_text(json.dumps(after_hashes, indent=2) + '\n')
+                raise
             (run / 'stdout.bin').write_bytes(completed.stdout)
             (run / 'stderr.bin').write_bytes(completed.stderr)
             (run / 'direct.exit').write_text(f'{completed.returncode}\n')
+            after_hashes = {'source_sha256': sha_file(source), 'binary_sha256': sha_file(binary),
+                            'input_sha256': sha_file(source_path)}
+            (run / 'attempt-freeze-after.json').write_text(json.dumps(after_hashes, indent=2) + '\n')
+            assert before_hashes == after_hashes, (name, target_name, 'probe/binary/fixture changed during process')
             start = completed.stdout.find(b'[\n')
             assert start >= 0, (name, target_name, completed.stdout[:300], completed.stderr)
             warning = completed.stdout[:start]
@@ -97,6 +119,11 @@ def main():
                 assert image['input_icc_bytes'] == expected['input_icc_bytes']
                 assert image['input_icc_sha256'] == expected['input_icc_sha256']
                 assert image['headroom'] == expected['headroom']
+                for field in ['color_space', 'input_color_space_present', 'input_color_space_model',
+                              'input_color_space_components', 'bits_per_component', 'bits_per_pixel',
+                              'bytes_per_row', 'bitmap_info']:
+                    assert image[field] == expected[field], (name, target_name, mode, field,
+                                                              image[field], expected[field])
                 provider = run / f'provider-{mode}.bin'
                 pixels = run / f'{source_path.name}.{mode}.f32'
                 icc = run / f'{mode}-returned-colorspace-icc.icc'
@@ -117,18 +144,22 @@ def main():
                 'warning_prefix_sha256': sha_bytes(warning),
                 'record': record,
             }
-    # Qualify the new default path against exact phase8 decoded results, then compare
-    # requested targets against that same-run default without prescribing a peak.
+            if target_name == 'default':
+                # Stop before issuing any nonzero-target process unless this probe's
+                # no-setter path reproduces the retained phase8 result for this file.
+                for mode in ['sdr', 'hdr']:
+                    old = previous['runs']['imageio'][name][mode]
+                    new = record[mode]
+                    assert new['provider_sha256'] == old['provider_sha256']
+                    assert new['input_icc_sha256'] == old['input_icc_sha256']
+                    assert new['headroom'] == old['headroom']
+                    assert abs(new['rgb_max'] - old['rgb_max']) < 1e-5
+                    assert record[mode]['artifacts']['drawn_rgba_f32']['sha256'] == old['drawn_rgba_f32']['sha256']
+                for field in ['iso_aux_present', 'apple_aux_present']:
+                    assert record[field] == previous['runs']['imageio'][name][field]
+    # Compare requested targets against that same-run default without prescribing a peak.
     for name in INPUTS:
         default = manifest['runs']['default'][name]['record']
-        for mode in ['sdr', 'hdr']:
-            old = previous['runs']['imageio'][name][mode]
-            new = default[mode]
-            assert new['provider_sha256'] == old['provider_sha256']
-            assert new['input_icc_sha256'] == old['input_icc_sha256']
-            assert new['headroom'] == old['headroom']
-            assert abs(new['rgb_max'] - old['rgb_max']) < 1e-5
-            assert new['artifacts']['drawn_rgba_f32']['sha256'] == old['drawn_rgba_f32']['sha256']
         for target_name in ['target8', 'target16']:
             target = manifest['runs'][target_name][name]['record']
             target['delta_vs_default'] = {}
