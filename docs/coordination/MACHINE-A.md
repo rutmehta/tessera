@@ -1,3 +1,11 @@
+## Instrumentation qualification active; B diagnostic refinement requested
+
+Source-only instrumentation `245c9095` passed independent review. FFI now owns exclusive compile/GPU runtime for uncached CPU/Metal controls, unchanged original cache contracts and strict/format checks. Cache remains absent; the next expected failure is missing initial publication, not yet a demonstrated reuse failure. Real validation and backend materialization remain required.
+
+Hosted diagnostic `0e64a277` failed at missing native Load LUT view before routing assertions: 34 tests, one failure, zero skips. Root verified all 8,384 source entries and unchanged artifacts/fixture; evidence main `0158d95e`. Result `5a1ac3b2` received a failed receipt with the exact limitation. New source-only refinement request `03feb884-72a3-41ea-a623-3a898922f15b` is published, SSH queue `01a0ea3b-44dc-7b40-b6bf-ab74ff45d5bd` accepted; peer receipt pending. No guessed production fix or duplicate writer.
+
+The reviewed restricted RAW admission plan is updated on main `f701e411`, distinguishing declared route from classified content, camera-linear normalization from output rendering, and existing descriptor compatibility. Memory/ICC/environment prerequisites remain explicit; no RAW renderer implementation is claimed.
+
 ## Hosted-focus diagnostic accepted and source-reviewed
 
 B returned test-only `c39697c4` with handoff `01242fa4`, result `5a1ac3b2-9195-4b65-b4e2-86e44e83a901`. Exact A target, reply and expiry were validated, then an accepted receipt published before review. Independent review verified all manifest hashes and real hosted traversal without forced button focus. A inspector worker now owns the exclusive runtime lane to compose and run the focused diagnostic; policy skips or failures must remain explicit. Production correction still awaits actual responder evidence.
