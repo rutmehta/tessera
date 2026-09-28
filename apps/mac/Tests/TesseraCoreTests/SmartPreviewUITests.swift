@@ -10,6 +10,35 @@ final class SmartPreviewUITests: XCTestCase {
               width: 2560, height: 1707, message: "")
     }
 
+    func testProxyRenderedLibraryCopyKeepsSaveWarningWithoutLastSyncedClaim() {
+        let controller = SmartPreviewController(thumbnailSource: .smartPreview)
+        controller.select(imageID: "raw")
+        controller.didSave(imageID: "raw", source: .smartPreview)
+        let badge = controller.libraryBadge(imageID: "raw") ?? ""
+        XCTAssertTrue(badge.contains("Local edits saved"))
+        XCTAssertTrue(badge.contains("Thumbnail source: Smart Preview"))
+        XCTAssertFalse(badge.contains("last synchronized"))
+        XCTAssertFalse(controller.libraryThumbnailNotice.contains("only after Sync"))
+        XCTAssertTrue(controller.libraryThumbnailNotice.contains("validated Smart Previews"))
+        XCTAssertNil(controller.selectedInfo, "presentation still cannot authorize routing")
+    }
+
+    func testAssetMutationsInvalidateThumbnailsBeforeAndAfterNativeDrain() async {
+        for action in SmartPreviewController.Action.allCases {
+            for fail in [false, true] {
+                var trace: [String] = []
+                let api = SmartPreviewAPI(info: { id in self.info(id, .missing) },
+                    build: { id in trace.append("native"); if fail { throw ProbeError.failed }; return self.info(id) },
+                    discard: { _ in trace.append("native"); if fail { throw ProbeError.failed } },
+                    synchronize: { id in trace.append("native"); if fail { throw ProbeError.failed }; return self.info(id) })
+                let controller = SmartPreviewController(api: api)
+                controller.onThumbnailInvalidation = { id in XCTAssertEqual(id, "raw"); trace.append("invalidate") }
+                await controller.run(action, targets: [.init(id: "raw", name: "RAW")])
+                XCTAssertEqual(trace, ["invalidate", "native", "invalidate"])
+            }
+        }
+    }
+
     func testAbsentPreferenceDefaultsToOriginalAndPreservesExplicitSavedChoice() throws {
         let suite = "SmartPreviewPreferenceTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
