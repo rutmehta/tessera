@@ -371,3 +371,60 @@ fn persisted_proxy_reopens_into_the_same_camera_linear_render_route() {
     assert_eq!(reopened.metadata().orientation, 6);
     assert!(reopened.rgb().is_none());
 }
+
+#[test]
+fn compact_scale_three_persisted_route_keeps_original_metadata_and_edit_geometry() {
+    let raw = synthetic(910, 4922, 20, RGGB, [1, 1, 4920, 18]);
+    let mut metadata = raw.metadata().clone();
+    metadata.orientation = 6;
+    let raw = raw.with_metadata(ImageId(911), Arc::new(metadata)).unwrap();
+    let mut settings = DevelopSettings::default();
+    let proxy = CameraLinearProxy::generate_with_tier(
+        raw.cfa(),
+        raw.metadata(),
+        &settings,
+        ProcessVersion::NATIVE_CURRENT,
+        [7; 32],
+        &LensContext::default(),
+        pipeline_cpu::SmartPreviewTier::Compact2048,
+    )
+    .unwrap();
+    assert_eq!(proxy.scale(), 3);
+    let decoded =
+        CameraLinearProxy::decode_persistent(&proxy.encode_persistent(123456).unwrap()).unwrap();
+    assert_eq!(
+        decoded.proxy.tier(),
+        pipeline_cpu::SmartPreviewTier::Compact2048
+    );
+    let reopened = RawImage::from_camera_linear_proxy(
+        raw.recipe_owner(),
+        ImageId(912),
+        Arc::new(decoded.proxy),
+    )
+    .unwrap();
+    assert_eq!(reopened.active_extent(), Extent::new(1640, 6));
+    assert_eq!(
+        reopened.metadata().default_crop,
+        raw.metadata().default_crop
+    );
+    assert_eq!(reopened.recipe_owner(), raw.id());
+    settings.white_balance.mode = WhiteBalanceMode::Custom;
+    settings.white_balance.temperature = 4200.;
+    settings.white_balance.tint = 13.;
+    settings.tone.exposure = 0.7;
+    let renderer = Renderer::new(Default::default());
+    for level in [0, 1, 2] {
+        let expected = reference(&reopened, &settings, level);
+        let tiles = renderer
+            .render_region_as(
+                &reopened,
+                &settings,
+                level,
+                PixelRect::full(Extent::new(expected.width(), expected.height())),
+                RenderOutput::SceneLinear,
+            )
+            .unwrap();
+        assert!(!tiles.is_empty());
+        assert_tiles(&tiles, &expected, RenderOutput::SceneLinear, &settings);
+    }
+}
