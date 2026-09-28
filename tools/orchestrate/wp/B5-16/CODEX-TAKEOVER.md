@@ -542,3 +542,14 @@ A must supply frozen native API/generated bindings before compilation; all stric
 runtime, offline/reconnect/export and GUI gates remain A-owned and unverified here.
 Save As branch preserved at 3ca3e9c9 (two additional request5cfbf6a4 tests also UNRUN).
 No B compiler/tests/apps/benchmarks, heartbeat or writer changes. Main merges remain A-only.
+
+### Smart Preview cost/disclosure follow-up cd101ed1
+
+Published origin/codex/smart-preview-ui c22c4c49; tests f9bfa533/bf80fa22,
+product3a0f2cbf. One active selection asset validation drains before latest queued
+selection or batch. Duplicate selection/opening shares result; save invalidates
+without full asset scan. Explicit Check Status refresh available. Offline/pending
+Library thumbnail labels disclose last synchronized image. No compression/speed
+claim. 13 test methods UNRUN; native binding/compiler/GUI gates still A-owned.
+Source snapshots only guide routing; native open must validate source/journal and
+refuse unsafe dirty Original open. No B workloads/heartbeat/writer changes.
