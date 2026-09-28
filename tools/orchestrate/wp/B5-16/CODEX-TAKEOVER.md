@@ -573,3 +573,12 @@ label. Routing snapshots still invalidate and opening needs fresh native status;
 no autosave asset reads. Fresh clean online-ready/removal retires presentation.
 18 tests UNRUN on B; A's initial8 c6d05aa3 pass does not cover this candidate.
 SaveAs3ca3e9c9 intact. No B workloads/heartbeat/writer changes; A compiler/GUI/main.
+
+### Review 06afa311 — opening follows current status generation
+
+Published codex/smart-preview-ui2ba1d95c; testa0a6389e/productdd84ed57. Separate
+photo identity and status generation: same-photo refresh is awaited, changed-photo
+(including away/back) cancels old opener. Two gated reads prove replacement wait,
+latest snapshot and exactly two calls; selection-change negative control retained.
+20 tests UNRUN on B. Badge/local-save fix preserved. No offline Library changes:
+await A exact native API. No B workloads/heartbeat/writer changes; A gates/main.
