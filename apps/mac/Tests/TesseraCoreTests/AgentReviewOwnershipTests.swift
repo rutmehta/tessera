@@ -310,7 +310,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         session.clearSettingsRejection()
         XCTAssertTrue(controller.flushPending(), "Retry sends the retained coalesced patch")
         XCTAssertEqual(sentPatches.count, 2)
-        XCTAssertEqual(sentPatches[0], sentPatches[1])
+        XCTAssertEqual(sentPatches.dropFirst().first, sentPatches.first, "Retry must resend the retained coalesced patch")
 
         session.resume.signal()
         try await controller.close()
