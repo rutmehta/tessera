@@ -1,16 +1,16 @@
 # Machine A recovery status
 
-## Active validation board — 2026-09-28 04:44 UTC
+## Active validation board — 2026-09-28 04:49 UTC
 
 | Work | Owner | State and next action |
 | --- | --- | --- |
 | Develop navigation, preview drain, output cancellation, window close | Luna; Resource Sol owns product fixes | Exact `df1f1bc4` passed 5 isolated window tests and all 31 combined focused tests, direct exits 0. Evidence on main `d912e381`; root verified 25 payload hashes and both source freezes. Prior compile failure/SIGSEGV preserved. New stale Layers error-publication correction `982fa98d` awaits deterministic regressions and validation; full suite and GUI remain pending. |
 | Document Save As lifecycle | A root/reviewer; B source author | `358d19d3` passed 24 tests but FAILED real same/distinct-file Replace: “Another sheet is still attached to the document window.” Portable evidence `e3186b62` is on main `046501aa`, 13 payload hashes verified. Isolated app closed. |
-| Document native-detachment correction | B source complete; A validation queued | Native parent/sheet identity handoff `dbe55346` + lifetime cleanup `d91363a2`, probe refresh `9663c0e8`, tests `772896a9` + `58053e60` integrated only into isolated candidate `b3a47443`. Source review found no remaining blocker; 20 save + 2 probe + 4 load + 3 adjacent tests PASSED, all direct exits 0; root verified source/FFI/status unchanged after all stages. Reviewer owns isolated packaging and GUI lane. Actual GUI ordering remains mandatory. |
+| Document native-detachment correction | B source complete; A validation queued | Native parent/sheet identity handoff `dbe55346` + lifetime cleanup `d91363a2`, probe refresh `9663c0e8`, tests `772896a9` + `58053e60` integrated only into isolated candidate `b3a47443`. Source review found no remaining blocker; 29 targeted tests PASSED with unchanged inputs, but real GUI FAILED again: same/distinct existing-file Save dismissed without Replace; repeated Save As could remain queued until document close/reopen. Files unchanged. Isolated app closed, evidence packaging in progress. Both result receipts now failed. Diagnostic-only native event trace requested from B as `93eabb45`, SSH queue `01a0e656-588d-7d22-aaca-f6b3eb3a99c9`; peer receipt pending. |
 | Export settings UX | Resource Sol source complete | `f67dbc53` removes the no-read sheet-opening reservation; actual Start/watermark and Print reads stay gated. Behavioral regression passed in the interrupted `cf4f4114` run; combined acceptance remains pending. |
 | Recovery GUI | Reviewer Sol | Bounded plan ready: generated tiny JPEG, reversible test-owned `.edits` obstruction, real failed-save banner, Retry/navigation and relaunch persistence. No recovery app launched; wait for focused gate and explicit desktop allocation. |
 
-- Layers status bypass: DocumentWorkspace publishes status before A's typed callback. B accepted source-only request `ffea007b` through SSH queue `01a0e651-dd9c-7a83-ac8c-d0130ea8b985`; accepted peer receipt verified. B will add opt-in caller-owned status while preserving legacy behavior. A regression `f8fefdf1` is UNRUN; A callback guard `982fa98d` alone does not fix this bypass.
+- Layers status bypass: DocumentWorkspace publishes status before A's typed callback. B accepted source-only request `ffea007b` through SSH queue `01a0e651-dd9c-7a83-ac8c-d0130ea8b985`; accepted peer receipt verified. B returned status API `8488a2fb` with five tests `1904bb29`; result `1bdbd38a` accepted for validation. Resource reviewed/integrated it and A opt-in `baf89e88`. Luna now owns compiler for real RED on `f8fefdf1`, then combined 41-case gate. Unaccepted typed Save As will be isolated out of the recovery product slice before full validation.
 
 - A main `046501aa` publishes evidence/docs only for this wave; no AppModel or
   Document product merge. Original failed compile/GUI attempts remain preserved.
