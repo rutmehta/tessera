@@ -1,0 +1,203 @@
+{
+  "final_commit": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+  "status": "",
+  "records": [
+    {
+      "attempt": "02-compile",
+      "cache_absent": true,
+      "counts": null,
+      "direct_exit": 0,
+      "expected_outcome": true,
+      "phase": "compile",
+      "verdict": "gate passed",
+      "freeze": {
+        "direct_exit": 0,
+        "elapsed_seconds": 65.6194979166612,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "245c9095d4a377c1ff4e91ad85e802676ca3da0a",
+      "log_sha256": "db7d0e993e6c4709b2125381581bb959ff3825d8aa44a32e51ac00bf78ab210c"
+    },
+    {
+      "attempt": "03-controls",
+      "cache_absent": true,
+      "counts": {
+        "failed": 0,
+        "ignored": 0,
+        "passed": 1
+      },
+      "direct_exit": 0,
+      "expected_outcome": true,
+      "phase": "control",
+      "verdict": "gate passed",
+      "freeze": {
+        "direct_exit": 0,
+        "elapsed_seconds": 10.416140833869576,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "245c9095d4a377c1ff4e91ad85e802676ca3da0a",
+      "log_sha256": "33e755b2c03d3c68d1c9d2f87d1a9764f6d180ad231944baa4a40ab104f0ae78"
+    },
+    {
+      "attempt": "04-publication-red",
+      "cache_absent": true,
+      "counts": {
+        "failed": 5,
+        "ignored": 0,
+        "passed": 1
+      },
+      "direct_exit": 101,
+      "expected_outcome": true,
+      "phase": "contracts",
+      "verdict": "expected original-contract RED; inspect exact boundary",
+      "freeze": {
+        "direct_exit": 101,
+        "elapsed_seconds": 8.829304582905024,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "245c9095d4a377c1ff4e91ad85e802676ca3da0a",
+      "log_sha256": "d2a4b7ad1853ce550a95fbf7067a512052a1c87ba4dd520a1f9a676f52545904"
+    },
+    {
+      "attempt": "05-strict",
+      "cache_absent": true,
+      "counts": null,
+      "direct_exit": 0,
+      "expected_outcome": true,
+      "phase": "strict",
+      "verdict": "gate passed",
+      "freeze": {
+        "direct_exit": 0,
+        "elapsed_seconds": 11.159222000278533,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "245c9095d4a377c1ff4e91ad85e802676ca3da0a",
+      "log_sha256": "7375a65558f26f089e690add397c8698f534c2213526d824b1b9429d9fd92753"
+    },
+    {
+      "attempt": "06-fmt",
+      "cache_absent": true,
+      "counts": null,
+      "direct_exit": 1,
+      "expected_outcome": false,
+      "phase": "fmt",
+      "verdict": "unexpected outcome; stop and diagnose",
+      "freeze": {
+        "direct_exit": 1,
+        "elapsed_seconds": 2.5060706669464707,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "245c9095d4a377c1ff4e91ad85e802676ca3da0a",
+      "log_sha256": "6b5c28feb4bbeceb7b6cb3c9f0f6228c8cc60c80df181a802e9cdc47a4b43a3d"
+    },
+    {
+      "attempt": "07-compile-formatted",
+      "cache_absent": true,
+      "counts": null,
+      "direct_exit": 0,
+      "expected_outcome": true,
+      "phase": "compile",
+      "verdict": "gate passed",
+      "freeze": {
+        "direct_exit": 0,
+        "elapsed_seconds": 64.63063179235905,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+      "log_sha256": "e60a35d76ce75296ce1b315f01cde77b57fac48980aa93ea7ff76d3943c9acf6"
+    },
+    {
+      "attempt": "08-controls-formatted",
+      "cache_absent": true,
+      "counts": {
+        "failed": 0,
+        "ignored": 0,
+        "passed": 1
+      },
+      "direct_exit": 0,
+      "expected_outcome": true,
+      "phase": "control",
+      "verdict": "gate passed",
+      "freeze": {
+        "direct_exit": 0,
+        "elapsed_seconds": 9.880677290726453,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+      "log_sha256": "8d2110aac538318ed91580ca83edef42bc644bd15a9c710c6387fef5789403ae"
+    },
+    {
+      "attempt": "09-publication-red-formatted",
+      "cache_absent": true,
+      "counts": {
+        "failed": 5,
+        "ignored": 0,
+        "passed": 1
+      },
+      "direct_exit": 101,
+      "expected_outcome": true,
+      "phase": "contracts",
+      "verdict": "expected original-contract RED; inspect exact boundary",
+      "freeze": {
+        "direct_exit": 101,
+        "elapsed_seconds": 8.50206816708669,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+      "log_sha256": "234565162038eb4db1dd566114e19163b567211e89f3acf5787e8b74b06f3a93"
+    },
+    {
+      "attempt": "10-strict-formatted",
+      "cache_absent": true,
+      "counts": null,
+      "direct_exit": 0,
+      "expected_outcome": true,
+      "phase": "strict",
+      "verdict": "gate passed",
+      "freeze": {
+        "direct_exit": 0,
+        "elapsed_seconds": 10.736761332955211,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+      "log_sha256": "ce51a98e16bfd06f8aa60b5e47bfcec3bb95fb3d4b6162a3d1ff08305445df9d"
+    },
+    {
+      "attempt": "11-fmt-final",
+      "cache_absent": true,
+      "counts": null,
+      "direct_exit": 0,
+      "expected_outcome": true,
+      "phase": "fmt",
+      "verdict": "gate passed",
+      "freeze": {
+        "direct_exit": 0,
+        "elapsed_seconds": 2.5252125840634108,
+        "equal": true
+      },
+      "source_count": 8646,
+      "head": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "failure_locations": [
+    "crates/tessera-ffi/src/develop/proxy_cache_contracts.rs:178:9:",
+    "crates/tessera-ffi/src/develop/proxy_cache_contracts.rs:178:9:",
+    "crates/tessera-ffi/src/develop/proxy_cache_contracts.rs:178:9:",
+    "crates/tessera-ffi/src/develop/proxy_cache_contracts.rs:178:9:",
+    "crates/tessera-ffi/src/develop/proxy_cache_contracts.rs:178:9:"
+  ],
+  "cache_implementation": false,
+  "boundary": "Five original new-behavior groups pass initial backend and measurement assertions then fail entries0!=1. Publication/hit/reuse and subsequent assertions remain latent.",
+  "runtime_lane": "released",
+  "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+}

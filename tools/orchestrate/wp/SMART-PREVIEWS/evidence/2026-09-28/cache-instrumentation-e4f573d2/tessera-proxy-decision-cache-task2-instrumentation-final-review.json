@@ -1,0 +1,66 @@
+{
+  "head": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+  "gates": {
+    "07-compile-formatted": {
+      "exit": 0,
+      "frozen": true,
+      "immutable_git_inputs": 8646,
+      "fixture": {
+        "bytes": 16646144,
+        "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+        "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+      },
+      "runner_sha256": "0f0c94aaddcfc2f1845adfd0ea64b778a0bc6b6cdf395a0d0fd7d4b38dad7954"
+    },
+    "08-controls-formatted": {
+      "exit": 0,
+      "frozen": true,
+      "immutable_git_inputs": 8646,
+      "fixture": {
+        "bytes": 16646144,
+        "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+        "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+      },
+      "runner_sha256": "0f0c94aaddcfc2f1845adfd0ea64b778a0bc6b6cdf395a0d0fd7d4b38dad7954"
+    },
+    "09-publication-red-formatted": {
+      "exit": 101,
+      "frozen": true,
+      "immutable_git_inputs": 8646,
+      "fixture": {
+        "bytes": 16646144,
+        "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+        "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+      },
+      "runner_sha256": "0f0c94aaddcfc2f1845adfd0ea64b778a0bc6b6cdf395a0d0fd7d4b38dad7954"
+    },
+    "10-strict-formatted": {
+      "exit": 0,
+      "frozen": true,
+      "immutable_git_inputs": 8646,
+      "fixture": {
+        "bytes": 16646144,
+        "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+        "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+      },
+      "runner_sha256": "0f0c94aaddcfc2f1845adfd0ea64b778a0bc6b6cdf395a0d0fd7d4b38dad7954"
+    },
+    "11-fmt-final": {
+      "exit": 0,
+      "frozen": true,
+      "immutable_git_inputs": 8646,
+      "fixture": {
+        "bytes": 16646144,
+        "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+        "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+      },
+      "runner_sha256": "0f0c94aaddcfc2f1845adfd0ea64b778a0bc6b6cdf395a0d0fd7d4b38dad7954"
+    }
+  },
+  "verdict": "instrumentation stage accepted; missing-cache-entry RED established; no cache or performance acceptance",
+  "six_original_contract_bodies_preserved_modulo_formatting": true,
+  "earlier_preserved_exits": {
+    "01_initial_routing_red": 101,
+    "06_fmt": 1
+  }
+}

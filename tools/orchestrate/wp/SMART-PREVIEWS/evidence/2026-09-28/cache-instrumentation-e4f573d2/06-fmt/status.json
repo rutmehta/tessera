@@ -1,0 +1,8 @@
+{
+  "cache_absent": true,
+  "counts": null,
+  "direct_exit": 1,
+  "expected_outcome": false,
+  "phase": "fmt",
+  "verdict": "unexpected outcome; stop and diagnose"
+}

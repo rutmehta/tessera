@@ -1,0 +1,15 @@
+# Task 2 instrumentation — final independent evidence review
+
+**Accepted instrumentation stage at `e4f573d2ed6afe7a9e7ca52b623e8dc763b46295`.** Suitable to proceed to separately authorized bounded cache implementation. This does not accept reuse correctness, shipping integration or performance. Reviewer performed only source/log/hash inspection.
+
+Independently verified all8,646 immutable Git input hashes against every final07–11 before/after snapshot; all frozen. Fixture SHA256 before/after and current original agrees. Direct exits:07compile0,08uncachedcontrol0 (1passed),09originalcontracts101 (1existingcoldvalidation pass,5fail),10all-targetRelease strictclippy0,11fmt0. Existing LibRaw build warnings remain distinct from strict Rust acceptance.
+
+Final09 failures all occur at proxy_cache_contracts.rs:178, `p.entries == 1`, actual0. Each has already passed actualCPU materialization and measurementcount1. This is missing initial cache-entry/publication-path RED, unlike01's missingselection-control failure. Publicationassertion follows and is not reached. Later hit/validationordering/device/rebuild/identity/admission assertions remain latent; do not claim they passed.
+
+Control08 executes actualCPU andMetal fresh materialization across SDR/HDR, two opens percase, real candidateGPU capability with temporarySDR settings, complete recipepresentation retention, Weakrelease/freshallocation, zero cachefields and explicitoverride/device/calibrationfailure paths. Samples and unavailable/lost device outcomes are controlled; this is not realdevice-loss or GPUperformance qualification. Cache absent: no Engine Cache, lookup/insert calls or fakepublications. Existing image/metadata observation comes from same decoded container/journal and is published after validation, as previously source-reviewed.
+
+Compared all six original contract bodies with480b272e as token sequences excluding formatting/trailingcommas: unchanged. Finalcommit onlyformats the previously reviewed instrumentation. Prior01 routingRED and06fmtexit1 remain preserved; finalgates run on formatted bytes rather than borrowing earlier results. Immutablebinding details and runner/fixture hashes are in the companionJSON.
+
+Next approved direction: implement the alreadyplanned bounded Engine-local decisioncache and validatedidentity transport under rootauthorization, then expose and fix downstream contracts without weakening them. Preserve ordinarysourcevalidation beforelookup, actualnormalizedcandidateGPUeligibility evenforCPUwinner, explicitexternaldependencydeny guards, noerrorcaching, freshheavyresourceownership and noOriginalbehaviorchange. Change observe_proxy_validation to preserve cumulative realcachecounters instead of resetting them when cache exists. Retain an explicitcache-disabled control path if needed so the uncachedinstrumentation test remains honest afterintegration; do not silently reinterpret its zero-cache assertions.
+
+No performanceacceptance or runtimegrant comes from this review. Task3 matched firstFINAL-frame measurement and finalnative/Swift/lifecycle qualification remain separate.

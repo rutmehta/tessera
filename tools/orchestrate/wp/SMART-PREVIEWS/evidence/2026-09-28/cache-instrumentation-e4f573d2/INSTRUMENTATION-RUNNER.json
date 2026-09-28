@@ -1,0 +1,12 @@
+{
+  "runner_sha256": "e0dd3f12456ca7d9c056fb7cb1eafe1f62b281b9059bbca56c0553e9674486ec",
+  "source": "245c9095d4a377c1ff4e91ad85e802676ca3da0a",
+  "phases": [
+    "compile",
+    "control",
+    "contracts",
+    "strict",
+    "fmt"
+  ],
+  "contract": "Inherited TESSERA flags scrubbed; explicit read-only Sony RAW, fixed BetterSSD target, jobs2, deployment15. All inputs and runner/fixture frozen each attempt. Every phase separate; stop on unexpected result. Cache absent; original contract RED not acceptance."
+}

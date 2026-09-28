@@ -1,0 +1,13 @@
+{
+  "commit": "e4f573d2ed6afe7a9e7ca52b623e8dc763b46295",
+  "prior": "245c9095d4a377c1ff4e91ad85e802676ca3da0a",
+  "command": "CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated CARGO_BUILD_JOBS=2 MACOSX_DEPLOYMENT_TARGET=15.0 cargo fmt --all",
+  "failure_preserved": "06-fmt",
+  "source_sha256": {
+    "crates/tessera-ffi/src/backend.rs": "acaeb8d2fc4fc11bf7eb5edd65db37620ef8b48d7bd7cf9e32343dec87ada863",
+    "crates/tessera-ffi/src/develop/proxy_cache_contracts.rs": "47892074edbe70ec828ee8815bb5d3e518152f271481f3a071b3547efab9666b",
+    "crates/tessera-ffi/src/lib.rs": "19a0778147b72dd3d4fd38d2b01bae74d5124db3f0092df789a4c736fe6b3984",
+    "crates/tessera-ffi/src/smart_preview.rs": "6f3146acb6edaf673e66f1ce7256cf71f8901480abf38b51d954b095d008f681",
+    "crates/tessera-ffi/src/smart_preview_store.rs": "285d4f71b690a87802886c3bd1ccac8f5b8a6e3c1ffa81027fe42f770d31ce6d"
+  }
+}

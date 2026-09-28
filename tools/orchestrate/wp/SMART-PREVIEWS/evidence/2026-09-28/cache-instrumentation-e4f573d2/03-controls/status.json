@@ -1,0 +1,12 @@
+{
+  "cache_absent": true,
+  "counts": {
+    "failed": 0,
+    "ignored": 0,
+    "passed": 1
+  },
+  "direct_exit": 0,
+  "expected_outcome": true,
+  "phase": "control",
+  "verdict": "gate passed"
+}

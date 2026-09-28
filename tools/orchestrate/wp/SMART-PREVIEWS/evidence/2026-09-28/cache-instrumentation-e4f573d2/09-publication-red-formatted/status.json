@@ -1,0 +1,12 @@
+{
+  "cache_absent": true,
+  "counts": {
+    "failed": 5,
+    "ignored": 0,
+    "passed": 1
+  },
+  "direct_exit": 101,
+  "expected_outcome": true,
+  "phase": "contracts",
+  "verdict": "expected original-contract RED; inspect exact boundary"
+}

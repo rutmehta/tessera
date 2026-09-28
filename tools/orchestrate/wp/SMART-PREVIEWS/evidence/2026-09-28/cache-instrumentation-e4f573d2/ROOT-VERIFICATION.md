@@ -1,0 +1,3 @@
+# Accepted instrumentation-only stage
+
+Independent review binds final 07–11 gates to all 8,646 immutable Git inputs at e4f573d2. Root copied/rehashed 110 evidence files. Compile, uncached control, strict and format passed. Original contracts still fail (five missing initial entries, one existing cold-validation control passed). Reuse assertions remain latent. Earlier formatting failure and pre-format gates are retained; original instrumentation failure01 is in the sibling cache-instrumentation-red-480b272e evidence. No production cache or performance acceptance follows. Source implementation of the bounded cache is now separately authorized.

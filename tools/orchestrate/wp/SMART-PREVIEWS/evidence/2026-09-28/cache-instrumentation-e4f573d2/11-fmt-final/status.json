@@ -1,0 +1,8 @@
+{
+  "cache_absent": true,
+  "counts": null,
+  "direct_exit": 0,
+  "expected_outcome": true,
+  "phase": "fmt",
+  "verdict": "gate passed"
+}
