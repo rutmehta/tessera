@@ -71,7 +71,7 @@ struct FilterBar: View {
                     .accessibilityIdentifier("filterMatchCount")
             }
             if !library.filter.isEmpty || !model.people.facet.isEmpty {
-                Button { library.clearFilter(); model.setPersonFacet([]) } label: {
+                Button { model.clearLibraryFilters() } label: {
                     if compact { Image(systemName: "xmark.circle") } else { Text("Clear") }
                 }
                     .buttonStyle(.theme(.borderless, square: compact))

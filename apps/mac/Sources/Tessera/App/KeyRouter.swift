@@ -126,8 +126,8 @@ final class KeyRouter {
         case 124: model.navigate(.right, groupwise: loupe || option, extend: shift); return true
         case 126: model.navigate(.up, groupwise: loupe || option, extend: shift); return true
         case 125: model.navigate(.down, groupwise: loupe || option, extend: shift); return true
-        case 36, 76: model.viewMode = loupe ? .grid : .loupe; return true      // Return / Enter
-        case 53: if loupe { model.viewMode = .grid; return true }; return false  // Esc
+        case 36, 76: model.requestViewMode(loupe ? .grid : .loupe); return true      // Return / Enter
+        case 53: if loupe { model.requestViewMode(.grid); return true }; return false  // Esc
         default: break
         }
 
@@ -154,8 +154,8 @@ final class KeyRouter {
                 model.statusMessage = "Soft proofing \(SoftProof.shared.enabled ? "on" : "off")"
             }
         case "d": model.enterPhotoEdit()
-        case "g": model.viewMode = .grid
-        case "e": model.viewMode = .loupe
+        case "g": model.requestViewMode(.grid)
+        case "e": model.requestViewMode(.loupe)
         default: return false
         }
         return true

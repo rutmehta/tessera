@@ -484,7 +484,7 @@ final class TetherController {
         if let key = pendingFocus, let id = lib.itemOfImage[key] {
             pendingFocus = nil
             app.select(id: id)
-            if app.focusedItem?.id == id, app.viewMode != .compare { app.viewMode = .loupe }
+            if app.focusedItem?.id == id, app.viewMode != .compare { app.requestViewMode(.loupe) }
         }
         decisionsDidChange()
     }

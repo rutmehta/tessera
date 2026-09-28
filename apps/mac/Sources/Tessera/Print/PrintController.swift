@@ -101,6 +101,9 @@ final class PrintController {
         if profiles.isEmpty { profiles = printerProfiles() }
         if settings.profilePath == nil { settings.profilePath = profiles.first?.path }
         for (i, item) in items.enumerated() {
+            // The admission gate may just have closed and saved Develop. Do not
+            // present a thumbnail cached for the recipe before that save.
+            loader.invalidate(item)
             if let r = loader.request(item, tier: .thumbnail, completion: { [weak self] image in
                 guard self?.previewGeneration == generation else { return }
                 self?.thumbnails[i] = image

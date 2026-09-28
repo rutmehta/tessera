@@ -219,7 +219,8 @@ final class AppModel {
         didSet {
             guard !revertingViewMode else { return }
             guard viewMode != oldValue else { return }
-            if !committingSavedNavigation, developRecovery.hasUnresolvedSessions {
+            if !committingSavedNavigation,
+               (developRecovery.hasUnresolvedSessions || developRecovery.hasActiveReservations) {
                 // Legacy direct bindings still assign this property. Restore the old
                 // value before any workspace observer or teardown can run, then gate.
                 let requested = viewMode
@@ -259,11 +260,22 @@ final class AppModel {
 
     func requestViewMode(_ mode: ViewMode) {
         navigateAfterDevelopSave { [weak self] in
-            guard let self else { return }
-            self.committingSavedNavigation = true
-            self.viewMode = mode
-            self.committingSavedNavigation = false
+            self?.viewMode = mode
         }
+    }
+
+    func requestLibraryViewMode(_ mode: ViewMode) {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: mode == .grid) }
+            self.viewMode = mode
+        }
+    }
+
+    private func commitAdmittedNavigation(_ action: () -> Void) {
+        committingSavedNavigation = true
+        defer { committingSavedNavigation = false }
+        action()
     }
 
     private func navigateAfterDevelopSave(_ commit: @escaping @MainActor () -> Void) {
@@ -272,7 +284,11 @@ final class AppModel {
         let sourceGeneration = loadGeneration
         savedNavigationIntent = intent
         blockedSavedNavigation = nil
-        guard developRecovery.hasUnresolvedSessions else { commit(); return }
+        guard !developRecovery.hasActiveReservations else {
+            statusMessage = "Wait for the current photo operation before leaving this workspace"
+            return
+        }
+        guard developRecovery.hasUnresolvedSessions else { commitAdmittedNavigation(commit); return }
         guard let owner = developLibrary, let controller = develop else {
             blockedSavedNavigation = BlockedSavedNavigation(
                 intent: intent, owner: sourceOwner, generation: sourceGeneration, commit: commit)
@@ -295,11 +311,15 @@ final class AppModel {
                 self.statusMessage = "Finish saving the photo before leaving this workspace"
                 return
             }
-            commit()
+            self.commitAdmittedNavigation(commit)
         }
     }
 
     func retryDevelopRecovery(_ sessionID: DevelopRecoveryCoordinator.SessionID) {
+        guard !developRecovery.hasActiveReservations else {
+            statusMessage = "Wait for the current photo operation before retrying the save"
+            return
+        }
         let task = developRecovery.retryClose(sessionID)
         Task { [weak self] in
             let result = await task.value
@@ -310,9 +330,10 @@ final class AppModel {
                    self.savedNavigationIntent == blocked.intent,
                    self.engineLibrary === blocked.owner,
                    self.loadGeneration == blocked.generation,
+                   !self.developRecovery.hasActiveReservations,
                    !self.developRecovery.hasUnresolvedSessions {
                     self.blockedSavedNavigation = nil
-                    blocked.commit()
+                    self.commitAdmittedNavigation(blocked.commit)
                 }
             case .failed(_, let message):
                 self.statusMessage = "Develop: \(message)"
@@ -482,6 +503,11 @@ final class AppModel {
         if let then { folderCallbacks[requestID] = then }
         if let superseded { finishFolderRequest(superseded, loaded: false) }
         guard currentFolderRequestID == requestID else { return }
+        if developRecovery.hasActiveReservations {
+            statusMessage = "Wait for the current photo operation before opening another folder"
+            finishFolderRequest(requestID, loaded: false)
+            return
+        }
         navigateAfterDevelopSave { [weak self] in
             guard let self, self.currentFolderRequestID == requestID else { return }
             self.commitOpenFolder(url, message: message, requestID: requestID)
@@ -713,26 +739,44 @@ final class AppModel {
     }
 
     func togglePersonFacet(_ id: String) {
-        leavePhotoEditForLibraryChange()
-        refreshVisible { people.toggleFacet(id) }
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.refreshVisible { self.people.toggleFacet(id) }
+        }
     }
 
     func setPersonFacet(_ ids: Set<String>) {
-        leavePhotoEditForLibraryChange()
-        refreshVisible { people.setFacet(ids) }
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.refreshVisible { self.people.setFacet(ids) }
+        }
+    }
+
+    func clearLibraryFilters() {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.collections.clearFilter()
+            self.refreshVisible { self.people.setFacet([]) }
+        }
     }
 
     /// People ▸ Show Photos: All Photos with the Person facet set to this person.
     func showPhotos(of id: String) {
-        leavePhotoEditForLibraryChange()
-        refreshVisible {
-            people.setFacet([id])
-            source = .all
-            collections.refreshMatches()
-        }
-        viewMode = .grid
-        if let p = people.person(id) {
-            statusMessage = "\(p.displayName): \(visibleCount.formatted()) photo\(visibleCount == 1 ? "" : "s")"
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.refreshVisible {
+                self.people.setFacet([id])
+                self.source = .all
+                self.collections.refreshMatches()
+            }
+            self.viewMode = .grid
+            if let person = self.people.person(id) {
+                self.statusMessage = "\(person.displayName): \(self.visibleCount.formatted()) photo\(self.visibleCount == 1 ? "" : "s")"
+            }
         }
     }
 
@@ -1030,7 +1074,11 @@ final class AppModel {
         pendingLayeredCopyRequestID = request.id
         guard let owner = request.library, let imageID = request.item.engineImage?.imageID else {
             pendingLayeredCopyRequestID = nil
-            returnToLibrary()
+            guard !developRecovery.hasUnresolvedSessions else {
+                statusMessage = "Finish saving the photo before opening Layers"
+                return
+            }
+            if isPhotoEditing || isReviewing { commitReturnToLibrary(grid: false) }
             documents.editInLayers(request.item)
             return
         }
@@ -1044,7 +1092,17 @@ final class AppModel {
         layeredCopyStatusOwner = request.id
         statusMessage = savingMessage
         Task { [weak self] in
-            defer { barrier.finish() }
+            var backendOwnsGate = false
+            defer {
+                if !backendOwnsGate {
+                    barrier.finish()
+                    if self?.pendingLayeredCopyRequestID == request.id { self?.pendingLayeredCopyRequestID = nil }
+                    if self?.layeredCopyStatusOwner == request.id {
+                        if self?.statusMessage == savingMessage { self?.statusMessage = nil }
+                        self?.layeredCopyStatusOwner = nil
+                    }
+                }
+            }
             guard await barrier.result().isSaved else {
                 if self?.pendingLayeredCopyRequestID == request.id {
                     self?.statusMessage = "Finish saving this photo before opening Layers"
@@ -1054,20 +1112,25 @@ final class AppModel {
                 return
             }
             guard let self else { return }
-            defer {
+            guard !self.developRecovery.hasUnresolvedSessions,
+                  self.pendingLayeredCopyRequestID == request.id, self.engineLibrary === owner,
+                  !self.agent.isMutating(imageID: imageID, library: owner),
+                  self.isLibraryWorkspace, self.source == source, self.viewMode == view,
+                  self.selection == selected,
+                  self.focusedItem.map({ self.workspaceKey(for: $0) }) == focusedKey else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            backendOwnsGate = true
+            self.documents.editInLayers(request.item) { [weak self, barrier] outcome in
+                barrier.finish()
+                guard let self else { return }
                 if self.layeredCopyStatusOwner == request.id {
                     if self.statusMessage == savingMessage { self.statusMessage = nil }
                     self.layeredCopyStatusOwner = nil
                 }
                 if self.pendingLayeredCopyRequestID == request.id { self.pendingLayeredCopyRequestID = nil }
+                if case .failed(let message) = outcome { self.statusMessage = message }
+                if case .rejected(let message) = outcome { self.statusMessage = message }
             }
-            guard self.pendingLayeredCopyRequestID == request.id, self.engineLibrary === owner,
-                  !self.agent.isMutating(imageID: imageID, library: owner),
-                  self.isLibraryWorkspace, self.source == source, self.viewMode == view,
-                  self.selection == selected,
-                  self.focusedItem.map({ self.workspaceKey(for: $0) }) == focusedKey else { return }
-            self.returnToLibrary()
-            self.documents.editInLayers(request.item)
         }
     }
 

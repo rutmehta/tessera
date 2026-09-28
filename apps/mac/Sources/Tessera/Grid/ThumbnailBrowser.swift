@@ -149,7 +149,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         collectionView.register(ThumbnailCell.self, forItemWithIdentifier: ThumbnailCell.identifier)
         collectionView.onDoubleClick = { [weak model] p in
             model?.select(position: p)
-            model?.viewMode = .loupe
+            model?.requestViewMode(.loupe)
         }
 
         collectionView.autoresizingMask = style == .grid ? [.width] : []
