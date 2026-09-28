@@ -1,0 +1,112 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 3115,
+      "sha256": "8090fdd1eb52898fb78c701a211a356e53cd47e56c1e8cbafa8cd0c5c7d31309"
+    },
+    "ead7b7b0-focused51-failed/child-pid.txt": {
+      "bytes": 6,
+      "sha256": "a6536f7d29bff6c2debfebfc20d648dd33a7066dc027583169a21e2ceb05a50a"
+    },
+    "ead7b7b0-focused51-failed/command.txt": {
+      "bytes": 701,
+      "sha256": "626660a3f2a0131ad92cff300f7c0c6f6491d85e2d17ffdad452e7e93283bb52"
+    },
+    "ead7b7b0-focused51-failed/direct-exit.txt": {
+      "bytes": 37,
+      "sha256": "4fcc72808d54b1f70b94323c572f3e2b8ab267d253a6f46954a772cc9f21b98d"
+    },
+    "ead7b7b0-focused51-failed/freeze-after.txt": {
+      "bytes": 2528,
+      "sha256": "3cf8b2ecd844e3ff3a442f2759760024e6e2edf647dfe159c71c9603f222d9a4"
+    },
+    "ead7b7b0-focused51-failed/freeze-before.txt": {
+      "bytes": 2528,
+      "sha256": "3cf8b2ecd844e3ff3a442f2759760024e6e2edf647dfe159c71c9603f222d9a4"
+    },
+    "ead7b7b0-focused51-failed/swift-test-release.log": {
+      "bytes": 28908,
+      "sha256": "c358ab10beb72bee7b2ece9a85e2317c1139958dd2a3d0f34d76442097f361bb"
+    },
+    "f24534ca-focused56-passed/command.txt": {
+      "bytes": 703,
+      "sha256": "91ede76ed08bced66ee205612e8d0312e90f0a90030047aef811e4590e1c406f"
+    },
+    "f24534ca-focused56-passed/direct-exit.txt": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "f24534ca-focused56-passed/freeze-before.txt": {
+      "bytes": 232,
+      "sha256": "7366efed8f355f771a14f02dd941b7595b2522907541b18728886c77f5125aa6"
+    },
+    "f24534ca-focused56-passed/head-after.txt": {
+      "bytes": 41,
+      "sha256": "6f1d79f5c7f41ed7baddd473e40af5e80630d800e413c527b88f5b4807f2fc49"
+    },
+    "f24534ca-focused56-passed/head-before.txt": {
+      "bytes": 41,
+      "sha256": "6f1d79f5c7f41ed7baddd473e40af5e80630d800e413c527b88f5b4807f2fc49"
+    },
+    "f24534ca-focused56-passed/source-hashes-after.txt": {
+      "bytes": 2154,
+      "sha256": "e7959e2f66a39d02bdc70937bfebd1177e92703519b906d91ef95a5296a82921"
+    },
+    "f24534ca-focused56-passed/source-hashes-before.txt": {
+      "bytes": 2154,
+      "sha256": "e7959e2f66a39d02bdc70937bfebd1177e92703519b906d91ef95a5296a82921"
+    },
+    "f24534ca-focused56-passed/status-after.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "f24534ca-focused56-passed/status-before.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "f24534ca-focused56-passed/swift-test-release.log": {
+      "bytes": 30140,
+      "sha256": "aeb6922bb0f52e6946f96297cf4d0c18aa4f8d63dcba591a44568e1e83737455"
+    },
+    "f24534ca-full589-failed/command.txt": {
+      "bytes": 182,
+      "sha256": "1097779ab601011f7281e107869aa782d541a567400bb72e9d3ecf6a64ab963b"
+    },
+    "f24534ca-full589-failed/direct-exit.txt": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "f24534ca-full589-failed/freeze-before.txt": {
+      "bytes": 137,
+      "sha256": "f318fcd80b6084e2f093f48a510571c157c834ff56fdd079480cba73532b8768"
+    },
+    "f24534ca-full589-failed/head-after.txt": {
+      "bytes": 41,
+      "sha256": "6f1d79f5c7f41ed7baddd473e40af5e80630d800e413c527b88f5b4807f2fc49"
+    },
+    "f24534ca-full589-failed/head-before.txt": {
+      "bytes": 41,
+      "sha256": "6f1d79f5c7f41ed7baddd473e40af5e80630d800e413c527b88f5b4807f2fc49"
+    },
+    "f24534ca-full589-failed/source-hashes-after.txt": {
+      "bytes": 2154,
+      "sha256": "e7959e2f66a39d02bdc70937bfebd1177e92703519b906d91ef95a5296a82921"
+    },
+    "f24534ca-full589-failed/source-hashes-before.txt": {
+      "bytes": 2154,
+      "sha256": "e7959e2f66a39d02bdc70937bfebd1177e92703519b906d91ef95a5296a82921"
+    },
+    "f24534ca-full589-failed/status-after.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "f24534ca-full589-failed/status-before.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "f24534ca-full589-failed/swift-test-release.log": {
+      "bytes": 175380,
+      "sha256": "98f1b75547b1eabda082ef644848153a8e8a3220abf7a07ff1a497d74517f9be"
+    }
+  }
+}

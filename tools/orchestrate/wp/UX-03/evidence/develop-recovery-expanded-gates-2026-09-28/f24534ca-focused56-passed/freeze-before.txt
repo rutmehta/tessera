@@ -1,0 +1,3 @@
+source_head=f24534ca405e05d36afc556f6f475cd0a53511bb
+ffi_archive_sha256=8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03
+scratch=/Volumes/betterSSD/tessera-cache/swift/develop-recovery-app-admission-cf4f4114/scratch
