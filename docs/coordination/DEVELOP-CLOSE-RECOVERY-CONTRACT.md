@@ -56,3 +56,17 @@ Do not implement Discard until a separately reviewed durability/rollback contrac
 exists. Stage A repairs failed publication but does not change close semantics;
 Stage B must explicitly keep failed-close sessions usable and gate downstream
 work. All UI changes remain unimplemented at this document checkpoint.
+
+## Peer review additions — 32db07de
+
+B's source-only caller review is preserved at
+`tools/orchestrate/wp/B5-16/DEVELOP-CLOSE-CALLER-REVIEW.md`. A verified the mask
+queue clearing, cancelled-open cleanup and last-window termination paths in source.
+Stage B must retain rejected and unattempted mask edits without replaying accepted
+brush points; transfer failed cancelled-open cleanup to an owner/image recovery
+entry before its task record disappears; gate folder side effects and last-window
+close as well as Quit; unwind Agent busy state and recorded running intent when
+no mutation launched. Export's saved-versus-live source boundary remains a source
+audit item, not a verified guarantee. These are implementation requirements and
+unrun acceptance cases, not completed behavior. Stage A native retry is now merged
+(main d4274a68); native failed-close recovery remains separate.
