@@ -36,7 +36,10 @@ final class UnderstandingController {
     @ObservationIgnored private var reloadGeneration = LibraryRequestGeneration()
     @ObservationIgnored private var installGeneration = LibraryRequestGeneration()
 
-    private var engine: Engine? { library?.app?.engineLibrary?.engine }
+    private var engine: Engine? {
+        guard let owner = library?.app?.engineLibrary, !owner.isReadOnly else { return nil }
+        return owner.engine
+    }
     private var catalog: LibraryCatalog? { library?.catalog }
 
     var isAvailable: Bool { engine != nil && catalog != nil }

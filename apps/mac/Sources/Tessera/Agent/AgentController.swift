@@ -149,7 +149,7 @@ final class AgentController {
     /// Rehydrates only the manifest captured for this exact canonical library path.
     /// Recipe provenance supplies the current per-photo detail and remains authoritative.
     func libraryInstalled(_ installedLibrary: any PhotoLibrary) {
-        guard let library = installedLibrary as? EngineLibrary else { clearReviewQueue(); return }
+        guard let library = installedLibrary as? EngineLibrary, !library.isReadOnly else { clearReviewQueue(); return }
         guard let folder = library.folder else { clearReviewQueue(); return }
         if isRunning, let runningFolder = runningLibrary?.folder,
            ReviewResumeStore.canonicalPath(runningFolder) == ReviewResumeStore.canonicalPath(folder) {
@@ -263,19 +263,19 @@ final class AgentController {
     // MARK: Style profile
 
     func refreshProfile() {
-        guard let lib = app?.engineLibrary, let folder = lib.folder else { profile = nil; return }
+        guard let lib = app?.engineLibrary, !lib.isReadOnly, let folder = lib.folder else { profile = nil; return }
         profile = try? lib.engine.styleProfileStatus(libraryFolder: folder.path)
     }
 
     func saveQuestionnaire(_ q: StyleQuestionnaire) {
-        guard let lib = app?.engineLibrary, let folder = lib.folder else { return }
+        guard let lib = app?.engineLibrary, !lib.isReadOnly, let folder = lib.folder else { return }
         do { profile = try lib.engine.setStyleQuestionnaire(libraryFolder: folder.path, answers: q) }
         catch { app?.statusMessage = "Style profile: \(error.localizedDescription)" }
     }
 
     /// Settings ▸ AI ▸ Learn from My Edits (non-modal, progress in Settings).
     func trainProfile() {
-        guard let lib = app?.engineLibrary, let folder = lib.folder, training == nil else { return }
+        guard let lib = app?.engineLibrary, !lib.isReadOnly, let folder = lib.folder, training == nil else { return }
         let cancel = CancelFlag()
         training = AgentRunProgress(done: 0, total: 0, current: "", phase: "Learning your edits")
         let relay = AgentRelay { [weak self] p in Task { @MainActor in if self?.training != nil { self?.training = p } } }
@@ -340,7 +340,7 @@ final class AgentController {
 
     /// Starts the base edit (or, with `instruction`, a scoped redo) for item ids.
     func start(itemIDs: [Int], instruction: String? = nil, provider kind: AIProviderKind? = nil) {
-        guard let app, let lib = app.engineLibrary, let folder = lib.folder, !isRunning, !itemIDs.isEmpty else { return }
+        guard let app, let lib = app.engineLibrary, !lib.isReadOnly, let folder = lib.folder, !isRunning, !itemIDs.isEmpty else { return }
         // A run replaces the queue generation; let existing review completions
         // publish their result and refresh their photo before any run starts.
         guard busy.isEmpty, itemIDs.allSatisfy(lib.imageIDs.indices.contains) else { return }

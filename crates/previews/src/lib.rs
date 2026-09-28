@@ -111,6 +111,64 @@ impl PreviewStore {
     pub fn get(&self, key: &PreviewKey, level: Level) -> Option<Bytes> {
         self.disk.get(&self.path(key, level))
     }
+    /// Bounded local-cache lookup for explicit offline consumers. Reject links and
+    /// oversized cache files without falling back to source I/O. Ordinary get is unchanged.
+    pub fn get_bounded(&self, key: &PreviewKey, level: Level, max_bytes: usize) -> Option<Bytes> {
+        use std::io::Read;
+        let path = self.path(key, level);
+        for directory in [self.root.as_path(), path.parent()?] {
+            if !fs::symlink_metadata(directory).ok()?.file_type().is_dir() {
+                return None;
+            }
+        }
+        if !fs::symlink_metadata(&path).ok()?.file_type().is_file() {
+            return None;
+        }
+        let mut bytes = Vec::new();
+        fs::File::open(path)
+            .ok()?
+            .take(u64::try_from(max_bytes).ok()?.checked_add(1)?)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        (!bytes.is_empty() && bytes.len() <= max_bytes).then_some(bytes)
+    }
+    /// Restricted cache publication for explicit local-only consumers. A linked
+    /// directory/file or pre-existing temporary leaf is an error, never followed.
+    pub fn put_image_local_cancellable(
+        &self,
+        key: &PreviewKey,
+        image: &RgbImage,
+        max_px: u32,
+        check: &dyn Fn() -> engine_api::EngineResult<()>,
+    ) -> Result<()> {
+        let guarded = || -> engine_api::EngineResult<()> {
+            check()?;
+            let reject = || std::io::Error::other("unsafe local preview cache path");
+            if !fs::symlink_metadata(&self.root)?.file_type().is_dir() {
+                return Err(reject().into());
+            }
+            let directory = self.root.join(key.directory());
+            match fs::symlink_metadata(&directory) {
+                Ok(metadata) if metadata.file_type().is_dir() => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                _ => return Err(reject().into()),
+            }
+            for level in Level::ALL {
+                let path = self.path(key, level);
+                match fs::symlink_metadata(&path) {
+                    Ok(metadata) if metadata.file_type().is_file() => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    _ => return Err(reject().into()),
+                }
+                match fs::symlink_metadata(path.with_extension("tmp")) {
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    _ => return Err(reject().into()),
+                }
+            }
+            Ok(())
+        };
+        self.put_image_cancellable(key, image, max_px, &guarded)
+    }
     pub fn put(&self, key: &PreviewKey, level: Level, bytes: &[u8]) -> Result<()> {
         self.disk.put(&self.path(key, level), bytes, self.cap)
     }
@@ -400,5 +458,37 @@ mod tests {
         println!("45 MP pyramid: {elapsed:?}");
         assert!(elapsed.as_millis() < 400);
         let _ = fs::remove_dir_all(p);
+    }
+    #[test]
+    fn bounded_lookup_rejects_oversized_empty_and_linked_cache_files() {
+        let (root, store) = store(u64::MAX);
+        let key = PreviewKey::new(b"bounded-offline", 1, [0; 32]);
+        store.put(&key, Level::Full, b"12345").unwrap();
+        assert_eq!(
+            store.get_bounded(&key, Level::Full, 5),
+            Some(b"12345".to_vec())
+        );
+        assert!(store.get_bounded(&key, Level::Full, 4).is_none());
+        let path = store.path(&key, Level::Full);
+        fs::write(&path, []).unwrap();
+        assert!(store.get_bounded(&key, Level::Full, 5).is_none());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let target = root.join("untouched-source");
+            fs::write(&target, b"secret").unwrap();
+            fs::remove_file(&path).unwrap();
+            symlink(&target, &path).unwrap();
+            assert!(store.get_bounded(&key, Level::Full, 100).is_none());
+            assert_eq!(fs::read(&target).unwrap(), b"secret");
+            fs::remove_file(&path).unwrap();
+            let directory = path.parent().unwrap();
+            let moved = root.join("moved-key");
+            fs::rename(directory, &moved).unwrap();
+            fs::write(moved.join("1.jpg"), b"linked").unwrap();
+            symlink(&moved, directory).unwrap();
+            assert!(store.get_bounded(&key, Level::Full, 100).is_none());
+        }
+        let _ = fs::remove_dir_all(root);
     }
 }

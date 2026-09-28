@@ -101,7 +101,7 @@ final class LibraryModel {
         isAvailable = false
         understanding.library = self
         understanding.install()
-        guard let engine = library as? EngineLibrary else { return }
+        guard let engine = library as? EngineLibrary, !engine.isReadOnly else { return }
         let input = LibraryCatalog.Input(engine)
         Task { [weak self] in
             let result = await Task.detached(priority: .userInitiated) {

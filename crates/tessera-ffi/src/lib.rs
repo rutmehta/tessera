@@ -32,6 +32,7 @@ mod smart_preview;
     reason = "journal storage awaits Smart Preview caller integration"
 )]
 mod smart_preview_store;
+mod smart_preview_thumbnail;
 pub use smart_preview::{SmartPreviewInfo, SmartPreviewState};
 #[doc(hidden)]
 pub mod surface;
@@ -212,6 +213,7 @@ pub struct Engine {
     segmenter: develop::SegmenterSlot,
     /// Face detector + recognizer (downloaded and loaded on first face analysis).
     faces: Mutex<Option<ml_faces::FaceModels>>,
+    smart_thumbnail_states: Mutex<smart_preview_thumbnail::States>,
     preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
     /// Keyword suggestions, captions and OCR: models and background jobs.
@@ -347,6 +349,7 @@ impl Engine {
             renderer: std::sync::OnceLock::new(),
             segmenter: Default::default(),
             faces: Mutex::new(None),
+            smart_thumbnail_states: Mutex::new(Default::default()),
             preview_states: Mutex::new(std::collections::HashMap::new()),
             listener: Mutex::new(None),
             understanding: Default::default(),

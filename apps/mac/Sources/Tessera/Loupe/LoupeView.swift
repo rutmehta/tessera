@@ -67,6 +67,18 @@ final class LoupeController: LibraryObserver {
 
     func itemsDidChange(_ positions: IndexSet) {}
 
+    func thumbnailsDidChange(_ positions: IndexSet) {
+        guard model.viewMode == .loupe, !engineShown,
+              let position = model.focusedPosition, positions.contains(position),
+              let item = model.focusedItem, item.engineImage?.previewSource == .smartPreview else { return }
+        request?.cancel()
+        view.present(image: nil, isFinal: false)
+        request = model.loader.request(item, tier: .preview, priority: .veryHigh) { [weak self] image in
+            guard let self, self.model.focusedItem == item, self.shownID == item.id, !self.engineShown else { return }
+            self.view.present(image: image, isFinal: true)
+        }
+    }
+
     func selectionDidChange(scrollToFocus: Bool) {
         guard model.viewMode == .loupe else { return }
         guard let item = model.focusedItem else {

@@ -20,13 +20,42 @@ extension StubLibrary: PhotoLibrary {
     public func makeCullController() -> CullController { CullController(memory: self) }
 }
 
+/// Thumbnail pixels are independent from the user's explicit Develop source choice.
+/// A cached Library owns proxy references; an online Library owns original references.
+public enum EnginePreviewSource: Hashable, Sendable { case original, smartPreview }
+
+/// Injectable synchronous worker boundary; native owns validation/cache identity.
+struct EngineThumbnailAPI: Sendable {
+    let original: @Sendable (String, UInt32) throws -> PreviewResponse
+    let smartPreview: @Sendable (String, UInt32) throws -> PreviewResponse
+
+    static func live(engine: Engine) -> Self {
+        Self(original: { try engine.embeddedPreview(imageId: $0, maxPx: $1) },
+             smartPreview: { try engine.smartPreviewThumbnail(imageId: $0, maxPx: $1) })
+    }
+    func response(source: EnginePreviewSource, imageID: String, maxPx: UInt32) throws -> PreviewResponse {
+        switch source {
+        case .original: return try original(imageID, maxPx)
+        case .smartPreview: return try smartPreview(imageID, maxPx)
+        }
+    }
+}
+
 /// Retained by immutable items, so in-flight thumbnails cannot switch to a newly opened catalog.
 public final class EngineImageReference: Sendable, Hashable {
     public let engine: Engine
     public let imageID: String
+    public let previewSource: EnginePreviewSource
     let previewEvents: PreviewEvents
-    init(engine: Engine, imageID: String, previewEvents: PreviewEvents) {
+    private let thumbnailAPI: EngineThumbnailAPI
+    init(engine: Engine, imageID: String, previewEvents: PreviewEvents,
+         previewSource: EnginePreviewSource = .original, thumbnailAPI: EngineThumbnailAPI? = nil) {
         self.engine = engine; self.imageID = imageID; self.previewEvents = previewEvents
+        self.previewSource = previewSource
+        self.thumbnailAPI = thumbnailAPI ?? .live(engine: engine)
+    }
+    func thumbnail(maxPx: UInt32) throws -> PreviewResponse {
+        try thumbnailAPI.response(source: previewSource, imageID: imageID, maxPx: maxPx)
     }
     public static func == (lhs: EngineImageReference, rhs: EngineImageReference) -> Bool { lhs === rhs }
     public func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
@@ -43,6 +72,8 @@ public final class EngineImageReference: Sendable, Hashable {
 /// Mutated on the main actor only.
 public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
     public let title: String
+    public let accessMode: LibraryAccessMode
+    public var isReadOnly: Bool { accessMode.isReadOnly }
     public let folder: URL?
     public private(set) var items: [PhotoItem]
     public private(set) var groups: [Range<Int>]
@@ -88,7 +119,9 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
 
     private init(title: String, folder: URL, subfolders: [URL], scanDuration: TimeInterval, engine: Engine,
                  session: CullSession, previewEvents: PreviewEvents, rows: [SessionImage], layout: [CullGroup],
-                 statuses: [String: ItemStatus], previewErrors: [String], sequence: UInt64) {
+                 statuses: [String: ItemStatus], previewErrors: [String], sequence: UInt64,
+                 accessMode: LibraryAccessMode = .originalFolder) {
+        self.accessMode = accessMode
         self.title = title; self.folder = folder; self.subfolders = subfolders
         self.scanDuration = scanDuration; self.engine = engine; self.session = session
         self.previewEvents = previewEvents; self.previewErrors = previewErrors
@@ -102,7 +135,38 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
     }
 
     private func state(of id: String) -> CullState {
-        rows[id].map { CullController.state(from: $0.selection, inBasket: $0.inBasket) } ?? CullState()
+        rows[id].map { CullController.state(from: $0.selection, inBasket: isReadOnly ? false : $0.inBasket) } ?? CullState()
+    }
+
+    /// Recent-folder and relaunch entry point. Offline routing performs no original
+    /// index/list operation; errors from an available original stay errors.
+    public static func open(folder: URL, appSupport: URL? = nil,
+                            basketTarget: String = defaultBasketTarget) throws -> EngineLibrary {
+        try LibraryOpenRouter.open(folder: folder,
+            original: { try scan(folder: $0, appSupport: appSupport, basketTarget: basketTarget) },
+            cached: { try cachedPreviews(folder: $0, appSupport: appSupport) })
+    }
+
+    /// Declaration-only snapshot. No original stat/canonicalization/index/list,
+    /// sidecar/dHash or full proxy pixel validation. Native filters bounded journals
+    /// and local proxy file declarations; status/open validates actual assets later.
+    /// Requires A's additive native API and regenerated bindings.
+    public static func cachedPreviews(folder: URL, appSupport: URL? = nil) throws -> EngineLibrary {
+        let start = Date()
+        let path = try LibraryOpenRouter.validateFolderPath(folder.path)
+        let engine = try Engine.open(appSupportDir: (appSupport ?? defaultSupportDirectory).path)
+        let events = PreviewEvents()
+        engine.setEventListener(listener: events)
+        let session = try engine.openSmartPreviewLibrarySession(folder: path)
+        let rows = try session.images()
+        let layout = try session.groups()
+        return EngineLibrary(title: folder.lastPathComponent, folder: folder, subfolders: [],
+                             scanDuration: Date().timeIntervalSince(start), engine: engine,
+                             session: session, previewEvents: events, rows: rows, layout: layout,
+                             statuses: Dictionary(rows.map { ($0.id, ItemStatus(isCachedDeclaration: true)) },
+                                                  uniquingKeysWith: { first, _ in first }),
+                             previewErrors: [], sequence: try session.changeSequence(),
+                             accessMode: .cachedSmartPreviews)
     }
 
     /// Indexes `folder`, opens a review session and orders items group by group.
@@ -131,7 +195,9 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
         let subfolders = try fm.contentsOfDirectory(at: canonical, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true && $0.lastPathComponent != ".edits" }
             .sorted { $0.path < $1.path }
-        return EngineLibrary(title: folder.lastPathComponent, folder: folder, subfolders: subfolders,
+        // Retain the native index identity while online. Offline lookup must not
+        // re-resolve a caller alias after its volume or symlink disappears.
+        return EngineLibrary(title: folder.lastPathComponent, folder: canonical, subfolders: subfolders,
                              scanDuration: Date().timeIntervalSince(start), engine: engine, session: session,
                              previewEvents: previewEvents, rows: rows, layout: layout,
                              statuses: Dictionary(statuses.map { ($0.imageId, ItemStatus($0)) }, uniquingKeysWith: { a, _ in a }),
@@ -162,7 +228,8 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
                 } ?? Date(timeIntervalSince1970: 0)
                 if imageID == group.best { best.append(newItems.count) }
                 let reference = references[imageID] ?? {
-                    let r = EngineImageReference(engine: engine, imageID: imageID, previewEvents: previewEvents)
+                    let r = EngineImageReference(engine: engine, imageID: imageID, previewEvents: previewEvents,
+                                                 previewSource: isReadOnly ? .smartPreview : .original)
                     references[imageID] = r
                     return r
                 }()

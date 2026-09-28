@@ -134,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.loadStubItems(count: n)
         } else if let path = value(after: "--folder") {
             model.openFolder(URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true))
-        } else if let last = model.lastFolder, FileManager.default.fileExists(atPath: last.path) {
+        } else if let last = model.lastFolder {
             model.openFolder(last)
         }
         if let catalog = value(after: "--import-lrcat") {

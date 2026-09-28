@@ -29,7 +29,8 @@ final class CompareContainerView: NSView {
     private var zoom: CGFloat = 1
     private var center = CGPoint(x: 0.5, y: 0.5)
     private var zoomToggles = 0
-    private var shownIDs: [Int] = []
+    private var shownItems: [PhotoItem?] = [nil, nil]
+    private var shownRevision = -1
     private var requests: [PreviewRequest?] = [nil, nil]
 
     override init(frame: NSRect) {
@@ -58,16 +59,17 @@ final class CompareContainerView: NSView {
             let pane = panes[side]
             pane.configure(item: item, state: model.state(id: id), suggestedBest: model.isSuggestedBest(item),
                            active: pair.active == side, key: side == 0 ? "←" : "→")
-            if shownIDs.count != 2 || shownIDs[side] != id {
+            if shownItems[side] != item || (item.engineImage?.previewSource == .smartPreview && shownRevision != model.libraryRevision) {
+                shownItems[side] = item
                 requests[side]?.cancel()
                 pane.setImage(model.loader.cached(item, tier: .preview) ?? model.loader.cached(item, tier: .thumbnail))
-                requests[side] = model.loader.request(item, tier: .preview, priority: .veryHigh) { [weak pane] image in
-                    guard let pane, pane.itemID == id else { return }
+                requests[side] = model.loader.request(item, tier: .preview, priority: .veryHigh) { [weak self, weak pane] image in
+                    guard let self, self.shownItems[side] == item, let pane, pane.itemID == id else { return }
                     pane.setImage(image)
                 }
             }
         }
-        shownIDs = pair.ids
+        shownRevision = model.libraryRevision
         if pair.zoomToggles != zoomToggles {
             zoomToggles = pair.zoomToggles
             toggleActualSize()

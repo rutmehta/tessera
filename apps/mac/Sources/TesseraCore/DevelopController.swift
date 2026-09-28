@@ -94,6 +94,7 @@ public final class DevelopController {
     /// The library item it develops; follows in-place library updates (`relink`).
     public private(set) var itemID: Int
     public let imageID: String
+    public let sourceRoute: DevelopSourceRoute
     public let session: DevelopSession
     public let info: DevelopInfo
     public private(set) var history: HistoryState
@@ -169,14 +170,20 @@ public final class DevelopController {
         self.itemID = itemID
     }
 
-    public static func open(_ ref: EngineImageReference, itemID: Int) async throws -> DevelopController {
+    public static func open(_ ref: EngineImageReference, itemID: Int,
+                            source: DevelopSourceRoute = .original) async throws -> DevelopController {
         let session = try await Task.detached(priority: .userInitiated) {
-            try ref.engine.openDevelopSession(imageId: ref.imageID)
+            switch source {
+            case .original: try ref.engine.openDevelopSession(imageId: ref.imageID)
+            case .smartPreview: try ref.engine.openSmartPreviewDevelopSession(imageId: ref.imageID)
+            }
         }.value
-        return try DevelopController(session: session, itemID: itemID, imageID: ref.imageID)
+        return try DevelopController(session: session, itemID: itemID, imageID: ref.imageID, source: source)
     }
 
-    init(session: DevelopSession, itemID: Int, imageID: String) throws {
+    init(session: DevelopSession, itemID: Int, imageID: String,
+         source: DevelopSourceRoute = .original) throws {
+        self.sourceRoute = source
         self.session = session
         self.itemID = itemID
         self.imageID = imageID

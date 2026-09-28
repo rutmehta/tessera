@@ -33,7 +33,7 @@ final class WorkspaceReadyPhotoTests: XCTestCase {
         XCTAssertEqual(model.developStatus, .ready, model.photoEditAvailabilityHint)
         let controller = try XCTUnwrap(model.develop)
         XCTAssertTrue(controller.lastFrame?.isFinal == true)
-        XCTAssertEqual(model.workspaceScope, "Editing 1 photo · RAW")
+        XCTAssertEqual(model.workspaceScope, "Editing 1 photo · RAW · Original")
         XCTAssertEqual(model.targetIDs.count, 1)
         XCTAssertEqual(controller.itemID, model.editTarget?.id)
         XCTAssertTrue(tools.develop === controller)

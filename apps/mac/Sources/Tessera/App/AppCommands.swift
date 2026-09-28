@@ -36,6 +36,7 @@ struct AppCommands: Commands {
             Divider()
             Button(model.tether.showPanel ? "Hide Tethered Capture" : "Tethered Capture…") { model.tether.togglePanel() }
             Button("Capture") { model.tether.capture() }
+                .disabled(model.isCachedPreviewLibrary)
                 .keyboardShortcut("t", modifiers: [.command, .shift])
             Divider()
             Button("Export…") { model.presentExport() }
@@ -168,15 +169,18 @@ struct AppCommands: Commands {
             Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
                 .keyboardShortcut(.delete, modifiers: .command)
             }
-            .disabled(model.isPhotoEditing || model.isReviewing || docMode || model.source == .people)
+            .disabled(model.isPhotoEditing || model.isReviewing || docMode || model.source == .people || model.isCachedPreviewLibrary)
         }
         documentMenus
         Group {   // M2-50: Library + Photo as one builder item (the builder takes at most 10)
         CommandMenu("Library") {
+            SmartPreviewMenu(model: model)
+            Divider()
             Button("Open in Layers…") { model.requestLayeredCopy() }
                 .shortcut(!docMode, "e", .command)
                 .disabled(docMode || model.isReviewing || model.focusedItem == nil)
             Divider()
+            Group {
             Button("New Album…") { model.collections.newAlbum() }
                 .keyboardShortcut("n", modifiers: [.command, .option])
             Button("New Album Group…") { model.collections.newGroup() }
@@ -197,15 +201,16 @@ struct AppCommands: Commands {
                 .disabled(!model.collections.understanding.isAvailable)
             Button("Detect Text in Selection") { model.collections.understanding.detectText() }
                 .disabled(!model.collections.understanding.isAvailable)
+            }.disabled(model.isCachedPreviewLibrary)
         }
         // M2-50 begin: Photo ▸ Photo Merge / Enhance
-        CommandMenu("Photo") { PhotoMenuItems(model: model) }
+        CommandMenu("Photo") { PhotoMenuItems(model: model).disabled(model.isCachedPreviewLibrary) }
         }
         // M2-50 end
         CommandMenu("Develop") {
             Button("Auto Edit…") { model.agent.present() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
-                .disabled(model.agent.isRunning)
+                .disabled(model.agent.isRunning || model.isCachedPreviewLibrary)
             Button("Agent Review") { model.enterReview() }
                 .disabled(docMode)
             Divider()

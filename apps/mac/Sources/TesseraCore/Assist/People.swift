@@ -602,6 +602,7 @@ public final class PeopleModel {
 extension CullController: PeopleEngine {
     private func peopleLibrary() throws -> EngineLibrary {
         guard case .engine(let lib) = backend else { throw CullError.unavailable("People need a folder opened on the engine") }
+        try lib.accessMode.requireCatalogMutation()
         return lib
     }
 

@@ -220,6 +220,10 @@ public final class ThumbnailLoader: @unchecked Sendable {
     private let concurrency: Int
     private let afterDelivery: (@Sendable () -> Void)?
     private let beforeRender: (@Sendable () -> Void)?
+    // A cancelled subscriber can leave an admitted native proxy job running.
+    // Bound queue-full (and other proxy request) recovery without parsing errors.
+    private static let proxyRetryDelays: [UInt64] = [250_000_000, 500_000_000, 1_000_000_000]
+    private let proxyRetryWait: @Sendable (UInt64) async throws -> Void
     private var viewports: [UUID: Int] = [:]
 
     /// Independent grid/filmstrip owners contribute their current on-screen capacity.
@@ -287,10 +291,14 @@ public final class ThumbnailLoader: @unchecked Sendable {
 
     init(thumbnailCostLimit: Int, previewCostLimit: Int, concurrency: Int = 4,
          afterDelivery: (@Sendable () -> Void)? = nil,
-         beforeRender: (@Sendable () -> Void)? = nil) {
+         beforeRender: (@Sendable () -> Void)? = nil,
+         proxyRetryWait: @escaping @Sendable (UInt64) async throws -> Void = {
+             try await Task.sleep(nanoseconds: $0)
+         }) {
         self.concurrency = max(1, concurrency)
         self.afterDelivery = afterDelivery
         self.beforeRender = beforeRender
+        self.proxyRetryWait = proxyRetryWait
         thumbCache.totalCostLimit = thumbnailCostLimit
         previewCache.totalCostLimit = previewCostLimit
         queue = OperationQueue()
@@ -299,8 +307,12 @@ public final class ThumbnailLoader: @unchecked Sendable {
         queue.maxConcurrentOperationCount = max(1, concurrency)
     }
 
+    private struct EngineKey: Hashable {
+        let owner: EngineImageReference
+        let source: EnginePreviewSource
+    }
     static func key(_ item: PhotoItem) -> AnyHashable {
-        item.engineImage.map(AnyHashable.init) ?? AnyHashable(item)
+        item.engineImage.map { AnyHashable(EngineKey(owner: $0, source: $0.previewSource)) } ?? AnyHashable(item)
     }
 
     private func cache(_ tier: PreviewTier) -> Cache {
@@ -420,6 +432,7 @@ public final class ThumbnailLoader: @unchecked Sendable {
                 let queue = queue
                 let beforeRender = beforeRender
                 let afterDelivery = afterDelivery
+                let proxyRetryWait = proxyRetryWait
                 flight.task = Task.detached { [weak self] in
                     defer {
                         self?.finished(flight)
@@ -430,11 +443,22 @@ public final class ThumbnailLoader: @unchecked Sendable {
                     }
                     defer { subscription?.cancel() }
                     var iterator = subscription?.stream.makeAsyncIterator()
+                    var proxyRetries = 0
                     while !Task.isCancelled {
                         let result = await Self.renderQueued(flight.item, tier: flight.key.tier,
                                                              priority: flight.priority, queue: queue,
                                                              beforeRender: beforeRender)
                         guard !Task.isCancelled else { return }
+                        if result.proxyRequestFailed {
+                            guard proxyRetries < Self.proxyRetryDelays.count else { return }
+                            let delay = Self.proxyRetryDelays[proxyRetries]
+                            proxyRetries += 1
+                            // Keep this flight's slot/identity throughout backoff. Cancellation
+                            // ends the sleep; injected clocks must also pass the post-wait guard.
+                            do { try await proxyRetryWait(delay) } catch { return }
+                            guard !Task.isCancelled else { return }
+                            continue
+                        }
                         if let image = result.image {
                             await self?.deliver(image, flight: flight)
                             afterDelivery?()
@@ -495,18 +519,21 @@ public final class ThumbnailLoader: @unchecked Sendable {
     private struct RenderResult: Sendable {
         var image: CGImage? = nil
         var pending = false
+        var proxyRequestFailed = false
     }
 
     private static func renderResult(_ item: PhotoItem, tier: PreviewTier) -> RenderResult {
         if let ref = item.engineImage {
-            guard let response = try? ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: UInt32(tier.maxPixelSize)) else {
-                return RenderResult()
+            do {
+                let response = try ref.thumbnail(maxPx: UInt32(tier.maxPixelSize))
+                guard let bytes = response.bytes, let src = CGImageSourceCreateWithData(bytes as CFData, nil) else {
+                    return RenderResult(pending: response.pending)
+                }
+                return RenderResult(image: CGImageSourceCreateImageAtIndex(src, 0,
+                    [kCGImageSourceShouldCacheImmediately: true] as CFDictionary), pending: response.pending)
+            } catch {
+                return RenderResult(proxyRequestFailed: ref.previewSource == .smartPreview)
             }
-            guard let bytes = response.bytes, let src = CGImageSourceCreateWithData(bytes as CFData, nil) else {
-                return RenderResult(pending: response.pending)
-            }
-            return RenderResult(image: CGImageSourceCreateImageAtIndex(src, 0,
-                [kCGImageSourceShouldCacheImmediately: true] as CFDictionary), pending: response.pending)
         }
         return RenderResult(image: renderLocal(item, tier: tier))
     }
