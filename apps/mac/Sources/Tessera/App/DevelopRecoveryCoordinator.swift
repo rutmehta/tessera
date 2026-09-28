@@ -46,7 +46,7 @@ final class DevelopRecoveryCoordinator {
         let phase: Phase
     }
 
-    struct Gate {
+    @MainActor struct Gate {
         let id: UUID
         private let coordinator: DevelopRecoveryCoordinator
 
@@ -59,7 +59,7 @@ final class DevelopRecoveryCoordinator {
         func finish() { coordinator.finishGate(id) }
     }
 
-    private final class Record {
+    @MainActor private final class Record {
         let id: SessionID
         let key: Key?
         let owner: EngineLibrary?
