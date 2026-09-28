@@ -76,6 +76,7 @@ pub(crate) fn render_with_hooks(
     // already warped pixels. Ordinary (non-AI) exports retain the full path.
     let (w, h, metadata) = match source {
         RenderSource::Rgb(i) => (i.width(), i.height(), None),
+        RenderSource::CameraLinear(_) => return Err(crate::original_required()),
         RenderSource::Cfa { metadata, .. } => (
             metadata.default_crop[2],
             metadata.default_crop[3],

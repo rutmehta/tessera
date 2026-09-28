@@ -68,6 +68,7 @@ pub fn export_batch_with_jobs(
     let mut max_bytes = 1;
     let mut max_output = 0;
     for item in items {
+        crate::require_full_quality_source(&item.image.source)?;
         let name = filename(
             &settings.naming,
             item.image.name,
@@ -82,6 +83,7 @@ pub fn export_batch_with_jobs(
         let (w, h) = match &item.image.source {
             pipeline_cpu::RenderSource::Rgb(image) => (image.width(), image.height()),
             pipeline_cpu::RenderSource::Cfa { metadata, .. } => (metadata.width, metadata.height),
+            pipeline_cpu::RenderSource::CameraLinear(_) => return Err(crate::original_required()),
         };
         let (ow, oh) = settings.resize.dimensions(w, h)?;
         max_output = max_output.max(u64::from(ow) * u64::from(oh));
@@ -247,6 +249,7 @@ fn export_serial(
     settings.format.validate()?;
     let mut names = HashSet::new();
     for item in items {
+        crate::require_full_quality_source(&item.image.source)?;
         let name = filename(
             &settings.naming,
             item.image.name,
