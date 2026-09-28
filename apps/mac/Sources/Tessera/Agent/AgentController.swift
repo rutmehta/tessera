@@ -425,7 +425,8 @@ final class AgentController {
         runningSources = Set(images.compactMap { sourceKey(imageID: $0, library: lib) })
         let closeBarrier = app.prepareForAgent(imageIDs: Set(images), library: lib)
         Task {
-            defer { closeBarrier.finish() }
+            var gateFinished = false
+            defer { if !gateFinished { closeBarrier.finish() } }
             // The captured owner can finish offscreen, but all of its prior
             // Develop saves must land before the agent reads the recipes.
             guard await closeBarrier.result().isSaved, self.runID == job else {
@@ -448,6 +449,10 @@ final class AgentController {
             let result = await Task.detached(priority: .userInitiated) {
                 Result { try lib.engine.runAgent(request: request, cancel: cancel, listener: relay) }
             }.value
+            // The engine has finished reading and writing captured recipes. Release
+            // admission before notifying the UI, which may reopen Develop.
+            closeBarrier.finish()
+            gateFinished = true
             self.progress = nil
             self.cancelFlag = nil
             self.runID = nil
@@ -587,7 +592,8 @@ final class AgentController {
         let imageID = entry.imageID
         let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
         Task {
-            defer { closeBarrier.finish() }
+            var gateFinished = false
+            defer { if !gateFinished { closeBarrier.finish() } }
             guard await closeBarrier.result().isSaved else {
                 self.finishMutation(imageID)
                 completion(false)
@@ -602,6 +608,8 @@ final class AgentController {
             let result = await Task.detached(priority: .userInitiated) {
                 Result { try lib.engine.acceptAgentEdit(imageId: imageID, libraryFolder: folder.path) }
             }.value
+            closeBarrier.finish()
+            gateFinished = true
             self.finishMutation(imageID)
             switch result {
             case .success(let r):
@@ -631,7 +639,8 @@ final class AgentController {
         let imageID = entry.imageID
         let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
         Task {
-            defer { closeBarrier.finish() }
+            var gateFinished = false
+            defer { if !gateFinished { closeBarrier.finish() } }
             guard await closeBarrier.result().isSaved else {
                 self.finishMutation(imageID)
                 if app.engineLibrary === lib { app.statusMessage = "Finish saving the photo before reverting" }
@@ -639,6 +648,8 @@ final class AgentController {
             }
             guard self.currentItem(for: target) != nil else { self.finishMutation(imageID); return }
             let result = await Task.detached { Result { try lib.engine.revertAgentEdit(imageId: imageID, groupId: group) } }.value
+            closeBarrier.finish()
+            gateFinished = true
             self.finishMutation(imageID)
             switch result {
             case .success:
