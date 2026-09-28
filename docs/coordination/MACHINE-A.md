@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Scoped lease candidate enters validation — 2026-09-28 11:11 UTC
+
+Native source4f26ef95 has root/Astra lifecycle review and corrected deterministic controls: stale owner authority, wrong gate/key, failed snapshot/decode rollback, failed-close retention, successful close plus actual old-session Drop while a new owner is active, histogram ownership, and final session Drop from its own save callback. The callback test retains Shared separately, observes writer completion only after its lease drops, and uses bounded/unwind-safe synchronization. Earlier92ad/6352/59210 are preserved UNRUN preflight checkpoints, including the corrected moved-ID compile defect in59210; no failed compilation is claimed for code never run.
+
+Luna owns the sole native lane for frozen4f26 focused/adjacent tests, then format/strict lint only if those pass. No runtime success or integration is claimed at this publication. Runtime evidence must keep full source freezes and raw direct outcomes.
+
+Independent review also found a pre-existing filename-alias gap. Root confirmed on A that case-variant sidecar spellings share an inode while lexical keys differ. Stage C remains explicitly scoped to the existing canonical-parent plus exact filename key; physical aliases are a separate tracked prerequisite for a stronger guarantee. The durable limitation note records findings, scope and next policy decision without guessed normalization or collection mutations. Latest fetch/mailbox is unchanged: Bcd844534, no messages/in-progress receipt and no acceptance of8638c362. User preview and B hold remain unchanged.
+
 ## Native admission failures reproduced — 2026-09-28 10:51 UTC
 
 Exact tests-onlyd61512ed has two genuine REDs: second Engine opens another editor instead of rejecting admission, and direct recipe setter returns success while the editor is active. Both executed one test and failed the intended assertion/direct101. The separate foreign-disk stale-owner control passed1/direct0, preserving the existing baseline defense. Root read all raw outcomes and verified1177 tracked Rust/Cargo/config hashes against d615; all three before/after manifests are identical. Later no-write/close assertions after RED are not claimed to have run.
