@@ -3622,12 +3622,17 @@ dependencies = [
 name = "pipeline-cpu"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "color-mgmt",
  "engine-api",
+ "half",
  "image",
  "lens",
  "png 0.17.16",
  "raw-decode",
+ "serde",
+ "serde_json",
+ "zstd",
 ]
 
 [[package]]

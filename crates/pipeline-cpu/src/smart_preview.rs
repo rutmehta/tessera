@@ -1,5 +1,8 @@
-//! In-memory Native2 Smart Preview boundary. This is not a persistence format.
+//! Native2 camera-linear Smart Preview boundary.
+#[path = "smart_preview_codec.rs"]
+mod codec;
 use crate::{Image, LensContext, ResolvedLens};
+pub use codec::{DecodedSmartPreview, SmartPreviewEncoding};
 use engine_api::{
     EngineError, EngineResult,
     recipe::{
@@ -22,8 +25,8 @@ use raw_decode::{CfaImage, RawMetadata};
 /// owned, as for the CFA reference renderer; these planes are sensor-oriented.
 ///
 /// Immutable fields make cloning an exact in-memory snapshot/round trip. This
-/// type deliberately has no deserializer: persisted snapshots need a separately
-/// reviewed bounded schema, payload digest and dependency identity contract.
+/// type persists through a separately versioned, bounded camera-linear codec
+/// with payload/container digests and an explicit original-source assertion.
 #[derive(Clone, Debug)]
 pub struct CameraLinearProxy {
     pixels: Image,
