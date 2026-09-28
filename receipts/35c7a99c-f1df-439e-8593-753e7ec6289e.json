@@ -1,0 +1,1 @@
+{"from": "B", "id": "35c7a99c-f1df-439e-8593-753e7ec6289e", "status": "accepted", "summary": "Validated exact B target and expiry. Removing newly introduced Observable reads from diagnostic patch; preserving first trace as non-reproduction, no lifecycle/workload change.", "to": "A", "updated_at": 1790575940, "version": 1}
