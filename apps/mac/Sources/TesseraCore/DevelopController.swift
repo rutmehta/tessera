@@ -191,6 +191,8 @@ public final class DevelopController {
 
     /// Stops rendering and writes pending edits (off the main actor). A failed attempt
     /// leaves the controller and native session available for an explicit retry.
+    /// Tasks spawned inside a close callback observe that originating attempt for
+    /// their lifetime; a deliberate retry starts from an independent UI task.
     @discardableResult
     public func close() async -> Result<Void, Error> {
         // A child task created by a synchronous close callback belongs to that

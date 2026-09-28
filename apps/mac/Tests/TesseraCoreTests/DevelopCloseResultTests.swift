@@ -355,13 +355,20 @@ final class DevelopCloseResultTests: XCTestCase {
         controller.set(.exposure, 0.25, interactive: false)
         let obsolete = try XCTUnwrap(controller.deferredSettingsFlush)
         XCTAssertEqual(session.settingsAttempts, 1)
+        session.rejectNextClose()
         session.releaseClose()
         let result = await controller.close()
         await obsolete.value
-        if case .failure(let error) = result { XCTFail("close failed: \(error)") }
+        if case .success = result { XCTFail("injected native close failure was lost") }
         XCTAssertEqual(session.settingsAttempts, 2, "close drains the pending edit exactly once")
         XCTAssertNil(controller.deferredSettingsFlush)
         XCTAssertEqual(session.closeCount, 1)
+        XCTAssertFalse(controller.closed)
+        session.releaseClose()
+        let retry = await controller.close()
+        if case .failure(let error) = retry { XCTFail("explicit retry failed: \(error)") }
+        XCTAssertEqual(session.settingsAttempts, 2, "obsolete task must not retry after failure")
+        XCTAssertEqual(session.closeCount, 2)
     }
 
     func testCloseInvalidatesDeferredMaskDrain() async throws {
@@ -388,6 +395,52 @@ final class DevelopCloseResultTests: XCTestCase {
         XCTAssertEqual(session.maskParamAttempts, 2, "close drains the pending mask once")
         XCTAssertNil(controller.scheduledMaskFlushTask)
         XCTAssertEqual(session.closeCount, 1)
+    }
+
+    func testDelayedCallbackChildKeepsOriginOutcomeAfterIndependentRetry() async throws {
+        let f = try fixture()
+        let session = f.session, controller = f.controller
+        controller.onNeedsFlush = {}
+        controller.set(.exposure, 1.25, interactive: true)
+        session.rejectNextSettings()
+        let gate = CloseAsyncGate()
+        var delayedChild: Task<Result<Void, Error>, Never>?
+        controller.onFailure = { _ in
+            if delayedChild == nil {
+                delayedChild = Task {
+                    await gate.wait()
+                    return await controller.close()
+                }
+            }
+        }
+        let first = await controller.close()
+        if case .success = first { XCTFail("injected host failure was lost") }
+        session.releaseClose()
+        let retry = await controller.close() // Independent UI-origin call.
+        if case .failure(let error) = retry { XCTFail("explicit retry failed: \(error)") }
+        gate.release()
+        let delayed = await delayedChild?.value
+        if case .some(.failure(let error)) = delayed {
+            XCTAssertTrue(error.localizedDescription.contains("injected settings rejection"))
+        } else { XCTFail("callback descendant must observe its originating failure") }
+        XCTAssertEqual(session.settingsAttempts, 2)
+        XCTAssertEqual(session.closeCount, 1, "delayed child must not start another close")
+    }
+}
+
+/// Remembers release so a callback child may start waiting before or after its parent resolves.
+@MainActor
+private final class CloseAsyncGate {
+    private var released = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    func wait() async {
+        if released { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func release() {
+        released = true
+        continuation?.resume()
+        continuation = nil
     }
 }
 
