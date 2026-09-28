@@ -105,6 +105,7 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
 
     typealias Viewport = (level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double)
 
+    private let saveGate = NSLock()
     private let lock = NSLock()
     private weak var engine: StubDocumentEngine?
     private static let counter = NSLock()
@@ -904,15 +905,39 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
     // MARK: Output
 
     public func save() throws {
-        lock.lock(); let p = path; lock.unlock()
-        guard let p, p.hasSuffix(".tessera-doc") else {
-            throw DocumentError.invalid("Choose File ▸ Save As… to save this document as .tessera-doc")
-        }
-        try saveAs(path: p)
+        _ = try saveOutput(path: nil, intent: .replaceConfirmed)
     }
 
     public func saveAs(path newPath: String) throws {
-        let url = URL(fileURLWithPath: newPath).standardizedFileURL
+        _ = try saveOutput(path: newPath, intent: .replaceConfirmed)
+    }
+
+    public func saveAs(path newPath: String, intent: DocSaveDestinationIntent) throws -> DocSaveAsResult {
+        try saveOutput(path: newPath, intent: intent)
+    }
+
+    /// Per-call deterministic barriers. No mutable process-wide test configuration.
+    func saveForTesting(path: String? = nil, intent: DocSaveDestinationIntent = .replaceConfirmed,
+                        willAcquireSaveGate: (@Sendable () -> Void)? = nil,
+                        beforeCommit: (@Sendable (URL) throws -> Void)? = nil) throws -> DocSaveAsResult {
+        try saveOutput(path: path, intent: intent, willAcquireSaveGate: willAcquireSaveGate,
+                       beforeCommit: beforeCommit)
+    }
+
+    private func saveOutput(path requestedPath: String?, intent: DocSaveDestinationIntent,
+                            willAcquireSaveGate: (@Sendable () -> Void)? = nil,
+                            beforeCommit: (@Sendable (URL) throws -> Void)? = nil) throws -> DocSaveAsResult {
+        willAcquireSaveGate?()
+        saveGate.lock()
+        defer { saveGate.unlock() }
+        // Gate first, then read current path and snapshot. No model->save inversion.
+        lock.lock()
+        let destination = requestedPath ?? path
+        lock.unlock()
+        guard let destination, requestedPath != nil || destination.hasSuffix(".tessera-doc") else {
+            throw DocumentError.invalid("Choose File ▸ Save As… to save this document as .tessera-doc")
+        }
+        let url = URL(fileURLWithPath: destination).standardizedFileURL
         switch url.pathExtension.lowercased() {
         case "tessera-doc": break
         case "psd", "psb": throw DocumentError.unsupported("Saving as PSD / PSB needs the engine (B5-03); save as .tessera-doc")
@@ -920,21 +945,21 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
         }
         lock.lock()
         if pending { appendEntry("Change", live) }
-        let state = live
+        let state = live, capturedHead = head
         lock.unlock()
-        do {
-            try JSONEncoder().encode(File(state: state)).write(to: url, options: .atomic)
-        } catch {
-            throw DocumentError.io("Could not save \(url.lastPathComponent): \(error.localizedDescription)")
-        }
+        let bytes = try JSONEncoder().encode(File(state: state))
+        let outcome = try DocumentSaveDestinationCommit.write(bytes, to: url, intent: intent,
+            hooks: .init(beforeCommit: beforeCommit))
+        guard outcome == .saved else { return outcome }
         lock.lock()
         let old = path
         path = url.path
         title = url.lastPathComponent
-        savedHead = head
+        savedHead = capturedHead
         lock.unlock()
         if old != url.path { engine?.forget(old); engine?.remember(self, path: url.path) }
         post(layers: [], history: true)
+        return .saved
     }
 
     public func exportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws {
