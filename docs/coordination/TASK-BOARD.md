@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Save As failure isolated; parallel follow-up — 2026-09-28 06:49 UTC
+
+- Recovery product is integrated on main `2760ebeb`; PSD preflight is integrated on `08e86f39` with 51 selected native tests and strict checks. These are completed integrations, not merely staged candidates.
+- Refined diagnostic `e51ef7fd` passed 30 settlement + 3 probe tests/direct0 but reproduced actual Cancel → one repeat Save As failure. Root verified all ten frozen inputs; evidence is main `1ce68330`, with a portable 15-file manifest added here. Native end clears the parent while an unobserved attachment and live probe retain the old claim. No Save As product acceptance.
+- B acknowledged/completed request `82960a88-0725-46a1-b556-3dc1f97a2c8c` after SSH queue `01a0e6c0-a858-73c0-80ed-453330756015`. Result `7f8c4d02-c680-42ea-a7d9-bc8f7d90e6d1` target/expiry validated and accepted. Tests843b0416/product3d08368e are source-only: observe matching captured sheet attachment at SwiftUI dismissal, retain native-end requirement. Reviewer Sol prepares trace-free integration onto current main; Resource Sol independently reviews. No B workloads.
+- Luna owns the sole compiler lane for recovery status: actual tests-only RED76fd1a0c, final7135ea13 and adjacent tests next. Staged-filter nine-test REDf0155326 remains queued. Save As compiler/GUI waits for lane handoff.
+- Isolated diagnostic app20736 quit. User preview57591 untouched. B hold/paused heartbeat remains; A alone owns main merges. Queue acceptance, peer completion and final product acceptance remain distinct.
+
 ## Engine RES05a accepted for integration — 2026-09-28 06:39 UTC
 
 - Source `4f6b9751` passed51 selected Rust runtime tests (estimator4, PSD21, adjacent9, FFI preflight4, lifecycle8, IO4, host1), three formatting checks and three strict Clippy gates/direct0. Genuine pre-fix native-alpha RED31de failed the intended1×1 sentinel assertion/direct101. Root verified13 GREEN exits and all available source hashes;129 portable payloads verified/copied. Four Rust files staged for main exactly match tested candidate.
