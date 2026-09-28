@@ -549,7 +549,7 @@ enum SaveWork {
 struct SaveFailure {
     error: BridgeError,
     retry: SaveWork,
-    published: Option<Box<Recipe>>,
+    published: Option<Recipe>,
 }
 
 impl SaveFailure {
@@ -573,7 +573,7 @@ impl SaveFailure {
         Self {
             error: error.into(),
             retry: SaveWork::Repair,
-            published: Some(Box::new(published.clone())),
+            published: Some(published.clone()),
         }
     }
 }
@@ -583,7 +583,7 @@ struct SaveState {
     due: Option<Instant>,
     due_work: SaveWork,
     retry: Option<SaveWork>,
-    retry_recipe: Option<Box<Recipe>>,
+    retry_recipe: Option<Recipe>,
     flush: bool,
     busy: bool,
     shutdown: bool,
@@ -1384,7 +1384,7 @@ impl Shared {
     fn save_now(
         &self,
         work: SaveWork,
-        retry_recipe: Option<Box<Recipe>>,
+        retry_recipe: Option<Recipe>,
     ) -> std::result::Result<(), SaveFailure> {
         let engine = self
             .engine
@@ -3594,7 +3594,7 @@ mod tests {
             .list_images(crate::ImageQuery::default())
             .unwrap()
             .remove(0);
-        let session = engine.clone().open_develop_session(row.id).unwrap();
+        let session = engine.open_develop_session(row.id).unwrap();
         let path = session.shared.path.clone();
         let pause: PostRecipePause = Arc::new((Mutex::new((false, false)), Condvar::new()));
         let _release = ReleasePause(pause.clone());

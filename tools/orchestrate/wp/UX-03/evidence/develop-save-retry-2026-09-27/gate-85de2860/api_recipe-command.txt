@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --test api recipe_updates_preserve_unknown_fields_and_history -- --nocapture

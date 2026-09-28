@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --test develop jpeg_opens_renders_nonblack_and_persists_edits -- --nocapture
