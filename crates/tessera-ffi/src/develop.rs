@@ -3436,6 +3436,88 @@ mod tests {
     }
 
     #[test]
+    fn open_develop_editor_does_not_overwrite_newer_engine_settings() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("owner-conflict.jpg");
+        let mut newer: Recipe = serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+        newer.settings.tone.exposure = 1.2;
+        engine
+            .set_recipe_json(id.clone(), String::from_utf8(newer.to_json().unwrap()).unwrap())
+            .unwrap();
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let published_bytes = std::fs::read(&recipe_path).unwrap();
+
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        let error = session.flush().expect_err("stale editor must not publish");
+        assert!(error.to_string().contains("conflict"), "{error}");
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), published_bytes);
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            1.2
+        );
+        assert!(!session.shared.lock().unwrap().closed);
+    }
+
+    #[test]
+    fn selection_during_develop_does_not_conflict_with_edited_settings() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("owner-selection.jpg");
+        engine
+            .set_selection(
+                id.clone(),
+                crate::Selection {
+                    decision: crate::Decision::Keep,
+                    grade: Some(2),
+                    mark: None,
+                },
+            )
+            .unwrap();
+        session
+            .set_settings(r#"{"tone":{"exposure":0.4}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        let saved = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe).unwrap();
+        assert_eq!(saved.recipe.settings.tone.exposure, 0.4);
+        assert_eq!(saved.recipe.selection.grade, Some(engine_api::recipe::Grade::Two));
+    }
+
+    #[test]
+    fn legacy_rgb_disk_baseline_does_not_conflict_on_first_develop_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("legacy.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let rows = engine.list_images(crate::ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 1);
+        let id = rows[0].id.clone();
+        let mut legacy = catalog::document(&photo, parse_id(&id).unwrap()).unwrap();
+        legacy.recipe.source_kind = engine_api::recipe::SourceKind::Raw;
+        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&photo).recipe, &legacy).unwrap();
+        let session = engine.open_develop_session(id).unwrap();
+        session
+            .set_settings(r#"{"tone":{"exposure":0.3}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        let saved = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe).unwrap();
+        assert_eq!(saved.recipe.source_kind, engine_api::recipe::SourceKind::Rgb);
+        assert_eq!(saved.recipe.settings.tone.exposure, 0.3);
+    }
+
+    #[test]
     fn failed_close_repairs_without_a_new_edit_and_only_then_drains_worker() {
         let (_dir, photo, engine, id, session) = tiny_develop_session("close-repair.jpg");
         FAIL_AFTER_DEVELOP_RECIPE
