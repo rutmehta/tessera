@@ -1,0 +1,19 @@
+{
+  "crates/cull/src/people.rs": "0cff90eec12d6f64549491aa4ec0d88ce98ec944301a198b3315665c60308dda",
+  "crates/tessera-ffi/src/agent_runs.rs": "991982288da58cd80f8144af505168f126a07b4674cdfb38afd20c22e6208868",
+  "crates/tessera-ffi/src/assist.rs": "927a8be08aa695263a7b8e1a348a2a6617235dc78ad3871077432faa028285b6",
+  "crates/tessera-ffi/src/develop.rs": "7d1b649bf8084b80f9f3bdc865c64e8a6d67ff5797898e543278ec34c99dd788",
+  "crates/tessera-ffi/src/export.rs": "b389bda3a262898983a8a4d3ca23069416d963b6c10e2f517e027e1a6efdad02",
+  "crates/tessera-ffi/src/image_edit_admission.rs": "4b14177407a6f769dda05b6e77925d572fd4adffdd097a915f92d871bc766cf1",
+  "crates/tessera-ffi/src/lib.rs": "e050b72eb9a65a00a92bc446676ee62d13d9a51db4533a9b88e2023ea25fc7a9",
+  "crates/tessera-ffi/src/lrcat.rs": "fb4570bc6e252f897e0cfcfc394a92dcfe357fadffcdb8ef5d930dadbdc2819a",
+  "crates/tessera-ffi/src/metadata.rs": "4bc7d363fc27eaf072b908f68498ca099a1de493b1eec24bf5c67856995fbbda",
+  "crates/tessera-ffi/src/recipe_write.rs": "c080c23385bbb33dd551a47e04c5048c57221554267e2ca5b41411a16360ea47",
+  "crates/tessera-ffi/src/session.rs": "4e0d586bbf9c14c6e34bc32edf6fa3daefc2d64a5deedef3c21e941a57e2a2f8",
+  "crates/tessera-ffi/src/smart_preview_store.rs": "36eebeaa5ebf864c528d2a25ce39cbbcff2e27cce1f205d3b0649bf17766b0f0",
+  "crates/tessera-ffi/src/original_write.rs": "1c48184511e3fd3951de07b1107f598cf9c2e9b4e59192354ca9045e76098846",
+  "crates/tessera-ffi/src/smart_preview.rs": "f7f5a0683ad969681d9d89d784fdceb31898da0d856c45780b984a6ba0688590",
+  "crates/tessera-ffi/tests/smart_preview_workflow.rs": "f290eff6789b7f5b25d716e9dc22d8a7ffd8edc3db210abce4884c2809487653",
+  "crates/index/src/lib.rs": "a65d3deaa0258aa975e5d26f66ebb69d5b95dd013c9891397eb695600864bdeb",
+  "crates/index/src/api.rs": "6009e0fba5401bf958722e0e57d456f54096b92b38928c590248e95658716612"
+}

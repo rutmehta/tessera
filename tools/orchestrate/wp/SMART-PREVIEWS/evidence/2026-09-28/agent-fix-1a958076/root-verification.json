@@ -1,0 +1,42 @@
+{
+  "25-agent-mixed-green": {
+    "exit": 0,
+    "verified_git_inputs": 19,
+    "totals": [
+      3,
+      0,
+      0
+    ]
+  },
+  "26-agent-index-regression": {
+    "exit": 0,
+    "verified_git_inputs": 19,
+    "totals": [
+      161,
+      0,
+      3
+    ]
+  },
+  "27-agent-fix-ffi-units": {
+    "exit": 0,
+    "verified_git_inputs": 19,
+    "totals": [
+      175,
+      0,
+      0
+    ]
+  },
+  "28-agent-fix-strict": {
+    "exit": 0,
+    "verified_git_inputs": 19,
+    "totals": [
+      0,
+      0,
+      0
+    ]
+  },
+  "29-agent-fix-public-workflow": {
+    "exit": 0,
+    "verified_git_inputs": 19
+  }
+}
