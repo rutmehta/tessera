@@ -112,7 +112,7 @@ final class PrintController {
         }
         let pending = requests
         Task {
-            for request in pending { await request.waitForCompletion() }
+            for request in pending { await request.waitForFlightDrain() }
             gate?.finish()
         }
     }

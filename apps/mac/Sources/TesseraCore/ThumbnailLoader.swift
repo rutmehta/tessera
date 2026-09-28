@@ -18,6 +18,58 @@ public enum PreviewTier: Hashable, Sendable {
     }
 }
 
+/// Worker lifetime is separate from a subscriber's UI lifetime. A replacement
+/// generation waits for any older running flight with the same image/tier key.
+fileprivate final class PreviewFlightDrain: @unchecked Sendable {
+    private let lock = NSLock()
+    private let preceding: PreviewFlightDrain?
+    private var completed = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(preceding: PreviewFlightDrain? = nil) { self.preceding = preceding }
+
+    func wait() async {
+        var lineage: [PreviewFlightDrain] = []
+        var next: PreviewFlightDrain? = self
+        while let current = next {
+            lineage.append(current)
+            next = current.preceding
+        }
+        for drain in lineage.reversed() { await drain.waitOwn() }
+    }
+
+    private func waitOwn() async {
+        await withCheckedContinuation { continuation in
+            let done = lock.withLock {
+                if completed { return true }
+                waiters.append(continuation)
+                return false
+            }
+            if done { continuation.resume() }
+        }
+    }
+
+    var isDrained: Bool {
+        var next: PreviewFlightDrain? = self
+        while let current = next {
+            if !current.lock.withLock({ current.completed }) { return false }
+            next = current.preceding
+        }
+        return true
+    }
+
+    func finish() {
+        let pending = lock.withLock {
+            guard !completed else { return [CheckedContinuation<Void, Never>]() }
+            completed = true
+            let pending = waiters
+            waiters.removeAll()
+            return pending
+        }
+        for waiter in pending { waiter.resume() }
+    }
+}
+
 /// A cancellable in-flight request. Cells cancel on reuse so fast scrolling never queues stale work.
 public final class PreviewRequest: @unchecked Sendable {
     private let lock = NSLock()
@@ -25,7 +77,11 @@ public final class PreviewRequest: @unchecked Sendable {
     private var cancelled = false
     private var completed = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var flightDrain: PreviewFlightDrain?
     fileprivate init() {}
+    fileprivate func bindFlightDrain(_ drain: PreviewFlightDrain) {
+        lock.withLock { flightDrain = drain }
+    }
     fileprivate func onCancel(_ action: @escaping @Sendable () -> Void) {
         let run = lock.withLock {
             if cancelled { return true }
@@ -68,6 +124,16 @@ public final class PreviewRequest: @unchecked Sendable {
             if done { continuation.resume() }
         }
     }
+
+    /// Waits for the underlying queued worker to return, even if this UI
+    /// subscriber was cancelled or invalidated earlier. Pending work removed
+    /// before it starts is acknowledged immediately.
+    public func waitForFlightDrain() async {
+        guard let drain = lock.withLock({ flightDrain }) else { return }
+        await drain.wait()
+    }
+
+    var isFlightDrained: Bool { lock.withLock { flightDrain }?.isDrained ?? false }
 }
 
 /// Memory-bounded cache + bounded-concurrency decode queue.
@@ -134,15 +200,18 @@ public final class ThumbnailLoader: @unchecked Sendable {
         let key: FlightKey
         let item: PhotoItem
         let priority: Operation.QueuePriority
+        let drain: PreviewFlightDrain
         var subscribers: [UUID: Subscriber] = [:]
         var task: Task<Void, Never>?
         // Retain a delivered result until cleanup so a late cache-miss subscriber
         // cannot join a flight whose callback snapshot has already been drained.
         var image: CGImage?
-        init(item: PhotoItem, tier: PreviewTier, priority: Operation.QueuePriority) {
+        init(item: PhotoItem, tier: PreviewTier, priority: Operation.QueuePriority,
+             precedingDrain: PreviewFlightDrain?) {
             self.item = item
             self.key = FlightKey(image: ThumbnailLoader.key(item), tier: tier)
             self.priority = priority
+            self.drain = PreviewFlightDrain(preceding: precedingDrain)
         }
     }
     private var flights: [FlightKey: Flight] = [:]
@@ -150,6 +219,7 @@ public final class ThumbnailLoader: @unchecked Sendable {
     private var running: [UUID: Flight] = [:]
     private let concurrency: Int
     private let afterDelivery: (@Sendable () -> Void)?
+    private let beforeRender: (@Sendable () -> Void)?
     private var viewports: [UUID: Int] = [:]
 
     /// Independent grid/filmstrip owners contribute their current on-screen capacity.
@@ -181,8 +251,8 @@ public final class ThumbnailLoader: @unchecked Sendable {
     private var pendingLimit: Int { 2 * (viewports.isEmpty ? 32 : viewports.values.reduce(0, +)) }
 
     private func trimPending() {
-        let removed: [Subscriber] = lock.withLock {
-            var removed: [Subscriber] = []
+        let removed: [([Subscriber], PreviewFlightDrain)] = lock.withLock {
+            var removed: [([Subscriber], PreviewFlightDrain)] = []
             // Cap speculative loupe neighbours as well as the aggregate viewport backlog.
             for tier in [PreviewTier.thumbnail, .preview] {
                 let limit = tier == .thumbnail ? pendingLimit : 2
@@ -190,7 +260,7 @@ public final class ThumbnailLoader: @unchecked Sendable {
                     guard let index = pending.firstIndex(where: { $0.key.tier == tier }) else { break }
                     let flight = pending.remove(at: index)
                     flights.removeValue(forKey: flight.key)
-                    removed.append(contentsOf: flight.subscribers.values)
+                    removed.append((Array(flight.subscribers.values), flight.drain))
                     flight.subscribers.removeAll()
                 }
             }
@@ -200,12 +270,15 @@ public final class ThumbnailLoader: @unchecked Sendable {
                 let index = pending.firstIndex(where: { $0.key.tier == .thumbnail }) ?? 0
                 let flight = pending.remove(at: index)
                 flights.removeValue(forKey: flight.key)
-                removed.append(contentsOf: flight.subscribers.values)
+                removed.append((Array(flight.subscribers.values), flight.drain))
                 flight.subscribers.removeAll()
             }
             return removed
         }
-        for subscriber in removed { subscriber.request.cancel() }
+        for (subscribers, drain) in removed {
+            for subscriber in subscribers { subscriber.request.cancel() }
+            drain.finish()
+        }
     }
 
     public convenience init() {
@@ -213,9 +286,11 @@ public final class ThumbnailLoader: @unchecked Sendable {
     }
 
     init(thumbnailCostLimit: Int, previewCostLimit: Int, concurrency: Int = 4,
-         afterDelivery: (@Sendable () -> Void)? = nil) {
+         afterDelivery: (@Sendable () -> Void)? = nil,
+         beforeRender: (@Sendable () -> Void)? = nil) {
         self.concurrency = max(1, concurrency)
         self.afterDelivery = afterDelivery
+        self.beforeRender = beforeRender
         thumbCache.totalCostLimit = thumbnailCostLimit
         previewCache.totalCostLimit = previewCostLimit
         queue = OperationQueue()
@@ -251,16 +326,24 @@ public final class ThumbnailLoader: @unchecked Sendable {
     }
 
     private func discard(where matches: (Flight) -> Bool) {
-        let subscribers: [Subscriber] = lock.withLock {
+        let removed: [([Subscriber], PreviewFlightDrain?)] = lock.withLock {
             let removed = flights.values.filter(matches)
             for flight in removed {
                 flights.removeValue(forKey: flight.key)
                 flight.task?.cancel()
             }
             pending.removeAll(where: matches)
-            return removed.flatMap { $0.subscribers.values }
+            return removed.map { flight in
+                let subscribers = Array(flight.subscribers.values)
+                flight.subscribers.removeAll()
+                let drain = flight.task == nil ? flight.drain : nil
+                return (subscribers, drain)
+            }
         }
-        for subscriber in subscribers { subscriber.request.cancel() }
+        for (subscribers, drain) in removed {
+            for subscriber in subscribers { subscriber.request.cancel() }
+            drain?.finish()
+        }
     }
 
     public func cached(_ item: PhotoItem, tier: PreviewTier) -> CGImage? {
@@ -282,11 +365,14 @@ public final class ThumbnailLoader: @unchecked Sendable {
             let flight: Flight
             if let existing = flights[key] { flight = existing }
             else {
-                flight = Flight(item: item, tier: tier, priority: priority)
+                let preceding = running.values.first { $0.key == key }?.drain
+                flight = Flight(item: item, tier: tier, priority: priority,
+                                precedingDrain: preceding)
                 flights[key] = flight
                 pending.append(flight)
             }
             flight.subscribers[id] = Subscriber(request: request, completion: completion)
+            request.bindFlightDrain(flight.drain)
             return flight
         }
         request.onCancel { [weak self, weak flight] in
@@ -299,14 +385,19 @@ public final class ThumbnailLoader: @unchecked Sendable {
     }
 
     private func detach(_ id: UUID, from flight: Flight) {
-        lock.withLock {
+        let drainedPending = lock.withLock { () -> PreviewFlightDrain? in
             flight.subscribers.removeValue(forKey: id)
             if flight.subscribers.isEmpty {
                 if flights[flight.key] === flight { flights.removeValue(forKey: flight.key) }
                 pending.removeAll { $0 === flight }
                 flight.task?.cancel()
+                if flight.task == nil {
+                    return flight.drain
+                }
             }
+            return nil
         }
+        drainedPending?.finish()
         pump()
     }
 
@@ -327,8 +418,13 @@ public final class ThumbnailLoader: @unchecked Sendable {
                 let flight = pending.remove(at: index)
                 running[flight.id] = flight
                 let queue = queue
+                let beforeRender = beforeRender
+                let afterDelivery = afterDelivery
                 flight.task = Task.detached { [weak self] in
-                    defer { self?.finished(flight) }
+                    defer {
+                        self?.finished(flight)
+                        flight.drain.finish()
+                    }
                     let subscription = flight.item.engineImage.map {
                         $0.previewEvents.subscribe(imageID: $0.imageID, maxPx: UInt32(flight.key.tier.maxPixelSize))
                     }
@@ -336,11 +432,12 @@ public final class ThumbnailLoader: @unchecked Sendable {
                     var iterator = subscription?.stream.makeAsyncIterator()
                     while !Task.isCancelled {
                         let result = await Self.renderQueued(flight.item, tier: flight.key.tier,
-                                                             priority: flight.priority, queue: queue)
+                                                             priority: flight.priority, queue: queue,
+                                                             beforeRender: beforeRender)
                         guard !Task.isCancelled else { return }
                         if let image = result.image {
                             await self?.deliver(image, flight: flight)
-                            self?.afterDelivery?()
+                            afterDelivery?()
                             return
                         }
                         guard result.pending, await iterator?.next() != nil else { return }
@@ -378,9 +475,12 @@ public final class ThumbnailLoader: @unchecked Sendable {
     }
 
     private static func renderQueued(_ item: PhotoItem, tier: PreviewTier, priority: Operation.QueuePriority,
-                                     queue: OperationQueue) async -> RenderResult {
+                                     queue: OperationQueue, beforeRender: (@Sendable () -> Void)?) async -> RenderResult {
         await withCheckedContinuation { continuation in
-            let op = BlockOperation { continuation.resume(returning: renderResult(item, tier: tier)) }
+            let op = BlockOperation {
+                beforeRender?()
+                continuation.resume(returning: renderResult(item, tier: tier))
+            }
             op.queuePriority = priority
             queue.addOperation(op)
         }
