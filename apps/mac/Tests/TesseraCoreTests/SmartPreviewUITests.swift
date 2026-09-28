@@ -75,6 +75,7 @@ final class SmartPreviewUITests: XCTestCase {
         await probe.waitForBuild()
         probe.finishBuild(info("old", .dirty, dirty: true))
         await batch.value
+        XCTAssertFalse(probe.buildOverlappedRead)
         XCTAssertEqual(controller.selectedInfo?.state, .dirty)
         XCTAssertTrue(controller.selectedInfo?.hasPendingEdits == true)
     }
@@ -139,6 +140,18 @@ final class SmartPreviewUITests: XCTestCase {
         XCTAssertEqual(probe.reads, ["new", "new", "new"])
     }
 
+    func testStaleOpenerCannotRetargetCurrentSelectionOrStartAnotherRead() async {
+        let probe = PreviewProbe()
+        let controller = SmartPreviewController(api: probe.api)
+        await controller.select(imageID: "new")?.value
+        do {
+            _ = try await controller.statusForOpening(imageID: "old")
+            XCTFail("A stale opener must not change the current selection")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        XCTAssertEqual(controller.selectedImageID, "new")
+        XCTAssertEqual(probe.reads, ["new"])
+    }
+
     func testOfflineAndPendingLibraryBadgesDisclosePreSyncThumbnail() {
         let offline = info("raw", .originalOffline, online: false)
         let dirty = info("raw", .dirty, dirty: true)
@@ -192,6 +205,8 @@ private enum ProbeError: Error { case failed }
 private final class PreviewProbe {
     var builds: [String] = []
     var reads: [String] = []
+    private var readActive = false
+    private(set) var buildOverlappedRead = false
     private var read: CheckedContinuation<SmartPreviewSnapshot, Never>?
     private var build: CheckedContinuation<SmartPreviewSnapshot, Never>?
     private var readEntered = false
@@ -201,10 +216,13 @@ private final class PreviewProbe {
     var api: SmartPreviewAPI {
         .init(info: { [self] id in
             reads.append(id)
+            readActive = true
+            defer { readActive = false }
             if id != "old" { return snapshot(id) }
             return await withCheckedContinuation { read = $0; readEntered = true; readWaiter?.resume(); readWaiter = nil }
         }, build: { [self] id in
             builds.append(id)
+            buildOverlappedRead = buildOverlappedRead || readActive
             return await withCheckedContinuation { build = $0; buildEntered = true; buildWaiter?.resume(); buildWaiter = nil }
         }, discard: { _ in }, synchronize: { [self] id in snapshot(id) })
     }
