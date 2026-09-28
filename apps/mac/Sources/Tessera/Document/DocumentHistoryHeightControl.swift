@@ -54,7 +54,7 @@ final class DocumentHistoryHeightControl: NSStackView {
         decrease.setAccessibilityIdentifier("document.history.height.decrease")
         increase.setAccessibilityIdentifier("document.history.height.increase")
         reset.setAccessibilityIdentifier("document.history.height.reset")
-        readout.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        readout.font = Theme.NSFonts.labelNumeric
         readout.alignment = .center
         readout.setAccessibilityLabel("History height")
         readout.setAccessibilityIdentifier("document.history.height.value")
