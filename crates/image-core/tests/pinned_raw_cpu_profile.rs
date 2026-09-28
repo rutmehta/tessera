@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use common::{RGGB, assemble_f32, metadata, samples};
 use engine_api::recipe::settings::{DemosaicMethod, LensProfileSource};
-use engine_api::recipe::{DevelopSettings, ProcessVersion};
+use engine_api::recipe::{DevelopSettings, ProcessFamily, ProcessVersion};
 use engine_api::stage::StageId;
 use engine_api::tile::{Extent, Tile};
 use image_core::{PipelineGraph, PixelRect, RawImage, RenderOutput, Renderer, RendererConfig};
@@ -36,40 +36,58 @@ fn candidate_renderer() -> Renderer {
     })
 }
 
-fn synthetic_bayer() -> RawImage {
-    const SENSOR_WIDTH: u32 = 96;
-    const SENSOR_HEIGHT: u32 = 80;
-    let cfa = Arc::new(
-        CfaImage::from_linear(
-            SENSOR_WIDTH,
-            SENSOR_HEIGHT,
-            samples(SENSOR_WIDTH, SENSOR_HEIGHT, RGGB),
-        )
-        .unwrap(),
-    );
+fn synthetic_bayer_with_samples(values: Vec<f32>) -> RawImage {
+    const SENSOR_WIDTH: u32 = 288;
+    const SENSOR_HEIGHT: u32 = 280;
+    let cfa = Arc::new(CfaImage::from_linear(SENSOR_WIDTH, SENSOR_HEIGHT, values).unwrap());
     let metadata = Arc::new(metadata(
         SENSOR_WIDTH,
         SENSOR_HEIGHT,
         RGGB,
-        [8, 6, 80, 68],
+        [8, 6, 280, 276],
     ));
-    RawImage::new(engine_api::id::ImageId(0x5052_4f46_494c_45), cfa, metadata).unwrap()
+    RawImage::new(
+        engine_api::id::ImageId(0x0050_524f_4649_4c45),
+        cfa,
+        metadata,
+    )
+    .unwrap()
+}
+
+fn synthetic_bayer() -> RawImage {
+    synthetic_bayer_with_samples(samples(288, 280, RGGB))
 }
 
 fn rect(extent: Extent) -> PixelRect {
     PixelRect::full(extent)
 }
 
-fn convert_scene_tiles(tiles: &[Tile], gamut: engine_api::recipe::settings::GamutMapping) -> Vec<[u16; 4]> {
-    let mut pixels = Vec::new();
+fn convert_scene_tiles(
+    tiles: &[Tile],
+    extent: Extent,
+    gamut: engine_api::recipe::settings::GamutMapping,
+) -> Vec<[u16; 4]> {
+    let mut pixels = vec![[0u16; 4]; extent.area() as usize];
+    let mut coverage = vec![0u8; extent.area() as usize];
     for scene in tiles {
         let display = display_float(scene, SigmoidSettings::default(), gamut).unwrap();
         let layout = display.layout();
         let plane = layout.plane_len();
         let samples = display.samples::<f32>().unwrap();
+        let (ox, oy) = display.coord().pixel_origin(engine_api::tile::TILE_SIZE);
         for y in 0..layout.extent.height {
             for x in 0..layout.extent.width {
                 let i = layout.index(0, x as i32, y as i32).unwrap();
+                let px = ox + x;
+                let py = oy + y;
+                assert!(
+                    px < extent.width && py < extent.height,
+                    "tile outside active extent"
+                );
+                let out = (py * extent.width + px) as usize;
+                coverage[out] = coverage[out]
+                    .checked_add(1)
+                    .expect("duplicate tile coverage");
                 let rgb = [samples[i], samples[plane + i], samples[2 * plane + i]];
                 let mut rgba = [0u16; 4];
                 for (channel, value) in rgb.into_iter().enumerate() {
@@ -77,10 +95,14 @@ fn convert_scene_tiles(tiles: &[Tile], gamut: engine_api::recipe::settings::Gamu
                     rgba[channel] = (value.clamp(0.0, 1.0) * 65535.0).round() as u16;
                 }
                 rgba[3] = u16::MAX;
-                pixels.push(rgba);
+                pixels[out] = rgba;
             }
         }
     }
+    assert!(
+        coverage.iter().all(|count| *count == 1),
+        "tile coverage has gaps or overlaps"
+    );
     pixels
 }
 
@@ -88,11 +110,16 @@ fn convert_scene_tiles(tiles: &[Tile], gamut: engine_api::recipe::settings::Gamu
 fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
     let image = synthetic_bayer();
     assert_eq!(image.metadata().orientation, 1);
-    assert_eq!(image.active_extent(), Extent::new(80, 68));
+    assert_eq!(image.active_extent(), Extent::new(272, 270));
 
     let settings = candidate_settings();
     assert_eq!(settings.detail.sharpening.amount, 40.0);
     let renderer = candidate_renderer();
+    assert_eq!(
+        renderer.config().process_version.family,
+        ProcessFamily::Native
+    );
+    assert_eq!(renderer.config().process_version.revision, 2);
     let extent = image.level_extent(0);
     let scene_tiles = renderer
         .render_region_as(
@@ -104,6 +131,12 @@ fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
         )
         .unwrap();
     assert!(!scene_tiles.is_empty());
+    assert!(
+        scene_tiles
+            .iter()
+            .flat_map(|tile| tile.samples::<f32>().unwrap())
+            .all(|v| v.is_finite())
+    );
     let got_scene = assemble_f32(extent, &scene_tiles);
 
     // Independent scalar CPU path from the same synthetic CFA and pinned settings.
@@ -137,10 +170,14 @@ fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
         .flat_map(|(actual, expected)| actual.iter().zip(expected))
         .map(|(actual, expected)| (actual - expected).abs())
         .fold(0.0f32, f32::max);
-    assert!(max_diff <= 1.0e-5, "scene-linear CPU reference diff {max_diff}");
+    assert!(
+        max_diff <= 1.0e-5,
+        "scene-linear CPU reference diff {max_diff}"
+    );
 
-    let rgba16 = convert_scene_tiles(&scene_tiles, settings.output.gamut_mapping);
-    let reference_rgba16 = convert_scene_tiles(&reference_tiles, settings.output.gamut_mapping);
+    let rgba16 = convert_scene_tiles(&scene_tiles, extent, settings.output.gamut_mapping);
+    let reference_rgba16 =
+        convert_scene_tiles(&reference_tiles, extent, settings.output.gamut_mapping);
     assert_eq!(rgba16.len(), extent.area() as usize);
     assert_eq!(rgba16.len(), reference_rgba16.len());
     let max_u16_diff = rgba16
@@ -152,8 +189,15 @@ fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
         .unwrap_or(0);
     assert!(max_u16_diff <= 1, "U16 reference diff {max_u16_diff}");
     assert!(rgba16.iter().all(|pixel| pixel[3] == u16::MAX));
-    let distinct: BTreeSet<u16> = rgba16.iter().flat_map(|pixel| pixel[..3].iter().copied()).collect();
-    assert!(distinct.len() > 256, "U16 output had only {} distinct channel codes", distinct.len());
+    let distinct: BTreeSet<u16> = rgba16
+        .iter()
+        .flat_map(|pixel| pixel[..3].iter().copied())
+        .collect();
+    assert!(
+        distinct.len() > 256,
+        "U16 output had only {} distinct channel codes",
+        distinct.len()
+    );
 
     // Detail remains the pinned recipe value; this contrast control proves that
     // the renderer path did not silently strip it while preparing display output.
@@ -175,7 +219,10 @@ fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
         .flat_map(|(a, b)| a.iter().zip(b))
         .map(|(a, b)| (a - b).abs())
         .fold(0.0f32, f32::max);
-    assert!(detail_delta > 1.0e-5, "default detail setting had no observable effect");
+    assert!(
+        detail_delta > 1.0e-5,
+        "default detail setting had no observable effect"
+    );
 
     // A fresh private renderer must not inherit cache history or output changes.
     let repeated_tiles = candidate_renderer()
@@ -188,5 +235,42 @@ fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
         )
         .unwrap();
     assert_eq!(assemble_f32(extent, &repeated_tiles), got_scene);
-    assert_eq!(convert_scene_tiles(&repeated_tiles, settings.output.gamut_mapping), rgba16);
+    assert_eq!(
+        convert_scene_tiles(&repeated_tiles, extent, settings.output.gamut_mapping),
+        rgba16
+    );
+
+    // Reuse the same ImageId with different synthetic source bytes. A render
+    // history for that identity must not affect subsequent pixels for A.
+    let alternate = synthetic_bayer_with_samples(
+        samples(288, 280, RGGB)
+            .into_iter()
+            .map(|value| value * 0.4 + 0.1)
+            .collect(),
+    );
+    assert_eq!(alternate.id(), image.id());
+    let alternate_tiles = renderer
+        .render_region_as(
+            &alternate,
+            &settings,
+            0,
+            rect(extent),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let alternate_scene = assemble_f32(extent, &alternate_tiles);
+    assert_ne!(
+        alternate_scene, got_scene,
+        "distinct source bytes must render distinctly"
+    );
+    let after_history = renderer
+        .render_region_as(
+            &image,
+            &settings,
+            0,
+            rect(extent),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    assert_eq!(assemble_f32(extent, &after_history), got_scene);
 }
