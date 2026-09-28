@@ -1,0 +1,4 @@
+54542971c13275c73f087eafcd002e238ccb8a2b724afd92265758af34f487be  /Volumes/betterSSD/tessera-cache/swift/document-save-settlement/scratch/arm64-apple-macosx/release/Tessera
+505a3c68b4be2c5423a02296eecc267abe826ccf73d46ab7e37f44bb50f8b97a  /Volumes/betterSSD/tessera-validation/document-save-settlement/terminal-probe-e8ddabfa/gui/Tessera Terminal Probe e8dd.app/Contents/MacOS/Tessera
+365f716fb9117cdb441659f61ab9ce1744b7b8e181300a7b71757e3fbe52953b  /Volumes/betterSSD/tessera-validation/document-save-settlement/terminal-probe-e8ddabfa/gui/Tessera Terminal Probe e8dd.app/Contents/Info.plist
+8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03  /Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a
