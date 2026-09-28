@@ -1,0 +1,39 @@
+{
+  "log_sha256": "6542288203e6843ef628adffd86e4b8d01e0b8084687d8d1cd324c627c123985",
+  "summary_count": 94,
+  "totals": [
+    579,
+    0,
+    29,
+    0,
+    0
+  ],
+  "zero_pass_summaries": 9,
+  "named_ok_lines": 579,
+  "named_unique_ok": 579,
+  "direct_exit": "0",
+  "source_commit": "abe317c007d9537c75fbf61428ee9c184df12d25",
+  "all_input_entries": 6419,
+  "manifest_sha256": "f3be2fd7fe084bbb6883d6b0eff7db6c3dc1a16a74e78e13d14e8c375720ecb4",
+  "before_after_release_and_all_gates_identical": true,
+  "native_input_git_blobs_verified": 1177,
+  "mismatches": [],
+  "gates": {
+    "broad-clippy-abe317c0-20260928-retry": {
+      "direct_exit": "0",
+      "log_sha256": "5238109ba40eca58e67813fc581b041354025047705fb655026b5a786d88f55f",
+      "log_tail": "__attribute__((__deprecated__(_msg)))\nwarning: libraw-ffi@0.1.0:       |                                                       ^\nwarning: libraw-ffi@0.1.0: 2 warnings generated.\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.60s\n"
+    },
+    "broad-fmt-abe317c0-20260928": {
+      "direct_exit": "0",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log_tail": ""
+    },
+    "workspace-check-abe317c0-20260928": {
+      "direct_exit": "0",
+      "log_sha256": "6b8983bd1b6e3b9c006d6a1a667696290f627ab38448b4eab6815dfbb315a2ba",
+      "log_tail": "a/.codex/worktrees/workspace-redesign/tessera/crates/tessera-ffi)\n    Checking tessera-cli v0.1.0 (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/tessera-cli)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 43.57s\n"
+    }
+  },
+  "initial_clippy_wrapper": "Initial wrapper failed to write direct exit (zsh readonly status); raw compiler completion is not a direct-exit pass. Explicit retry is the accepted direct0 gate."
+}

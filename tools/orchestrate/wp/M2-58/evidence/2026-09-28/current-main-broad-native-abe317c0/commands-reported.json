@@ -1,0 +1,58 @@
+{
+  "provenance": "Commands and environment reported by native lane owner; raw compiler/test output and direct exits are separate retained files. No reviewer rerun.",
+  "cwd": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera",
+  "source_commit": "abe317c007d9537c75fbf61428ee9c184df12d25",
+  "native_source_commit": "c1c3b6ccf9ca5202e66e965255bb674db1890f24",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "release_tests": {
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "image-core",
+      "-p",
+      "pipeline-gpu",
+      "-p",
+      "tessera-ffi",
+      "--release"
+    ],
+    "additional_env": {
+      "RUST_TEST_THREADS": "1"
+    }
+  },
+  "clippy_original_and_retry": {
+    "argv": [
+      "cargo",
+      "clippy",
+      "-p",
+      "image-core",
+      "-p",
+      "pipeline-gpu",
+      "-p",
+      "tessera-ffi",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ]
+  },
+  "format": {
+    "argv": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ]
+  },
+  "workspace": {
+    "argv": [
+      "cargo",
+      "check",
+      "--workspace"
+    ]
+  }
+}
