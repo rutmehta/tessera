@@ -543,3 +543,78 @@ final class DocumentSaveSettlementTests: XCTestCase {
     }
 
 }
+
+// UNRUN on B: synthetic attachment identity only; never presents an AppKit sheet.
+@MainActor
+final class DocumentSaveDismissAttachmentTests: XCTestCase {
+    private final class ParentWindow: NSWindow {
+        var simulatedSheet: NSWindow?
+        override var attachedSheet: NSWindow? { simulatedSheet }
+    }
+
+    private func window() -> NSWindow {
+        NSWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                 styleMask: [], backing: .buffered, defer: true)
+    }
+
+    func testDismissRecordsActualAttachmentThenNativeEndReleasesLiveProbeClaim() throws {
+        let parent = ParentWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                                  styleMask: [], backing: .buffered, defer: true)
+        let sheet = window()
+        let w = DocumentWorkspace()
+        w.saveHasWindow = { true }
+        w.savePresentationWindow = { parent }
+        let d = try DocumentController(backend: StubDocumentBackend())
+        var outcomes: [DocumentSaveOutcome] = []
+        let old = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        let probe = UUID()
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: probe))
+        w.captureSaveAsSheetWindow(old, window: sheet) // Initial probe precedes attachment.
+        parent.simulatedSheet = sheet
+        w.cancelDocumentSave(old)
+        w.saveAsPresentationDidDismiss(old) // Actual same-sheet ownership is now visible.
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertNil(w.saveAsRequest)
+        parent.simulatedSheet = nil
+        w.saveAsParentSheetDidEnd(old) // Probe remains alive, just as in the failing trace.
+        XCTAssertNil(w.saveAsPresentationID)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        XCTAssertEqual(outcomes, [.cancelled])
+        w.saveAsParentSheetDidEnd(old)
+        w.saveAsProbeEnded(old, probe: probe)
+        w.saveAsPresentationDidDismiss(old)
+        XCTAssertEqual(w.saveAsRequest?.id, next)
+        w.cancelDocumentSave(next)
+    }
+
+    func testDismissDoesNotLatchUnrelatedSheetOrAcceptWrongRequest() throws {
+        let parent = ParentWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
+                                  styleMask: [], backing: .buffered, defer: true)
+        let sheet = window(), unrelated = window()
+        let w = DocumentWorkspace()
+        w.saveHasWindow = { true }
+        w.savePresentationWindow = { parent }
+        let d = try DocumentController(backend: StubDocumentBackend())
+        let old = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(old))
+        XCTAssertTrue(w.saveAsProbeBegan(old, probe: UUID()))
+        w.captureSaveAsSheetWindow(old, window: sheet)
+        parent.simulatedSheet = sheet
+        w.saveAsPresentationDidDismiss(UUID()) // Wrong request must not observe the matching sheet.
+        parent.simulatedSheet = unrelated
+        w.cancelDocumentSave(old)
+        w.saveAsPresentationDidDismiss(old)
+        let next = w.saveForPreparation(d, saveAs: true) { _ in }
+        w.saveAsParentSheetDidEnd(old)
+        XCTAssertTrue(parent.simulatedSheet === unrelated)
+        parent.simulatedSheet = nil
+        w.saveAsParentSheetDidEnd(old)
+        XCTAssertEqual(w.saveAsPresentationID, old)
+        XCTAssertNil(w.saveAsRequest)
+        w.cancelDocumentSave(next)
+        w.documentSaveWindowLost(old)
+        XCTAssertNil(w.saveAsPresentationID)
+    }
+}
