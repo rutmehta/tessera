@@ -1,0 +1,12 @@
+test_app_bundle_identifier_mismatch_fails_closed_before_helper (tools.orchestrate.wp.M2-58.tests.test_p11_capture_launcher.CaptureLauncherTests.test_app_bundle_identifier_mismatch_fails_closed_before_helper) ... ok
+test_deadline_covers_helper_startup_and_kills_only_owned_child (tools.orchestrate.wp.M2-58.tests.test_p11_capture_launcher.CaptureLauncherTests.test_deadline_covers_helper_startup_and_kills_only_owned_child) ... ok
+test_existing_receipt_is_never_overwritten_or_executed (tools.orchestrate.wp.M2-58.tests.test_p11_capture_launcher.CaptureLauncherTests.test_existing_receipt_is_never_overwritten_or_executed) ... ok
+test_invalid_roi_fails_closed_before_starting_helper (tools.orchestrate.wp.M2-58.tests.test_p11_capture_launcher.CaptureLauncherTests.test_invalid_roi_fails_closed_before_starting_helper) ... ok
+test_mutated_passed_config_fails_integrity_without_hiding_direct_exit (tools.orchestrate.wp.M2-58.tests.test_p11_capture_launcher.CaptureLauncherTests.test_mutated_passed_config_fails_integrity_without_hiding_direct_exit) ... ok
+test_preexisting_output_fails_closed_without_starting_helper (tools.orchestrate.wp.M2-58.tests.test_p11_capture_launcher.CaptureLauncherTests.test_preexisting_output_fails_closed_without_starting_helper) ... ok
+test_records_direct_exit_and_exact_input_hashes (tools.orchestrate.wp.M2-58.tests.test_p11_capture_launcher.CaptureLauncherTests.test_records_direct_exit_and_exact_input_hashes) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.640s
+
+OK
