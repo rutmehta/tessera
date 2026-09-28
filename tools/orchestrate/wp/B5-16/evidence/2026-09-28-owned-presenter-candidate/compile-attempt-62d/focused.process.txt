@@ -1,0 +1,4 @@
+pid=5619
+pgid=5619
+started_utc=2026-09-28T07:57:31.094972+00:00
+command=swift test --scratch-path /Volumes/betterSSD/tessera-validation/document-save-settlement/candidate-62d546dc-focused-4a45-20260928/scratch --jobs 2 -c release -Xswiftc -enable-testing --filter DocumentSave|DocumentLoad|DocumentLayersActivation|DocumentAdjustmentAnalysis|DevelopRecovery

@@ -1,0 +1,1 @@
+No working tree source changes after frozen test commit; only the tracked native archive is intentionally replaced for GREEN.
