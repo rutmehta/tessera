@@ -110,7 +110,7 @@ final class ThumbnailCell: NSCollectionViewItem {
             + (suggestedBest ? ", suggested best" : "")
             + (suggestion.map { ", suggested \($0.label.lowercased())" } ?? "")
             + (smartPreviewBadge.map { ", " + $0 } ?? "")
-            + ", \(status.phase.rawValue)"
+            + ", \(status.isCachedDeclaration ? "Cached declaration; edit status not checked" : status.phase.rawValue)"
             + (status.albums.isEmpty ? "" : ", in " + status.albums.joined(separator: ", ")))
     }
 
@@ -241,7 +241,8 @@ final class BadgeOverlayView: NSView {
 
     private var statusText: String? {
         var parts: [String] = smartPreviewBadge.map { [$0] } ?? []
-        if status.phase != .unedited { parts.append(status.phase.rawValue.capitalized) }
+        if status.isCachedDeclaration { parts.append("Cached declaration") }
+        else if status.phase != .unedited { parts.append(status.phase.rawValue.capitalized) }
         let others = status.albums.filter { $0 != basketTarget }
         if others.count == 1 { parts.append("In " + others[0]) }
         else if others.count > 1 { parts.append("In \(others.count) albums") }

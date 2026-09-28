@@ -32,8 +32,19 @@ struct WorkspaceHeader: View {
                     .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     .lineLimit(1).help(model.workspaceScope)
                     .accessibilityIdentifier("workspace-command-scope")
+                if model.isCachedPreviewLibrary {
+                    Text("Cached Smart Preview Library · Catalog read-only · Subfolders unavailable")
+                        .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                        .accessibilityIdentifier("cached-preview-library-mode")
+                        .help("Cached declarations only; assets validate when checked or opened. Use Smart Preview explicitly to edit. Reopen to refresh membership or return to originals.")
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if model.isCachedPreviewLibrary {
+                Button("Reopen Library") { model.reopenCachedPreviewLibrary() }
+                    .disabled(model.isLoading)
+                    .accessibilityIdentifier("reopen-cached-preview-library")
+            }
             if !model.isPhotoEditing {
                 Button("Edit photo") { model.enterPhotoEdit() }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.regular))

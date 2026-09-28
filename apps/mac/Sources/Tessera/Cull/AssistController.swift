@@ -73,7 +73,7 @@ final class AssistController {
         faces = []
         facesItem = nil
         labels = 0
-        guard let app, let lib = app.engineLibrary else { return }
+        guard let app, let lib = app.engineLibrary, !lib.isReadOnly else { return }
         if seedFaces {
             do { try lib.seedSyntheticFaces() } catch { app.statusMessage = "Synthetic faces: \(error.localizedDescription)" }
         }
@@ -85,7 +85,7 @@ final class AssistController {
     /// `announce`: report the result in the status bar (off for the automatic pass on open, so
     /// the "Opened …" summary stays).
     func analyze(faces: Bool, force: Bool, title: String, announce: Bool = true) {
-        guard let app, let lib = app.engineLibrary, !isRunning else { return }
+        guard let app, let lib = app.engineLibrary, !lib.isReadOnly, !isRunning else { return }
         analysisGeneration += 1
         let generation = analysisGeneration
         cancelAnalysis = false

@@ -11,7 +11,10 @@ public struct ItemStatus: Sendable, Equatable {
     public var phase: DerivedPhase
     /// Albums this image belongs to (including the basket target).
     public var albums: [String]
-    public init(phase: DerivedPhase = .unedited, albums: [String] = []) {
+    /// Cached membership is not a validated current edit phase.
+    public var isCachedDeclaration: Bool
+    public init(phase: DerivedPhase = .unedited, albums: [String] = [], isCachedDeclaration: Bool = false) {
+        self.isCachedDeclaration = isCachedDeclaration
         self.phase = phase
         self.albums = albums
     }
@@ -128,7 +131,8 @@ public final class CullController {
         bestOfGroup = library.bestOfGroup
         states = library.initialStates
         statuses = library.initialStatuses
-        basketTarget = (try? library.session.basketTarget()) ?? EngineLibrary.defaultBasketTarget
+        basketTarget = library.isReadOnly ? EngineLibrary.defaultBasketTarget
+            : (try? library.session.basketTarget()) ?? EngineLibrary.defaultBasketTarget
         backend = .engine(library)
         recount()
         refreshAlbums()
@@ -145,17 +149,26 @@ public final class CullController {
         refreshAlbums()
     }
 
+    public var isReadOnly: Bool {
+        if case .engine(let library) = backend { library.isReadOnly } else { false }
+    }
+    private func requireCatalogMutation() throws {
+        if case .engine(let library) = backend { try library.accessMode.requireCatalogMutation() }
+    }
+
     public var isEngineBacked: Bool { if case .engine = backend { true } else { false } }
     public subscript(id: Int) -> CullState { states[id] }
 
     public var canUndo: Bool {
-        switch backend {
+        if isReadOnly { return false }
+        return switch backend {
         case .engine(let lib): (try? lib.session.canUndo()) ?? false
         case .memory(let store): store.canUndo
         }
     }
     public var canRedo: Bool {
-        switch backend {
+        if isReadOnly { return false }
+        return switch backend {
         case .engine(let lib): (try? lib.session.canRedo()) ?? false
         case .memory(let store): store.canRedo
         }
@@ -184,6 +197,7 @@ public final class CullController {
     /// engine records the right before/after position for undo.
     @discardableResult
     public func apply(_ action: CullAction, to ids: [Int]) throws -> CullChange {
+        try requireCatalogMutation()
         guard !ids.isEmpty else { return CullChange(ids: [], current: nil, albumsChanged: false) }
         switch backend {
         case .memory(var store):
@@ -223,6 +237,7 @@ public final class CullController {
     /// A different decision per image as one undo step ("choose this" in compare).
     @discardableResult
     public func decide(_ decisions: [(Int, Decision)]) throws -> CullChange {
+        try requireCatalogMutation()
         switch backend {
         case .memory(var store):
             let updates = decisions.map { id, d in
@@ -245,6 +260,7 @@ public final class CullController {
 
     /// Keeps the group's suggested best and rejects the rest (docs/06 §3), one undo step.
     public func keepBestRejectRest(group g: Int) throws -> (best: Int, change: CullChange) {
+        try requireCatalogMutation()
         guard groups.indices.contains(g) else { throw CullError.unavailable("No such group") }
         switch backend {
         case .memory:
@@ -258,6 +274,7 @@ public final class CullController {
     }
 
     public func undo() throws -> CullChange? {
+        try requireCatalogMutation()
         switch backend {
         case .memory(var store):
             guard let ids = store.undo() else { return nil }
@@ -270,6 +287,7 @@ public final class CullController {
     }
 
     public func redo() throws -> CullChange? {
+        try requireCatalogMutation()
         switch backend {
         case .memory(var store):
             guard let ids = store.redo() else { return nil }
@@ -285,11 +303,21 @@ public final class CullController {
 
     /// Mirrors the host cursor into the session (undo restores it).
     public func setCurrent(_ id: Int) {
+        guard !isReadOnly else { return }
         if case .engine(let lib) = backend { try? lib.session.setCurrent(imageId: lib.imageIDs[id]) }
     }
 
     /// Returns the target item, or nil at a boundary.
     public func navigate(_ move: GroupMove, from id: Int) throws -> Int? {
+        if isReadOnly {
+            guard let g = group(of: id) else { return nil }
+            switch move {
+            case .nextGroup: return g + 1 < groups.count ? groups[g + 1].lowerBound : nil
+            case .previousGroup: return g > 0 ? groups[g - 1].lowerBound : nil
+            case .nextInGroup: return groups[g].contains(id + 1) ? id + 1 : nil
+            case .previousInGroup: return groups[g].contains(id - 1) ? id - 1 : nil
+            }
+        }
         switch backend {
         case .engine(let lib):
             let s = lib.session
@@ -316,6 +344,7 @@ public final class CullController {
     // MARK: Basket and albums (docs/06 §4.2)
 
     public func setBasketTarget(_ name: String) throws {
+        try requireCatalogMutation()
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw CullError.unavailable("Album name is empty") }
         switch backend {
@@ -337,6 +366,7 @@ public final class CullController {
     /// Safe delete inside an album: removes membership only; files and decisions are untouched.
     @discardableResult
     public func removeFromAlbum(_ name: String, ids: [Int]) throws -> CullChange {
+        try requireCatalogMutation()
         switch backend {
         case .memory:
             guard name == basketTarget else { throw CullError.unavailable("No album named \(name)") }
@@ -391,6 +421,7 @@ public final class CullController {
     /// Re-reads library.json after album changes made outside the session (sidebar edits, add
     /// to album): album lists, basket flags and counts, and derived statuses.
     public func reloadLibrary() {
+        guard !isReadOnly else { return }
         let before = Dictionary(albums.map { ($0.name, Set($0.members)) }, uniquingKeysWith: { a, _ in a })
         refreshAlbums()
         guard case .engine = backend else { return }
@@ -421,6 +452,7 @@ public final class CullController {
     public func moveToTrash(_ ids: [Int], trash: (URL) throws -> Void = {
         try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
     }) throws -> [URL] {
+        try requireCatalogMutation()
         guard case .engine(let lib) = backend else { throw CullError.unavailable("Stub items have no files") }
         let doomed = Set(ids)
         for album in albums where album.members.contains(where: doomed.contains) {
@@ -455,6 +487,7 @@ public final class CullController {
     // MARK: Defect sweep (review-only until applied)
 
     public func defectSweep(_ rules: [DefectRule]) throws -> [DefectFinding] {
+        try requireCatalogMutation()
         guard case .engine(let lib) = backend else { return [] }
         let thresholds = rules.filter(\.enabled).map {
             DefectThreshold(signal: $0.signal, value: $0.threshold, direction: $0.below ? .below : .above)
@@ -512,6 +545,7 @@ public final class CullController {
 
     /// Re-reads derived status for `ids` (after album or recipe changes).
     public func refreshStatuses(_ ids: [Int]) {
+        guard !isReadOnly else { return }
         guard case .engine(let lib) = backend, !ids.isEmpty,
               let fresh = try? lib.session.derivedStatuses(imageIds: ids.map { lib.imageIDs[$0] })
         else { return }
@@ -519,6 +553,7 @@ public final class CullController {
     }
 
     private func refreshAlbums() {
+        guard !isReadOnly else { albums = []; return }
         var result: [AlbumSummary]
         switch backend {
         case .memory:

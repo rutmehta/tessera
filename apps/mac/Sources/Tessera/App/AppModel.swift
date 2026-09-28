@@ -451,6 +451,12 @@ final class AppModel {
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
+    var isCachedPreviewLibrary: Bool { engineLibrary?.isReadOnly == true }
+    func reopenCachedPreviewLibrary() {
+        guard let folder = engineLibrary?.folder else { return }
+        openFolder(folder)
+    }
+
     private(set) var smartPreviews = SmartPreviewController()
     private(set) var preferSmartPreviews = SmartPreviewPreference.read()
     private(set) var developSourceRoute: DevelopSourceRoute?
@@ -626,7 +632,7 @@ final class AppModel {
         // The open folder again (a catalog import into it, reopening it): rescan in the
         // background and apply the changes in place, keeping history, filters and selection.
         if let lib = engineLibrary, let folder = lib.folder, !isLoading,
-           Self.sameFolder(folder, url) {
+           !lib.isReadOnly, folder.path == url.path {
             rescan(lib, message: message, requestID: requestID) { [weak self] _, loaded in
                 self?.finishFolderRequest(requestID, loaded: loaded)
             }
@@ -644,7 +650,7 @@ final class AppModel {
             let result = Result<(any PhotoLibrary, CullController.InitialSnapshot), Error> {
                 let library: any PhotoLibrary = useStub
                     ? try StubLibrary.scan(folder: url)
-                    : try EngineLibrary.scan(folder: url, basketTarget: target)
+                    : try EngineLibrary.open(folder: url, basketTarget: target)
                 return (library, CullController.prepare(library))
             }
             await MainActor.run {
@@ -659,6 +665,11 @@ final class AppModel {
                     self.install(lib, snapshot: snapshot)
                     self.assist.libraryDidLoad(seedFaces: seedFaces)
                     self.openPeople()
+                    if self.isCachedPreviewLibrary {
+                        self.statusMessage = "Cached Smart Preview Library: \(lib.items.count.formatted()) declarations; original folder unavailable. Catalog read-only."
+                        self.finishFolderRequest(requestID, loaded: true)
+                        return
+                    }
                     let raws = lib.items.lazy.filter { $0.kind == .raw }.count
                     let multi = lib.groups.lazy.filter { $0.count > 1 }.count
                     self.statusMessage = message ?? "Opened \(lib.title): \(lib.items.count.formatted()) images (\(raws.formatted()) RAW), "
@@ -726,7 +737,7 @@ final class AppModel {
         isEngineBacked = cull.isEngineBacked
         closeDevelop()
         source = .all
-        people.install(cull.isEngineBacked ? cull : nil)
+        people.install(cull.isEngineBacked && !cull.isReadOnly ? cull : nil)
         faceThumbnails.removeAll()
         collections.install(lib)
         compare = nil
@@ -738,7 +749,7 @@ final class AppModel {
         refreshSummary()
         liveObservers.forEach { $0.libraryDidReload() }
         notifySelection(scroll: true)
-        if let engine = lib as? EngineLibrary {
+        if let engine = lib as? EngineLibrary, !engine.isReadOnly {
             engine.onCatalogChange { [weak self] _ in
                 Task { @MainActor in self?.syncLibrary() }
             }
@@ -832,7 +843,7 @@ final class AppModel {
 
     /// Sidebar ▸ People: the incremental clustering job off the main actor, then the tiles.
     func openPeople() {
-        guard isEngineBacked else { return }
+        guard isEngineBacked, !isCachedPreviewLibrary else { return }
         Task { [weak self] in
             await self?.people.refresh()
             self?.reportPeople()
@@ -937,7 +948,7 @@ final class AppModel {
     /// and other writers. One pull at a time; calls during a pull are coalesced into one more.
     /// `then` runs after a pull that started after this call.
     func syncLibrary(then: (@MainActor @Sendable () -> Void)? = nil) {
-        guard let lib = engineLibrary else { then?(); return }
+        guard let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
         if let then { syncWaiters.append(then) }
         guard !syncInFlight else { syncRequested = true; return }
         syncInFlight = true
@@ -969,7 +980,12 @@ final class AppModel {
         guard let folder = lib.folder else { return }
         statusMessage = "Updating \(folder.lastPathComponent)…"
         Task.detached(priority: .userInitiated) {
-            let result = Result { try lib.engine.indexFolder(path: folder.path) }
+            let result = Result<(FolderHandle?, EngineLibrary?), Error> {
+                if try !LibraryOpenRouter.originalFolderAvailable(folder) {
+                    return (nil, try EngineLibrary.cachedPreviews(folder: folder))
+                }
+                return (try lib.engine.indexFolder(path: folder.path), nil)
+            }
             await MainActor.run {
                 guard self.engineLibrary === lib,
                       requestID == nil || self.currentFolderRequestID == requestID else {
@@ -977,7 +993,15 @@ final class AppModel {
                     return
                 }
                 switch result {
-                case .success(let handle):
+                case .success(let (handle, cached)):
+                    if let cached {
+                        self.install(cached)
+                        self.assist.libraryDidLoad(seedFaces: false)
+                        self.statusMessage = "Original folder unavailable; showing cached Smart Preview declarations. Catalog read-only."
+                        then?(self, true)
+                        return
+                    }
+                    guard let handle else { then?(self, false); return }
                     self.syncLibrary {
                         guard requestID == nil || self.currentFolderRequestID == requestID else {
                             then?(self, false)
@@ -1107,12 +1131,12 @@ final class AppModel {
         let generation = loadGeneration
         let target = basketTarget
         Task.detached(priority: .userInitiated) {
-            let result = Result { try EngineLibrary.scan(folder: folder, basketTarget: target) }
+            let result = Result { try EngineLibrary.open(folder: folder, basketTarget: target) }
             await MainActor.run {
                 guard generation == self.loadGeneration, case .success(let lib) = result else { return }
                 let source = self.source
                 self.install(lib)
-                if source != .all { self.setSource(source) }
+                if !lib.isReadOnly, source != .all { self.setSource(source) }
             }
         }
     }

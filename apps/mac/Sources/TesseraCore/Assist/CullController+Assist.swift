@@ -63,6 +63,7 @@ public struct FaceChip: Sendable, Equatable, Identifiable {
 extension CullController {
     private func engine() throws -> EngineLibrary {
         guard case .engine(let lib) = backend else { throw CullError.unavailable("Assisted culling needs a folder opened on the engine") }
+        try lib.accessMode.requireCatalogMutation()
         return lib
     }
 
@@ -112,7 +113,7 @@ extension CullController {
     }
 
     public func people(refresh: Bool = false) throws -> [PersonSummary] {
-        guard case .engine(let lib) = backend else { return [] }
+        guard case .engine(let lib) = backend, !lib.isReadOnly else { return [] }
         return try lib.session.people(refresh: refresh).map {
             PersonSummary(id: $0.id, name: $0.name, items: $0.images.compactMap { lib.itemOfImage[$0] },
                           faces: Int($0.faces), coverItem: lib.itemOfImage[$0.coverImage], coverOrdinal: $0.coverOrdinal,
