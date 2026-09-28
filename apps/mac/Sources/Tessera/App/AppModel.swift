@@ -2068,7 +2068,10 @@ final class AppModel {
         let token = UUID()
         let recovery = developRecovery
         let task = Task { [weak self, recovery, owner] in
-            defer { recovery.finishOpen(token: token) }
+            defer {
+                self?.settlePendingDevelopOpen(token: token)
+                recovery.finishOpen(token: token)
+            }
             do {
                 let controller = try await opener(ref, item.id)
                 guard recovery.producedOpen(controller, owner: owner, token: token) else { return }
@@ -2094,12 +2097,28 @@ final class AppModel {
         recovery.beginOpen(owner: owner, imageID: ref.imageID, token: token, task: task)
     }
 
+    /// A cancelled or superseded opener may still return a controller that must
+    /// be closed by the recovery registry. Its UI loading state belongs only to
+    /// this token; a later owner/photo opener must keep its own status.
+    private func settlePendingDevelopOpen(token: UUID) {
+        guard activeDevelopOpen == token else { return }
+        activeDevelopOpen = nil
+        developTask = nil
+        if develop == nil, developStatus == .loading {
+            developStatus = .none
+            liveObservers.forEach { $0.developDidChange() }
+        }
+    }
+
     private func install(develop controller: DevelopController, library owner: EngineLibrary?)
         -> DevelopRecoveryCoordinator.SessionID {
         developTask = nil
         activeDevelopOpen = nil
         let sessionID = developRecovery.register(owner: owner, controller: controller,
-            displayName: focusedItem?.url?.lastPathComponent ?? controller.imageID)
+            displayName: focusedItem?.url?.lastPathComponent ?? controller.imageID,
+            onClose: { [weak self] id, outcome in
+                self?.publishDevelopClose(outcome, sessionID: id)
+            })
         developSessionID = sessionID
         develop = controller
         developLibrary = owner
@@ -2159,15 +2178,16 @@ final class AppModel {
 
     @discardableResult
     func closeDevelop() -> Task<DevelopRecoveryCoordinator.Outcome, Never>? {
+        let cancelledPendingOpen = activeDevelopOpen != nil
         developTask?.cancel()
         developTask = nil
         activeDevelopOpen = nil
+        if cancelledPendingOpen, develop == nil, developStatus == .loading {
+            developStatus = .none
+            liveObservers.forEach { $0.developDidChange() }
+        }
         guard let sessionID = developSessionID else { return nil }
         let task = developRecovery.requestClose(sessionID)
-        Task { [weak self] in
-            let outcome = await task.value
-            self?.publishDevelopClose(outcome, sessionID: sessionID)
-        }
         return task
     }
 

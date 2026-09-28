@@ -81,12 +81,14 @@ final class DevelopRecoveryCoordinator {
         let owner: EngineLibrary?
         let controller: DevelopController
         let displayName: String
+        let onClose: (@MainActor (SessionID, Outcome) -> Void)?
         var phase: Phase = .active
         var lastFailure: Outcome?
         var attemptID: UUID?
         var task: Task<Outcome, Never>?
 
-        init(id: SessionID, owner: EngineLibrary?, controller: DevelopController, displayName: String) {
+        init(id: SessionID, owner: EngineLibrary?, controller: DevelopController, displayName: String,
+             onClose: (@MainActor (SessionID, Outcome) -> Void)?) {
             self.id = id
             self.owner = owner
             self.controller = controller
@@ -95,6 +97,7 @@ final class DevelopRecoveryCoordinator {
                 DevelopRecoveryCoordinator.sourceIdentity(owner: $0, imageID: controller.imageID)
             }
             self.displayName = displayName
+            self.onClose = onClose
         }
     }
 
@@ -159,9 +162,11 @@ final class DevelopRecoveryCoordinator {
         return lhs.overlaps(rhs)
     }
 
-    func register(owner: EngineLibrary?, controller: DevelopController, displayName: String) -> SessionID {
+    func register(owner: EngineLibrary?, controller: DevelopController, displayName: String,
+                  onClose: (@MainActor (SessionID, Outcome) -> Void)? = nil) -> SessionID {
         let id = SessionID(value: UUID())
-        records[id] = Record(id: id, owner: owner, controller: controller, displayName: displayName)
+        records[id] = Record(id: id, owner: owner, controller: controller, displayName: displayName,
+                             onClose: onClose)
         changed()
         return id
     }
@@ -268,7 +273,9 @@ final class DevelopRecoveryCoordinator {
             case .failure(let error):
                 outcome = .failed(sessionID: id, message: error.localizedDescription)
             }
-            self?.finishClose(id, attemptID: attemptID, outcome: outcome)
+            if self?.finishClose(id, attemptID: attemptID, outcome: outcome) == true {
+                record.onClose?(id, outcome)
+            }
             return outcome
         }
         record.task = task
@@ -285,8 +292,9 @@ final class DevelopRecoveryCoordinator {
         return requestClose(id)
     }
 
-    private func finishClose(_ id: SessionID, attemptID: UUID, outcome: Outcome) {
-        guard let record = records[id], record.attemptID == attemptID else { return }
+    @discardableResult
+    private func finishClose(_ id: SessionID, attemptID: UUID, outcome: Outcome) -> Bool {
+        guard let record = records[id], record.attemptID == attemptID else { return false }
         record.task = nil
         switch outcome {
         case .saved:
@@ -299,6 +307,7 @@ final class DevelopRecoveryCoordinator {
             record.lastFailure = outcome
         }
         changed()
+        return true
     }
 
     func reserveObserve(owner: EngineLibrary, imageIDs: Set<String>) -> Gate {
