@@ -18,6 +18,7 @@
 - Concurrent callers of one in-flight close receive that attempt’s same `Result`; their presence must not schedule an automatic retry.
 - Publish the shared attempt and enter a synchronous `closing` state before invoking host flush callbacks. While closing, reject every settings/history/mask mutation without changing local or pending state; report the rejection through the existing failure callback. Clear `closing` on failure so Retry or Keep Editing can proceed; keep it set after success.
 - Invalidate deferred settings/mask drains when close begins. A deferred task must check the close state before sending anything and must not retry a failed close drain.
+- Surface/presentation mutations also reject during close: attachSurfaces before lastView or allocation, updateDisplay/syncPresentation before local presentation or backend headroom changes, and mask overlay attach/set. Read-only getters and cleanup remain available; this slice grants no presentation-only admission exception. Guard before changing local state, not only at the backend call.
 - Cancellation of one caller waiting on close must not cancel the stored shared save/close attempt or another caller’s wait.
 - A later explicit `close()` call after a failure may retry; successful close is idempotent and drains/joins native save work.
 - Preserve the existing public `flushPending() -> Bool` attempt semantics used by display-link callers; close needs an internal result-bearing drain path.
