@@ -3286,7 +3286,7 @@ mod tests {
     impl Drop for ReleasePause {
         fn drop(&mut self) {
             let (state, cv) = &*self.0;
-            state.lock().unwrap().1 = true;
+            state.lock().unwrap_or_else(|e| e.into_inner()).1 = true;
             cv.notify_all();
         }
     }
@@ -3294,13 +3294,15 @@ mod tests {
     #[test]
     fn flush_without_new_edit_repairs_sidecars_after_recipe_write_failure() {
         let dir = tempfile::tempdir().unwrap();
-        let photo = dir.path().join("retry.jpg");
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("retry.jpg");
         image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
             .save(&photo)
             .unwrap();
         let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         engine
-            .index_folder(dir.path().to_string_lossy().into_owned())
+            .index_folder(photos.to_string_lossy().into_owned())
             .unwrap();
         let row = engine
             .list_images(crate::ImageQuery::default())
@@ -3309,7 +3311,15 @@ mod tests {
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         let saved = Arc::new(SavedHashes::default());
         session.set_listener(Some(saved.clone()));
-        engine.clone().embedded_preview(row.id.clone(), 16).unwrap();
+        engine
+            .request_raw(
+                row.id.clone(),
+                row.path.clone(),
+                16,
+                row.recipe_hash.clone(),
+            )
+            .unwrap();
+        assert_eq!(engine.requested_preview_sizes(&row.id), vec![16]);
         FAIL_AFTER_DEVELOP_RECIPE
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -3317,6 +3327,9 @@ mod tests {
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
+        let first = session.flush().unwrap_err();
+        assert!(first.to_string().contains("injected post-recipe failure"));
+        assert!(saved.0.lock().unwrap().is_empty());
         {
             let mut state = session.shared.lock().unwrap();
             state.frame = Some(Arc::new(Frame {
@@ -3325,9 +3338,6 @@ mod tests {
                 tiles: None,
             }));
         }
-        let first = session.flush().unwrap_err();
-        assert!(first.to_string().contains("injected post-recipe failure"));
-        assert!(saved.0.lock().unwrap().is_empty());
         let recipe: Recipe =
             serde_json::from_str(&engine.get_recipe(row.id.clone()).unwrap()).unwrap();
         assert_eq!(recipe.settings.tone.exposure, 0.7);
@@ -3369,13 +3379,15 @@ mod tests {
     #[test]
     fn failed_develop_sidecar_repair_waits_for_each_explicit_flush() {
         let dir = tempfile::tempdir().unwrap();
-        let photo = dir.path().join("repeat.jpg");
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("repeat.jpg");
         image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
             .save(&photo)
             .unwrap();
         let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         engine
-            .index_folder(dir.path().to_string_lossy().into_owned())
+            .index_folder(photos.to_string_lossy().into_owned())
             .unwrap();
         let row = engine
             .list_images(crate::ImageQuery::default())
@@ -3408,13 +3420,15 @@ mod tests {
     #[test]
     fn repair_uses_current_disk_recipe_after_foreign_develop_edit() {
         let dir = tempfile::tempdir().unwrap();
-        let photo = dir.path().join("foreign.jpg");
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("foreign.jpg");
         image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
             .save(&photo)
             .unwrap();
         let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         engine
-            .index_folder(dir.path().to_string_lossy().into_owned())
+            .index_folder(photos.to_string_lossy().into_owned())
             .unwrap();
         let row = engine
             .list_images(crate::ImageQuery::default())
@@ -3423,7 +3437,15 @@ mod tests {
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         let saved = Arc::new(SavedHashes::default());
         session.set_listener(Some(saved.clone()));
-        engine.clone().embedded_preview(row.id.clone(), 16).unwrap();
+        engine
+            .request_raw(
+                row.id.clone(),
+                row.path.clone(),
+                16,
+                row.recipe_hash.clone(),
+            )
+            .unwrap();
+        assert_eq!(engine.requested_preview_sizes(&row.id), vec![16]);
         FAIL_AFTER_DEVELOP_RECIPE
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -3431,6 +3453,8 @@ mod tests {
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
+        assert!(session.flush().is_err());
+        assert!(saved.0.lock().unwrap().is_empty());
         {
             let mut state = session.shared.lock().unwrap();
             state.frame = Some(Arc::new(Frame {
@@ -3439,8 +3463,6 @@ mod tests {
                 tiles: None,
             }));
         }
-        assert!(session.flush().is_err());
-        assert!(saved.0.lock().unwrap().is_empty());
 
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let mut foreign = sidecar::Sidecar::read_recipe(&recipe_path).unwrap();
@@ -3449,6 +3471,8 @@ mod tests {
             .edit(EditMeta::default(), |s| s.tone.exposure = 1.2)
             .unwrap();
         sidecar::Sidecar::write_recipe(&recipe_path, &foreign).unwrap();
+        let foreign_disk = sidecar::Sidecar::read_recipe(&recipe_path).unwrap().recipe;
+        assert_eq!(foreign_disk.settings.tone.exposure, 1.2);
         let foreign_bytes = std::fs::read(&recipe_path).unwrap();
 
         session.flush().unwrap();
@@ -3457,12 +3481,12 @@ mod tests {
         assert_eq!(xmp.to_recipe().unwrap().recipe.settings.tone.exposure, 1.2);
         assert_eq!(
             engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
-            foreign.recipe.recipe_hash().to_string()
+            foreign_disk.recipe_hash().to_string()
         );
         assert!(saved.0.lock().unwrap().is_empty());
         let foreign_preview = edited_preview_key(
             &photo,
-            &foreign.recipe,
+            &foreign_disk,
             session.shared.image.metadata().orientation as u8,
             16,
         );
@@ -3477,13 +3501,15 @@ mod tests {
     #[test]
     fn newer_develop_edit_does_not_hide_previous_save_failure() {
         let dir = tempfile::tempdir().unwrap();
-        let photo = dir.path().join("newer.jpg");
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("newer.jpg");
         image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
             .save(&photo)
             .unwrap();
         let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         engine
-            .index_folder(dir.path().to_string_lossy().into_owned())
+            .index_folder(photos.to_string_lossy().into_owned())
             .unwrap();
         let row = engine
             .list_images(crate::ImageQuery::default())
@@ -3542,13 +3568,15 @@ mod tests {
     #[test]
     fn concurrent_flushes_both_report_the_same_failed_save() {
         let dir = tempfile::tempdir().unwrap();
-        let photo = dir.path().join("two-waiters.jpg");
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("two-waiters.jpg");
         image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
             .save(&photo)
             .unwrap();
         let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         engine
-            .index_folder(dir.path().to_string_lossy().into_owned())
+            .index_folder(photos.to_string_lossy().into_owned())
             .unwrap();
         let row = engine
             .list_images(crate::ImageQuery::default())
@@ -3577,10 +3605,26 @@ mod tests {
         let mut state = pause_state.lock().unwrap();
         let deadline = Instant::now() + Duration::from_secs(5);
         while !state.0 {
-            let remaining = deadline
-                .checked_duration_since(Instant::now())
-                .expect("save did not reach post-recipe boundary");
-            state = pause_cv.wait_timeout(state, remaining).unwrap().0;
+            if first.is_finished() {
+                drop(state);
+                panic!(
+                    "first flush exited before post-recipe boundary: {:?}",
+                    first.join()
+                );
+            }
+            let remaining = match deadline.checked_duration_since(Instant::now()) {
+                Some(remaining) => remaining,
+                None => {
+                    drop(state);
+                    panic!(
+                        "save did not reach post-recipe boundary while first flush remained active"
+                    );
+                }
+            };
+            state = pause_cv
+                .wait_timeout(state, remaining.min(Duration::from_millis(100)))
+                .unwrap()
+                .0;
         }
         drop(state);
         let second = {
