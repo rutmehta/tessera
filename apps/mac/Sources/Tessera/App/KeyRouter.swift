@@ -44,7 +44,8 @@ final class KeyRouter {
             nonisolated(unsafe) let e = event
             let handled = MainActor.assumeIsolated {
                 InspectorFocusTrace.routeEvent(self?.focusTrace, event: e,
-                    document: self?.model.viewMode == .document) {
+                    document: self?.model.viewMode == .document,
+                    ownedWindow: self?.model.documents.current?.viewport?.window) {
                     e.type == .keyUp ? (self?.handleKeyUp(e) ?? false) : (self?.handle(e) ?? false)
                 }
             }
