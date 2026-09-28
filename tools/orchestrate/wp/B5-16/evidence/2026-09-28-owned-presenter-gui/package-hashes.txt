@@ -1,0 +1,4 @@
+5038548a2753ec4c993146379ee9ba33cfcf0e470329e8287e867f4d076e1c9e  /Volumes/betterSSD/tessera-validation/document-save-settlement/candidate-62d546dc-focused-4a45-20260928/scratch/arm64-apple-macosx/release/Tessera
+eb2390732a3cd4085cdbf401a96410e0b458c521f06b1c9ac5f99e0293144d5e  /Volumes/betterSSD/tessera-validation/document-save-settlement/owned-presenter-d695e6a1/gui/Tessera Owned Save d695.app/Contents/MacOS/Tessera
+34237b162faccf1e11f1b76e6b9296ae354752ce84ebd546df8e1ac49d4e8b04  /Volumes/betterSSD/tessera-validation/document-save-settlement/owned-presenter-d695e6a1/gui/Tessera Owned Save d695.app/Contents/Info.plist
+4a45f8235a8c6382d0dad9be735d5cd336a86c20eb50c15051b1c55654444596  /Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a
