@@ -58,6 +58,7 @@ final class ExportController {
     @ObservationIgnored var acquireSaveGate: ((Set<String>) -> DevelopRecoveryCoordinator.Gate?)?
     @ObservationIgnored private var engine: Engine?
     @ObservationIgnored private var cancelFlag: CancelFlag?
+    @ObservationIgnored private var cancelledBeforeRun = false
     @ObservationIgnored private var applyingPreset = false
     /// Observation's generated accessors run `didSet` during init too; persist only afterwards.
     @ObservationIgnored private var ready = false
@@ -299,10 +300,17 @@ final class ExportController {
         let settings = settings
         let ffiTarget = target.target
         let json = settings.json
+        cancelledBeforeRun = false
         starting = true
         Task {
             defer { gate.finish() }
-            guard await gate.result().isSaved, self.target?.id == target.id,
+            let admitted = await gate.result().isSaved
+            guard !cancelledBeforeRun else {
+                starting = false
+                error = "Export cancelled"
+                return
+            }
+            guard admitted, self.target?.id == target.id,
                   self.settings == settings else {
                 starting = false
                 error = "Finish saving the photo before Export"
@@ -341,7 +349,10 @@ final class ExportController {
 
     @ObservationIgnored var onFailure: (String) -> Void = { _ in }
 
-    func cancel() { cancelFlag?.cancel() }
+    func cancel() {
+        if starting { cancelledBeforeRun = true }
+        cancelFlag?.cancel()
+    }
 }
 
 /// Engine progress (exporting thread) → main actor.

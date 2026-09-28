@@ -234,7 +234,9 @@ struct TextInImageBlock: View {
                         .accessibilityIdentifier("ocr-text")
                     Button("Find Photos with This Text") {
                         let first = info.ocr.first?.text ?? info.ocrText
-                        library.filter.text = SearchTerm.appending(SearchTerm.text(first), to: "")
+                        model.updateLibraryFilter {
+                            $0.text = SearchTerm.appending(SearchTerm.text(first), to: "")
+                        }
                     }
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                     .help("Search the folder for “\(info.ocr.first?.text ?? "")” in captions and text in images")

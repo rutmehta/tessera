@@ -30,8 +30,20 @@ final class LibraryModel {
     private(set) var isAvailable = false
     /// Sidebar tree (roots).
     private(set) var nodes: [CollectionNode] = []
-    var filter = LibraryFilter() {
-        didSet { if filter != oldValue { app?.leavePhotoEditForLibraryChange(); scheduleSearch() } }
+    private var storedFilter = LibraryFilter()
+    var filter: LibraryFilter {
+        get { storedFilter }
+        set {
+            guard newValue != storedFilter else { return }
+            if let app { app.requestLibraryFilter(newValue) }
+            else { commitFilter(newValue) }
+        }
+    }
+    /// Only AppModel calls this after its synchronous navigation admission.
+    func commitFilter(_ value: LibraryFilter) {
+        guard storedFilter != value else { return }
+        storedFilter = value
+        scheduleSearch()
     }
     private(set) var facets: SearchFacets?
     private(set) var diagnostic: RuleDiagnostic?
@@ -75,7 +87,7 @@ final class LibraryModel {
         facetTask?.cancel()
         metadataTask?.cancel()
         matches = nil
-        filter = LibraryFilter()
+        commitFilter(LibraryFilter())
         searchTask?.cancel()
         facets = nil
         diagnostic = nil

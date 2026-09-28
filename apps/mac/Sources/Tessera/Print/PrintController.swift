@@ -48,6 +48,7 @@ final class PrintController {
     @ObservationIgnored var onMessage: (String, [String]) -> Void = { _, _ in }
     @ObservationIgnored var acquireSaveGate: ((Set<String>) -> DevelopRecoveryCoordinator.Gate?)?
     @ObservationIgnored private var cancelFlag: CancelFlag?
+    @ObservationIgnored private var cancelledBeforeRun = false
     @ObservationIgnored private var requests: [PreviewRequest] = []
     @ObservationIgnored private var previewGeneration = UUID()
     @ObservationIgnored private var cancelled = false
@@ -207,10 +208,18 @@ final class PrintController {
             completion?(false)
             return
         }
+        cancelledBeforeRun = false
         starting = true
         Task {
             defer { gate.finish() }
-            guard await gate.result().isSaved,
+            let admitted = await gate.result().isSaved
+            guard !cancelledBeforeRun else {
+                starting = false
+                error = "Printing cancelled"
+                completion?(false)
+                return
+            }
+            guard admitted,
                   self.items.compactMap({ $0.engineImage?.imageID }) == requests.map({ $0.1 }),
                   self.settings == settings else {
                 starting = false
@@ -259,7 +268,10 @@ final class PrintController {
         }
     }
 
-    func cancel() { cancelFlag?.cancel() }
+    func cancel() {
+        if starting { cancelledBeforeRun = true }
+        cancelFlag?.cancel()
+    }
 
     /// Printer / PDF / JPEG from finished renders.
     private func produce(_ output: Output, composer: PrintComposer, settings: PrintSettings, window: NSWindow?,

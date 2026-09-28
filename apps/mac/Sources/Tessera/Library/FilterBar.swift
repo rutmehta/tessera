@@ -10,6 +10,11 @@ struct FilterBar: View {
     let model: AppModel
     @State private var showDates = false
 
+    private func filterBinding<Value>(_ keyPath: WritableKeyPath<LibraryFilter, Value>) -> Binding<Value> {
+        Binding(get: { library.filter[keyPath: keyPath] },
+                set: { value in model.updateLibraryFilter { $0[keyPath: keyPath] = value } })
+    }
+
     var body: some View {
         let facets = library.facets
         VStack(alignment: .leading, spacing: Theme.Space.s) {
@@ -27,7 +32,7 @@ struct FilterBar: View {
     private var ruleRow: some View {
         HStack(spacing: Theme.Space.s) {
             FieldContainer(symbol: "magnifyingglass", invalid: library.diagnostic != nil) {
-                RuleTextField(text: $library.filter.text, diagnostic: library.diagnostic,
+                RuleTextField(text: filterBinding(\.text), diagnostic: library.diagnostic,
                               placeholder: "Search or rule, e.g. beach rating>=2 NOT decision:reject",
                               onSubmit: {}, plain: true)
             }
@@ -137,13 +142,17 @@ struct FilterBar: View {
             }
             ForEach(values, id: \.value) { row in
                 Toggle(isOn: Binding(get: { selected.contains(row.value) },
-                                     set: { _ in library.toggle(keyPath, row.value) })) {
+                                     set: { _ in model.updateLibraryFilter { filter in
+                                         if filter[keyPath: keyPath].contains(row.value) {
+                                             filter[keyPath: keyPath].remove(row.value)
+                                         } else { filter[keyPath: keyPath].insert(row.value) }
+                                     } })) {
                     Text("\(row.label)    \(row.count.formatted())")
                 }
             }
             if !selected.isEmpty {
                 Divider()
-                Button("Any \(title)") { library.filter[keyPath: keyPath] = [] }
+                Button("Any \(title)") { model.updateLibraryFilter { $0[keyPath: keyPath] = [] } }
             }
         } label: {
             Text(selected.isEmpty ? title : "\(title) · \(selected.count == 1 ? selected.first! : "\(selected.count)")")
@@ -194,14 +203,15 @@ struct FilterBar: View {
             VStack(alignment: .leading, spacing: Theme.Space.s) {
                 Text("Capture date").font(Theme.Fonts.labelSemibold)
                 HStack(spacing: Theme.Space.s) {
-                    TextField("From  YYYY[-MM[-DD]]", text: $library.filter.dateFrom).frame(width: 150)
+                    TextField("From  YYYY[-MM[-DD]]", text: filterBinding(\.dateFrom)).frame(width: 150)
                     Text("to").foregroundStyle(Theme.textSecondary)
-                    TextField("To", text: $library.filter.dateTo).frame(width: 150)
+                    TextField("To", text: filterBinding(\.dateTo)).frame(width: 150)
                 }
                 .textFieldStyle(.roundedBorder)
                 Hint("Inclusive. 2024 is the whole year; 2024-06 the whole month.")
                 HStack(spacing: Theme.Space.s) {
-                    Button("Clear") { library.filter.dateFrom = ""; library.filter.dateTo = "" }.buttonStyle(.themeBordered)
+                    Button("Clear") { model.updateLibraryFilter { $0.dateFrom = ""; $0.dateTo = "" } }
+                        .buttonStyle(.themeBordered)
                     Spacer()
                     Button("Done") { showDates = false }.keyboardShortcut(.defaultAction).buttonStyle(.themePrimary)
                 }
@@ -215,10 +225,14 @@ struct FilterBar: View {
     private func albumMenu(_ facets: SearchFacets?) -> some View {
         let status = library.filter.albumStatus
         return Menu {
-            Toggle(isOn: Binding(get: { status == "none" }, set: { library.filter.albumStatus = $0 ? "none" : nil })) {
+            Toggle(isOn: Binding(get: { status == "none" }, set: { value in
+                model.updateLibraryFilter { $0.albumStatus = value ? "none" : nil }
+            })) {
                 Text("Not in any album    \((facets?.inNoAlbum ?? 0).formatted())")
             }
-            Toggle(isOn: Binding(get: { status == "any" }, set: { library.filter.albumStatus = $0 ? "any" : nil })) {
+            Toggle(isOn: Binding(get: { status == "any" }, set: { value in
+                model.updateLibraryFilter { $0.albumStatus = value ? "any" : nil }
+            })) {
                 Text("In an album    \((facets?.inAnyAlbum ?? 0).formatted())")
             }
         } label: {

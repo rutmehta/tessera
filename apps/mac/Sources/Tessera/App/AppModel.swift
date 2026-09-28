@@ -278,6 +278,20 @@ final class AppModel {
         action()
     }
 
+    func requestLibraryFilter(_ filter: LibraryFilter) {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.collections.commitFilter(filter)
+        }
+    }
+
+    func updateLibraryFilter(_ mutate: (inout LibraryFilter) -> Void) {
+        var requested = collections.filter
+        mutate(&requested)
+        requestLibraryFilter(requested)
+    }
+
     private func navigateAfterDevelopSave(_ commit: @escaping @MainActor () -> Void) {
         let intent = UUID()
         let sourceOwner = engineLibrary
@@ -324,6 +338,7 @@ final class AppModel {
         Task { [weak self] in
             let result = await task.value
             guard let self else { return }
+            self.publishDevelopClose(result, sessionID: sessionID)
             switch result {
             case .saved:
                 if let blocked = self.blockedSavedNavigation,
@@ -758,7 +773,7 @@ final class AppModel {
         navigateAfterDevelopSave { [weak self] in
             guard let self else { return }
             if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
-            self.collections.clearFilter()
+            self.collections.commitFilter(LibraryFilter())
             self.refreshVisible { self.people.setFacet([]) }
         }
     }
@@ -1121,6 +1136,11 @@ final class AppModel {
             if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             backendOwnsGate = true
             self.documents.editInLayers(request.item) { [weak self, barrier] outcome in
+                // DocumentWorkspace installs/selects before settling. Its legacy
+                // viewMode assignment is refused while this reservation exists;
+                // publish the document destination only after backend settlement.
+                let mayShowInstalled = self?.pendingLayeredCopyRequestID == request.id
+                    && self?.engineLibrary === owner
                 barrier.finish()
                 guard let self else { return }
                 if self.layeredCopyStatusOwner == request.id {
@@ -1128,6 +1148,10 @@ final class AppModel {
                     self.layeredCopyStatusOwner = nil
                 }
                 if self.pendingLayeredCopyRequestID == request.id { self.pendingLayeredCopyRequestID = nil }
+                if case .installed = outcome, mayShowInstalled {
+                    self.requestViewMode(.document)
+                    self.statusMessage = nil
+                }
                 if case .failed(let message) = outcome { self.statusMessage = message }
                 if case .rejected(let message) = outcome { self.statusMessage = message }
             }
@@ -1998,6 +2022,29 @@ final class AppModel {
     }
 
     /// Starts one shared close. A failure retains the editor and its callbacks.
+    private func publishDevelopClose(_ outcome: DevelopRecoveryCoordinator.Outcome,
+                                     sessionID: DevelopRecoveryCoordinator.SessionID) {
+        guard developSessionID == sessionID else { return }
+        switch outcome {
+        case .saved:
+            develop = nil
+            developLibrary = nil
+            developSessionID = nil
+            developStatus = .none
+            developHistory = nil
+            renderReadout = nil
+        case .failed(_, let message):
+            guard developRecovery.presentations.contains(where: { presentation in
+                guard presentation.id == sessionID,
+                      case .failed = presentation.phase else { return false }
+                return true
+            }) else { return }
+            developStatus = .ready
+            statusMessage = "Develop: \(message)"
+        }
+        liveObservers.forEach { $0.developDidChange() }
+    }
+
     @discardableResult
     func closeDevelop() -> Task<DevelopRecoveryCoordinator.Outcome, Never>? {
         developTask?.cancel()
@@ -2007,20 +2054,7 @@ final class AppModel {
         let task = developRecovery.requestClose(sessionID)
         Task { [weak self] in
             let outcome = await task.value
-            guard let self, self.developSessionID == sessionID else { return }
-            switch outcome {
-            case .saved:
-                self.develop = nil
-                self.developLibrary = nil
-                self.developSessionID = nil
-                self.developStatus = .none
-                self.developHistory = nil
-                self.renderReadout = nil
-            case .failed(_, let message):
-                self.developStatus = .ready
-                self.statusMessage = "Develop: \(message)"
-            }
-            self.liveObservers.forEach { $0.developDidChange() }
+            self?.publishDevelopClose(outcome, sessionID: sessionID)
         }
         return task
     }
