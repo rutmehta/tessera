@@ -1,0 +1,39 @@
+{
+  "failed_source": "d53a969e",
+  "failed_before_after_equal": true,
+  "fixed_source": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393",
+  "fixed_manifest_sha256": "32780311704639e9c1ee59e6bde8010526a4626b4f459e73db60e4a56c3cfa3c",
+  "tracked_entries": 6423,
+  "swift_rust_header_cargo_git_verified": 1533,
+  "changed_inputs": [
+    "apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/DevelopRecoveryAdmissionBehaviorTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/DevelopRecoveryAdmissionTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/DevelopRecoveryCoordinatorTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/DevelopRecoveryStateTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/ReviewPreviewDrainTests.swift",
+    "apps/mac/Tests/TesseraCoreTests/StagedLibraryFilterTests.swift"
+  ],
+  "focused_passes": 94,
+  "focused_unique": 94,
+  "focused_direct_exit": "0",
+  "focused_log_sha256": "9aab01d03ca692f66a7b289548fea6e3a16ddcb208ae36e746e317748be107f4",
+  "full_xctest_named_passes": 660,
+  "full_xctest_skipped_names": [
+    "-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]"
+  ],
+  "full_log_sha256": "a1748e6269cd6f92bfbb4203a0737da1f18c2a0a0465832c49f42b3a79cf43b8",
+  "full_direct_exit": "0",
+  "full_swift_testing_passes": 5,
+  "corrected_before_after_all6423_identical": true,
+  "archive_bindings_current_verified": {
+    "libtessera_ffi.a": "07d924df6866bdf5404452dcdf54a21976d88322b5858c9c0cb3a91191027414",
+    "TesseraFFI.swift": "0efe51ef8c1d9fed5ba7cfb5abb5db442977ddf8ae09036e60926b79a3b041e4",
+    "CTesseraFFI.h": "61dbdf84ac99ddfd08ed258cab10f97b0d235fbdc3ddb61f795a2b081e9d65c3",
+    "CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd"
+  },
+  "archive_link_resolves_to": "/Volumes/betterSSD/tessera-validation/m258-current/ffi-07d924df",
+  "failed_run_direct_exit": "1",
+  "matching_crash_sha256": "2eda9d7805b70afa49e476d8669de5260bb6dcef19f60559cf59d44e2e845506"
+}

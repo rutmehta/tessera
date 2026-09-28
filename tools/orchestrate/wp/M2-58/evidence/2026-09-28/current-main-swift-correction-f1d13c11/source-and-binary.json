@@ -1,0 +1,10 @@
+{
+  "failed_source": "d53a969e28d91b03f023a145ac9d2fe8d4a75fa5",
+  "corrected_source": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393",
+  "source_diff_scope": "8 Swift test wrapper files only; production/Rust/generated binding bytes unchanged",
+  "test_binary_path": "/Volumes/betterSSD/tessera-validation/m258-current/swiftpm-d53a969e/arm64-apple-macosx/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests",
+  "test_binary_sha256": "d4ac9ebf0cb7626053b065d7f7bd998cc4fa1bc1bb2f4cb34364ab665a9c16b1",
+  "archive_link": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi",
+  "archive_link_resolved": "/Volumes/betterSSD/tessera-validation/m258-current/ffi-07d924df",
+  "verification": "Reviewer directly read Git refs/diff, binary/archive/binding bytes and saved manifests; no compiler/test execution."
+}

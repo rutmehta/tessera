@@ -1,0 +1,4 @@
+07d924df6866bdf5404452dcdf54a21976d88322b5858c9c0cb3a91191027414  ./libtessera_ffi.a
+0efe51ef8c1d9fed5ba7cfb5abb5db442977ddf8ae09036e60926b79a3b041e4  ./TesseraFFI.swift
+61dbdf84ac99ddfd08ed258cab10f97b0d235fbdc3ddb61f795a2b081e9d65c3  ./CTesseraFFI.h
+efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd  ./CTesseraFFI.modulemap
