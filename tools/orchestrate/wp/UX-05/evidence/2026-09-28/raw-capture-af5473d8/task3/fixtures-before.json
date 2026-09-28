@@ -1,0 +1,25 @@
+{
+  "root": "/Users/rutmehta/Developer/tessera/fixtures/raw",
+  "files": {
+    "fixtures/raw/sample.dng": {
+      "bytes": 36433920,
+      "sha256": "914f27df1ab095446c5db058703719f4a3749adedbfb9f353a3e85fa4f8f9b58"
+    },
+    "fixtures/raw/fuji-raf.RAF": {
+      "bytes": 33786880,
+      "sha256": "330fc84b597e7be6d7477aad5715705efaa99d4663eb05aa47e1250d6f421549"
+    },
+    "fixtures/raw/sony-arw.ARW": {
+      "bytes": 16646144,
+      "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+    },
+    "fixtures/raw/nikon-nef.NEF": {
+      "bytes": 44169458,
+      "sha256": "26d58c21ed3019af5a22ef6bc02f017b863aad9eafcf84252ed375cd495c0efb"
+    },
+    "fixtures/raw/canon-cr3.CR3": {
+      "bytes": 20948692,
+      "sha256": "15384b775867ec4c42b11882837f1e368cedc0561832ffab271221e6bb80be4c"
+    }
+  }
+}

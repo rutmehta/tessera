@@ -1,0 +1,13 @@
+# Task2 final independent source and evidence review
+
+Approved bounded Task2 checkpoint d9d805cb6586f39cf55bcd2a0bad7f76451a3708. No actionable source or evidence blocker found. This clears proceeding to separately assigned Task3 held-consumer seam; it is not decoder/render integration acceptance. No builds, source edits, app/GPU work performed by reviewer.
+
+Compared03f5b42d reviewed implementation against finalcommit: only capture.rs and stream.rs differ. Inspected diff and token deltas; changes are line wrapping, trailing commas and rustfmt block-arm punctuation, with no identifier/string/operator/branch-condition changes or altered cleanup order. The prior reviewed copy/hash/metadata/seal/error-cleanup semantics remain intact. Formatted final production still restores Sealed path+reservation before fallible reopen, holds bounded buffer/counters, hashes completed stage and preserves primary errors through Drop cleanup.
+
+Independently checked all8,203 source hashes in every GREEN02–05 snapshot against immutable finalGit: zero mismatches. Per-run before/after source maps and HEAD are equal. FINAL-CHECKPOINT source map matches Git. GREEN ran before final formatting commit but on exactly those committed bytes; no assumption from branch name. RED01 is correctly separate:23compiled failures/0pass, exit101, against Unsupported; source differences retained.
+
+Raw logs/direct exits verified: GREEN02 exit0/23stream cases; full03 exit0/50unit+3integration,0ignored,0doctests, including12ownership cases; strict04 and fmt05 exit0. No post-gate semantic changes found. Detailed log SHA-256 and hash results in /tmp/tessera-private-raw-capture-task2-final-review.json.
+
+Five known RAW fixture root/file byte-count+SHA records beforeGREEN and afterGREEN match exactly, and current fixture files independently rehash identically. Whole JSON objects differ only because the after record adds before_after_equal:true; verification compares actual records, not that claim. Existing decoder regression reads those fixtures; new capture tests remain synthetic. This is stronger preservation evidence than Task1's after04-only baseline and must not be backdated.
+
+Public Unix capture now offers bounded verified ephemeral staged bytes; NonUnix remains Unsupported/unqualified. Best-effort observed source-change detection does not imply atomic snapshot. No public path/writable descriptor escape, lazy decoder owner, recipe transaction, durable asset store, renderer admission, or live-RAW product integration is supplied. Task3 tests must still prove replacement isolation, delayed held ownership, primary consumer error plus cleanup error, panic unwind and cancellation/no-consumer cases. Runtime for that stage requires its own lane grant.

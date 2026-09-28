@@ -1,0 +1,70 @@
+{
+  "ref": "af5473d8e34f4a62201fbadedad6fa8b64aed20b",
+  "git_count": 8204,
+  "final_mismatches": [],
+  "gates": {
+    "01-consumer-red": {
+      "exit": 101,
+      "source_equal": true,
+      "head_equal": true,
+      "vs_final_mismatches": [
+        "crates/raw-decode/src/capture.rs",
+        "crates/raw-decode/src/capture/tests/consumer.rs"
+      ],
+      "log_sha256": "8bf1538e630379c6d40909718c24e4bfa739e948d534d1d2f9fa5b6f108ab8b5",
+      "results": [
+        "test result: FAILED. 1 passed; 6 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.04s"
+      ]
+    },
+    "02-consumer-green": {
+      "exit": 0,
+      "source_equal": true,
+      "head_equal": true,
+      "vs_final_mismatches": [],
+      "log_sha256": "84cb3331c59d3565bc445dd492efddb67a0bb67fc25a96003f031cfedcacfa7a",
+      "results": [
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.03s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s"
+      ]
+    },
+    "03-full-raw-decode": {
+      "exit": 0,
+      "source_equal": true,
+      "head_equal": true,
+      "vs_final_mismatches": [],
+      "log_sha256": "0ad5d41dc26415252dcd051bf937cd3c504e63e8730768709f84cd06a0d7d1a9",
+      "results": [
+        "test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    "04-strict": {
+      "exit": 0,
+      "source_equal": true,
+      "head_equal": true,
+      "vs_final_mismatches": [],
+      "log_sha256": "b36a4bc35a7286baa98635094855f9f9dc6060162ef8b10f6b1bf4b8227aa756",
+      "results": []
+    },
+    "05-fmt": {
+      "exit": 0,
+      "source_equal": true,
+      "head_equal": true,
+      "vs_final_mismatches": [],
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "results": []
+    }
+  },
+  "branch_paths": [
+    "Cargo.lock",
+    "crates/raw-decode/Cargo.toml",
+    "crates/raw-decode/src/capture.rs",
+    "crates/raw-decode/src/capture/tests.rs",
+    "crates/raw-decode/src/capture/tests/consumer.rs",
+    "crates/raw-decode/src/capture/tests/stream.rs",
+    "crates/raw-decode/src/lib.rs"
+  ],
+  "fixture_records_equal": true,
+  "current_fixture_mismatches": []
+}

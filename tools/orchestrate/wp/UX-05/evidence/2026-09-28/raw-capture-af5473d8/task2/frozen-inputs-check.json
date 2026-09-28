@@ -1,0 +1,7 @@
+{
+  "01-stream-red": true,
+  "02-stream-green": true,
+  "03-full-raw-decode": true,
+  "04-strict": true,
+  "05-fmt": true
+}

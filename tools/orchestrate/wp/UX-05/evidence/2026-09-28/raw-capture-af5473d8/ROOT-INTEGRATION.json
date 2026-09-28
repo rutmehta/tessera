@@ -1,0 +1,20 @@
+{
+  "main_merge": "1b073b0cf6eb4a3567bb50b836e8f85a2ef74b31",
+  "qualified_candidate": "af5473d8e34f4a62201fbadedad6fa8b64aed20b",
+  "owned_files_equal": [
+    "Cargo.lock",
+    "crates/raw-decode/Cargo.toml",
+    "crates/raw-decode/src/capture.rs",
+    "crates/raw-decode/src/capture/tests.rs",
+    "crates/raw-decode/src/capture/tests/consumer.rs",
+    "crates/raw-decode/src/capture/tests/stream.rs",
+    "crates/raw-decode/src/lib.rs"
+  ],
+  "dependencies_unchanged_since_qualified_base": [
+    "Cargo.toml",
+    "crates/engine-api",
+    "crates/libraw-ffi"
+  ],
+  "portable_payloads_verified": 110,
+  "verification": "Existing exact-source tests and independent review. No new build or full-workspace/nonUnix/decoder claim."
+}

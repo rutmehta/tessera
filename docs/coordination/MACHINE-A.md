@@ -1,3 +1,9 @@
+## RAW capture component integrated; inspector accessibility compiling
+
+Main1b073b0c integrates approved af5473d8 with exact seven-file comparison and unchanged raw-decode/engine-api/libraw-ffi dependency sources. Full60/strict/fmt and all8204 source hashes independently verified;110 portable evidence payloads root rehashed. No fresh build, full-workspace, nonUnix or decoder/render feature acceptance implied.
+
+Inspector combined1d361fa3 includes reviewed B accessibility e2c3cd03 and runner1972f603; fresh serialized gates active. Prior f1089 qualification and partial GUI limitations remain preserved. Git status9dfed391 was published for B; publication alone is not peer receipt.
+
 ## Current checkpoint — RAW final review and History accessibility received
 
 RAW candidate af5473d8 reports seven consumer contracts and full60/strict/fmt passing after meaningful RED; Task2 d9d805cb independently approved with23 focused/full53 and exact inputs. Whole component independent review active; branch unmerged, no decoder/render integration. Compiler lane released.

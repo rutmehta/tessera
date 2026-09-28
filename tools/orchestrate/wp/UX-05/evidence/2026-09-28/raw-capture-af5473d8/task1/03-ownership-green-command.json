@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "raw-decode",
+    "--release",
+    "capture::tests"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "start": "2026-09-28T20:55:11.551721+00:00"
+}

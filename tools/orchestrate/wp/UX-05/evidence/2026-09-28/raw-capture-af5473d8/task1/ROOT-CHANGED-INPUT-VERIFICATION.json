@@ -1,0 +1,20 @@
+{
+  "candidate": "01409e822b19a45f68e81a8eb16f0ef4fbc3f166",
+  "changed_inputs": {
+    "Cargo.lock": "e1d6335de7af8e7bce4c6134088f3137c85a97491c11b76118f942fd8763d0d9",
+    "crates/raw-decode/Cargo.toml": "c39bf89a490a737951d3829ef9229b3f3b01045bd470a5a348b68b6d1aa01093",
+    "crates/raw-decode/src/capture.rs": "ffe3ff39e563568cc4de5e88f6ee96d5b73f19e31362660ac0a0919b8f0a0276",
+    "crates/raw-decode/src/capture/tests.rs": "886e13c54d078cb110bbe958a92c3dcf6843ef1d41bb6788235de30f73c6a7ae",
+    "crates/raw-decode/src/lib.rs": "aec54c6fdf1dc8fbf44d7ae9b4b4dab566279659fb09b584b6f6b2615802a835"
+  },
+  "final_frozen": true,
+  "exits": {
+    "03-ownership-green.exit": "0",
+    "04-full-raw-decode.exit": "0",
+    "05-strict.exit": "0",
+    "06-fmt.exit": "0",
+    "07-final-raw-decode.exit": "0",
+    "02-behavior-red.exit": "101",
+    "01-compile.exit": "101"
+  }
+}

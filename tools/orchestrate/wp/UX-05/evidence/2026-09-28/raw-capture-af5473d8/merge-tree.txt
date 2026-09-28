@@ -1,0 +1,2311 @@
+merged
+  result 100644 9045ad8018d4f94e1749cfce82ba2c1fc4d6ce3e Cargo.lock
+  our    100644 8878f6eddad9dff33d438776784f9b865a599a50 Cargo.lock
+@@ -4100,9 +4100,12 @@
+ name = "raw-decode"
+ version = "0.1.0"
+ dependencies = [
++ "blake3",
+  "criterion",
+  "engine-api",
++ "libc",
+  "libraw-ffi",
++ "tempfile",
+ ]
+ 
+ [[package]]
+merged
+  result 100644 6c3becb1f1f5319df19fd47899d2e80d701381f8 crates/raw-decode/Cargo.toml
+  our    100644 77e6f01de60403c83866b1262b82c715daf37bed crates/raw-decode/Cargo.toml
+@@ -11,6 +11,12 @@
+ engine-api = { path = "../engine-api" }
+ libraw-ffi = { path = "../libraw-ffi" }
+ 
++tempfile.workspace = true
++blake3.workspace = true
++
++[target.'cfg(unix)'.dependencies]
++libc = "0.2"
++
+ [dev-dependencies]
+ criterion = "0.5"
+ 
+added in remote
+  their  100644 8503b7f629d71473329e1ed6bcb94db48ec99169 crates/raw-decode/src/capture.rs
+@@ -0,0 +1,773 @@
++//! Bounded ephemeral RAW capture ownership.
++//!
++//! A capture names a frozen stream, not an atomic snapshot of a mutable source.
++//! Held bytes are not owned decoded pixels and do not establish render admission.
++//! All reads are bounded and identity is derived from the completed private stage.
++//! Metadata comparisons reject observed changes but cannot prove snapshot atomicity.
++
++use engine_api::{
++    EngineError, EngineResult, id::Digest, jobs::CancellationToken,
++    pinned_raw::PinnedRawDecoderRoute,
++};
++use std::{
++    fs, io,
++    io::{Read, Write},
++    path::Path,
++    sync::{Arc, Mutex},
++};
++use tempfile::{NamedTempFile, TempDir, TempPath};
++
++pub const ASSET_DOMAIN: &str = "tessera pinned RAW asset v1";
++pub const CHUNK_BYTES: usize = 64 * 1024;
++
++#[derive(Clone, Copy, Debug)]
++pub struct CaptureLimits {
++    pub max_asset_bytes: u64,
++    pub max_staged_bytes: u64,
++    pub max_live_captures: usize,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct CapturedAssetIdentity {
++    pub digest: Digest,
++    pub byte_len: u64,
++}
++
++#[derive(Clone)]
++pub struct CapturePool {
++    inner: Arc<PoolInner>,
++}
++
++/// Verified ephemeral bytes retained until this owner is closed or dropped.
++///
++/// This is not decoded RAW data, a recipe snapshot, or durable reopen storage.
++/// A future closed decoder adapter must retain this owner through all probe/read
++/// operations and return fully owned pixels/metadata before releasing it (or
++/// transfer ownership into a lazy decoder). No public pathname escapes here.
++pub struct CapturedRaw {
++    stage: StageGuard,
++    identity: CapturedAssetIdentity,
++    route: PinnedRawDecoderRoute,
++    suffix: String,
++}
++
++struct PoolInner {
++    directory: TempDir,
++    limits: CaptureLimits,
++    accounting: Mutex<Accounting>,
++    operations: Operations,
++}
++
++#[derive(Default)]
++struct Accounting {
++    bytes: u64,
++    slots: usize,
++    quarantine: Vec<Quarantined>,
++}
++
++struct Quarantined {
++    path: TempPath,
++    bytes: u64,
++}
++
++struct Reservation {
++    pool: Arc<PoolInner>,
++    active: bool,
++}
++
++enum StageStorage {
++    Writable(NamedTempFile),
++    Sealed {
++        path: TempPath,
++        file: Option<fs::File>,
++    },
++}
++
++struct StageGuard {
++    storage: Option<StageStorage>,
++    reservation: Reservation,
++}
++
++#[derive(Default)]
++struct Operations {
++    #[cfg(test)]
++    injected: Option<tests::TestOperations>,
++}
++
++impl Operations {
++    fn setup(&self, path: &Path) -> io::Result<()> {
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::PermissionsExt;
++            fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
++        }
++        #[cfg(test)]
++        if let Some(ops) = &self.injected {
++            (ops.setup)(path)?;
++        }
++        Ok(())
++    }
++
++    fn remove_file(&self, path: &Path) -> io::Result<()> {
++        #[cfg(test)]
++        if let Some(ops) = &self.injected {
++            return (ops.remove_file)(path);
++        }
++        fs::remove_file(path)
++    }
++
++    fn remove_dir(&self, path: &Path) -> io::Result<()> {
++        #[cfg(test)]
++        if let Some(ops) = &self.injected {
++            return (ops.remove_dir)(path);
++        }
++        fs::remove_dir(path)
++    }
++
++    fn report(&self, error: &EngineError) {
++        #[cfg(test)]
++        if let Some(ops) = &self.injected {
++            ops.diagnostics
++                .lock()
++                .unwrap_or_else(|e| e.into_inner())
++                .push(error.to_string());
++            return;
++        }
++        // Drop cannot return an error; diagnostics must not panic on stderr I/O.
++        let _ = writeln!(io::stderr().lock(), "RAW capture cleanup: {error}");
++    }
++}
++
++fn absent_or_removed(result: io::Result<()>, path: &Path) -> EngineResult<()> {
++    match result {
++        Ok(()) => Ok(()),
++        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
++        Err(error) => Err(EngineError::io_at(path, &error)),
++    }
++}
++
++impl CapturePool {
++    pub fn create(parent: &Path, limits: CaptureLimits) -> EngineResult<Self> {
++        Self::create_internal(parent, limits, Operations::default())
++    }
++
++    fn create_internal(
++        parent: &Path,
++        limits: CaptureLimits,
++        operations: Operations,
++    ) -> EngineResult<Self> {
++        if limits.max_asset_bytes == 0
++            || limits.max_asset_bytes == u64::MAX
++            || limits.max_staged_bytes < limits.max_asset_bytes
++            || limits.max_live_captures == 0
++        {
++            return Err(EngineError::invalid(
++                "capture limits",
++                "require positive bounded asset, byte and slot budgets",
++            ));
++        }
++        let mut directory = tempfile::Builder::new()
++            .prefix("raw-capture-")
++            .tempdir_in(parent)
++            .map_err(|e| EngineError::io_at(parent, &e))?;
++        // From here every removal is explicit, including setup failure. Never let
++        // TempDir perform a second, recursive deletion after a reported failure.
++        directory.disable_cleanup(true);
++        if let Err(error) = operations.setup(directory.path()) {
++            let primary = EngineError::io_at(directory.path(), &error);
++            if let Err(cleanup) =
++                absent_or_removed(operations.remove_dir(directory.path()), directory.path())
++            {
++                operations.report(&cleanup);
++            }
++            return Err(primary);
++        }
++        Ok(Self {
++            inner: Arc::new(PoolInner {
++                directory,
++                limits,
++                accounting: Mutex::new(Accounting::default()),
++                operations,
++            }),
++        })
++    }
++
++    // Both byte capture and ownership tests use this reservation/cleanup path.
++    fn allocate_stage(&self, suffix: &str, cancel: &CancellationToken) -> EngineResult<StageGuard> {
++        cancel.check()?;
++        let mut accounting = self
++            .inner
++            .accounting
++            .lock()
++            .unwrap_or_else(|e| e.into_inner());
++        let bytes = accounting
++            .bytes
++            .checked_add(self.inner.limits.max_asset_bytes);
++        let slots = accounting.slots.checked_add(1);
++        let (Some(bytes), Some(slots)) = (bytes, slots) else {
++            return Err(EngineError::ResourceExhausted {
++                resource: "RAW capture accounting".into(),
++            });
++        };
++        if bytes > self.inner.limits.max_staged_bytes || slots > self.inner.limits.max_live_captures
++        {
++            return Err(EngineError::ResourceExhausted {
++                resource: "RAW capture staging".into(),
++            });
++        }
++        accounting.bytes = bytes;
++        accounting.slots = slots;
++        drop(accounting);
++        let reservation = Reservation {
++            pool: self.inner.clone(),
++            active: true,
++        };
++        let mut file = tempfile::Builder::new()
++            .prefix("raw-")
++            .suffix(&format!(".{suffix}"))
++            .tempfile_in(self.inner.directory.path())
++            .map_err(|e| EngineError::io_at(self.inner.directory.path(), &e))?;
++        file.disable_cleanup(true);
++        Ok(StageGuard {
++            storage: Some(StageStorage::Writable(file)),
++            reservation,
++        })
++    }
++
++    pub fn capture(
++        &self,
++        source: &Path,
++        route: PinnedRawDecoderRoute,
++        suffix: &str,
++        expected: Option<CapturedAssetIdentity>,
++        cancel: &CancellationToken,
++    ) -> EngineResult<CapturedRaw> {
++        #[cfg(unix)]
++        {
++            self.capture_internal(
++                source,
++                route,
++                suffix,
++                expected,
++                cancel,
++                CaptureIo::default(),
++            )
++        }
++        #[cfg(not(unix))]
++        {
++            let _ = (source, route, suffix, expected, cancel);
++            Err(EngineError::Unsupported {
++                what: "RAW capture requires nonblocking regular-file admission".into(),
++            })
++        }
++    }
++
++    #[cfg(unix)]
++    fn capture_internal(
++        &self,
++        source: &Path,
++        route: PinnedRawDecoderRoute,
++        suffix: &str,
++        expected: Option<CapturedAssetIdentity>,
++        cancel: &CancellationToken,
++        mut io: CaptureIo,
++    ) -> EngineResult<CapturedRaw> {
++        use std::os::unix::fs::OpenOptionsExt;
++        cancel.check()?;
++        let suffix = suffix.to_ascii_lowercase();
++        if suffix.is_empty()
++            || suffix.len() > 16
++            || !suffix
++                .bytes()
++                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
++        {
++            return Err(EngineError::invalid(
++                "suffix",
++                "expected 1–16 ASCII alphanumeric characters",
++            ));
++        }
++        let mut original = fs::OpenOptions::new()
++            .read(true)
++            .custom_flags(libc::O_NONBLOCK)
++            .open(source)
++            .map_err(|e| EngineError::io_at(source, &e))?;
++        let metadata = original
++            .metadata()
++            .map_err(|e| EngineError::io_at(source, &e))?;
++        if !metadata.is_file() || metadata.len() == 0 {
++            return Err(EngineError::invalid(
++                "source",
++                "capture requires a nonempty regular file",
++            ));
++        }
++        let limit = self.inner.limits.max_asset_bytes;
++        if metadata.len() > limit {
++            return Err(capture_limit());
++        }
++        let before = SourceStamp::from(&metadata);
++        check_source(source, &original, &before)?;
++        let mut stage = self.allocate_stage(&suffix, cancel)?;
++        let mut buffer = [0u8; CHUNK_BYTES];
++        let mut copied = 0u64;
++        loop {
++            cancel.check()?;
++            let capacity = read_capacity(limit, copied);
++            let read = io.source_read(&mut original, &mut buffer[..capacity]);
++            cancel.check()?;
++            let count = match read {
++                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
++                result => result.map_err(|e| EngineError::io_at(source, &e))?,
++            };
++            if count > capacity {
++                return Err(invalid_read_count());
++            }
++            if count == 0 {
++                break;
++            }
++            copied = copied.checked_add(count as u64).ok_or_else(capture_limit)?;
++            if copied > limit {
++                return Err(capture_limit());
++            }
++            let mut offset = 0;
++            while offset < count {
++                cancel.check()?;
++                let write = io.stage_write(stage.writable()?, &buffer[offset..count]);
++                cancel.check()?;
++                match write {
++                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
++                    Err(error) => return Err(EngineError::io_at(stage.path()?, &error)),
++                    Ok(0) => {
++                        return Err(EngineError::io_at(
++                            stage.path()?,
++                            &io::Error::from(io::ErrorKind::WriteZero),
++                        ));
++                    }
++                    Ok(n) if n > count - offset => return Err(invalid_read_count()),
++                    Ok(n) => offset += n,
++                }
++            }
++        }
++        if copied == 0 {
++            return Err(EngineError::invalid("source", "captured stream is empty"));
++        }
++        cancel.check()?;
++        io.after_copy(source, stage.path()?)
++            .map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
++        cancel.check()?;
++        io.stage_sync(stage.writable()?)
++            .map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?;
++        cancel.check()?;
++        stage.seal(&mut io)?;
++        cancel.check()?;
++        let mut hasher = blake3::Hasher::new_derive_key(ASSET_DOMAIN);
++        let mut hashed = 0u64;
++        loop {
++            cancel.check()?;
++            let capacity = read_capacity(limit, hashed);
++            let read = io.hash_read(stage.readonly()?, &mut buffer[..capacity]);
++            cancel.check()?;
++            let count = match read {
++                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
++                result => {
++                    result.map_err(|e| EngineError::io_at(stage.path().unwrap_or(source), &e))?
++                }
++            };
++            if count > capacity {
++                return Err(invalid_read_count());
++            }
++            if count == 0 {
++                break;
++            }
++            hashed = hashed.checked_add(count as u64).ok_or_else(capture_limit)?;
++            if hashed > limit {
++                return Err(capture_limit());
++            }
++            hasher.update(&buffer[..count]);
++        }
++        if hashed != copied {
++            return Err(EngineError::Conflict {
++                message: "completed RAW stage length changed".into(),
++            });
++        }
++        check_source(source, &original, &before)?;
++        let identity = CapturedAssetIdentity {
++            digest: Digest(*hasher.finalize().as_bytes()),
++            byte_len: hashed,
++        };
++        if expected.is_some_and(|expected| expected != identity) {
++            return Err(EngineError::Conflict {
++                message: "captured RAW identity does not match expected bytes".into(),
++            });
++        }
++        cancel.check()?;
++        Ok(CapturedRaw {
++            stage,
++            identity,
++            route,
++            suffix,
++        })
++    }
++}
++
++impl Reservation {
++    fn release(&mut self) {
++        if self.active {
++            let mut accounting = self
++                .pool
++                .accounting
++                .lock()
++                .unwrap_or_else(|e| e.into_inner());
++            accounting.bytes -= self.pool.limits.max_asset_bytes;
++            accounting.slots -= 1;
++            self.active = false;
++        }
++    }
++}
++
++impl Drop for Reservation {
++    fn drop(&mut self) {
++        self.release();
++    }
++}
++
++impl StageGuard {
++    fn cleanup(&mut self) -> EngineResult<()> {
++        let Some(storage) = self.storage.take() else {
++            return Ok(());
++        };
++        // Both states preserve disabled cleanup; close any descriptor before unlink.
++        let path = match storage {
++            StageStorage::Writable(file) => file.into_temp_path(),
++            StageStorage::Sealed { path, file } => {
++                drop(file);
++                path
++            }
++        };
++        let result = absent_or_removed(self.reservation.pool.operations.remove_file(&path), &path);
++        if result.is_ok() {
++            self.reservation.release();
++        } else {
++            let mut accounting = self
++                .reservation
++                .pool
++                .accounting
++                .lock()
++                .unwrap_or_else(|e| e.into_inner());
++            accounting.quarantine.push(Quarantined {
++                path,
++                bytes: self.reservation.pool.limits.max_asset_bytes,
++            });
++            self.reservation.active = false;
++        }
++        result
++    }
++
++    fn close(mut self) -> EngineResult<()> {
++        self.cleanup()
++    }
++}
++
++impl Drop for StageGuard {
++    fn drop(&mut self) {
++        if let Err(error) = self.cleanup() {
++            self.reservation.pool.operations.report(&error);
++        }
++    }
++}
++
++impl Drop for PoolInner {
++    fn drop(&mut self) {
++        let accounting = self.accounting.get_mut().unwrap_or_else(|e| e.into_inner());
++        for stage in accounting.quarantine.drain(..) {
++            match absent_or_removed(self.operations.remove_file(&stage.path), &stage.path) {
++                Ok(()) => {
++                    accounting.bytes -= stage.bytes;
++                    accounting.slots -= 1;
++                }
++                Err(error) => self.operations.report(&error),
++            }
++        }
++        if let Err(error) = absent_or_removed(
++            self.operations.remove_dir(self.directory.path()),
++            self.directory.path(),
++        ) {
++            self.operations.report(&error);
++        }
++    }
++}
++
++impl CapturedRaw {
++    pub fn identity(&self) -> CapturedAssetIdentity {
++        self.identity
++    }
++    pub fn route(&self) -> PinnedRawDecoderRoute {
++        self.route
++    }
++    pub fn suffix(&self) -> &str {
++        &self.suffix
++    }
++    pub fn close(self) -> EngineResult<()> {
++        self.stage.close()
++    }
++}
++
++#[cfg(test)]
++mod tests;
++
++#[cfg(test)]
++impl StageGuard {
++    fn path_for_test(&self) -> &Path {
++        self.path().unwrap()
++    }
++}
++#[cfg(test)]
++impl CapturePool {
++    fn accounting_for_test(&self) -> (u64, usize) {
++        let accounting = self.inner.accounting.lock().unwrap();
++        (accounting.bytes, accounting.slots)
++    }
++    fn directory_for_test(&self) -> &Path {
++        self.inner.directory.path()
++    }
++    fn create_with_cleanup_for_test(
++        parent: &Path,
++        limits: CaptureLimits,
++        remove: tests::PathOperation,
++    ) -> EngineResult<Self> {
++        Self::create_with_operations_for_test(
++            parent,
++            limits,
++            tests::TestOperations {
++                remove_file: remove,
++                ..tests::TestOperations::default()
++            },
++        )
++    }
++    fn create_with_operations_for_test(
++        parent: &Path,
++        limits: CaptureLimits,
++        ops: tests::TestOperations,
++    ) -> EngineResult<Self> {
++        Self::create_internal(
++            parent,
++            limits,
++            Operations {
++                injected: Some(ops),
++            },
++        )
++    }
++}
++
++#[cfg(all(test, unix))]
++impl CapturePool {
++    fn capture_with_hooks_for_test(
++        &self,
++        source: &Path,
++        route: PinnedRawDecoderRoute,
++        suffix: &str,
++        expected: Option<CapturedAssetIdentity>,
++        cancel: &CancellationToken,
++        hooks: tests::stream::StreamHooks,
++    ) -> EngineResult<CapturedRaw> {
++        self.capture_internal(source, route, suffix, expected, cancel, CaptureIo { hooks })
++    }
++}
++#[cfg(all(test, unix))]
++impl CapturedRaw {
++    fn path_for_test(&self) -> &Path {
++        self.stage.path().unwrap()
++    }
++    fn readonly_file_for_test(&self) -> &fs::File {
++        match self.stage.storage.as_ref().unwrap() {
++            StageStorage::Sealed {
++                file: Some(file), ..
++            } => file,
++            _ => panic!("capture must retain a sealed readonly descriptor"),
++        }
++    }
++}
++
++fn capture_limit() -> EngineError {
++    EngineError::ResourceExhausted {
++        resource: "RAW capture byte limit".into(),
++    }
++}
++fn invalid_read_count() -> EngineError {
++    EngineError::from(io::Error::new(
++        io::ErrorKind::InvalidData,
++        "I/O operation returned excess count",
++    ))
++}
++fn read_capacity(limit: u64, consumed: u64) -> usize {
++    // create rejects u64::MAX and each loop rejects excess before coming here.
++    (limit - consumed + 1).min(CHUNK_BYTES as u64) as usize
++}
++
++#[cfg(unix)]
++#[derive(PartialEq, Eq)]
++struct SourceStamp {
++    device: u64,
++    inode: u64,
++    length: u64,
++    modified: (i64, i64),
++    changed: (i64, i64),
++}
++#[cfg(unix)]
++impl From<&fs::Metadata> for SourceStamp {
++    fn from(metadata: &fs::Metadata) -> Self {
++        use std::os::unix::fs::MetadataExt;
++        Self {
++            device: metadata.dev(),
++            inode: metadata.ino(),
++            length: metadata.len(),
++            modified: (metadata.mtime(), metadata.mtime_nsec()),
++            changed: (metadata.ctime(), metadata.ctime_nsec()),
++        }
++    }
++}
++#[cfg(unix)]
++fn check_source(path: &Path, opened: &fs::File, expected: &SourceStamp) -> EngineResult<()> {
++    let conflict = || EngineError::Conflict {
++        message: "RAW source changed during capture".into(),
++    };
++    let handle = opened.metadata().map_err(|_| conflict())?;
++    let locator = fs::metadata(path).map_err(|_| conflict())?;
++    if !handle.is_file()
++        || !locator.is_file()
++        || SourceStamp::from(&handle) != *expected
++        || SourceStamp::from(&locator) != *expected
++    {
++        return Err(conflict());
++    }
++    Ok(())
++}
++
++impl StageGuard {
++    fn path(&self) -> EngineResult<&Path> {
++        match &self.storage {
++            Some(StageStorage::Writable(file)) => Ok(file.path()),
++            Some(StageStorage::Sealed { path, .. }) => Ok(path),
++            None => Err(EngineError::internal("RAW stage already closed")),
++        }
++    }
++    fn writable(&mut self) -> EngineResult<&mut fs::File> {
++        match &mut self.storage {
++            Some(StageStorage::Writable(file)) => Ok(file.as_file_mut()),
++            _ => Err(EngineError::internal("RAW stage is not writable")),
++        }
++    }
++    fn readonly(&mut self) -> EngineResult<&mut fs::File> {
++        match &mut self.storage {
++            Some(StageStorage::Sealed {
++                file: Some(file), ..
++            }) => Ok(file),
++            _ => Err(EngineError::internal(
++                "RAW stage has no readonly descriptor",
++            )),
++        }
++    }
++    fn seal(&mut self, io: &mut CaptureIo) -> EngineResult<()> {
++        let storage = self
++            .storage
++            .take()
++            .ok_or_else(|| EngineError::internal("RAW stage missing"))?;
++        match storage {
++            StageStorage::Writable(file) => {
++                // No fallible operation between closing writer and restoring owner.
++                self.storage = Some(StageStorage::Sealed {
++                    path: file.into_temp_path(),
++                    file: None,
++                });
++            }
++            other => {
++                self.storage = Some(other);
++                return Err(EngineError::internal("RAW stage already sealed"));
++            }
++        }
++        if let Some(StageStorage::Sealed { path, file }) = &mut self.storage {
++            *file = Some(
++                io.readonly_reopen(path)
++                    .map_err(|e| EngineError::io_at(&*path, &e))?,
++            );
++        }
++        Ok(())
++    }
++}
++
++#[derive(Default)]
++struct CaptureIo {
++    #[cfg(all(test, unix))]
++    hooks: tests::stream::StreamHooks,
++}
++impl CaptureIo {
++    fn source_read(&mut self, file: &mut fs::File, buffer: &mut [u8]) -> io::Result<usize> {
++        #[cfg(all(test, unix))]
++        if let Some(hook) = &mut self.hooks.source_read {
++            return hook(file, buffer);
++        }
++        file.read(buffer)
++    }
++    fn stage_write(&mut self, file: &mut fs::File, bytes: &[u8]) -> io::Result<usize> {
++        #[cfg(all(test, unix))]
++        if let Some(hook) = &mut self.hooks.stage_write {
++            return hook(file, bytes);
++        }
++        file.write(bytes)
++    }
++    fn stage_sync(&mut self, file: &fs::File) -> io::Result<()> {
++        #[cfg(all(test, unix))]
++        if let Some(hook) = &mut self.hooks.stage_sync {
++            return hook(file);
++        }
++        file.sync_all()
++    }
++    fn after_copy(&mut self, _source: &Path, _stage: &Path) -> io::Result<()> {
++        #[cfg(all(test, unix))]
++        if let Some(hook) = &mut self.hooks.after_copy {
++            return hook(_source, _stage);
++        }
++        Ok(())
++    }
++    fn readonly_reopen(&mut self, path: &Path) -> io::Result<fs::File> {
++        #[cfg(all(test, unix))]
++        if let Some(hook) = &mut self.hooks.readonly_reopen {
++            return hook(path);
++        }
++        fs::File::open(path)
++    }
++    fn hash_read(&mut self, file: &mut fs::File, buffer: &mut [u8]) -> io::Result<usize> {
++        #[cfg(all(test, unix))]
++        if let Some(hook) = &mut self.hooks.hash_read {
++            return hook(file, buffer);
++        }
++        file.read(buffer)
++    }
++}
++
++// Deliberately test-only: generic T does not prove an owned decoded result.
++// A production decoder adapter requires a separately reviewed closed output type.
++#[cfg(all(test, unix))]
++impl CapturedRaw {
++    fn consume_for_test<T>(
++        self,
++        cancel: &CancellationToken,
++        consumer: impl FnOnce(&Path, PinnedRawDecoderRoute) -> EngineResult<T>,
++    ) -> EngineResult<T> {
++        cancel.check()?;
++        let result = consumer(self.stage.path()?, self.route);
++        let pool = self.stage.reservation.pool.clone();
++        let cleanup = self.close();
++        match result {
++            Ok(value) => {
++                cleanup?;
++                Ok(value)
++            }
++            Err(primary) => {
++                if let Err(secondary) = cleanup {
++                    pool.operations.report(&secondary);
++                }
++                Err(primary)
++            }
++        }
++    }
++}
+added in remote
+  their  100644 8721d94daa2ff308cd30052f16a57acba73d9743 crates/raw-decode/src/capture/tests.rs
+@@ -0,0 +1,446 @@
++//! Task 1 ownership contract tests.
++//! Private allocate_stage tests exercise ownership before Task 2 byte copying.
++//! Fault injection replaces filesystem operations, never accounting or owners.
++
++use super::*;
++use engine_api::EngineError;
++use std::{
++    fs, io,
++    sync::{
++        Arc,
++        atomic::{AtomicUsize, Ordering},
++    },
++};
++
++fn limits(bytes: u64, slots: usize) -> CaptureLimits {
++    CaptureLimits {
++        max_asset_bytes: 64,
++        max_staged_bytes: bytes,
++        max_live_captures: slots,
++    }
++}
++
++// Break caught: permitting invalid policy before private storage admission.
++#[test]
++fn invalid_limits_do_not_create_storage() {
++    let parent = tempfile::tempdir().unwrap();
++    for policy in [
++        CaptureLimits {
++            max_asset_bytes: 0,
++            ..limits(128, 2)
++        },
++        CaptureLimits {
++            max_staged_bytes: 0,
++            ..limits(128, 2)
++        },
++        limits(128, 0),
++        limits(63, 2),
++        CaptureLimits {
++            max_asset_bytes: u64::MAX,
++            max_staged_bytes: u64::MAX,
++            max_live_captures: 1,
++        },
++    ] {
++        assert!(matches!(
++            CapturePool::create(parent.path(), policy),
++            Err(EngineError::InvalidArgument { .. })
++        ));
++        assert_eq!(fs::read_dir(parent.path()).unwrap().count(), 0);
++    }
++}
++
++// Break caught: ignoring full-limit byte reservations or slot reservations.
++#[test]
++fn held_stages_exhaust_each_bound_and_close_releases_once() {
++    for policy in [limits(128, 8), limits(512, 2)] {
++        let parent = tempfile::tempdir().unwrap();
++        let pool = CapturePool::create(parent.path(), policy).unwrap();
++        let token = CancellationToken::new();
++        let a = pool.allocate_stage("arw", &token).unwrap();
++        let b = pool.allocate_stage("arw", &token).unwrap();
++        assert!(matches!(
++            pool.allocate_stage("arw", &token),
++            Err(EngineError::ResourceExhausted { .. })
++        ));
++        assert_eq!(pool.accounting_for_test(), (128, 2));
++        a.close().unwrap();
++        assert_eq!(pool.accounting_for_test(), (64, 1));
++        let c = pool.allocate_stage("arw", &token).unwrap();
++        drop((b, c));
++        assert_eq!(pool.accounting_for_test(), (0, 0));
++        assert_eq!(fs::read_dir(pool.directory_for_test()).unwrap().count(), 0);
++    }
++}
++
++// Break caught: cancellation creates a file or leaks its reservation.
++#[test]
++fn cancelled_stage_admission_has_no_side_effect() {
++    let parent = tempfile::tempdir().unwrap();
++    let pool = CapturePool::create(parent.path(), limits(128, 2)).unwrap();
++    let token = CancellationToken::new();
++    token.cancel();
++    assert!(matches!(
++        pool.allocate_stage("arw", &token),
++        Err(EngineError::Cancelled)
++    ));
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++    assert_eq!(fs::read_dir(pool.directory_for_test()).unwrap().count(), 0);
++}
++
++// Break caught: a failed stage creation holds quota after the error.
++#[test]
++fn stage_creation_failure_releases_reservation() {
++    let parent = tempfile::tempdir().unwrap();
++    let pool = CapturePool::create(parent.path(), limits(64, 1)).unwrap();
++    let directory = pool.directory_for_test().to_path_buf();
++    fs::remove_dir(&directory).unwrap();
++    assert!(matches!(
++        pool.allocate_stage("arw", &CancellationToken::new()),
++        Err(EngineError::Io { .. })
++    ));
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++    fs::create_dir(&directory).unwrap();
++    pool.allocate_stage("arw", &CancellationToken::new())
++        .unwrap()
++        .close()
++        .unwrap();
++}
++
++// Break caught: pool drop deletes storage while a held owner still needs it.
++#[test]
++fn held_stage_keeps_pool_directory_alive_until_close() {
++    let parent = tempfile::tempdir().unwrap();
++    let pool = CapturePool::create(parent.path(), limits(64, 1)).unwrap();
++    let directory = pool.directory_for_test().to_path_buf();
++    let stage = pool
++        .allocate_stage("arw", &CancellationToken::new())
++        .unwrap();
++    let path = stage.path_for_test().to_path_buf();
++    drop(pool);
++    assert!(path.is_file());
++    stage.close().unwrap();
++    assert!(!path.exists());
++    assert!(!directory.exists());
++}
++
++// Break caught: already absent stage is quarantined instead of releasing quota.
++#[test]
++fn absent_stage_cleanup_releases_charge() {
++    let parent = tempfile::tempdir().unwrap();
++    let pool = CapturePool::create(parent.path(), limits(64, 1)).unwrap();
++    let stage = pool
++        .allocate_stage("arw", &CancellationToken::new())
++        .unwrap();
++    fs::remove_file(stage.path_for_test()).unwrap();
++    stage.close().unwrap();
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++}
++
++// Break caught: removal failure drops path, releases charge or retries silently.
++// Only remove_file is injected; reservation, staging and cleanup ownership stay real.
++#[test]
++fn failed_removal_quarantines_until_one_pool_teardown_retry() {
++    let parent = tempfile::tempdir().unwrap();
++    let calls = Arc::new(AtomicUsize::new(0));
++    let observed = calls.clone();
++    let remove = Arc::new(move |path: &Path| -> io::Result<()> {
++        if observed.fetch_add(1, Ordering::SeqCst) == 0 {
++            Err(io::Error::new(
++                io::ErrorKind::PermissionDenied,
++                "injected unlink failure",
++            ))
++        } else {
++            fs::remove_file(path)
++        }
++    });
++    let pool =
++        CapturePool::create_with_cleanup_for_test(parent.path(), limits(64, 1), remove).unwrap();
++    let directory = pool.directory_for_test().to_path_buf();
++    let stage = pool
++        .allocate_stage("arw", &CancellationToken::new())
++        .unwrap();
++    let path = stage.path_for_test().to_path_buf();
++    assert!(matches!(stage.close(), Err(EngineError::Io { .. })));
++    assert!(path.is_file());
++    assert_eq!(calls.load(Ordering::SeqCst), 1);
++    assert_eq!(pool.accounting_for_test(), (64, 1));
++    assert!(matches!(
++        pool.allocate_stage("arw", &CancellationToken::new()),
++        Err(EngineError::ResourceExhausted { .. })
++    ));
++    drop(pool);
++    assert_eq!(calls.load(Ordering::SeqCst), 2);
++    assert!(!path.exists());
++    assert!(!directory.exists());
++}
++
++// Break caught: stages or their parent can be read by other local users.
++#[cfg(unix)]
++#[test]
++fn stages_and_directory_have_private_modes() {
++    use std::os::unix::fs::PermissionsExt;
++    let parent = tempfile::tempdir().unwrap();
++    let pool = CapturePool::create(parent.path(), limits(64, 1)).unwrap();
++    let stage = pool
++        .allocate_stage("arw", &CancellationToken::new())
++        .unwrap();
++    assert_eq!(
++        fs::metadata(pool.directory_for_test())
++            .unwrap()
++            .permissions()
++            .mode()
++            & 0o777,
++        0o700
++    );
++    assert_eq!(
++        fs::metadata(stage.path_for_test())
++            .unwrap()
++            .permissions()
++            .mode()
++            & 0o777,
++        0o600
++    );
++    stage.close().unwrap();
++}
++
++// Private test-only operation bundle, to be wired into real stage/accounting code
++// after the compile-only observation. No public callbacks or synthetic quota state.
++pub(super) type PathOperation = Arc<dyn Fn(&Path) -> io::Result<()> + Send + Sync>;
++pub(super) struct TestOperations {
++    pub(super) setup: PathOperation,
++    pub(super) remove_file: PathOperation,
++    pub(super) remove_dir: PathOperation,
++    pub(super) diagnostics: Arc<std::sync::Mutex<Vec<String>>>,
++}
++
++impl Default for TestOperations {
++    fn default() -> Self {
++        Self {
++            setup: Arc::new(|_| Ok(())), // post-permission-setup fault seam only
++            remove_file: Arc::new(|path| fs::remove_file(path)),
++            remove_dir: Arc::new(|path| fs::remove_dir(path)),
++            diagnostics: Arc::new(std::sync::Mutex::new(Vec::new())),
++        }
++    }
++}
++
++// Break caught: destructor ignores unlink failure, uncharges a retained stage,
++// retries invisibly, or panics instead of recording its secondary error.
++#[test]
++fn failed_stage_drop_retains_charge_and_reports_before_bounded_retry() {
++    let parent = tempfile::tempdir().unwrap();
++    let calls = Arc::new(AtomicUsize::new(0));
++    let observed = calls.clone();
++    let operations = TestOperations {
++        remove_file: Arc::new(move |path| {
++            if observed.fetch_add(1, Ordering::SeqCst) == 0 {
++                Err(io::Error::new(
++                    io::ErrorKind::PermissionDenied,
++                    "drop unlink denied",
++                ))
++            } else {
++                fs::remove_file(path)
++            }
++        }),
++        ..TestOperations::default()
++    };
++    let diagnostics = operations.diagnostics.clone();
++    let pool =
++        CapturePool::create_with_operations_for_test(parent.path(), limits(64, 1), operations)
++            .unwrap();
++    let stage = pool
++        .allocate_stage("arw", &CancellationToken::new())
++        .unwrap();
++    let path = stage.path_for_test().to_path_buf();
++    drop(stage);
++    assert!(path.is_file());
++    assert_eq!(calls.load(Ordering::SeqCst), 1);
++    assert_eq!(pool.accounting_for_test(), (64, 1));
++    assert!(
++        diagnostics
++            .lock()
++            .unwrap()
++            .iter()
++            .any(|d| d.contains("drop unlink denied"))
++    );
++    assert!(matches!(
++        pool.allocate_stage("arw", &CancellationToken::new()),
++        Err(EngineError::ResourceExhausted { .. })
++    ));
++    drop(pool);
++    assert_eq!(calls.load(Ordering::SeqCst), 2);
++    assert!(!path.exists());
++}
++
++// Break caught: teardown retries unboundedly or TempDir performs hidden recursive
++// cleanup, removing retained captures or unrelated entries after reported failure.
++#[test]
++fn persistent_unlink_and_nonempty_directory_failures_leave_files_and_diagnostics() {
++    let parent = tempfile::tempdir().unwrap();
++    let unlinks = Arc::new(AtomicUsize::new(0));
++    let removals = Arc::new(AtomicUsize::new(0));
++    let observed_unlinks = unlinks.clone();
++    let observed_removals = removals.clone();
++    let operations = TestOperations {
++        remove_file: Arc::new(move |_| {
++            observed_unlinks.fetch_add(1, Ordering::SeqCst);
++            Err(io::Error::new(
++                io::ErrorKind::PermissionDenied,
++                "persistent unlink denied",
++            ))
++        }),
++        remove_dir: Arc::new(move |path| {
++            observed_removals.fetch_add(1, Ordering::SeqCst);
++            fs::remove_dir(path).map_err(|e| io::Error::new(e.kind(), "nonempty pool retained"))
++        }),
++        ..TestOperations::default()
++    };
++    let diagnostics = operations.diagnostics.clone();
++    let pool =
++        CapturePool::create_with_operations_for_test(parent.path(), limits(64, 1), operations)
++            .unwrap();
++    let directory = pool.directory_for_test().to_path_buf();
++    let sentinel = directory.join("unrelated-sentinel");
++    fs::write(&sentinel, b"must survive nonrecursive teardown").unwrap();
++    let stage = pool
++        .allocate_stage("arw", &CancellationToken::new())
++        .unwrap();
++    let path = stage.path_for_test().to_path_buf();
++    drop(stage);
++    assert_eq!(pool.accounting_for_test(), (64, 1));
++    assert_eq!(unlinks.load(Ordering::SeqCst), 1);
++    drop(pool);
++    assert_eq!(unlinks.load(Ordering::SeqCst), 2);
++    assert_eq!(removals.load(Ordering::SeqCst), 1);
++    assert!(path.is_file());
++    assert_eq!(
++        fs::read(&sentinel).unwrap(),
++        b"must survive nonrecursive teardown"
++    );
++    let messages = diagnostics.lock().unwrap();
++    assert_eq!(
++        messages
++            .iter()
++            .filter(|d| d.contains("persistent unlink denied"))
++            .count(),
++        2
++    );
++    assert_eq!(
++        messages
++            .iter()
++            .filter(|d| d.contains("nonempty pool retained"))
++            .count(),
++        1
++    );
++}
++
++// Break caught: competing callers check capacity outside the accounting lock,
++// allowing two owners through a single slot/64-byte reservation budget.
++#[test]
++fn concurrent_admission_holds_exactly_one_winner_until_both_results_observed() {
++    use std::sync::{Barrier, mpsc};
++    use std::time::Duration;
++    let parent = tempfile::tempdir().unwrap();
++    let pool = Arc::new(CapturePool::create(parent.path(), limits(64, 1)).unwrap());
++    let start = Arc::new(Barrier::new(3));
++    let (results_tx, results_rx) = mpsc::channel();
++    let mut releases = Vec::new();
++    let mut workers = Vec::new();
++    for _ in 0..2 {
++        let pool = pool.clone();
++        let start = start.clone();
++        let result = results_tx.clone();
++        let (release_tx, release_rx) = mpsc::channel();
++        releases.push(release_tx);
++        workers.push(std::thread::spawn(move || {
++            start.wait();
++            let admitted = pool.allocate_stage("arw", &CancellationToken::new());
++            result
++                .send(match &admitted {
++                    Ok(_) => Ok(true),
++                    Err(EngineError::ResourceExhausted { .. }) => Ok(false),
++                    Err(error) => Err(error.clone()),
++                })
++                .unwrap();
++            // Retain both outcome and any winner through observation; no sleeps.
++            let _ = release_rx.recv_timeout(Duration::from_secs(5));
++            drop(admitted);
++        }));
++    }
++    start.wait();
++    let outcomes = (0..2)
++        .map(|_| results_rx.recv_timeout(Duration::from_secs(5)))
++        .collect::<Vec<_>>();
++    let held = pool.accounting_for_test();
++    for release in releases {
++        let _ = release.send(());
++    }
++    for worker in workers {
++        worker.join().unwrap();
++    }
++    let winners = outcomes
++        .into_iter()
++        .map(|r| r.unwrap().unwrap())
++        .filter(|won| *won)
++        .count();
++    assert_eq!(winners, 1);
++    assert_eq!(held, (64, 1));
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++    assert_eq!(fs::read_dir(pool.directory_for_test()).unwrap().count(), 0);
++}
++
++// Break caught: permission/setup failure abandons an unowned directory, overwrites
++// the primary error, or causes a hidden TempDir deletion after cleanup failure.
++#[test]
++fn initial_setup_failure_cleans_once_and_reports_secondary_failure() {
++    for fail_cleanup in [false, true] {
++        let parent = tempfile::tempdir().unwrap();
++        let removals = Arc::new(AtomicUsize::new(0));
++        let observed = removals.clone();
++        let operations = TestOperations {
++            setup: Arc::new(|_| {
++                Err(io::Error::new(
++                    io::ErrorKind::PermissionDenied,
++                    "private permission setup denied",
++                ))
++            }),
++            remove_dir: Arc::new(move |path| {
++                observed.fetch_add(1, Ordering::SeqCst);
++                if fail_cleanup {
++                    Err(io::Error::new(
++                        io::ErrorKind::PermissionDenied,
++                        "setup cleanup denied",
++                    ))
++                } else {
++                    fs::remove_dir(path)
++                }
++            }),
++            ..TestOperations::default()
++        };
++        let diagnostics = operations.diagnostics.clone();
++        let result =
++            CapturePool::create_with_operations_for_test(parent.path(), limits(64, 1), operations);
++        assert!(matches!(result, Err(EngineError::Io { ref message, .. })
++            if message.contains("private permission setup denied")));
++        assert_eq!(removals.load(Ordering::SeqCst), 1);
++        let entries = fs::read_dir(parent.path())
++            .unwrap()
++            .collect::<Result<Vec<_>, _>>()
++            .unwrap();
++        assert_eq!(entries.len(), usize::from(fail_cleanup));
++        let messages = diagnostics.lock().unwrap();
++        assert_eq!(
++            messages
++                .iter()
++                .filter(|d| d.contains("setup cleanup denied"))
++                .count(),
++            usize::from(fail_cleanup)
++        );
++    }
++}
++
++#[cfg(unix)]
++pub(super) mod stream;
++
++#[cfg(unix)]
++mod consumer;
+added in remote
+  their  100644 979b9765a7b179c508e385b0089a59e3fab989f0 crates/raw-decode/src/capture/tests/consumer.rs
+@@ -0,0 +1,249 @@
++//! Task3 tests model a controlled consumer only; no RAW decoder is invoked.
++use super::*;
++use std::{path::PathBuf, sync::mpsc, time::Duration};
++
++fn capture(pool: &CapturePool, source: &Path) -> CapturedRaw {
++    pool.capture(
++        source,
++        PinnedRawDecoderRoute::LibRawCfaV1,
++        "ARW",
++        None,
++        &CancellationToken::new(),
++    )
++    .unwrap()
++}
++
++// Break caught: consumer reads the original locator rather than the held stage,
++// or route/suffix are rediscovered from the replaced original basename.
++#[test]
++fn replacement_original_does_not_redirect_any_consumer_read() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("original.bin");
++    fs::write(&source, b"captured A").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let owner = capture(&pool, &source);
++    let stage = owner.path_for_test().to_path_buf();
++    let identity = owner.identity();
++    fs::rename(&source, root.path().join("prior.bin")).unwrap();
++    fs::write(&source, b"replacement B").unwrap();
++    let value = owner
++        .consume_for_test(&CancellationToken::new(), |path, route| {
++            assert_ne!(path, source);
++            assert_eq!(path.extension().unwrap(), "arw");
++            assert_eq!(route, PinnedRawDecoderRoute::LibRawCfaV1);
++            assert_eq!(fs::read(path)?, b"captured A");
++            let bytes = fs::read(path)?;
++            assert_eq!(Digest::derive(ASSET_DOMAIN, &bytes), identity.digest);
++            Ok(bytes)
++        })
++        .unwrap();
++    assert_eq!(value, b"captured A");
++    assert!(!stage.exists());
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++    assert_eq!(fs::read(&source).unwrap(), b"replacement B");
++}
++
++// Break caught: the owner releases its path/quota before delayed reads finish.
++#[test]
++fn delayed_consumer_retains_stage_and_quota_through_last_read() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"delayed read").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let owner = capture(&pool, &source);
++    let stage = owner.path_for_test().to_path_buf();
++    let (entered_tx, entered_rx) = mpsc::channel();
++    let (release_tx, release_rx) = mpsc::channel();
++    let worker = std::thread::spawn(move || {
++        owner.consume_for_test(&CancellationToken::new(), |path, _| {
++            assert_eq!(fs::read(path)?, b"delayed read");
++            entered_tx.send(()).unwrap();
++            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
++            fs::read(path).map_err(EngineError::from)
++        })
++    });
++    let entered = entered_rx.recv_timeout(Duration::from_secs(5));
++    let held = pool.accounting_for_test();
++    let present = stage.is_file();
++    let occupied = pool.capture(
++        &source,
++        PinnedRawDecoderRoute::LibRawCfaV1,
++        "arw",
++        None,
++        &CancellationToken::new(),
++    );
++    let _ = release_tx.send(());
++    let result = worker.join().unwrap();
++    entered.unwrap();
++    assert_eq!(held, (64, 1));
++    assert!(present);
++    assert!(matches!(
++        occupied,
++        Err(EngineError::ResourceExhausted { .. })
++    ));
++    assert_eq!(result.unwrap(), b"delayed read");
++    assert!(!stage.exists());
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++}
++
++// Break caught: panic bypasses RAII ownership or leaks the charged stage.
++#[test]
++fn panicking_consumer_unwinds_and_cleans_held_stage() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"panic control").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let owner = capture(&pool, &source);
++    let stage = owner.path_for_test().to_path_buf();
++    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++        owner.consume_for_test::<()>(&CancellationToken::new(), |path, _| {
++            assert_eq!(fs::read(path)?, b"panic control");
++            panic!("injected consumer panic");
++        })
++    }));
++    assert!(panic.is_err());
++    assert!(!stage.exists());
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++}
++
++// Break caught: entering the consumer despite cancellation after capture.
++#[test]
++fn cancelled_consumer_is_not_called_and_owner_is_cleaned() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"cancel control").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let owner = capture(&pool, &source);
++    let stage = owner.path_for_test().to_path_buf();
++    let token = CancellationToken::new();
++    token.cancel();
++    let called = AtomicUsize::new(0);
++    let result = owner.consume_for_test(&token, |_, _| {
++        called.fetch_add(1, Ordering::SeqCst);
++        Ok(())
++    });
++    assert!(matches!(result, Err(EngineError::Cancelled)));
++    assert_eq!(called.load(Ordering::SeqCst), 0);
++    assert!(!stage.exists());
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++}
++
++// Composition control only: mismatch produces no owner to hand to this private
++// consumer. This does not claim a production decoder/resolver admission API.
++#[test]
++fn expected_mismatch_cannot_supply_a_consumer_owner() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"BBBB").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let called = AtomicUsize::new(0);
++    let token = CancellationToken::new();
++    let result = pool
++        .capture(
++            &source,
++            PinnedRawDecoderRoute::LibRawCfaV1,
++            "arw",
++            Some(CapturedAssetIdentity {
++                digest: Digest::derive(ASSET_DOMAIN, b"AAAA"),
++                byte_len: 4,
++            }),
++            &token,
++        )
++        .and_then(|owner| {
++            owner.consume_for_test(&token, |_, _| {
++                called.fetch_add(1, Ordering::SeqCst);
++                Ok(())
++            })
++        });
++    assert!(matches!(result, Err(EngineError::Conflict { .. })));
++    assert_eq!(called.load(Ordering::SeqCst), 0);
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++}
++
++// Break caught: cleanup replaces a primary consumer error, or cleanup error is
++// silently discarded after successful consumption. Keep real stage/accounting.
++#[test]
++fn cleanup_error_preserves_consumer_error_but_fails_successful_consumption() {
++    for consumer_fails in [true, false] {
++        let root = tempfile::tempdir().unwrap();
++        let source = root.path().join("source.bin");
++        fs::write(&source, b"error control").unwrap();
++        let calls = Arc::new(AtomicUsize::new(0));
++        let count = calls.clone();
++        let operations = TestOperations {
++            remove_file: Arc::new(move |path| {
++                if count.fetch_add(1, Ordering::SeqCst) == 0 {
++                    Err(io::Error::new(
++                        io::ErrorKind::PermissionDenied,
++                        "consumer cleanup denied",
++                    ))
++                } else {
++                    fs::remove_file(path)
++                }
++            }),
++            ..TestOperations::default()
++        };
++        let diagnostics = operations.diagnostics.clone();
++        let pool =
++            CapturePool::create_with_operations_for_test(root.path(), limits(64, 1), operations)
++                .unwrap();
++        let owner = capture(&pool, &source);
++        let stage: PathBuf = owner.path_for_test().to_path_buf();
++        let primary = EngineError::Decode {
++            format: "synthetic consumer".into(),
++            message: "primary consumer failure".into(),
++        };
++        let result = owner.consume_for_test(&CancellationToken::new(), |path, _| {
++            assert_eq!(fs::read(path)?, b"error control");
++            if consumer_fails {
++                Err(primary.clone())
++            } else {
++                Ok(())
++            }
++        });
++        if consumer_fails {
++            assert_eq!(result, Err(primary));
++        } else {
++            assert!(
++                matches!(result, Err(EngineError::Io { ref message, .. }) if message.contains("consumer cleanup denied"))
++            );
++        }
++        assert_eq!(
++            diagnostics
++                .lock()
++                .unwrap()
++                .iter()
++                .filter(|d| d.contains("consumer cleanup denied"))
++                .count(),
++            usize::from(consumer_fails)
++        );
++        assert_eq!(calls.load(Ordering::SeqCst), 1);
++        assert_eq!(pool.accounting_for_test(), (64, 1));
++        assert!(stage.is_file());
++        drop(pool);
++        assert_eq!(calls.load(Ordering::SeqCst), 2);
++        assert!(!stage.exists());
++    }
++}
++
++// Break caught: ordinary consumer failure bypasses cleanup or changes its error.
++#[test]
++fn consumer_error_is_returned_after_successful_stage_cleanup() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"ordinary error").unwrap();
++    let pool = CapturePool::create(root.path(), limits(64, 1)).unwrap();
++    let owner = capture(&pool, &source);
++    let stage = owner.path_for_test().to_path_buf();
++    let primary = EngineError::Decode {
++        format: "synthetic".into(),
++        message: "consumer failed".into(),
++    };
++    let result = owner.consume_for_test::<()>(&CancellationToken::new(), |path, _| {
++        assert_eq!(fs::read(path)?, b"ordinary error");
++        Err(primary.clone())
++    });
++    assert_eq!(result, Err(primary));
++    assert!(!stage.exists());
++    assert_eq!(pool.accounting_for_test(), (0, 0));
++}
+added in remote
+  their  100644 fb1fc9c34486f0660ff43236d3287fd8cc6277b7 crates/raw-decode/src/capture/tests/stream.rs
+@@ -0,0 +1,788 @@
++//! Task 2 contracts. Synthetic files only; not yet run against an implementation.
++use super::*;
++use std::{
++    fs::File,
++    io::{Read, Write},
++    os::fd::AsRawFd,
++    path::PathBuf,
++};
++
++// These replace individual I/O operations, not accounting, sealing or metadata.
++// Production capture must call the same core with real I/O, not a second path.
++type ReadHook = Box<dyn FnMut(&mut File, &mut [u8]) -> io::Result<usize>>;
++type WriteHook = Box<dyn FnMut(&mut File, &[u8]) -> io::Result<usize>>;
++type SyncHook = Box<dyn FnMut(&File) -> io::Result<()>>;
++type ReopenHook = Box<dyn FnMut(&Path) -> io::Result<File>>;
++type AfterCopyHook = Box<dyn FnMut(&Path, &Path) -> io::Result<()>>;
++#[derive(Default)]
++pub(in crate::capture) struct StreamHooks {
++    pub(in crate::capture) source_read: Option<ReadHook>,
++    pub(in crate::capture) stage_write: Option<WriteHook>,
++    pub(in crate::capture) stage_sync: Option<SyncHook>,
++    pub(in crate::capture) hash_read: Option<ReadHook>,
++    pub(in crate::capture) after_copy: Option<AfterCopyHook>,
++    pub(in crate::capture) readonly_reopen: Option<ReopenHook>,
++}
++
++struct Fixture {
++    _root: tempfile::TempDir,
++    source: PathBuf,
++    pool: CapturePool,
++}
++impl Fixture {
++    fn new(bytes: &[u8], limit: u64) -> Self {
++        let root = tempfile::tempdir().unwrap();
++        let source = root.path().join("original.bin");
++        fs::write(&source, bytes).unwrap();
++        let pool = CapturePool::create(
++            root.path(),
++            CaptureLimits {
++                max_asset_bytes: limit,
++                max_staged_bytes: limit,
++                max_live_captures: 1,
++            },
++        )
++        .unwrap();
++        Self {
++            _root: root,
++            source,
++            pool,
++        }
++    }
++    fn capture(&self) -> EngineResult<CapturedRaw> {
++        self.pool.capture(
++            &self.source,
++            PinnedRawDecoderRoute::LibRawCfaV1,
++            "ARW",
++            None,
++            &CancellationToken::new(),
++        )
++    }
++    fn injected(
++        &self,
++        hooks: StreamHooks,
++        cancel: &CancellationToken,
++    ) -> EngineResult<CapturedRaw> {
++        self.pool.capture_with_hooks_for_test(
++            &self.source,
++            PinnedRawDecoderRoute::LibRawCfaV1,
++            "ARW",
++            None,
++            cancel,
++            hooks,
++        )
++    }
++    fn assert_clean(&self) {
++        assert_eq!(self.pool.accounting_for_test(), (0, 0));
++        assert_eq!(
++            fs::read_dir(self.pool.directory_for_test())
++                .unwrap()
++                .count(),
++            0
++        );
++    }
++}
++
++// Break caught: hashing a declaration/prefix, wrong domain, or truncating chunks.
++#[test]
++fn completed_stage_identity_matches_exact_bytes_across_chunk_boundaries() {
++    for len in [1, CHUNK_BYTES - 1, CHUNK_BYTES, CHUNK_BYTES + 1] {
++        let bytes: Vec<_> = (0..len).map(|i| (i % 251) as u8).collect();
++        let fixture = Fixture::new(&bytes, (CHUNK_BYTES * 2) as u64);
++        let capture = fixture.capture().unwrap();
++        assert_eq!(
++            capture.identity(),
++            CapturedAssetIdentity {
++                digest: Digest::derive("tessera pinned RAW asset v1", &bytes),
++                byte_len: len as u64,
++            }
++        );
++        assert_eq!(fs::read(capture.path_for_test()).unwrap(), bytes);
++        assert_eq!(capture.suffix(), "arw");
++        assert_eq!(capture.route(), PinnedRawDecoderRoute::LibRawCfaV1);
++        assert_eq!(capture.path_for_test().extension().unwrap(), "arw");
++        capture.close().unwrap();
++        fixture.assert_clean();
++    }
++}
++
++// Break caught: returning a stage with writable descriptor ownership after sealing.
++#[test]
++fn returned_stage_descriptor_is_read_only_and_retains_its_charge() {
++    let fixture = Fixture::new(b"sealed bytes", 64);
++    let capture = fixture.capture().unwrap();
++    // SAFETY: F_GETFL only inspects the valid descriptor borrowed from the owner.
++    let flags = unsafe { libc::fcntl(capture.readonly_file_for_test().as_raw_fd(), libc::F_GETFL) };
++    assert_ne!(flags, -1);
++    assert_eq!(flags & libc::O_ACCMODE, libc::O_RDONLY);
++    assert_eq!(fixture.pool.accounting_for_test(), (64, 1));
++    capture.close().unwrap();
++    fixture.assert_clean();
++}
++
++// Break caught: admission accepts empty/oversized streams or rejects exact limit.
++#[test]
++fn empty_and_limit_plus_one_reject_but_exact_limit_succeeds() {
++    for (bytes, expected) in [
++        (Vec::new(), "empty"),
++        (vec![7; 64], "ok"),
++        (vec![7; 65], "large"),
++    ] {
++        let fixture = Fixture::new(&bytes, 64);
++        match (expected, fixture.capture()) {
++            ("empty", Err(EngineError::InvalidArgument { .. })) => (),
++            ("large", Err(EngineError::ResourceExhausted { .. })) => (),
++            ("ok", Ok(capture)) => {
++                assert_eq!(capture.identity().byte_len, 64);
++                capture.close().unwrap();
++            }
++            _ => panic!("unexpected capture outcome for {expected}"),
++        }
++        fixture.assert_clean();
++    }
++}
++
++// Break caught: suffix escaping creates a stage before validating the route hint.
++#[test]
++fn invalid_suffix_is_rejected_before_source_lookup_or_stage_creation() {
++    let fixture = Fixture::new(b"x", 64);
++    fs::remove_file(&fixture.source).unwrap();
++    for suffix in [
++        "",
++        ".arw",
++        "../arw",
++        "a/b",
++        "a\\b",
++        "é",
++        "abcdefghijklmnopq",
++    ] {
++        assert!(matches!(
++            fixture.pool.capture(
++                &fixture.source,
++                PinnedRawDecoderRoute::LibRawCfaV1,
++                suffix,
++                None,
++                &CancellationToken::new()
++            ),
++            Err(EngineError::InvalidArgument { .. })
++        ));
++        fixture.assert_clean();
++    }
++}
++
++// Break caught: trusting metadata length allows an unbounded growing source read.
++#[test]
++fn growing_source_reads_at_most_limit_plus_one_and_never_writes_excess() {
++    let fixture = Fixture::new(b"a", 64);
++    let source = fixture.source.clone();
++    let consumed = Arc::new(AtomicUsize::new(0));
++    let written = Arc::new(AtomicUsize::new(0));
++    let read_count = consumed.clone();
++    let write_count = written.clone();
++    let mut grew = false;
++    let hooks = StreamHooks {
++        source_read: Some(Box::new(move |file, buffer| {
++            assert!(buffer.len() <= 65);
++            if !grew {
++                File::options()
++                    .append(true)
++                    .open(&source)?
++                    .write_all(&[3; 256])?;
++                grew = true;
++            }
++            let n = file.read(buffer)?;
++            read_count.fetch_add(n, Ordering::SeqCst);
++            Ok(n)
++        })),
++        stage_write: Some(Box::new(move |file, bytes| {
++            let n = file.write(bytes)?;
++            write_count.fetch_add(n, Ordering::SeqCst);
++            Ok(n)
++        })),
++        ..StreamHooks::default()
++    };
++    assert!(matches!(
++        fixture.injected(hooks, &CancellationToken::new()),
++        Err(EngineError::ResourceExhausted { .. })
++    ));
++    assert_eq!(consumed.load(Ordering::SeqCst), 65);
++    assert!(written.load(Ordering::SeqCst) <= 64);
++    fixture.assert_clean();
++}
++
++// Break caught: short reads/writes truncate a stage or Interrupted aborts capture.
++#[test]
++fn short_reads_and_writes_and_interrupted_reads_preserve_complete_stream() {
++    let bytes = b"complete synthetic capture";
++    let fixture = Fixture::new(bytes, 64);
++    let mut interrupted = false;
++    let hooks = StreamHooks {
++        source_read: Some(Box::new(move |file, buffer| {
++            if !interrupted {
++                interrupted = true;
++                return Err(io::ErrorKind::Interrupted.into());
++            }
++            let n = buffer.len().min(3);
++            file.read(&mut buffer[..n])
++        })),
++        stage_write: Some(Box::new(|file, bytes| {
++            file.write(&bytes[..bytes.len().min(2)])
++        })),
++        ..StreamHooks::default()
++    };
++    let capture = fixture.injected(hooks, &CancellationToken::new()).unwrap();
++    assert_eq!(
++        capture.identity().digest,
++        Digest::derive(ASSET_DOMAIN, bytes)
++    );
++    assert_eq!(fs::read(capture.path_for_test()).unwrap(), bytes);
++    capture.close().unwrap();
++    fixture.assert_clean();
++}
++
++// Break caught: swallowing an I/O error publishes incomplete/unverified bytes.
++#[test]
++fn copy_write_sync_and_hash_read_errors_release_every_stage() {
++    for phase in ["read", "write", "sync", "reopen", "hash"] {
++        let fixture = Fixture::new(b"not a photo", 64);
++        let mut hooks = StreamHooks::default();
++        match phase {
++            "read" => {
++                hooks.source_read = Some(Box::new(|_, _| Err(io::Error::other("source failure"))))
++            }
++            "write" => {
++                hooks.stage_write = Some(Box::new(|_, _| Err(io::Error::other("write failure"))))
++            }
++            "sync" => hooks.stage_sync = Some(Box::new(|_| Err(io::Error::other("sync failure")))),
++            "reopen" => {
++                hooks.readonly_reopen = Some(Box::new(|_| Err(io::Error::other("reopen failure"))))
++            }
++            "hash" => {
++                hooks.hash_read = Some(Box::new(|_, _| Err(io::Error::other("hash failure"))))
++            }
++            _ => unreachable!(),
++        }
++        assert!(
++            matches!(
++                fixture.injected(hooks, &CancellationToken::new()),
++                Err(EngineError::Io { .. })
++            ),
++            "{phase}"
++        );
++        fixture.assert_clean();
++    }
++}
++
++// Break caught: hashing the copy input instead of the completed staged bytes.
++// Stage mutation is test injection before sealing, not an external safety claim.
++#[test]
++fn digest_is_derived_from_completed_stage_not_source_reader() {
++    let fixture = Fixture::new(b"AAAA", 64);
++    let hooks = StreamHooks {
++        after_copy: Some(Box::new(|_, stage| fs::write(stage, b"BBBB"))),
++        ..StreamHooks::default()
++    };
++    let capture = fixture.injected(hooks, &CancellationToken::new()).unwrap();
++    assert_eq!(
++        capture.identity().digest,
++        Digest::derive(ASSET_DOMAIN, b"BBBB")
++    );
++    assert_eq!(fs::read(capture.path_for_test()).unwrap(), b"BBBB");
++    capture.close().unwrap();
++    fixture.assert_clean();
++}
++
++// Break caught: stage length mutation is accepted despite copied byte count.
++#[test]
++fn completed_stage_length_must_match_copied_count() {
++    let fixture = Fixture::new(b"AAAA", 64);
++    let hooks = StreamHooks {
++        after_copy: Some(Box::new(|_, stage| fs::write(stage, b"B"))),
++        ..StreamHooks::default()
++    };
++    assert!(matches!(
++        fixture.injected(hooks, &CancellationToken::new()),
++        Err(EngineError::Conflict { .. })
++    ));
++    fixture.assert_clean();
++}
++
++// Break caught: cancellation after an I/O operation still publishes an owner.
++#[test]
++fn cancellation_after_copy_and_hash_reads_never_returns_capture() {
++    for phase in ["copy", "hash"] {
++        let fixture = Fixture::new(b"cancel at a deterministic read boundary", 64);
++        let token = CancellationToken::new();
++        let cancel = token.clone();
++        let hook: ReadHook = Box::new(move |file, buffer| {
++            let n = file.read(buffer)?;
++            cancel.cancel();
++            Ok(n)
++        });
++        let mut hooks = StreamHooks::default();
++        if phase == "copy" {
++            hooks.source_read = Some(hook);
++        } else {
++            hooks.hash_read = Some(hook);
++        }
++        assert!(
++            matches!(fixture.injected(hooks, &token), Err(EngineError::Cancelled)),
++            "{phase}"
++        );
++        fixture.assert_clean();
++    }
++}
++
++// Break caught: accepting matching length but wrong digest (or converse).
++#[test]
++fn expected_identity_requires_both_digest_and_length_and_does_not_mutate_input() {
++    let fixture = Fixture::new(b"frozen", 64);
++    let identity = CapturedAssetIdentity {
++        digest: Digest::derive(ASSET_DOMAIN, b"frozen"),
++        byte_len: 6,
++    };
++    for expected in [
++        CapturedAssetIdentity {
++            digest: Digest::derive(ASSET_DOMAIN, b"other!"),
++            ..identity
++        },
++        CapturedAssetIdentity {
++            byte_len: 5,
++            ..identity
++        },
++        identity,
++    ] {
++        let original = expected;
++        let result = fixture.pool.capture(
++            &fixture.source,
++            PinnedRawDecoderRoute::LibRawCfaV1,
++            "arw",
++            Some(expected),
++            &CancellationToken::new(),
++        );
++        if expected == identity {
++            result.unwrap().close().unwrap();
++        } else {
++            assert!(matches!(result, Err(EngineError::Conflict { .. })));
++        }
++        assert_eq!(expected, original);
++        assert_eq!(fs::read(&fixture.source).unwrap(), b"frozen");
++        fixture.assert_clean();
++    }
++}
++
++// Break caught: ignoring observed replacement/unlink/growth after source opening.
++#[test]
++fn observed_source_changes_reject_before_returning_owner() {
++    for mutation in ["replace", "remove", "grow"] {
++        let fixture = Fixture::new(b"AAAA", 64);
++        let hooks = StreamHooks {
++            after_copy: Some(Box::new(move |source, _| match mutation {
++                "replace" => {
++                    fs::rename(source, source.with_extension("old"))?;
++                    fs::write(source, b"BBBB")
++                }
++                "remove" => fs::remove_file(source),
++                "grow" => File::options().append(true).open(source)?.write_all(b"B"),
++                _ => unreachable!(),
++            })),
++            ..StreamHooks::default()
++        };
++        assert!(
++            matches!(
++                fixture.injected(hooks, &CancellationToken::new()),
++                Err(EngineError::Conflict { .. })
++            ),
++            "{mutation}"
++        );
++        fixture.assert_clean();
++    }
++}
++
++// Break caught: falsely promising that metadata checks reject every mixed stream.
++#[test]
++fn unchanged_metadata_can_capture_a_mixed_stream_with_its_honest_identity() {
++    let fixture = Fixture::new(b"AAAA", 64);
++    let mut reader = io::Cursor::new(b"AABB");
++    let hooks = StreamHooks {
++        source_read: Some(Box::new(move |_, buffer| reader.read(buffer))),
++        ..StreamHooks::default()
++    };
++    let capture = fixture.injected(hooks, &CancellationToken::new()).unwrap();
++    assert_eq!(
++        capture.identity(),
++        CapturedAssetIdentity {
++            digest: Digest::derive(ASSET_DOMAIN, b"AABB"),
++            byte_len: 4
++        }
++    );
++    assert_eq!(fs::read(capture.path_for_test()).unwrap(), b"AABB");
++    assert_eq!(fs::read(&fixture.source).unwrap(), b"AAAA");
++    capture.close().unwrap();
++    fixture.assert_clean();
++}
++
++// Break caught: banning legitimate source symlinks or admitting directories.
++#[test]
++fn source_symlink_is_a_locator_but_directory_is_not_a_stream() {
++    use std::os::unix::fs::symlink;
++    let fixture = Fixture::new(b"locator bytes", 64);
++    let alias = fixture._root.path().join("alias.arw");
++    symlink(&fixture.source, &alias).unwrap();
++    let capture = fixture
++        .pool
++        .capture(
++            &alias,
++            PinnedRawDecoderRoute::LibRawCfaV1,
++            "arw",
++            None,
++            &CancellationToken::new(),
++        )
++        .unwrap();
++    assert_eq!(
++        capture.identity().digest,
++        Digest::derive(ASSET_DOMAIN, b"locator bytes")
++    );
++    capture.close().unwrap();
++    assert!(matches!(
++        fixture.pool.capture(
++            fixture._root.path(),
++            PinnedRawDecoderRoute::LibRawCfaV1,
++            "arw",
++            None,
++            &CancellationToken::new()
++        ),
++        Err(EngineError::InvalidArgument { .. })
++    ));
++    fixture.assert_clean();
++}
++
++// Break caught: ordinary blocking open hangs forever on FIFO admission.
++#[test]
++fn fifo_without_writer_is_rejected_without_waiting_for_a_producer() {
++    use std::{
++        ffi::CString,
++        os::unix::{ffi::OsStrExt, fs::OpenOptionsExt},
++        sync::mpsc,
++        time::Duration,
++    };
++    let fixture = Fixture::new(b"unused", 64);
++    let fifo = fixture._root.path().join("source.fifo");
++    let cpath = CString::new(fifo.as_os_str().as_bytes()).unwrap();
++    // SAFETY: cpath is a live NUL-terminated path, mode is a valid permission mask.
++    assert_eq!(unsafe { libc::mkfifo(cpath.as_ptr(), 0o600) }, 0);
++    let pool = fixture.pool.clone();
++    let source = fifo.clone();
++    let (tx, rx) = mpsc::channel();
++    let worker = std::thread::spawn(move || {
++        let result = pool.capture(
++            &source,
++            PinnedRawDecoderRoute::LibRawCfaV1,
++            "arw",
++            None,
++            &CancellationToken::new(),
++        );
++        tx.send(matches!(result, Err(EngineError::InvalidArgument { .. })))
++            .unwrap();
++    });
++    let outcome = rx.recv_timeout(Duration::from_secs(2));
++    if outcome.is_err() {
++        // Rescue a regressed blocking reader, so failure does not strand the test.
++        let _ = File::options()
++            .write(true)
++            .custom_flags(libc::O_NONBLOCK)
++            .open(&fifo);
++    }
++    worker.join().unwrap();
++    assert!(outcome.unwrap());
++    fixture.assert_clean();
++}
++
++// Break caught: losing the disabled TempPath/reservation while transitioning from
++// writer to read-only ownership leaks the sealed stage on reopen failure.
++#[test]
++fn readonly_reopen_failure_retains_cleanup_authority_even_when_unlink_fails() {
++    let root = tempfile::tempdir().unwrap();
++    let source = root.path().join("source.bin");
++    fs::write(&source, b"sealing transition").unwrap();
++    let calls = Arc::new(AtomicUsize::new(0));
++    let count = calls.clone();
++    let operations = TestOperations {
++        remove_file: Arc::new(move |path| {
++            if count.fetch_add(1, Ordering::SeqCst) == 0 {
++                Err(io::Error::new(
++                    io::ErrorKind::PermissionDenied,
++                    "sealed unlink denied",
++                ))
++            } else {
++                fs::remove_file(path)
++            }
++        }),
++        ..TestOperations::default()
++    };
++    let diagnostics = operations.diagnostics.clone();
++    let pool = CapturePool::create_with_operations_for_test(root.path(), limits(64, 1), operations)
++        .unwrap();
++    let hooks = StreamHooks {
++        readonly_reopen: Some(Box::new(|_| {
++            Err(io::Error::other("primary reopen failure"))
++        })),
++        ..StreamHooks::default()
++    };
++    let result = pool.capture_with_hooks_for_test(
++        &source,
++        PinnedRawDecoderRoute::LibRawCfaV1,
++        "arw",
++        None,
++        &CancellationToken::new(),
++        hooks,
++    );
++    assert!(
++        matches!(result, Err(EngineError::Io { ref message, .. }) if message.contains("primary reopen failure"))
++    );
++    assert_eq!(pool.accounting_for_test(), (64, 1));
++    assert_eq!(calls.load(Ordering::SeqCst), 1);
++    let entries = fs::read_dir(pool.directory_for_test())
++        .unwrap()
++        .collect::<Result<Vec<_>, _>>()
++        .unwrap();
++    assert_eq!(entries.len(), 1);
++    let retained = entries[0].path();
++    assert_eq!(fs::read(&retained).unwrap(), b"sealing transition");
++    assert!(
++        diagnostics
++            .lock()
++            .unwrap()
++            .iter()
++            .any(|d| d.contains("sealed unlink denied"))
++    );
++    drop(pool);
++    assert_eq!(calls.load(Ordering::SeqCst), 2);
++    assert!(!retained.exists());
++    assert_eq!(fs::read(&source).unwrap(), b"sealing transition");
++}
++
++// Break caught: re-reading the stage allocates/reads an unbounded modified tail.
++#[test]
++fn stage_hash_read_is_bounded_independently_of_copied_source() {
++    let fixture = Fixture::new(b"A", 64);
++    let consumed = Arc::new(AtomicUsize::new(0));
++    let count = consumed.clone();
++    let hooks = StreamHooks {
++        after_copy: Some(Box::new(|_, stage| fs::write(stage, [2; 256]))),
++        hash_read: Some(Box::new(move |file, buffer| {
++            assert!(buffer.len() <= 65);
++            let n = file.read(buffer)?;
++            count.fetch_add(n, Ordering::SeqCst);
++            Ok(n)
++        })),
++        ..StreamHooks::default()
++    };
++    assert!(matches!(
++        fixture.injected(hooks, &CancellationToken::new()),
++        Err(EngineError::ResourceExhausted { .. }) | Err(EngineError::Conflict { .. })
++    ));
++    // Early readonly-stage length rejection is also valid; never consume >limit+1.
++    assert!(consumed.load(Ordering::SeqCst) <= 65);
++    fixture.assert_clean();
++}
++
++// Break caught: the Interrupted retry path fails to observe cancellation.
++#[test]
++fn interrupted_read_with_cancellation_terminates_without_write() {
++    let fixture = Fixture::new(b"interrupt", 64);
++    let token = CancellationToken::new();
++    let cancel = token.clone();
++    let writes = Arc::new(AtomicUsize::new(0));
++    let count = writes.clone();
++    let hooks = StreamHooks {
++        source_read: Some(Box::new(move |_, _| {
++            cancel.cancel();
++            Err(io::ErrorKind::Interrupted.into())
++        })),
++        stage_write: Some(Box::new(move |file, bytes| {
++            count.fetch_add(1, Ordering::SeqCst);
++            file.write(bytes)
++        })),
++        ..StreamHooks::default()
++    };
++    assert!(matches!(
++        fixture.injected(hooks, &token),
++        Err(EngineError::Cancelled)
++    ));
++    assert_eq!(writes.load(Ordering::SeqCst), 0);
++    fixture.assert_clean();
++}
++
++// Break caught: the stage length check passes, then the hash loop reads a grown
++// tail without its own limit+1 bound. Growth happens inside the first hash read.
++#[test]
++fn stage_growth_after_readonly_admission_is_still_stream_bounded() {
++    let fixture = Fixture::new(b"A", 64);
++    let path = Arc::new(std::sync::Mutex::new(None::<PathBuf>));
++    let recorded = path.clone();
++    let hash_path = path.clone();
++    let consumed = Arc::new(AtomicUsize::new(0));
++    let count = consumed.clone();
++    let mut grew = false;
++    let hooks = StreamHooks {
++        after_copy: Some(Box::new(move |_, stage| {
++            *recorded.lock().unwrap() = Some(stage.to_path_buf());
++            Ok(())
++        })),
++        hash_read: Some(Box::new(move |file, buffer| {
++            assert!(buffer.len() <= 65);
++            if !grew {
++                let stage = hash_path.lock().unwrap().clone().unwrap();
++                File::options()
++                    .append(true)
++                    .open(stage)?
++                    .write_all(&[4; 256])?;
++                grew = true;
++            }
++            let n = file.read(buffer)?;
++            count.fetch_add(n, Ordering::SeqCst);
++            Ok(n)
++        })),
++        ..StreamHooks::default()
++    };
++    assert!(matches!(
++        fixture.injected(hooks, &CancellationToken::new()),
++        Err(EngineError::ResourceExhausted { .. })
++    ));
++    assert_eq!(consumed.load(Ordering::SeqCst), 65);
++    fixture.assert_clean();
++}
++
++// Break caught: metadata comparison uses only inode and length, ignoring times.
++// Fixed modification times avoid sleeps and filesystem clock-resolution races.
++#[test]
++fn same_inode_same_length_overwrite_with_changed_timestamp_is_rejected() {
++    use std::{
++        fs::FileTimes,
++        os::unix::fs::MetadataExt,
++        time::{Duration, UNIX_EPOCH},
++    };
++    let fixture = Fixture::new(b"AAAA", 64);
++    File::options()
++        .write(true)
++        .open(&fixture.source)
++        .unwrap()
++        .set_times(FileTimes::new().set_modified(UNIX_EPOCH + Duration::from_secs(100)))
++        .unwrap();
++    let initial = fs::metadata(&fixture.source).unwrap();
++    let hooks = StreamHooks {
++        after_copy: Some(Box::new(move |source, _| {
++            let mut writer = File::options().write(true).open(source)?;
++            writer.write_all(b"BBBB")?;
++            writer
++                .set_times(FileTimes::new().set_modified(UNIX_EPOCH + Duration::from_secs(200)))?;
++            let changed = writer.metadata()?;
++            assert_eq!(changed.ino(), initial.ino());
++            assert_eq!(changed.len(), initial.len());
++            assert_ne!(
++                (changed.mtime(), changed.mtime_nsec()),
++                (initial.mtime(), initial.mtime_nsec())
++            );
++            Ok(())
++        })),
++        ..StreamHooks::default()
++    };
++    assert!(matches!(
++        fixture.injected(hooks, &CancellationToken::new()),
++        Err(EngineError::Conflict { .. })
++    ));
++    assert_eq!(fs::read(&fixture.source).unwrap(), b"BBBB");
++    fixture.assert_clean();
++}
++
++// Break caught: using the entire remaining asset limit as an I/O buffer rather
++// than bounding each source and hash read independently by CHUNK_BYTES.
++#[test]
++fn source_and_hash_requests_stay_chunk_bounded_with_large_asset_budget() {
++    let bytes = vec![9; CHUNK_BYTES * 2 + 7];
++    let fixture = Fixture::new(&bytes, (CHUNK_BYTES * 4) as u64);
++    let source_calls = Arc::new(AtomicUsize::new(0));
++    let hash_calls = Arc::new(AtomicUsize::new(0));
++    let source_count = source_calls.clone();
++    let hash_count = hash_calls.clone();
++    let hooks = StreamHooks {
++        source_read: Some(Box::new(move |file, buffer| {
++            assert!(!buffer.is_empty() && buffer.len() <= CHUNK_BYTES);
++            source_count.fetch_add(1, Ordering::SeqCst);
++            file.read(buffer)
++        })),
++        hash_read: Some(Box::new(move |file, buffer| {
++            assert!(!buffer.is_empty() && buffer.len() <= CHUNK_BYTES);
++            hash_count.fetch_add(1, Ordering::SeqCst);
++            file.read(buffer)
++        })),
++        ..StreamHooks::default()
++    };
++    let capture = fixture.injected(hooks, &CancellationToken::new()).unwrap();
++    assert_eq!(
++        capture.identity(),
++        CapturedAssetIdentity {
++            digest: Digest::derive(ASSET_DOMAIN, &bytes),
++            byte_len: bytes.len() as u64,
++        }
++    );
++    assert!(source_calls.load(Ordering::SeqCst) >= 3);
++    assert!(hash_calls.load(Ordering::SeqCst) >= 3);
++    capture.close().unwrap();
++    fixture.assert_clean();
++}
++
++// Break caught: a write returning zero is treated as completed progress instead
++// of WriteZero, or spins without releasing the stage.
++#[test]
++fn zero_write_is_an_io_failure_with_no_published_capture() {
++    let fixture = Fixture::new(b"write-zero", 64);
++    let hooks = StreamHooks {
++        stage_write: Some(Box::new(|_, _| Ok(0))),
++        ..StreamHooks::default()
++    };
++    assert!(matches!(
++        fixture.injected(hooks, &CancellationToken::new()),
++        Err(EngineError::Io { .. })
++    ));
++    fixture.assert_clean();
++}
++
++// Break caught: retryable Interrupted from a writer or the staged reread loses
++// bytes, aborts valid capture, or incorrectly advances its byte count.
++#[test]
++fn interrupted_write_and_hash_read_retry_without_losing_bytes() {
++    let bytes = b"retry complete bytes";
++    let fixture = Fixture::new(bytes, 64);
++    let mut write_interrupted = false;
++    let mut hash_interrupted = false;
++    let hooks = StreamHooks {
++        stage_write: Some(Box::new(move |file, bytes| {
++            if !write_interrupted {
++                write_interrupted = true;
++                return Err(io::ErrorKind::Interrupted.into());
++            }
++            file.write(bytes)
++        })),
++        hash_read: Some(Box::new(move |file, buffer| {
++            if !hash_interrupted {
++                hash_interrupted = true;
++                return Err(io::ErrorKind::Interrupted.into());
++            }
++            file.read(buffer)
++        })),
++        ..StreamHooks::default()
++    };
++    let capture = fixture.injected(hooks, &CancellationToken::new()).unwrap();
++    assert_eq!(
++        capture.identity(),
++        CapturedAssetIdentity {
++            digest: Digest::derive(ASSET_DOMAIN, bytes),
++            byte_len: bytes.len() as u64,
++        }
++    );
++    assert_eq!(fs::read(capture.path_for_test()).unwrap(), bytes);
++    capture.close().unwrap();
++    fixture.assert_clean();
++}
+merged
+  result 100644 c4800bcc123237d637cdc7bc5bc6dcc30a1b9ab5 crates/raw-decode/src/lib.rs
+  our    100644 463dc537b789ab18ad0290fb25f220c11a015c75 crates/raw-decode/src/lib.rs
+@@ -2,6 +2,7 @@
+ 
+ use std::path::{Path, PathBuf};
+ 
++pub mod capture;
+ pub mod dng;
+ pub mod linear_dng;
+ 
