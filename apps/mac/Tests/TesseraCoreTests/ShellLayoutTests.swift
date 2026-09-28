@@ -190,12 +190,12 @@ final class ShellLayoutTests: XCTestCase {
                 }
             }
         }
-        XCTAssertEqual(checked, ShellHarness.State.allCases.count * 8)
+        XCTAssertEqual(checked, ShellHarness.sizes.count * DocumentInspectorTab.allCases.count * 2)
         XCTAssert(failures.isEmpty, "\(failures.count) inspector layout failures:\n" + failures.joined(separator: "\n"))
     }
 
     /// WP B5-16 (H8): the toolbar's tab strip shows at most three tabs; more documents only add the
-    /// "+n" overflow menu, so its width stops growing. Captured at 960 × 600 and 1280 × 800 with eight
+    /// "+n" overflow menu, so its width stops growing. Checks 960 × 600 and 1280 × 800 with eight
     /// documents open (root containment and the toolbar checks of the main test still apply).
     func testManyDocumentTabsStayCapped() throws {
         let captureDir = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"].map { URL(fileURLWithPath: $0) }

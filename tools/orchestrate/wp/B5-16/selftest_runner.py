@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Background document acceptance runner. Owns only its direct child process."""
+"""Document acceptance runner. Owns only its direct child process."""
 import argparse
 import os
 from pathlib import Path
@@ -91,7 +91,8 @@ def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
     capture_errors = []
     seen = set()
     # Direct bundle executable gives us the actual child PID and exit status.
-    # --nonactivating sets accessory policy before launch; never raise its windows.
+    # --nonactivating requests accessory launch; individual app self-tests may still
+    # raise windows. Use only an authorized isolated desktop validation session.
     with log.open('w') as stderr, (evidence / 'stdout.log').open('w') as stdout:
         child = subprocess.Popen([str(binary), '--nonactivating', '--app-dir', str(folder / 'app'),
                                   '--folder', str(folder / 'folder'), *args],
