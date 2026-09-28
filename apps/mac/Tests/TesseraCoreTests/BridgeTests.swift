@@ -7,6 +7,58 @@ import TesseraFFI
 @testable import TesseraCore
 
 final class BridgeTests: XCTestCase {
+    /// Diagnostic only: distinguishes a normal recipe-history rejection from the
+    /// unexplained phase/deinit error observed in the Review layout fixture.
+    @MainActor func testDirectRecipeJsonErrorProvenance() throws {
+        let temp = try scratch()
+        let photos = temp.appendingPathComponent("photos")
+        try FileManager.default.createDirectory(at: photos, withIntermediateDirectories: true)
+        try ShellHarness.writeJPEG(photos.appendingPathComponent("one.jpg"), shade: 35)
+        let library = try EngineLibrary.scan(folder: photos, appSupport: temp.appendingPathComponent("support"))
+        let imageID = try XCTUnwrap(library.items.first?.engineImage?.imageID)
+
+        // The unmodified recipe is a valid direct-setter control.
+        let baseline = try library.engine.getRecipe(imageId: imageID)
+        do {
+            try library.engine.setRecipeJson(imageId: imageID, json: baseline)
+        } catch {
+            XCTFail("Valid baseline direct setter threw \(describeDirectRecipeError(error))")
+            return
+        }
+
+        // Changing settings without a history entry is intentionally invalid.
+        // Keep the same JSON mutation as the retained 77c/81a Review runs.
+        var recipe = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(baseline.utf8)) as? [String: Any])
+        var settings = try XCTUnwrap(recipe["settings"] as? [String: Any])
+        var tone = try XCTUnwrap(settings["tone"] as? [String: Any])
+        tone["exposure"] = 1.25
+        settings["tone"] = tone
+        recipe["settings"] = settings
+        let bytes = try JSONSerialization.data(withJSONObject: recipe, options: [.sortedKeys])
+        do {
+            try library.engine.setRecipeJson(imageId: imageID, json: String(decoding: bytes, as: UTF8.self))
+            XCTFail("Settings without a history entry were unexpectedly accepted")
+        } catch let error as BridgeError {
+            print("[direct-recipe-json] \(describeDirectRecipeError(error))")
+            guard case .Failure(let message) = error else {
+                XCTFail("Unexpected BridgeError variant: \(describeDirectRecipeError(error))")
+                return
+            }
+            XCTAssertTrue(message.contains("settings do not match history head"),
+                          "Unexpected direct-setter failure: \(describeDirectRecipeError(error))")
+        } catch {
+            XCTFail("Unexpected dynamic error from direct setter: \(describeDirectRecipeError(error))")
+        }
+    }
+
+    private func describeDirectRecipeError(_ error: Error) -> String {
+        let typeName = String(reflecting: type(of: error))
+        if let bridge = error as? BridgeError, case .Failure(let message) = bridge {
+            return "type=\(typeName) BridgeError.Failure message=\(message.debugDescription) reflected=\(String(reflecting: error))"
+        }
+        return "type=\(typeName) reflected=\(String(reflecting: error))"
+    }
+
     private var root: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
@@ -281,4 +333,3 @@ final class BridgeTests: XCTestCase {
         XCTAssertTrue(CGImageDestinationFinalize(dest))
     }
 }
-
