@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Current Swift gates pass; isolated capability next — 2026-09-28 12:42 UTC
+
+Tests-only correctionf1d13c11 changes eight stale noHandle forwarding adapters, preserving fault injection/interactive counters and forwarding inputID to their real wrapped sessions. Root/Astra reviewed exact source. Focused94 passed/direct0. Full Release completed661 XCTest cases (660 named passes,1skip,0fail) plus5 Swift Testing tests/direct0. The94 focused tests are a subset, not additional distinct coverage. The d53 crash remains preserved as a genuine failed attempt; no assertions or product behavior were weakened.
+
+All6423 before/after-correction-run tracked inputs are byte-identical SHA25632780311704639e9c1ee59e6bde8010526a4626b4f459e73db60e4a56c3cfa3c. Astra checked1533 source Git blobs and rehashed archive07d924df plus all3 bindings; root independently checked full raw counts/exits and manifest hashes. Candidate source is on codex/m258-current-reconciliation. Native owner now packages the exact tested Release executable in a unique BetterSSD app and may run one bounded isolated visible capability after provenance/signature checks. No current GUI or P01/P11 acceptance is claimed yet. Normal preview stays unchanged; A retains sole native/desktop lane and main merges. B reserved source request/hold remains.
+
+
 ## Swift Release failure diagnosed — 2026-09-28 12:34 UTC
 
 Candidate d53a969e is pushed on codex/m258-current-reconciliation. Its seven diagnostic paths exactly match reviewed4d4587c3; Rust/Cargo/generated bindings remain unchanged from native-validatedabe317c0. Focused launch-mode4 passed/direct0. Full Swift Release FAILED/direct1 with xctest SIGSEGV, not an overall pass despite the separate5 Swift Testing passes printed afterward. GUI is held.
