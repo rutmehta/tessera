@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-28 00:28 UTC
+Updated: 2026-09-28 00:37 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -54,30 +54,27 @@ in the new package parent/evidence; portable82dc4902 evidence merged mainf09a66f
 B result45d3595b published; SSHqueue01a0e53c-917e-76c2-b216-56ee3b2c0d3a accepted,
 peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor13.
 
-1. **PSD/Review integration — full Release green, GUI pending:** tested product
-   dc4073de/current FFI0a9b passed focused2/2 and full509XCTest/1skip/0fail
-   plus5SwiftTesting, directexit0. Root verified24 frozen source hashes and raw
-   full log. Native45/strict gates remain separately accepted. Deterministic
-   catalog recipe+file update RED reproduced missing libraryRevision signal;
-   three-line rows-only invalidation notification fixes it without deadlines or
-   diagnostics. Original failures and unresolved directJSON rewrite exception
-   remain in evidence; do not label the latter fixture misuse. Portable evidence
-   8ac2e1ae published, product bytes unchanged. A main merge waits for tinyGUI.
-2. **Luna — exclusive desktop/heavy slot:** package exact tested dc4073de
-   executable with unique support/bundle. TinyJPEG Open-in-Layers, PSD copy save,
-   unchanged source and PSD reopen; ordinary stub controls hidden and explicit
-   diagnostic flag visible without loading20k. User65fa preview stays untouched.
-   No large-image cancellation race or performance claim. GUI acceptance pending.
-
-3. **Resource Sol — waiting RED slot:** UNRUN78520df5 six tests for raw complete
-   revision and shared destination gate, only two Engine writer adopters. Uses
-   valid equal render hashes, deterministic contention observer, same-Engine
-   unrelated-write progress and final recipe/XMP/index state. Revision capture
-   must hold the gate; multi-file persistence is not transactional. Batch Apply
-   remains blocked on other writer/lease/run/revert contracts. Pure draft DONE.
-4. **B — resource hold:** no workloads/heartbeat restart. Typed-error results
-   b7294f0e and ccb9e8f1 remain accepted pending actual combined PSD acceptance.
-   A alone merges main; no threshold waivers or missing-evidence passes.
+1. **PSD/Review bounded slice DONE main7757f628**, exact tested dc4073de
+   product bytes; portable automated evidence8ac2e1ae and GUI6bef18a merged
+   mainc000a772. Native45/strict, focused2/2, full509XCTest/1skip/0fail plus5
+   SwiftTesting passed. Tiny320x240 JPEG Open-in-Layers→rasterizedPSD→reopen
+   passed, sourceJPEG unchanged; root checked PSDheader/outputhash and both
+   signedapp/executable/FFI hashes. Normal Library stub button hidden; explicit
+   diagnostic launch shows it without loading20k. Release has no Debug menu,
+   so separate Debug-menu visibility remains unchecked. No complex-stack GUI,
+   largefile cancellation latency or performance claim. Prior failures retained.
+2. **Resource Sol — exclusive compiler:** reviewed78520df5 six tests now run
+   initial RED, then narrow destination gate/rawrevision implementation for only
+   set_selection/set_recipe_json. Same-Engine lockprogress, coherent capture and
+   final recipe/XMP/index checks included. StaleJSON/CAS/otherwriters and atomic
+   multi-file transaction are outside scope; BatchApply remains blocked.
+3. **Luna — desktop released:** validationapps closed; normal65fa userpreview
+   untouched. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
+   evidence/2026-09-27. CUA screenshots inline only, no local export available.
+4. **B — resource hold:** completed PSD receipts b7294f0e/ccb9e8f1 published.
+   Result628f798f and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c published
+   for source-package reconciliation. Queue acceptance is not yet peerreceipt.
+   No B workloads/heartbeat restart. A remains sole main merger.
 
 Review persistence DONE main7adc4fa2 (494XCTest/1skip/0fail+5 and tinyGUI).
 PSD primitive DONE mainebe7b043 (66tests/strict); current preview99ba predates it.

@@ -4,6 +4,22 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## PSD/Review integrated; recipe writer RED next — 2026-09-28 00:37 UTC
+
+Main7757f628 product bytes equal testeddc4073de; GUIevidence6bef18a merged
+mainc000a772. Native45/strict, Release509executed/1skip/0fail plus5SwiftTesting
+and tiny320x240 PSDcopy/reopen passed; JPEGsourcehash unchanged. Root verified
+rawlogs/sourcehashes/PSDheader/artifacthashes/signatures. Normal/diagnosticLibrary
+stub visibility checked without20k load; Release Debugmenu absent, not separately
+verified. No complexstackGUI, largefilecancel latency or broadperformance claim.
+
+Two pending B PSD receipts completed with evidence. Result628f798f sent through
+Git and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c accepted; peerreceipt not yet
+observed. B hold remains. Resource Sol holds compiler for reviewed78520df5 six
+recipe-write RED tests then narrow implementation; Luna validationapps closed.
+User65fa preview stays open untouched. DirectJSON InvalidTransition remains an
+unresolved diagnostic, documented separately; supported Develop regression passes.
+
 ## PSD/Review full Release green; isolated GUI underway — 2026-09-28 00:28 UTC
 
 Product dc4073de/currentFFI0a9b: focused2/2, full509XCTest/1skip/0fail plus5
