@@ -1,5 +1,16 @@
 # Machine A recovery status
 
+## Validation advances — 2026-09-28 06:16 UTC
+
+| Lane | Owner | Current evidence / next action |
+| --- | --- | --- |
+| Review/recovery | Luna sole heavy lane | Revised old-result regression now fails the intended missing replacement-preview outcome (one test/direct1). Fixed source `634b7e68` passes four Review/layout tests and combined 68 adjacent tests/direct0; root verified RED/green source and archive freezes. Full Release running on same frozen source; recovery GUI follows only if green. First non-discriminating pass preserved. |
+| Save As diagnostic | Reviewer Sol; B source | Trace `cfdb8583` passes33/direct0 but actual Cancel/repeat **does not reproduce** untraced e8dd failure. Extra post-Cancel update/capture sets observed attachment before native end. Main `345d6e11` preserves15 verified payloads. No acceptance. B acknowledged refinement request35c7a99c; result a0e0d785 accepted. Removing new observable reads is frozen UNRUN as A `e51ef7fd`; next serial trace gate pending. |
+| Engine RES05a | Resource Sol; B narrow FFI hook | Pure estimator/preflight `142d1d6b` source-reviewed; four tiny test functions UNRUN. Reviewer caught native documents' mandatory alpha, now corrected with1x1 53-channel/sentinel test. No RSS cap/budget. B request `f32843f7-d4d5-4bb2-9889-c7b0f5095da5` asks pre-rasterization hook using same immutable snapshot; queue `01a0e6a8-0d20-7d40-808b-e4f6dc7ec488` accepted, peer receipt pending. |
+| Staged filters | Resource preserved source; later A gate | Nine tests/source preserved on `codex/staged-filter-composition`; port only final tests/AppModel hunks onto accepted recovery. No divergent Document ancestry merge. |
+
+B remains source-only with paused heartbeat. A alone merges main, one heavy/compiler/desktop lane, normal preview PID57591 untouched. Current main contains evidence/docs for these candidates, not unaccepted recovery/Save As/PSD product changes.
+
 ## Work in progress — 2026-09-28 06:07 UTC
 
 - **Document diagnostic / reviewer Sol owns the sole heavy lane:** B acknowledged request `95510c13` and returned opt-in trace `cd967702`, result `93e4084d` accepted after target/expiry validation. A source-reviewed and integrated it as `cfdb8583`; focused compile/tests then isolated Cancel → one repeat GUI trace are running/planned. No lifecycle correction or product acceptance. Prior e8dd GUI failure remains.
