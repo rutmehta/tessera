@@ -10,7 +10,10 @@ use std::{
     collections::HashMap,
     fs, io,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, MutexGuard, OnceLock, Weak},
+    sync::{
+        Arc, Mutex, MutexGuard, OnceLock, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 type GateTable = HashMap<PathBuf, Weak<GateState>>;
@@ -52,6 +55,8 @@ pub(crate) fn gate_for(image: &Path) -> Result<Arc<GateState>> {
     let state = Arc::new(GateState {
         key: key.clone(),
         epoch: Mutex::new(0),
+        owner: Mutex::new(None),
+        next_owner: AtomicU64::new(1),
         #[cfg(test)]
         contended_observer: Mutex::new(None),
     });
@@ -60,12 +65,12 @@ pub(crate) fn gate_for(image: &Path) -> Result<Arc<GateState>> {
 }
 
 pub(crate) struct GateState {
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "retained for the internal full-byte revision")
-    )]
     key: PathBuf,
     epoch: Mutex<u64>,
+    // Accessed only while `epoch` is held, preserving one lock order for
+    // ordinary writers, admission, and lease release.
+    owner: Mutex<Option<u64>>,
+    next_owner: AtomicU64,
     #[cfg(test)]
     contended_observer: Mutex<Option<mpsc::Sender<()>>>,
 }
@@ -91,6 +96,31 @@ pub(crate) struct WriteGuard<'a> {
     epoch: MutexGuard<'a, u64>,
 }
 
+/// Exclusive authority for a visible Develop session. Clones are held by the
+/// session and save worker so self-thread Drop cannot release admission early.
+#[derive(Clone)]
+pub(crate) struct DevelopLease(Arc<LeaseReservation>);
+
+#[derive(Clone)]
+pub(crate) struct DevelopAuthority {
+    state: Arc<GateState>,
+    id: u64,
+}
+
+impl DevelopLease {
+    pub(crate) fn authority(&self) -> DevelopAuthority {
+        DevelopAuthority {
+            state: self.0.state.clone(),
+            id: self.0.id,
+        }
+    }
+}
+
+struct LeaseReservation {
+    state: Arc<GateState>,
+    id: u64,
+}
+
 impl GateState {
     fn lock(&self) -> Result<MutexGuard<'_, u64>> {
         #[cfg(test)]
@@ -113,10 +143,6 @@ impl GateState {
         receiver
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "internal revision awaits a caller")
-    )]
     fn check_image(&self, image: &Path) -> Result<()> {
         if destination_key(image)? != self.key {
             return Err(failure("image does not use this recipe destination"));
@@ -126,6 +152,11 @@ impl GateState {
 
     pub(crate) fn begin_write(&self) -> Result<WriteGuard<'_>> {
         let epoch = self.lock()?;
+        if self.owner.lock().map_err(failure)?.is_some() {
+            return Err(failure(
+                "conflict: Develop destination already has an active editor",
+            ));
+        }
         if *epoch == u64::MAX {
             return Err(failure("recipe write epoch exhausted"));
         }
@@ -160,6 +191,89 @@ impl GateState {
     pub(crate) fn matches_revision(&self, revision: &RecipeRevision, image: &Path) -> Result<bool> {
         let epoch = self.lock()?;
         revision_matches(self, *epoch, revision, image)
+    }
+
+    /// Selection is orthogonal to Develop and remains writable during an edit.
+    pub(crate) fn begin_selection_write(&self) -> Result<WriteGuard<'_>> {
+        let epoch = self.lock()?;
+        if *epoch == u64::MAX {
+            return Err(failure("recipe write epoch exhausted"));
+        }
+        Ok(WriteGuard { state: self, epoch })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn exhaust_owner_ids_for_test(&self) {
+        self.next_owner.store(u64::MAX, Ordering::Relaxed);
+    }
+
+    pub(crate) fn reserve_develop<T>(
+        self: &Arc<Self>,
+        image: &Path,
+        snapshot: impl FnOnce() -> Result<T>,
+    ) -> Result<(DevelopLease, T)> {
+        let _epoch = self.lock()?;
+        self.check_image(image)?;
+        let mut owner = self.owner.lock().map_err(failure)?;
+        if owner.is_some() {
+            return Err(failure(
+                "conflict: Develop destination already has an active editor",
+            ));
+        }
+        let id = self
+            .next_owner
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                current.checked_add(1)
+            })
+            .map_err(|_| failure("Develop lease identifier exhausted"))?;
+        *owner = Some(id);
+        match snapshot() {
+            Ok(value) => Ok((
+                DevelopLease(Arc::new(LeaseReservation {
+                    state: self.clone(),
+                    id,
+                })),
+                value,
+            )),
+            Err(error) => {
+                *owner = None;
+                Err(error)
+            }
+        }
+    }
+
+    pub(crate) fn begin_develop_write<'a>(
+        self: &'a Arc<Self>,
+        authority: &DevelopAuthority,
+        image: &Path,
+    ) -> Result<WriteGuard<'a>> {
+        let epoch = self.lock()?;
+        self.check_image(image)?;
+        if !Arc::ptr_eq(&authority.state, self) {
+            return Err(failure(
+                "conflict: Develop lease belongs to a different destination",
+            ));
+        }
+        if *self.owner.lock().map_err(failure)? != Some(authority.id) {
+            return Err(failure("conflict: Develop lease is no longer active"));
+        }
+        if *epoch == u64::MAX {
+            return Err(failure("recipe write epoch exhausted"));
+        }
+        Ok(WriteGuard { state: self, epoch })
+    }
+}
+
+impl Drop for LeaseReservation {
+    fn drop(&mut self) {
+        // Do not panic during teardown. The gate is retained by this token,
+        // and owner is always cleared only when the matching ID still owns it.
+        if let Ok(_epoch) = self.state.epoch.lock()
+            && let Ok(mut owner) = self.state.owner.lock()
+            && *owner == Some(self.id)
+        {
+            *owner = None;
+        }
     }
 }
 

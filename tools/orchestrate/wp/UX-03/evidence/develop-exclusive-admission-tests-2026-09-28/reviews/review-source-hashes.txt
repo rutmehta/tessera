@@ -1,0 +1,8 @@
+# Original reviewer-source hashes before copies, followed by final refreshed source copies.
+7dadaec21533b69b4240424400cc9c33579b9f5ddcb398206c7d08a15f0e34ee  original initial /tmp/tessera-stagec-checkpoint-review-20260928.md
+6f175ec866eab61cbc07babadec00b05f07bf51d743679eb846a4104fe36e540  final /tmp/tessera-stagec-checkpoint-review-20260928.md (copied as stagec-checkpoint-review.md)
+c2e6bec975b6564bbdd5dba3cfc87b572a26a2357435c65ed80fee2eb42c68ce  final /tmp/tessera-stagec-final-saved-audit-20260928.json (copied as stagec-final-saved-audit.json)
+0474145a526036664c4c8f66c4fb67b7884c1d0360fee9bad114647b3015ab6b  original /tmp/tessera-stagec-independent-review-20260928.md
+0c3dc6dffa503712ac3c9252a2d478ebdd19a7b4f0f4791c189cbf2541ed288b  original /tmp/tessera-stagec-test-impact-20260928.md
+874aa8797010f0c15af9c8977f09df5cd971a28e669ac9cd120a01635c5d1fa8  original /tmp/tessera-stagec-native-plan-20260928.md
+7ad9d0b70b3d2673b86027e01f41db03785e66573cc9513b2a6c4bffdb80929b  original /tmp/tessera-stagec-ui-readiness-20260928.md

@@ -411,7 +411,7 @@ impl Engine {
             Self::path(&c, &image_id)?
         };
         let gate = recipe_write::gate_for(Path::new(&path))?;
-        let write = gate.begin_write()?;
+        let write = gate.begin_selection_write()?;
         let mut c = self.lock()?;
         if Self::path(&c, &image_id)? != path {
             return Err(failure("image path changed before recipe write"));

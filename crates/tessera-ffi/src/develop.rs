@@ -612,6 +612,9 @@ pub(crate) struct Shared {
     /// this session. The save worker updates this from its published snapshot,
     /// never from newer UI state that arrived during I/O.
     owner_baseline: Mutex<OwnerBaseline>,
+    /// Non-owning write capability. Reservation lifetime belongs to the
+    /// session and writer closure, not render-held Shared references.
+    authority: crate::recipe_write::DevelopAuthority,
     // Held through GPU completion and publication: cancelled jobs cannot
     // release an IOSurface while a submitted write is still in flight.
     render_serial: Mutex<()>,
@@ -619,6 +622,8 @@ pub(crate) struct Shared {
     listener: Mutex<Option<Arc<dyn DevelopListener>>>,
     save: Mutex<SaveState>,
     save_cv: Condvar,
+    #[cfg(test)]
+    worker_exit_observer: Mutex<Option<std::sync::mpsc::Sender<()>>>,
     file_hash: OnceLock<std::result::Result<blake3::Hasher, String>>,
     /// Scene-linear luminance feeding Detail at one level, for the masking
     /// preview (recomputed only when upstream settings or the level change).
@@ -669,6 +674,7 @@ impl DevelopRenderResources {
 #[derive(uniffi::Object)]
 pub struct DevelopSession {
     shared: Arc<Shared>,
+    lease: Mutex<Option<crate::recipe_write::DevelopLease>>,
     writer: Mutex<Option<JoinHandle<()>>>,
     writer_thread: ThreadId,
     close_phase: Mutex<ClosePhase>,
@@ -968,6 +974,7 @@ struct DevelopDiskSnapshot {
     path: PathBuf,
     recipe: Recipe,
     owner_baseline: OwnerBaseline,
+    lease: Option<crate::recipe_write::DevelopLease>,
 }
 
 #[uniffi::export]
@@ -975,7 +982,7 @@ impl Engine {
     /// Blocking depth histogram for an indexed image using its saved recipe,
     /// without opening an editable Develop session.
     pub fn depth_histogram(self: Arc<Self>, image_id: String) -> Result<Vec<u64>> {
-        let snapshot = self.develop_disk_snapshot(&image_id)?;
+        let snapshot = self.develop_disk_snapshot(&image_id, false)?;
         let image = RawImage::open(snapshot.image_id, &snapshot.path)?;
         let mut recipe = snapshot.recipe;
         recipe.source_kind = if image.source_kind() == "rgb" {
@@ -996,7 +1003,7 @@ impl Engine {
     /// Opens a develop session on an indexed RAW or rendered RGB image.
     /// Blocking decode: call off the main thread. One session per visible image.
     pub fn open_develop_session(self: Arc<Self>, image_id: String) -> Result<Arc<DevelopSession>> {
-        let snapshot = self.develop_disk_snapshot(&image_id)?;
+        let snapshot = self.develop_disk_snapshot(&image_id, true)?;
         let path = snapshot.path;
         let mut recipe = snapshot.recipe;
         let image = RawImage::open(snapshot.image_id, &path)?;
@@ -1020,6 +1027,11 @@ impl Engine {
             depth_provider: resources.depth_provider,
             backend: resources.backend,
             owner_baseline: Mutex::new(snapshot.owner_baseline),
+            authority: snapshot
+                .lease
+                .as_ref()
+                .expect("editor snapshot reserves lease")
+                .authority(),
             state: Mutex::new(State {
                 live: recipe.settings.clone(),
                 cfa_configured: false,
@@ -1051,15 +1063,28 @@ impl Engine {
             listener: Mutex::new(None),
             save: Mutex::new(SaveState::default()),
             save_cv: Condvar::new(),
+            #[cfg(test)]
+            worker_exit_observer: Mutex::new(None),
             file_hash: OnceLock::new(),
             mask_source: Mutex::new(None),
             masks: resources.masks,
         });
         let writer = {
             let shared = shared.clone();
+            #[cfg(test)]
+            let exit_observer = shared.clone();
+            let worker_lease = snapshot
+                .lease
+                .clone()
+                .expect("editor snapshot reserves lease");
             std::thread::Builder::new()
                 .name("develop-save".into())
-                .spawn(move || shared.writer_loop())?
+                .spawn(move || {
+                    shared.writer_loop();
+                    drop(worker_lease);
+                    #[cfg(test)]
+                    exit_observer.notify_worker_exit_for_test();
+                })?
         };
         #[cfg(test)]
         self.develop_writer_constructions
@@ -1067,6 +1092,7 @@ impl Engine {
         let writer_thread = writer.thread().id();
         Ok(Arc::new(DevelopSession {
             shared,
+            lease: Mutex::new(snapshot.lease),
             writer: Mutex::new(Some(writer)),
             writer_thread,
             close_phase: Mutex::new(ClosePhase::Open),
@@ -1075,28 +1101,46 @@ impl Engine {
 }
 
 impl Engine {
-    fn develop_disk_snapshot(&self, image_id: &str) -> Result<DevelopDiskSnapshot> {
+    fn develop_disk_snapshot(
+        &self,
+        image_id: &str,
+        reserve_editor: bool,
+    ) -> Result<DevelopDiskSnapshot> {
         let id = parse_id(image_id)?;
         let path = {
             let c = self.lock()?;
             PathBuf::from(Self::path(&c, image_id)?)
         };
-        let (recipe, owner_baseline) = {
+        let (lease, (recipe, owner_baseline)) = {
             let gate = crate::recipe_write::gate_for(&path)?;
-            let _read = gate.begin_read()?;
-            let c = self.lock()?;
-            if Path::new(&Self::path(&c, image_id)?) != path {
-                return Err(failure("image path changed before Develop open"));
+            if reserve_editor {
+                let (lease, snapshot) = gate.reserve_develop(&path, || {
+                    let c = self.lock()?;
+                    if Path::new(&Self::path(&c, image_id)?) != path {
+                        return Err(failure("image path changed before Develop open"));
+                    }
+                    let recipe = catalog::document(&path, id)?.recipe;
+                    let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
+                    Ok((recipe, baseline))
+                })?;
+                (Some(lease), snapshot)
+            } else {
+                let _read = gate.begin_read()?;
+                let c = self.lock()?;
+                if Path::new(&Self::path(&c, image_id)?) != path {
+                    return Err(failure("image path changed before Develop open"));
+                }
+                let recipe = catalog::document(&path, id)?.recipe;
+                let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
+                (None, (recipe, baseline))
             }
-            let recipe = catalog::document(&path, id)?.recipe;
-            let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
-            (recipe, baseline)
         };
         Ok(DevelopDiskSnapshot {
             image_id: id,
             path,
             recipe,
             owner_baseline,
+            lease,
         })
     }
 
@@ -1137,10 +1181,13 @@ impl Engine {
         path: &Path,
         recipe: &Recipe,
         baseline: &OwnerBaseline,
+        authority: &crate::recipe_write::DevelopAuthority,
     ) -> std::result::Result<(String, OwnerBaseline), SaveFailure> {
         let id = parse_id(image_id).map_err(SaveFailure::full)?;
         let gate = crate::recipe_write::gate_for(path).map_err(SaveFailure::full)?;
-        let _write = gate.begin_write().map_err(SaveFailure::full)?;
+        let _write = gate
+            .begin_develop_write(authority, path)
+            .map_err(SaveFailure::full)?;
         let mut c = self.lock().map_err(SaveFailure::full)?;
         if Path::new(&Self::path(&c, image_id).map_err(SaveFailure::full)?) != path {
             return Err(SaveFailure::full(failure(
@@ -1199,10 +1246,15 @@ impl Engine {
 
     /// Complete auxiliary outputs after a recipe was already published. Read
     /// the current document so a retry never republishes stale session state.
-    fn repair_develop(&self, image_id: &str, path: &Path) -> Result<Recipe> {
+    fn repair_develop(
+        &self,
+        image_id: &str,
+        path: &Path,
+        authority: &crate::recipe_write::DevelopAuthority,
+    ) -> Result<Recipe> {
         let id = parse_id(image_id)?;
         let gate = crate::recipe_write::gate_for(path)?;
-        let _write = gate.begin_write()?;
+        let _write = gate.begin_develop_write(authority, path)?;
         let mut c = self.lock()?;
         if Path::new(&Self::path(&c, image_id)?) != path {
             return Err(failure("image path changed before Develop repair"));
@@ -1428,6 +1480,13 @@ fn render_depth_input(
 // ─────────────────────────────── session ───────────────────────────────
 
 impl Shared {
+    #[cfg(test)]
+    fn notify_worker_exit_for_test(&self) {
+        if let Some(sender) = self.worker_exit_observer.lock().unwrap().take() {
+            let _ = sender.send(());
+        }
+    }
+
     fn renderer_snapshot(&self, settings: &DevelopSettings) -> Renderer {
         renderer_snapshot(
             &self.renderer,
@@ -1683,6 +1742,7 @@ impl Shared {
         work: SaveWork,
         retry_recipe: Option<Box<Recipe>>,
     ) -> std::result::Result<(), SaveFailure> {
+        let authority = self.authority.clone();
         let engine = self
             .engine
             .upgrade()
@@ -1691,7 +1751,7 @@ impl Shared {
             let committed = retry_recipe
                 .ok_or_else(|| SaveFailure::repair(failure("missing Develop repair recipe")))?;
             let disk_recipe = engine
-                .repair_develop(&self.image_id, &self.path)
+                .repair_develop(&self.image_id, &self.path, &authority)
                 .map_err(SaveFailure::repair)?;
             let (session_recipe, frame) = {
                 let st = self.lock().map_err(SaveFailure::repair)?;
@@ -1722,7 +1782,7 @@ impl Shared {
             .map_err(|error| SaveFailure::full(failure(error)))?
             .clone();
         let (hash, published) =
-            match engine.save_develop(&self.image_id, &self.path, &recipe, &baseline) {
+            match engine.save_develop(&self.image_id, &self.path, &recipe, &baseline, &authority) {
                 Ok(saved) => saved,
                 Err(failed) => {
                     if let Some(published) = &failed.published {
@@ -3019,6 +3079,8 @@ impl DevelopSession {
             self.flush_inner(true)?;
             self.stop_writer();
             self.shared.close();
+            let released = self.lease.lock().map_err(failure)?.take();
+            drop(released);
             Ok(())
         })();
         if result.is_err()
@@ -3650,6 +3712,7 @@ impl DevelopSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     fn edited_preview_key(
         photo: &Path,
@@ -3675,6 +3738,83 @@ mod tests {
         fn render_failed(&self, _: String) {}
         fn saved(&self, recipe_hash: String) {
             self.0.lock().unwrap().push(recipe_hash);
+        }
+    }
+
+    struct DropSessionOnSaveWorker {
+        slot: Arc<Mutex<Option<Arc<DevelopSession>>>>,
+        entered: std::sync::mpsc::Sender<()>,
+        drop_ack: Mutex<std::sync::mpsc::Receiver<()>>,
+        dropped: std::sync::mpsc::Sender<bool>,
+        release: Mutex<std::sync::mpsc::Receiver<()>>,
+    }
+
+    impl DevelopListener for DropSessionOnSaveWorker {
+        fn frame_ready(&self, _: FrameInfo) {}
+        fn render_failed(&self, _: String) {}
+        fn saved(&self, _: String) {
+            let _ = self.entered.send(());
+            let _ = self
+                .drop_ack
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .recv_timeout(Duration::from_secs(5));
+            let final_session = self.slot.lock().unwrap().take();
+            let dropped_on_writer = final_session.as_ref().is_some_and(|session| {
+                Arc::strong_count(session) == 1
+                    && std::thread::current().id() == session.writer_thread
+            });
+            drop(final_session);
+            let _ = self.dropped.send(dropped_on_writer);
+            let _ = self
+                .release
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .recv_timeout(Duration::from_secs(5));
+        }
+    }
+
+    struct ReleaseWorkerCallback {
+        ack: Option<std::sync::mpsc::Sender<()>>,
+        release: Option<std::sync::mpsc::Sender<()>>,
+    }
+
+    impl ReleaseWorkerCallback {
+        fn ack(&mut self) {
+            if let Some(sender) = self.ack.take() {
+                let _ = sender.send(());
+            }
+        }
+
+        fn release(&mut self) {
+            if let Some(sender) = self.release.take() {
+                let _ = sender.send(());
+            }
+        }
+    }
+
+    impl Drop for ReleaseWorkerCallback {
+        fn drop(&mut self) {
+            self.ack();
+            self.release();
+        }
+    }
+
+    struct BlockingSaved {
+        entered: std::sync::mpsc::Sender<()>,
+        release: Mutex<std::sync::mpsc::Receiver<()>>,
+    }
+
+    impl DevelopListener for BlockingSaved {
+        fn frame_ready(&self, _: FrameInfo) {}
+        fn render_failed(&self, _: String) {}
+        fn saved(&self, _: String) {
+            let _ = self.entered.send(());
+            let _ = self
+                .release
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .recv_timeout(Duration::from_secs(5));
         }
     }
 
@@ -3715,7 +3855,7 @@ mod tests {
     }
 
     #[test]
-    fn open_develop_editor_does_not_overwrite_newer_engine_settings() {
+    fn open_develop_editor_does_not_overwrite_foreign_disk_settings() {
         let (_dir, photo, engine, id, session) = tiny_develop_session("owner-conflict.jpg");
         let mut newer: Recipe =
             serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
@@ -3724,13 +3864,15 @@ mod tests {
                 settings.tone.exposure = 1.2;
             })
             .unwrap();
-        engine
-            .set_recipe_json(
-                id.clone(),
-                String::from_utf8(newer.to_json().unwrap()).unwrap(),
-            )
-            .unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let mut foreign = catalog::document(&photo, parse_id(&id).unwrap()).unwrap();
+        foreign.recipe = newer;
+        sidecar::Sidecar::write_recipe(&recipe_path, &foreign).unwrap();
+        let packet = catalog::selection_packet(&photo, &foreign)
+            .unwrap()
+            .with_recipe(&foreign.recipe)
+            .unwrap();
+        sidecar::Sidecar::write_xmp(catalog::xmp_path(&photo), &packet).unwrap();
         let published_bytes = std::fs::read(&recipe_path).unwrap();
         let xmp_path = catalog::xmp_path(&photo);
         let published_xmp = std::fs::read(&xmp_path).unwrap();
@@ -3857,33 +3999,328 @@ mod tests {
         let (dir, photo, first_engine, id, first) = tiny_develop_session("two-editors.jpg");
         let second_engine =
             Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
-        let second = second_engine.clone().open_develop_session(id).unwrap();
+        let writer_count = second_engine
+            .develop_writer_constructions
+            .load(Ordering::Relaxed);
+        let second = match second_engine.clone().open_develop_session(id.clone()) {
+            Ok(session) => {
+                session.close().unwrap();
+                panic!("same-destination editor admission must conflict");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            second.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
+        assert_eq!(
+            second_engine
+                .develop_writer_constructions
+                .load(Ordering::Relaxed),
+            writer_count,
+            "rejected admission must not construct a writer"
+        );
         first
             .set_settings(r#"{"tone":{"exposure":0.8}}"#.into(), false)
             .unwrap();
         first.flush().unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let first_bytes = std::fs::read(&recipe_path).unwrap();
-        second
-            .set_settings(r#"{"tone":{"exposure":1.1}}"#.into(), false)
-            .unwrap();
-        let error = second
-            .flush()
-            .expect_err("second stale editor must conflict");
-        assert!(error.to_string().contains("conflict"), "{error}");
-        assert_eq!(std::fs::read(&recipe_path).unwrap(), first_bytes);
+        let first_id = first.shared.image_id.clone();
+        let stale_first = first.clone();
+        first.close().unwrap();
+        let reopened = second_engine.clone().open_develop_session(id).unwrap();
+        stale_first.close().unwrap();
+        stale_first.close().unwrap();
         assert_eq!(
-            serde_json::from_str::<Recipe>(
-                &first_engine
-                    .get_recipe(first.shared.image_id.clone())
-                    .unwrap()
-            )
-            .unwrap()
-            .settings
-            .tone
-            .exposure,
+            serde_json::from_str::<Recipe>(&first_engine.get_recipe(first_id.clone()).unwrap())
+                .unwrap()
+                .settings
+                .tone
+                .exposure,
             0.8
         );
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), first_bytes);
+        drop(stale_first);
+        drop(first);
+        let still_owned = match second_engine.clone().open_develop_session(first_id) {
+            Ok(opened) => {
+                opened.close().unwrap();
+                panic!("stale closed editor release cleared the current owner's lease");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            still_owned.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
+        reopened.close().unwrap();
+    }
+
+    #[test]
+    fn final_session_drop_on_writer_keeps_lease_until_writer_exit() {
+        let (dir, _photo, _engine, id, session) = tiny_develop_session("worker-final-arc.jpg");
+        let second_engine =
+            Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        let weak = Arc::downgrade(&session);
+        let held_shared = session.shared.clone();
+        let slot = Arc::new(Mutex::new(Some(session.clone())));
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (drop_ack_tx, drop_ack_rx) = std::sync::mpsc::channel();
+        let (dropped_tx, dropped_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let mut release_callback = ReleaseWorkerCallback {
+            ack: Some(drop_ack_tx),
+            release: Some(release_tx),
+        };
+        let (worker_exit_tx, worker_exit_rx) = std::sync::mpsc::channel();
+        *session.shared.worker_exit_observer.lock().unwrap() = Some(worker_exit_tx);
+        session.set_listener(Some(Arc::new(DropSessionOnSaveWorker {
+            slot: slot.clone(),
+            entered: entered_tx,
+            drop_ack: Mutex::new(drop_ack_rx),
+            dropped: dropped_tx,
+            release: Mutex::new(release_rx),
+        })));
+        session.shared.schedule_save();
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        drop(session);
+        release_callback.ack();
+        assert!(
+            dropped_rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            "the final Arc must be destroyed by the save worker"
+        );
+        assert!(
+            weak.upgrade().is_none(),
+            "callback must drop final session Arc on writer thread"
+        );
+
+        let contender_engine = second_engine.clone();
+        let contender_id = id.clone();
+        let (contender_tx, contender_rx) = std::sync::mpsc::channel();
+        let contender = thread::spawn(move || {
+            let outcome = match contender_engine.open_develop_session(contender_id) {
+                Ok(opened) => {
+                    opened.close().unwrap();
+                    Ok(())
+                }
+                Err(error) => Err(error.to_string()),
+            };
+            contender_tx.send(outcome).unwrap();
+        });
+        let conflict = contender_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap_err();
+        contender.join().unwrap();
+        assert_eq!(
+            conflict,
+            "conflict: Develop destination already has an active editor"
+        );
+        release_callback.release();
+        worker_exit_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let reopened = second_engine.open_develop_session(id).unwrap();
+        reopened.close().unwrap();
+        drop(held_shared);
+    }
+
+    #[test]
+    fn admission_remains_exclusive_while_close_waits_after_save() {
+        let (dir, _photo, _engine, id, session) = tiny_develop_session("close-in-flight-lease.jpg");
+        let second_engine =
+            Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let mut release_callback = ReleaseWorkerCallback {
+            ack: None,
+            release: Some(release_tx),
+        };
+        session.set_listener(Some(Arc::new(BlockingSaved {
+            entered: entered_tx,
+            release: Mutex::new(release_rx),
+        })));
+        session
+            .set_settings(r#"{"tone":{"exposure":0.55}}"#.into(), false)
+            .unwrap();
+        let closing = session.clone();
+        let (close_tx, close_rx) = std::sync::mpsc::channel();
+        let close_thread = thread::spawn(move || close_tx.send(closing.close()).unwrap());
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let contender_engine = second_engine.clone();
+        let contender_id = id.clone();
+        let (contender_tx, contender_rx) = std::sync::mpsc::channel();
+        let contender = thread::spawn(move || {
+            let outcome = match contender_engine.open_develop_session(contender_id) {
+                Ok(opened) => {
+                    opened.close().unwrap();
+                    Ok(())
+                }
+                Err(error) => Err(error.to_string()),
+            };
+            let _ = contender_tx.send(outcome);
+        });
+        let admission_error = contender_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap_err();
+        contender.join().unwrap();
+        assert_eq!(
+            admission_error,
+            "conflict: Develop destination already has an active editor"
+        );
+        release_callback.release();
+        close_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
+        close_thread.join().unwrap();
+        let reopened = second_engine.open_develop_session(id).unwrap();
+        reopened.close().unwrap();
+    }
+
+    fn optional_file_bytes(path: &Path) -> Option<Vec<u8>> {
+        match std::fs::read(path) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => panic!("failed to read {}: {error}", path.display()),
+        }
+    }
+
+    #[test]
+    fn direct_recipe_replacement_conflicts_without_publishing_during_develop() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("setter-conflict.jpg");
+        engine
+            .set_selection(
+                id.clone(),
+                crate::Selection {
+                    decision: crate::Decision::Keep,
+                    grade: Some(2),
+                    mark: None,
+                },
+            )
+            .unwrap();
+        let mut replacement: Recipe =
+            serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+        replacement
+            .edit(EditMeta::user("External edit", now_ms()), |settings| {
+                settings.tone.exposure = 1.1;
+            })
+            .unwrap();
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let xmp_path = catalog::xmp_path(&photo);
+        let recipe_before = optional_file_bytes(&recipe_path);
+        let xmp_before = optional_file_bytes(&xmp_path);
+        let indexed_hash_before = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .into_iter()
+            .find(|row| row.id == id)
+            .unwrap()
+            .recipe_hash;
+
+        let result = engine.set_recipe_json(
+            id.clone(),
+            String::from_utf8(replacement.to_json().unwrap()).unwrap(),
+        );
+        assert!(
+            result.is_err(),
+            "active Develop must reject direct recipe replacement"
+        );
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
+        assert_eq!(optional_file_bytes(&recipe_path), recipe_before);
+        assert_eq!(optional_file_bytes(&xmp_path), xmp_before);
+        assert_eq!(
+            engine
+                .list_images(crate::ImageQuery::default())
+                .unwrap()
+                .into_iter()
+                .find(|row| row.id == id)
+                .unwrap()
+                .recipe_hash,
+            indexed_hash_before,
+            "rejected setter must not publish index state"
+        );
+        session.close().unwrap();
+        engine
+            .set_recipe_json(
+                id,
+                String::from_utf8(replacement.to_json().unwrap()).unwrap(),
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn failed_editor_snapshot_and_raw_decode_release_reservation() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("failed-open-release.jpg");
+        session
+            .set_settings(r#"{"tone":{"exposure":0.4}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        session.close().unwrap();
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let good_recipe = std::fs::read(&recipe_path).unwrap();
+        std::fs::write(&recipe_path, b"{ malformed").unwrap();
+        let writer_count_before_snapshot =
+            engine.develop_writer_constructions.load(Ordering::Relaxed);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let snapshot_engine = engine.clone();
+        let snapshot_id = id.clone();
+        let snapshot_thread = thread::spawn(move || {
+            tx.send(
+                snapshot_engine
+                    .open_develop_session(snapshot_id)
+                    .map(|_| ()),
+            )
+            .unwrap();
+        });
+        let snapshot_error = rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap_err();
+        assert!(
+            snapshot_error.to_string().contains("key must be a string"),
+            "unexpected snapshot error: {snapshot_error}"
+        );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count_before_snapshot
+        );
+        snapshot_thread.join().unwrap();
+        std::fs::write(&recipe_path, &good_recipe).unwrap();
+        let snapshot_reopen = engine.clone().open_develop_session(id.clone()).unwrap();
+        snapshot_reopen.close().unwrap();
+
+        let image_bytes = std::fs::read(&photo).unwrap();
+        std::fs::remove_file(&photo).unwrap();
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
+        let decode_error = match engine.clone().open_develop_session(id.clone()) {
+            Ok(opened) => {
+                opened.close().unwrap();
+                panic!("missing image unexpectedly decoded");
+            }
+            Err(error) => error,
+        };
+        assert!(
+            !decode_error.to_string().contains("active editor"),
+            "decode failure was masked by stale lease: {decode_error}"
+        );
+        assert!(
+            decode_error
+                .to_string()
+                .contains(&photo.display().to_string()),
+            "missing-image I/O failure did not identify fixture: {decode_error}"
+        );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count
+        );
+        std::fs::write(&photo, image_bytes).unwrap();
+        let reopened = engine.clone().open_develop_session(id).unwrap();
+        reopened.close().unwrap();
     }
 
     #[test]
@@ -3951,7 +4388,7 @@ mod tests {
             .unwrap()
             .id;
         let gate = crate::recipe_write::gate_for(&photo).unwrap();
-        let held = gate.begin_write().unwrap();
+        let held = gate.begin_read().unwrap();
         let contended = gate.observe_next_contended_gate_attempt();
         session
             .set_settings(r#"{"tone":{"exposure":0.4}}"#.into(), false)
@@ -3990,7 +4427,9 @@ mod tests {
 
     #[test]
     fn failed_close_repairs_without_a_new_edit_and_only_then_drains_worker() {
-        let (_dir, photo, engine, id, session) = tiny_develop_session("close-repair.jpg");
+        let (dir, photo, engine, id, session) = tiny_develop_session("close-repair.jpg");
+        let second_engine =
+            Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
         FAIL_AFTER_DEVELOP_RECIPE
             .lock()
             .unwrap()
@@ -4003,6 +4442,17 @@ mod tests {
         assert!(first.to_string().contains("injected post-recipe failure"));
         assert!(!session.shared.lock().unwrap().closed);
         assert!(session.writer.lock().unwrap().is_some());
+        let rejected = match second_engine.clone().open_develop_session(id.clone()) {
+            Ok(opened) => {
+                opened.close().unwrap();
+                panic!("lease released before repaired close");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            rejected.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
         let committed = std::fs::read(sidecar::Sidecar::paths(&photo).recipe).unwrap();
         assert_eq!(
             sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe)
@@ -4015,6 +4465,8 @@ mod tests {
         );
 
         session.close().unwrap();
+        let reopened = second_engine.open_develop_session(id.clone()).unwrap();
+        reopened.close().unwrap();
         assert_eq!(
             std::fs::read(sidecar::Sidecar::paths(&photo).recipe).unwrap(),
             committed
@@ -4246,6 +4698,7 @@ mod tests {
         assert_eq!(rows.len(), 1);
         let id = rows.remove(0).id;
         let editor = engine.clone().open_develop_session(id.clone()).unwrap();
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
         let input = editor.shared.depth_input().unwrap();
         let rgb = image_core::depth::model_input(&input).unwrap();
         let depth = image_core::ml_depth::DepthMap::from_prediction(
@@ -4268,6 +4721,21 @@ mod tests {
 
         let while_open = engine.clone().depth_histogram(id.clone()).unwrap();
         assert_eq!(while_open.len(), 256);
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count
+        );
+        let second_open = match engine.clone().open_develop_session(id.clone()) {
+            Ok(opened) => {
+                opened.close().unwrap();
+                panic!("read-only histogram released the active editor lease");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            second_open.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
         assert!(!editor.shared.lock().unwrap().closed);
         editor.close().unwrap();
         let after_close = engine.depth_histogram(id).unwrap();

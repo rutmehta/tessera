@@ -1,0 +1,5 @@
+ M docs/coordination/DEVELOP-EXCLUSIVE-ADMISSION-TEST-PLAN.md
+?? target
+?? tools/orchestrate/wp/UX-03/evidence/develop-exclusive-admission-tests-2026-09-28/control-foreign-disk-d61512ed/
+?? tools/orchestrate/wp/UX-03/evidence/develop-exclusive-admission-tests-2026-09-28/red-direct-setter-d61512ed/
+?? tools/orchestrate/wp/UX-03/evidence/develop-exclusive-admission-tests-2026-09-28/red-second-editor-d61512ed/

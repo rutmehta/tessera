@@ -1,0 +1,1 @@
+CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::save_listener_cannot_self_join_or_self_flush -- --nocapture --test-threads=1

@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Exclusive admission integrated — 2026-09-28 11:32 UTC
+
+Validated native source59373066 is integrated byte-for-byte in four Rust files. Full137/137 FFI library tests, final focused/gate controls, fmt and strict Clippy pass; root verified472 packaged payloads from3cb0c249. UI controls already main049bfe95 passed34 unique tests. See DEVELOP-EXCLUSIVE-ADMISSION-REVIEW.md for scope, preserved failed attempts and exact evidence. Existing destination filename aliases remain excluded. No rebuilt archive or new GUI acceptance is claimed.
+
+Luna prepares the bounded HDR phase10 destination-context default/8/16 experiment; Astra reviews its source before runtime. Original4pass/1fail acceptance remains unchanged. Only that worker may use the native lane. B destination request8638c362 remains published without peer receipt; latest fetch/poll shows no new messages or in-progress receipts. B source ownership/hold and normal preview remain preserved. A alone merges main.
+
+
 ## Scoped lease candidate enters validation — 2026-09-28 11:11 UTC
 
 Native source4f26ef95 has root/Astra lifecycle review and corrected deterministic controls: stale owner authority, wrong gate/key, failed snapshot/decode rollback, failed-close retention, successful close plus actual old-session Drop while a new owner is active, histogram ownership, and final session Drop from its own save callback. The callback test retains Shared separately, observes writer completion only after its lease drops, and uses bounded/unwind-safe synchronization. Earlier92ad/6352/59210 are preserved UNRUN preflight checkpoints, including the corrected moved-ID compile defect in59210; no failed compilation is claimed for code never run.

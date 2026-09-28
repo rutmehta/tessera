@@ -1,0 +1,2 @@
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk7s1   3.6Ti   528Gi   3.1Ti    15%    2.5M   34G    0%   /Volumes/betterSSD

@@ -1,0 +1,2 @@
+    1177 /Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/tools/orchestrate/wp/UX-03/evidence/develop-exclusive-admission-tests-2026-09-28/runtime-096873b2/focused-failed-close/source-hashes-before.txt
+source_hash_diff_exit=0

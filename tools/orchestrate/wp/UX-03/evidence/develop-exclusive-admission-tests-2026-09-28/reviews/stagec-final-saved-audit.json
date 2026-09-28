@@ -1,0 +1,126 @@
+{
+  "ref": "593730668d6bcc5f65b8ea88b2febc999393e1f1",
+  "git_verified_manifest_count": 1177,
+  "manifest_complete": true,
+  "all_group_freezes_match": true,
+  "groups": [
+    {
+      "group": "final-close-inflight",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.26s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::admission_remains_exclusive_while_close_waits_after_save -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-direct-setter",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.20s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::direct_recipe_replacement_conflicts_without_publishing_during_develop -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-failed-close",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.30s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::failed_close_repairs_without_a_new_edit_and_only_then_drains_worker -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-failed-open",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.20s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::failed_editor_snapshot_and_raw_decode_release_reservation -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-id-exhaustion",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.00s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib recipe_write_tests::exhausted_develop_owner_ids_fail_closed_without_wrapping -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-recipe-gates",
+      "exit": 0,
+      "selected_count": 10,
+      "results": [
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 0.22s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib recipe_write_tests:: -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-second-editor",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.30s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::second_develop_editor_cannot_replace_first_edit -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-stale-authority",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.00s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib recipe_write_tests::stale_or_wrong_destination_authority_cannot_write_or_clear_new_owner -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "final-worker-drop",
+      "exit": 0,
+      "selected_count": 1,
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.71s"
+      ],
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::final_session_drop_on_writer_keeps_lease_until_writer_exit -- --nocapture --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "full-tessera-ffi-lib",
+      "exit": 0,
+      "selected_count": 137,
+      "results": [
+        "test result: ok. 137 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.99s"
+      ],
+      "command": "cargo test -p tessera-ffi --lib -- --test-threads=1",
+      "errors": []
+    },
+    {
+      "group": "strict-clippy",
+      "exit": 0,
+      "selected_count": 0,
+      "results": [],
+      "command": "cargo clippy -p tessera-ffi --lib --tests -- -D warnings",
+      "errors": []
+    },
+    {
+      "group": "strict-format",
+      "exit": 0,
+      "selected_count": 0,
+      "results": [],
+      "command": "cargo fmt --all -- --check",
+      "errors": []
+    }
+  ],
+  "unique_test_names": 137,
+  "test_invocations": 155
+}
