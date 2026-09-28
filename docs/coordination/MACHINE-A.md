@@ -17,7 +17,7 @@
   No failed-close recovery, all-writer exclusion or multi-file atomicity claim.
 - **B source review requested**: mailbox `651c9cf1-1f4b-41d2-a2b8-3a1befacb5ac`,
   SSH queue `01a0e5ab-efbd-7030-832c-197eb1659ba9` accepted by transport;
-  peer receipt not yet observed. Review caller boundaries in the close recovery
+  B accepted Git receipt observed (target/expiry validated). Review caller boundaries in the close recovery
   contract. B workload hold and paused heartbeat remain unchanged.
 - Normal user preview PID57591 remains untouched. A alone merges main.
 
