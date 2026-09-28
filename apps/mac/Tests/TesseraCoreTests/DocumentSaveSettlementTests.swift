@@ -47,6 +47,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var outcomes: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
         w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        w.saveAsPresentationDidDismiss(try XCTUnwrap(w.saveAsPresentationID))
         reply?(false); reply?(true)
         XCTAssertEqual(writes, 0)
         XCTAssertEqual(outcomes, [.cancelled])
@@ -95,6 +96,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var next: [DocumentSaveOutcome] = []
         let nextID = w.saveForPreparation(d, saveAs: true) { next.append($0) }
         w.finishSaveAs(r); w.saveAsSheetDidDisappear(r.id)
+        w.saveAsPresentationDidDismiss(r.id)
         XCTAssertEqual(old, [.cancelled])
         XCTAssertEqual(w.saveAsRequest?.id, nextID)
         XCTAssertTrue(next.isEmpty)
@@ -109,6 +111,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var outcomes: [DocumentSaveOutcome] = []
         let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
         w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        w.saveAsPresentationDidDismiss(id)
         w.documentSaveWindowLost(id)
         reply?(true)
         XCTAssertEqual(outcomes, [.failed("Document window closed before save")])
@@ -141,11 +144,78 @@ final class DocumentSaveSettlementTests: XCTestCase {
         var conflict: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { conflict.append($0) }
         XCTAssertEqual(conflict, [.failed("A save for this document is still running")])
+        w.saveAsPresentationDidDismiss(r.id)
         let next = w.saveForPreparation(other, saveAs: true) { _ in }
         finish?(.success(())); finish?(.success(()))
         XCTAssertEqual(first.count, 1)
         XCTAssertEqual(w.saveAsRequest?.id, next)
         w.cancelDocumentSave(next)
+    }
+
+    func testReplacementWaitsForNativeDismissNotViewDisappearance() throws {
+        let (w, d) = try fixture()
+        w.saveFileExists = { _ in true }
+        var prompts = 0
+        var reply: (@MainActor (Bool) -> Void)?
+        w.saveReplacePrompt = { _, done in prompts += 1; reply = done }
+        var outcomes: [DocumentSaveOutcome] = []
+        let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        w.saveAsSheetDidDisappear(id)
+        XCTAssertEqual(prompts, 0)
+        XCTAssertTrue(outcomes.isEmpty)
+        w.saveAsPresentationDidDismiss(id)
+        w.saveAsPresentationDidDismiss(id)
+        XCTAssertEqual(prompts, 1)
+        reply?(false)
+        XCTAssertEqual(outcomes, [.cancelled])
+    }
+
+    func testCancelDuringDismissGapCannotStartReplacementOrWrite() throws {
+        let (w, d) = try fixture()
+        w.saveFileExists = { _ in true }
+        var prompts = 0
+        w.saveReplacePrompt = { _, _ in prompts += 1 }
+        var outcomes: [DocumentSaveOutcome] = []
+        let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        w.cancelDocumentSave(id)
+        w.saveAsPresentationDidDismiss(id)
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(outcomes, [.cancelled])
+    }
+
+    func testSupersessionInDismissGapIgnoresStaleDismissal() throws {
+        let (w, d) = try fixture()
+        w.saveFileExists = { _ in true }
+        var prompts = 0
+        w.saveReplacePrompt = { _, _ in prompts += 1 }
+        var old: [DocumentSaveOutcome] = []
+        let id = w.saveForPreparation(d, saveAs: true) { old.append($0) }
+        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        let replacement = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertNil(w.saveAsRequest, "next sheet waits for old native dismissal")
+        w.saveAsPresentationDidDismiss(id)
+        XCTAssertEqual(w.saveAsRequest?.id, replacement)
+        w.saveAsPresentationDidDismiss(id)
+        XCTAssertEqual(w.saveAsRequest?.id, replacement)
+        XCTAssertEqual(old, [.cancelled])
+        XCTAssertEqual(prompts, 0)
+        w.cancelDocumentSave(replacement)
+    }
+
+    func testWindowLossInDismissGapBlocksReplacement() throws {
+        let (w, d) = try fixture()
+        w.saveFileExists = { _ in true }
+        var prompts = 0
+        w.saveReplacePrompt = { _, _ in prompts += 1 }
+        var outcomes: [DocumentSaveOutcome] = []
+        let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        w.documentSaveWindowLost(id)
+        w.saveAsPresentationDidDismiss(id)
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(outcomes, [.failed("Document window closed before save")])
     }
 
 }
