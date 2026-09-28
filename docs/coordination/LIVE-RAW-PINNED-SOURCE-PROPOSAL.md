@@ -1,5 +1,7 @@
 # UX-05 proposed engine contract: pinned RAW source
 
+Implementation update: the pure descriptor subset is accepted at source083018a9 (98 engine-api tests/strict/fmt). Current settings are authoritative; history is opaque. See the implementation plan and evidence package. All resolver, physical capture, decoder, rendering and UI portions below remain proposed. This is not an editable Smart Preview feature.
+
 Status: proposed design only; no product implementation or acceptance. This narrows the source-only direction in `docs/coordination/LIVE-RAW-GRAPH-PERSISTENCE-AUDIT.md` to one reproducible, fail-closed engine contract before any compositor node or B-owned Document/FFI work. It does not add automatic follow, shared undo, or a UI promise.
 
 ## Recommended boundary

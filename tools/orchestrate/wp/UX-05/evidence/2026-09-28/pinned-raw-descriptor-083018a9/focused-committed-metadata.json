@@ -1,0 +1,8 @@
+{
+  "command": ["cargo", "test", "-p", "engine-api", "--test", "pinned_raw", "--release", "--jobs", "2"],
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "cargo_target_dir": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "runner": "/Volumes/betterSSD/tessera-validation/pinned-raw-descriptor/run-focused-committed.py",
+  "returncode_file": "focused-committed-returncode.txt",
+  "log_file": "focused-committed.log"
+}

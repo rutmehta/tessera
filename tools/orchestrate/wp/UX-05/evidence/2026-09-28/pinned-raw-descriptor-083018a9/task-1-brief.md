@@ -1,17 +1,3 @@
-# Pinned RAW Descriptor Validation Implementation Plan
-
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Steps use checkbox (`- [x]`) syntax for tracking.
-
-**Completed bounded scope:** source083018a9;98 engine-api tests, strict Clippy and targeted formatting pass. Independent task and whole-branch reviews clear. Early draft failures retain incomplete untracked-source provenance; only committed final gates establish acceptance.
-
-**Goal:** Add a pure engine-api value that preserves and validates declared pinned RAW recipe/asset metadata without opening a file, creating a writer, or admitting a render.
-
-**Architecture:** A private serialized wire shape is converted into an immutable validated descriptor. Validation inspects the raw recipe header before Recipe::from_json can normalize old schemas; the exact recipe JSON bytes remain authoritative stored data. File existence/digest verification, capture ownership, decoder execution, environment compatibility and rendering remain separate contracts.
-
-**Tech Stack:** Existing Rust engine-api, serde/serde_json, BLAKE3 Digest, Recipe and typed EngineError; no new dependency.
-
-**Spec:** docs/coordination/LIVE-RAW-PINNED-SOURCE-PROPOSAL.md; docs/coordination/LIVE-RAW-CAPTURE-POLICY.md. This is the descriptor-only subset, not their filesystem/resolver or render portions.
-
 ## Global Constraints
 
 - Descriptor schema version 1; explicit raw recipe schema 3; recipe ImageId matches declared recipe owner; source kind Raw; process Native revision 2; default geometry.
@@ -41,14 +27,14 @@
 
 **Interfaces:** `PinnedRawDescriptor::new(input: PinnedRawInput) -> EngineResult<Self>`, `PinnedRawDescriptor::from_json(bytes: &[u8]) -> EngineResult<Self>`, `to_json(&self) -> EngineResult<Vec<u8>>`, read-only `recipe_json(&self) -> &[u8]`, `input_identity(&self) -> Digest`. `PinnedRawInput` contains declared asset Digest/byte length, recipe ImageId, exact JSON bytes, decoder route, normalized suffix, optional locator hint. Descriptor fields remain private; do not derive public Deserialize that bypasses validation. Use explicit descriptor version in private wire representation and store a RecipeHash verified on reopen.
 
-- [x] Write integration tests with a valid recipe created using `Recipe::new(ImageId(1)).to_json()`. The new descriptor roundtrip must preserve `recipe_json()` bytes exactly and retain input identity.
-- [x] Add explicit rejection cases: missing/schema2/schema4 raw recipe header, mismatched owner, RGB source, Adobe/native unsupported revision, nondefault geometry, missing source/process/settings headers, duplicate decoded object keys at any JSON depth, unknown current-settings keys recursively, zero declared byte length, invalid suffix/path characters, unknown descriptor version/decoder route, and altered stored RecipeHash.
-- [x] Establish a behaviorally meaningful RED where feasible with a permissive draft boundary; distinguish any missing-module compile failure from an executed failing assertion. Preserve the raw command/exit/source. Do not merge a permissive draft.
-- [x] Implement minimal pure validation. Reject recursive duplicate decoded JSON keys before raw Value/header inspection. Require explicit schema, owner, source kind, process family/revision and settings. Parse typed current settings only; do not parse/replay history to select them. Reject unknown current-settings keys recursively (including nested arrays/enum payloads), while accepting omitted documented default settings. Require default geometry and supported metadata. Do not call Recipe::validate or imply full history validation. Preserve original bytes; never serialize normalized Recipe over the supplied snapshot.
-- [x] Add byte-preservation and identity controls: whitespace/unknown top-level metadata roundtrip; locator-only change has same input identity; changed asset digest or valid recipe settings changes identity; same asset with two recipe owners retains separate descriptors. Document whether owner is included in requested-input identity and why. It must never stand in for physical bytes.
-- [x] Run targeted Release integration test only, with sole compiler lane, BetterSSD Cargo target, durable Python child returncode, raw log and before/after source freeze. If a test fails, diagnose before modifying assertions or tolerances.
-- [x] Run engine-api adjacent/full tests and crate formatting/strict Clippy only after focused success. No app/GPU/real RAW or workspace-wide build.
-- [x] Independent reviewer audits exact public boundary, serialization roundtrip, rejected inputs, identity claims and gate evidence. Root integrates exact reviewed source/evidence only after acceptance; preserve all draft/failure history.
+- [ ] Write integration tests with a valid recipe created using `Recipe::new(ImageId(1)).to_json()`. The new descriptor roundtrip must preserve `recipe_json()` bytes exactly and retain input identity.
+- [ ] Add explicit rejection cases: missing/schema2/schema4 raw recipe header, mismatched owner, RGB source, Adobe/native unsupported revision, nondefault geometry, missing source/process/settings headers, duplicate decoded object keys at any JSON depth, unknown current-settings keys recursively, zero declared byte length, invalid suffix/path characters, unknown descriptor version/decoder route, and altered stored RecipeHash.
+- [ ] Establish a behaviorally meaningful RED where feasible with a permissive draft boundary; distinguish any missing-module compile failure from an executed failing assertion. Preserve the raw command/exit/source. Do not merge a permissive draft.
+- [ ] Implement minimal pure validation. Reject recursive duplicate decoded JSON keys before raw Value/header inspection. Require explicit schema, owner, source kind, process family/revision and settings. Parse typed current settings only; do not parse/replay history to select them. Reject unknown current-settings keys recursively (including nested arrays/enum payloads), while accepting omitted documented default settings. Require default geometry and supported metadata. Do not call Recipe::validate or imply full history validation. Preserve original bytes; never serialize normalized Recipe over the supplied snapshot.
+- [ ] Add byte-preservation and identity controls: whitespace/unknown top-level metadata roundtrip; locator-only change has same input identity; changed asset digest or valid recipe settings changes identity; same asset with two recipe owners retains separate descriptors. Document whether owner is included in requested-input identity and why. It must never stand in for physical bytes.
+- [ ] Run targeted Release integration test only, with sole compiler lane, BetterSSD Cargo target, durable Python child returncode, raw log and before/after source freeze. If a test fails, diagnose before modifying assertions or tolerances.
+- [ ] Run engine-api adjacent/full tests and crate formatting/strict Clippy only after focused success. No app/GPU/real RAW or workspace-wide build.
+- [ ] Independent reviewer audits exact public boundary, serialization roundtrip, rejected inputs, identity claims and gate evidence. Root integrates exact reviewed source/evidence only after acceptance; preserve all draft/failure history.
 
 ## Concrete test examples
 

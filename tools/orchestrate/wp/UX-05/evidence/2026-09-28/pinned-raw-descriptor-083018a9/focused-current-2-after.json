@@ -1,0 +1,13 @@
+{
+  "label": "focused-current-2",
+  "source_hashes": {
+    "crates/engine-api/src/lib.rs": "634ef75bf06f2649ae1ccd1f31f82110f7ebd386e1e042e8c4c94e144d634710",
+    "crates/engine-api/src/pinned_raw.rs": "14a3adc8e33669a6e72489030b58cf1187fef6ca46d4f6bea43a2ad66b9a0c7f",
+    "crates/engine-api/tests/pinned_raw.rs": "badfd9affa42cde283182ae3c8474b28c2f1a8e3fdce48acde85dcc74896e885",
+    "crates/engine-api/CONTRACTS.md": "224289116455cf3f0ef2cf4f58a77c137258008c84eadf5f3eb910de0bfac311"
+  },
+  "head": "5f33e174198731c607ce4fa91e73586cc4505bd4",
+  "status_sha256": "cf59383c0e284d67dbec860d82f22f2e9ab03ed7192ce62dd0d0a195fd49a5e8",
+  "diff_sha256": "0efbf5da4c7876d28547cded51a2eb10f08d6f56fdcb3bd892b1b98794f4b647",
+  "status": " M crates/engine-api/CONTRACTS.md\n M crates/engine-api/src/lib.rs\n?? crates/engine-api/src/pinned_raw.rs\n?? crates/engine-api/tests/pinned_raw.rs\n"
+}

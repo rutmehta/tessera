@@ -1,0 +1,30 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/engine-api)
+    Finished `release` profile [optimized] target(s) in 14.77s
+     Running tests/pinned_raw.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/pinned_raw-40bb0b4c3006db58)
+
+running 9 tests
+test zero_length_bad_suffix_and_duplicate_keys_reject ... ok
+test duplicate_nested_key_is_rejected ... ok
+test explicit_schema_and_owner_are_required ... ok
+test raw_snapshot_headers_and_default_geometry_are_required ... ok
+test nested_unknowns_and_extreme_numbers_reject ... FAILED
+test suffix_normalizes_and_recipe_history_is_opaque ... ok
+test roundtrip_preserves_exact_recipe_and_identity ... ok
+test locator_does_not_affect_identity_but_asset_and_owner_do ... ok
+test descriptor_wire_and_current_headers_fail_closed ... ok
+
+failures:
+
+---- nested_unknowns_and_extreme_numbers_reject stdout ----
+
+thread 'nested_unknowns_and_extreme_numbers_reject' (102471387) panicked at crates/engine-api/tests/pinned_raw.rs:47:102:
+assertion failed: PinnedRawDescriptor::new(input(raw.into_bytes())).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    nested_unknowns_and_extreme_numbers_reject
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p engine-api --test pinned_raw`

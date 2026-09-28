@@ -1,5 +1,16 @@
 # Machine A recovery status
 
+## Pinned descriptor accepted; Smart Preview status clarified — 2026-09-28 15:21 UTC
+
+A integrated exact source083018a9 after task review and fresh whole-branch Astra review cleared it. Full engine-api Release passed98 named tests (63unit+35integration, including20 descriptor tests),0fail/ignored,0doc tests. Strict Clippy and targeted formatting direct0. Root verified6809 tracked inputs and all five changed Git blobs; final aggregateabbedcb6e4b022a3b4d2b173bfb3772ddf69ed7f63377b296a56822b4bc38be2. Root verified114 portable payloads/219806bytes at tools/orchestrate/wp/UX-05/evidence/2026-09-28/pinned-raw-descriptor-083018a9/. Earlier failures and incomplete draft provenance remain explicit. Final merged crates/Cargo/.cargo content is byte-identical to tested candidate; intervening main changes were coordination/plan docs only.
+
+Descriptor-only scope is DONE: private immutable declaration, exact recipe bytes, current-settings hash, duplicate/unknown/overflow rejection, locator-independent input identity, additive contract1.7.0. It does not verify actual asset bytes or enable source capture, decoder/render admission, a graph node, FFI/UI or Smart Previews. Current settings are authoritative and history is opaque; future writable consumers need separate history validation.
+
+User asked about lightweight RAW editing copies. Source audit confirms Smart Previews are specified but NOT implemented: docs/05-catalog-storage-and-import.md section2.2 proposes2560px lossy DNG; crates/previews implements JPEG display pyramids, and develop::open_develop_session still opens indexed original via RawImage::open. No Smart Preview generation/offline-editor fallback was found in source or fetched branch history. Add this as an explicit unfinished product task, distinct from cached display images and reduced-level rendering. It is not delivered by the descriptor.
+
+Luna is source-planning the next bounded private-capture primitive only; no implementation/runtime claimed. A remains sole main merger. B is unreachable by current SSH hostname, latest native snapshot unavailable, no new mailbox receipt. Preserve B destination request/reservations and source-only hold. Protected desktop dialog remains pending; no app/capture action.
+
+
 ## Descriptor focused gate and review — 2026-09-28 15:13 UTC
 
 Candidate12b354fd passes20 focused tests/direct0. Astra reviewed the exact correction and cleared five findings plus three maintainability notes. Root independently rehashed6809 tracked files and all five changed Git blobs; before/after aggregate33d6a78cb2625b47b81151d013cabfef52345bffd642f451555207cbc2af25b8 is identical. Earlier draft compile/behavioral failures remain preserved; their initial untracked-source provenance was incomplete and they are not final gates.

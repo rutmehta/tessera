@@ -1,0 +1,15 @@
+{
+  "label": "final-clippy-rerun",
+  "source_hashes": {
+    "crates/engine-api/src/lib.rs": "5b6ba26f6d3817efc9e28c7467b8a8379382438b2c133f3e5f90357db3249756",
+    "crates/engine-api/src/pinned_raw.rs": "77cf9a9ded5ed79fe965ec1b28fef0038c9df80660206f93732619872edd8f0d",
+    "crates/engine-api/tests/pinned_raw.rs": "89cf2ce41e94d29426f6e543c6a2cd1f82cfadd65b0010944d8f0e1e8bfb0e89",
+    "crates/engine-api/tests/m532_channels.rs": "9d4ab7744c0ac0e7f4ed54402232f2ebce5350c7a7e3cce6020fe386634624e2",
+    "crates/engine-api/CONTRACTS.md": "270d35f3e40310b2f965883d483803718db2dab567b64ea13390b89211d0adac"
+  },
+  "tracked_tree_hash": "eb1f58f767dbb87522a93f7e1ab86262a0ac7d1e982d27c203040cd00fcfd0e1",
+  "head": "d3a9320d7f2347a4797071a986b8a3eda48eb1ae",
+  "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "status": ""
+}

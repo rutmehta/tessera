@@ -1,0 +1,47 @@
+   Compiling crc32fast v1.5.2
+    Checking bitflags v2.13.2
+    Checking rustybuzz v0.20.1
+    Checking flate2 v1.1.10
+    Checking psd v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/psd)
+    Checking typography v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/typography)
+    Checking engine-api v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/engine-api)
+error: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/engine-api/tests/pinned_raw.rs:224:5
+    |
+224 |     adjustment.id = MaskId(1);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `engine_api::recipe::LocalAdjustment { id: MaskId(1), ..Default::default() }` and removing relevant reassignments
+   --> crates/engine-api/tests/pinned_raw.rs:223:5
+    |
+223 |     let mut adjustment = LocalAdjustment::default();
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#field_reassign_with_default
+    = note: `-D clippy::field-reassign-with-default` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::field_reassign_with_default)]`
+
+error: for loop over a single element
+   --> crates/engine-api/tests/pinned_raw.rs:280:5
+    |
+280 | /     for owner in [serde_json::Value::Null] {
+281 | |         let mut x: serde_json::Value = serde_json::from_slice(&bytes()).unwrap();
+282 | |         x["image_id"] = owner;
+283 | |         assert!(PinnedRawDescriptor::new(input(serde_json::to_vec(&x).unwrap())).is_err());
+284 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#single_element_loop
+    = note: `-D clippy::single-element-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::single_element_loop)]`
+help: try
+    |
+280 ~     {
+281 +         let owner = serde_json::Value::Null;
+282 +         let mut x: serde_json::Value = serde_json::from_slice(&bytes()).unwrap();
+283 +         x["image_id"] = owner;
+284 +         assert!(PinnedRawDescriptor::new(input(serde_json::to_vec(&x).unwrap())).is_err());
+285 +     }
+    |
+
+error: could not compile `engine-api` (test "pinned_raw") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...

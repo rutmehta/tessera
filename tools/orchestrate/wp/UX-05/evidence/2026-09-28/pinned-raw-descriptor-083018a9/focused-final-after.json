@@ -1,0 +1,7 @@
+{
+  "label": "focused-final",
+  "head": "5f33e174198731c607ce4fa91e73586cc4505bd4",
+  "status_sha256": "b97d61aa94764830de965301de762987793cce1b5cfbfcb0ed34061f467d77a3",
+  "diff_sha256": "67b27bfcb5e6d29a25a61af01a10cabafcda4cbc6ae6d59b0e402fef7149d716",
+  "status": " M crates/engine-api/CONTRACTS.md\n M crates/engine-api/src/action.rs\n M crates/engine-api/src/jobs.rs\n M crates/engine-api/src/lib.rs\n M crates/engine-api/src/recipe/history.rs\n M crates/engine-api/src/recipe/mod.rs\n M crates/engine-api/src/tile.rs\n M crates/engine-api/src/tools.rs\n?? crates/engine-api/src/pinned_raw.rs\n?? crates/engine-api/tests/pinned_raw.rs\n"
+}

@@ -1,0 +1,15 @@
+{
+  "label": "final-clippy-rerun2",
+  "source_hashes": {
+    "crates/engine-api/src/lib.rs": "5b6ba26f6d3817efc9e28c7467b8a8379382438b2c133f3e5f90357db3249756",
+    "crates/engine-api/src/pinned_raw.rs": "77cf9a9ded5ed79fe965ec1b28fef0038c9df80660206f93732619872edd8f0d",
+    "crates/engine-api/tests/pinned_raw.rs": "1226e6afc233e1267b6c7d22d43f3050ddb85abcdc29b9fa18760afa8870be59",
+    "crates/engine-api/tests/m532_channels.rs": "9d4ab7744c0ac0e7f4ed54402232f2ebce5350c7a7e3cce6020fe386634624e2",
+    "crates/engine-api/CONTRACTS.md": "270d35f3e40310b2f965883d483803718db2dab567b64ea13390b89211d0adac"
+  },
+  "tracked_tree_hash": "abbedcb6e4b022a3b4d2b173bfb3772ddf69ed7f63377b296a56822b4bc38be2",
+  "head": "083018a967d2ba1b07570824e885baca1e9d4314",
+  "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "status": ""
+}

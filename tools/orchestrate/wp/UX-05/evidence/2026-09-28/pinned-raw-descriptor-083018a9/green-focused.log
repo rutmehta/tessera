@@ -1,0 +1,11 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/engine-api)
+error: this file contains an unclosed delimiter
+   --> crates/engine-api/src/pinned_raw.rs:103:148
+    |
+ 10 | ...Route { /// LibRaw CFA decode path revision 1. LibRawCfaV1 }
+    |          - unclosed delimiter
+...
+103 | ...:&[u8])->EngineResult<()> {let _:StrictValue=serde_json::from_slice(bytes).map_err(|e|bad("json",e.to_string()))?;Ok(())}
+    |                                                                                                                             ^
+
+error: could not compile `engine-api` (lib) due to 1 previous error

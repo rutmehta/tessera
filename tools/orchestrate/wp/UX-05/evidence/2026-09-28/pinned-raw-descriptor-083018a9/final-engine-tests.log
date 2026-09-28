@@ -1,0 +1,160 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/engine-api)
+    Finished `release` profile [optimized] target(s) in 38.22s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/engine_api-6761888d48b5dc80)
+
+running 63 tests
+test color::tests::inverse_round_trips ... ok
+test color::tests::rec2020_to_xyz_matches_reference ... ok
+test color::tests::illuminant_exif_codes ... ok
+test color::tests::adaptation_maps_white_to_white ... ok
+test color::tests::working_space_conversion_preserves_white ... ok
+test color::tests::icc_handle_is_content_addressed ... ok
+test action::tests::registry_matches_tool_enums ... ok
+test id::tests::digest_hex_round_trip ... ok
+test error::tests::display_is_human_readable ... ok
+test document::tests::blend_mode_names_are_stable ... ok
+test id::tests::document_ids_are_transparent ... ok
+test jobs::tests::cancellation_propagates_down_not_up ... ok
+test id::tests::numeric_ids_are_transparent ... ok
+test jobs::tests::priority_order ... ok
+test id::tests::image_id_round_trip ... ok
+test jobs::tests::scheduler_runs_and_honours_cancellation ... ok
+test error::tests::serializes_with_code_tag ... ok
+test recipe::crs::tests::enhance_keys_are_informational_aux ... ok
+test action::tests::descriptor_form_is_stable ... ok
+test recipe::crs::tests::ranges ... ok
+test recipe::history::tests::diff_apply_round_trip ... ok
+test recipe::crs::tests::names_unique_and_round_trip ... ok
+test recipe::selection::tests::invariant_is_kept ... ok
+test recipe::selection::tests::grade_serializes_as_number ... ok
+test document::tests::adjustment_minimal_json_is_neutral ... ok
+test document::tests::value_types_round_trip ... ok
+test recipe::settings::tests::empty_object_is_default ... ok
+test document::tests::history_is_append_only_and_branches ... ok
+test recipe::settings::tests::schema_1_profile_ids_migrate ... ok
+test recipe::crs::tests::every_target_path_exists_in_the_recipe_schema ... ok
+test recipe::tests::native_exports_as_best_effort_pv6_with_companion ... ok
+test recipe::tests::newer_schema_is_read_only ... ok
+test recipe::tests::schema_1_documents_migrate_on_load ... ok
+test recipe::tests::hash_is_stable_across_releases ... ok
+test recipe::tests::empty_and_partial_documents_load ... ok
+test recipe::history::tests::replay_matches_recorded_states ... ok
+test stage::tests::canonical_json_is_order_independent ... ok
+test recipe::tests::ids_are_never_reused ... ok
+test stage::tests::memo_key_digest_distinguishes_fields ... ok
+test stage::tests::node_memo_key_digest_distinguishes_fields ... ok
+test stage::tests::node_parts_are_stable ... ok
+test stage::tests::param_hash_is_stage_scoped_and_chained ... ok
+test stage::tests::stage_order_is_fixed ... ok
+test tile::tests::coord_parent_children ... ok
+test recipe::tests::stage_chain_seeded_by_process ... ok
+test tile::tests::copy_on_write ... ok
+test tile::tests::extent_levels ... ok
+test recipe::settings::tests::chain_changes_downstream_only ... ok
+test tile::tests::format_checks ... ok
+test tile::tests::halo_indexing ... ok
+test tile::tests::premultiplied_flag ... ok
+test tile::tests::pyramid_deeper_levels ... ok
+test tile::tests::pyramid_defaults ... ok
+test tools::tests::document_call_wire_form ... ok
+test tools::tests::minimal_json_uses_defaults ... ok
+test tools::tests::document_envelopes ... ok
+test tools::tests::request_and_response_envelopes ... ok
+test tools::tests::every_call_round_trips_and_is_tagged_by_name ... ok
+test action::tests::registry_effects_match_call_predicates ... ok
+test recipe::tests::hash_covers_render_state_only ... ok
+test recipe::tests::json_round_trip ... ok
+test tools::tests::every_document_call_round_trips_and_is_tagged_by_name ... ok
+test recipe::tests::undo_redo_branch_and_snapshots ... ok
+
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/channels.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/channels-dbd7acea635a67c4)
+
+running 4 tests
+test channel_edit_returns_allocated_identity_and_reads_old_outputs ... ok
+test ordered_channels_survive_summary_round_trip ... ok
+test channel_value_schema_fixtures ... ok
+test channel_calls_use_history_envelope_and_action_registry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/document_filters.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/document_filters-1d35a01f5902f85c)
+
+running 1 test
+test filter_calls_are_document_actions_with_default_destructive_mode ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/library_calls.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/library_calls-3baead5d5b95c134)
+
+running 2 tests
+test unconfirm_and_clear_name_are_explicit ... ok
+test library_calls_round_trip_and_register ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m532_channels.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/m532_channels-4fb979499158e1b9)
+
+running 1 test
+test explicit_alpha_display_and_channel_destination_are_additive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/people.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/people-fa3e609c757f0238)
+
+running 2 tests
+test missing_people_options_are_safe ... ok
+test people_schema_fixtures ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pinned_raw.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/pinned_raw-40bb0b4c3006db58)
+
+running 20 tests
+test duplicate_nested_key_is_rejected ... ok
+test explicit_schema_and_owner_are_required ... ok
+test exact_recipe_bytes_include_whitespace_in_input_identity ... ok
+test current_nondefault_settings_determine_recipe_hash_and_input_identity ... ok
+test distinct_recipe_owners_have_distinct_descriptors ... ok
+test nested_unknowns_and_extreme_numbers_reject ... ok
+test outer_descriptor_duplicate_is_rejected_recursively ... ok
+test opaque_history_does_not_override_current_settings_and_enum_extensions_reject ... ok
+test negative_and_nested_array_float_overflow_reject ... ok
+test flattened_mask_arrays_and_nested_model_fields_are_checked ... ok
+test exact_metadata_and_payload_identity_are_preserved ... ok
+test declarations_length_and_canonical_suffix_participate_in_identity ... ok
+test zero_length_bad_suffix_and_duplicate_keys_reject ... ok
+test locator_does_not_affect_identity_but_asset_and_owner_do ... ok
+test descriptor_wire_and_current_headers_fail_closed ... ok
+test suffix_normalizes_and_recipe_history_is_opaque ... ok
+test roundtrip_preserves_exact_recipe_and_identity ... ok
+test default_settings_object_and_non_object_controls ... ok
+test profile_legacy_and_canonical_forms_are_supported_but_extensions_reject ... ok
+test raw_snapshot_headers_and_default_geometry_are_required ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/source_kind.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/source_kind-ddd15b362f4ebc81)
+
+running 3 tests
+test source_kind_schema_and_invalid_values ... ok
+test source_kind_separates_render_caches ... ok
+test legacy_source_kind_is_promoted_and_normalized ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/text_vector.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/text_vector-5884364ca7edb438)
+
+running 2 tests
+test legacy_layer_summary_defaults_editable_metadata ... ok
+test editable_commands_are_registered_and_replayable ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests engine_api
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

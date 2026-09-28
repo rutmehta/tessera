@@ -1,0 +1,18 @@
+    Checking engine-api v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/engine-api)
+error: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/engine-api/tests/pinned_raw.rs:224:5
+    |
+224 |     adjustment.id = MaskId(1);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `engine_api::recipe::LocalAdjustment { id: MaskId(1), ..Default::default() }` and removing relevant reassignments
+   --> crates/engine-api/tests/pinned_raw.rs:223:5
+    |
+223 |     let mut adjustment = LocalAdjustment::default();
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#field_reassign_with_default
+    = note: `-D clippy::field-reassign-with-default` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::field_reassign_with_default)]`
+
+error: could not compile `engine-api` (test "pinned_raw") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

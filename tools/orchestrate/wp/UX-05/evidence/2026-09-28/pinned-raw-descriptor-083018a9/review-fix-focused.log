@@ -1,0 +1,41 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/engine-api)
+    Finished `release` profile [optimized] target(s) in 15.79s
+     Running tests/pinned_raw.rs (/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/pinned_raw-40bb0b4c3006db58)
+
+running 20 tests
+test duplicate_nested_key_is_rejected ... ok
+test explicit_schema_and_owner_are_required ... ok
+test exact_recipe_bytes_include_whitespace_in_input_identity ... ok
+test current_nondefault_settings_determine_recipe_hash_and_input_identity ... ok
+test distinct_recipe_owners_have_distinct_descriptors ... ok
+test flattened_mask_arrays_and_nested_model_fields_are_checked ... FAILED
+test negative_and_nested_array_float_overflow_reject ... ok
+test declarations_length_and_canonical_suffix_participate_in_identity ... ok
+test exact_metadata_and_payload_identity_are_preserved ... ok
+test nested_unknowns_and_extreme_numbers_reject ... ok
+test zero_length_bad_suffix_and_duplicate_keys_reject ... ok
+test outer_descriptor_duplicate_is_rejected_recursively ... ok
+test opaque_history_does_not_override_current_settings_and_enum_extensions_reject ... ok
+test descriptor_wire_and_current_headers_fail_closed ... ok
+test default_settings_object_and_non_object_controls ... ok
+test locator_does_not_affect_identity_but_asset_and_owner_do ... ok
+test raw_snapshot_headers_and_default_geometry_are_required ... ok
+test roundtrip_preserves_exact_recipe_and_identity ... ok
+test suffix_normalizes_and_recipe_history_is_opaque ... ok
+test profile_legacy_and_canonical_forms_are_supported_but_extensions_reject ... ok
+
+failures:
+
+---- flattened_mask_arrays_and_nested_model_fields_are_checked stdout ----
+
+thread 'flattened_mask_arrays_and_nested_model_fields_are_checked' (102525326) panicked at crates/engine-api/tests/pinned_raw.rs:329:5:
+assertion failed: PinnedRawDescriptor::new(input(serde_json::to_vec(&value).unwrap())).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flattened_mask_arrays_and_nested_model_fields_are_checked
+
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p engine-api --test pinned_raw`

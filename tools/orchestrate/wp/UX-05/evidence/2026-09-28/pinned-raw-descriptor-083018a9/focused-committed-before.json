@@ -1,0 +1,14 @@
+{
+  "label": "focused-committed",
+  "source_hashes": {
+    "crates/engine-api/src/lib.rs": "634ef75bf06f2649ae1ccd1f31f82110f7ebd386e1e042e8c4c94e144d634710",
+    "crates/engine-api/src/pinned_raw.rs": "14a3adc8e33669a6e72489030b58cf1187fef6ca46d4f6bea43a2ad66b9a0c7f",
+    "crates/engine-api/tests/pinned_raw.rs": "badfd9affa42cde283182ae3c8474b28c2f1a8e3fdce48acde85dcc74896e885",
+    "crates/engine-api/CONTRACTS.md": "224289116455cf3f0ef2cf4f58a77c137258008c84eadf5f3eb910de0bfac311"
+  },
+  "tracked_tree_hash": "77c0ffbba603a4f94856df70b12550f162cabff1ac6b7f1458b7507c3730940a",
+  "head": "771a508f1d43a5ee7ad815b69987829d2e8062ac",
+  "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "status": ""
+}
