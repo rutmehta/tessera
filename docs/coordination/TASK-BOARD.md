@@ -13,16 +13,21 @@
   setup failures, semaphore stall, wrapper SIGSEGV and lint failure are preserved.
   Evidence: `tools/orchestrate/wp/UX-03/evidence/develop-retry-integration-2026-09-28/`.
 - **Luna owns compiler** for B mask retention validation. Baseline `36f5845d` on
-  tested integration40d, matching8abFFI. Run ONLY safe rejected-component RED;
-  baseline nested reentry would recurse indefinitely. Then revised B639da049
-  product/11tests and adjacent mask controls. Initial B986512b6 source review
-  failed liveness; revised source review has no blocker, runtime UNRUN.
+  tested integration40d, matching8abFFI. Safe rejected-component baseline RED completed:1test/2expectedassertions,
+  directexit1; old code lost rejected component. Baseline nested reentry would
+  recurse indefinitely and was not run. Final2file overlay `8c628e63` from B639da049
+  is running11tests +adjacentmaskcontrols on unchanged8ab bridge. Initial B986512b6
+  source review failed liveness; revised source review has no blocker.
 - **B communication verified**: requesta25ad2ff and revision13fb8907 delivered via
   existing-chat SSH queues; peer results48f8e3c2 and737e0d32 received and validated.
   First result failed source acceptance; revised result accepted for A validation,
   NOT completed. No B workloads, main merges or heartbeat restart authorized.
-- **NEXT Core result-bearing close**, amended source plan `d1cf2926` on main;
-  no implementation. Retain failures/sharedattempt, block host edits duringclose,
+- **NEXT Core result-bearing close**, amended source plan `d1cf2926` on main.
+  Resource Sol prepared UNRUN behavioralRED `e96781ac` with separate internal
+  nil-default joinobserver `422c2f0c`; current Voidclose semantics retained.
+  Reviewer checks deterministicjoin/noHandleforwarding/cleanup before nextslot.
+  Historical resource-worktree FFI symlink remains untouched; copy matching8ab
+  inputs safely before its Swift gate. No close implementation yet. Retain failures/sharedattempt, block host edits duringclose,
   and propagate actual settings/mask errors. Then AppModel strong recovery owner,
   navigation/Review/Layers/Agent/export/print/quit gates and Retry/Keep Editing UI.
   Discard and Stage C lease/CAS remain blocked. Ignored close results are unsafe;
