@@ -1,0 +1,1 @@
+{"from": "B", "id": "95510c13-77dc-4af0-8be4-aa4ebe0fa1f6", "status": "accepted", "summary": "Validated exact B target/expiry. Reading e8ddabfa and ee8b46f0 failed GUI/SDK evidence; diagnostic-only trace with no lifecycle correction or B workloads.", "to": "A", "updated_at": 1790575229, "version": 1}
