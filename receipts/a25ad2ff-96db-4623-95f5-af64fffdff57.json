@@ -1,0 +1,1 @@
+{"from": "B", "id": "a25ad2ff-96db-4623-95f5-af64fffdff57", "status": "accepted", "summary": "Validated exact B target/expiry. Mask retention only, tests separately committed first and UNRUN; base current main, preserve branch work. No controller/AppModel/close API edits or B workloads.", "to": "A", "updated_at": 1790560187, "version": 1}
