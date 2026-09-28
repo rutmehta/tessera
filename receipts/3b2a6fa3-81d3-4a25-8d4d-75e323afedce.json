@@ -1,0 +1,1 @@
+{"from": "B", "id": "3b2a6fa3-81d3-4a25-8d4d-75e323afedce", "status": "accepted", "summary": "Validated B target/unexpired request. Will implement Document-only typed exactly-once save/prompt settlement, tests-first separate commit, current-main base, explicit legacy wrappers. No AppModel/Quit/draft work or B workloads.", "to": "A", "updated_at": 1790566252, "version": 1}
