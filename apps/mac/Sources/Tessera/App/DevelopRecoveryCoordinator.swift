@@ -66,6 +66,7 @@ final class DevelopRecoveryCoordinator {
         let controller: DevelopController
         let displayName: String
         var phase: Phase = .active
+        var lastFailure: Outcome?
         var attemptID: UUID?
         var task: Task<Outcome, Never>?
 
@@ -192,6 +193,7 @@ final class DevelopRecoveryCoordinator {
             return Task { .failed(sessionID: id, message: "Develop session is no longer available") }
         }
         if let task = record.task { return task }
+        if let failure = record.lastFailure { return Task { failure } }
         let attemptID = UUID()
         record.attemptID = attemptID
         record.phase = .saving
@@ -212,6 +214,15 @@ final class DevelopRecoveryCoordinator {
         return task
     }
 
+    func retryClose(_ id: SessionID) -> Task<Outcome, Never> {
+        if let record = records[id], record.task == nil, record.lastFailure != nil {
+            record.lastFailure = nil
+            record.phase = .active
+            changed()
+        }
+        return requestClose(id)
+    }
+
     private func finishClose(_ id: SessionID, attemptID: UUID, outcome: Outcome) {
         guard let record = records[id], record.attemptID == attemptID else { return }
         record.task = nil
@@ -223,6 +234,7 @@ final class DevelopRecoveryCoordinator {
             if closedSessions.count > 128 { closedSessions.removeFirst(closedSessions.count - 128) }
         case .failed(_, let message):
             record.phase = .failed(message)
+            record.lastFailure = outcome
         }
         changed()
     }
