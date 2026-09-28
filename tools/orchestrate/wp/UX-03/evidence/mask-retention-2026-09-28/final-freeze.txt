@@ -1,0 +1,11 @@
+Frozen before final focused GREEN
+Branch: codex/mask-retention-red-validation
+HEAD: 8c628e63767c2b1b287c53f8054f2d4e4f625d29
+Base integration commit: 40d3054e0e4f4563bbc5b4ec09eca29e014d1959
+Candidate source: apps/mac/Sources/TesseraCore/Develop/DevelopController+Masks.swift SHA-256 f01af958631fb8a042ee303456c108d7aac08036dce52b58aa5136eaa503cbdc
+Candidate tests: apps/mac/Tests/TesseraCoreTests/DevelopMaskPendingRetentionTests.swift SHA-256 dfda55a2ab9b0d5c5dc013bc8b6cc2491c34c642b514e50b855feedb938e5351 (11 XCTest methods)
+FFI archive SHA-256: 8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03
+Generated bindings/header/modulemap unchanged from40d integration: TesseraFFI.swift b78ca980fa0ed7997ad3f65c17a7ea3b509758ebf466679f130702d83f25bca4; CTesseraFFI.h e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703; module.modulemap efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd.
+Only product/test files in candidate commit: DevelopController+Masks.swift and DevelopMaskPendingRetentionTests.swift. No Rust/generated bindings/DevelopController changes.
+Command: swift test --jobs 2 --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/mask-retention-red-validation/scratch -c release -Xswiftc -enable-testing --filter '(DevelopMaskPendingRetentionTests|MaskingTests|MasksPanelLayoutTests|TransformLensBlurTests)'
+Watchdog: 600 seconds; no GUI activation.
