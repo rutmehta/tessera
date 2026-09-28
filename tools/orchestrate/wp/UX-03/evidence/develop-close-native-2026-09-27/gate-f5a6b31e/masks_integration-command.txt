@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --test masks -- --test-threads=2

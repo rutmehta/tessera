@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop:: -- --test-threads=2

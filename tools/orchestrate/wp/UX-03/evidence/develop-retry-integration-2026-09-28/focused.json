@@ -1,0 +1,23 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "-c",
+    "release",
+    "--jobs",
+    "2",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swiftpm/develop-retry-integration-release",
+    "--filter",
+    "AgentReviewOwnershipTests|DevelopTests|AgentReviewLayoutTests"
+  ],
+  "exit": 0,
+  "xctest_executed": 41,
+  "xctest_skipped": 0,
+  "xctest_failures": 0,
+  "swift_testing_passed": 0,
+  "accepted": true,
+  "source_head": "40d3054e0e4f4563bbc5b4ec09eca29e014d1959",
+  "ffi_sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03",
+  "elapsed_seconds": 259.7316429615021
+}

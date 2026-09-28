@@ -1,0 +1,8 @@
+Base HEAD: 435211b2238f7e3e4dc921b3a40c0aa885664b40
+Source DevelopController.swift: 72b64733a5c5bf42abfa32bcd9c809a88b495e7430d166a870c4f0cfc15cb7f0
+Test AgentReviewOwnershipTests.swift: c07a42687067b65f12095860dfd244fb2f674458924c97ecd201a3331c25f4e3
+Current FFI archive: 0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae
+Current FFI header: e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703
+Module map: efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd
+Scope: focused Swift behavior gate against preserved 0a9 FFI; not current-main/current-FFI integration.
+71e2237cfbb132f2a01ecdd17b092a32fc03f2b4239ef116216824bf058f5361  apps/mac/build/ffi/TesseraFFI.swift

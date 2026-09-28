@@ -1788,12 +1788,12 @@ impl DevelopSession {
     pub fn set_mask_overlay(&self, group_id: Option<u32>) -> Result<()> {
         let st = self.shared.edit_lock()?;
         self.shared.masks.overlay.lock().map_err(failure)?.group = group_id;
-        if group_id.is_some()
-            && let (Some(frame), Some(level)) = (&st.frame, st.rendered_level)
-        {
-            let (settings, generation) = (frame.settings.clone(), st.generation);
-            drop(st);
-            publish_overlay(&self.shared, &settings, level, generation);
+        if group_id.is_some() {
+            if let (Some(frame), Some(level)) = (&st.frame, st.rendered_level) {
+                let (settings, generation) = (frame.settings.clone(), st.generation);
+                drop(st);
+                publish_overlay(&self.shared, &settings, level, generation);
+            }
         }
         Ok(())
     }

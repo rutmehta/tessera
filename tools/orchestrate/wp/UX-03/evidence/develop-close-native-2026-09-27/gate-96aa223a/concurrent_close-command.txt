@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::concurrent_closes_ -- --nocapture --test-threads=1
