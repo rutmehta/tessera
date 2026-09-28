@@ -1,0 +1,12 @@
+diff --git a/crates/tessera-ffi/src/document/io.rs b/crates/tessera-ffi/src/document/io.rs
+index 498b8c2c..700b5004 100644
+--- a/crates/tessera-ffi/src/document/io.rs
++++ b/crates/tessera-ffi/src/document/io.rs
+@@ -993,6 +993,7 @@ mod destination_commit_tests {
+         std::fs::create_dir(&folder).unwrap();
+         let staged = stage_bytes(&folder, b"new").unwrap();
+         let result = commit_staged(staged, &folder, CommitMode::CreateIfAbsent);
++        eprintln!("macOS directory commit classification: {result:?}");
+         assert!(result.is_err() || result.unwrap() == DocumentSaveAsResult::DestinationExists);
+         assert!(folder.is_dir());
+     }

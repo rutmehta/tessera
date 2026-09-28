@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --release --test document psd_opens_with_names_and_modes_and_saves_back_unknown_keys -- --test-threads=1

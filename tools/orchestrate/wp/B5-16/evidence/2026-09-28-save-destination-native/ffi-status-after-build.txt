@@ -1,0 +1,2 @@
+ M apps/mac/Sources/CTesseraFFI/CTesseraFFI.h
+ M apps/mac/Sources/TesseraFFI/TesseraFFI.swift

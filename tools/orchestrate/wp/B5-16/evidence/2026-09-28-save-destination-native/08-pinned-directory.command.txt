@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --release --lib no_clobber_rejects_regular_file_dangling_symlink_and_directory -- --test-threads=1

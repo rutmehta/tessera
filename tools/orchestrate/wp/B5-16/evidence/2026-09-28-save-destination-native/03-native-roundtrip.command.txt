@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --release --test document tessera_doc_round_trip_and_same_path_same_session -- --test-threads=1
