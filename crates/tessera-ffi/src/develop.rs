@@ -3094,8 +3094,11 @@ impl DevelopSession {
         let surface = Surface::lookup(iosurface_id, width, height).map_err(failure)?;
         let (mut settings, version, revision) = {
             let st = s.edit_lock()?;
-            (st.drawn(), st.recipe.process_version, self.detail_revision())
-        };
+            (
+                st.drawn(),
+                st.recipe.process_version,
+                self.detail_revision(),
+            )
         };
         settings.geometry = Default::default();
         settings.effects = Default::default();
