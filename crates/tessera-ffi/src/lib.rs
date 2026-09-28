@@ -253,12 +253,20 @@ impl Engine {
     fn develop_renderer(
         &self,
         image: &image_core::RawImage,
+        settings: &core::DevelopSettings,
     ) -> (Arc<image_core::Renderer>, String) {
         if image.camera_linear_proxy().is_some() {
-            return (
-                Arc::new(image_core::Renderer::new(Default::default())),
-                "CPU Smart Preview".into(),
-            );
+            // Explicit proxy selection calibrates independently of Original.
+            // Unsupported tails/maps retain scalar CPU fallback on every edit.
+            let backend = backend::select_proxy(image, settings, || self.shared_gpu());
+            // Selection/capability label, not per-frame telemetry. Proxy maps
+            // (captured distortion, crop, transform, upright) use scalar CPU.
+            let name = if backend.name.starts_with("Metal (") {
+                format!("{} Smart Preview (GPU with CPU fallback)", backend.name)
+            } else {
+                format!("{} Smart Preview", backend.name)
+            };
+            return (Arc::new(backend.renderer()), name);
         }
         let backend = self
             .renderer

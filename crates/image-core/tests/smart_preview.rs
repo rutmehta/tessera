@@ -428,3 +428,18 @@ fn compact_scale_three_persisted_route_keeps_original_metadata_and_edit_geometry
         assert_tiles(&tiles, &expected, RenderOutput::SceneLinear, &settings);
     }
 }
+
+#[test]
+fn camera_linear_tail_plan_keeps_prefix_immutable_and_geometry_editable() {
+    let (_, proxy, mut settings) = fixture(269, 19);
+    let snapshot = proxy.camera_linear_proxy().unwrap();
+    let tail = snapshot.resident_tail_plan(&settings).unwrap().unwrap();
+    assert!(tail.ca.is_none());
+    settings.geometry.crop.rect.right = 0.91;
+    settings.geometry.crop.angle = 4.;
+    let tail = snapshot.resident_tail_plan(&settings).unwrap().unwrap();
+    assert!(tail.ca.is_none());
+    assert!(tail.map.is_some());
+    settings.lens.chromatic_aberration_scale = 50.;
+    assert!(snapshot.resident_tail_plan(&settings).is_err());
+}
