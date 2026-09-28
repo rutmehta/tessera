@@ -18,6 +18,29 @@ fn tiny_jpeg(path: &Path) {
 }
 
 #[test]
+fn exhausted_develop_owner_ids_fail_closed_without_wrapping() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = dir.path().join("owner-id.jpg");
+    tiny_jpeg(&image);
+    let gate = gate_for(&image).unwrap();
+    gate.exhaust_owner_ids_for_test();
+    for _ in 0..2 {
+        let error = match gate.reserve_develop(&image, || Ok(())) {
+            Ok((lease, ())) => {
+                drop(lease);
+                panic!("exhausted owner ID unexpectedly reserved");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(error.to_string(), "Develop lease identifier exhausted");
+    }
+    assert!(
+        gate.begin_write().is_ok(),
+        "failed reservation must not retain ownership"
+    );
+}
+
+#[test]
 fn set_recipe_json_publishes_develop_settings_to_recipe_xmp_and_index() {
     let dir = tempfile::tempdir().unwrap();
     let photos = dir.path().join("photos");
