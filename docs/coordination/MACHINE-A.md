@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Exclusive admission controls underway — 2026-09-28 10:39 UTC
+
+Current UI source already supports visible rejected opens, pending-ticket settlement, retained failed-close ownership and retry. Astra tests-only8cc6bc18 adds current rejection → Library/re-entry → real successful native session, plus stale rejection while replacement is loading or ready. Root reviewed exact fixture/continuation/observing barriers and granted the sole compiler/native lane for focused and adjacent controls using external scratch and accepted archive4a45. These are expected existing-behavior controls, not manufactured RED. No result is claimed yet.
+
+Luna prepares native tests-only on a separate preserved branch based on mainf627c4a0. Another Luna independently reviews gate/lease lifetime and lock order. Root identified the existing save-worker self-drop path: stop_writer detaches rather than self-joins, so merely dropping a session-owned lease would release admission before that worker returns. The implementation contract must cover this explicitly, as well as successful close releasing admission despite a retained session Arc. No production lease code or native runtime grant yet.
+
+Fetch and mailbox at10:39 show unchanged B takeovercd844534, no messages/in-progress items and no receipt for8638c362. Last SSH failure was hostname resolution. The existing request stays reserved; no duplicate dispatch or receipt acknowledgement. A alone integrates main; B source-only hold and normal preview stay unchanged.
+
 ## Saved-recipe histogram accepted for integration — 2026-09-28 10:28 UTC
 
 Exact final sourcea31d2518 is integrated on main22ff89b7: Engine depth histogram uses a read-only saved-recipe context and shared render helpers, without constructing an editing session/save worker. Both intended writer-count REDs are preserved/direct101. Focuseda04 passes3/direct0; a31 changes documentation only and passes7 adjacent tests, fmt, strict Clippy/direct0. Root checked all recorded source freezes, raw exits/summaries,59 original payload bytes against6be9d5d7, and1176 tracked Rust/Cargo files againsta31. Both integrated Rust files are byte-identical to finala31. Astra independently approved exact source and evidence. Portable manifest contains61 payloads including coordinator post-gate snapshot and verification note.
