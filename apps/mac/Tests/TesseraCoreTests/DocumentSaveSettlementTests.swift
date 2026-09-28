@@ -11,6 +11,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         let d = try DocumentController(backend: StubDocumentBackend())
         w.saveHasWindow = { true }
         w.saveFileExists = { _ in false }
+        w.saveSheetDetachmentObserver = { _, detached in detached(); return {} }
         return (w, d)
     }
 
@@ -284,6 +285,65 @@ final class DocumentSaveSettlementTests: XCTestCase {
         w.saveAsPresentationDidDismiss(old)
         XCTAssertEqual(w.saveAsRequest?.id, next)
         w.cancelDocumentSave(next)
+    }
+
+    func testSwiftDismissWaitsForNativeDetachmentAndIgnoresDuplicates() throws {
+        let (w, d) = try fixture()
+        w.saveFileExists = { _ in true }
+        var detached: (@MainActor () -> Void)?
+        var removals = 0
+        w.saveSheetDetachmentObserver = { _, callback in detached = callback; return { removals += 1 } }
+        var prompts = 0
+        w.saveReplacePrompt = { _, _ in prompts += 1 }
+        let id = w.saveForPreparation(d, saveAs: true) { _ in }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(id))
+        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        XCTAssertNotNil(detached, "observe before triggering sheet dismissal")
+        w.saveAsPresentationDidDismiss(id)
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(removals, 0)
+        detached?(); detached?(); w.saveAsPresentationDidDismiss(id)
+        XCTAssertEqual(prompts, 1)
+        XCTAssertEqual(removals, 1)
+        w.cancelDocumentSave(id)
+    }
+
+    func testCancelWhileNativeSheetAttachedNeverAdvancesReplacement() throws {
+        let (w, d) = try fixture()
+        w.saveFileExists = { _ in true }
+        var detached: (@MainActor () -> Void)?
+        var removals = 0
+        w.saveSheetDetachmentObserver = { _, callback in detached = callback; return { removals += 1 } }
+        var prompts = 0
+        w.saveReplacePrompt = { _, _ in prompts += 1 }
+        var outcomes: [DocumentSaveOutcome] = []
+        let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(id))
+        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        w.saveAsPresentationDidDismiss(id)
+        w.cancelDocumentSave(id)
+        detached?(); detached?()
+        XCTAssertEqual(outcomes, [.cancelled])
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(removals, 1)
+    }
+
+    func testWindowLossRemovesNativeObserverAndStaleNotificationIsInert() throws {
+        let (w, d) = try fixture()
+        w.saveFileExists = { _ in true }
+        var detached: (@MainActor () -> Void)?
+        var removals = 0
+        w.saveSheetDetachmentObserver = { _, callback in detached = callback; return { removals += 1 } }
+        var outcomes: [DocumentSaveOutcome] = []
+        let id = w.saveForPreparation(d, saveAs: true) { outcomes.append($0) }
+        XCTAssertTrue(w.saveAsPresentationWillPresent(id))
+        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+        w.saveAsPresentationDidDismiss(id)
+        w.documentSaveWindowLost(id)
+        detached?()
+        XCTAssertEqual(outcomes, [.failed("Document window closed before save")])
+        XCTAssertEqual(removals, 1)
+        XCTAssertNil(w.saveAsPresentationID)
     }
 
 }
