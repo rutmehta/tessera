@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Active qualification follow-up — 2026-09-28 19:12 UTC
+
+The accepted desktop implementation remains main `89b78881` with full evidence `62e4ee5b`. Nine B Smart Preview result receipts are completed. Additional Git status `16770a81` is published; no new peer receipt or wakeup is claimed.
+
+GPU candidate remains feature-only and unaccepted. First Metal test01 and diagnostic06 each report8 pass/2 fail. Conditional identity-upright mapping removes an unnecessary coordinate conversion but does not fully resolve parity; Compact stage isolation points to upstream geometry rather than the display transform. FFI is preparing test-only exact-coordinate/sampler diagnostics with independent codec review; tolerances are unchanged. Original stays default.
+
+Isolated final08 GUI package and provenance are preserved in `d099e109`. First launch reached neither an observable UI nor Smart Preview interaction: native CUA timed out and owned-process sample waited inside macOS preferences file access. No permission cause is asserted without observation. The reviewer owns a single bounded local-profile retry using copied data; FFI has released runtime execution and performs source-only work during it. Other apps and user photos remain preserved. No packaged GUI or separate-process desktop acceptance yet.
+
 ## Smart Preview desktop implementation integrated — 2026-09-28 19:00 UTC
 
 Main `89b78881` integrates feature `c1f9d4e0`: Compact camera-linear previews, explicit proxy editing, offline cached Library, local edits/reopen/reconnect synchronization, and saved-edit proxy thumbnails with bounded retry. Original remains the default editing source and full-quality export uses the original. Main product/native/Cargo files exactly match the tested feature; newer coordination records and evidence are preserved.
