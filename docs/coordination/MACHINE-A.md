@@ -1,3 +1,9 @@
+## 2026-09-28 23:38 UTC — cache functional qualification verified
+
+Final cache `7faea4b8` passed strict/format, 22 pure tests, all eight explicit Engine groups and full native 443 passes/25 ignored/zero failures. Independent review verified 8,646 immutable Git inputs and all final freezes. Root verified 132 archived payload hashes; portable evidence is on main `84b5c271`. This does not qualify actual cache-hit frame fidelity, resource drainage, performance or binary/archive/Swift integration. Original failures remain in evidence.
+
+Inspector `c5f8bca7` now owns runtime: 42 mandatory focused tests passed, strict build active; independent provenance review precedes any actual GUI grant. FFI prepares the five-pair AB/BA/AB/BA/AB baseline/candidate plan source-only, with fixed thresholds before data. RAW `c595dad2` remains queued.
+
 ## 2026-09-28 23:34 UTC — corrected cache gates and queued inspector diagnostic
 
 Independent review verified all 8,646 source hashes for `7faea4b8`, passing strict/22 pure/eight Engine groups and unchanged fixture/runner freezes. Final native/format gates remain active; earlier format/strict failures are preserved. Cache remains unmerged and has no accepted performance claim.
