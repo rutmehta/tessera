@@ -36,3 +36,7 @@ Audited frozen feature source only; did not launch/query an app, read user prefe
 - The packaged Info.plist has an empty SUPublicEDKey. The startup updater guard (`TesseraApp.swift:81–99`) therefore does not construct the updater, despite the populated feed URL.
 
 Conclusion: the intended fixture edits and save/reopen evidence used the isolated profile. The brief automatic relaunch was an isolation exception, with default-path reads/writes not comprehensively measured. There is no support for a “no user-state changes” claim. No speculative cleanup was attempted. Future exit verification must use anchored process inspection only; further UI inspection requires a separately authorized launch with explicit isolation arguments.
+
+## Later source audit clarification
+
+OVERFLOW-CLOSE-SOURCE-AUDIT.md inspects exact f1089 source: overflow selection is synchronous on MainActor and Cmd-W resolves current at invocation. The earlier “async selection” explanation above was a hypothesis, not established implementation behavior. Observed prior-clean-document closure remains factual, but event ordering was not instrumented; this is not a proven product routing race. Future GUI checks must verify distinct selected document identity before Close, preserve Cancel behavior and gather action timestamps before attributing a rapid interaction defect.
