@@ -30,7 +30,7 @@ final class InspectorFocusTraceTests: XCTestCase {
     }
 
     private func input(_ code: UInt16 = 48) -> InspectorFocusTrace.Input {
-        .init(keyDown: true, keyCode: code, modifiers: 0, eventNumber: 1, timestamp: 1,
+        .init(keyDown: true, keyCode: code, modifiers: 0, timestamp: 1,
               document: true, ownedKeyWindow: true, blockedWindow: false, fullKeyboardAccess: true)
     }
 
@@ -224,5 +224,22 @@ final class InspectorFocusTraceTests: XCTestCase {
         XCTAssertTrue(String(decoding: sink.data, as: UTF8.self).contains("\"reentrantEventsSkipped\":1"))
         // A separate collector is unaffected by another collector's capture state.
         XCTAssertFalse(InspectorFocusTrace.route(trace, input: input(), capture: { .unknown }, handler: { false }))
+    }
+
+    func testNativeKeyEventBoundaryRoutesExcludedEventOnce() throws {
+        let sink = Sink(), trace = InspectorFocusTrace(sink: Sink())
+        let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: 1, windowNumber: 0, context: nil, characters: "\t", charactersIgnoringModifiers: "\t",
+            isARepeat: false, keyCode: 48))
+        var calls = 0
+        let recording = InspectorFocusTrace(sink: sink)
+        XCTAssertTrue(InspectorFocusTrace.routeEvent(recording, event: event, document: false, ownedWindow: nil) {
+            calls += 1; return true
+        })
+        XCTAssertFalse(InspectorFocusTrace.routeEvent(trace, event: event, document: true, ownedWindow: nil) {
+            calls += 1; return false
+        })
+        XCTAssertEqual(calls, 2)
+        XCTAssertTrue(sink.data.isEmpty)
     }
 }
