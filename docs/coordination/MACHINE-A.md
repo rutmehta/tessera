@@ -4,6 +4,55 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## PSD/Review integrated; recipe writer RED next — 2026-09-28 00:37 UTC
+
+Main7757f628 product bytes equal testeddc4073de; GUIevidence6bef18a merged
+mainc000a772. Native45/strict, Release509executed/1skip/0fail plus5SwiftTesting
+and tiny320x240 PSDcopy/reopen passed; JPEGsourcehash unchanged. Root verified
+rawlogs/sourcehashes/PSDheader/artifacthashes/signatures. Normal/diagnosticLibrary
+stub visibility checked without20k load; Release Debugmenu absent, not separately
+verified. No complexstackGUI, largefilecancel latency or broadperformance claim.
+
+Two pending B PSD receipts completed with evidence. Result628f798f sent through
+Git and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c accepted; existing B chat acknowledged
+receipt at cursor15 and is reconciling packages. B hold remains. Resource Sol holds compiler for reviewed78520df5 six
+recipe-write RED tests then narrow implementation; Luna validationapps closed.
+User65fa preview stays open untouched. DirectJSON InvalidTransition remains an
+unresolved diagnostic, documented separately; supported Develop regression passes.
+
+## PSD/Review full Release green; isolated GUI underway — 2026-09-28 00:28 UTC
+
+Product dc4073de/currentFFI0a9b: focused2/2, full509XCTest/1skip/0fail plus5
+SwiftTesting, directexit0. Root independently checked24 frozen source hashes and
+raw full log; native45/strict evidence retained. Three-line libraryRevision
+notification fixes deterministic stale Review after catalog pixel updates.
+Original Debug/Release failures, setup failures and behavioral RED preserved;
+directJSONrewrite InvalidTransition exception remains unexplained, separate from
+supported Develop-route regression. Portable evidence8ac2e1ae is docs-only.
+
+Luna now owns desktop/heavy slot for tiny PSD save/reopen and stub visibility;
+normal65fa userpreview stays untouched. Resource Sol performs source-only
+exception audit while recipe-write102bce66 waits RED slot. B hold stays; latest
+mailbox has no new messages and two PSD results remain accepted pending combined
+GUI acceptance. Peer cursor14 unchanged; no duplicate message queued.
+
+## Fixed preview open; PSD native resumed — 2026-09-27 23:39 UTC
+
+Source65fa6a33/currentFFI2f241fe7 passed504XCTest/1skip/0fail+5, directexit0.
+TinyJPEG actual export/reimport neutral controls/XMP passed; copiedSonyRAW
++0.10EV/5132K survived relaunch. Root independently verified archive and package
+hashes/signatures, logs, actual output image and source/output metadata. Current
+normal preview is open empty at betterSSD/tessera-validation/editing-export-preview/
+Tessera-Editing-Preview-65fa6a33.app, separate Tessera Editing Preview support,
+no test args; fixture app closed. Not fullproject/performance/broadcamera/macOS15
+acceptance. Portable evidence pending publication; report/manifest already local.
+
+B result45d3595b and SSHqueue01a0e53c-917e-76c2-b216-56ee3b2c0d3a published,
+peer receipt confirmed by existing-chat cursor14. Previous update confirmed peer cursor13. Engine Sol
+now runs exact5326f2f PSDnativegate, preserving firstfailure; resource Sol102bce66
+UX03 tests remain UNRUN waitingRED. Luna packages evidence and follows up visible
+Load20,000StubItems diagnostic affordance in ordinary emptyLibrary. Bhold remains.
+
 ## Export fix merged; current preview validation — 2026-09-27 23:19 UTC
 
 Main65fa6a33 integrates exact0473a87e/evidence79db6cfe. Root reviewed metadata

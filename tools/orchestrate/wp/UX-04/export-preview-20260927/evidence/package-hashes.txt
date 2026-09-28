@@ -1,0 +1,9 @@
+Untouched Swift-test executable (hash taken from the exact fresh-scratch executable packaged for GUI validation):
+0d856addedab2ef136119a2e13ed229e678398636c997a01e141a3637cf16e6d  /Volumes/betterSSD/tessera-cache/swift/editing-export-preview/arm64-apple-macosx/release/Tessera
+
+Validation signed app executable SHA-256: d89e12afd3fa5c9d61cb25335af5679e4a2b38426c3f877712563b68e9e248e1
+Validation signed app deterministic file-tree SHA-256: 896b26d011ac67a902e00340143ac7cf95e60e8a1565645cc2dea2957e4feed4
+User-facing signed app executable SHA-256: b88f8a4247a29d91e9d94e75689b88c2475fb5dd4d1df412365fdb9a8ebd6db6
+User-facing signed app deterministic file-tree SHA-256: cb1116e8d06cf6c87835dead757aa23b99b68c997a891b28e80ff09216d3a8d9
+
+Both apps passed `codesign --verify --deep --strict`. File-tree hash algorithm: sorted relative file paths, NUL, each file SHA-256, newline; symlinks hash the literal `symlink:<target>` string. Bundle binaries are deliberately not copied into this evidence checkpoint.

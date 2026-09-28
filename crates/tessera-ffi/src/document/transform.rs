@@ -1091,35 +1091,10 @@ impl DocumentSession {
     /// alternative to losing a nonlinear edit. The session document (path,
     /// dirty state, history) is unchanged.
     pub fn save_psd_rasterizing_transforms(&self, path: String) -> Result<()> {
-        let path = std::path::PathBuf::from(path);
-        if super::io::save_kind(&path)? == super::io::SaveKind::Native {
-            return Err(failure("the rasterized copy is a .psd or .psb file"));
+        match self.prepare_rasterized_psd_copy()?.run(path)? {
+            super::RasterizedPsdCopyOutcome::Saved => Ok(()),
+            super::RasterizedPsdCopyOutcome::Cancelled => Err(failure("rasterized copy cancelled")),
         }
-        let s = {
-            let st = self.shared.lock()?;
-            st.open()?;
-            st.doc.state().clone()
-        };
-        fn walk(v: &[Arc<Layer>], out: &mut Vec<u64>) {
-            for l in v {
-                match &l.kind {
-                    LayerKind::SmartObject(so) if so.filters.iter().any(|f| f.enabled) => {
-                        out.push(l.id.0)
-                    }
-                    LayerKind::Group { children, .. } => walk(children, out),
-                    _ => {}
-                }
-            }
-        }
-        let mut ids = Vec::new();
-        walk(&s.root, &mut ids);
-        let mut state = (*s).clone();
-        for id in ids {
-            let l = find(&s, id)?;
-            let raster = filtering::rasterize_smart_stack(&s, l)?;
-            state.layer_mut(LayerId(id), |x| x.kind = LayerKind::Pixel(raster));
-        }
-        super::io::save(&Document::new(state), &path)
     }
 }
 

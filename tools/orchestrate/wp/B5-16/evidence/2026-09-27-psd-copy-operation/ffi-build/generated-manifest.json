@@ -1,0 +1,18 @@
+{
+  "apps/mac/build/ffi/libtessera_ffi.a": {
+    "sha256": "0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae",
+    "bytes": 298267416
+  },
+  "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": {
+    "sha256": "71e2237cfbb132f2a01ecdd17b092a32fc03f2b4239ef116216824bf058f5361",
+    "bytes": 1134432
+  },
+  "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": {
+    "sha256": "e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703",
+    "bytes": 286699
+  },
+  "apps/mac/Sources/CTesseraFFI/module.modulemap": {
+    "sha256": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "bytes": 132
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bash",
+    "apps/mac/build-ffi.sh"
+  ],
+  "exit": 0,
+  "started_unix": 1790552574.843165,
+  "elapsed_seconds": 190.91526699066162,
+  "source_head": "1cbabc04bcaac941413966c96c8a1532269991a7",
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target/main"
+}

@@ -1,0 +1,20 @@
+[0/1] Planning build
+Building for debugging...
+[0/4] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.24s)
+Test Suite 'Selected tests' started at 2026-09-27 19:53:51.784.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 19:53:51.785.
+Test Suite 'AgentReviewLayoutTests' started at 2026-09-27 19:53:51.785.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' started.
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewLayoutTests.swift:69: error: -[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance] : XCTUnwrap failed: expected non-nil value of type "CGImageRef" - Real Review view must deliver its preview before capture
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' failed (34.404 seconds).
+Test Suite 'AgentReviewLayoutTests' failed at 2026-09-27 19:54:26.189.
+	 Executed 1 test, with 1 failure (0 unexpected) in 34.404 (34.404) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 19:54:26.189.
+	 Executed 1 test, with 1 failure (0 unexpected) in 34.404 (34.404) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 19:54:26.189.
+	 Executed 1 test, with 1 failure (0 unexpected) in 34.404 (34.405) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

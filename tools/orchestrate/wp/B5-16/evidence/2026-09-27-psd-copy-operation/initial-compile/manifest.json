@@ -1,0 +1,95 @@
+{
+  "head": "8898435db532d429c9152ada63881c4c315ad2af",
+  "base_main": "4f7813d2a7290e78bb47242125d951ac689c98ab",
+  "source_id": "2b66dc333783",
+  "files": {
+    "Cargo.lock": {
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": {
+      "sha256": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+      "bytes": 284339
+    },
+    "apps/mac/Sources/CTesseraFFI/module.modulemap": {
+      "sha256": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "bytes": 132
+    },
+    "apps/mac/Sources/Tessera/App/AppCommands.swift": {
+      "sha256": "35885bf42c043c0b921a4ce329b0b1633900bdef2ce3c394ff4e3e8529b8e106",
+      "bytes": 21295
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentController.swift": {
+      "sha256": "38071cf42ee950db5bbbd125b512ad85c8f3c47f301d8f5c3c72286191a8a72c",
+      "bytes": 19565
+    },
+    "apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift": {
+      "sha256": "939b7d693933efc33d4a43b053049f176e082f38b4872c740255c83b7a19ef22",
+      "bytes": 34281
+    },
+    "apps/mac/Sources/TesseraCore/Develop/BatchSettingsDraft.swift": {
+      "sha256": "78132e9e2b1e2abb6e8b5d6bd00ea1f4ed5dfd14a91878df7cf610374e9b6d99",
+      "bytes": 2933
+    },
+    "apps/mac/Sources/TesseraCore/Document/Transforms/DocumentTransformsBackend.swift": {
+      "sha256": "9ae403251a1e413fbfee14ae8e7790556b61aa63567f68c089283b80d9a649ba",
+      "bytes": 11885
+    },
+    "apps/mac/Sources/TesseraCore/Document/Transforms/RasterizedPSDCopyOperation.swift": {
+      "sha256": "9657c389300ff0e9522af100f387d35ca0b11ca0967bf8f5375e3a7b489b880f",
+      "bytes": 2138
+    },
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": {
+      "sha256": "0ece5bfe1e7ed612395296b17723e24accedf88079240bec9a1946d7c2fa3cc3",
+      "bytes": 1127461
+    },
+    "apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift": {
+      "sha256": "066161b9b46e9005723c0b2770f55afe5911b473976729292f96f6d619d4680f",
+      "bytes": 9282
+    },
+    "apps/mac/Tests/TesseraCoreTests/RasterizedPSDCopyTests.swift": {
+      "sha256": "bdfff3fd09f34745f09ba952d263526a3ee360bcaf8e763dafa93ea42addeda1",
+      "bytes": 4935
+    },
+    "crates/compositor/src/psd.rs": {
+      "sha256": "efac0d75459fb17e829d7d761d0640c5738973ca4a5b6d2c9ffd02e94e951547",
+      "bytes": 111848
+    },
+    "crates/tessera-ffi/src/document.rs": {
+      "sha256": "1f5710afcd26977e80c5258ecda2e88c994d89d29f71589edf4308a9ece89f93",
+      "bytes": 86672
+    },
+    "crates/tessera-ffi/src/document/filters.rs": {
+      "sha256": "d31b3825379f1ad331e84ab805df36793c745cb4ab93e55391a410c8cc69efca",
+      "bytes": 135808
+    },
+    "crates/tessera-ffi/src/document/io.rs": {
+      "sha256": "97c2194c213c219894a0ed0154de28774331f850cae7b4989df845c46fc18ee7",
+      "bytes": 30427
+    },
+    "crates/tessera-ffi/src/document/psd_copy.rs": {
+      "sha256": "2a76dfc549f8bce3420c9c4a0ff7c9d879cf505ff5429a506bb7836d77e51bc8",
+      "bytes": 19478
+    },
+    "crates/tessera-ffi/src/document/transform.rs": {
+      "sha256": "25083bc32e629752d1a874534f1a6ca3247ebde710c95e157efc97ee84ce3779",
+      "bytes": 43626
+    },
+    "crates/tessera-ffi/tests/document_transform_ui.rs": {
+      "sha256": "c094fc94fb7a6b6693131cb17c32c3bec8a99eb890e681341c0274d79547429a",
+      "bytes": 48751
+    },
+    "tools/orchestrate/wp/B5-16/LEGACY-EFFECT-TYPED-IMPLEMENTATION.md": {
+      "sha256": "3eae9082968357f35955413e663e15dbde2ebba118a1100bea09d18aa9bd7aec",
+      "bytes": 3089
+    },
+    "tools/orchestrate/wp/B5-16/PSD-COPY-ERROR-PRECEDENCE.md": {
+      "sha256": "b5b461db5b03281dcc75440ae119938e1ce10e5ef1ff863e709479fe4dcb4787",
+      "bytes": 3198
+    },
+    "tools/orchestrate/wp/B5-16/PSD-COPY-IMPLEMENTATION.md": {
+      "sha256": "a4a8e68ea5c9a8e0cb5fac151e3bfc7a0a5018a57d97ebb165e33d6c2a1e4335",
+      "bytes": 6540
+    }
+  }
+}

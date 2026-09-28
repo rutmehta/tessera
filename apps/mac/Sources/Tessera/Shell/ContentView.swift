@@ -606,8 +606,10 @@ struct EmptyStateView: View {
             Button("Open Folder…") { model.presentOpenPanel() }
                 .buttonStyle(.theme(.primary, height: Theme.Height.large))
                 .keyboardShortcut(.defaultAction)
-            Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
-                .buttonStyle(.theme(.bordered, height: Theme.Height.large))
+            if StubLibraryDiagnostics.isEnabled {
+                Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
+                    .buttonStyle(.theme(.bordered, height: Theme.Height.large))
+            }
         }
         .disabled(model.isLoading)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
