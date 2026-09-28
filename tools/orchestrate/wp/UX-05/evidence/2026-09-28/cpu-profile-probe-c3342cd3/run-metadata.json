@@ -1,0 +1,22 @@
+{
+  "cargo_target_dir": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "cargo_version": "cargo 1.98.1 (797e8a9bc 2026-08-05)\n",
+  "command": [
+    "cargo",
+    "test",
+    "--jobs",
+    "2",
+    "-p",
+    "image-core",
+    "--release",
+    "--test",
+    "pinned_raw_cpu_profile",
+    "--",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "head": "c3342cd3fc5a4e7fb550d108818d90dc8dfe6c3e",
+  "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+  "started_unix": 1790606364.068063,
+  "status_before": ""
+}

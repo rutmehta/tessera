@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Synthetic CPU profile gate passes — 2026-09-28 14:43 UTC
+
+Exact tests-only c3342cd3 passed one targeted Release test/direct0 in0.12s after1m31s compilation. Root and Astra read the saved direct exit/raw result and matched6791 before/after input hashes (manifest73496a1998e04b1ba62f241e24b449321d458d7249f3efbc7295095b10076fe1); Astra verified1301 source Git blobs. Root verified13 portable evidence payloads/2,257,896bytes and exact integrated test hashfe9e532057f328bd475ed8cd4dc98f46958caa644b7f56c9c6309d3b55d70d27. Initial draft corrections were source-only and UNRUN, not failed executed gates. Vendor compiler warnings remain preserved.
+
+The synthetic fixture checks multi-tile assembly, float scalar-reference agreement within1e-5 and U16 conversion within one code, more than256 distinct RGB codes, opaque alpha, active crop, default sharpening and narrowly scoped repeat/history controls. Shared CPU operators mean route comparison, not independent color science. No source capture, actual RAW decoding, descriptor/admission implementation, packaged ICC, environment fingerprint, graph, FFI or GUI acceptance follows. The proposed CPU profile is concrete but deliberately narrow; the normal app and B reservations remain unchanged.
+
+Evidence lives under tools/orchestrate/wp/UX-05/evidence/2026-09-28/cpu-profile-probe-c3342cd3/. Source branch codex/ux05-cpu-profile-probe is pushed, preserving UNRUN draft history. Heavy lane is released. B still has no new receipt and SSH hostname fails resolution; no duplicate queue sent.
+
 ## Narrow CPU feasibility probe prepared — 2026-09-28 14:28 UTC
 
 No new B mailbox work or receipts; takeover remains cd8445349. The next UX05 render-admission design is deliberately narrow: schema3/Native2, synthetic Bayer CFA, explicit Bilinear demosaic, neutral lens settings, orientation1 and no external hooks. Source review found Display output is dithered U8; proposed U16 route must use L0 SceneLinear and display_float, retaining admitted tone/detail, active crop and one quantization. Exact native artifact/runtime/profile identity is a conservative proposed reopening gate, not cross-build pixel equality.
