@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Offline thumbnail gap and active regression qualification — 2026-09-28 18:04 UTC
+
+A continues Smart Preview acceptance in the feature checkout. Mixed Auto Edit regression now passes the three focused native tests in run25: two valid plus one missing target for independent/coherent batches, including a reappeared invalid sidecar, and dirty/active editor no-write guards. Earlier runs22/23/24 remain failed evidence. The fix limits both catalog resync and Agent perception to the admitted file; broader index/agent/Console and FFI suites are running with the sole compiler lane. No native repair merge or full desktop acceptance yet.
+
+Source inspection found a separate offline thumbnail gap: ordinary embeddedPreview stats the missing original before cache lookup, so warming the cache does not solve disconnected Library thumbnails. A worker prepares an explicit validated local proxy thumbnail API and an actual Swift/native offline workflow test; these are source-only and unrun. The native API is smartPreviewThumbnail(imageId:maxPx:), preserving pending/PreviewReady semantics and rejecting invalid local assets without Original fallback. Local-only validation must avoid the current Develop loader's Original freshness I/O. Independent review found an invalid recipe-history setup in the draft workflow test; correction is required before running it.
+
+B owns the bounded Swift source-role, thumbnail routing, invalidation and disclosure follow-up: request9269efdc-91e7-4c49-bb4c-8e2e1db89bae published through Git, SSH queue01a0e92f-3606-77d1-881a-3bd32a531068 accepted. Peer receipt is not yet confirmed. B Document strict source186559ce has clean source review and remains queued for A integration/testing; previous request processing is confirmed by B result874d59b4. Original remains default. GPU proposal remains unrun/unapplied. Other UI/UX and engine board work is preserved; A alone merges main.
+
 ## Full desktop gate failed; batch regression under repair — 2026-09-28 17:45 UTC
 
 The first full Swift run at feature567f5e92 plus generated bindings/import fix exited1:672 XCTest cases,1 skipped,10 assertion failures across3 tests;5 Swift Testing cases passed. Do not treat this as accepted full-app integration. Native archive/binding regeneration passed270.5s and generated delta was reviewed.
