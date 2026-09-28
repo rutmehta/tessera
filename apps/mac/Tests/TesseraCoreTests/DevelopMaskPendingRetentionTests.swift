@@ -121,6 +121,76 @@ final class DevelopMaskPendingRetentionTests: XCTestCase {
         XCTAssertEqual(s.calls.count, 6)
     }
 
+    private func checkFollowOnLiveness(synchronousHandler: Bool) async throws {
+        let (c, s) = try fixture()
+        defer { s.before = nil; c.onNeedsFlush = nil }
+        c.pendingStroke = StrokeCoalescer(spacing: 0)
+        c.addBrushSample(x: 0, y: 0, pressure: 1)
+        c.setMaskComponent(1, 0, json: "0", interactive: true)
+        c.updateMaskGroup(1, patch(0), interactive: true)
+        c.setMaskParam(1, "exposure", 0, interactive: true)
+        if synchronousHandler { c.onNeedsFlush = { [weak c] in c?.flushMaskPending() } }
+        else { c.onNeedsFlush = nil }
+        var generations: [String: Int] = [:]
+        s.before = { operation in
+            let generation = generations[operation, default: 0] + 1
+            generations[operation] = generation
+            guard generation <= 2 else { return }
+            switch operation {
+            case "brush": c.addBrushSample(x: Double(generation), y: 0, pressure: 1)
+            case "component:1": c.setMaskComponent(1, 0, json: "new", interactive: true)
+            case "group:1": c.updateMaskGroup(1, self.patch(Float(generation)), interactive: true)
+            case "param:1:exposure": c.setMaskParam(1, "exposure", Double(generation), interactive: true)
+            default: XCTFail("Unexpected operation")
+            }
+        }
+        c.flushMaskPending()
+        let first = try XCTUnwrap(c.scheduledMaskFlushTask)
+        await first.value
+        // The second task may already have completed when this continuation runs.
+        if let second = c.scheduledMaskFlushTask { await second.value }
+        XCTAssertEqual(s.calls.count, 12)
+        XCTAssertEqual(s.acceptedBrushPoints, [0, 1, 2])
+        XCTAssertFalse(c.hasPendingMaskChanges)
+        XCTAssertNil(c.scheduledMaskFlushTask)
+    }
+
+    func testNilHandlerDrainsTwoReentrantGenerations() async throws {
+        try await checkFollowOnLiveness(synchronousHandler: false)
+    }
+
+    func testSynchronousHandlerDrainsTwoReentrantGenerations() async throws {
+        try await checkFollowOnLiveness(synchronousHandler: true)
+    }
+
+    func testExplicitRejectedFlushInvalidatesOlderQueuedDrain() async throws {
+        let (c, s) = try fixture()
+        defer { s.before = nil }
+        c.setMaskParam(1, "exposure", 0, interactive: true)
+        s.before = { _ in c.setMaskParam(1, "exposure", 1, interactive: true) }
+        c.flushMaskPending()
+        let obsolete = try XCTUnwrap(c.scheduledMaskFlushTask)
+        s.before = nil
+        s.reject = "param:1:exposure"
+        c.flushMaskPending() // Explicit consuming attempt must invalidate old task.
+        XCTAssertNil(c.scheduledMaskFlushTask)
+        await obsolete.value
+        XCTAssertEqual(s.calls.count, 2, "obsolete task must not retry a later rejection")
+        XCTAssertTrue(c.hasPendingMaskChanges)
+    }
+
+    func testFailedBatchDoesNotScheduleReentrantRetry() throws {
+        let (c, s) = try fixture()
+        defer { s.before = nil }
+        c.setMaskParam(1, "exposure", 0, interactive: true)
+        s.reject = "param:1:exposure"
+        s.before = { _ in c.setMaskParam(1, "exposure", 1, interactive: true) }
+        c.flushMaskPending()
+        XCTAssertNil(c.scheduledMaskFlushTask)
+        XCTAssertEqual(s.calls.count, 1)
+        XCTAssertEqual(c.pendingMaskParams[.init(group: 1, name: "exposure")], 1)
+    }
+
     func testBrushRejectionRetainsSamplesAndSuccessKeepsReentrantSample() throws {
         let (c, s) = try fixture()
         c.pendingStroke = StrokeCoalescer(spacing: 0)
