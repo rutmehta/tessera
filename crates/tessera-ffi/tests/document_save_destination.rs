@@ -1,5 +1,4 @@
 //! Checked Document Save As destination outcomes through the real session.
-//! SOURCE ONLY / UNRUN until the exclusive native compiler lane is released.
 #![cfg(target_os = "macos")]
 
 use std::sync::{Arc, Barrier};

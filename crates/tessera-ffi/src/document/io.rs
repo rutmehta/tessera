@@ -883,8 +883,6 @@ mod copy_transaction_tests {
     }
 }
 
-// SOURCE-ONLY TEST CHECKPOINT: the checked destination API and commit helpers
-// below are intentionally introduced by the subsequent production commit.
 #[cfg(test)]
 mod destination_commit_tests {
     use super::*;
@@ -993,7 +991,7 @@ mod destination_commit_tests {
         std::fs::create_dir(&folder).unwrap();
         let staged = stage_bytes(&folder, b"new").unwrap();
         let result = commit_staged(staged, &folder, CommitMode::CreateIfAbsent);
-        assert!(result.is_err() || result.unwrap() == DocumentSaveAsResult::DestinationExists);
+        assert_eq!(result.unwrap(), DocumentSaveAsResult::DestinationExists);
         assert!(folder.is_dir());
     }
 
