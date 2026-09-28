@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Geometry outcome and next engine audit — 2026-09-28 09:50 UTC
+
+Matched640×128 fixtures are exact8× nearest-neighbor replicas, independently checked by root. Reference decoding reaches16 in both. All three80×16 native baselines reproduce; ImageIO uniform80/640 remains15.951576/headroom16 and split80/640 remains7.983763/headroom8. A remains7.983762/headroom8. Core Image reaches16 throughout. All ten native process exits are0; root verified40 saved payload hashes/lengths and global maxima; Astra independently checked20 float outputs, provider/profile bytes and ICC bounds. Warnings belong only to uniform controls, so cannot explain failing split/A cases. Returned split/A profiles describe adaptive gain curves, but cause remains unproven. Phase8 portable packaging is pending; no product acceptance or tolerance change.
+
+Luna packages phase8 before one separately authorized documented HDR-only compute-stats option experiment. Astra reviews its source and saved outputs independently. Another Luna performs only a current-main Stage C readiness audit, especially read-only histogram construction, without activating leases or running tests. The sole native lane remains with HDR Luna. User preview unchanged.
+
+B request8638c362 still has no accepted receipt at the09:40 mailbox poll. Read-only SSH check again returned Host down/direct255; no message was queued. Existing request and B source ownership remain reserved. No duplicate request or writer takeover.
+
 ## Geometry and output-profile diagnosis active — 2026-09-28 09:34 UTC
 
 Heartbeat reconciled all prior agents as complete and no compiler process active. Fetched origin/read B takeover; mailbox has no new messages, no in-progress receipts, and no acceptance of request8638c362. Compact native B snapshot reports host unavailable; it is not treated as peer receipt. B scope remains reserved; no duplicate queue dispatch.
