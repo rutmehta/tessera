@@ -2416,6 +2416,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func detachSurfaces() 
     
     /**
+     * Lock-free invalidation identity for detail crops, including coalesced mask
+     * edits and AI rasters that change before their viewport callback arrives.
+     */
+    func detailRevision()  -> UInt64
+    
+    /**
      * Writes pending changes now and waits for the save to finish.
      */
     func flush() throws 
@@ -2552,6 +2558,11 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * `custom`. Not recorded in history until `commit`.
      */
     func setSettings(jsonPatch: String, interactive: Bool) throws 
+    
+    /**
+     * Like set_settings, carrying the causal host input through coalescing.
+     */
+    func setSettingsIdentified(jsonPatch: String, interactive: Bool, inputId: UInt64?) throws 
     
     /**
      * Names the current state (after committing pending changes).
@@ -2854,6 +2865,19 @@ open func detachSurfaces()  {try! rustCall() {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Lock-free invalidation identity for detail crops, including coalesced mask
+     * edits and AI rasters that change before their viewport callback arrives.
+     */
+open func detailRevision() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_detail_revision(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -3181,6 +3205,20 @@ open func setSettings(jsonPatch: String, interactive: Bool)throws   {try rustCal
             self.uniffiCloneHandle(),
         FfiConverterString.lower(jsonPatch),
         FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Like set_settings, carrying the causal host input through coalescing.
+     */
+open func setSettingsIdentified(jsonPatch: String, interactive: Bool, inputId: UInt64?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_settings_identified(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(jsonPatch),
+        FfiConverterBool.lower(interactive),
+        FfiConverterOptionUInt64.lower(inputId),uniffiCallStatus
     )
 }
 }
@@ -13554,6 +13592,10 @@ public func FfiConverterTypeDefectThreshold_lower(_ value: DefectThreshold) -> R
  */
 public struct DetailPreview: Equatable, Hashable {
     /**
+     * Engine state identity; validate again on the host immediately before display.
+     */
+    public var revision: UInt64
+    /**
      * Top-left of the crop in level-0 active-area pixels (sensor orientation).
      */
     public var x: UInt32
@@ -13568,11 +13610,15 @@ public struct DetailPreview: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
+         * Engine state identity; validate again on the host immediately before display.
+         */revision: UInt64, 
+        /**
          * Top-left of the crop in level-0 active-area pixels (sensor orientation).
          */x: UInt32, y: UInt32, 
         /**
          * Pixels written, anchored top-left in the surface.
          */width: UInt32, height: UInt32) {
+        self.revision = revision
         self.x = x
         self.y = y
         self.width = width
@@ -13595,6 +13641,7 @@ public struct FfiConverterTypeDetailPreview: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DetailPreview {
         return
             try DetailPreview(
+                revision: FfiConverterUInt64.read(from: &buf), 
                 x: FfiConverterUInt32.read(from: &buf), 
                 y: FfiConverterUInt32.read(from: &buf), 
                 width: FfiConverterUInt32.read(from: &buf), 
@@ -13603,6 +13650,7 @@ public struct FfiConverterTypeDetailPreview: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: DetailPreview, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.revision, into: &buf)
         FfiConverterUInt32.write(value.x, into: &buf)
         FfiConverterUInt32.write(value.y, into: &buf)
         FfiConverterUInt32.write(value.width, into: &buf)
@@ -15464,6 +15512,22 @@ public func FfiConverterTypeFolderHandle_lower(_ value: FolderHandle) -> RustBuf
 
 public struct FrameInfo: Equatable, Hashable {
     /**
+     * Identity supplied by the host, not the render generation.
+     */
+    public var inputId: UInt64?
+    /**
+     * Actual worker entry in CACurrentMediaTime's monotonic clock (macOS).
+     */
+    public var jobDequeuedTime: Double?
+    /**
+     * True only when render_surface_as actually produced this frame.
+     */
+    public var resident: Bool
+    /**
+     * Histogram for this exact frame; no synchronous host fetch is needed.
+     */
+    public var histogram: Histogram?
+    /**
      * Surface written, or 0 when no surface is attached.
      */
     public var surfaceId: UInt32
@@ -15507,6 +15571,18 @@ public struct FrameInfo: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
+         * Identity supplied by the host, not the render generation.
+         */inputId: UInt64?, 
+        /**
+         * Actual worker entry in CACurrentMediaTime's monotonic clock (macOS).
+         */jobDequeuedTime: Double?, 
+        /**
+         * True only when render_surface_as actually produced this frame.
+         */resident: Bool, 
+        /**
+         * Histogram for this exact frame; no synchronous host fetch is needed.
+         */histogram: Histogram?, 
+        /**
          * Surface written, or 0 when no surface is attached.
          */surfaceId: UInt32, level: UInt8, 
         /**
@@ -15533,6 +15609,10 @@ public struct FrameInfo: Equatable, Hashable {
          * The frame shows a diagnostic overlay (e.g. the sharpening mask), not
          * the developed image; it has no histogram of its own.
          */isOverlay: Bool) {
+        self.inputId = inputId
+        self.jobDequeuedTime = jobDequeuedTime
+        self.resident = resident
+        self.histogram = histogram
         self.surfaceId = surfaceId
         self.level = level
         self.width = width
@@ -15563,6 +15643,10 @@ public struct FfiConverterTypeFrameInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FrameInfo {
         return
             try FrameInfo(
+                inputId: FfiConverterOptionUInt64.read(from: &buf), 
+                jobDequeuedTime: FfiConverterOptionDouble.read(from: &buf), 
+                resident: FfiConverterBool.read(from: &buf), 
+                histogram: FfiConverterOptionTypeHistogram.read(from: &buf), 
                 surfaceId: FfiConverterUInt32.read(from: &buf), 
                 level: FfiConverterUInt8.read(from: &buf), 
                 width: FfiConverterUInt32.read(from: &buf), 
@@ -15579,6 +15663,10 @@ public struct FfiConverterTypeFrameInfo: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: FrameInfo, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt64.write(value.inputId, into: &buf)
+        FfiConverterOptionDouble.write(value.jobDequeuedTime, into: &buf)
+        FfiConverterBool.write(value.resident, into: &buf)
+        FfiConverterOptionTypeHistogram.write(value.histogram, into: &buf)
         FfiConverterUInt32.write(value.surfaceId, into: &buf)
         FfiConverterUInt8.write(value.level, into: &buf)
         FfiConverterUInt32.write(value.width, into: &buf)
@@ -30554,6 +30642,30 @@ fileprivate struct FfiConverterOptionTypeDocRect: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHistogram: FfiConverterRustBuffer {
+    typealias SwiftType = Histogram?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHistogram.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHistogram.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMaskRect: FfiConverterRustBuffer {
     typealias SwiftType = MaskRect?
 
@@ -33710,6 +33822,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces() != 32727) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_detail_revision() != 38148) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_flush() != 25039) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -33786,6 +33901,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_settings() != 54630) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_settings_identified() != 21088) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_snapshot() != 45257) {

@@ -30,6 +30,9 @@ private struct DevelopSettingsEncodingError: LocalizedError {
 
 /// One finished level of an engine render, written into an attached IOSurface.
 public struct DevelopFrame: Sendable, Equatable {
+
+    public let inputID: UInt64?
+    public let resident: Bool
     public let surfaceID: UInt32
     public let level: Int
     /// Valid region, anchored top-left in the surface (sensor orientation).
@@ -47,6 +50,7 @@ public struct DevelopFrame: Sendable, Equatable {
     public let isOverlay: Bool
 
     init(_ f: FrameInfo) {
+        inputID = f.inputId; resident = f.resident
         surfaceID = f.surfaceId; level = Int(f.level); width = Int(f.width); height = Int(f.height)
         firstLevel = Int(f.firstLevel); isFinal = f.isFinal; renderMs = f.renderMs
         generation = f.generation; dirtyStage = f.dirtyStage
@@ -98,6 +102,13 @@ public final class DevelopController {
     public let info: DevelopInfo
     public private(set) var history: HistoryState
     public private(set) var lastFrame: DevelopFrame?
+    private var currentSurfaceLease: DevelopSurfaceLease?
+    /// The presenter retains this through command completion. Frame metadata alone
+    /// deliberately does not lease a slot (diagnostics may retain many frames).
+    public func surfaceLease(_ id: UInt32) -> DevelopSurfaceLease? {
+        guard let lease = currentSurfaceLease, IOSurfaceGetID(lease.surface) == id else { return nil }
+        return lease
+    }
     public private(set) var histogram: Histogram?
     public private(set) var plan: SurfacePlan?
     /// Settings not drawn by this pipeline version (kept in the recipe), as JSON pointers
@@ -119,6 +130,8 @@ public final class DevelopController {
     public var onSettingsReloaded: (() -> Void)?
 
     private var settings: [String: Any] = [:]
+    /// Local settings identity, including reloads, independent of viewport generations.
+    public private(set) var settingsRevision: UInt64 = 0
     private var pending: [String: Any] = [:]
     private var pendingInteractive = false
     private var settingsFlushInFlight = false
@@ -297,7 +310,8 @@ public final class DevelopController {
         let float = presentation.floatSurfaces
         if next == plan, !surfaces.isEmpty, float == surfacesAreFloat { return next }
         var created: [UInt32: IOSurfaceRef] = [:]
-        for _ in 0..<max(count, 1) {
+        // One displayed lease plus one writable slot is the minimum live ring.
+        for _ in 0..<max(count, 2) {
             let s = float
                 ? Self.makeSurface(width: Int(next.width), height: Int(next.height), bytesPerElement: 8,
                                    pixelFormat: Self.floatSurfacePixelFormat)
@@ -434,6 +448,7 @@ public final class DevelopController {
         PerformanceTrace.shared.record("input", session: timingSession, input: timingInput, backend: info.backend)
         pending = Self.merge(pending, patch, keepNulls: true)
         settings = Self.merge(settings, patch, keepNulls: false)
+        settingsRevision &+= 1
         pendingInteractive = interactive
         if interactive, let onNeedsFlush { onNeedsFlush() } else { _ = flushPending() }
         if patch["output"] != nil { syncPresentation() }
@@ -486,6 +501,8 @@ public final class DevelopController {
     /// White balance back to the camera's as-shot values.
     public func setAsShotWhiteBalance() {
         guard admitsMutation() else { return }
+        timingInput &+= 1
+        PerformanceTrace.shared.record("input", session: timingSession, input: timingInput, backend: info.backend)
         pending["white_balance"] = ["mode": "as_shot"]
         pendingInteractive = false
         _ = flushPending()
@@ -527,7 +544,7 @@ public final class DevelopController {
         var accepted = false
         var failure: Error?
         do {
-            try session.setSettings(jsonPatch: json, interactive: interactive)
+            try session.setSettingsIdentified(jsonPatch: json, interactive: interactive, inputId: timingInput)
             accepted = true
         } catch {
             failure = error
@@ -680,6 +697,7 @@ public final class DevelopController {
     private func reloadSettings() throws {
         let json = try session.getSettingsJson()
         settings = (try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]) ?? [:]
+        settingsRevision &+= 1
         ignoredSettings = (try? session.ignoredSettings()) ?? []
         refreshHistory()
         syncPresentation()
@@ -692,7 +710,7 @@ public final class DevelopController {
 
     // MARK: Engine callbacks (main actor)
 
-    fileprivate func didRender(_ info: FrameInfo) {
+    fileprivate func didRender(_ info: FrameInfo, lease: DevelopSurfaceLease?) {
         let span = PerformanceTrace.shared.begin("callback_drain", session: timingSession)
         defer { PerformanceTrace.shared.end(span) }
         PerformanceTrace.shared.record("callback_drain", session: timingSession, generation: info.generation,
@@ -700,8 +718,10 @@ public final class DevelopController {
                                        backend: self.info.backend, engineSinkMs: info.renderMs)
         guard !closed else { return }
         let frame = DevelopFrame(info)
+        guard lastFrame.map({ $0.generation <= frame.generation }) ?? true else { return }
+        currentSurfaceLease = lease
         lastFrame = frame
-        histogram = try? session.getHistogram()
+        if let bins = info.histogram, bins.generation == info.generation { histogram = bins }
         onFrame?(frame)
     }
 
@@ -714,14 +734,30 @@ public final class DevelopController {
 
     /// Forwards engine worker-thread callbacks to the main actor. Holds its owner weakly.
     private final class Events: DevelopListener, MaskListener, @unchecked Sendable {
+        struct Delivery: Sendable {
+            let frame: FrameInfo
+            let lease: DevelopSurfaceLease?
+        }
+        let mailbox = LatestFrameMailbox<Delivery>()
         let timingSession: String
         init(session: String) { timingSession = session }
         @MainActor weak var owner: DevelopController?
         func frameReady(frame: FrameInfo) {
-            PerformanceTrace.shared.record("callback_enqueue", session: timingSession, generation: frame.generation,
+            let residency = frame.resident ? "resident" : "fallback"
+            if let time = frame.jobDequeuedTime {
+                PerformanceTrace.shared.record("job_dequeue", session: timingSession, input: frame.inputId,
+                                               generation: frame.generation, level: Int(frame.level), residency: residency, time: time)
+            }
+            PerformanceTrace.shared.record("callback_enqueue", session: timingSession, input: frame.inputId, generation: frame.generation,
                                            width: Int(frame.width), height: Int(frame.height), level: Int(frame.level),
-                                           engineSinkMs: frame.renderMs)
-            DispatchQueue.main.async { MainActor.assumeIsolated { self.owner?.didRender(frame) } }
+                                           residency: residency, engineSinkMs: frame.renderMs)
+            let delivery = Delivery(frame: frame, lease: DevelopSurfaceLease(id: frame.surfaceId))
+            guard mailbox.offer(delivery, sequence: frame.generation) else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    if let newest = self.mailbox.take() { self.owner?.didRender(newest.frame, lease: newest.lease) }
+                }
+            }
         }
         func renderFailed(message: String) {
             DispatchQueue.main.async { MainActor.assumeIsolated { self.owner?.didFail(message) } }

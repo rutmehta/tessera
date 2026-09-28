@@ -2,6 +2,7 @@ import CoreGraphics
 import CoreVideo
 import IOSurface
 import Metal
+import TesseraCore
 
 /// What the loupe presents: an IOSurface plus how to map it to the screen.
 ///
@@ -12,6 +13,7 @@ import Metal
 /// JPEGs), a CGImage (embedded preview) is colour-converted into a half-float surface in the
 /// screen's working space.
 struct LoupeFrame: @unchecked Sendable {
+    let surfaceLease: DevelopSurfaceLease?
     let surface: IOSurfaceRef
     /// Surface size in texels (sensor orientation for engine frames).
     let width: Int
@@ -34,7 +36,8 @@ struct LoupeFrame: @unchecked Sendable {
     /// Engine frame: RGBA8 sRGB-encoded, sampled through `.rgba8Unorm_srgb` as linear sRGB; or
     /// (`'RGhA'` surfaces) RGBA16F linear extended sRGB sampled as `.rgba16Float`.
     init(engineSurface surface: IOSurfaceRef, contentWidth: Int, contentHeight: Int,
-         fullWidth: Int? = nil, fullHeight: Int? = nil, orientation: Int) {
+         fullWidth: Int? = nil, fullHeight: Int? = nil, orientation: Int, lease: DevelopSurfaceLease? = nil) {
+        surfaceLease = lease
         self.surface = surface
         width = IOSurfaceGetWidth(surface)
         height = IOSurfaceGetHeight(surface)
@@ -52,6 +55,7 @@ struct LoupeFrame: @unchecked Sendable {
     var isEDR: Bool { isEngineFrame && pixelFormat == .rgba16Float }
 
     private init(rasterized surface: IOSurfaceRef, colorSpace: CGColorSpace) {
+        surfaceLease = nil
         self.surface = surface
         width = IOSurfaceGetWidth(surface)
         height = IOSurfaceGetHeight(surface)

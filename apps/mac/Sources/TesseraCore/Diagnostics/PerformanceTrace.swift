@@ -2,7 +2,7 @@ import Foundation
 import QuartzCore
 
 /// Opt-in, bounded in-memory audit trace. No per-frame disk writes or logging in normal use.
-/// Input sequence and engine generation are deliberately distinct: today's FFI cannot join them.
+/// Input sequence and engine generation are distinct and joined by the engine callback.
 public final class PerformanceTrace: @unchecked Sendable {
     public struct Event: Codable, Sendable {
         public let name: String
@@ -50,12 +50,12 @@ public final class PerformanceTrace: @unchecked Sendable {
 
     public func record(_ name: String, session: String? = nil, input: UInt64? = nil,
                        generation: UInt64? = nil, width: Int? = nil, height: Int? = nil,
-                       level: Int? = nil, backend: String? = nil, span: String? = nil,
+                       level: Int? = nil, backend: String? = nil, residency: String = "unavailable", span: String? = nil,
                        durationMs: Double? = nil, engineSinkMs: Double? = nil, time: Double? = nil) {
         guard enabled else { return }
         let event = Event(name: name, time: time ?? CACurrentMediaTime(), mainThread: Thread.isMainThread,
                           session: session, input: input, generation: generation, width: width, height: height,
-                          level: level, backend: backend, residency: "unavailable", span: span,
+                          level: level, backend: backend, residency: residency, span: span,
                           durationMs: durationMs, engineSinkMs: engineSinkMs)
         lock.lock()
         defer { lock.unlock() }
@@ -92,6 +92,8 @@ public final class PerformanceTrace: @unchecked Sendable {
 
 /// Known callback identity, carried unchanged into drawable submission and actual presentation.
 public struct FrameTiming: Sendable {
+    public let input: UInt64?
+    public let residency: String
     public let session: String
     public let generation: UInt64
     public let width: Int
@@ -99,13 +101,15 @@ public struct FrameTiming: Sendable {
     public let level: Int
     public let backend: String
 
-    public init(session: String, generation: UInt64, width: Int, height: Int, level: Int, backend: String) {
+    public init(session: String, generation: UInt64, width: Int, height: Int, level: Int, backend: String,
+                input: UInt64? = nil, residency: String = "unavailable") {
+        self.input = input; self.residency = residency
         self.session = session; self.generation = generation
         self.width = width; self.height = height; self.level = level; self.backend = backend
     }
 
     public func record(_ name: String, time: Double? = nil) {
-        PerformanceTrace.shared.record(name, session: session, generation: generation, width: width,
-                                       height: height, level: level, backend: backend, time: time)
+        PerformanceTrace.shared.record(name, session: session, input: input, generation: generation, width: width,
+                                       height: height, level: level, backend: backend, residency: residency, time: time)
     }
 }

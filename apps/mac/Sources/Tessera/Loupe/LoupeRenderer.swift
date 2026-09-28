@@ -276,6 +276,9 @@ final class LoupeRenderer: @unchecked Sendable {
             timing.record("drawable_submission")
         }
         cmd.present(drawable)
+        if let lease = frame?.surfaceLease {
+            cmd.addCompletedHandler { _ in withExtendedLifetime(lease) {} }
+        }
         cmd.commit()
         return CACurrentMediaTime() - t0
     }

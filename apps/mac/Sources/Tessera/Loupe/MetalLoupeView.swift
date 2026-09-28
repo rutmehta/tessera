@@ -293,9 +293,10 @@ final class MetalLoupeView: NSView {
         guard controller === develop, let surface = controller.surface(f.surfaceID) else { return }
         present(frame: LoupeFrame(engineSurface: surface, contentWidth: f.width, contentHeight: f.height,
                                   fullWidth: f.displayWidth, fullHeight: f.displayHeight,
-                                  orientation: Int(controller.info.orientation)),
+                                  orientation: Int(controller.info.orientation), lease: controller.surfaceLease(f.surfaceID)),
                 timing: FrameTiming(session: controller.timingSession, generation: f.generation,
-                                    width: f.width, height: f.height, level: f.level, backend: controller.info.backend))
+                                    width: f.width, height: f.height, level: f.level, backend: controller.info.backend,
+                                    input: f.inputID, residency: f.resident ? "resident" : "fallback"))
         toolOverlay.frameDidArrive()
         // A crop (or its undo) changes the picture's aspect: re-plan the surface level.
         let shape = (f.displayWidth, f.displayHeight)
