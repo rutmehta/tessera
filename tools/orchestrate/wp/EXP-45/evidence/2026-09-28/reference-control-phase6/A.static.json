@@ -1,0 +1,15 @@
+{
+  "name": "A",
+  "source_sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+  "copy_sha256": "449195f44b39de0aa3e68bc7fa009a55ea98e3e9cf86016f5bbd59c0c7a23f28",
+  "file_length": 1956,
+  "mpf_aux_offset_and_size": [
+    1436,
+    520
+  ],
+  "outside_segment_pair_equal": true,
+  "segment_contents_reused_whole": true,
+  "iso_segment_equal": true,
+  "icc_equal": true,
+  "compressed_suffix_equal": true
+}

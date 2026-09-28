@@ -1,0 +1,15 @@
+{
+  "name": "Google255",
+  "source_sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+  "copy_sha256": "1677ad705596932cf4e5c27ef4eac010aaaf6eb2f2012a79744277d762fbe4b7",
+  "file_length": 1918,
+  "mpf_aux_offset_and_size": [
+    1478,
+    440
+  ],
+  "outside_segment_pair_equal": true,
+  "segment_contents_reused_whole": true,
+  "iso_segment_equal": true,
+  "icc_equal": true,
+  "compressed_suffix_equal": true
+}
