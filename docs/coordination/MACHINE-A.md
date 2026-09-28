@@ -1,3 +1,9 @@
+## Inspector fixture correction pending; proxy baseline active
+
+Second inspector gatecd0b850d failed66/3 only in actualInspector preference test: zero host bounds clamp History to0; otherfiveHistory/allkeyboard pass. Source diagnosis requests explicit host size and asserted bounds/enabled state, without weakening existing checks. Requesta9f170bf published, SSHqueue01a0ea02 accepted; peer receipt pending. Evidence main56dd677e preserves directfailure/freeze; no product/GUI acceptance.
+
+Storage released runtime. FFI now owns baselinec77e0543 compiler/GPU qualification with source/fixture/threshold/env freezes. Fouractualauto/CPU SDR/EDR processes planned, no cacheimplementation or performanceclaim. Closed decoder95bfadcf and capture1b073b0c remain acceptedmain.
+
 ## Closed captured CFA decoder integrated
 
 Main95bfadcf integrates32d792c2 after independent8627Git-input and5fixture verification. Actual Sony/Fuji/Nikon/Canon/DNG decode passes after replacing only copied originals; owned sample/metadata survives stage/native cleanup.11 ordinary adapter tests,2 explicit actual cases, full71ordinary/2opt-ins separately executed,strict/fmt passed. Root exactfivefile/dependency comparison and portable manifest verification recorded. No rendering/recipe/FFI caller or native-memory bound claim.
