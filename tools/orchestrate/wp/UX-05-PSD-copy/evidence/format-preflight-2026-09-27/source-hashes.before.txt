@@ -1,0 +1,2 @@
+7c0d48db979559b16885f51523f29b72b8a0ba10e3e7af40d51a62c4b40ae329  crates/compositor/src/format.rs
+46e1d63a4016f1782a6634a71e0040af5dfd9f22871beec5492a8c34f64b2c91  crates/compositor/tests/roundtrip.rs

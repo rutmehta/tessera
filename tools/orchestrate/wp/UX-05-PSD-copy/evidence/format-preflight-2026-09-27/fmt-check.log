@@ -1,0 +1,20 @@
+Diff in /Users/rutmehta/.codex/worktrees/review-ownership/tessera/crates/compositor/tests/roundtrip.rs:235:
+     let bytes = format::to_bytes(rich_doc().state()).unwrap();
+     let future = rewrite_manifest(&bytes, |manifest| {
+         manifest["version"] = serde_json::json!(format::FORMAT_VERSION + 1);
+-        manifest["document"]["layers"][0]["kind"]["type"] =
+-            serde_json::json!("future_layer_kind");
++        manifest["document"]["layers"][0]["kind"]["type"] = serde_json::json!("future_layer_kind");
+     });
+ 
+     assert_eq!(
+Diff in /Users/rutmehta/.codex/worktrees/review-ownership/tessera/crates/compositor/tests/roundtrip.rs:253:
+ fn current_native_version_still_rejects_unknown_layer_kind_as_decode_error() {
+     let bytes = format::to_bytes(rich_doc().state()).unwrap();
+     let malformed = rewrite_manifest(&bytes, |manifest| {
+-        manifest["document"]["layers"][0]["kind"]["type"] =
+-            serde_json::json!("future_layer_kind");
++        manifest["document"]["layers"][0]["kind"]["type"] = serde_json::json!("future_layer_kind");
+     });
+ 
+     assert!(matches!(
