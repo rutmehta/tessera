@@ -46,8 +46,8 @@ File: new crates/tessera-ffi/src/smart_preview_store.rs; integrate module only a
 Files: new bounded codec/store module near image-core or previews, image-core/src/source.rs, render.rs, rgb_render.rs and resident routing guards; Cargo only when codec needs it.
 
 - [x] Persist the qualified Task 1 source, including validated camera/prefix data and exact source/payload identities; use a measured compressed representation without clipping HDR or negative values.
-- [ ] Add explicit camera-linear accessor/source-kind and source-discriminated memo keys. Route all CPU/M2 entry points consistently; deny unsupported resident/export routes.
-- [ ] Round-trip pixels/calibration/prefix; reject corrupt/oversize input before allocation; test original/proxy cache-switch isolation.
+- [x] Add explicit camera-linear accessor/source-kind and source-discriminated memo keys. Route all CPU/M2 entry points consistently; deny unsupported resident/export routes.
+- [x] Round-trip pixels/calibration/prefix; reject corrupt/oversize input before allocation; test original/proxy cache-switch isolation.
 
 ## Task 4 — owner admission, build/open/save/reconnect
 

@@ -1,5 +1,17 @@
 # Tessera task board — Machine A coordinator
 
+## Active Smart Preview tasks — 2026-09-28 16:34 UTC
+
+| Task | Owner | Verified state | Next action |
+| --- | --- | --- | --- |
+| Persistent codec + journal | A | Integrated main2db82c7f; evidence46469b08. Codec159pass/2ignored; final journal13pass; earlier fullFFI156 separately scoped. | Retain original identity and exact recipe safety through callers. |
+| Image-core render routing | A | Integrated merge before6c20bed5, exact6c057641. Full94pass/2ignored, focused7pass, strict/fmt0;6935 frozen Git blobs independently verified; review clean. | Measure matched-output original/proxy CPU and explicit original Metal route. |
+| Offline editor + reconnect | A FFI implementer/reviewer | Source patch NOT integrated. Review found four issues: XMP directory durability, post-ack intent cleanup, unknown nested array preservation, remaining writer admission. | Fix and rereview, then actual offline-session/reconnect/export tests. |
+| Compact proxy tier | A independent source worker | Source preparation only. Existing2560 tier Sony proxy16.63MB≈original16.65MB; no useful saving. | Explicit2048 tier, compatible version validation; measure size/fidelity, no silent precision change. |
+| Library/Develop controls | B existing desktop writer | Original requestd7764a2f accepted; follow-upcd101ed1 queued01a0e8d5 and peer commentary confirms processing, receipt pending. Tests UNRUN. | B source handoff; A native bindings/tests. Expensive status reads off UI thread; offline thumbnails visibly stale. |
+| Complete product acceptance | A | NOT ACCEPTED. No interactive speedup, offline end-to-end or GUI acceptance. | Finish above, original hashes, full-quality original export and failure paths; resolve existing protected macOS dialog only through allowed user action. |
+
+
 ## Smart Preview codec and journal accepted — 2026-09-28 16:26 UTC
 
 Main 2db82c7f integrates reviewed codec61e4f4f5 and journal/admission1fd63563. Codec full Release159 passed/2ignored, strict/fmt0; root verified6933 immutable source hashes. Journal final helper13 Release passed/strict/fmt0; earlier full156 FFI belongs3cff7441. Portable evidence is under tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/storage-1fd63563 and codec-61e4f4f5, with preserved failed attempts.

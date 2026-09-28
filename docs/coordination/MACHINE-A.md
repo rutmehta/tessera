@@ -1,5 +1,7 @@
 # Machine A recovery status
 
+Image-core exact6c057641 is integrated with evidence6c20bed5:94 Release tests passed/2ignored, strict/fmt0 and6935 verified source hashes. Current compiler lane belongs to codec agent for matched-output Sony timing harness. FFI source fixes and Compact tier preparation remain parallel source-only. B follow-upcd101ed1 queue01a0e8d5 has actual peer processing commentary, not yet completed work. Full Smart Preview product remains unaccepted.
+
 ## Smart Preview codec and journal accepted — 2026-09-28 16:26 UTC
 
 Main 2db82c7f integrates reviewed codec61e4f4f5 and journal/admission1fd63563. Codec full Release159 passed/2ignored, strict/fmt0; root verified6933 immutable source hashes. Journal final helper13 Release passed/strict/fmt0; earlier full156 FFI belongs3cff7441. Portable evidence is under tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/storage-1fd63563 and codec-61e4f4f5, with preserved failed attempts.
