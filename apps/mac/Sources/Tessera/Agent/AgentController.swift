@@ -430,6 +430,8 @@ final class AgentController {
             // The captured owner can finish offscreen, but all of its prior
             // Develop saves must land before the agent reads the recipes.
             guard await closeBarrier.result().isSaved, self.runID == job else {
+                closeBarrier.finish()
+                gateFinished = true
                 if self.runID == job {
                     self.progress = nil
                     self.cancelFlag = nil
@@ -595,12 +597,16 @@ final class AgentController {
             var gateFinished = false
             defer { if !gateFinished { closeBarrier.finish() } }
             guard await closeBarrier.result().isSaved else {
+                closeBarrier.finish()
+                gateFinished = true
                 self.finishMutation(imageID)
                 completion(false)
                 if app.engineLibrary === lib { app.statusMessage = "Finish saving the photo before accepting" }
                 return
             }
             guard self.currentItem(for: target) != nil else {
+                closeBarrier.finish()
+                gateFinished = true
                 self.finishMutation(imageID)
                 completion(false)
                 return
@@ -642,11 +648,18 @@ final class AgentController {
             var gateFinished = false
             defer { if !gateFinished { closeBarrier.finish() } }
             guard await closeBarrier.result().isSaved else {
+                closeBarrier.finish()
+                gateFinished = true
                 self.finishMutation(imageID)
                 if app.engineLibrary === lib { app.statusMessage = "Finish saving the photo before reverting" }
                 return
             }
-            guard self.currentItem(for: target) != nil else { self.finishMutation(imageID); return }
+            guard self.currentItem(for: target) != nil else {
+                closeBarrier.finish()
+                gateFinished = true
+                self.finishMutation(imageID)
+                return
+            }
             let result = await Task.detached { Result { try lib.engine.revertAgentEdit(imageId: imageID, groupId: group) } }.value
             closeBarrier.finish()
             gateFinished = true
