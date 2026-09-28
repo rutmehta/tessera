@@ -25,6 +25,11 @@ pub fn render_linear_scaled_with_profile(
     scale: u32,
     profile: Option<&DcpProfile>,
 ) -> EngineResult<Image> {
+    if matches!(source, RenderSource::CameraLinear(_)) {
+        return Err(EngineError::Unsupported {
+            what: "Adobe rendering: original required; camera-linear Smart Previews use Native revision 2".into(),
+        });
+    }
     if profile.is_some() && matches!(source, RenderSource::Rgb(_)) {
         return Err(EngineError::invalid(
             "DCP profile",

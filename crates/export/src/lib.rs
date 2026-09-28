@@ -307,6 +307,7 @@ pub fn render_pixels(
     cancel: &CancellationToken,
     segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
 ) -> EngineResult<image::Rgb32FImage> {
+    require_full_quality_source(&image.source)?;
     cancel.check()?;
     recipe.validate()?;
     if !matches!(render.scale, 1 | 2 | 4 | 8) {
@@ -339,10 +340,27 @@ pub fn color_space_icc(space: ColorSpace) -> EngineResult<Vec<u8>> {
     Ok(codec::profile(&mut registry, space)?.icc_bytes().to_vec())
 }
 
+/// All full-quality export entry points must admit the original source before
+/// backend/model work or output publication. Preview size is never export quality.
+fn require_full_quality_source(source: &RenderSource<'_>) -> EngineResult<()> {
+    if matches!(source, RenderSource::CameraLinear(_)) {
+        return Err(original_required());
+    }
+    Ok(())
+}
+
+fn original_required() -> EngineError {
+    EngineError::Unsupported {
+        what: "full-quality export: original required; Smart Preview pixels cannot be exported"
+            .into(),
+    }
+}
+
 fn source_orientation(source: &RenderSource<'_>) -> u16 {
     match source {
         RenderSource::Cfa { metadata, .. } => metadata.orientation,
         RenderSource::Rgb(_) => 1,
+        RenderSource::CameraLinear(proxy) => proxy.original_metadata().orientation,
     }
 }
 
@@ -483,6 +501,7 @@ pub fn render_one_cancellable(
     upscale: Option<&mut ml_enhance::SuperResolution>,
     segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
 ) -> EngineResult<RenderedExport> {
+    require_full_quality_source(&image.source)?;
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
