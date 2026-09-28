@@ -1,6 +1,6 @@
 # Develop admission error controls
 
-Status: tests-only, UNRUN. Base `f627c4a071b7e4a35c2a114917cb726ab793d458`, branch `codex/develop-admission-error-tests`. No native lease implementation or Swift product changes are included. These controls are expected to pass if current AppModel behavior is correct; no artificial RED or production mutation is proposed.
+Status: tests-only controls passed at `8cc6bc18068f54843d4445e2d0549909623e51aa`: focused 2/direct 0 and adjacent 34/direct 0 (including the same two). Portable evidence is `evidence/develop-admission-errors-2026-09-28/`. Base `f627c4a071b7e4a35c2a114917cb726ab793d458`, branch `codex/develop-admission-error-tests`. No native lease implementation or Swift product changes are included. These controls are expected to pass if current AppModel behavior is correct; no artificial RED or production mutation is proposed.
 
 Independent current-source audit is `/tmp/tessera-stagec-ui-readiness-20260928.md`. Accepted recovery (`2760ebeb`) and retry-status (`291857e1`) already cover failed close, retained owner/controller, Retry/Keep Editing, navigation and window blocking, and successful reopen. These new cases cover the distinct native open rejection that exclusive editor leases will make an expected outcome.
 
@@ -16,6 +16,6 @@ The only helper change adds a throwing-resume method to the existing checked-con
 
 ## Validation boundary
 
-No compiler/runtime has been invoked for this checkpoint. Root must review the exact test fixture and checkpoint before granting a serial runtime lane. Future Swift validation must use an external BetterSSD scratch path and a known compatible archive with generated Swift/C binding and source/archive hashes recorded before/after; do not populate internal build caches. Run the two new methods and adjacent recovery coordinator/admission/state controls under that grant. A passing control is valid. Preserve any harness/compile failure or genuine behavioral failure before changing anything, and request review before any product fix.
+Historical preflight: no compiler/runtime had been invoked when checkpoint `8cc6bc18` was submitted. Root then reviewed its exact fixture and granted the serial runtime lane; the following constraints were followed. Future Swift validation must use an external BetterSSD scratch path and a known compatible archive with generated Swift/C binding and source/archive hashes recorded before/after; do not populate internal build caches. Run the two new methods and adjacent recovery coordinator/admission/state controls under that grant. A passing control is valid. Preserve any harness/compile failure or genuine behavioral failure before changing anything, and request review before any product fix.
 
 These tests exercise the UI response to an injected native-open failure; they do not prove native lease acquisition/release, the native conflict message, actual second-Engine rejection, failed-open RAII cleanup, or close-drain lease release. Those remain Stage C native tests and exact-checkpoint integration checks. They do not extend global Quit, all-writer durability, B Document/Save As, or performance acceptance.
