@@ -1,6 +1,32 @@
 # Machine A recovery status
 
 
+
+## Focused validation and Document handoff — 2026-09-28 03:45 UTC
+
+- Coordinator nine-test source accepted at `a19d7997`; first gate failed compile
+  (exit1, no tests) on nested actor isolation. Repair `a139038d` compiled in
+  test candidate `00a70950`, but the run stalled in the fixture: `performClose`
+  removed the semaphore before `releaseGatedClose` could signal it. Luna preserves
+  stack/log and repairs the fixture before retry. No runtime acceptance yet.
+- B typed save candidate `b3b39c82`/handoff `60145d6c` has nine UNRUN tests;
+  result `e9fe1c57` accepted for review. Independent source review found no
+  blocker; actual SwiftUI dismissal/replacement remains a required GUI gate.
+- B Layers completion candidate `9e140c5b`/tests `bfcf1689` has four UNRUN tests;
+  result `12d64cdd` accepted for review. API status `675c8536` consumed with
+  completed informational receipt. Independent source review accepted. Both
+  requests have verified B receipts and results, not just SSH queue acceptance.
+- Reviewer Sol now prepares exact Document validation head `5ad1cbcc` in reused
+  workspace-redesign checkout, separate branch `codex/document-save-validation`.
+  No concurrent build: Luna retains A compiler priority for fixture repair/retry.
+- Resource Sol continues AppModel/Agent/Review/Output/Print and persistent recovery
+  controls. Layers gate now transfers to B's actual-completion callback. Physical
+  source aliases and navigation during active reservations still need completion.
+  Preview subscription cancellation is not backend read drain; conservative
+  natural-completion ownership is required. No AppModel acceptance or main merge.
+- B workload hold and normal preview PID57591 remain unchanged.
+
+
 ## Active recovery implementation — 2026-09-28 03:31 UTC
 
 - A main `f53c6092` adds B's reviewed Document preparation design `42ccdab8`;
