@@ -1,6 +1,16 @@
 import Foundation
 import Observation
 
+/// Original is the default until the proxy route has demonstrated a user benefit.
+/// Reading never rewrites an explicit stored preference (including an earlier opt-in).
+@MainActor
+public enum SmartPreviewPreference {
+    public static let key = "UseSmartPreviews"
+    public static func read(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: key) as? Bool ?? false
+    }
+}
+
 public struct SmartPreviewSnapshot: Sendable, Equatable {
     public enum State: Sendable, Equatable { case missing, ready, originalOffline, dirty, stale, failed, conflict }
     public let imageID: String
@@ -56,11 +66,14 @@ public enum SmartPreviewRouting {
             throw SmartPreviewUIError.unavailable(info.message.isEmpty ? info.badge : info.message)
         }
         if preferPreview, info.state != .missing { return .smartPreview }
+        guard info.originalAvailable else {
+            if info.state != .missing {
+                throw SmartPreviewUIError.unavailable("Original offline. Choose Library → Smart Previews → Use Smart Preview to edit the existing preview.")
+            }
+            throw SmartPreviewUIError.unavailable("Original offline and no Smart Preview is available. Reconnect the original to build one.")
+        }
         guard !info.hasPendingEdits else {
             throw SmartPreviewUIError.unavailable("Synchronize pending Smart Preview edits before using Original")
-        }
-        guard info.originalAvailable else {
-            throw SmartPreviewUIError.unavailable("Original offline; build a Smart Preview while the original is available")
         }
         return .original
     }

@@ -18,6 +18,12 @@ struct SmartPreviewMenu: View {
             if let info = model.smartPreviews.selectedInfo {
                 Text(info.badge).accessibilityLabel(info.badge)
                 if !info.message.isEmpty { Text(info.message) }
+                if !info.originalAvailable, info.state != .missing, !info.needsAttention,
+                   !model.preferSmartPreviews {
+                    Button("Use Smart Preview") { model.setPreferSmartPreviews(true) }
+                        .disabled(model.smartPreviewBatchActive || model.developStatus == .loading)
+                        .accessibilityIdentifier("use-existing-offline-smart-preview")
+                }
             }
             if let error = model.smartPreviews.selectionError { Text(error) }
             Button("Check Status for Selected Photo") { model.checkSmartPreviewStatus() }

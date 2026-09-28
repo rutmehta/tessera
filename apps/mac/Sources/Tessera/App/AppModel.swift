@@ -452,7 +452,7 @@ final class AppModel {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
     private(set) var smartPreviews = SmartPreviewController()
-    private(set) var preferSmartPreviews = UserDefaults.standard.object(forKey: "UseSmartPreviews") as? Bool ?? true
+    private(set) var preferSmartPreviews = SmartPreviewPreference.read()
     private(set) var developSourceRoute: DevelopSourceRoute?
     private(set) var smartPreviewSelectionRevision = 0
     private(set) var smartPreviewBatchActive = false
@@ -2179,7 +2179,7 @@ final class AppModel {
         guard preferSmartPreviews != value, !developRecovery.hasActiveReservations else { return }
         guard let owner = engineLibrary, let item = focusedItem, let ref = item.engineImage else {
             preferSmartPreviews = value
-            UserDefaults.standard.set(value, forKey: "UseSmartPreviews")
+            UserDefaults.standard.set(value, forKey: SmartPreviewPreference.key)
             return
         }
         let generation = loadGeneration
@@ -2196,7 +2196,7 @@ final class AppModel {
                 return
             }
             self.preferSmartPreviews = value
-            UserDefaults.standard.set(value, forKey: "UseSmartPreviews")
+            UserDefaults.standard.set(value, forKey: SmartPreviewPreference.key)
             self.smartPreviews.invalidateStatus(imageID: ref.imageID)
             if self.viewMode == .loupe, let current = self.focusedItem { self.openDevelop(for: current) }
         }
