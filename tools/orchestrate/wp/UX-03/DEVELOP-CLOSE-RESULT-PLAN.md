@@ -117,3 +117,15 @@ Before enabling a writer lease or declaring Stage B complete, separately migrate
 The pre-existing successful barrier tests (`testAlreadyClosingDevelopSavePrecedesCapturedRun`, `testAcceptWaitsForAlreadyClosingDevelopSave`, `testRevertWaitsForAlreadyClosingDevelopSave`, and the Layer/Review preview tests) remain important controls. Their current `Task<Void, Never>` shape does not verify failure behavior.
 
 Additional reviewed acceptance inventory: [DEVELOP-CLOSE-ADMISSION-TEST-MATRIX.md](DEVELOP-CLOSE-ADMISSION-TEST-MATRIX.md). Admission failure reporting must be reentrancy-safe when onFailure itself attempts another edit; reject the edit without unbounded callback recursion.
+
+## Callback operation scope ruling — 2026-09-28
+
+A close invoked by a task descended from a synchronous close callback joins that
+callback's originating attempt for the descendant task's lifetime, including when
+it starts after the attempt finishes. This prevents failure callbacks from creating
+automatic retry loops. Repeated closes in that callback task keep the same result.
+An explicit Retry action starts outside this callback attempt context, as a normal
+independent UI action, and may start a new attempt. Preserve this distinction in
+the API comments and test a delayed descendant across a newer explicit attempt.
+The context must retain only its own outcome and weak controller identity, not an
+unbounded global history or one overwriteable last-error slot.
