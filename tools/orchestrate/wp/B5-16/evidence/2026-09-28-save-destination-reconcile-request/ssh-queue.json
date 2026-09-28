@@ -1,0 +1,7 @@
+{
+  "request_id": "fc30ff89-f16d-4d3a-9de7-087f2284b47a",
+  "command_host": "tessera-machine-b",
+  "returncode": 0,
+  "stdout": "Queued message 01a0e981-2c73-7950-a80d-a4e70efa614e for thread 01a0e323-c018-7fa3-9605-999a2dea6b32.\n",
+  "stderr": ""
+}
