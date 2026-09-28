@@ -1,0 +1,14 @@
+Status: TEST-ONLY RED CHECKPOINT; implementation not present; not a passing gate.
+Checkout branch: codex/develop-close-contract
+Frozen HEAD: bec2f6302aed5f42313b71b3530a9595f8d85cec
+Command: MACOSX_DEPLOYMENT_TARGET=15.0 swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/develop-close-be02edf9-red/scratch -c release -Xswiftc -enable-testing --jobs 2 --filter 'AgentReviewOwnershipTests/(testRejectedDevelopPatchRemainsPendingForRetry|testConcurrentCloseCallersShareFailureAndSessionCanRetry)'
+Direct process exit: 1; see focused-red.exit
+Executed: 2 selected XCTest cases; 8 assertion failures; no crash/hang.
+Test source SHA-256: 2c7f7e928bd3cb3f1374a3e4f15b2a95919227424e3add924cba2759446301b2
+Static archive used SHA-256: 0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae
+Generated C header SHA-256: e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703
+Generated Swift binding SHA-256: 71e2237cfbb132f2a01ecdd17b092a32fc03f2b4239ef116216824bf058f5361
+Module map SHA-256: efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd
+Prior checkout archive SHA-256: 2f241fe71c0216118ede2e1f1de70e6b1b64e68c8d5dcf8fb368de2426dca211
+Prior archive was preserved byte-for-byte at /Volumes/betterSSD/tessera-cache/swift/develop-close-be02edf9-red/input-backup/libtessera_ffi.a.before before staging the verified archive. Its sidecar hash is in input-backup/archive-before.sha256 in that external evidence directory; the 284 MiB binary is intentionally not duplicated into the repository.
+The run used background SwiftPM and did not activate the GUI.
