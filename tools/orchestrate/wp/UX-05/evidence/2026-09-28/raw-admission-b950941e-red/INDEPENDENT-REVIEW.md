@@ -1,0 +1,11 @@
+# RAW admission compiled RED review
+
+Approved as meaningful behavioral RED for the three pure predicates/arithmetic operations at immutable `b950941ea8e79f66a47d4bf96dad23bee1d6005a`. Recommend authorizing only the scoped recipe predicate, descriptive metadata checks and checked inventory arithmetic implementation. No renderer, decoder integration, production Engine/public API, provenance authority, ICC/environment bootstrap or complete memory-bound work is justified by this gate.
+
+Independently verified all **8,971** captured source SHA-256 values against immutable Git blobs. Baseline and both runs’ before/after snapshots are identical (HEAD, clean status, source set and runner included). Runner SHA-256 is `8b7cf150d6c325abcb7455e9eea714b2d80184da006002ee7d93018f870f64fe`. Commands use the explicit shared BetterSSD target, deployment15 and jobs2; inherited TESSERA/RAW fixture flags are scrubbed. Synthetic tests only; no original-photo fixture inputs.
+
+Compile direct exit **0**. The runner extracts its one resulting image-core executable and invokes that exact path directly. Before/after SHA-256 and the current executable match `b044310cc0616f480b8e168deaf1ed264e4d56e255af85c6bd97391e2c820b4b`. Focused direct exit **101**: **18 selected, 1 passed, 17 failed, 0 ignored**, 23 unrelated tests filtered.
+
+The pass is the existing descriptor unknown-field authority control. All 17 panics reach `Unsupported` from candidate operations, comparing against valid facts/recipe success or typed refusal; no compile or fixture-construction failure substitutes for behavioral RED. Table-driven tests stop at their first failure. In particular later cam_xyz rows, individual exclusions, and later arithmetic boundary cases have not executed in this RED; their source contracts exist, but full row coverage awaits GREEN. Unused scaffold-field/native warnings remain retained; this was not a strict gate.
+
+Preserve `01-compile` and `02-focused-red` unchanged. Next implementation should satisfy the existing contracts without sanitizing settings or claiming synthetic metadata authenticates a held capture. Observe focused GREEN then assigned full/strict/fmt with exact final source freezes. This review ran only read/hash operations and granted no runtime lane.

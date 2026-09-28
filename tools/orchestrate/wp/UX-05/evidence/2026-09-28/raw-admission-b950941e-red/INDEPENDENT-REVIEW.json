@@ -1,0 +1,20 @@
+{
+  "head": "b950941ea8e79f66a47d4bf96dad23bee1d6005a",
+  "immutable_source_files_verified": 8971,
+  "all_before_after_equal": true,
+  "runner_sha256": "8b7cf150d6c325abcb7455e9eea714b2d80184da006002ee7d93018f870f64fe",
+  "test_executable": {
+    "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/image_core-81ae2afd87ee937b",
+    "sha256": "b044310cc0616f480b8e168deaf1ed264e4d56e255af85c6bd97391e2c820b4b"
+  },
+  "current_executable_matches": true,
+  "compile_exit": 0,
+  "behavior_exit": 101,
+  "tests": {
+    "passed": 1,
+    "failed": 17,
+    "ignored": 0
+  },
+  "scope": "meaningful Unsupported RED; later table rows unexecuted; pure implementation only",
+  "review_runtime": "none"
+}

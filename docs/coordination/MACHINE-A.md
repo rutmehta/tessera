@@ -1,3 +1,9 @@
+## RAW admission RED evidence preserved; cache strict correction pending
+
+Root verified and copied all RAW scaffold `b950941e` evidence payload hashes into `UX-05/evidence/2026-09-28/raw-admission-b950941e-red`, including independent verification of 8,971 immutable inputs. This records one existing control pass and 17 Unsupported failures, not implementation acceptance.
+
+Cache strict check at `adee078f` found a production-only Clippy infallible-destructuring lint. Correction `7faea4b8` is under independent source review and exact-source gate repetition. Earlier functional passes remain pinned to `adee078f`; no final corrected-source pass is claimed.
+
 ## 2026-09-28 23:26 UTC — cache functional gates pass; focus trace preparation
 
 Cache candidate `adee078f` passes all 22 pure tests, all eight opt-in Engine groups and the affected native regression. FFI retains the exclusive runtime lane for strict/format completion and exact evidence freezing. No cache merge or speedup claim; actual frames, resource release and fixed-baseline performance remain separate gates.

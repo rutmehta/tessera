@@ -1,0 +1,124 @@
+
+running 18 tests
+test raw_admission::tests::all_bayer_phases_and_both_green_conventions_remain_admissible ... 
+thread 'raw_admission::tests::all_bayer_phases_and_both_green_conventions_remain_admissible' (106411806) panicked at crates/image-core/src/raw_admission/tests.rs:315:13:
+assertion `left == right` failed
+  left: Err(Unsupported)
+ right: Ok(MetadataFacts { sensor_pixels: 24, active_pixels: 6 })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test raw_admission::tests::changed_manual_lens_and_camera_profile_settings_refuse ... 
+thread 'raw_admission::tests::changed_manual_lens_and_camera_profile_settings_refuse' (106411807) panicked at crates/image-core/src/raw_admission/tests.rs:122:5:
+assertion `left == right` failed
+  left: Unsupported
+ right: Lens
+FAILED
+test raw_admission::tests::checked_inventory_accepts_exact_limit_and_rejects_each_lower_limit ... 
+thread 'raw_admission::tests::checked_inventory_accepts_exact_limit_and_rejects_each_lower_limit' (106411810) panicked at crates/image-core/src/raw_admission/tests.rs:244:5:
+assertion `left == right` failed
+  left: Err(Unsupported)
+ right: Ok(AccountedBytes { output: 48, total: 240 })
+FAILED
+test raw_admission::tests::checked_inventory_rejects_zero_and_overflow_with_no_large_buffers ... 
+thread 'raw_admission::tests::checked_inventory_rejects_zero_and_overflow_with_no_large_buffers' (106411811) panicked at crates/image-core/src/raw_admission/tests.rs:262:9:
+assertion `left == right` failed
+  left: Err(Unsupported)
+ right: Err(Dimensions)
+FAILED
+test raw_admission::tests::common_default_auto_demosaic_and_optics_are_not_sanitized ... 
+thread 'raw_admission::tests::common_default_auto_demosaic_and_optics_are_not_sanitized' (106411812) panicked at crates/image-core/src/raw_admission/tests.rs:104:9:
+assertion `left == right` failed
+  left: Unsupported
+ right: Demosaic
+FAILED
+test raw_admission::tests::decoded_bayer_metadata_facts_are_not_source_authentication ... 
+thread 'raw_admission::tests::decoded_bayer_metadata_facts_are_not_source_authentication' (106411813) panicked at crates/image-core/src/raw_admission/tests.rs:147:35:
+called `Result::unwrap()` on an `Err` value: Unsupported
+FAILED
+test raw_admission::tests::descriptor_authority_rejects_unknown_fields_before_profile_admission ... ok
+test raw_admission::tests::every_non_neutral_lens_member_refuses_including_inactive_ranges ... 
+thread 'raw_admission::tests::every_non_neutral_lens_member_refuses_including_inactive_ranges' (106411815) panicked at crates/image-core/src/raw_admission/tests.rs:342:9:
+assertion `left == right` failed
+  left: Unsupported
+ right: Lens
+FAILED
+test raw_admission::tests::explicit_camera_and_lens_profiles_refuse_after_descriptor_compatibility ... 
+thread 'raw_admission::tests::explicit_camera_and_lens_profiles_refuse_after_descriptor_compatibility' (106411816) panicked at crates/image-core/src/raw_admission/tests.rs:113:5:
+assertion `left == right` failed
+  left: Unsupported
+ right: CameraProfile
+FAILED
+test raw_admission::tests::invalid_sensor_count_dimensions_and_crop_refuse_without_allocating ... 
+thread 'raw_admission::tests::invalid_sensor_count_dimensions_and_crop_refuse_without_allocating' (106411817) panicked at crates/image-core/src/raw_admission/tests.rs:162:5:
+assertion `left == right` failed
+  left: Err(Unsupported)
+ right: Err(Dimensions)
+FAILED
+test raw_admission::tests::legacy_empty_camera_reference_keeps_default_compatibility ... 
+thread 'raw_admission::tests::legacy_empty_camera_reference_keeps_default_compatibility' (106411818) panicked at crates/image-core/src/raw_admission/tests.rs:91:33:
+called `Result::unwrap()` on an `Err` value: Unsupported
+FAILED
+test raw_admission::tests::malformed_sensor_levels_wb_and_matrices_refuse ... 
+thread 'raw_admission::tests::malformed_sensor_levels_wb_and_matrices_refuse' (106411819) panicked at crates/image-core/src/raw_admission/tests.rs:202:13:
+assertion `left == right` failed
+  left: Err(Unsupported)
+ right: Err(Calibration)
+FAILED
+test raw_admission::tests::neural_models_local_edits_depth_lut_and_hdr_are_refused_without_mutation ... 
+thread 'raw_admission::tests::neural_models_local_edits_depth_lut_and_hdr_are_refused_without_mutation' (106411820) panicked at crates/image-core/src/raw_admission/tests.rs:298:9:
+assertion `left == right` failed
+  left: Unsupported
+ right: Denoise
+FAILED
+test raw_admission::tests::omitted_defaults_and_supported_detail_are_preserved ... 
+thread 'raw_admission::tests::omitted_defaults_and_supported_detail_are_preserved' (106411821) panicked at crates/image-core/src/raw_admission/tests.rs:74:35:
+called `Result::unwrap()` on an `Err` value: Unsupported
+FAILED
+test raw_admission::tests::retouch_point_color_proof_and_even_disabled_local_inputs_refuse ... 
+thread 'raw_admission::tests::retouch_point_color_proof_and_even_disabled_local_inputs_refuse' (106411822) panicked at crates/image-core/src/raw_admission/tests.rs:369:9:
+assertion `left == right` failed
+  left: Unsupported
+ right: LocalEdits
+FAILED
+test raw_admission::tests::unsupported_decode_reconstruction_and_display_controls_are_not_sanitized ... 
+thread 'raw_admission::tests::unsupported_decode_reconstruction_and_display_controls_are_not_sanitized' (106411823) panicked at crates/image-core/src/raw_admission/tests.rs:390:9:
+assertion `left == right` failed
+  left: Unsupported
+ right: UnsupportedSettings
+FAILED
+test raw_admission::tests::unsupported_orientation_and_correction_metadata_refuse ... 
+thread 'raw_admission::tests::unsupported_orientation_and_correction_metadata_refuse' (106411824) panicked at crates/image-core/src/raw_admission/tests.rs:187:9:
+assertion `left == right` failed
+  left: Err(Unsupported)
+ right: Err(Orientation)
+FAILED
+test raw_admission::tests::xtrans_invalid_bayer_and_layout_mismatch_refuse ... 
+thread 'raw_admission::tests::xtrans_invalid_bayer_and_layout_mismatch_refuse' (106411825) panicked at crates/image-core/src/raw_admission/tests.rs:176:9:
+assertion `left == right` failed
+  left: Err(Unsupported)
+ right: Err(CfaLayout)
+FAILED
+
+failures:
+
+failures:
+    raw_admission::tests::all_bayer_phases_and_both_green_conventions_remain_admissible
+    raw_admission::tests::changed_manual_lens_and_camera_profile_settings_refuse
+    raw_admission::tests::checked_inventory_accepts_exact_limit_and_rejects_each_lower_limit
+    raw_admission::tests::checked_inventory_rejects_zero_and_overflow_with_no_large_buffers
+    raw_admission::tests::common_default_auto_demosaic_and_optics_are_not_sanitized
+    raw_admission::tests::decoded_bayer_metadata_facts_are_not_source_authentication
+    raw_admission::tests::every_non_neutral_lens_member_refuses_including_inactive_ranges
+    raw_admission::tests::explicit_camera_and_lens_profiles_refuse_after_descriptor_compatibility
+    raw_admission::tests::invalid_sensor_count_dimensions_and_crop_refuse_without_allocating
+    raw_admission::tests::legacy_empty_camera_reference_keeps_default_compatibility
+    raw_admission::tests::malformed_sensor_levels_wb_and_matrices_refuse
+    raw_admission::tests::neural_models_local_edits_depth_lut_and_hdr_are_refused_without_mutation
+    raw_admission::tests::omitted_defaults_and_supported_detail_are_preserved
+    raw_admission::tests::retouch_point_color_proof_and_even_disabled_local_inputs_refuse
+    raw_admission::tests::unsupported_decode_reconstruction_and_display_controls_are_not_sanitized
+    raw_admission::tests::unsupported_orientation_and_correction_metadata_refuse
+    raw_admission::tests::xtrans_invalid_bayer_and_layout_mismatch_refuse
+
+test result: FAILED. 1 passed; 17 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.01s
+

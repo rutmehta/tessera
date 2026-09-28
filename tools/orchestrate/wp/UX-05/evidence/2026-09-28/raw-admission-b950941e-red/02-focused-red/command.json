@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/image_core-81ae2afd87ee937b",
+    "raw_admission::tests",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera",
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "inherited_TESSERA_and_fixture_flags_removed": true
+}
