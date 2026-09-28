@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::failed_close_retains_live_session_for_a_later_edit -- --exact --nocapture

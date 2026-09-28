@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::repair_uses_current_disk_recipe_after_foreign_develop_edit -- --exact --nocapture

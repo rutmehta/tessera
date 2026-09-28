@@ -1,5 +1,20 @@
 # Tessera task board — Machine A coordinator
 
+## Current execution queue — 2026-09-28 07:27 UTC
+
+| Task | Owner | Verified state | Next action |
+| --- | --- | --- | --- |
+| Photo save recovery / saved-pixel admission | A | DONE bounded slice main2760ebeb; full599/1skip/0 +5 and actual recovery/reopen GUI | Global Quit/all-writer durability remains separate. |
+| Recovery status ownership | A / Luna | DONE main291857e1; genuine RED then19 pass/direct0 | Preserve newer messages during retry. |
+| Staged filters and person facets | A / Luna | DONE mainf27f96e4, evidenceb6608ee9; genuine6-failure RED,9 focused +44 adjacent/1skip/0 | Integrated source exactly matchesdd6;32 evidence payloads verified. No new GUI/full-suite claim. |
+| PSD copy format preflight | A + B source | DONE main08e86f39;51 selected Rust tests +strict | No memory-budget/RSS claim. |
+| Develop stale-writer protection | A / Resource Sol | DONE mainf4bc0c0b, Rust/Cargo exactly915c7f7b;25 tests +fmt/strict | Newer/unsupported owner fields fail closed;185 payloads and40 source hashes verified. No lease, all-writer CAS or conflict-resolution UI. |
+| Recipe setter XMP parity | A / reviewer Sol | RUNNING sole compiler lane; testse5c5dee7 | Actual RED, minimal setter-only fix, then combine owner fix and run joint native gates before integration. |
+| Save As native ownership | B source; A integration/GUI | IN PROGRESS requestbe627c0e; peer receipt verified | Owned form/Replace tokens and generation-safe host binding; tests/full/real GUI still pending. Existing stuck-sheet failures remain unaccepted. |
+
+Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
+
+
 ## Parallel work and Save As design decision — 2026-09-28 07:05 UTC
 
 - Luna owns sole compiler lane: staged-filter tests-only `eb15a6e0` on accepted status source291857e1, then narrow AppModel implementation if genuine RED. Resource explicitly released idle compiler while revising source; no overlapping build.
@@ -8,22 +23,6 @@
 - Existing Save As candidate010617b8 retains five non-gap tests plus one explicit fully-unseen-lifetime RED, all UNRUN. No product merge or expected-failure waiver. Earlier actual Cancel/repeat failure remains evidence. Recovery-status fix291857e1 is already integrated, 19 tests/direct0 and23 payloads verified.
 
 A alone merges main. B resource hold/paused heartbeat remains; user preview57591 is untouched.
-
-
-## Current execution queue — 2026-09-28 06:56 UTC
-
-| Task | Owner | State | Next action / acceptance |
-| --- | --- | --- | --- |
-| Recovery and saved-pixel admission | A | DONE bounded slice, main2760ebeb | 599 XCTest/1 skip/0 failures +5 Swift Testing and real retry/reopen GUI; global Quit/all-writer durability remain separate. |
-| PSD pre-rasterization format checks | A + B source | DONE bounded slice, main08e86f39 | 51 selected Rust tests + formatting/strict Clippy; no memory-budget or RSS claim. |
-| Clear stale recovery status after Retry | A / Luna | DONE main291857e1 | Genuine RED1 failure, final19 recovery-admission tests passed/direct0; newer status preserved. 23 evidence payloads verified. |
-| Save As lifecycle | B source; A reviewer Sol | HOLD acceptance; source integration849f123f ready | Actual e51 Cancel/repeat failure preserved. B accepted ordering follow-up36b2b1ad; queue01a0e6c7-dc05-7e62-9238-397089333b68. Test native-end-before-dismiss with live probe; then trace-free RED/green/GUI. |
-| Staged Library filters/facets | Luna | READY corrected tests371b6a05 | eb15 attempt failed fixture setup (four unclustered people vs assumed two); target assertions unrun. Corrected fixture selects two distinct real IDs; next actual nine-test RED and scoped port. |
-| Develop stale-writer conflict | Resource Sol | RED / source correction | Genuine stale-writer RED546; expanded unknown-member cases expose unsafe erasure. Correct fixture failures preserved. Fix must retain ratings, raw unknown-owner safety and partial-commit retry; no lease/batch Apply. |
-
-Next source audit: Engine.set_recipe_json currently writes selection XMP without Develop values; reviewer checks whether this is an independent parity bug. Conflict tests preserve the bytes actually written and do not assume parity.
-
-One heavy A lane; B remains source-only with paused heartbeat. Current user preview57591 stays unchanged. Only A integrates main. Earlier sections below are retained history and are superseded by this queue.
 
 
 ## Save As failure isolated; parallel follow-up — 2026-09-28 06:49 UTC

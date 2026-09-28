@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::foreign_unknown_nested_develop_field_cannot_be_erased_by_open_editor -- --exact --nocapture

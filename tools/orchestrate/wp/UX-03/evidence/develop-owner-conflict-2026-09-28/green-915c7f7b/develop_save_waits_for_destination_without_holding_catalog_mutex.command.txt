@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib develop::tests::develop_save_waits_for_destination_without_holding_catalog_mutex -- --exact --nocapture

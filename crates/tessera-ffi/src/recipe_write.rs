@@ -132,6 +132,13 @@ impl GateState {
         Ok(WriteGuard { state: self, epoch })
     }
 
+    /// Read an effective document and its raw sidecar under the same
+    /// destination lock as participating writers, without advancing the
+    /// write epoch merely because an editor opened.
+    pub(crate) fn begin_read(&self) -> Result<MutexGuard<'_, u64>> {
+        self.lock()
+    }
+
     #[cfg_attr(
         not(test),
         expect(dead_code, reason = "internal revision awaits a caller")

@@ -1,0 +1,1 @@
+MACOSX_DEPLOYMENT_TARGET=15.0 CARGO_BUILD_JOBS=2 RAYON_NUM_THREADS=2 swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/staged-filter-recovery-2026-09-28/scratch -c release --jobs 2 -Xswiftc -enable-testing --filter StagedLibraryFilterTests

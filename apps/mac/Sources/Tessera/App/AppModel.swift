@@ -205,11 +205,26 @@ final class AppModel {
     @ObservationIgnored private var savedNavigationIntent: UUID?
     @ObservationIgnored private var committingSavedNavigation = false
     @ObservationIgnored private var revertingViewMode = false
+    private final class PendingFilterDraft {
+        let owner: EngineLibrary?
+        let generation: Int
+        var filter: LibraryFilter
+        var personFacet: Set<String>
+
+        init(owner: EngineLibrary?, generation: Int, filter: LibraryFilter,
+             personFacet: Set<String>) {
+            self.owner = owner
+            self.generation = generation
+            self.filter = filter
+            self.personFacet = personFacet
+        }
+    }
     private struct BlockedSavedNavigation {
         let intent: UUID
         let owner: EngineLibrary?
         let generation: Int
         let folderRequestID: UUID?
+        let filterDraft: PendingFilterDraft?
         let commit: @MainActor () -> Void
     }
     @ObservationIgnored private var blockedSavedNavigation: BlockedSavedNavigation?
@@ -286,20 +301,43 @@ final class AppModel {
     }
 
     func requestLibraryFilter(_ filter: LibraryFilter) {
-        navigateAfterDevelopSave { [weak self] in
-            guard let self else { return }
-            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
-            self.collections.commitFilter(filter)
-        }
+        mutatePendingFilter { $0.filter = filter }
     }
 
     func updateLibraryFilter(_ mutate: (inout LibraryFilter) -> Void) {
-        var requested = collections.filter
-        mutate(&requested)
-        requestLibraryFilter(requested)
+        mutatePendingFilter { draft in mutate(&draft.filter) }
+    }
+
+    private func mutatePendingFilter(_ mutate: (PendingFilterDraft) -> Void) {
+        // A filter or Person facet action supersedes a pending Layers destination,
+        // even if the active recipe read must reject this request until it drains.
+        supersedePendingLayeredCopyForNavigation()
+        guard !developRecovery.hasActiveReservations(excluding: navigationCloseGateID) else {
+            statusMessage = "Wait for the current photo operation before leaving this workspace"
+            return
+        }
+        if let pending = navigationClosePending ?? blockedSavedNavigation,
+           pending.intent == savedNavigationIntent,
+           let draft = pending.filterDraft,
+           draft.owner === engineLibrary, draft.generation == loadGeneration {
+            mutate(draft)
+            return
+        }
+        let draft = PendingFilterDraft(owner: engineLibrary, generation: loadGeneration,
+                                       filter: collections.filter, personFacet: people.facet)
+        mutate(draft)
+        navigateAfterDevelopSave(filterDraft: draft) { [weak self, draft] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            if self.collections.filter != draft.filter { self.collections.commitFilter(draft.filter) }
+            if self.people.facet != draft.personFacet {
+                self.refreshVisible { self.people.setFacet(draft.personFacet) }
+            }
+        }
     }
 
     private func navigateAfterDevelopSave(folderRequestID: UUID? = nil,
+                                          filterDraft: PendingFilterDraft? = nil,
                                           _ commit: @escaping @MainActor () -> Void) {
         // A second navigation may replace the first while the *same* Develop
         // close is pending. Other recipe readers still block admission.
@@ -315,7 +353,8 @@ final class AppModel {
             ?? blockedSavedNavigation?.folderRequestID
         let pending = BlockedSavedNavigation(intent: intent, owner: sourceOwner,
                                              generation: sourceGeneration,
-                                             folderRequestID: folderRequestID, commit: commit)
+                                             folderRequestID: folderRequestID,
+                                             filterDraft: filterDraft, commit: commit)
         savedNavigationIntent = intent
         blockedSavedNavigation = nil
         if navigationCloseGateID != nil { navigationClosePending = pending }
@@ -807,27 +846,19 @@ final class AppModel {
     }
 
     func togglePersonFacet(_ id: String) {
-        navigateAfterDevelopSave { [weak self] in
-            guard let self else { return }
-            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
-            self.refreshVisible { self.people.toggleFacet(id) }
+        mutatePendingFilter { draft in
+            if !draft.personFacet.insert(id).inserted { _ = draft.personFacet.remove(id) }
         }
     }
 
     func setPersonFacet(_ ids: Set<String>) {
-        navigateAfterDevelopSave { [weak self] in
-            guard let self else { return }
-            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
-            self.refreshVisible { self.people.setFacet(ids) }
-        }
+        mutatePendingFilter { $0.personFacet = ids }
     }
 
     func clearLibraryFilters() {
-        navigateAfterDevelopSave { [weak self] in
-            guard let self else { return }
-            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
-            self.collections.commitFilter(LibraryFilter())
-            self.refreshVisible { self.people.setFacet([]) }
+        mutatePendingFilter { draft in
+            draft.filter = LibraryFilter()
+            draft.personFacet = []
         }
     }
 
