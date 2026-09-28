@@ -13,6 +13,11 @@ color-mgmt = { path = "../color-mgmt" }
 raw-decode = { path = "../raw-decode" }
 lens = { path = "../lens" }
 image = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+half = { workspace = true }
+blake3 = { workspace = true }
+zstd = { version = "0.13", default-features = false }
 
 [dev-dependencies]
 png = { workspace = true }
