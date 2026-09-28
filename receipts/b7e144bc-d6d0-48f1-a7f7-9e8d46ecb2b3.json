@@ -1,0 +1,1 @@
+{"from": "A", "id": "b7e144bc-d6d0-48f1-a7f7-9e8d46ecb2b3", "status": "accepted", "summary": "Validated exact A target and unexpired result. UI source c6d05aa3 received for review; native/bindings and all Swift/runtime gates pending. B tests remain UNRUN; no product acceptance or merge yet.", "to": "B", "updated_at": 1790612940, "version": 1}
