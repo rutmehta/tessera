@@ -1,0 +1,260 @@
+{
+  "head": "7faea4b8e7a3bdc46afcf794a9e4dc5c6710be6c",
+  "immutable_files_verified": 8646,
+  "all_final_freezes_equal": true,
+  "fixture": {
+    "bytes": 16646144,
+    "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+  },
+  "runner_sha256": "bdc0b5bf870b74b8b5597495fab6429c3a44b92f78b1926d69bf981e8de6590e",
+  "final_gates": {
+    "19-cache-strict-final": {
+      "direct_exit": 0,
+      "counts": null,
+      "log_sha256": "140f6befd4eeea40551d14dd6d8422ab0cf7d216ea2e3994c8fd27e654db0000"
+    },
+    "20-cache-pure-final": {
+      "direct_exit": 0,
+      "counts": [
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 22
+        }
+      ],
+      "log_sha256": "fdc441f43acb87aa8292af221ae1f3cb467eed716023e37a45f4d53b4f273e0c"
+    },
+    "21-cache-integration-final": {
+      "direct_exit": 0,
+      "counts": [
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 8
+        }
+      ],
+      "log_sha256": "9222dcca0bd1c76e11f793033305297040ec13b98c7b71cdf92830aa3c78e878"
+    },
+    "22-cache-full-final": {
+      "direct_exit": 0,
+      "counts": [
+        {
+          "failed": 0,
+          "ignored": 10,
+          "passed": 215
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 0
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 3
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 3
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 12
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 2
+        },
+        {
+          "failed": 0,
+          "ignored": 3,
+          "passed": 9
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 11
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 11
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 12
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 5
+        },
+        {
+          "failed": 0,
+          "ignored": 3,
+          "passed": 0
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 1
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 9
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 5
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 8
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 19
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 9
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 18
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 17
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 6
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 4
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 1
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 25
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 1
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 1
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 3
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 8
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 5
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 1
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 3
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 6
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 3
+        },
+        {
+          "failed": 0,
+          "ignored": 1,
+          "passed": 0
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 2
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 5
+        },
+        {
+          "failed": 0,
+          "ignored": 0,
+          "passed": 0
+        }
+      ],
+      "log_sha256": "97c1c4d681df5b4fe67d75f26b76f02c125c416c3cf921c649cffb950de2238b"
+    },
+    "23-cache-fmt-final": {
+      "direct_exit": 0,
+      "counts": null,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "full_totals": {
+    "passed": 443,
+    "failed": 0,
+    "ignored": 25
+  },
+  "explicit_integration_tests": [
+    "cache_does_not_override_active_editor_or_retain_failed_open_lease",
+    "cached_decision_cannot_bypass_real_source_or_sidecar_validation",
+    "cold_public_open_rejects_invalid_sources_without_cache",
+    "overrides_external_geometry_and_device_failures_do_not_reuse_or_poison",
+    "persisted_external_settings_bypass_lookup_and_publication",
+    "uncached_selection_controls_materialize_real_backends_without_cache",
+    "unchanged_public_open_reuses_cpu_and_metal_decisions_in_sdr_and_hdr",
+    "validated_full_identity_is_transported_and_rebuild_or_edit_misses"
+  ],
+  "original_six_unchanged_modulo_format": true,
+  "preserved_failures": {
+    "06-fmt": 1,
+    "13-cache-fmt": 1,
+    "18-cache-strict": 101
+  },
+  "verdict": "Approved Task2 functional qualification only; performance and actual frame/resource qualification pending",
+  "runtime_by_reviewer": "none",
+  "artifact_scope": "No archive/bindings/binary-identity acceptance in these source-frozen Cargo gates"
+}

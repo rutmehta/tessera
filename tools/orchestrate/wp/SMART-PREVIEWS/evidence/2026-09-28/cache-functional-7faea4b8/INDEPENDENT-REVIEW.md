@@ -1,0 +1,15 @@
+# Task2 cache final independent review
+
+**Approved for Task2 functional qualification only** at `7faea4b8e7a3bdc46afcf794a9e4dc5c6710be6c`. No actionable source/evidence blocker remains. Performance, actual cache-hit frame fidelity/IOSurface/resource drainage, archive/bindings and Swift integration remain unqualified.
+
+Independently hashed all8,646 captured files against immutable Git blobs. Final19–23 outer and phase before/after source/HEAD/status/runner/fixture snapshots are identical and match FINAL-CHECKPOINT.json. Runner hash `bdc0b5bf870b74b8b5597495fab6429c3a44b92f78b1926d69bf981e8de6590e` matches recorded bytes. Final raw log hashes match manifest. Explicit16,646,144-byte Sony fixture remains SHA256 `bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8`, including current reread. No broader fixture preservation claim: full tests may discover other fixtures not inventoried here.
+
+Final exact-source gates:19 strict0;20 pure22 passed/0ignored;21 all8 named opt-in Engine groups passed/0ignored;22 full native0;23 fmt0. Recomputed full log totals are443passed/0failed/25ignored across suites; FFI unit subset215passed/10ignored. The eight cache groups were separately explicitly executed, not counted as passing merely because full-suite discovery ignored them. The other ignored groups remain unqualified. All six original contracts are unchanged modulo formatting; the uncached control and persisted profile/LUT case are present in the explicit eight-group inventory.
+
+Earlier failures remain preserved:01 missing-instrumentation RED; later missing-publication RED;06fmt1;13cachefmt1;18strict101. Earlier formatted functional passes are correctly attributed to adee078f; refreshed19–23 bind corrected7faea4b8. Source review of that correction confirmed identical semantics for production single-variant/test refutable match. Controlled measurements establish routing/cache decisions, not actual speed or timed GPU dispatch.
+
+These are source-frozen Cargo gates. No new archive/bindings were generated or qualified, and the runner does not claim a preserved test-executable digest. Do not infer immutable binary/archive acceptance from source hashes. Future packaging gates need their own artifact hashes.
+
+Portable evidence recommendation: retain all01–23 attempt directories with logs, direct exits, commands/environments and before/after/freezes; pinned runner scripts/contracts/hashes; FINAL-CHECKPOINT.json, VALIDATION.md, formatting/candidate patches and independent source/final reviews. Keep original failed attempts unchanged. Exclude photo/container assets, test binaries, build trees and archives; source/fixture identities are recorded as hashes. Earlier instrumentation evidence may be linked to its already-published immutable bundle rather than duplicated, but failed-history references must remain resolvable.
+
+Reviewer performed read/hash/source comparisons only; no compiler, app, GPU or test execution. Coordinator retains merge/runtime authority. Continue with separately reviewed actual Engine frame/lifecycle and matched baseline/candidate qualification before any benefit claim.
