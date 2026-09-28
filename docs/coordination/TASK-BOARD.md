@@ -10,7 +10,7 @@
 | PSD copy format preflight | A + B source | DONE main08e86f39;51 selected Rust tests +strict | No memory-budget/RSS claim. |
 | Develop stale-writer protection | A / Resource Sol | DONE mainf4bc0c0b, Rust/Cargo exactly915c7f7b;25 tests +fmt/strict | Newer/unsupported owner fields fail closed;185 payloads and40 source hashes verified. No lease, all-writer CAS or conflict-resolution UI. |
 | Recipe setter XMP parity | A / reviewer Sol | DONE main4ad017ab, exact Rust/Cargo3bd2e341. Genuine RED then19 combined tests +fmt/strict/direct0;15 frozen inputs verified. | Portable evidence and coherent current FFI preparation next. Earlier compile failure retained; normal user preview unchanged. |
-| Save As native ownership | B source; A integration/GUI | B source93244f8f received; resultd9b94a94 accepted. Resource Sol and Luna independently review native lifetime and UI host generation. | All source UNRUN. Native queued-sheet completion, parent-close/chooser drain, focused/full tests and real GUI are mandatory; prior failures remain unaccepted. |
+| Save As native ownership | B source; A integration/GUI | B source93244f8f received; resultd9b94a94 accepted. Resource Sol and Luna found no source-level ownership/UI blocker; reviews archived. | All source UNRUN. Probe5ebeb17a/result6c41957d accepted for review. Native queued/parent-close checks, headless regression, focused/full tests and real GUI remain mandatory. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 
