@@ -27,12 +27,14 @@ final class RecoveryWindowCloseGuardTests: XCTestCase {
         let guardDelegate = RecoveryWindowCloseGuard.testing(window: target, previous: prior,
             shouldBlock: { true }, blocked: { _ in blockedCount += 1 })
         target.delegate = guardDelegate
+        target.orderFront(nil)
 
-        XCTAssertFalse(guardDelegate.windowShouldClose(target))
+        target.performClose(nil)
         XCTAssertEqual(blockedCount, 1)
         XCTAssertEqual(prior.closeChecks, 0)
-        XCTAssertNotNil(target.contentView)
+        XCTAssertTrue(target.isVisible)
         XCTAssertTrue(target.delegate === guardDelegate)
+        target.close()
     }
 
     func testAllowedCloseDefersToPriorDelegateExactlyOnce() {
@@ -72,9 +74,16 @@ final class RecoveryWindowCloseGuardTests: XCTestCase {
         RecoveryWindowCloseGuard.install(on: target)
 
         target.orderFront(nil)
+        prior.allow = false
+        target.performClose(nil)
+        XCTAssertTrue(target.isVisible)
+        XCTAssertEqual(prior.closeChecks, 1)
+        XCTAssertEqual(prior.willCloseCount, 0)
+
+        prior.allow = true
         target.performClose(nil)
 
-        XCTAssertEqual(prior.closeChecks, 1)
+        XCTAssertEqual(prior.closeChecks, 2)
         XCTAssertEqual(prior.willCloseCount, 1)
     }
 }
