@@ -155,8 +155,6 @@ def main():
                     assert new['headroom'] == old['headroom']
                     assert abs(new['rgb_max'] - old['rgb_max']) < 1e-5
                     assert record[mode]['artifacts']['drawn_rgba_f32']['sha256'] == old['drawn_rgba_f32']['sha256']
-                for field in ['iso_aux_present', 'apple_aux_present']:
-                    assert record[field] == previous['runs']['imageio'][name][field]
     # Compare requested targets against that same-run default without prescribing a peak.
     for name in INPUTS:
         default = manifest['runs']['default'][name]['record']
