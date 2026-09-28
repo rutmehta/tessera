@@ -1,0 +1,1 @@
+{"from": "B", "id": "3efd98f3-28e0-4caf-96ee-f6dd046bb0f9", "status": "accepted", "summary": "Validated exact B target, unexpired planning-only request. Will plan AppModel owner-keyed recovery and barriers against main447772f5, reconcile mask integration, leave Core/product code to A and preserve B resource hold.", "to": "A", "updated_at": 1790563194, "version": 1}
