@@ -1,0 +1,96 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[3/5] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/5] Linking TesseraPackageTests
+Build complete! (27.99s)
+Test Suite 'Selected tests' started at 2026-09-28 03:13:18.719.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 03:13:18.719.
+Test Suite 'StagedLibraryFilterTests' started at 2026-09-28 03:13:18.720.
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testExplicitRetryCommitsAllEditsStagedAfterFailedClose]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.794208, 0.2545, 0.27066599999999996]; GPU [3.173417, 0.90925, 0.842209]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/StagedLibraryFilterTests.swift:122: error: -[TesseraCoreTests.StagedLibraryFilterTests testExplicitRetryCommitsAllEditsStagedAfterFailedClose] : failed - Condition did not settle
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testExplicitRetryCommitsAllEditsStagedAfterFailedClose]' failed (8.803 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testFilterAndFacetRequestDuringLayersSaveCancelOnlyItsDestination]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.464791, 0.614333, 0.562541]; GPU [5.79875, 4.486625, 1.3509579999999999]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/StagedLibraryFilterTests.swift:192: error: -[TesseraCoreTests.StagedLibraryFilterTests testFilterAndFacetRequestDuringLayersSaveCancelOnlyItsDestination] : XCTAssertEqual failed: ("1") is not equal to ("0") - the stale Layers destination must not dispatch
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testFilterAndFacetRequestDuringLayersSaveCancelOnlyItsDestination]' failed (0.070 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesDistinctPersonFacets]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.851375, 0.615625, 0.647334]; GPU [6.297792, 3.3744579999999997, 1.363791]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/StagedLibraryFilterTests.swift:57: error: -[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesDistinctPersonFacets] : failed - Condition did not settle
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesDistinctPersonFacets]' failed (8.065 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesRepeatedTextAndCancellingPersonToggle]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5477080000000001, 0.382041, 0.43566699999999997]; GPU [4.169417, 1.266208, 1.0875]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/StagedLibraryFilterTests.swift:79: error: -[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesRepeatedTextAndCancellingPersonToggle] : failed - Condition did not settle
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesRepeatedTextAndCancellingPersonToggle]' failed (8.052 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesTwoFilterFieldsWithoutEarlyPublication]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5494169999999999, 0.353709, 0.38283399999999995]; GPU [4.187875, 0.831417, 1.006]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/StagedLibraryFilterTests.swift:38: error: -[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesTwoFilterFieldsWithoutEarlyPublication] : failed - Condition did not settle
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testHeldCloseComposesTwoFilterFieldsWithoutEarlyPublication]' failed (8.054 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testKeepEditingDiscardsFailedFilterDraft]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5264580000000001, 0.329583, 0.374583]; GPU [4.214667, 1.010917, 1.05375]
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testKeepEditingDiscardsFailedFilterDraft]' passed (0.059 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testOwnerReplacementDropsHeldFilterDraft]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.686292, 0.309125, 0.296625]; GPU [4.213875, 0.897792, 1.064875]
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testOwnerReplacementDropsHeldFilterDraft]' passed (0.042 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testPersonFacetAloneDuringLayersSaveCancelsItsDestination]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.6432910000000001, 0.227917, 0.2585]; GPU [3.170625, 0.907, 1.009334]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/StagedLibraryFilterTests.swift:220: error: -[TesseraCoreTests.StagedLibraryFilterTests testPersonFacetAloneDuringLayersSaveCancelsItsDestination] : XCTAssertEqual failed: ("1") is not equal to ("0")
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testPersonFacetAloneDuringLayersSaveCancelsItsDestination]' failed (0.039 seconds).
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testUnrelatedNavigationSupersedesHeldFilterDraft]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.418792, 0.266208, 0.285083]; GPU [4.116875, 1.551167, 1.132]
+Test Case '-[TesseraCoreTests.StagedLibraryFilterTests testUnrelatedNavigationSupersedesHeldFilterDraft]' passed (0.039 seconds).
+Test Suite 'StagedLibraryFilterTests' failed at 2026-09-28 03:13:51.944.
+	 Executed 9 tests, with 6 failures (0 unexpected) in 33.224 (33.225) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-28 03:13:51.944.
+	 Executed 9 tests, with 6 failures (0 unexpected) in 33.224 (33.225) seconds
+Test Suite 'Selected tests' failed at 2026-09-28 03:13:51.944.
+	 Executed 9 tests, with 6 failures (0 unexpected) in 33.224 (33.226) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

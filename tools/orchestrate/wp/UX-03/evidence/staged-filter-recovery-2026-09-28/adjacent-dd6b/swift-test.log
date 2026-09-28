@@ -1,0 +1,136 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.11s)
+Test Suite 'Selected tests' started at 2026-09-28 03:18:43.523.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 03:18:43.524.
+Test Suite 'DevelopRecoveryAdmissionBehaviorTests' started at 2026-09-28 03:18:43.524.
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testDevelopReuseUsesImageIdentityAcrossDenseIDChanges]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.6702499999999999, 0.317959, 0.352708]; GPU [5.447125, 0.9102910000000001, 0.68925]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testDevelopReuseUsesImageIdentityAcrossDenseIDChanges]' passed (0.047 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedClosePreservesSavedSmartAlbumSourceAndFilter]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.6412909999999999, 0.30133299999999996, 0.2965]; GPU [3.829792, 0.905042, 0.681416]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedClosePreservesSavedSmartAlbumSourceAndFilter]' passed (0.040 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedSaveKeepsWorkspaceAndExplicitRetryCommitsThenReopensFreshController]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.523208, 0.281375, 0.298792]; GPU [2.8405829999999996, 0.934708, 0.990708]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testFailedSaveKeepsWorkspaceAndExplicitRetryCommitsThenReopensFreshController]' passed (0.045 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseCommitsGridDoubleClickSelectionAndLoupeTogether]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5111669999999999, 0.267791, 0.29266699999999995]; GPU [2.568833, 0.891917, 0.689708]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseCommitsGridDoubleClickSelectionAndLoupeTogether]' passed (0.031 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseKeepsTetherAutoAdvanceTargetAndLoupeTogether]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.525583, 0.304791, 0.28008299999999997]; GPU [2.6887909999999997, 0.877208, 1.005875]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseKeepsTetherAutoAdvanceTargetAndLoupeTogether]' passed (0.031 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseMovesPeoplePhotoToAllPhotosAndLoupeTogether]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.550667, 0.2745, 0.292]; GPU [2.591333, 0.523416, 0.67625]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseMovesPeoplePhotoToAllPhotosAndLoupeTogether]' passed (0.030 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseOpensSavedSmartAlbumAndClearsFilterAsOneIntent]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.532792, 0.292875, 0.29829100000000003]; GPU [2.739375, 0.947583, 0.872042]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseOpensSavedSmartAlbumAndClearsFilterAsOneIntent]' passed (0.038 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseReturnsToLibraryAndEntersCompareAsOneIntent]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.485333, 0.243583, 0.28774999999999995]; GPU [2.5792089999999996, 0.478167, 0.9033329999999999]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldCloseReturnsToLibraryAndEntersCompareAsOneIntent]' passed (0.030 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldGridDestinationResolvesTargetByImageIdentityAfterLibraryRevisionChanges]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.543458, 0.29062499999999997, 0.30200000000000005]; GPU [2.9086659999999998, 0.5608339999999999, 4.4553329999999995]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testHeldGridDestinationResolvesTargetByImageIdentityAfterLibraryRevisionChanges]' passed (0.037 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLatestViewIntentCommitsAfterOneHeldDevelopClose]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5631670000000001, 0.276625, 0.28800000000000003]; GPU [5.500958000000001, 0.875667, 1.016583]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLatestViewIntentCommitsAfterOneHeldDevelopClose]' passed (0.034 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLayeredCompletionCannotTakeOverAfterLibraryReplacement]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.552167, 0.271708, 0.303083]; GPU [2.734833, 0.783167, 1.332625]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLayeredCompletionCannotTakeOverAfterLibraryReplacement]' passed (0.236 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLibraryDestinationDuringLayersCloseInvalidatesCopyUntilReissued]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.678291, 0.27754199999999996, 0.29070799999999997]; GPU [3.135709, 1.056125, 0.8775000000000001]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testLibraryDestinationDuringLayersCloseInvalidatesCopyUntilReissued]' passed (0.033 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testPresentingExportSheetDoesNotCloseOrReserveDevelopPixels]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.5182500000000001, 0.276584, 0.326334]; GPU [3.199709, 0.594709, 0.6709590000000001]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testPresentingExportSheetDoesNotCloseOrReserveDevelopPixels]' passed (0.063 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringHeldLayerBackendKeepsReservationAndPreventsStaleViewStatus]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.525459, 0.269792, 0.28695899999999996]; GPU [4.433458000000001, 0.9005000000000001, 1.043709]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringHeldLayerBackendKeepsReservationAndPreventsStaleViewStatus]' passed (0.036 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringLayersCloseInvalidatesCopyButStillRequiresFreshSelection]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.505125, 0.26891699999999996, 0.306833]; GPU [2.679542, 0.883125, 0.676458]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSelectionDuringLayersCloseInvalidatesCopyButStillRequiresFreshSelection]' passed (0.031 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testStaleLayeredFailurePreservesReplacementStatusAndReleasesSourceGate]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.519292, 0.280333, 0.307167]; GPU [2.6644170000000003, 0.841375, 0.693583]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testStaleLayeredFailurePreservesReplacementStatusAndReleasesSourceGate]' passed (0.038 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryClearsRecoveryOwnedBlockedNavigationStatus]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.629042, 0.268, 0.264584]; GPU [2.7669159999999997, 0.662917, 1.09125]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryClearsRecoveryOwnedBlockedNavigationStatus]' passed (0.049 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryPreservesNewerUnrelatedStatus]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.565959, 0.27349999999999997, 0.305333]; GPU [2.796167, 1.045791, 0.691958]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSuccessfulRetryPreservesNewerUnrelatedStatus]' passed (0.047 seconds).
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSupersededFolderCallbackSettlesOnceAndMayReenterOpenFolder]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.643583, 0.27045800000000003, 0.280459]; GPU [5.490958, 0.560209, 0.6816669999999999]
+Test Case '-[TesseraCoreTests.DevelopRecoveryAdmissionBehaviorTests testSupersededFolderCallbackSettlesOnceAndMayReenterOpenFolder]' passed (0.083 seconds).
+Test Suite 'DevelopRecoveryAdmissionBehaviorTests' passed at 2026-09-28 03:18:44.503.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.978 (0.979) seconds
+Test Suite 'IncrementalLibraryTests' started at 2026-09-28 03:18:44.503.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testAppModelKeepsSelectionFilterAndGridAcrossUpdates]' started.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testAppModelKeepsSelectionFilterAndGridAcrossUpdates]' passed (0.375 seconds).
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testLibraryInsertsUpdatesAndRemovesInPlaceKeepingUndo]' started.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testLibraryInsertsUpdatesAndRemovesInPlaceKeepingUndo]' passed (0.049 seconds).
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testTwentyTetheredFramesKeepUndoAndFilters]' started.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testTwentyTetheredFramesKeepUndoAndFilters]' passed (5.231 seconds).
+Test Suite 'IncrementalLibraryTests' passed at 2026-09-28 03:18:50.159.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 5.655 (5.655) seconds
+Test Suite 'LibraryTests' started at 2026-09-28 03:18:50.159.
+Test Case '-[TesseraCoreTests.LibraryTests testAlbumOrderingAndSidebarNestingPersist]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testAlbumOrderingAndSidebarNestingPersist]' passed (0.063 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testBatchMetadataAndFacetOnlySnapshot]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testBatchMetadataAndFacetOnlySnapshot]' passed (0.028 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testFilterBarFacetsAndNotInAnyAlbum]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testFilterBarFacetsAndNotInAnyAlbum]' passed (0.054 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testRapidQueriesAndLibraryReplacementRejectOldResults]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testRapidQueriesAndLibraryReplacementRejectOldResults]' passed (0.379 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testRuleDiagnosticsMapToSwiftRangesThroughTheBridge]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testRuleDiagnosticsMapToSwiftRangesThroughTheBridge]' passed (0.023 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testSupportDirectoryResolution]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testSupportDirectoryResolution]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/LibraryTests.swift:146: -[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement] : Test skipped - Opt-in generated 20k-file engine fixture
+Test Case '-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]' skipped (0.001 seconds).
+Test Suite 'LibraryTests' passed at 2026-09-28 03:18:50.708.
+	 Executed 7 tests, with 1 test skipped and 0 failures (0 unexpected) in 0.549 (0.550) seconds
+Test Suite 'PeopleBridgeTests' started at 2026-09-28 03:18:50.708.
+Test Case '-[TesseraCoreTests.PeopleBridgeTests testNameMergeSplitConfirmAndFilterThroughTheEngine]' started.
+Test Case '-[TesseraCoreTests.PeopleBridgeTests testNameMergeSplitConfirmAndFilterThroughTheEngine]' passed (0.072 seconds).
+Test Suite 'PeopleBridgeTests' passed at 2026-09-28 03:18:50.780.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.072 (0.072) seconds
+Test Suite 'PeopleModelTests' started at 2026-09-28 03:18:50.780.
+Test Case '-[TesseraCoreTests.PeopleModelTests testDetailLoadsMembersInOneCall]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testDetailLoadsMembersInOneCall]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testEngineErrorsBecomeMessagesAndNothingIsHalfApplied]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testEngineErrorsBecomeMessagesAndNothingIsHalfApplied]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testFootnoteReportsTheJobsSampleSize]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testFootnoteReportsTheJobsSampleSize]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testInstallResetsAndLibraryUpdatesRemapItems]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testInstallResetsAndLibraryUpdatesRemapItems]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testMergeSelectionKeepsTheNamedPersonAndItsName]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testMergeSelectionKeepsTheNamedPersonAndItsName]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testNamingCommitsTrimmedNameWithOptInsAndReloads]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testNamingCommitsTrimmedNameWithOptInsAndReloads]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testPersonFacetIsAUnionWithinAndIntersectsOtherFilters]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testPersonFacetIsAUnionWithinAndIntersectsOtherFilters]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testReassignAndConfirmGoThroughTheEngine]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testReassignAndConfirmGoThroughTheEngine]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testRefreshRunsTheJobOffTheMainActorAndReportsApproximation]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testRefreshRunsTheJobOffTheMainActorAndReportsApproximation]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testSplitMovesSelectedFacesToANewUnconfirmedPerson]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testSplitMovesSelectedFacesToANewUnconfirmedPerson]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testSuggestionsAreFilteredSortedAndAcceptingMerges]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testSuggestionsAreFilteredSortedAndAcceptingMerges]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesNamedFirstThenByFramesWithNamesMembersAndBadges]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesNamedFirstThenByFramesWithNamesMembersAndBadges]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesUseTheMedoidAndEngineCountsWithoutScanningAssignments]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesUseTheMedoidAndEngineCountsWithoutScanningAssignments]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testUndoRedoReplayEngineHistoryWithItsDescriptions]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testUndoRedoReplayEngineHistoryWithItsDescriptions]' passed (0.001 seconds).
+Test Suite 'PeopleModelTests' passed at 2026-09-28 03:18:50.794.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.013 (0.013) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 03:18:50.794.
+	 Executed 44 tests, with 1 test skipped and 0 failures (0 unexpected) in 7.266 (7.270) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 03:18:50.794.
+	 Executed 44 tests, with 1 test skipped and 0 failures (0 unexpected) in 7.266 (7.271) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
