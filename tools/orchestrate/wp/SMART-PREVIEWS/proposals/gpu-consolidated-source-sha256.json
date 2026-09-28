@@ -1,0 +1,11 @@
+{
+  "crates/image-core/src/resident_render.rs": "1be632029a48e32c5600a4f11ef1d2191957043adacd7859b65527068dfe839b",
+  "crates/image-core/src/smart_preview_render.rs": "45177093420f327291d094634a2c636d25ef93d7a5ed9dba377b62c43a96a70e",
+  "crates/image-core/tests/smart_preview.rs": "2d7b5f576e979231e9e5ad11ca06f2f695de75d5bd7b99da5835ba4fe0811eb1",
+  "crates/pipeline-cpu/src/lens_plan.rs": "f6478da14e71a9ad67f13edc05f69be8554b4c0896304a8e91e4541e45766ba7",
+  "crates/pipeline-cpu/src/smart_preview.rs": "0867e6e95ff8f6c199ec3561b9e13cb766235d86670a2dc42b0dc59ab2be8aa2",
+  "crates/pipeline-gpu/tests/smart_preview.rs": "c78a758ea992ca5b96688bb82a76550be0079c4d16a757443366b155acc4ce17",
+  "crates/tessera-ffi/src/backend.rs": "e6d414116179774c63f0d5524bb069a72eaa8fb6647c9f85b6e5c3a86e879822",
+  "crates/tessera-ffi/src/develop.rs": "de463f7060f882a14a815a96d5886343146a1eaa7568f7ed7c1134e1e290d320",
+  "crates/tessera-ffi/src/lib.rs": "8776252e5aa953ec15ac78c5059029165075cd0f97da6de4375ea4518bbe5042"
+}
