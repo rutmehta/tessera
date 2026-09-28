@@ -14,6 +14,8 @@ use raw_decode::{CfaImage, RawMetadata, RawSource};
 #[derive(Clone)]
 pub struct RawImage {
     id: ImageId,
+    recipe_owner: ImageId,
+    camera_linear_proxy: Option<Arc<pipeline_cpu::CameraLinearProxy>>,
     cfa: Option<Arc<CfaImage>>,
     rgb: Option<Arc<crate::RgbSource>>,
     metadata: Arc<RawMetadata>,
@@ -43,6 +45,8 @@ impl RawImage {
         }
         Ok(Self {
             id,
+            recipe_owner: id,
+            camera_linear_proxy: None,
             cfa: Some(cfa),
             rgb: None,
             metadata,
@@ -118,10 +122,46 @@ impl RawImage {
         };
         Ok(Self {
             id,
+            recipe_owner: id,
+            camera_linear_proxy: None,
             cfa: None,
             rgb: Some(Arc::new(rgb)),
             metadata: Arc::new(metadata),
         })
+    }
+
+    /// Attach an immutable camera-linear preview to its original RAW recipe.
+    /// `render_id` must identify the verified representation, generator, payload
+    /// and scale, and must differ from the original recipe owner. The caller
+    /// owns persistence verification and must not reuse it for another payload.
+    pub fn from_camera_linear_proxy(
+        recipe_owner: ImageId,
+        render_id: ImageId,
+        proxy: Arc<pipeline_cpu::CameraLinearProxy>,
+    ) -> EngineResult<Self> {
+        if recipe_owner == render_id {
+            return Err(EngineError::invalid(
+                "render_id",
+                "proxy and original identities must differ",
+            ));
+        }
+        Ok(Self {
+            id: render_id,
+            recipe_owner,
+            metadata: Arc::new(proxy.original_metadata().clone()),
+            camera_linear_proxy: Some(proxy),
+            cfa: None,
+            rgb: None,
+        })
+    }
+
+    pub fn camera_linear_proxy(&self) -> Option<&pipeline_cpu::CameraLinearProxy> {
+        self.camera_linear_proxy.as_deref()
+    }
+
+    /// Catalog/recipe identity, independent of the decoded representation.
+    pub fn recipe_owner(&self) -> ImageId {
+        self.recipe_owner
     }
 
     pub fn rgb(&self) -> Option<&crate::RgbSource> {
@@ -137,12 +177,12 @@ impl RawImage {
         self.id
     }
 
-    /// Linearized sensor samples. Only valid when [`Self::rgb`] is None.
-    /// Panics if called on a rendered RGB source.
+    /// Linearized sensor samples. Only valid for an original CFA source.
+    /// Panics on RGB and camera-linear proxy sources.
     pub fn cfa(&self) -> &CfaImage {
         self.cfa
             .as_deref()
-            .expect("CFA requested for an RGB source")
+            .expect("CFA requested for a non-CFA source")
     }
 
     /// Sensor metadata.
@@ -157,6 +197,9 @@ impl RawImage {
 
     /// Active-area (default crop) extent: level 0 of the output pyramid.
     pub fn active_extent(&self) -> Extent {
+        if let Some(proxy) = self.camera_linear_proxy() {
+            return Extent::new(proxy.pixels().width(), proxy.pixels().height());
+        }
         let [_, _, w, h] = self.metadata.default_crop;
         Extent::new(w, h)
     }

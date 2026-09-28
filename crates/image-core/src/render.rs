@@ -76,6 +76,8 @@ mod denoise_render;
 mod resident_render;
 #[path = "rgb_render.rs"]
 mod rgb_render;
+#[path = "smart_preview_render.rs"]
+mod smart_preview_render;
 pub use rgb_render::RgbCacheStats;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -542,6 +544,9 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
+        if image.camera_linear_proxy().is_some() {
+            self.validate_camera_linear_proxy(image, settings)?;
+        }
         self.validate_settings(settings)?;
         let extent = Self::output_extent(image, settings, level)?;
         let coords = Self::tiles_in_extent(extent, level, rect);
@@ -569,6 +574,9 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
+        if image.camera_linear_proxy().is_some() {
+            return self.run_camera_linear_proxy(image, settings, coords, output, cancel, sink);
+        }
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
         let mut r = self.resolve(image, settings)?;
         r.lens = lens.as_ref();
@@ -605,6 +613,16 @@ impl Renderer {
                 format!("need finest <= coarsest <= {MAX_LEVEL}"),
             ));
         }
+        if image.camera_linear_proxy().is_some() {
+            cancel.check()?;
+            self.validate_camera_linear_proxy(image, settings)?;
+            for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
+                let extent = Self::output_extent(image, settings, level)?;
+                let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
+                self.run_camera_linear_proxy(image, settings, &coords, output, cancel, sink)?;
+            }
+            return cancel.check();
+        }
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
         let mut r = self.resolve(image, settings)?;
         r.lens = lens.as_ref();
@@ -636,6 +654,11 @@ impl Renderer {
     ) -> EngineResult<Extent> {
         if level > MAX_LEVEL {
             return Err(EngineError::invalid("level", "level exceeds MAX_LEVEL"));
+        }
+        // The proxy reference route reduces after geometry, including partial
+        // edge bins. Keep this rounding separate from original tiled previews.
+        if image.camera_linear_proxy().is_some() && level > 0 {
+            return Ok(Self::output_extent(image, settings, 0)?.at_level(level));
         }
         let e = image.level_extent(level);
         let r = settings.geometry.crop.rect;
