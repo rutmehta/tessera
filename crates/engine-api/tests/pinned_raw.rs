@@ -220,16 +220,16 @@ fn exact_recipe_bytes_include_whitespace_in_input_identity() {
 
 fn recipe_with_mask() -> Recipe {
     let mut recipe = Recipe::new(ImageId(1));
-    let mut adjustment = LocalAdjustment::default();
-    adjustment.id = MaskId(1);
-    adjustment
-        .components
-        .push(MaskComponent::new(MaskKind::Sky {
+    let adjustment = LocalAdjustment {
+        id: MaskId(1),
+        components: vec![MaskComponent::new(MaskKind::Sky {
             model: Some(ModelRef {
                 id: ModelId::new("segment/sky"),
                 version: "v1".into(),
             }),
-        }));
+        })],
+        ..LocalAdjustment::default()
+    };
     recipe.settings.locals.adjustments.push(adjustment);
     recipe
 }
