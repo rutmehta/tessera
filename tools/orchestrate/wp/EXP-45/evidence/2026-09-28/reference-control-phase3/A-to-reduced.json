@@ -1,0 +1,62 @@
+{
+  "source": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+  "source_sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+  "output": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/rational-swap/A-to-reduced.jpg",
+  "output_sha256": "7056601607020d82d96e22c47220c8bae20dff6c8ace0624801437e33686af3d",
+  "bytes": 1956,
+  "iso_aux_namespace_offset": 1460,
+  "iso_flags_hex": "40",
+  "original_rationals": [
+    [
+      4000000,
+      1000000
+    ],
+    [
+      4000000,
+      1000000
+    ]
+  ],
+  "replacement_rationals": [
+    [
+      4,
+      1
+    ],
+    [
+      4,
+      1
+    ]
+  ],
+  "all_seven_numeric_rationals_equal": true,
+  "changed_word_ranges": [
+    {
+      "offset": 1501,
+      "end": 1509,
+      "before_hex": "003d0900000f4240",
+      "after_hex": "0000000400000001"
+    },
+    {
+      "offset": 1517,
+      "end": 1525,
+      "before_hex": "003d0900000f4240",
+      "after_hex": "0000000400000001"
+    }
+  ],
+  "actual_changed_byte_offsets": [
+    1502,
+    1503,
+    1504,
+    1506,
+    1507,
+    1508,
+    1518,
+    1519,
+    1520,
+    1522,
+    1523,
+    1524
+  ],
+  "mpf_primary_attr_hex": "20030000",
+  "mpf_aux_offset": 1436,
+  "mpf_aux_size": 520,
+  "length_and_all_other_bytes_unchanged": true
+}

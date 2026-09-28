@@ -1,0 +1,80 @@
+{
+  "source": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+  "copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/rational-swap/A-to-reduced.jpg",
+  "source_static": {
+    "sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+    "bytes": 1956,
+    "mpf_primary_attr_hex": "20030000",
+    "mpf_aux_offset": 1436,
+    "mpf_aux_length": 520,
+    "aux_sha256": "4d9d66cd12750911c93a19a65ddadc3a08df28a0d9f50282a1be79c672d84fcd",
+    "iso_aux_namespace_offset": 1460,
+    "iso_flags_hex": "40",
+    "rational_words": [
+      0,
+      1,
+      4000000,
+      1000000,
+      0,
+      1,
+      4000000,
+      1000000,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "numeric_values": [
+      "0",
+      "4",
+      "0",
+      "4",
+      "1",
+      "0",
+      "0"
+    ],
+    "icc_exiftool_bytes": 588,
+    "icc_exiftool_sha256": "9917273a11ee1e244854a427a69099558670b195637332b5bd012efba0059f44"
+  },
+  "copy_static": {
+    "sha256": "7056601607020d82d96e22c47220c8bae20dff6c8ace0624801437e33686af3d",
+    "bytes": 1956,
+    "mpf_primary_attr_hex": "20030000",
+    "mpf_aux_offset": 1436,
+    "mpf_aux_length": 520,
+    "aux_sha256": "aa56fdd27eda998262674b0a8028f86d1b7c8f7c86a4a550d5027e018ce263d6",
+    "iso_aux_namespace_offset": 1460,
+    "iso_flags_hex": "40",
+    "rational_words": [
+      0,
+      1,
+      4,
+      1,
+      0,
+      1,
+      4,
+      1,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "numeric_values": [
+      "0",
+      "4",
+      "0",
+      "4",
+      "1",
+      "0",
+      "0"
+    ],
+    "icc_exiftool_bytes": 588,
+    "icc_exiftool_sha256": "9917273a11ee1e244854a427a69099558670b195637332b5bd012efba0059f44"
+  },
+  "all_numeric_rationals_equal": true,
+  "mpf_and_icc_unchanged": true
+}

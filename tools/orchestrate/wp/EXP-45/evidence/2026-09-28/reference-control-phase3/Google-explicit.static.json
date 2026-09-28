@@ -1,0 +1,80 @@
+{
+  "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/denominator-explicit/reference-16-explicit.jpg",
+  "copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/rational-swap/Google-to-million.jpg",
+  "source_static": {
+    "sha256": "cadfffeac4728b3536b738c6257bbc7c843bde5dc6153c160141fac5effc06ed",
+    "bytes": 1919,
+    "mpf_primary_attr_hex": "00030000",
+    "mpf_aux_offset": 1479,
+    "mpf_aux_length": 440,
+    "aux_sha256": "8564566df005c14796a9aa35be27f8abedea73c38e5d6170677b1d8a846211d5",
+    "iso_aux_namespace_offset": 1485,
+    "iso_flags_hex": "40",
+    "rational_words": [
+      0,
+      1,
+      4,
+      1,
+      0,
+      1,
+      4,
+      1,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "numeric_values": [
+      "0",
+      "4",
+      "0",
+      "4",
+      "1",
+      "0",
+      "0"
+    ],
+    "icc_exiftool_bytes": 588,
+    "icc_exiftool_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c"
+  },
+  "copy_static": {
+    "sha256": "19127b58eccbfff947f6c4410fe331cd639657e7d02c8d485e144b28c4daa3f9",
+    "bytes": 1919,
+    "mpf_primary_attr_hex": "00030000",
+    "mpf_aux_offset": 1479,
+    "mpf_aux_length": 440,
+    "aux_sha256": "a332fe8f868e033ac09498d4b72f9579746adf184225d528c02f5a707a4e09b8",
+    "iso_aux_namespace_offset": 1485,
+    "iso_flags_hex": "40",
+    "rational_words": [
+      0,
+      1,
+      4000000,
+      1000000,
+      0,
+      1,
+      4000000,
+      1000000,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "numeric_values": [
+      "0",
+      "4",
+      "0",
+      "4",
+      "1",
+      "0",
+      "0"
+    ],
+    "icc_exiftool_bytes": 588,
+    "icc_exiftool_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c"
+  },
+  "all_numeric_rationals_equal": true,
+  "mpf_and_icc_unchanged": true
+}

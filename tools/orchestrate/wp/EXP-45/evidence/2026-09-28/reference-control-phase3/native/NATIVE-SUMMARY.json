@@ -1,0 +1,49 @@
+{
+  "stdout_prefix": "too few samples\ntoo few samples\ntoo few samples\ntoo few samples\n",
+  "records": [
+    {
+      "file": "headroom-4-stops.jpg",
+      "iso_aux_present": true,
+      "imageio_sdr_peak": 1,
+      "imageio_hdr_peak": 7.983762264251709,
+      "imageio_hdr_headroom": 8,
+      "imageio_hdr_to_sdr_peak_ratio": 7.983762264251709,
+      "imageio_valid_pixels": true,
+      "coreimage_gain_present": true,
+      "coreimage_peak": 16.000003814697266
+    },
+    {
+      "file": "A-to-reduced.jpg",
+      "iso_aux_present": true,
+      "imageio_sdr_peak": 1,
+      "imageio_hdr_peak": 7.983762264251709,
+      "imageio_hdr_headroom": 8,
+      "imageio_hdr_to_sdr_peak_ratio": 7.983762264251709,
+      "imageio_valid_pixels": true,
+      "coreimage_gain_present": true,
+      "coreimage_peak": 16.000003814697266
+    },
+    {
+      "file": "reference-16-explicit.jpg",
+      "iso_aux_present": true,
+      "imageio_sdr_peak": 0.871337890625,
+      "imageio_hdr_peak": 13.934017181396484,
+      "imageio_hdr_headroom": 16,
+      "imageio_hdr_to_sdr_peak_ratio": 15.991519858503782,
+      "imageio_valid_pixels": true,
+      "coreimage_gain_present": true,
+      "coreimage_peak": 13.94189453125
+    },
+    {
+      "file": "Google-to-million.jpg",
+      "iso_aux_present": true,
+      "imageio_sdr_peak": 0.871337890625,
+      "imageio_hdr_peak": 13.934017181396484,
+      "imageio_hdr_headroom": 16,
+      "imageio_hdr_to_sdr_peak_ratio": 15.991519858503782,
+      "imageio_valid_pixels": true,
+      "coreimage_gain_present": true,
+      "coreimage_peak": 13.94189453125
+    }
+  ]
+}
