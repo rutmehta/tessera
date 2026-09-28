@@ -1,7 +1,7 @@
 //! Opening (native, PSD/PSB, flat images, library images), saving, flat
 //! export, and the raster-producing edits (merge down, flatten, selections).
 
-use super::{Opened, find, render::composite_raster, tile_from_f32};
+use super::{DocumentSaveAsResult, Opened, find, render::composite_raster, tile_from_f32};
 use crate::{Engine, Result, catalog, failure, parse_id};
 use compositor::{
     BlendMode, ColorProfile, DocOp, DocState, Document, Knockout, Layer, LayerId, LayerKind,
@@ -12,7 +12,7 @@ use engine_api::{
     tile::{Extent, TileCoord},
 };
 use std::{
-    io::Write,
+    io::{self, Write},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -335,8 +335,14 @@ pub(crate) fn save_kind(path: &Path) -> Result<SaveKind> {
     }
 }
 
-/// Writes `bytes` next to `path` and renames it into place.
-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+/// A private commit mode; legacy saves replace without implying a UI approval.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CommitMode {
+    Replace,
+    CreateIfAbsent,
+}
+
+fn stage_bytes(path: &Path, bytes: &[u8]) -> Result<tempfile::NamedTempFile> {
     let dir = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -344,13 +350,59 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
     tmp.write_all(bytes)?;
     tmp.as_file().sync_all()?;
-    tmp.persist(path).map_err(|e| failure(e.error))?;
+    Ok(tmp)
+}
+
+fn commit_staged(
+    staged: tempfile::NamedTempFile,
+    path: &Path,
+    mode: CommitMode,
+) -> Result<DocumentSaveAsResult> {
+    match mode {
+        CommitMode::Replace => {
+            staged.persist(path).map_err(|e| failure(e.error))?;
+            Ok(DocumentSaveAsResult::Saved)
+        }
+        CommitMode::CreateIfAbsent => match staged.persist_noclobber(path) {
+            Ok(_) => {
+                // tempfile may use hard-link/unlink on a filesystem lacking
+                // exclusive rename; its unlink error is not observable here.
+                // Publication already succeeded, so never report failure or
+                // try to remove a possibly reused stage path afterward.
+                Ok(DocumentSaveAsResult::Saved)
+            }
+            Err(error) if error.error.kind() == io::ErrorKind::AlreadyExists => {
+                Ok(DocumentSaveAsResult::DestinationExists)
+            }
+            Err(error) => Err(failure(error.error)),
+        },
+    }
+}
+
+fn write_atomic_with_mode(
+    path: &Path,
+    bytes: &[u8],
+    mode: CommitMode,
+) -> Result<DocumentSaveAsResult> {
+    commit_staged(stage_bytes(path, bytes)?, path, mode)
+}
+
+/// Existing flat-export behavior retains replacing publication.
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    write_atomic_with_mode(path, bytes, CommitMode::Replace)?;
     Ok(())
 }
 
-pub(crate) fn save(doc: &Document, path: &Path) -> Result<()> {
+pub(super) fn save_with_mode(
+    doc: &Document,
+    path: &Path,
+    mode: CommitMode,
+) -> Result<DocumentSaveAsResult> {
     match save_kind(path)? {
-        SaveKind::Native => Ok(compositor::format::save(doc, path)?),
+        SaveKind::Native => {
+            let bytes = compositor::format::to_bytes(doc.state())?;
+            write_atomic_with_mode(path, &bytes, mode)
+        }
         kind => {
             let mut psd = compositor::psd::to_psd(doc)?;
             if kind == SaveKind::Psb {
@@ -361,7 +413,7 @@ pub(crate) fn save(doc: &Document, path: &Path) -> Result<()> {
                 psd.version = ::psd::Version::Psd;
             }
             let bytes = psd.write().map_err(failure)?;
-            write_atomic(path, &bytes)
+            write_atomic_with_mode(path, &bytes, mode)
         }
     }
 }
@@ -837,7 +889,10 @@ mod copy_transaction_tests {
 mod destination_commit_tests {
     use super::*;
     use crate::document::DocumentSaveAsResult;
-    use std::{os::unix::fs::symlink, sync::{Arc, Barrier}};
+    use std::{
+        os::unix::fs::symlink,
+        sync::{Arc, Barrier},
+    };
 
     #[test]
     fn create_if_absent_conflicts_with_file_created_after_staging() {
@@ -850,7 +905,10 @@ mod destination_commit_tests {
         let result = commit_staged(staged, &destination, CommitMode::CreateIfAbsent).unwrap();
         assert_eq!(result, DocumentSaveAsResult::DestinationExists);
         assert_eq!(std::fs::read(&destination).unwrap(), b"other-writer");
-        assert!(!staged_path.exists(), "failed publication must release its owned stage");
+        assert!(
+            !staged_path.exists(),
+            "failed publication must release its owned stage"
+        );
     }
 
     #[test]
@@ -895,8 +953,15 @@ mod destination_commit_tests {
         );
         let bytes = std::fs::read(&destination).unwrap();
         assert!(bytes == b"left-complete" || bytes == b"right-complete");
-        assert!(!left_path.exists());
-        assert!(!right_path.exists());
+        // Failed publication owns a removable stage. A successful
+        // persist_noclobber may retain a hard-link fallback staging name if
+        // its internal unlink fails; do not assert a stronger cleanup contract.
+        if left_result == DocumentSaveAsResult::DestinationExists {
+            assert!(!left_path.exists());
+        }
+        if right_result == DocumentSaveAsResult::DestinationExists {
+            assert!(!right_path.exists());
+        }
     }
 
     #[test]
@@ -918,7 +983,10 @@ mod destination_commit_tests {
             commit_staged(staged, &link, CommitMode::CreateIfAbsent).unwrap(),
             DocumentSaveAsResult::DestinationExists
         );
-        assert_eq!(std::fs::read_link(&link).unwrap(), std::path::PathBuf::from("absent-target"));
+        assert_eq!(
+            std::fs::read_link(&link).unwrap(),
+            std::path::PathBuf::from("absent-target")
+        );
         assert!(!dir.path().join("absent-target").exists());
 
         let folder = dir.path().join("directory.psb");
