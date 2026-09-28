@@ -1,0 +1,46 @@
+{
+  "candidate_head": "5ad1cbcc078cefeb6945533cba8637a974f0de65",
+  "bundle_id": "dev.tessera.document-save-validation.5ad1cbcc",
+  "package_manifest": "/Volumes/betterSSD/tessera-validation/document-save-settlement/pre-gate-5ad1cbcc/gui/package-final.json",
+  "gui_method": "CUA accessibility and screenshot",
+  "observations": [
+    {
+      "case": "Save As Cancel",
+      "result": "pass",
+      "ax": "Save As sheet dismissed and tiny.jpg document remained open"
+    },
+    {
+      "case": "Save As Escape",
+      "result": "pass_after_second_escape",
+      "ax": "First Escape left focused name field/sheet unchanged; second Escape dismissed; tiny.jpg remained open"
+    },
+    {
+      "case": "Save As new file",
+      "result": "pass",
+      "ax": "Window title and status became Saved tiny-validation.tessera-doc; 32x32 document remained open"
+    },
+    {
+      "case": "Replace existing current destination",
+      "result": "fail",
+      "ax": "Sheet dismissed; no replace alert in subsequent AX state or screenshot; document window retained prior Saved status"
+    },
+    {
+      "case": "Replace existing distinct destination",
+      "result": "fail",
+      "ax": "Sheet dismissed; no replace alert in subsequent AX state; original title and status remained"
+    }
+  ],
+  "saved_file": {
+    "path": "/Volumes/betterSSD/tessera-validation/document-save-settlement/pre-gate-5ad1cbcc/gui/saved/tiny-validation.tessera-doc",
+    "bytes": 2967,
+    "sha256": "d91487db16339f39fe6b82669a2d1be3080706c8afc1590df02763f93f5b7742"
+  },
+  "preexisting_distinct_file": {
+    "path": "/Volumes/betterSSD/tessera-validation/document-save-settlement/pre-gate-5ad1cbcc/gui/saved/already-exists.tessera-doc",
+    "bytes": 2967,
+    "sha256_after_attempt": "d91487db16339f39fe6b82669a2d1be3080706c8afc1590df02763f93f5b7742"
+  },
+  "isolated_app_quit": true,
+  "normal_preview_untouched": true,
+  "conclusion": "GUI acceptance blocked; unit gate passed but native replacement prompt did not appear. Source race hypothesis is unproven."
+}

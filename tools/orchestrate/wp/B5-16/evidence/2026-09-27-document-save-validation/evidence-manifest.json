@@ -1,0 +1,54 @@
+{
+  "diff-check.txt": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "git-log.txt": {
+    "bytes": 825,
+    "sha256": "129bf2cfd539e76218f7676c216e3c32442a1560ed4d13a8777e6cfe87e2c8f3"
+  },
+  "gui/GUI-RESULTS.json": {
+    "bytes": 2033,
+    "sha256": "5d3fc843ec54d20e1917da6a73d7b65eda91730b766b34abd557d0268a1b7503"
+  },
+  "gui/package-final.json": {
+    "bytes": 871,
+    "sha256": "a0bf746d3e05785b2c1c8a08f4a2f20650846e6d9fbe1c3f1ba2e56711a6366e"
+  },
+  "gui/package-input.json": {
+    "bytes": 587,
+    "sha256": "7d9dfdc60f07a48412f703817cb049ac1cce700125686c52bc9e64ab4565dbba"
+  },
+  "load-settlement.json": {
+    "bytes": 768,
+    "sha256": "9a2d539d4f84a99d0e66461d984ef74eb92b82891b3543d854e6b93f8515abb9"
+  },
+  "load-settlement.log": {
+    "bytes": 1933,
+    "sha256": "de7ca7ca63c7e7a37e851f5f61db152877f6ace6a8f5df050b4de547a3abd873"
+  },
+  "run-gates.py": {
+    "bytes": 3417,
+    "sha256": "bd0de5735492acb3b00e26a9c583c3091da28839e16ecb80ec593c560b410617"
+  },
+  "save-adjacent.json": {
+    "bytes": 824,
+    "sha256": "3ec45d2dac0585ab83d85145bf85025a48baa2905c266999fb1260818eeb0613"
+  },
+  "save-adjacent.log": {
+    "bytes": 1984,
+    "sha256": "5f1a37103c8eeb9813549d598c16e7bd8a541651166062c27cb5b24704af230c"
+  },
+  "save-settlement.json": {
+    "bytes": 768,
+    "sha256": "97ab0e7b0584bd7914aa0bb9330ea6830cc41da9b69af202c1d07dd02c6e9f03"
+  },
+  "save-settlement.log": {
+    "bytes": 15689,
+    "sha256": "df17050ef54ec3564e2f49955656a6913267065ae910251352fce80e1be13ba9"
+  },
+  "source-manifest.json": {
+    "bytes": 2033,
+    "sha256": "1556974e05e5e9a9c24afb5ac5aafa9f2749bb7541668b2a74acc662c9cafd7c"
+  }
+}

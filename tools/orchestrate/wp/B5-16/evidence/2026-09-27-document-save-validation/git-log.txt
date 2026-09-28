@@ -1,0 +1,8 @@
+e803b4cd2e2be2c61064fde47cbe41ca40ebf747 test: specify typed Document save settlement under cancellation and faults (unrun)
+50ed04c6547b8b6743749cbf009f4fae76885a79 test: cover exact controller and stale Document save completion (unrun)
+c288b04d0c2ac26af0b729a0ba82838565dfb5bd test: release retained save continuations in unrun fixtures
+81bc2eec382e7c6447b87de8a9db7c4cceed9c2d fix: add typed exactly-once Document save request settlement
+b73abd30ff880dcaf9dc93cb8398574f869a2b98 docs: hand off unrun Document save settlement seams
+7b5a12a15881ddb7005fede1652a78d7841b27bb test: specify Layers backend completion settlement (unrun)
+399940642f91d82cdbc4ddc97f91c7c9f5677f25 fix: settle Layers handoff after backend load completion
+5ad1cbcc078cefeb6945533cba8637a974f0de65 docs: publish exact Layers completion API checkpoint
