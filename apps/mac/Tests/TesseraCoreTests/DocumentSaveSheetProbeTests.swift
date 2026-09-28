@@ -2,60 +2,26 @@ import AppKit
 import XCTest
 @testable import Tessera
 
-// UNRUN on B. Hidden AppKit window only; no sheet, backend save, timer or GPU work.
 @MainActor
 final class DocumentSaveSheetProbeTests: XCTestCase {
-    func testReusedAttachedViewImmediatelyReportsUpdatedOwnerAndRequest() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 16, height: 16),
-                              styleMask: [], backing: .buffered, defer: true)
-        let view = DocumentSaveSheetWindowProbe.ProbeView()
-        window.contentView = view
-        let firstOwner = DocumentWorkspace(), secondOwner = DocumentWorkspace()
-        let firstID = UUID(), secondID = UUID()
-        var reports: [(ObjectIdentifier, UUID, ObjectIdentifier)] = []
-        let report: @MainActor (DocumentWorkspace, UUID, NSWindow) -> Void = { owner, id, window in
-            reports.append((ObjectIdentifier(owner), id, ObjectIdentifier(window)))
-        }
-        var first = DocumentSaveSheetWindowProbe(workspace: firstOwner, requestID: firstID)
-        first.reportWindow = report
-        first.refreshCapture(on: view)
-        XCTAssertEqual(reports.count, 1)
-        XCTAssertEqual(reports.last?.1, firstID)
-        var second = DocumentSaveSheetWindowProbe(workspace: secondOwner, requestID: secondID)
-        second.reportWindow = report
-        second.refreshCapture(on: view) // updateNSView path, no new window attachment event.
-        XCTAssertEqual(reports.count, 2)
-        XCTAssertEqual(reports.last?.0, ObjectIdentifier(secondOwner))
-        XCTAssertEqual(reports.last?.1, secondID)
-        XCTAssertEqual(reports.last?.2, ObjectIdentifier(window))
-        view.viewDidMoveToWindow()
-        XCTAssertEqual(reports.count, 3)
-        XCTAssertEqual(reports.last?.1, secondID)
-        view.capture = nil
-        window.contentView = nil
+    // The parent bridge is identity-only. Reuse must refresh the current window;
+    // an old incarnation, even for that very same window, cannot mutate the host.
+    func testStaleSameWindowBridgeTeardownDoesNotShutdownNewBinding() {
+        let presenter = DocumentSavePresenter(), window = NSObject()
+        let first = UUID(), second = UUID(), session = FakeDocumentSaveSession()
+        presenter.registerBinding(first)
+        presenter.updateBinding(first, windowID: ObjectIdentifier(window)) { _, _, _ in session }
+        presenter.registerBinding(second)
+        presenter.updateBinding(second, windowID: ObjectIdentifier(window)) { _, _, _ in session }
+        let token = DocumentSavePresentationToken(requestID: UUID())
+        presenter.present(token, content: .test, actions: .inert) { _ in }
+        presenter.removeBinding(first)
+        presenter.updateBinding(first, windowID: ObjectIdentifier(window)) { _, _, _ in nil }
+        XCTAssertEqual(session.endCount, 0)
+        XCTAssertEqual(presenter.host?.bindingID, second)
+        presenter.removeBinding(second)
+        XCTAssertEqual(session.endCount, 1)
+        session.complete(); session.detach()
+        XCTAssertFalse(presenter.isBusy)
     }
-
-    func testCaptureDoesNotKeepFormerWorkspaceAlive() {
-        let view = DocumentSaveSheetWindowProbe.ProbeView()
-        weak var observed: DocumentWorkspace?
-        do {
-            let owner = DocumentWorkspace()
-            observed = owner
-            DocumentSaveSheetWindowProbe(workspace: owner, requestID: UUID()).refreshCapture(on: view)
-        }
-        XCTAssertNil(observed)
-        view.capture = nil
-    }
-    func testDismantleEndsViewOwnershipOnceAndClearsCallbacks() {
-        let view = DocumentSaveSheetWindowProbe.ProbeView()
-        var ended = 0
-        view.capture = { _ in XCTFail("Unattached view should not report a window") }
-        view.finishOwnership = { ended += 1 }
-        DocumentSaveSheetWindowProbe.dismantleNSView(view, coordinator: ())
-        DocumentSaveSheetWindowProbe.dismantleNSView(view, coordinator: ())
-        XCTAssertEqual(ended, 1)
-        XCTAssertNil(view.capture)
-        XCTAssertNil(view.finishOwnership)
-    }
-
 }
