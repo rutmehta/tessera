@@ -1,0 +1,11 @@
+{
+  "head": "7cc7d39dffc899641e47951fd5cd131d26d8db43",
+  "files": {
+    "apps/mac/Sources/TesseraCore/DevelopController.swift": "c0a3e95eaa32c2624b429a472ec46c75f50ea49e29b91933faa8988c07be44f5",
+    "apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift": "a63590fc6880a7bf55bd6935c721a155cefccef9283548ddd1c8d16a3efea5fd",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": "b78ca980fa0ed7997ad3f65c17a7ea3b509758ebf466679f130702d83f25bca4",
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703",
+    "apps/mac/Sources/CTesseraFFI/module.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/libtessera_ffi.a": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03"
+  }
+}
