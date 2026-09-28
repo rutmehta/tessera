@@ -1,0 +1,41 @@
+{
+  "head": "c595dad26b2180e9e89cf63d43dcca46e50252b9",
+  "immutable_source_files": 8971,
+  "final_gates": {
+    "compile": 0,
+    "focused20": 0,
+    "original_full_missing_fixture": 101,
+    "retry_full": 0,
+    "strict": 0,
+    "fmt": 0
+  },
+  "full_totals": {
+    "passed": 116,
+    "failed": 0,
+    "ignored": 2
+  },
+  "artifact": {
+    "compile_attempt": "01-compile",
+    "head": "c595dad26b2180e9e89cf63d43dcca46e50252b9",
+    "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/image_core-81ae2afd87ee937b",
+    "sha256": "cc13360631e3e67c0081ad0eada0fdf54b5ec46e2ff153d689f2ba489f66158c"
+  },
+  "fixture": {
+    "source": "/Users/rutmehta/Developer/tessera/fixtures/raw/sample.dng",
+    "destination": "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/fixtures/raw/sample.dng",
+    "bytes": 36433920,
+    "source_before_sha256": "914f27df1ab095446c5db058703719f4a3749adedbfb9f353a3e85fa4f8f9b58",
+    "source_after_sha256": "914f27df1ab095446c5db058703719f4a3749adedbfb9f353a3e85fa4f8f9b58",
+    "copy_sha256": "914f27df1ab095446c5db058703719f4a3749adedbfb9f353a3e85fa4f8f9b58",
+    "intended_source": "fixtures/fetch.sh:10 raw.pixls.us entry752 Leica M9 Digital Camera 16bit DNG",
+    "accepted_identity_evidence": "/Volumes/betterSSD/tessera-validation/private-raw-capture/decoder/fixture-env.json",
+    "prior_image_core_pass": "/Volumes/betterSSD/tessera-validation/smart-previews/compact-tier/04-final-full-release.log:859",
+    "prior_fixture_hash_limit": "historical full image-core manifest did not hash sample.dng; current export-integration file matches accepted decoder identity; historical exact bytes not independently bound",
+    "runner_change": "separate v2 baseline plus explicit external_discovery equality; old runner/baseline/03 untouched",
+    "head": "c595dad26b2180e9e89cf63d43dcca46e50252b9",
+    "status": ""
+  },
+  "all_freezes_verified": true,
+  "verdict": "Approved private pure admission/arithmetic only",
+  "runtime_by_reviewer": "none"
+}

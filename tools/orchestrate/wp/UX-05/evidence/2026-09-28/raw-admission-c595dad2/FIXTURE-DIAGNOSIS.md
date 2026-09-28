@@ -1,0 +1,13 @@
+# Missing sample.dng diagnosis and prepared retry
+
+Existing image-core test linear_dng.rs:59–72 hardcodes CARGO_MANIFEST_DIR/../../fixtures/raw/sample.dng. Line62 unwrap fails opening the absent file, before route-kind assertion or malformed LinearRaw refusal. No PIPELINE_RAW_FIXTURES override applies to this test. Preserve failed03.
+
+Tracked fixtures/fetch.sh:10 identifies raw.pixls.us entry752, Leica M9 Digital Camera 16bit DNG. Existing main and export-integration copies both have 36,433,920 bytes and SHA256 914f27df1ab095446c5db058703719f4a3749adedbfb9f353a3e85fa4f8f9b58. This equals accepted decoder fixture-env.json and 03-five-family-fixtures-before/after.json. No download or arbitrary substitution needed.
+
+Earlier accepted image-core full runs passed this exact named test: smart-previews/image-core/full-release.log:863 and compact-tier/04-final-full-release.log:859. Compact command ran in export-integration with empty fixture_env. That checkout currently contains the same hash. However its historical fixture-inputs manifest hashes Sony and proxy assets, not sample.dng. Therefore prior test pass is proven, intended source continuity supported, but prior image-core-run exact DNG bytes were not contemporaneously hash-bound. Accepted decoder qualification does bind the DNG hash.
+
+Root-authorized preparation copied ONLY the absent DNG, using exclusive destination creation, into raw-render-admission fixtures/raw. Source before/after and destination hashes match. c595dad2 source/clean Git status unchanged. No tests, builds, decoder runs or fixture modifications performed.
+
+Separate immutable preparation: /Volumes/betterSSD/tessera-validation/raw-render-admission/c595dad2/fixture-retry-v2. Contains copied runner/oracles/artifact, new baseline recording external fixture state, explicit external_discovery baseline assertion, fixture-provenance.json and PREPARATION-SHA256.json. Original runner/baseline/03 failure untouched. Await explicit runtime grant. Intended next command: python3 [v2]/run.py full --attempt 04-full-fixture --execute; then strict/fmt only after results reviewed.
+
+Coverage caveat: fixture.rs chooses Sony if present, otherwise the first available RAW. With only restored DNG it now exercises Leica DNG, not the prior Sony default. ml_cfa.rs also enumerates available checkout RAW files. This is honest changed fixture discovery, not equivalent five-family/all-fixture coverage; do not label the retry as prior identical fixture selection. Other optional missing model/fixture early returns remain noncoverage. No additional fixtures copied without authorization.

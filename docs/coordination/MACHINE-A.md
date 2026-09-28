@@ -1,3 +1,9 @@
+## RAW pure admission foundation integrated; cache frame qualification starts
+
+Integrated files exactly match independently qualified `c595dad2`: private test-build recipe/metadata admission predicates and checked partial-allocation arithmetic, with 20 contracts. Compilation/exact test binary, full image-core 116 passes/two ignored, strict and format passed. Independent review verified 8,971 immutable source inputs; original missing-DNG failure and versioned intended-fixture retry remain in portable evidence. DNG-only coverage is explicit. This is a private foundation, not a pixel renderer, provenance authority, memory reservation, ICC/environment or public workflow implementation.
+
+B bridge repair result `87eed0a2` is accepted and under independent source review. Cache Task3 v2 source review passed; FFI owns the exclusive lane for separately committed baseline/candidate harness builds and six actual-frame functional processes. The frozen baseline remains untouched; performance timing is not yet authorized.
+
 ## Diagnostic repair dispatched; RAW fixture setup failure preserved
 
 B request `58e629b8-cc38-48fb-9ee3-f14f023ce3d6` asks for a bounded AX collection bridge repair with native-boundary tests, preserving routing semantics. SSH queue `01a0ea6c-8aee-78d1-a3ec-482f0536e74c` accepted; peer receipt is pending. Crash evidence main `33b95e39` and failed result receipt are published. No duplicate writer or routing fix.

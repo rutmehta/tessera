@@ -67,4 +67,6 @@ pub fn resident_export_lens_supported(lens: &engine_api::recipe::settings::LensS
 #[cfg(test)]
 extern crate self as image_core;
 #[cfg(test)]
+mod raw_admission;
+#[cfg(test)]
 mod resident_model;
