@@ -10,6 +10,35 @@ final class SmartPreviewUITests: XCTestCase {
               width: 2560, height: 1707, message: "")
     }
 
+    func testAbsentPreferenceDefaultsToOriginalAndPreservesExplicitSavedChoice() throws {
+        let suite = "SmartPreviewPreferenceTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertFalse(SmartPreviewPreference.read(from: defaults))
+        XCTAssertNil(defaults.object(forKey: SmartPreviewPreference.key), "Reading the default must not create a saved choice")
+        XCTAssertEqual(try SmartPreviewRouting.route(info(), preferPreview: SmartPreviewPreference.read(from: defaults)), .original)
+        defaults.set(true, forKey: SmartPreviewPreference.key)
+        XCTAssertTrue(SmartPreviewPreference.read(from: defaults))
+        XCTAssertEqual(try SmartPreviewRouting.route(info(), preferPreview: SmartPreviewPreference.read(from: defaults)), .smartPreview)
+        defaults.set(false, forKey: SmartPreviewPreference.key)
+        XCTAssertFalse(SmartPreviewPreference.read(from: defaults))
+    }
+
+    func testOfflineExistingPreviewOffersExplicitUseRatherThanRebuildOrSync() throws {
+        for dirty in [false, true] {
+            let existing = info("raw", .originalOffline, dirty: dirty, online: false)
+            XCTAssertThrowsError(try SmartPreviewRouting.route(existing, preferPreview: false)) { error in
+                XCTAssertTrue(error.localizedDescription.contains("Use Smart Preview"))
+                XCTAssertFalse(error.localizedDescription.contains("build"))
+                XCTAssertFalse(error.localizedDescription.contains("Synchronize"))
+            }
+            XCTAssertEqual(try SmartPreviewRouting.route(existing, preferPreview: true), .smartPreview)
+        }
+        XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", .missing, online: false), preferPreview: false)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("Reconnect the original"))
+        }
+    }
+
     func testRouteUsesRequestedSessionAndNeverFallsBackAfterProxyFailure() async throws {
         var calls: [DevelopSourceRoute] = []
         let value: String = try await SmartPreviewRouting.open(info(), preferPreview: true) { route in
