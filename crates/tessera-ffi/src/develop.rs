@@ -3439,7 +3439,11 @@ mod tests {
     fn open_develop_editor_does_not_overwrite_newer_engine_settings() {
         let (_dir, photo, engine, id, session) = tiny_develop_session("owner-conflict.jpg");
         let mut newer: Recipe = serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
-        newer.settings.tone.exposure = 1.2;
+        newer
+            .edit(EditMeta::user("Newer edit", now_ms()), |settings| {
+                settings.tone.exposure = 1.2;
+            })
+            .unwrap();
         engine
             .set_recipe_json(id.clone(), String::from_utf8(newer.to_json().unwrap()).unwrap())
             .unwrap();
@@ -3507,7 +3511,7 @@ mod tests {
         let mut legacy = catalog::document(&photo, parse_id(&id).unwrap()).unwrap();
         legacy.recipe.source_kind = engine_api::recipe::SourceKind::Raw;
         sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&photo).recipe, &legacy).unwrap();
-        let session = engine.open_develop_session(id).unwrap();
+        let session = engine.clone().open_develop_session(id).unwrap();
         session
             .set_settings(r#"{"tone":{"exposure":0.3}}"#.into(), false)
             .unwrap();
