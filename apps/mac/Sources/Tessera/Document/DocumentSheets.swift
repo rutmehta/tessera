@@ -182,6 +182,7 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
         var requestIdentity: UUID?
         var finishOwnership: (() -> Void)?
         func endOwnership() {
+            DocumentSaveLifecycleTrace.emit("view.endOwnership", requestIdentity, "view=\(ObjectIdentifier(self)) owner=\(String(describing: ownerIdentity)) hasFinish=\(finishOwnership != nil) window={\(DocumentSaveLifecycleTrace.window(window))}")
             capture = nil
             let finish = finishOwnership
             finishOwnership = nil
@@ -190,22 +191,27 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
         }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
+            DocumentSaveLifecycleTrace.emit("view.didMoveToWindow", requestIdentity, "view=\(ObjectIdentifier(self)) window={\(DocumentSaveLifecycleTrace.window(window))}")
             if let window { capture?(window) }
         }
     }
     func makeNSView(context: Context) -> ProbeView {
         let view = ProbeView()
+        DocumentSaveLifecycleTrace.emit("view.make", requestID, "view=\(ObjectIdentifier(view))")
         refreshCapture(on: view)
         return view
     }
     func updateNSView(_ view: ProbeView, context: Context) {
+        DocumentSaveLifecycleTrace.emit("view.update", requestID, "view=\(ObjectIdentifier(view)) oldRequest=\(view.requestIdentity?.uuidString ?? "nil") window={\(DocumentSaveLifecycleTrace.window(view.window))}")
         refreshCapture(on: view)
     }
     static func dismantleNSView(_ view: ProbeView, coordinator: ()) {
+        DocumentSaveLifecycleTrace.emit("view.dismantle", view.requestIdentity, "view=\(ObjectIdentifier(view)) window={\(DocumentSaveLifecycleTrace.window(view.window))}")
         if let window = view.window { view.capture?(window) }
         view.endOwnership()
     }
     func refreshCapture(on view: ProbeView) {
+        DocumentSaveLifecycleTrace.emit("view.refresh", requestID, "view=\(ObjectIdentifier(view)) oldRequest=\(view.requestIdentity?.uuidString ?? "nil") window={\(DocumentSaveLifecycleTrace.window(view.window))}")
         let id = requestID
         if view.ownerIdentity != ObjectIdentifier(workspace) || view.requestIdentity != id {
             view.endOwnership()
@@ -218,6 +224,7 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
         }
         let report = reportWindow
         view.capture = { [weak workspace] window in
+            DocumentSaveLifecycleTrace.emit("view.captureCallback", id, "ownerAlive=\(workspace != nil) window={\(DocumentSaveLifecycleTrace.window(window))}")
             guard let workspace else { return }
             report(workspace, id, window)
         }
@@ -232,6 +239,7 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
 private final class DocumentSavePresentationCapture {
     var id: UUID?
     func claim(_ request: SaveAsRequest, in workspace: DocumentWorkspace) -> Bool {
+        DocumentSaveLifecycleTrace.emit("content.claim", request.id, "captured=\(id?.uuidString ?? "nil")")
         if let id, id != request.id { return false }
         guard workspace.saveAsPresentationWillPresent(request.id) else { return false }
         id = request.id
@@ -245,7 +253,10 @@ struct DocumentSaveAsPresentation: ViewModifier {
     @State private var capture = DocumentSavePresentationCapture()
 
     func body(content: Content) -> some View {
-        content.sheet(item: Binding(get: { workspace.saveAsRequest }, set: { _ in }), onDismiss: {
+        content.sheet(item: Binding(get: { workspace.saveAsRequest }, set: { value in
+            DocumentSaveLifecycleTrace.emit("swift.bindingSet", capture.id, "incoming=\(value?.id.uuidString ?? "nil")")
+        }), onDismiss: {
+            DocumentSaveLifecycleTrace.emit("swift.onDismissCallback", capture.id)
             guard let id = capture.id else { return }
             capture.id = nil
             workspace.saveAsPresentationDidDismiss(id)
