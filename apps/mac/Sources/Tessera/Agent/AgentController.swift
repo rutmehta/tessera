@@ -35,6 +35,9 @@ final class AgentController {
     private var queueOwner: EngineLibrary?
     private var queueGeneration = UUID()
     @ObservationIgnored private var runID: UUID?
+    /// Test seam at the native run boundary, after the durable running intent is
+    /// written. Nil in the app; a bounded test hold can keep a rebind truly live.
+    @ObservationIgnored var beforeNativeAgentRun: (@Sendable () throws -> Void)?
     private var runningLibrary: EngineLibrary?
     private var runningImages: Set<String> = []
     private var mutationOwners: [String: EngineLibrary] = [:]
@@ -424,6 +427,7 @@ final class AgentController {
         runningImages = Set(images)
         runningSources = Set(images.compactMap { sourceKey(imageID: $0, library: lib) })
         let closeBarrier = app.prepareForAgent(imageIDs: Set(images), library: lib)
+        let beforeNativeAgentRun = beforeNativeAgentRun
         Task {
             var gateFinished = false
             defer { if !gateFinished { closeBarrier.finish() } }
@@ -449,7 +453,10 @@ final class AgentController {
             }
             self.writeResumeRecord(intent, for: lib)
             let result = await Task.detached(priority: .userInitiated) {
-                Result { try lib.engine.runAgent(request: request, cancel: cancel, listener: relay) }
+                Result {
+                    try beforeNativeAgentRun?()
+                    return try lib.engine.runAgent(request: request, cancel: cancel, listener: relay)
+                }
             }.value
             // The engine has finished reading and writing captured recipes. Release
             // admission before notifying the UI, which may reopen Develop.
