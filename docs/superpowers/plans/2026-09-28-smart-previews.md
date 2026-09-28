@@ -67,9 +67,9 @@ Files: Swift EngineLibrary/reference adapters, AppModel Develop opener, AppComma
 
 - [x] Batch Build/Discard actions, cancellation/per-item results and explicit proxy-use preference/source selection.
 - [x] Show original/proxy/offline/stale/conflict state with accessibility labels; generation-safe completion cannot replace newer selection/status.
-- [ ] UI/model tests for transitions, source choice and failed export. Actual supported app workflow with Sony ARW: build, edit, offline restart/save, reconnect/export; retain original hash.
+- [x] UI/model tests for transitions, source choice and failed export. Actual supported app workflow with Sony ARW: build, edit, offline restart/save, reconnect/export; retain original hash.
 
-UI/model gates and actual Swift/native Sony offline workflow pass on `c1f9d4e0`, merged `89b78881`. Separate-process/packaged-app acceptance and interactive performance remain open.
+UI/model gates and actual Swift/native Sony offline workflow pass on `c1f9d4e0`, merged `89b78881`. Actual packaged-app local-profile Sony build/offline edit/process restart/sync/full original export/offline export refusal/Compare passed (GUI-COMPLETION.md). Interactive performance remains open.
 
 ## Completion gate
 

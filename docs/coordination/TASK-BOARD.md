@@ -7,12 +7,12 @@
 | --- | --- | --- | --- |
 | SP-CORE: Compact assets, journals, offline edit/sync | A | Done | Main `89b78881`; native gates and preserved real RAW workflows. Originals stay unchanged. |
 | SP-DESKTOP: controls, cached Library, proxy thumbnails | B source / A integration | Done | Full Swift689 cases/1skip/0fail plus5; strict product; `62e4ee5b`; nine B completed receipts published. |
-| SP-GUI: actual offline restart and reconnect | A GUI reviewer | Partial | Core GUI flow passed, evidence `6c38697e`. Actual export/offline refusal/Compare now being checked with local copied fixtures. |
+| SP-GUI: offline lifecycle, export and Compare | A GUI reviewer / root verification | Done for local-profile Sony fixture | GUI build/edit/restart/sync/Original persistence passed; full4920×3276 export decoded and root visually checked; offline export refused with no output; Compare renders two differently edited proxies. Evidence GUI-COMPLETION.md. External-volume profile startup remains separately unqualified. |
 | SP-GPU: accelerated proxy editing | A FFI / independent codec review | In progress | First candidate fails geometry fidelity. Preparing explicit geometry CPU fallback; ordinary supported GPU route must still pass fidelity, real Engine execution and comparable latency gates. Original remains default. |
 | SAVE-DESTINATION: checked Save As integration | B source / A review and runtime | Source reviewed; queued | Review `2e152b26`; native75a1b9a6/test2a22145b prerequisite plus fresh combined bindings required. Then focused/full/runtime/GUI gates. Do not replace current bindings with stale81cc08eb output. |
 | COORDINATION: B mailbox and source ownership | A / B existing writer | Active | Source results reconciled, completed receipts published. Git status is publication, not peer receipt. New actionable messages use verified SSH queue; no duplicate writer. A alone merges main. |
 
-Runtime is serialized: GUI owns the current execution window; FFI prepares/reviews source. Return it to FFI after owned-app quit. Older engine, UI/UX and evidence work remains preserved in the dated records below; no unverified acceptance is promoted.
+Runtime is serialized: owned GUI app is closed; FFI owns the compiler/GPU lane for fallback qualification and actual Engine measurements. Older engine, UI/UX and evidence work remains preserved in the dated records below; no unverified acceptance is promoted.
 <!-- CURRENT-QUEUE:END -->
 
 ## Actual GUI offline editing and reconnect verified — 2026-09-28 19:18 UTC
