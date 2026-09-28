@@ -38,7 +38,10 @@ the actual display timestamp required by the current P11 acceptance wording.
    not independently prove visible presentation. A display-level oracle for the
    CALayer detail region is still needed; do not label a CATransaction completion
    handler as scanout. Keep the <=200 ms acceptance pending until that distinction
-   is resolved with measured display evidence.
+   is resolved with measured display evidence. The original gate says detail
+   "appears"; it does not require physical panel scanout. See
+   P11-DISPLAY-ORACLE-FEASIBILITY.md for a public ScreenCaptureKit WindowServer
+   display-time/pixel oracle and its permission, color and sampling limits.
 5. Run paired detail-closed/detail-open gestures on the same source and host with
    no competing builds or GPU benchmarks. Retain all runs and compare actual
    input-to-present p95; require <=10% regression. Keep the final exact-detail
