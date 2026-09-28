@@ -1,3 +1,9 @@
+## Current checkpoint — RAW final review and History accessibility received
+
+RAW candidate af5473d8 reports seven consumer contracts and full60/strict/fmt passing after meaningful RED; Task2 d9d805cb independently approved with23 focused/full53 and exact inputs. Whole component independent review active; branch unmerged, no decoder/render integration. Compiler lane released.
+
+B History accessibility e2c3cd03 result628c6d9b validated and accepted before independent source review. Five new tests remain unrun. Inspector f1089 automated gates pass; actual GUI partial checkpoint now preserved in gui-f1089ba5-partial, including the brief unintended profileless relaunch. Default-profile side effects were not measured; no no-user-state-change claim or speculative cleanup. Owned app closed and three fixture/output hashes independently verified. Remaining GUI and new accessible controls need fresh qualification.
+
 # Machine A recovery status
 
 ## Inspector automated gates verified; actual GUI active — 2026-09-28
