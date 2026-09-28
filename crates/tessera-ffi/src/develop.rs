@@ -1490,20 +1490,26 @@ impl Shared {
         let baseline = self
             .owner_baseline
             .lock()
-            .map_err(SaveFailure::full)?
+            .map_err(|error| SaveFailure::full(failure(error)))?
             .clone();
         let (hash, published) =
             match engine.save_develop(&self.image_id, &self.path, &recipe, &baseline) {
                 Ok(saved) => saved,
                 Err(failed) => {
                     if let Some(published) = &failed.published {
-                        *self.owner_baseline.lock().map_err(SaveFailure::full)? =
+                        *self
+                            .owner_baseline
+                            .lock()
+                            .map_err(|error| SaveFailure::full(failure(error)))? =
                             (**published).clone();
                     }
                     return Err(failed);
                 }
             };
-        *self.owner_baseline.lock().map_err(SaveFailure::full)? = published;
+        *self
+            .owner_baseline
+            .lock()
+            .map_err(|error| SaveFailure::full(failure(error)))? = published;
         if let Some(frame) =
             frame.filter(|f| f.settings == session_renderable(&recipe.settings, true, false))
             && let Err(e) = self.store_previews(&engine, &recipe, &frame)
@@ -3573,6 +3579,192 @@ mod tests {
             engine_api::recipe::SourceKind::Rgb
         );
         assert_eq!(saved.recipe.settings.tone.exposure, 0.3);
+    }
+
+    #[test]
+    fn foreign_unknown_nested_develop_field_cannot_be_erased_by_open_editor() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("owner-unknown.jpg");
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let doc = catalog::document(&photo, parse_id(&id).unwrap()).unwrap();
+        sidecar::Sidecar::write_recipe(&recipe_path, &doc).unwrap();
+        // Reopen after the canonical sidecar exists, so this tests a nested
+        // change rather than merely detecting absent -> present sidecar.
+        session.close().unwrap();
+        let editor = engine.clone().open_develop_session(id).unwrap();
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&recipe_path).unwrap()).unwrap();
+        value["recipe"]["settings"]["tone"]["future_curve"] = serde_json::json!({"points": [1, 2]});
+        std::fs::write(&recipe_path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let foreign_bytes = std::fs::read(&recipe_path).unwrap();
+
+        editor
+            .set_settings(r#"{"tone":{"exposure":0.5}}"#.into(), false)
+            .unwrap();
+        let error = editor
+            .flush()
+            .expect_err("unknown owner field must be preserved");
+        assert!(error.to_string().contains("conflict"), "{error}");
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), foreign_bytes);
+    }
+
+    #[test]
+    fn preexisting_unknown_nested_develop_field_is_not_silently_dropped() {
+        let (_dir, photo, engine, id, original) = tiny_develop_session("owner-unknown-open.jpg");
+        original.close().unwrap();
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let doc = catalog::document(&photo, parse_id(&id).unwrap()).unwrap();
+        sidecar::Sidecar::write_recipe(&recipe_path, &doc).unwrap();
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&recipe_path).unwrap()).unwrap();
+        value["recipe"]["settings"]["tone"]["future_curve"] = serde_json::json!("preserve");
+        std::fs::write(&recipe_path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let original_bytes = std::fs::read(&recipe_path).unwrap();
+        let editor = engine.open_develop_session(id).unwrap();
+
+        editor
+            .set_settings(r#"{"tone":{"exposure":0.6}}"#.into(), false)
+            .unwrap();
+        let error = editor
+            .flush()
+            .expect_err("unrepresented owner field must fail closed");
+        assert!(error.to_string().contains("conflict"), "{error}");
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), original_bytes);
+    }
+
+    #[test]
+    fn second_develop_editor_cannot_replace_first_edit() {
+        let (dir, photo, first_engine, id, first) = tiny_develop_session("two-editors.jpg");
+        let second_engine =
+            Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        let second = second_engine.open_develop_session(id).unwrap();
+        first
+            .set_settings(r#"{"tone":{"exposure":0.8}}"#.into(), false)
+            .unwrap();
+        first.flush().unwrap();
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let first_bytes = std::fs::read(&recipe_path).unwrap();
+        second
+            .set_settings(r#"{"tone":{"exposure":1.1}}"#.into(), false)
+            .unwrap();
+        let error = second
+            .flush()
+            .expect_err("second stale editor must conflict");
+        assert!(error.to_string().contains("conflict"), "{error}");
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), first_bytes);
+        assert_eq!(
+            serde_json::from_str::<Recipe>(
+                &first_engine
+                    .get_recipe(first.shared.image_id.clone())
+                    .unwrap()
+            )
+            .unwrap()
+            .settings
+            .tone
+            .exposure,
+            0.8
+        );
+    }
+
+    #[test]
+    fn post_recipe_failure_advances_owner_baseline_for_newer_local_edit() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("owner-retry-newer.jpg");
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(session.shared.path.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        assert!(session.flush().is_err());
+        assert_eq!(
+            serde_json::from_str::<Recipe>(&engine.get_recipe(id).unwrap())
+                .unwrap()
+                .settings
+                .tone
+                .exposure,
+            0.7
+        );
+        session
+            .set_settings(r#"{"tone":{"exposure":0.8}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        assert_eq!(
+            sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe)
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.8
+        );
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.8
+        );
+    }
+
+    #[test]
+    fn develop_save_waits_for_destination_without_holding_catalog_mutex() {
+        use std::{sync::mpsc, thread};
+
+        let (_dir, photo, engine, _id, session) = tiny_develop_session("owner-gated.jpg");
+        let other = photo.with_file_name("other.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([30, 60, 90]))
+            .save(&other)
+            .unwrap();
+        engine
+            .index_folder(other.parent().unwrap().to_string_lossy().into_owned())
+            .unwrap();
+        let other_id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .into_iter()
+            .find(|row| row.path == other.to_string_lossy())
+            .unwrap()
+            .id;
+        let gate = crate::recipe_write::gate_for(&photo).unwrap();
+        let held = gate.begin_write().unwrap();
+        let contended = gate.observe_next_contended_gate_attempt();
+        session
+            .set_settings(r#"{"tone":{"exposure":0.4}}"#.into(), false)
+            .unwrap();
+        let flushing = session.clone();
+        let (done_tx, done_rx) = mpsc::channel();
+        let flush_thread = thread::spawn(move || done_tx.send(flushing.flush()).unwrap());
+        contended.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(matches!(done_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        let unrelated_engine = engine.clone();
+        let (other_tx, other_rx) = mpsc::channel();
+        let other_thread = thread::spawn(move || {
+            other_tx
+                .send(unrelated_engine.set_selection(
+                    other_id,
+                    crate::Selection {
+                        decision: crate::Decision::Keep,
+                        grade: Some(1),
+                        mark: None,
+                    },
+                ))
+                .unwrap();
+        });
+        other_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
+        other_thread.join().unwrap();
+        drop(held);
+        done_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
+        flush_thread.join().unwrap();
     }
 
     #[test]
