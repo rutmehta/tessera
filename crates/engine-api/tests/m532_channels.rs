@@ -17,5 +17,5 @@ fn explicit_alpha_display_and_channel_destination_are_additive() {
         let value: StrokeTarget = serde_json::from_value(serde_json::json!(old)).unwrap();
         assert_eq!(serde_json::to_value(value).unwrap(), old);
     }
-    assert_eq!(engine_api::CONTRACT_VERSION, "1.6.0");
+    assert_eq!(engine_api::CONTRACT_VERSION, "1.7.0");
 }

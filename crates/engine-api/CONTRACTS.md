@@ -1,4 +1,4 @@
-# engine-api contracts (v1.5.0)
+# engine-api contracts (v1.7.0)
 
 `engine-api` is the shared contract crate. It holds types, traits and the small amount of logic that makes them trustworthy (canonical hashing, history replay, colour-matrix algebra). Since 1.5 it reuses the serializable source models from the standalone `typography` and `vector` crates rather than maintaining divergent wire copies. Those crates do not depend on engine-api; compositor remains downstream. Any change to a public type or a serialized form bumps `CONTRACT_VERSION` in `src/lib.rs`, gets an Opus review, and is noted at the bottom of this file.
 
@@ -109,6 +109,8 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 17. **Action descriptors:** `COMMANDS` rows are append-only and never renamed or removed. Each row's `effect` agrees with `edits_recipe` / `edits_document` (`Edit`) and `is_read_only` (`Query`), and a test enforces this. `Action::from_*` followed by `decode()` is the identity on every call.
 18. **Node memo keys:** within one `doc`, equal `(node, part, revision, tile)` must imply identical tile content. `revision` is the maximum revision over everything that feeds the tile (the compositor's stamp), and revisions only ever increase within a lineage. The `NodePart` discriminants feed `NodeMemoKey::digest` and never change.
 
+19. **Pinned RAW descriptor (v1):** `PinnedRawDescriptor` is a pure immutable declaration over an asset digest/positive length, recipe owner and exact schema-3 RAW recipe JSON, closed LibRaw CFA v1 route, lowercase extension hint, and optional opaque locator. It verifies explicit Raw/Native revision 2 headers, owner, current settings shape and default geometry. Current settings alone determine the verified `RecipeHash`; history remains opaque metadata and is never replayed or validated. The exact recipe bytes are retained and participate in the domain-separated requested-input identity with asset digest, declared length, recipe owner, route and canonical suffix; locator does not. This identity is neither physical-byte verification nor a pixel-cache key. Parsing performs no I/O, decoding, rendering, session or writer work, and does not admit pixels for publication.
+
 ## Spec ambiguities resolved here
 
 - **"Recipe" names the whole document.** Spec 05 calls the `.edits` JSON (settings, history and snapshots) "the recipe". So `Recipe` is the document, `DevelopSettings` is the ordered stage parameters, and `recipe_hash()` covers source route, `process_version` and `settings`.
@@ -138,6 +140,10 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 - **Units follow the user-facing controls.** Exposure is in EV, sliders run −100..100, geometry is normalised 0..1, and hues are in degrees. The one exception is the Adobe defringe hue range, which uses 0–100 units in XMP and is converted by the importer.
 
 ## Change log
+
+- 1.7.0, additive; no recipe schema or native process revision change:
+  - Added the pure pinned RAW descriptor boundary. It preserves exact recipe JSON bytes, treats history as opaque, and provides a declared-input identity that does not verify asset bytes or render eligibility.
+  - `CONTRACT_VERSION` is bumped to 1.7.0.
 
 - 1.6.0 (M5-32), additive; no recipe schema change:
   - `ChannelKind::AlphaDisplay` preserves alpha overlay RGB, opacity and selected-area polarity. Legacy `Alpha` remains red at 50% opacity over masked areas. Spot colour retains its existing display RGB and solidity. Channel summaries expose the kind and its display metadata.
@@ -198,4 +204,3 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
   - Invariants 9 and 11 extended; invariants 16–18 added.
   - The compositor now uses `engine_api::id::LayerId` (same serde form) and keys its render cache by `NodeMemoKey`.
 
-19. **Pinned RAW descriptor (v1):** `PinnedRawDescriptor` is a pure immutable declaration over an asset digest/positive length, recipe owner and exact schema-3 RAW recipe JSON, closed LibRaw CFA v1 route, lowercase extension hint, and optional opaque locator. It verifies explicit Raw/Native revision 2 headers, owner, current settings shape and default geometry. Current settings alone determine the verified `RecipeHash`; history remains opaque metadata and is never replayed or validated. The exact recipe bytes are retained and participate in the domain-separated requested-input identity with asset digest, declared length, recipe owner, route and canonical suffix; locator does not. This identity is neither physical-byte verification nor a pixel-cache key. Parsing performs no I/O, decoding, rendering, session or writer work, and does not admit pixels for publication.

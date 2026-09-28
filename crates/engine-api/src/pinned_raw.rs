@@ -2,7 +2,7 @@
 use crate::{
     error::{EngineError, EngineResult},
     id::{Digest, ImageId},
-    recipe::{ProcessVersion, Recipe, RecipeHash, SourceKind},
+    recipe::{ProcessFamily, ProcessVersion, Recipe, RecipeHash, SourceKind},
     stage::canonical_json,
 };
 use serde::{
@@ -119,10 +119,12 @@ impl PinnedRawDescriptor {
             .map_err(|e| bad("settings", e.to_string()))?;
         let typed = serde_json::to_value(&settings).map_err(|e| bad("settings", e.to_string()))?;
         check_shape(raw_settings, &typed, "settings")?;
-        check_numeric_integrity(raw_settings, &typed, "settings")?;
         let mut recipe = Recipe::new(input.recipe_image_id);
         recipe.source_kind = SourceKind::Raw;
-        recipe.process_version = ProcessVersion::NATIVE_CURRENT;
+        recipe.process_version = ProcessVersion {
+            family: ProcessFamily::Native,
+            revision: 2,
+        };
         recipe.settings = settings;
         if recipe.settings.geometry != Default::default() {
             return Err(bad(
@@ -164,7 +166,7 @@ impl PinnedRawDescriptor {
             asset_byte_len: wire.asset_byte_len,
             recipe_image_id: wire.recipe_image_id,
             recipe_json: wire.recipe_json.as_bytes().to_vec(),
-            decoder_route: wire.decoder_route.clone(),
+            decoder_route: wire.decoder_route,
             suffix_hint: wire.suffix_hint.clone(),
             locator_hint: wire.locator_hint.clone(),
         };
@@ -212,32 +214,6 @@ fn identity(w: &Wire, raw: &[u8]) -> Digest {
 }
 fn bad(name: &str, reason: impl Into<String>) -> EngineError {
     EngineError::invalid(name, reason)
-}
-fn check_numeric_integrity(raw: &Value, typed: &Value, path: &str) -> EngineResult<()> {
-    match (raw, typed) {
-        (Value::Number(_), Value::Null) => {
-            return Err(bad(
-                path,
-                "numeric setting cannot be represented by the current settings type",
-            ));
-        }
-        (Value::Object(a), Value::Object(b)) => {
-            for (k, v) in a {
-                if let Some(t) = b.get(k) {
-                    check_numeric_integrity(v, t, &format!("{path}.{k}"))?
-                }
-            }
-        }
-        (Value::Array(a), Value::Array(b)) => {
-            for (i, v) in a.iter().enumerate() {
-                if let Some(t) = b.get(i).or_else(|| b.first()) {
-                    check_numeric_integrity(v, t, &format!("{path}[{i}]"))?
-                }
-            }
-        }
-        _ => {}
-    }
-    Ok(())
 }
 fn check_shape(raw: &Value, typed: &Value, path: &str) -> EngineResult<()> {
     match (raw, typed) {
