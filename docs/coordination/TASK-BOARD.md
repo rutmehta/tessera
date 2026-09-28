@@ -17,9 +17,16 @@
   A compiler is free until the reviewed source gate is allocated; no GUI lane.
 - B receives source-only typed Document prompt/save settlement task
   `3b2a6fa3-81d3-4a25-8d4d-75e323afedce`, existing-chat SSH queue
-  `01a0e610-36e8-73c1-a590-0ae110a6756d`. Queue acceptance recorded;
-  peer receipt is not yet verified. No global Quit/draft adapter authorization.
+  `01a0e610-36e8-73c1-a590-0ae110a6756d`. Peer accepted receipt verified; B is implementing source-only tests and API.
+  No global Quit/draft adapter authorization.
   B workload hold and paused heartbeat remain unchanged.
+- Coordinator source review now accepts `d49c12fc`: exact owner/controller
+  handoff proof, bounded successful-close tombstones, cached failure on ordinary
+  close and explicit `retryClose`. Luna finalizes focused tests; owns A compiler
+  only after test source review, with logs/direct exits preserved.
+- B Layers completion dependency requested separately as `7f1c2378`, queue
+  `01a0e613-3b6c-7e60-8ca9-fb55fc1bc852`; queue accepted, peer receipt pending.
+  A must hold its reservation through actual backend completion/drain.
 - Normal preview PID57591 remains untouched. Main merges remain A-only.
 
 
