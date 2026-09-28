@@ -7409,13 +7409,18 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openLibrary(path: String) throws  -> LibraryStore
     
     /**
-     * Opens a develop session on an indexed RAW or rendered RGB image.
-     * Blocking decode: call off the main thread. One session per visible image.
-     * Blocking depth histogram for an indexed image using its saved recipe.
+     * Blocking depth histogram for an indexed image using its saved recipe,
+     * without opening an editable Develop session.
      */
     func depthHistogram(imageId: String) throws  -> [UInt64]
     
+    /**
+     * Opens a develop session on an indexed RAW or rendered RGB image.
+     * Blocking decode: call off the main thread. One session per visible image.
+     */
     func openDevelopSession(imageId: String) throws  -> DevelopSession
+    
+    func openSmartPreviewDevelopSession(imageId: String) throws  -> DevelopSession
     
     /**
      * Ids of the open document sessions, oldest first.
@@ -7539,10 +7544,27 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openCullSessionForQuery(query: ImageQuery) throws  -> CullSession
     
     /**
+     * Catalog-only recursive library of local Smart Preview declarations.
+     * Does not scan, canonicalize, stat, or read the original folder. A bounded
+     * journal and local asset existence admit a row; pixels are fully validated
+     * only on Develop open. Read-only selection/basket/people; reopen to refresh
+     * declarations. `folder` is the absolute catalog path, without `..`.
+     */
+    func openSmartPreviewLibrarySession(folder: String) throws  -> CullSession
+    
+    /**
      * Stores the latest value of an AI signal (e.g. "focus", "closed_eyes").
      * Producers are ML jobs; the app uses it only for synthetic test scores.
      */
     func setScore(imageId: String, signal: String, value: Double, model: String) throws 
+    
+    func buildSmartPreview(imageId: String) throws  -> SmartPreviewInfo
+    
+    func discardSmartPreview(imageId: String) throws 
+    
+    func smartPreviewInfo(imageId: String) throws  -> SmartPreviewInfo
+    
+    func synchronizeSmartPreview(imageId: String) throws  -> SmartPreviewInfo
     
     /**
      * Whether this catalog has a tether session on this thread.
@@ -7970,9 +7992,8 @@ open func openLibrary(path: String)throws  -> LibraryStore  {
 }
     
     /**
-     * Opens a develop session on an indexed RAW or rendered RGB image.
-     * Blocking decode: call off the main thread. One session per visible image.
-     * Blocking depth histogram for an indexed image using its saved recipe.
+     * Blocking depth histogram for an indexed image using its saved recipe,
+     * without opening an editable Develop session.
      */
 open func depthHistogram(imageId: String)throws  -> [UInt64]  {
     return try  FfiConverterSequenceUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -7984,10 +8005,24 @@ open func depthHistogram(imageId: String)throws  -> [UInt64]  {
 })
 }
     
+    /**
+     * Opens a develop session on an indexed RAW or rendered RGB image.
+     * Blocking decode: call off the main thread. One session per visible image.
+     */
 open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
     return try  FfiConverterTypeDevelopSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_engine_open_develop_session(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+open func openSmartPreviewDevelopSession(imageId: String)throws  -> DevelopSession  {
+    return try  FfiConverterTypeDevelopSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_open_smart_preview_develop_session(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),uniffiCallStatus
     )
@@ -8297,6 +8332,23 @@ open func openCullSessionForQuery(query: ImageQuery)throws  -> CullSession  {
 }
     
     /**
+     * Catalog-only recursive library of local Smart Preview declarations.
+     * Does not scan, canonicalize, stat, or read the original folder. A bounded
+     * journal and local asset existence admit a row; pixels are fully validated
+     * only on Develop open. Read-only selection/basket/people; reopen to refresh
+     * declarations. `folder` is the absolute catalog path, without `..`.
+     */
+open func openSmartPreviewLibrarySession(folder: String)throws  -> CullSession  {
+    return try  FfiConverterTypeCullSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_open_smart_preview_library_session(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(folder),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Stores the latest value of an AI signal (e.g. "focus", "closed_eyes").
      * Producers are ML jobs; the app uses it only for synthetic test scores.
      */
@@ -8310,6 +8362,45 @@ open func setScore(imageId: String, signal: String, value: Double, model: String
         FfiConverterString.lower(model),uniffiCallStatus
     )
 }
+}
+    
+open func buildSmartPreview(imageId: String)throws  -> SmartPreviewInfo  {
+    return try  FfiConverterTypeSmartPreviewInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_build_smart_preview(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+open func discardSmartPreview(imageId: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_discard_smart_preview(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+}
+}
+    
+open func smartPreviewInfo(imageId: String)throws  -> SmartPreviewInfo  {
+    return try  FfiConverterTypeSmartPreviewInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_smart_preview_info(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+open func synchronizeSmartPreview(imageId: String)throws  -> SmartPreviewInfo  {
+    return try  FfiConverterTypeSmartPreviewInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_synchronize_smart_preview(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -23211,6 +23302,80 @@ public func FfiConverterTypeSmartFilterRecord_lower(_ value: SmartFilterRecord) 
 }
 
 
+public struct SmartPreviewInfo: Equatable, Hashable {
+    public var imageId: String
+    public var state: SmartPreviewState
+    public var originalAvailable: Bool
+    public var dirty: Bool
+    public var width: UInt32
+    public var height: UInt32
+    public var message: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, state: SmartPreviewState, originalAvailable: Bool, dirty: Bool, width: UInt32, height: UInt32, message: String) {
+        self.imageId = imageId
+        self.state = state
+        self.originalAvailable = originalAvailable
+        self.dirty = dirty
+        self.width = width
+        self.height = height
+        self.message = message
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SmartPreviewInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSmartPreviewInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SmartPreviewInfo {
+        return
+            try SmartPreviewInfo(
+                imageId: FfiConverterString.read(from: &buf), 
+                state: FfiConverterTypeSmartPreviewState.read(from: &buf), 
+                originalAvailable: FfiConverterBool.read(from: &buf), 
+                dirty: FfiConverterBool.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SmartPreviewInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterTypeSmartPreviewState.write(value.state, into: &buf)
+        FfiConverterBool.write(value.originalAvailable, into: &buf)
+        FfiConverterBool.write(value.dirty, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartPreviewInfo_lift(_ buf: RustBuffer) throws -> SmartPreviewInfo {
+    return try FfiConverterTypeSmartPreviewInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartPreviewInfo_lower(_ value: SmartPreviewInfo) -> RustBuffer {
+    return FfiConverterTypeSmartPreviewInfo.lower(value)
+}
+
+
 /**
  * `size`³ nodes, red fastest, then green, then blue. Each node is RGBA
  * 16-bit unorm: the proofed colour in display-encoded sRGB, and alpha 65535
@@ -29461,6 +29626,107 @@ public func FfiConverterTypeSmartFilterEdit_lower(_ value: SmartFilterEdit) -> R
 
 
 
+public enum SmartPreviewState: Equatable, Hashable {
+    
+    case missing
+    case ready
+    case originalOffline
+    case dirty
+    case stale
+    case conflict
+    case failed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SmartPreviewState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSmartPreviewState: FfiConverterRustBuffer {
+    typealias SwiftType = SmartPreviewState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SmartPreviewState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .missing
+        
+        case 2: return .ready
+        
+        case 3: return .originalOffline
+        
+        case 4: return .dirty
+        
+        case 5: return .stale
+        
+        case 6: return .conflict
+        
+        case 7: return .failed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SmartPreviewState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .missing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .ready:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .originalOffline:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .dirty:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .stale:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .conflict:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(7))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartPreviewState_lift(_ buf: RustBuffer) throws -> SmartPreviewState {
+    return try FfiConverterTypeSmartPreviewState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartPreviewState_lower(_ value: SmartPreviewState) -> RustBuffer {
+    return FfiConverterTypeSmartPreviewState.lower(value)
+}
+
+
+
+
 public enum StatusPhase: Equatable, Hashable {
     
     case unedited
@@ -33452,10 +33718,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_depth_histogram() != 18154) {
+    if (uniffi_tessera_ffi_checksum_method_engine_depth_histogram() != 58713) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 14391) {
+    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 50243) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_smart_preview_develop_session() != 44215) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_document_ids() != 48705) {
@@ -33521,7 +33790,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_cull_session_for_query() != 45219) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_smart_preview_library_session() != 4323) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_set_score() != 33095) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_build_smart_preview() != 4018) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_discard_smart_preview() != 43019) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_smart_preview_info() != 49720) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_synchronize_smart_preview() != 5803) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_tether_active() != 50297) {
