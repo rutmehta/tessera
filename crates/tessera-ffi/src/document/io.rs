@@ -830,3 +830,115 @@ mod copy_transaction_tests {
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
     }
 }
+
+// SOURCE-ONLY TEST CHECKPOINT: the checked destination API and commit helpers
+// below are intentionally introduced by the subsequent production commit.
+#[cfg(test)]
+mod destination_commit_tests {
+    use super::*;
+    use crate::document::DocumentSaveAsResult;
+    use std::{os::unix::fs::symlink, sync::{Arc, Barrier}};
+
+    #[test]
+    fn create_if_absent_conflicts_with_file_created_after_staging() {
+        let dir = tempfile::tempdir().unwrap();
+        let destination = dir.path().join("new.tessera-doc");
+        let staged = stage_bytes(&destination, b"complete-new-bytes").unwrap();
+        let staged_path = staged.path().to_owned();
+        std::fs::write(&destination, b"other-writer").unwrap();
+
+        let result = commit_staged(staged, &destination, CommitMode::CreateIfAbsent).unwrap();
+        assert_eq!(result, DocumentSaveAsResult::DestinationExists);
+        assert_eq!(std::fs::read(&destination).unwrap(), b"other-writer");
+        assert!(!staged_path.exists(), "failed publication must release its owned stage");
+    }
+
+    #[test]
+    fn two_independent_stages_cannot_overwrite_each_other() {
+        let dir = tempfile::tempdir().unwrap();
+        let destination = dir.path().join("same.psd");
+        let left = stage_bytes(&destination, b"left-complete").unwrap();
+        let right = stage_bytes(&destination, b"right-complete").unwrap();
+        assert_ne!(left.path(), right.path(), "stages must have unique names");
+        let left_path = left.path().to_owned();
+        let right_path = right.path().to_owned();
+        let barrier = Arc::new(Barrier::new(3));
+        let (left_result, right_result) = std::thread::scope(|scope| {
+            let left_gate = barrier.clone();
+            let left_dest = destination.clone();
+            let left_worker = scope.spawn(move || {
+                left_gate.wait();
+                commit_staged(left, &left_dest, CommitMode::CreateIfAbsent).unwrap()
+            });
+            let right_gate = barrier.clone();
+            let right_dest = destination.clone();
+            let right_worker = scope.spawn(move || {
+                right_gate.wait();
+                commit_staged(right, &right_dest, CommitMode::CreateIfAbsent).unwrap()
+            });
+            barrier.wait();
+            (left_worker.join().unwrap(), right_worker.join().unwrap())
+        });
+        assert_eq!(
+            [left_result, right_result]
+                .into_iter()
+                .filter(|outcome| *outcome == DocumentSaveAsResult::Saved)
+                .count(),
+            1
+        );
+        assert_eq!(
+            [left_result, right_result]
+                .into_iter()
+                .filter(|outcome| *outcome == DocumentSaveAsResult::DestinationExists)
+                .count(),
+            1
+        );
+        let bytes = std::fs::read(&destination).unwrap();
+        assert!(bytes == b"left-complete" || bytes == b"right-complete");
+        assert!(!left_path.exists());
+        assert!(!right_path.exists());
+    }
+
+    #[test]
+    fn no_clobber_rejects_regular_file_dangling_symlink_and_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("existing.psb");
+        std::fs::write(&file, b"sentinel").unwrap();
+        let staged = stage_bytes(&file, b"new").unwrap();
+        assert_eq!(
+            commit_staged(staged, &file, CommitMode::CreateIfAbsent).unwrap(),
+            DocumentSaveAsResult::DestinationExists
+        );
+        assert_eq!(std::fs::read(&file).unwrap(), b"sentinel");
+
+        let link = dir.path().join("broken.psb");
+        symlink("absent-target", &link).unwrap();
+        let staged = stage_bytes(&link, b"new").unwrap();
+        assert_eq!(
+            commit_staged(staged, &link, CommitMode::CreateIfAbsent).unwrap(),
+            DocumentSaveAsResult::DestinationExists
+        );
+        assert_eq!(std::fs::read_link(&link).unwrap(), std::path::PathBuf::from("absent-target"));
+        assert!(!dir.path().join("absent-target").exists());
+
+        let folder = dir.path().join("directory.psb");
+        std::fs::create_dir(&folder).unwrap();
+        let staged = stage_bytes(&folder, b"new").unwrap();
+        let result = commit_staged(staged, &folder, CommitMode::CreateIfAbsent);
+        assert!(result.is_err() || result.unwrap() == DocumentSaveAsResult::DestinationExists);
+        assert!(folder.is_dir());
+    }
+
+    #[test]
+    fn confirmed_replace_preserves_existing_path_semantics() {
+        let dir = tempfile::tempdir().unwrap();
+        let destination = dir.path().join("replace.psd");
+        let staged = stage_bytes(&destination, b"confirmed-bytes").unwrap();
+        std::fs::write(&destination, b"changed-after-confirmation").unwrap();
+        assert_eq!(
+            commit_staged(staged, &destination, CommitMode::Replace).unwrap(),
+            DocumentSaveAsResult::Saved
+        );
+        assert_eq!(std::fs::read(&destination).unwrap(), b"confirmed-bytes");
+    }
+}
