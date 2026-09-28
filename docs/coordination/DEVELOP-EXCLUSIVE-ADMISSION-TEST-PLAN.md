@@ -1,6 +1,6 @@
 # Develop exclusive admission: tests-first checkpoint
 
-Status: implementation/source-review checkpoint in progress on `codex/develop-exclusive-admission`, based on main `f627c4a071b7e4a35c2a114917cb726ab793d458` plus separately integrated Swift admission tests/docs from `049bfe95`. Tests-only checkpoint `d61512ed` produced the two intended behavioral REDs and the foreign-disk control passed; the current production diff has not been compiled or run and must receive root/Astra source review before GREEN runtime. The earlier histogram branch and BetterSSD target symlink remain preserved.
+Status: scoped native lease candidate validated on `codex/develop-exclusive-admission`, final source `593730668d6bcc5f65b8ea88b2febc999393e1f1`, based on main `f627c4a071b7e4a35c2a114917cb726ab793d458` plus separately integrated Swift admission tests/docs from `049bfe95`. Root/Astra reviewed the source and authorized validation. The original two behavioral REDs and foreign-disk control are preserved; final candidate passed its focused/adjacent controls, strict formatting/lint, and all 137 `tessera-ffi` library tests. Physical case-variant aliases and nonparticipating writers remain outside this bounded claim. Main integration remains root-owned. The earlier histogram branch and BetterSSD target symlink remain preserved.
 
 ## Current REDs and controls
 
@@ -13,7 +13,7 @@ The focused tests in `crates/tessera-ffi/src/develop.rs` now encode these behavi
 
 Observed current-main REDs: second editor open succeeded instead of conflicting (direct process exit 101), and `set_recipe_json` succeeded instead of rejecting (direct process exit 101). The foreign-disk OwnerBaseline control passed (direct exit 0). Raw logs and source freezes are preserved under `tools/orchestrate/wp/UX-03/evidence/develop-exclusive-admission-tests-2026-09-28/`.
 
-## Commands for the next allocated native lane
+## Preserved original RED commands
 
 Run one test filter per preserved attempt, serialized, using the verified external target and two jobs:
 
@@ -22,9 +22,9 @@ CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/dept
 CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated cargo test -p tessera-ffi --lib develop::tests::direct_recipe_replacement_conflicts_without_publishing_during_develop -- --nocapture --test-threads=1
 ```
 
-The RED source freeze should include `develop.rs`, `lib.rs`, `recipe_write.rs`, `Cargo.toml`, and `Cargo.lock` hashes, toolchain/environment, command, full output, and direct process exit. Verify each run fails behaviorally at its admission assertion; a harness/compile failure is not a RED. Keep both attempts even if either needs a harness-only correction.
+The two actual REDs failed at their intended assertions (exit 101 each); the independent foreign-disk control passed (exit 0). Their complete output and 1,177-input hashes are under `tools/orchestrate/wp/UX-03/evidence/develop-exclusive-admission-tests-2026-09-28/red-second-editor-d61512ed/`, `red-direct-setter-d61512ed/`, and `control-foreign-disk-d61512ed/`.
 
-## Required implementation contract after RED review
+## Implemented lease contract
 
 Implement the lease as an internal capability, not a new UniFFI variant. Public `BridgeError` currently exposes only `Failure { message }` (`crates/tessera-ffi/src/lib.rs:57-63`); use the pinned explicit admission diagnostic unless source review identifies a strong reason to alter the API. Introduce a monotonically allocated owner ID and active owner on the existing destination gate (`crates/tessera-ffi/src/recipe_write.rs:19-60,62-140`). Hold the gate only for atomic admission/validation plus the existing serialized I/O critical section, never across image decode, render, flush, worker join, or waits. Keep the matching lease ID check atomic with Develop writes. `set_selection` remains permitted while leased (`lib.rs:407-426`); `set_recipe_json` must reject before writing (`lib.rs:438-480`).
 
@@ -32,9 +32,9 @@ Acquire the lease in the same gate → catalog/path revalidation critical sectio
 
 **Worker-final-Arc hazard:** the lease must survive save-worker self-drop. `DevelopSession::drop` calls `stop_writer`; when the final session Arc is dropped on its own save-listener thread, `stop_writer` marks shutdown but deliberately detaches instead of self-joining (`develop.rs:2240-2262`). The writer loop can still finish a due save before exiting (`develop.rs:1640-1688`). The current source checkpoint gives `DevelopSession` and the writer closure separate owning lease references; `Shared` stores only a non-owning captured `(GateState, owner ID)` authority, so render-held Shared Arcs cannot prolong the reservation. Normal close flushes, joins the writer, closes rendering, then takes/drops the session lease even if a closed session Arc remains retained. On writer-thread final Drop, the session reference drops while the worker reference remains through actual loop exit. The worker-exit observer used by the test fires only after that worker-owned reference is dropped. Failed close retains the same reservation for recovery.
 
-## Remaining test-first lifecycle gates
+## Validation completed on the final source
 
-The current unrun source checkpoint adds these focused controls; they still require reviewed execution before claiming Stage C ready:
+Final checkpoint `593730668d6bcc5f65b8ea88b2febc999393e1f1` passed the following checks, run serially with `CARGO_BUILD_JOBS=2`, `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated`, and `--test-threads=1` for Rust tests:
 
 1. Selection succeeds during the lease and a later Develop flush preserves that selection (`develop.rs:3748-3771`).
 2. Read-only histogram succeeds during an editor lease without acquiring/releasing ownership; then a second open still conflicts (`develop.rs:5474+`).
@@ -43,9 +43,13 @@ The current unrun source checkpoint adds these focused controls; they still requ
 5. Deterministically pause a close from the saved-listener callback after `save_develop` has returned and released the gate. The second open remains rejected while close is waiting; only after close and join can it reopen. This avoids waiting for a contender while holding the destination gate.
 6. The callback-final-Arc Drop case holds the last `DevelopSession` strong Arc in a listener-owned test slot, drops it on the save worker, and pauses after `Drop`. A competing open must still conflict while the worker is paused; after a deterministic worker-loop-exit observation, a fresh open succeeds. The gate is free during the callback. The test uses bounded channels, not sleeps.
 7. Keep foreign owner-field protection by directly editing sidecar bytes after open. With the Engine setter blocked during the lease, it is the deterministic stand-in for writers outside this in-process gate; assert exact foreign bytes remain after failed flush. Nested unrepresented owner members continue to fail closed.
-8. Preserve Stage A post-recipe repair and Stage B failed-close/retry controls; rerun legacy RGB, owner conflict, selection, histogram, recipe gate, and close/drain tests before strict format/lint gates.
+8. Existing Stage A/B post-recipe repair, failed-close/retry, legacy RGB, owner conflict, selection, histogram, recipe-gate, and close/drain controls passed. The `recipe_write_tests::` group passed 10/10; final serial `cargo test -p tessera-ffi --lib -- --test-threads=1` passed 137/137. `cargo fmt --all -- --check` and `cargo clippy -p tessera-ffi --lib --tests -- -D warnings` both passed.
 
-The destination key still has a separate unresolved case-variant alias question: on case-insensitive macOS volumes, distinct lexical recipe filenames such as `photo.json` and `PHOTO.json` may resolve to one filesystem destination while the current `destination_key` retains different spellings. The current implementation intentionally preserves that pre-existing key behavior pending root's scope/design decision; no case folding or new path canonicalization is claimed here. A case-variant cross-Engine admission control remains a prerequisite to GREEN if the alias is confirmed in scope.
+Focused final-source gates also passed: cross-Engine editor admission; direct setter byte/index non-publication; final-session drop on save worker; admission while close waits after save; malformed snapshot rollback; post-snapshot missing-image decode rollback; failed-close repair/retention; stale/wrong-state/wrong-key authority; checked lease-ID exhaustion; histogram non-admission; selection; foreign disk OwnerBaseline; nested unknown-owner fail-closed; and saved-histogram process/cache controls. Per-invocation direct exits and full tracked Rust/Cargo source freezes are under `tools/orchestrate/wp/UX-03/evidence/develop-exclusive-admission-tests-2026-09-28/runtime-59373066/`.
+
+Historical nonfinal attempts remain available: `4f26ef95` produced a compile-only missing-`std::thread` harness failure (exit 101; zero tests ran); `096873b2` contains the pre-lint-correction focused/adjacent passes, a mistargeted command that selected zero tests, and the initial strict-clippy `collapsible_if` finding. These are not final-source failures. The one-line let-chain correction is in `59373066`, followed by passing strict clippy and the full 137-test suite.
+
+Known limitation: on case-insensitive macOS volumes, distinct lexical recipe filenames such as `photo.json` and `PHOTO.json` may resolve to one filesystem destination while the current `destination_key` retains different spellings. This candidate intentionally preserves the pre-existing key behavior and does not claim physical-file exclusivity across case aliases. Broader physical-destination identity remains a separate prerequisite before expanding the contract to cover those aliases; it did not block validation of the bounded exact-key lease.
 
 Current UI recovery/open code handles thrown opener errors with current-generation/library/focus guards and settles the pending-open token (`apps/mac/Sources/Tessera/App/AppModel.swift:2133-2187`). The separate tests-only UI checkpoint `8cc6bc18068f54843d4445e2d0549909623e51aa` covers visible admission rejection, ticket cleanup, successful re-entry, and stale rejection; it is integrated and its focused plus adjacent tests passed. Those controls are not native lease acceptance.
 
