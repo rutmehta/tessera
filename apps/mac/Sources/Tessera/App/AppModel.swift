@@ -366,6 +366,7 @@ final class AppModel {
             statusMessage = "Wait for the current photo operation before retrying the save"
             return
         }
+        let statusAtRetry = statusMessage
         let task = developRecovery.retryClose(sessionID)
         Task { [weak self] in
             let result = await task.value
@@ -379,6 +380,10 @@ final class AppModel {
                    !self.developRecovery.hasActiveReservations,
                    !self.developRecovery.hasUnresolvedSessions {
                     self.blockedSavedNavigation = nil
+                    if statusAtRetry == "Finish saving the photo before leaving this workspace",
+                       self.statusMessage == statusAtRetry {
+                        self.statusMessage = nil
+                    }
                     self.commitAdmittedNavigation(blocked.commit)
                 }
             case .failed(_, let message):
