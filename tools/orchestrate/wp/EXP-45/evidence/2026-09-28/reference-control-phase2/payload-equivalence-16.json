@@ -1,0 +1,43 @@
+{
+  "cap": 16,
+  "source_sha256": "6c8c2bad6287de3c51ea6b1a5d4ce203b0edd66d046958acd7cb7631109567a4",
+  "explicit_sha256": "cadfffeac4728b3536b738c6257bbc7c843bde5dc6153c160141fac5effc06ed",
+  "source": {
+    "base": {
+      "entropy_offset": 1355,
+      "entropy_sha256": "f61ce3e7ae801b47a11f375762bd110f5cafd96f39f90039c3302f031c6b87bc",
+      "entropy_bytes": 122,
+      "icc_segment_count": 1,
+      "icc_payload_sha256": "699539880ff71f48af3b95a468abb2e2db2290c440458caa9ab8a13d89124db7",
+      "icc_payload_bytes": 602
+    },
+    "gain": {
+      "entropy_offset": 1876,
+      "entropy_sha256": "6cec2cd09d24ff54ab2017a62ccf8fe5e58bae99a3204beb84c1dab7d073c0b5",
+      "entropy_bytes": 17,
+      "icc_segment_count": 0,
+      "icc_payload_sha256": null,
+      "icc_payload_bytes": 0
+    }
+  },
+  "explicit": {
+    "base": {
+      "entropy_offset": 1355,
+      "entropy_sha256": "f61ce3e7ae801b47a11f375762bd110f5cafd96f39f90039c3302f031c6b87bc",
+      "entropy_bytes": 122,
+      "icc_segment_count": 1,
+      "icc_payload_sha256": "699539880ff71f48af3b95a468abb2e2db2290c440458caa9ab8a13d89124db7",
+      "icc_payload_bytes": 602
+    },
+    "gain": {
+      "entropy_offset": 1900,
+      "entropy_sha256": "6cec2cd09d24ff54ab2017a62ccf8fe5e58bae99a3204beb84c1dab7d073c0b5",
+      "entropy_bytes": 17,
+      "icc_segment_count": 0,
+      "icc_payload_sha256": null,
+      "icc_payload_bytes": 0
+    }
+  },
+  "base_and_gain_entropy_identical": true,
+  "icc_payload_identical": true
+}

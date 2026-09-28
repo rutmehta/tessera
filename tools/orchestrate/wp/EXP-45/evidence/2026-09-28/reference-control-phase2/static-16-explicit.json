@@ -1,0 +1,56 @@
+{
+  "file": "denominator-explicit/reference-16-explicit.jpg",
+  "sha256": "cadfffeac4728b3536b738c6257bbc7c843bde5dc6153c160141fac5effc06ed",
+  "bytes": 1919,
+  "mpf_primary_attribute": "00030000",
+  "mpf_aux_offset": 1479,
+  "mpf_aux_length": 440,
+  "exiftool_aux_exact": true,
+  "exiftool_aux_sha256": "8564566df005c14796a9aa35be27f8abedea73c38e5d6170677b1d8a846211d5",
+  "jpeg_two_soi_offsets": [
+    0,
+    1479
+  ],
+  "iso_aux_version_hex": "00000000",
+  "iso_aux_flag_hex": "40",
+  "explicit_rationals": [
+    [
+      0,
+      1
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ]
+  ],
+  "numeric_values": [
+    0.0,
+    4.0,
+    0.0,
+    4.0,
+    1.0,
+    0.0,
+    0.0
+  ],
+  "aux_segment_length": 91
+}

@@ -1,0 +1,23 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "denominator-explicit/reference-4-explicit.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "denominator-explicit/decoded-4-explicit.cfg",
+    "-z",
+    "denominator-explicit/decoded-4-explicit.raw"
+  ],
+  "exit": 0,
+  "output_sha256": "e463b79d6701c718ba8e8ab748c431c1c11b062ef513954e422afc9a63b9c7bd",
+  "output_bytes": 10240,
+  "byte_identical_to_upstream_reference_decoder": true,
+  "bright_center_r": 3.486328125,
+  "metadata": "--maxContentBoost 4\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 4\n--useBaseColorSpace 1\n"
+}
