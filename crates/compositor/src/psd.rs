@@ -104,6 +104,119 @@ fn checked_len(a: usize, b: usize) -> EngineResult<usize> {
     a.checked_mul(b)
         .ok_or_else(|| error("PSD output size overflow"))
 }
+
+/// Inputs for a checked, allocation-free modeled pixel-payload estimate.
+/// Stack and leaf counts describe the rasterized copy's intended output tree;
+/// callers must count from the same immutable snapshot they later convert.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PsdCopyEstimateInput {
+    pub canvas: Extent,
+    pub depth: Depth,
+    pub saved_channels: usize,
+    /// An imported PSD's negative layer count already requires merged alpha.
+    pub retained_merged_alpha: bool,
+    /// Enabled smart stacks that the caller will bake into pixel layers.
+    pub rasterized_stacks: usize,
+    /// Pixel, text, shape, and smart-object leaves emitting raster channels.
+    pub emitted_raster_layers: usize,
+}
+
+/// Modeled pixel payload, not a peak RSS bound or process admission limit.
+/// Opaque records, encoded vectors, masks, allocator capacity, renderer/codec
+/// workspaces, and operating-system allocations are outside this estimate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PsdCopyEstimate {
+    pub modeled_pixel_bytes: usize,
+    pub guaranteed_composite_channels: usize,
+    pub possible_composite_channels: usize,
+    pub guaranteed_composite_bytes: usize,
+    pub possible_composite_bytes: usize,
+}
+
+fn composite_layout(
+    canvas: Extent,
+    depth: Depth,
+    saved_channels: usize,
+    retained_merged_alpha: bool,
+) -> EngineResult<(usize, usize, usize, usize)> {
+    if canvas.width == 0 || canvas.height == 0 || canvas.width > 300_000 || canvas.height > 300_000
+    {
+        return Err(error("invalid PSD canvas"));
+    }
+    let guaranteed_channels = 3usize
+        .checked_add(usize::from(retained_merged_alpha))
+        .and_then(|n| n.checked_add(saved_channels))
+        .ok_or_else(|| error("too many PSD channels"))?;
+    if guaranteed_channels > 56 {
+        return Err(error("PSD supports at most 56 composite channels"));
+    }
+    let possible_channels = 4usize
+        .checked_add(saved_channels)
+        .ok_or_else(|| error("too many PSD channels"))?;
+    let rows = (canvas.height as usize)
+        .checked_mul(guaranteed_channels)
+        .ok_or_else(|| error("PSD output size overflow"))?;
+    // This is the encoder's own decoded-buffer limit, shared rather than
+    // copied here. Possible content-dependent alpha is deliberately excluded
+    // from rejection; opaque RGB must remain eligible.
+    let guaranteed_bytes =
+        ::psd::compression::decoded_size(canvas.width as usize, rows, (depth.bytes() * 8) as u16)
+            .map_err(error)?;
+    let pixels = checked_len(canvas.width as usize, canvas.height as usize)?;
+    let possible_bytes = checked_len(checked_len(pixels, depth.bytes())?, possible_channels)?;
+    Ok((
+        guaranteed_channels,
+        possible_channels,
+        guaranteed_bytes,
+        possible_bytes,
+    ))
+}
+
+/// Estimate known raster payloads without evaluating or allocating image data.
+/// The sum intentionally counts sequential work and retained output together;
+/// it is a policy weight, not a physical simultaneous-memory bound. Only the
+/// guaranteed composite layout is format-validated. Actual merged alpha is
+/// discovered after render and may still make the writer reject the output.
+pub fn estimate_rasterized_psd_copy(input: PsdCopyEstimateInput) -> EngineResult<PsdCopyEstimate> {
+    let (guaranteed_channels, possible_channels, guaranteed_bytes, possible_bytes) =
+        composite_layout(
+            input.canvas,
+            input.depth,
+            input.saved_channels,
+            input.retained_merged_alpha,
+        )?;
+    let pixels = checked_len(input.canvas.width as usize, input.canvas.height as usize)?;
+    let plane = checked_len(pixels, input.depth.bytes())?;
+    let rgba_f32 = checked_len(pixels, 16)?;
+    let rgba_at_depth = checked_len(plane, 4)?;
+    let baked_output = if input.rasterized_stacks == 0 {
+        0
+    } else {
+        rgba_f32
+    };
+    let retained_bakes = checked_len(rgba_at_depth, input.rasterized_stacks)?;
+    let emitted_planes = checked_len(rgba_at_depth, input.emitted_raster_layers)?;
+    let modeled_pixel_bytes = [
+        baked_output,
+        retained_bakes,
+        emitted_planes,
+        rgba_f32,
+        possible_bytes,
+        plane,
+    ]
+    .into_iter()
+    .try_fold(0usize, |sum, bytes| {
+        sum.checked_add(bytes)
+            .ok_or_else(|| error("PSD copy estimate overflow"))
+    })?;
+    Ok(PsdCopyEstimate {
+        modeled_pixel_bytes,
+        guaranteed_composite_channels: guaranteed_channels,
+        possible_composite_channels: possible_channels,
+        guaranteed_composite_bytes: guaranteed_bytes,
+        possible_composite_bytes: possible_bytes,
+    })
+}
 fn check_pixel(cancel: &CancellationToken, x: usize) -> EngineResult<()> {
     if x & 1023 == 0 {
         cancel.check()?;
@@ -2433,6 +2546,20 @@ pub fn to_psd_with_cancel(
     cancel: &CancellationToken,
 ) -> EngineResult<PsdDocument> {
     cancel.check()?;
+    let state = document.state();
+    // The guaranteed output planes must satisfy the exact PSD encoder layout
+    // before cloning retained records or assembling layer rasters. This does
+    // not admit work by estimated memory weight; B's earlier rasterization
+    // boundary is a separate caller-owned integration.
+    composite_layout(
+        state.canvas,
+        state.depth,
+        state.channels.len(),
+        document
+            .psd_source
+            .as_ref()
+            .is_some_and(|source| source.source.layer_section.merged_alpha),
+    )?;
     let mut imported = match &document.psd_source {
         Some(source) => source.as_ref().clone(),
         None => ImportedPsd::from_state((**document.state()).clone())?,

@@ -50,6 +50,12 @@ fn layout(width: usize, rows: usize, depth: u16) -> crate::Result<(usize, usize)
     Ok((row, total))
 }
 
+/// Validate the decoded payload of stacked channel planes against the same
+/// layout and size rule used by the encoder. This performs no allocation.
+pub fn decoded_size(width: usize, rows: usize, depth: u16) -> crate::Result<usize> {
+    layout(width, rows, depth).map(|(_, total)| total)
+}
+
 fn table_size(rows: usize, psb: bool) -> crate::Result<usize> {
     rows.checked_mul(if psb { 4 } else { 2 })
         .filter(|&n| n <= MAX_DECODED)
