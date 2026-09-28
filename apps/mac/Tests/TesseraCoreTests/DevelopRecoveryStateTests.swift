@@ -19,34 +19,47 @@ final class DevelopRecoveryStateTests: XCTestCase {
 
     func testFailedCloseRetainsOwnerAndControllerUntilExplicitRetrySucceeds() async throws {
         var rig: Rig? = try makeRig(closeFailures: [true, false])
-        let weakReferences = WeakReferences(owner: rig!.owner, controller: rig!.controller)
+        let imageID = try XCTUnwrap(rig?.imageID)
+        var ownerForRegistration: EngineLibrary? = rig?.owner
+        var controllerForRegistration: DevelopController? = rig?.controller
+        let weakReferences = WeakReferences(owner: try XCTUnwrap(ownerForRegistration),
+                                            controller: try XCTUnwrap(controllerForRegistration))
         let coordinator = DevelopRecoveryCoordinator()
-        let id = coordinator.register(owner: rig?.owner, controller: try XCTUnwrap(rig?.controller),
+        let id = coordinator.register(owner: try XCTUnwrap(ownerForRegistration),
+                                      controller: try XCTUnwrap(controllerForRegistration),
                                       displayName: "photo.jpg")
         let plan = try XCTUnwrap(rig?.closePlan)
+        ownerForRegistration = nil
+        controllerForRegistration = nil
         rig = nil
 
         XCTAssertNotNil(weakReferences.owner, "The recovery record retains its library owner")
         XCTAssertNotNil(weakReferences.controller, "The recovery record retains its controller")
         let owner = try XCTUnwrap(weakReferences.owner)
-        guard case .failed(let failedID, _) = await coordinator.requestClose(id).value else {
+        guard case .failed(let failedID, let firstMessage) = await coordinator.requestClose(id).value else {
             return XCTFail("First close should fail and remain recoverable")
         }
         XCTAssertEqual(failedID, id)
         XCTAssertEqual(plan.callCount, 1)
-        XCTAssertEqual(coordinator.matchingSession(owner: owner, imageID: "image-1"), id)
+        guard case .failed(let repeatedID, let repeatedMessage) = await coordinator.requestClose(id).value else {
+            return XCTFail("An ordinary close request must return the cached failure, not retry")
+        }
+        XCTAssertEqual(repeatedID, failedID)
+        XCTAssertEqual(repeatedMessage, firstMessage)
+        XCTAssertEqual(plan.callCount, 1, "Only explicit retry may invoke native close again")
+        XCTAssertEqual(coordinator.matchingSession(owner: owner, imageID: imageID), id)
         XCTAssertEqual(coordinator.presentations.count, 1)
         if case .failed = coordinator.presentations[0].phase {} else {
             XCTFail("Failed close should remain visible as a failed recovery record")
         }
 
-        guard case .saved = await coordinator.requestClose(id).value else {
+        guard case .saved = await coordinator.retryClose(id).value else {
             return XCTFail("An explicit retry should close the retained controller")
         }
         XCTAssertEqual(plan.callCount, 2)
-        XCTAssertNil(coordinator.matchingSession(owner: owner, imageID: "image-1"))
+        XCTAssertNil(coordinator.matchingSession(owner: owner, imageID: imageID))
         XCTAssertTrue(coordinator.presentations.isEmpty)
-        XCTAssertTrue(coordinator.canOpen(owner: owner, imageID: "image-1"))
+        XCTAssertTrue(coordinator.canOpen(owner: owner, imageID: imageID))
         XCTAssertNil(weakReferences.controller, "A successful retry releases the retained controller")
     }
 
@@ -88,7 +101,11 @@ final class DevelopRecoveryStateTests: XCTestCase {
         XCTAssertFalse(coordinator.canOpen(owner: rig.owner, imageID: "another-photo"))
         XCTAssertFalse(coordinator.canOpen(owner: rig.otherOwner, imageID: rig.imageID))
 
-        guard case .saved = await coordinator.requestClose(id).value else {
+        guard case .failed = await coordinator.requestClose(id).value else {
+            return XCTFail("An ordinary request after failure must not retry the ownerless close")
+        }
+        XCTAssertEqual(rig.closePlan.callCount, 1)
+        guard case .saved = await coordinator.retryClose(id).value else {
             return XCTFail("Explicit retry should resolve the ownerless record")
         }
         XCTAssertTrue(coordinator.canOpen(owner: rig.owner, imageID: rig.imageID))
@@ -108,8 +125,10 @@ final class DevelopRecoveryStateTests: XCTestCase {
         XCTAssertTrue(coordinator.presentations.isEmpty)
         XCTAssertFalse(coordinator.canOpen(owner: rig.owner, imageID: rig.imageID),
                        "A completed result still holds the reservation until its owner commits finish")
+        XCTAssertFalse(coordinator.isUnreservedForHostMutation(owner: rig.owner, imageID: rig.imageID))
         gate.finish()
         XCTAssertTrue(coordinator.canOpen(owner: rig.owner, imageID: rig.imageID))
+        XCTAssertTrue(coordinator.isUnreservedForHostMutation(owner: rig.owner, imageID: rig.imageID))
     }
 
     func testFailedStaleOpenCleanupRegistersBeforeInitiatingBarrierReturns() async throws {
@@ -184,7 +203,8 @@ final class DevelopRecoveryStateTests: XCTestCase {
         XCTAssertFalse(coordinator.transferOpen(token: token, to: .init(value: UUID())),
                        "A ticket cannot be released without a registered exact controller recipient")
         coordinator.finishOpen(token: token)
-        XCTAssertTrue(coordinator.hasUnresolvedSessions, "Untransferred production must become a retained cleanup record")
+        XCTAssertTrue(coordinator.hasUnresolvedSessions,
+                      "Untransferred production must become a retained cleanup record")
         XCTAssertNotNil(coordinator.matchingSession(owner: rig.owner, imageID: rig.imageID))
         XCTAssertFalse(coordinator.canOpen(owner: rig.owner, imageID: rig.imageID))
 
@@ -196,6 +216,36 @@ final class DevelopRecoveryStateTests: XCTestCase {
         observer.finish()
         XCTAssertFalse(coordinator.hasUnresolvedSessions)
         XCTAssertTrue(coordinator.canOpen(owner: rig.owner, imageID: rig.imageID))
+    }
+
+    func testTransferRequiresMatchingOwnerAndExactControllerRecipient() async throws {
+        let rig = try makeRig(closeFailures: [])
+        let coordinator = DevelopRecoveryCoordinator()
+        let token = UUID()
+        let openTask = Task { @MainActor in }
+        await openTask.value
+        coordinator.beginOpen(owner: rig.owner, imageID: rig.imageID, token: token, task: openTask)
+        XCTAssertTrue(coordinator.producedOpen(rig.controller, owner: rig.owner, token: token))
+        XCTAssertFalse(coordinator.transferOpen(token: token, to: .init(value: UUID())))
+
+        // The identity deliberately matches, but the registered key belongs to another owner.
+        let wrongOwner = coordinator.register(owner: rig.otherOwner, controller: rig.controller,
+                                               displayName: "photo.jpg")
+        XCTAssertFalse(coordinator.transferOpen(token: token, to: wrongOwner),
+                       "A matching controller under a different owner cannot receive this ticket")
+        let exactOwner = coordinator.register(owner: rig.owner, controller: rig.controller,
+                                              displayName: "photo.jpg")
+        XCTAssertTrue(coordinator.transferOpen(token: token, to: exactOwner))
+        coordinator.finishOpen(token: token)
+
+        guard case .saved = await coordinator.requestClose(exactOwner).value else {
+            return XCTFail("Exact owner/controller recipient should own the produced session")
+        }
+        guard case .saved = await coordinator.requestClose(wrongOwner).value else {
+            return XCTFail("The intentionally mismatched test record should clean up after assertions")
+        }
+        XCTAssertEqual(rig.closePlan.callCount, 1)
+        XCTAssertFalse(coordinator.hasUnresolvedSessions)
     }
 
     func testLateProducedControllerIsRetainedAndCanBeRetried() async throws {
@@ -220,7 +270,7 @@ final class DevelopRecoveryStateTests: XCTestCase {
         XCTAssertEqual(rig.closePlan.callCount, 1)
 
         let sessionID = try XCTUnwrap(coordinator.matchingSession(owner: rig.owner, imageID: rig.imageID))
-        guard case .saved = await coordinator.requestClose(sessionID).value else {
+        guard case .saved = await coordinator.retryClose(sessionID).value else {
             return XCTFail("An explicit retry should settle the late-produced controller")
         }
         XCTAssertFalse(coordinator.hasUnresolvedSessions)
