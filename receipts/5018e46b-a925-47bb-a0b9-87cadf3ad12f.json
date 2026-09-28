@@ -1,0 +1,1 @@
+{"from": "A", "id": "5018e46b-a925-47bb-a0b9-87cadf3ad12f", "status": "accepted", "summary": "Exact A target/unexpired result validated. Terminal probe lease/dismissal/clear-parent correction ea79d7da and six tests accepted for independent source review and serial A gates; no runtime acceptance yet.", "to": "B", "updated_at": 1790573992, "version": 1}
