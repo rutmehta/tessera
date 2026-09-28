@@ -1,0 +1,11 @@
+[package]
+name = "smart-preview-route-benchmark"
+version = "0.1.0"
+edition = "2024"
+[workspace]
+[dependencies]
+engine-api = { path = "/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/engine-api" }
+image-core = { path = "/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/image-core" }
+pipeline-cpu = { path = "/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/pipeline-cpu" }
+pipeline-gpu = { path = "/Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/pipeline-gpu" }
+serde_json = "1"

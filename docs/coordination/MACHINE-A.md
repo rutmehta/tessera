@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Measured Smart Preview default decision — 2026-09-28 16:42 UTC
+
+Matched Sony2460x1638 encoded-display test at6c057641,2 fresh renderers per route/18 rows: originalCPU cold1101/warm794.5/edited818.2ms; proxyCPU385.8/380.9/384.7ms; originalMetal resident tiles including readback332.6/10.05/33.07ms. Proxy improves CPU route but is11.6x slower than originalMetal for warm edits. Keep Original default; explicit/offline Smart Preview choice remains. No appzero-copy or input-to-present claim. Root checked raw rows, source/harness freeze, direct0 and unchanged original. Evidence: matched-sony-6c057641. Initial wrong resident entry-point failure retained.
+
+B delivered sourcec6d05aa3; exact-target resultb7e144bc accepted pendingnative/bindings/tests. Follow-upcd101ed1 accepted (status coalescing/stale thumbnails). New product-decision requestbd498fd4 published and SSHqueue01a0e8db accepted; peer receipt still pending. Compact2048 source patch prepared but UNRUN/unmerged. FFI has four reviewed corrections in preparation, then actual offline Engine workflow test. No fullfeature acceptance.
+
 Image-core exact6c057641 is integrated with evidence6c20bed5:94 Release tests passed/2ignored, strict/fmt0 and6935 verified source hashes. Current compiler lane belongs to codec agent for matched-output Sony timing harness. FFI source fixes and Compact tier preparation remain parallel source-only. B follow-upcd101ed1 queue01a0e8d5 has actual peer processing commentary, not yet completed work. Full Smart Preview product remains unaccepted.
 
 ## Smart Preview codec and journal accepted — 2026-09-28 16:26 UTC

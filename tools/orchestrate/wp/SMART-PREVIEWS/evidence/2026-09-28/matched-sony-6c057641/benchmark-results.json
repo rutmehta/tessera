@@ -1,0 +1,320 @@
+{
+  "gpu": "Apple M4",
+  "output": "encoded display tiles; Metal includes readback, not app zero-copy presentation",
+  "results": [
+    {
+      "checksum": 1198292525,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 1,
+      "ms": 1037.237083,
+      "renderer_setup_ms": 0.035917000000000004,
+      "round": 0,
+      "route": "original_cpu",
+      "sample_count": 12088440,
+      "state": "cold_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198292796,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 1,
+      "ms": 776.498042,
+      "renderer_setup_ms": 0.035917000000000004,
+      "round": 0,
+      "route": "original_cpu",
+      "sample_count": 12088440,
+      "state": "warm_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1603464696,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 1,
+      "ms": 818.841209,
+      "renderer_setup_ms": 0.035917000000000004,
+      "round": 0,
+      "route": "original_cpu",
+      "sample_count": 12088440,
+      "state": "warm_wb_exposure_edit",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198291760,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 0,
+      "ms": 387.89225,
+      "renderer_setup_ms": 0.0014169999999999999,
+      "round": 0,
+      "route": "proxy_cpu",
+      "sample_count": 12088440,
+      "state": "cold_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198291760,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 0,
+      "ms": 385.0095,
+      "renderer_setup_ms": 0.0014169999999999999,
+      "round": 0,
+      "route": "proxy_cpu",
+      "sample_count": 12088440,
+      "state": "warm_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1603464370,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 0,
+      "ms": 399.505667,
+      "renderer_setup_ms": 0.0014169999999999999,
+      "round": 0,
+      "route": "proxy_cpu",
+      "sample_count": 12088440,
+      "state": "warm_wb_exposure_edit",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198292702,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": {
+        "pixel_readback_bytes": 48353760,
+        "resident_dispatches": 12033,
+        "submissions": 1
+      },
+      "level": 1,
+      "ms": 345.98733300000004,
+      "renderer_setup_ms": 5.327541,
+      "round": 0,
+      "route": "original_metal_tiles_readback",
+      "sample_count": 12088440,
+      "state": "cold_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198292702,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": {
+        "pixel_readback_bytes": 96707520,
+        "resident_dispatches": 71,
+        "submissions": 2
+      },
+      "level": 1,
+      "ms": 10.489917,
+      "renderer_setup_ms": 5.327541,
+      "round": 0,
+      "route": "original_metal_tiles_readback",
+      "sample_count": 12088440,
+      "state": "warm_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1603465667,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": {
+        "pixel_readback_bytes": 145061280,
+        "resident_dispatches": 283,
+        "submissions": 3
+      },
+      "level": 1,
+      "ms": 35.538084,
+      "renderer_setup_ms": 5.327541,
+      "round": 0,
+      "route": "original_metal_tiles_readback",
+      "sample_count": 12088440,
+      "state": "warm_wb_exposure_edit",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198292525,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 1,
+      "ms": 1164.9038329999998,
+      "renderer_setup_ms": 0.001625,
+      "round": 1,
+      "route": "original_cpu",
+      "sample_count": 12088440,
+      "state": "cold_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198292796,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 1,
+      "ms": 812.5019580000001,
+      "renderer_setup_ms": 0.001625,
+      "round": 1,
+      "route": "original_cpu",
+      "sample_count": 12088440,
+      "state": "warm_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1603464696,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 1,
+      "ms": 817.6285829999999,
+      "renderer_setup_ms": 0.001625,
+      "round": 1,
+      "route": "original_cpu",
+      "sample_count": 12088440,
+      "state": "warm_wb_exposure_edit",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198291760,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 0,
+      "ms": 383.766125,
+      "renderer_setup_ms": 0.0012079999999999999,
+      "round": 1,
+      "route": "proxy_cpu",
+      "sample_count": 12088440,
+      "state": "cold_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198291760,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 0,
+      "ms": 376.742459,
+      "renderer_setup_ms": 0.0012079999999999999,
+      "round": 1,
+      "route": "proxy_cpu",
+      "sample_count": 12088440,
+      "state": "warm_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1603464370,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": null,
+      "level": 0,
+      "ms": 369.904958,
+      "renderer_setup_ms": 0.0012079999999999999,
+      "round": 1,
+      "route": "proxy_cpu",
+      "sample_count": 12088440,
+      "state": "warm_wb_exposure_edit",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198292702,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": {
+        "pixel_readback_bytes": 48353760,
+        "resident_dispatches": 12033,
+        "submissions": 1
+      },
+      "level": 1,
+      "ms": 319.266666,
+      "renderer_setup_ms": 4.450291,
+      "round": 1,
+      "route": "original_metal_tiles_readback",
+      "sample_count": 12088440,
+      "state": "cold_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1198292702,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": {
+        "pixel_readback_bytes": 96707520,
+        "resident_dispatches": 71,
+        "submissions": 2
+      },
+      "level": 1,
+      "ms": 9.606208,
+      "renderer_setup_ms": 4.450291,
+      "round": 1,
+      "route": "original_metal_tiles_readback",
+      "sample_count": 12088440,
+      "state": "warm_default",
+      "tiles": 70
+    },
+    {
+      "checksum": 1603465667,
+      "dimensions": [
+        2460,
+        1638
+      ],
+      "gpu_stats": {
+        "pixel_readback_bytes": 145061280,
+        "resident_dispatches": 283,
+        "submissions": 3
+      },
+      "level": 1,
+      "ms": 30.608959000000002,
+      "renderer_setup_ms": 4.450291,
+      "round": 1,
+      "route": "original_metal_tiles_readback",
+      "sample_count": 12088440,
+      "state": "warm_wb_exposure_edit",
+      "tiles": 70
+    }
+  ],
+  "rounds": 2,
+  "states_per_renderer": 3
+}

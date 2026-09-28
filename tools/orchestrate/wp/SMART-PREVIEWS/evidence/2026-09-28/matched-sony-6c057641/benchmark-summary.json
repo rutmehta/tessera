@@ -1,0 +1,20 @@
+[
+  {
+    "route": "original_cpu",
+    "cold_default": 1101.070458,
+    "warm_default": 794.5,
+    "warm_wb_exposure_edit": 818.2348959999999
+  },
+  {
+    "route": "proxy_cpu",
+    "cold_default": 385.8291875,
+    "warm_default": 380.87597949999997,
+    "warm_wb_exposure_edit": 384.7053125
+  },
+  {
+    "route": "original_metal_tiles_readback",
+    "cold_default": 332.6269995,
+    "warm_default": 10.0480625,
+    "warm_wb_exposure_edit": 33.0735215
+  }
+]
