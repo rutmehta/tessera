@@ -23,7 +23,7 @@
 
 Nonneutral WB must detect the working-RGB trap; default lens corrections must not run twice; odd crops/orientation must preserve normalized coordinates; stale original or journal cannot overwrite newer edits; offline success must survive reopen with no original volume.
 
-## Task 1 — camera-linear CPU source (Astra, in progress)
+## Task 1 — camera-linear CPU source (accepted component)
 
 Files: crates/pipeline-cpu/src/render.rs, new camera-linear source module as needed, src/lib.rs and focused integration tests.
 
@@ -32,7 +32,7 @@ Files: crates/pipeline-cpu/src/render.rs, new camera-linear source module as nee
 - [x] Add tests: custom/as-shot WB with nonidentity calibration, scale-one CFA comparison, editable exposure, upstream mismatch, HDR finite values, odd crop/reduction, default Auto/CA.
 - [x] Run focused Release tests with source hashes/direct exits, retain failed attempts, commit exact component and obtain independent review.
 
-## Task 2 — durable local recipe journal (Luna, independent source preparation)
+## Task 2 — durable local recipe journal (accepted component)
 
 File: new crates/tessera-ffi/src/smart_preview_store.rs; integrate module only after Task 1 compiler lane release.
 
@@ -53,11 +53,13 @@ Files: new bounded codec/store module near image-core or previews, image-core/sr
 
 Files: tessera-ffi/src/recipe_write.rs, develop.rs and dedicated smart_preview service; existing Engine setter call sites.
 
-- [ ] Add stable original-ImageId admission shared by normal and proxy editors/direct setters, while retaining destination collisions and online baseline checks.
-- [ ] Build from coherent original bytes without changing sidecars; publish asset+clean journal only after verified completion. Cancel leaves no advertised partial preview.
-- [ ] Open proxy with original recipe identity, save local journal durably, reopen offline without original-parent canonicalization.
-- [ ] Reconcile matching original content and sidecar baseline; keep conflict copies and report conflict otherwise. Original export must require successful reconciliation and matching source.
-- [ ] Test normal/proxy lease races, failing-open release, offline save/restart, original mutation and external sidecar edits, clean/dirty discard, export source choice.
+- [x] Add stable original-ImageId admission shared by normal and proxy editors/direct setters, while retaining destination collisions and online baseline checks.
+- [x] Build from coherent original bytes without changing sidecars; publish asset+clean journal only after verified completion. Failed builds leave no advertised partial preview. Build is synchronous; UI cancellation stops between photos, not within a build.
+- [x] Open proxy with original recipe identity, save local journal durably, reopen offline without original-parent canonicalization.
+- [x] Reconcile matching original content and sidecar baseline; keep conflict copies and report conflict otherwise. Original export must require successful reconciliation and matching source.
+- [x] Test normal/proxy lease races, failing-open release, offline save/restart, original mutation and external sidecar edits, clean/dirty discard, export source choice.
+
+Native acceptance: e1eca7ba, merged on main before ff0459fc. Final171 FFI unit tests and real Sony clean/dirty offline workflow passed; strict/fmt passed. This does not include app offline Library reopening, which needs the separate catalog-backed session API.
 
 ## Task 5 — Library and Develop controls
 

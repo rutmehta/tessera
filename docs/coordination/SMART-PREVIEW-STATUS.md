@@ -1,5 +1,12 @@
 # Editable Smart Preview status
 
+## Current implementation — 2026-09-28 17:04 UTC
+
+Camera-linear proxy generation, bounded persistence, original-identity journal, native offline Develop save/reopen and conservative synchronization are integrated. Final native candidate e1eca7ba passed171 unit tests plus real Sony build/edit/clean-and-dirty offline restart/reconnect/conflict/full-resolution export workflow. Original photos stay unchanged during proxy generation/local editing. Source/evidence are published on main ff0459fc.
+
+Full desktop feature remains in progress: cached offline Library, current Swift controls/bindings and actual app workflow gates remain. The current Detail proxy is only0.084% smaller than this Sony compressed RAW; Compact source preparation is unqualified. CPU proxy warm edit384.7ms beats originalCPU818.2ms but loses to originalMetal33.07ms in matched-output tests. Original remains default; explicit/offline proxy use is supported by the native API. GPU acceleration is being prepared, not accepted. Earlier inventory below records the preimplementation state.
+
+
 Status: NOT IMPLEMENTED in the current source inventory, 2026-09-28. This is a status audit, not a completed feasibility design or acceptance gate.
 
 The user asked about lightweight versions of RAW files that remain editable. Existing project design docs/05-catalog-storage-and-import.md section2.2 and docs/01-lightroom-classic-spec.md section1.11 describe approximately2560-pixel lossy-DNG Smart Previews for offline editing, with originals used for full-quality export when available. Those are intended behavior, not evidence of implementation.
