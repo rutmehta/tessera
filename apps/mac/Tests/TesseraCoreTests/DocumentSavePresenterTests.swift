@@ -185,4 +185,17 @@ final class DocumentSavePresenterTests: XCTestCase {
         d.onBegin = nil; withExtendedLifetime(window) {}
     }
 
+    func testParentLossCancelsHeldChildEvenIfNativeCompletionAlreadyArrived() {
+        let d = FakeDocumentSaveSession(); let (p, window, _) = configured(d)
+        _ = start(p); d.childActive = true
+        d.complete(); d.detach()
+        XCTAssertTrue(p.isBusy)
+        d.parentClosed?()
+        XCTAssertEqual(d.childCancelCount, 1)
+        XCTAssertEqual(d.endCount, 0)
+        d.childActive = false; d.changed?()
+        XCTAssertFalse(p.isBusy); XCTAssertEqual(d.retireCount, 1)
+        withExtendedLifetime(window) {}
+    }
+
 }
