@@ -209,6 +209,7 @@ final class AppModel {
         let intent: UUID
         let owner: EngineLibrary?
         let generation: Int
+        let folderRequestID: UUID?
         let commit: @MainActor () -> Void
     }
     @ObservationIgnored private var blockedSavedNavigation: BlockedSavedNavigation?
@@ -273,8 +274,9 @@ final class AppModel {
     }
 
     private func commitAdmittedNavigation(_ action: () -> Void) {
+        let prior = committingSavedNavigation
         committingSavedNavigation = true
-        defer { committingSavedNavigation = false }
+        defer { committingSavedNavigation = prior }
         action()
     }
 
@@ -292,12 +294,18 @@ final class AppModel {
         requestLibraryFilter(requested)
     }
 
-    private func navigateAfterDevelopSave(_ commit: @escaping @MainActor () -> Void) {
+    private func navigateAfterDevelopSave(folderRequestID: UUID? = nil,
+                                          _ commit: @escaping @MainActor () -> Void) {
         let intent = UUID()
         let sourceOwner = engineLibrary
         let sourceGeneration = loadGeneration
+        let supersededFolder = blockedSavedNavigation?.folderRequestID
         savedNavigationIntent = intent
         blockedSavedNavigation = nil
+        if let supersededFolder, supersededFolder != folderRequestID {
+            finishFolderRequest(supersededFolder, loaded: false)
+        }
+        guard savedNavigationIntent == intent else { return }
         guard !developRecovery.hasActiveReservations else {
             statusMessage = "Wait for the current photo operation before leaving this workspace"
             return
@@ -305,7 +313,8 @@ final class AppModel {
         guard developRecovery.hasUnresolvedSessions else { commitAdmittedNavigation(commit); return }
         guard let owner = developLibrary, let controller = develop else {
             blockedSavedNavigation = BlockedSavedNavigation(
-                intent: intent, owner: sourceOwner, generation: sourceGeneration, commit: commit)
+                intent: intent, owner: sourceOwner, generation: sourceGeneration,
+                folderRequestID: folderRequestID, commit: commit)
             statusMessage = "Finish saving the photo before leaving this workspace"
             return
         }
@@ -321,7 +330,8 @@ final class AppModel {
                   self.developLibrary === owner || self.developLibrary == nil else { return }
             guard result.isSaved, !self.developRecovery.hasUnresolvedSessions else {
                 self.blockedSavedNavigation = BlockedSavedNavigation(
-                    intent: intent, owner: sourceOwner, generation: sourceGeneration, commit: commit)
+                    intent: intent, owner: sourceOwner, generation: sourceGeneration,
+                    folderRequestID: folderRequestID, commit: commit)
                 self.statusMessage = "Finish saving the photo before leaving this workspace"
                 return
             }
@@ -357,9 +367,12 @@ final class AppModel {
     }
 
     func keepEditingDevelopRecovery() {
+        let folderRequestID = blockedSavedNavigation?.folderRequestID
         savedNavigationIntent = UUID()
         blockedSavedNavigation = nil
-        if let currentFolderRequestID { finishFolderRequest(currentFolderRequestID, loaded: false) }
+        if let requestID = folderRequestID {
+            finishFolderRequest(requestID, loaded: false)
+        }
         // No workspace mutation happened before admission, so the original editor
         // and its callbacks remain attached when its close attempt failed.
     }
@@ -523,7 +536,7 @@ final class AppModel {
             finishFolderRequest(requestID, loaded: false)
             return
         }
-        navigateAfterDevelopSave { [weak self] in
+        navigateAfterDevelopSave(folderRequestID: requestID) { [weak self] in
             guard let self, self.currentFolderRequestID == requestID else { return }
             self.commitOpenFolder(url, message: message, requestID: requestID)
         }
@@ -1102,6 +1115,7 @@ final class AppModel {
         let focusedKey = focusedItem.map { workspaceKey(for: $0) }
         let source = self.source
         let view = viewMode
+        let generation = loadGeneration
         let barrier = prepareForRecipeRead(imageIDs: [imageID], library: owner)
         let savingMessage = "Saving photo before opening Layers…"
         layeredCopyStatusOwner = request.id
@@ -1129,18 +1143,33 @@ final class AppModel {
             guard let self else { return }
             guard !self.developRecovery.hasUnresolvedSessions,
                   self.pendingLayeredCopyRequestID == request.id, self.engineLibrary === owner,
+                  self.loadGeneration == generation,
                   !self.agent.isMutating(imageID: imageID, library: owner),
-                  self.isLibraryWorkspace, self.source == source, self.viewMode == view,
+                  self.source == source, self.viewMode == view,
                   self.selection == selected,
                   self.focusedItem.map({ self.workspaceKey(for: $0) }) == focusedKey else { return }
-            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            if self.isPhotoEditing || self.isReviewing {
+                self.commitAdmittedNavigation { self.commitReturnToLibrary(grid: false) }
+            }
+            let dispatchedSource = self.source
+            let dispatchedView = self.viewMode
+            let dispatchedSelection = self.selection
+            let dispatchedFocus = self.focusedItem.map { self.workspaceKey(for: $0) }
             backendOwnsGate = true
             self.documents.editInLayers(request.item) { [weak self, barrier] outcome in
                 // DocumentWorkspace installs/selects before settling. Its legacy
                 // viewMode assignment is refused while this reservation exists;
                 // publish the document destination only after backend settlement.
-                let mayShowInstalled = self?.pendingLayeredCopyRequestID == request.id
-                    && self?.engineLibrary === owner
+                let mayShowInstalled: Bool
+                if let model = self {
+                    mayShowInstalled = model.pendingLayeredCopyRequestID == request.id
+                        && model.engineLibrary === owner
+                        && model.loadGeneration == generation
+                        && model.source == dispatchedSource
+                        && model.viewMode == dispatchedView
+                        && model.selection == dispatchedSelection
+                        && model.focusedItem.map({ model.workspaceKey(for: $0) }) == dispatchedFocus
+                } else { mayShowInstalled = false }
                 barrier.finish()
                 guard let self else { return }
                 if self.layeredCopyStatusOwner == request.id {

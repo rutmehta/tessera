@@ -27,7 +27,9 @@ final class ExportController {
     private(set) var presetName: String?
     private(set) var presets: [ExportPresetEntry] = []
     private(set) var targets: [Target] = []
-    var targetID: String?
+    var targetID: String? {
+        didSet { if targetID != oldValue { previewGeneration = UUID() } }
+    }
     var error: String?
 
     /// The last watermark and JPEG size limit, so None ↔ Text ↔ Graphic and the limit's checkbox
@@ -41,6 +43,7 @@ final class ExportController {
     private(set) var enginePreviewMark: ExportWatermark?
     private(set) var isRenderingPreview = false
     private(set) var previewError: String?
+    @ObservationIgnored private var previewGeneration = UUID()
 
     /// Non-nil while an export runs (the sheet is closed meanwhile).
     private(set) var progress: ExportProgress?
@@ -89,6 +92,7 @@ final class ExportController {
     }
 
     private func settingsChanged() {
+        previewGeneration = UUID()
         guard ready else { return }
         if let mark = settings.watermark { watermarkDraft = mark }
         if let kb = settings.maxFileKilobytes { sizeLimitDraftKB = kb }
@@ -101,6 +105,9 @@ final class ExportController {
 
     /// Refreshes presets and targets before the sheet opens.
     func prepare(engine: Engine, targets: [Target], preferred: Target.Kind) {
+        previewGeneration = UUID()
+        enginePreview = nil
+        enginePreviewMark = nil
         self.engine = engine
         self.targets = targets
         targetID = (targets.first { $0.kind == preferred } ?? targets.first)?.id
@@ -224,6 +231,8 @@ final class ExportController {
     /// (the exact compositor `export_batch` uses), into a temporary folder.
     func renderWatermarkPreview() {
         guard let engine, let id = previewImageID, let mark = settings.watermark, !isRenderingPreview else { return }
+        let targetID = self.targetID
+        let capturedSettings = settings
         if let problem = mark.problem { previewError = problem; return }
         guard let gate = acquireSaveGate?([id]) else {
             previewError = "This preview's photo is no longer available for a saved read"
@@ -244,11 +253,20 @@ final class ExportController {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tessera-watermark-\(UUID().uuidString)")
         s.destination = folder.path
         let json = s.json
+        let generation = UUID()
+        previewGeneration = generation
         isRenderingPreview = true
         previewError = nil
         Task {
             defer { gate.finish() }
-            guard await gate.result().isSaved else {
+            let admitted = await gate.result().isSaved
+            guard previewGeneration == generation, self.engine === engine,
+                  self.targetID == targetID, self.previewImageID == id,
+                  self.settings == capturedSettings else {
+                isRenderingPreview = false
+                return
+            }
+            guard admitted else {
                 isRenderingPreview = false
                 previewError = "Finish saving the photo before previewing its watermark"
                 return
@@ -269,6 +287,9 @@ final class ExportController {
             }
             try? FileManager.default.removeItem(at: folder)
             isRenderingPreview = false
+            guard previewGeneration == generation, self.engine === engine,
+                  self.targetID == targetID, self.previewImageID == id,
+                  self.settings == capturedSettings else { return }
             enginePreview = image
             enginePreviewMark = image == nil ? nil : mark
             previewError = failure

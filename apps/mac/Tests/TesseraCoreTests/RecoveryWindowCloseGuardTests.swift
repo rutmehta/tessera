@@ -64,4 +64,17 @@ final class RecoveryWindowCloseGuardTests: XCTestCase {
         XCTAssertTrue(unrelated.delegate === unrelatedPrior)
         target.close()
     }
+
+    func testRealPerformCloseForwardsWillCloseOnce() {
+        let target = window()
+        let prior = PriorDelegate()
+        target.delegate = prior
+        RecoveryWindowCloseGuard.install(on: target)
+
+        target.orderFront(nil)
+        target.performClose(nil)
+
+        XCTAssertEqual(prior.closeChecks, 1)
+        XCTAssertEqual(prior.willCloseCount, 1)
+    }
 }

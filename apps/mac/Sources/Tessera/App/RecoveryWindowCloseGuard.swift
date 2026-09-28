@@ -7,10 +7,12 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
     private static var installed: [ObjectIdentifier: RecoveryWindowCloseGuard] = [:]
 
     private weak var window: NSWindow?
-    nonisolated(unsafe) private weak var previous: (any NSWindowDelegate)?
+    // Strongly retain the displaced SwiftUI delegate until close/teardown.
+    nonisolated(unsafe) private var previous: (any NSWindowDelegate)?
     private let shouldBlock: @MainActor () -> Bool
     private let blocked: @MainActor (NSWindow) -> Void
     private var closeObserver: NSObjectProtocol?
+    private var forwardedClose = false
 
     private init(window: NSWindow, previous: (any NSWindowDelegate)?,
                  shouldBlock: @escaping @MainActor () -> Bool,
@@ -29,9 +31,13 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
             guard window.delegate !== guardDelegate else { return }
             // SwiftUI may replace its delegate after the view first appears.
             // Capture the new one, never our former proxy as a forwarding target.
-            if let replacement = window.delegate, replacement !== guardDelegate,
-               !(replacement is RecoveryWindowCloseGuard) {
-                guardDelegate.previous = replacement
+            if let replacement = window.delegate {
+                if replacement !== guardDelegate, !(replacement is RecoveryWindowCloseGuard) {
+                    guardDelegate.previous = replacement
+                }
+            } else {
+                // A removed delegate must not be resurrected when this guard exits.
+                guardDelegate.previous = nil
             }
             window.delegate = guardDelegate
             return
@@ -48,7 +54,9 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
         guardDelegate.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak guardDelegate] _ in
-            MainActor.assumeIsolated { guardDelegate?.uninstall() }
+            // Window notifications can precede the delegate callback. Defer
+            // fallback cleanup so windowWillClose forwards the original once.
+            Task { @MainActor [weak guardDelegate] in guardDelegate?.uninstall() }
         }
         window.delegate = guardDelegate
     }
@@ -71,7 +79,10 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        previous?.windowWillClose?(notification)
+        if !forwardedClose {
+            forwardedClose = true
+            previous?.windowWillClose?(notification)
+        }
         uninstall()
     }
 
