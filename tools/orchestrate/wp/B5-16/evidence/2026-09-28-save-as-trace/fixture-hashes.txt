@@ -1,0 +1,2 @@
+f2e70c1e431dad1a3a6984ab4d5311f89fd43c6ba9ad5ce55f12658d27bd7a5e  /Volumes/betterSSD/tessera-validation/document-save-settlement/trace-23a1947e/gui/fixture/tiny-save-trace.jpg
+cd8a12bb19b7fe533fe1b7ab31419980dd4ae7950dd6107bb60e16e3ac2bc5a0  /Volumes/betterSSD/tessera-validation/document-save-settlement/trace-23a1947e/gui/saved/trace-existing.tessera-doc

@@ -1,0 +1,20 @@
+2026-09-28 01:02:27.241 Tessera[32128:98127383] Sparkle updates not configured for this build
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 32, y1: 32 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 32, y1: 32 })
+[save-as] t=2625201.510022 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=presentation.request queued=false
+[save-as] t=2625201.510640 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.contentClaim captureExists=false matching=false
+[save-as] t=2625201.510676 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625201.542423 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.refresh window=0 parent=0 attached=0
+[save-as] t=2625201.542661 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.update window=0 parent=0 attached=0
+[save-as] t=2625201.542679 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.refresh window=0 parent=0 attached=0
+[save-as] t=2625201.546092 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.windowCallback owner=true window=40737044864 parent=0 attached=0
+[save-as] t=2625201.546118 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.capture.attempt matching=true window=40737044864 parent=0 attached=0
+[save-as] t=2625201.546129 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=probe.capture.accepted window=40737044864 parent=0 attached=0
+[save-as] t=2625224.975692 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=finish.request phase=choosing
+[save-as] t=2625224.976324 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=finish.exists exists=false phase=choosing
+[save-as] t=2625224.976431 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=write.admission phase=choosing
+[save-as] t=2625224.979349 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=settlement outcome=saved continuationCancelled=false matching=true
+[save-as] t=2625225.022666 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.onDismiss.callback 
+[save-as] t=2625225.022700 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.onDismiss.received matching=true nativeRecord=false
+[save-as] t=2625225.022708 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625225.297982 request=7F17CF8E-E2B3-45C4-91C2-54F7F9280FDD event=swift.contentDisappear 

@@ -1,0 +1,353 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:728:21: warning: 'where' only applies to the second pattern match in this 'case'
+726 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+727 |         switch e.keyCode {
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:730:22: warning: 'where' only applies to the second pattern match in this 'case'
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+731 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+732 |             return false
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[3/6] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/6] Linking Tessera
+[6/7] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[6/8] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[7/8] Linking TesseraPackageTests
+Build complete! (86.82s)
+Test Suite 'Selected tests' started at 2026-09-28 01:01:04.113.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 01:01:04.114.
+Test Suite 'DocumentSaveSettlementTests' started at 2026-09-28 01:01:04.114.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAdmittedWriteSurvivesCancelAndSettlesActualOutcomeOnce]' started.
+[save-as] t=2625088.684756 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=presentation.request queued=false
+[save-as] t=2625088.684852 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.684860 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=finish.request phase=choosing
+[save-as] t=2625088.685301 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=finish.exists exists=false phase=choosing
+[save-as] t=2625088.685321 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=write.admission phase=choosing
+[save-as] t=2625088.685333 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=finish.request phase=writing
+[save-as] t=2625088.685341 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=cancel 
+[save-as] t=2625088.685400 request=B2CC5458-93D4-43B9-AA02-43DCD54A4727 event=settlement outcome=saved continuationCancelled=true matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAdmittedWriteSurvivesCancelAndSettlesActualOutcomeOnce]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testBeginCancelBeginWithoutAppearanceDoesNotQueueForever]' started.
+[save-as] t=2625088.685843 request=5AFFAEA6-2841-44CD-B75B-92ADDCCA655B event=presentation.request queued=false
+[save-as] t=2625088.685851 request=5AFFAEA6-2841-44CD-B75B-92ADDCCA655B event=cancel 
+[save-as] t=2625088.685855 request=5AFFAEA6-2841-44CD-B75B-92ADDCCA655B event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.685866 request=E4615A10-E2D2-40C7-99EE-A15919B6F15C event=presentation.request queued=false
+[save-as] t=2625088.685873 request=E4615A10-E2D2-40C7-99EE-A15919B6F15C event=cancel 
+[save-as] t=2625088.685877 request=E4615A10-E2D2-40C7-99EE-A15919B6F15C event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testBeginCancelBeginWithoutAppearanceDoesNotQueueForever]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelAndDismissSettleOnlyOnce]' started.
+[save-as] t=2625088.686120 request=E721A3ED-27A2-446D-B30A-08F2BDA781DA event=presentation.request queued=false
+[save-as] t=2625088.686124 request=E721A3ED-27A2-446D-B30A-08F2BDA781DA event=cancel 
+[save-as] t=2625088.686127 request=E721A3ED-27A2-446D-B30A-08F2BDA781DA event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.686131 request=E721A3ED-27A2-446D-B30A-08F2BDA781DA event=swift.contentDisappear 
+[save-as] t=2625088.686134 request=E721A3ED-27A2-446D-B30A-08F2BDA781DA event=cancel 
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelAndDismissSettleOnlyOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringDismissGapCannotStartReplacementOrWrite]' started.
+[save-as] t=2625088.686346 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=presentation.request queued=false
+[save-as] t=2625088.686351 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.686355 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=finish.request phase=choosing
+[save-as] t=2625088.686368 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.686373 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.686381 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=native.detached.accepted 
+[save-as] t=2625088.686384 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=join.check matching=true native=true swift=false
+[save-as] t=2625088.686388 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=cancel 
+[save-as] t=2625088.686391 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.686394 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.686397 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=join.check matching=true native=true swift=true
+[save-as] t=2625088.686399 request=145C45A9-E9EB-40A9-A1BB-BD90200237E5 event=presentation.dismiss.complete matching=true successor=false
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringDismissGapCannotStartReplacementOrWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelWhileNativeSheetAttachedNeverAdvancesReplacement]' started.
+[save-as] t=2625088.686596 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=presentation.request queued=false
+[save-as] t=2625088.686600 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.686604 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=finish.request phase=choosing
+[save-as] t=2625088.686616 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.686620 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.686624 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.686627 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=join.check matching=true native=false swift=true
+[save-as] t=2625088.686630 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=cancel 
+[save-as] t=2625088.686632 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.686636 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=native.detached.accepted 
+[save-as] t=2625088.686638 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=join.check matching=true native=true swift=true
+[save-as] t=2625088.686641 request=7F17FC7D-3DDD-4180-9C8B-8F943B3E691F event=presentation.dismiss.complete matching=true successor=false
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelWhileNativeSheetAttachedNeverAdvancesReplacement]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testClaimBeforeOnAppearRetainsNativeDismissalBarrier]' started.
+[save-as] t=2625088.686834 request=69E92A51-97E1-47FB-BDAE-6578DBC7BC15 event=presentation.request queued=false
+[save-as] t=2625088.686838 request=69E92A51-97E1-47FB-BDAE-6578DBC7BC15 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.686841 request=69E92A51-97E1-47FB-BDAE-6578DBC7BC15 event=cancel 
+[save-as] t=2625088.686843 request=69E92A51-97E1-47FB-BDAE-6578DBC7BC15 event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.686851 request=3431921E-09A4-4A2C-A0A4-C2BFC8AA553C event=presentation.request queued=true
+[save-as] t=2625088.686855 request=69E92A51-97E1-47FB-BDAE-6578DBC7BC15 event=swift.onDismiss.received matching=true nativeRecord=false
+[save-as] t=2625088.686858 request=69E92A51-97E1-47FB-BDAE-6578DBC7BC15 event=presentation.dismiss.complete matching=true successor=true
+[save-as] t=2625088.686862 request=3431921E-09A4-4A2C-A0A4-C2BFC8AA553C event=presentation.request queued=false
+[save-as] t=2625088.686865 request=3431921E-09A4-4A2C-A0A4-C2BFC8AA553C event=cancel 
+[save-as] t=2625088.686868 request=3431921E-09A4-4A2C-A0A4-C2BFC8AA553C event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testClaimBeforeOnAppearRetainsNativeDismissalBarrier]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLateClaimOfCancelledRequestSerializesNewRequest]' started.
+[save-as] t=2625088.687055 request=4BF17961-6627-42E5-8EBD-7FFC0980E1A0 event=presentation.request queued=false
+[save-as] t=2625088.687059 request=4BF17961-6627-42E5-8EBD-7FFC0980E1A0 event=cancel 
+[save-as] t=2625088.687062 request=4BF17961-6627-42E5-8EBD-7FFC0980E1A0 event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.687068 request=781811A0-4865-4E41-A998-C759465F7DB4 event=presentation.request queued=false
+[save-as] t=2625088.687071 request=4BF17961-6627-42E5-8EBD-7FFC0980E1A0 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.687075 request=4BF17961-6627-42E5-8EBD-7FFC0980E1A0 event=swift.onDismiss.received matching=true nativeRecord=false
+[save-as] t=2625088.687078 request=4BF17961-6627-42E5-8EBD-7FFC0980E1A0 event=presentation.dismiss.complete matching=true successor=true
+[save-as] t=2625088.687081 request=781811A0-4865-4E41-A998-C759465F7DB4 event=presentation.request queued=false
+[save-as] t=2625088.687084 request=781811A0-4865-4E41-A998-C759465F7DB4 event=cancel 
+[save-as] t=2625088.687087 request=781811A0-4865-4E41-A998-C759465F7DB4 event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLateClaimOfCancelledRequestSerializesNewRequest]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLostWindowWhileReplacingSettlesFailureAndIgnoresLateApproval]' started.
+[save-as] t=2625088.687270 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=presentation.request queued=false
+[save-as] t=2625088.687275 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.687278 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=finish.request phase=choosing
+[save-as] t=2625088.687288 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.687292 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.687295 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=native.detached.accepted 
+[save-as] t=2625088.687298 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=join.check matching=true native=true swift=false
+[save-as] t=2625088.687301 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.687304 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=join.check matching=true native=true swift=true
+[save-as] t=2625088.687307 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625088.687310 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=replace.admission phase=waitingForDismissal window=0 parent=0 attached=0
+[save-as] t=2625088.687317 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=native.windowLost 
+[save-as] t=2625088.687320 request=33380726-FE49-48F3-BD00-9CF5ECAF6F22 event=settlement outcome=failed matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLostWindowWhileReplacingSettlesFailureAndIgnoresLateApproval]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' started.
+[save-as] t=2625088.687502 request=7448D5A3-66B0-4510-9799-1F9A24D655B2 event=settlement outcome=failed matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCompletionPreservesNewSheetAndBlocksSameDocumentWrite]' started.
+[save-as] t=2625088.687759 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=presentation.request queued=false
+[save-as] t=2625088.687763 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.687766 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=finish.request phase=choosing
+[save-as] t=2625088.687777 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=finish.exists exists=false phase=choosing
+[save-as] t=2625088.687784 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=write.admission phase=choosing
+[save-as] t=2625088.687791 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=swift.onDismiss.received matching=true nativeRecord=false
+[save-as] t=2625088.687793 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625088.687800 request=8BC6BD7C-436E-43AD-89B2-DD0A09096BCC event=presentation.request queued=false
+[save-as] t=2625088.687813 request=E33784FB-A45A-474A-97CE-4D5ABA03C77E event=settlement outcome=saved continuationCancelled=false matching=true
+[save-as] t=2625088.687818 request=8BC6BD7C-436E-43AD-89B2-DD0A09096BCC event=cancel 
+[save-as] t=2625088.687821 request=8BC6BD7C-436E-43AD-89B2-DD0A09096BCC event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCompletionPreservesNewSheetAndBlocksSameDocumentWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndDuplicateAcceptanceCannotWrite]' started.
+[save-as] t=2625088.688016 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=presentation.request queued=false
+[save-as] t=2625088.688021 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.688029 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=finish.request phase=choosing
+[save-as] t=2625088.688039 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.688044 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.688048 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=native.detached.accepted 
+[save-as] t=2625088.688052 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=join.check matching=true native=true swift=false
+[save-as] t=2625088.688056 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.688059 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=join.check matching=true native=true swift=true
+[save-as] t=2625088.688061 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625088.688066 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=replace.admission phase=waitingForDismissal window=0 parent=0 attached=0
+[save-as] t=2625088.688073 request=08AE3156-F718-4B3E-B4E5-D7B251A1E552 event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndDuplicateAcceptanceCannotWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplacementWaitsForNativeDismissNotViewDisappearance]' started.
+[save-as] t=2625088.688287 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=presentation.request queued=false
+[save-as] t=2625088.688291 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.688294 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=finish.request phase=choosing
+[save-as] t=2625088.688304 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.688308 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.688311 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=native.detached.accepted 
+[save-as] t=2625088.688314 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=join.check matching=true native=true swift=false
+[save-as] t=2625088.688317 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=swift.contentDisappear 
+[save-as] t=2625088.688320 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.688323 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=join.check matching=true native=true swift=true
+[save-as] t=2625088.688326 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625088.688330 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=replace.admission phase=waitingForDismissal window=0 parent=0 attached=0
+[save-as] t=2625088.688336 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=swift.onDismiss.received matching=false nativeRecord=false
+[save-as] t=2625088.688340 request=B5F6460B-03B3-4321-B9D8-4EE7079D9BFE event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplacementWaitsForNativeDismissNotViewDisappearance]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersededPromptCannotAffectReplacement]' started.
+[save-as] t=2625088.688544 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=presentation.request queued=false
+[save-as] t=2625088.688548 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.688552 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=cancel 
+[save-as] t=2625088.688555 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.688563 request=5F7D0C14-E2DC-4B28-A975-2673EFFD7BF5 event=presentation.request queued=true
+[save-as] t=2625088.688566 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=finish.request phase=missing
+[save-as] t=2625088.688569 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=swift.contentDisappear 
+[save-as] t=2625088.688571 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=swift.onDismiss.received matching=true nativeRecord=false
+[save-as] t=2625088.688574 request=145DB0CF-17C6-4ED8-88D1-79F3ABA633FC event=presentation.dismiss.complete matching=true successor=true
+[save-as] t=2625088.688578 request=5F7D0C14-E2DC-4B28-A975-2673EFFD7BF5 event=presentation.request queued=false
+[save-as] t=2625088.688582 request=5F7D0C14-E2DC-4B28-A975-2673EFFD7BF5 event=cancel 
+[save-as] t=2625088.688585 request=5F7D0C14-E2DC-4B28-A975-2673EFFD7BF5 event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersededPromptCannotAffectReplacement]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersedeUnclaimedRequestNeedsNoNativeDismissal]' started.
+[save-as] t=2625088.688786 request=BD623F55-6C60-4DAF-8D29-180ED00FE966 event=presentation.request queued=false
+[save-as] t=2625088.688790 request=BD623F55-6C60-4DAF-8D29-180ED00FE966 event=cancel 
+[save-as] t=2625088.688793 request=BD623F55-6C60-4DAF-8D29-180ED00FE966 event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.688800 request=33FD316D-AFEF-41BF-AF3F-2AE8A8EE0B4B event=presentation.request queued=false
+[save-as] t=2625088.688804 request=BD623F55-6C60-4DAF-8D29-180ED00FE966 event=swift.onDismiss.received matching=false nativeRecord=false
+[save-as] t=2625088.688808 request=33FD316D-AFEF-41BF-AF3F-2AE8A8EE0B4B event=cancel 
+[save-as] t=2625088.688811 request=33FD316D-AFEF-41BF-AF3F-2AE8A8EE0B4B event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersedeUnclaimedRequestNeedsNoNativeDismissal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersessionInDismissGapIgnoresStaleDismissal]' started.
+[save-as] t=2625088.689005 request=576F092C-D2A0-4383-A664-00112399B78D event=presentation.request queued=false
+[save-as] t=2625088.689008 request=576F092C-D2A0-4383-A664-00112399B78D event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.689011 request=576F092C-D2A0-4383-A664-00112399B78D event=finish.request phase=choosing
+[save-as] t=2625088.689019 request=576F092C-D2A0-4383-A664-00112399B78D event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.689023 request=576F092C-D2A0-4383-A664-00112399B78D event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.689026 request=576F092C-D2A0-4383-A664-00112399B78D event=native.detached.accepted 
+[save-as] t=2625088.689028 request=576F092C-D2A0-4383-A664-00112399B78D event=join.check matching=true native=true swift=false
+[save-as] t=2625088.689032 request=576F092C-D2A0-4383-A664-00112399B78D event=cancel 
+[save-as] t=2625088.689034 request=576F092C-D2A0-4383-A664-00112399B78D event=settlement outcome=cancelled matching=true
+[save-as] t=2625088.689040 request=744319C7-6A3E-4515-92B7-01CF44A61357 event=presentation.request queued=true
+[save-as] t=2625088.689043 request=576F092C-D2A0-4383-A664-00112399B78D event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.689046 request=576F092C-D2A0-4383-A664-00112399B78D event=join.check matching=true native=true swift=true
+[save-as] t=2625088.689049 request=576F092C-D2A0-4383-A664-00112399B78D event=presentation.dismiss.complete matching=true successor=true
+[save-as] t=2625088.689051 request=744319C7-6A3E-4515-92B7-01CF44A61357 event=presentation.request queued=false
+[save-as] t=2625088.689055 request=576F092C-D2A0-4383-A664-00112399B78D event=swift.onDismiss.received matching=false nativeRecord=false
+[save-as] t=2625088.689059 request=744319C7-6A3E-4515-92B7-01CF44A61357 event=cancel 
+[save-as] t=2625088.689061 request=744319C7-6A3E-4515-92B7-01CF44A61357 event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersessionInDismissGapIgnoresStaleDismissal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSwiftDismissWaitsForNativeDetachmentAndIgnoresDuplicates]' started.
+[save-as] t=2625088.689256 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=presentation.request queued=false
+[save-as] t=2625088.689260 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.689264 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=finish.request phase=choosing
+[save-as] t=2625088.689273 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.689277 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.689379 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.689383 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=join.check matching=true native=false swift=true
+[save-as] t=2625088.689387 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=native.detached.accepted 
+[save-as] t=2625088.689390 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=join.check matching=true native=true swift=true
+[save-as] t=2625088.689393 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625088.689396 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=replace.admission phase=waitingForDismissal window=0 parent=0 attached=0
+[save-as] t=2625088.689405 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=swift.onDismiss.received matching=false nativeRecord=false
+[save-as] t=2625088.689409 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=cancel 
+[save-as] t=2625088.689411 request=949732BC-D007-4A75-AE70-31A0BC3446DC event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSwiftDismissWaitsForNativeDetachmentAndIgnoresDuplicates]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossInDismissGapBlocksReplacement]' started.
+[save-as] t=2625088.689624 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=presentation.request queued=false
+[save-as] t=2625088.689629 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.689632 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=finish.request phase=choosing
+[save-as] t=2625088.689641 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.689645 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.689648 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=native.detached.accepted 
+[save-as] t=2625088.689651 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=join.check matching=true native=true swift=false
+[save-as] t=2625088.689654 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=native.windowLost 
+[save-as] t=2625088.689657 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=settlement outcome=failed matching=true
+[save-as] t=2625088.689660 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=presentation.dismiss.complete matching=true successor=false
+[save-as] t=2625088.689663 request=F8E9EA33-F8FC-467C-B23D-1823A909773D event=swift.onDismiss.received matching=false nativeRecord=false
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossInDismissGapBlocksReplacement]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossRemovesNativeObserverAndStaleNotificationIsInert]' started.
+[save-as] t=2625088.689867 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=presentation.request queued=false
+[save-as] t=2625088.689871 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.689875 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=finish.request phase=choosing
+[save-as] t=2625088.689884 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=finish.exists exists=true phase=choosing
+[save-as] t=2625088.689888 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=observer.registration.begin parent{window=0 parent=0 attached=0} sheet{window=0 parent=0 attached=0}
+[save-as] t=2625088.689892 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=swift.onDismiss.received matching=true nativeRecord=true
+[save-as] t=2625088.689895 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=join.check matching=true native=false swift=true
+[save-as] t=2625088.689898 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=native.windowLost 
+[save-as] t=2625088.689901 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=settlement outcome=failed matching=true
+[save-as] t=2625088.689905 request=4A8E67FC-9D73-427D-96B0-D9C80F87A984 event=presentation.dismiss.complete matching=true successor=false
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossRemovesNativeObserverAndStaleNotificationIsInert]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailureDoesNotChangeLastFolderOrReportSuccess]' started.
+[save-as] t=2625088.690196 request=8F1BEB7B-4B95-4C99-8FB0-54A06148E9E0 event=presentation.request queued=false
+[save-as] t=2625088.690207 request=8F1BEB7B-4B95-4C99-8FB0-54A06148E9E0 event=presentation.claim hasClaim=false matching=false
+[save-as] t=2625088.690217 request=8F1BEB7B-4B95-4C99-8FB0-54A06148E9E0 event=finish.request phase=choosing
+[save-as] t=2625088.690235 request=8F1BEB7B-4B95-4C99-8FB0-54A06148E9E0 event=finish.exists exists=false phase=choosing
+[save-as] t=2625088.690244 request=8F1BEB7B-4B95-4C99-8FB0-54A06148E9E0 event=write.admission phase=choosing
+[save-as] t=2625088.691615 request=8F1BEB7B-4B95-4C99-8FB0-54A06148E9E0 event=settlement outcome=failed matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailureDoesNotChangeLastFolderOrReportSuccess]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndIdentitylessDismissCannotCancelReplacement]' started.
+[save-as] t=2625088.691969 request=C3B7693C-D270-4C9B-AD58-35EB6E7E7E4C event=presentation.request queued=false
+[save-as] t=2625088.691975 request=C3B7693C-D270-4C9B-AD58-35EB6E7E7E4C event=finish.request phase=choosing
+[save-as] t=2625088.691982 request=C3B7693C-D270-4C9B-AD58-35EB6E7E7E4C event=swift.contentDisappear 
+[save-as] t=2625088.691986 request=C3B7693C-D270-4C9B-AD58-35EB6E7E7E4C event=cancel 
+[save-as] t=2625088.691989 request=C3B7693C-D270-4C9B-AD58-35EB6E7E7E4C event=settlement outcome=cancelled matching=true
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndIdentitylessDismissCannotCancelReplacement]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSettlementTests' passed at 2026-09-28 01:01:04.126.
+	 Executed 20 tests, with 0 failures (0 unexpected) in 0.011 (0.012) seconds
+Test Suite 'DocumentSaveSheetProbeTests' started at 2026-09-28 01:01:04.126.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testCaptureDoesNotKeepFormerWorkspaceAlive]' started.
+[save-as] t=2625088.692200 request=FA307FD9-F342-4710-8762-AE1330DFBFA8 event=probe.refresh window=0 parent=0 attached=0
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testCaptureDoesNotKeepFormerWorkspaceAlive]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testReusedAttachedViewImmediatelyReportsUpdatedOwnerAndRequest]' started.
+[save-as] t=2625088.734022 request=5AE51D3C-4EC8-46F6-B0D3-BC2264899724 event=probe.refresh window=4348716448 parent=0 attached=0
+[save-as] t=2625088.734044 request=5AE51D3C-4EC8-46F6-B0D3-BC2264899724 event=probe.windowCallback owner=true window=4348716448 parent=0 attached=0
+[save-as] t=2625088.734065 request=36614B84-F180-42C6-832B-370150978ED4 event=probe.refresh window=4348716448 parent=0 attached=0
+[save-as] t=2625088.734070 request=36614B84-F180-42C6-832B-370150978ED4 event=probe.windowCallback owner=true window=4348716448 parent=0 attached=0
+[save-as] t=2625088.734098 request=36614B84-F180-42C6-832B-370150978ED4 event=probe.windowCallback owner=true window=4348716448 parent=0 attached=0
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testReusedAttachedViewImmediatelyReportsUpdatedOwnerAndRequest]' passed (0.042 seconds).
+Test Suite 'DocumentSaveSheetProbeTests' passed at 2026-09-28 01:01:04.168.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.042 (0.042) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 01:01:04.168.
+	 Executed 22 tests, with 0 failures (0 unexpected) in 0.053 (0.054) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 01:01:04.168.
+	 Executed 22 tests, with 0 failures (0 unexpected) in 0.053 (0.055) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
