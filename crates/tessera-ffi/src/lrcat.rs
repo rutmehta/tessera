@@ -1138,7 +1138,27 @@ impl LrcatImport {
                     (name.clone(), path)
                 })
                 .collect();
-            match write_image(&r.path, id, &image.recipe, &selection, &keywords) {
+            let result = (|| {
+                let admission = crate::original_write::OriginalWriteReservation::acquire(
+                    self.engine.support_dir()?,
+                    &[(id, r.path.clone())],
+                )?;
+                // Repeat the conflict decision inside admission; an earlier UI preflight is not authority.
+                if let Some(reason) =
+                    existing_edit_conflict(&r.path, id, options.overwrite_existing_edits)
+                {
+                    return Err(failure(reason));
+                }
+                write_image(
+                    &r.path,
+                    id,
+                    &image.recipe,
+                    &selection,
+                    &keywords,
+                    &admission,
+                )
+            })();
+            match result {
                 Ok(()) => {
                     report.imported += 1;
                     count_selection(&mut report.selection, &selection);
@@ -1291,7 +1311,9 @@ fn write_image(
     recipe: &Recipe,
     selection: &CoreSelection,
     keywords: &[(String, String)],
+    admission: &crate::original_write::OriginalWriteReservation,
 ) -> Result<()> {
+    admission.validate(id, path)?;
     let mut recipe = recipe.clone();
     recipe.image_id = Some(id);
     recipe.selection = selection.clone();

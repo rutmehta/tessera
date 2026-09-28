@@ -448,7 +448,13 @@ impl Engine {
     }
     /// After a writer outside the develop session changed the recipe: the XMP
     /// (develop values + selection) and the index (recipe hash, status).
-    fn resync(&self, path: &Path, id: ImageId) -> Result<()> {
+    fn resync(
+        &self,
+        path: &Path,
+        id: ImageId,
+        admission: &crate::original_write::OriginalWriteReservation,
+    ) -> Result<()> {
+        admission.validate(id, path)?;
         let mut c = self.lock()?;
         let doc = catalog::document(path, id)?;
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
@@ -466,13 +472,15 @@ impl Engine {
         &self,
         path: &Path,
         id: ImageId,
+        admission: &crate::original_write::OriginalWriteReservation,
         change: impl FnOnce(&mut Recipe) -> Result<()>,
     ) -> Result<Recipe> {
+        admission.validate(id, path)?;
         let mut doc = catalog::document(path, id)?;
         change(&mut doc.recipe)?;
         doc.record_write("tessera-mac", now_ms())?;
         Sidecar::write_recipe(Sidecar::paths(path).recipe, &doc)?;
-        self.resync(path, id)?;
+        self.resync(path, id, admission)?;
         Ok(doc.recipe)
     }
 }
@@ -611,6 +619,8 @@ impl Engine {
             .iter()
             .map(|i| Ok((parse_id(&i.image_id)?, self.image_path(&i.image_id)?)))
             .collect::<Result<Vec<_>>>()?;
+        let admission =
+            crate::original_write::OriginalWriteReservation::acquire(self.support_dir()?, &images)?;
         let total = images.len() as u32;
         let name = |p: &Path| {
             p.file_name()
@@ -631,7 +641,7 @@ impl Engine {
         let finish = |id: ImageId, path: &Path| -> Result<()> {
             if let Some(instruction) = instruction {
                 // Name the redo's group after its instruction.
-                self.update_agent_extension(path, id, |r| {
+                self.update_agent_extension(path, id, &admission, |r| {
                     if let Some(group) = r
                         .unknown
                         .get(AGENT_EXTENSION)
@@ -645,7 +655,7 @@ impl Engine {
                     Ok(())
                 })?;
             } else {
-                self.resync(path, id)?;
+                self.resync(path, id, &admission)?;
             }
             Ok(())
         };
@@ -715,7 +725,7 @@ impl Engine {
                         errors.push((n, e.to_string()));
                         // Steps executed before a failure are real recipe steps.
                         if Sidecar::paths(path).recipe.exists() {
-                            self.resync(path, *id)?;
+                            self.resync(path, *id, &admission)?;
                         }
                     }
                 }
@@ -798,7 +808,11 @@ impl Engine {
     ) -> Result<AgentAcceptResult> {
         let id = parse_id(&image_id)?;
         let path = self.image_path(&image_id)?;
-        let recipe = self.update_agent_extension(&path, id, |r| {
+        let admission = crate::original_write::OriginalWriteReservation::acquire(
+            self.support_dir()?,
+            &[(id, path.clone())],
+        )?;
+        let recipe = self.update_agent_extension(&path, id, &admission, |r| {
             let ext = r
                 .unknown
                 .get_mut(AGENT_EXTENSION)
@@ -830,7 +844,11 @@ impl Engine {
     pub fn revert_agent_edit(&self, image_id: String, group_id: u32) -> Result<()> {
         let id = parse_id(&image_id)?;
         let path = self.image_path(&image_id)?;
-        self.update_agent_extension(&path, id, |r| {
+        let admission = crate::original_write::OriginalWriteReservation::acquire(
+            self.support_dir()?,
+            &[(id, path.clone())],
+        )?;
+        self.update_agent_extension(&path, id, &admission, |r| {
             record_group_amount(r, group_id, 0.0, now_ms())?;
             if let Some(ext) = r.unknown.get_mut(AGENT_EXTENSION) {
                 ext["review_status"] = json!("reverted");

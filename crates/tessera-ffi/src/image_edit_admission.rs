@@ -18,6 +18,7 @@ static GATES: OnceLock<Mutex<GateTable>> = OnceLock::new();
 pub(crate) enum EditSource {
     Original,
     SmartPreview,
+    ExternalWriter,
 }
 
 /// Reuses the same gate across Engines and source routes. Weak entries are
@@ -83,8 +84,16 @@ impl ImageEditGate {
     /// the returned lease on an open failure; retain clones for save workers.
     pub(crate) fn reserve_develop(self: &Arc<Self>, source: EditSource) -> Result<ImageEditLease> {
         let mut owner = self.owner.lock().map_err(failure)?;
-        if owner.as_ref().and_then(Weak::upgrade).is_some() {
-            return Err(failure("conflict: image already has an active editor"));
+        if let Some(reservation) = owner.as_ref().and_then(Weak::upgrade) {
+            return Err(failure(match reservation.source {
+                EditSource::Original => {
+                    "conflict: Develop destination already has an active editor"
+                }
+                EditSource::SmartPreview => {
+                    "conflict: close the active Smart Preview editor before changing originals"
+                }
+                EditSource::ExternalWriter => "conflict: original sidecars have an active writer",
+            }));
         }
         let reservation = Arc::new(Reservation {
             gate: self.clone(),
@@ -97,8 +106,16 @@ impl ImageEditGate {
     /// Direct recipe mutation is forbidden during either kind of editor.
     pub(crate) fn begin_write(&self) -> Result<ImageOperationGuard<'_>> {
         let owner = self.owner.lock().map_err(failure)?;
-        if owner.as_ref().and_then(Weak::upgrade).is_some() {
-            return Err(failure("conflict: image already has an active editor"));
+        if let Some(reservation) = owner.as_ref().and_then(Weak::upgrade) {
+            return Err(failure(match reservation.source {
+                EditSource::Original => {
+                    "conflict: Develop destination already has an active editor"
+                }
+                EditSource::SmartPreview => {
+                    "conflict: close the active Smart Preview editor before changing originals"
+                }
+                EditSource::ExternalWriter => "conflict: original sidecars have an active writer",
+            }));
         }
         Ok(ImageOperationGuard {
             _owner: owner,
@@ -113,10 +130,10 @@ impl ImageEditGate {
         if owner
             .as_ref()
             .and_then(Weak::upgrade)
-            .is_some_and(|reservation| reservation.source == EditSource::SmartPreview)
+            .is_some_and(|reservation| reservation.source != EditSource::Original)
         {
             return Err(failure(
-                "conflict: selection requires the active Smart Preview journal",
+                "conflict: close the active Smart Preview or original-sidecar writer before changing selection",
             ));
         }
         Ok(ImageOperationGuard {
