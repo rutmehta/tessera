@@ -695,3 +695,18 @@ preserved; --nonactivating cannot guarantee individual app selftests never raise
 windows. No old background host fallback or sheet sizing changes transplanted.
 A must qualify isolated GUI/harness use and retains sole compiler/runtime/main.
 B workload and heartbeat hold unchanged; no apps/builds/tests/benchmarks/GPU.
+
+## Incremental runner correction — 2026-09-28
+
+Accepted cf3510b8-7ad7-4ce8-a5e5-038fdc3f4770; published separate
+codex/b5-16-runner-admission1972f603 from frozen inspectorddb28101 (unchanged).
+Tests1139443d, productbe7abbb5 restore Transform72d8756a arguments without
+--new-document and policy131af17d existing ~/.local/state/tessera-resource-hold.json.
+Same marker checked at suite admission, between cases, direct run_test entry and
+before Popen after staging. No alternate policy or hold modification. Exact
+source/test hashes and provenance in RUNNER-ADMISSION-HANDOFF.md on new branch.
+Twelve test methods UNRUN; five new negative tests plus exact Transform argument
+assertion. No B Python runner/test execution, compiler/apps/GPU/heartbeat/writer
+changes. Mailbox utility only for coordination. A owns gates/main; no actual app
+selftest authorized. Nonactivating is not desktop isolation; admission check is
+not atomic revocation or running-child monitoring. Inspector candidate preserved.
