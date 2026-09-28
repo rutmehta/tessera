@@ -517,14 +517,9 @@ final class DocumentWorkspace {
         // Missing parent/sheet is not proof of detachment. A later probe may
         // capture the appearing sheet, or explicit window loss releases the claim.
         guard let parent = state.parent else { return }
-        let began = NotificationCenter.default.addObserver(forName: NSWindow.didBeginSheetNotification,
-                                                           object: parent, queue: .main) { [weak self, weak state] _ in
-            MainActor.assumeIsolated {
-                guard let self, let state, self.nativeSaveDismissals[id] === state,
-                      let sheet = state.sheet, state.parent?.attachedSheet === sheet else { return }
-                state.observedAttachment = true
-            }
-        }
+        // AppKit offers willBeginSheet, not a post-attachment begin event.
+        // The sheet probe records attachment once the parent actually owns it;
+        // didEnd and the terminal parent-clear check settle its release.
         let ended = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification,
                                                            object: parent, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.saveAsParentSheetDidEnd(id) }
@@ -533,7 +528,7 @@ final class DocumentWorkspace {
                                                             object: parent, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.documentSaveWindowLost(id) }
         }
-        let observers = DocumentSaveNativeObservers([began, ended, closed])
+        let observers = DocumentSaveNativeObservers([ended, closed])
         state.removeObservers = { observers.remove() }
     }
 
