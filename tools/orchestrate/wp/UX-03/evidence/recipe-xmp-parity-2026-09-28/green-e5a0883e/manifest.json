@@ -1,0 +1,18 @@
+{
+  "head": "e5a0883ef01d5f63b5e479d916b42c8774ca313c",
+  "status": "",
+  "files": {
+    "Cargo.toml": "ba0d86eceaca41d9210bcafe2c5b39d889453a561db0794fb6c9da0bff706a25",
+    "Cargo.lock": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+    "crates/tessera-ffi/Cargo.toml": "3d44fb1fc0c21eff4d7a2de2cad0a3c65e2599855087eee380716fc65e83a0d4",
+    "crates/tessera-ffi/src/lib.rs": "f9f3bbc8fb4db04fde8fc9ed0037efd39a9e4598ff1b2f459cbb90cb9c56a2f4",
+    "crates/tessera-ffi/src/merge.rs": "8109156cc4449436aa14350a325e16ff82d45027fcde5f0df3d9fce8627704a9",
+    "crates/tessera-ffi/src/catalog.rs": "2fc5e3857f7a441f3fd63ca835059bd9364acd588b4dcef0541eeac55398629e",
+    "crates/tessera-ffi/src/recipe_write_tests.rs": "1b603e33045460c9fc7231e07eda69ea159c3930174f0bc144d9c57be04a1681",
+    "crates/sidecar/src/develop.rs": "5fdc73ea77a6977a8f176a3e5083810f6a1bcbd9c1e734263ca2dd5cdf3beacb",
+    "crates/sidecar/src/lib.rs": "6e500722e3bc7b39ee659efc5d18488b4b265cd66b584fdd6aae959f6601bcad",
+    "tools/orchestrate/wp/UX-03/RECIPE-XMP-PARITY-PLAN.md": "e41076a19e64ed0694e2bfd9dd3de2446e88273749fc1c42598fc21d0bba815c"
+  },
+  "source_tar_sha256": "d4a3d1a0a11fbe4f882fcb88784648118ff41206aa4a9e4d3db38a1ca21eef0c",
+  "test_status": "UNRUN"
+}

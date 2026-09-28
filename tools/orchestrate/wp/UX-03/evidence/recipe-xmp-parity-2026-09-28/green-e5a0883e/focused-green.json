@@ -1,0 +1,22 @@
+{
+  "exit_code": 0,
+  "timed_out": false,
+  "command": [
+    "cargo",
+    "test",
+    "--release",
+    "-p",
+    "tessera-ffi",
+    "--lib",
+    "recipe_write_tests::",
+    "--",
+    "--nocapture"
+  ],
+  "started_at": 1790580581.625173,
+  "finished_at": 1790580636.509175,
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "source_head": "e5a0883ef01d5f63b5e479d916b42c8774ca313c",
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target/main",
+  "jobs": 2,
+  "rayon_threads": 2
+}

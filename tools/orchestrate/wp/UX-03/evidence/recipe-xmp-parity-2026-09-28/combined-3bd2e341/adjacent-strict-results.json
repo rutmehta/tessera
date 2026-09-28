@@ -1,0 +1,69 @@
+{
+  "source_head": "3bd2e341b0323905e94eaa0e58d1e7d771e168cb",
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target/main",
+  "jobs": 2,
+  "rayon_threads": 2,
+  "results": [
+    {
+      "name": "api",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--test",
+        "api",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580834.908402,
+      "finished_at": 1790580895.0595992,
+      "counts": [
+        "ok",
+        "3",
+        "0"
+      ],
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/api.log"
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "tessera-ffi",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580895.060242,
+      "finished_at": 1790580895.4840488,
+      "counts": null,
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/fmt.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "started_at": 1790580895.484371,
+      "finished_at": 1790580946.712138,
+      "counts": null,
+      "log": "/Volumes/betterSSD/tessera-validation/recipe-xmp-parity/combined-3bd2e341/clippy.log"
+    }
+  ]
+}
