@@ -1,0 +1,6 @@
+Archive SHA-256 0a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae
+Header SHA-256 e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703
+Generated Swift binding SHA-256 71e2237cfbb132f2a01ecdd17b092a32fc03f2b4239ef116216824bf058f5361
+Module map SHA-256 efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd
+External preserved 0a9 archive: /Volumes/betterSSD/tessera-cache/swift/develop-close-be02edf9-red/input-backup/libtessera_ffi.a.0a9
+Prior archive backup is also preserved externally; archive binaries intentionally omitted here.
