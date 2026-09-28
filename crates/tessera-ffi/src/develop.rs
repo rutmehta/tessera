@@ -3291,6 +3291,159 @@ mod tests {
         }
     }
 
+    fn tiny_develop_session(
+        name: &str,
+    ) -> (
+        tempfile::TempDir,
+        PathBuf,
+        Arc<Engine>,
+        String,
+        Arc<DevelopSession>,
+    ) {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join(name);
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .into_iter()
+            .find(|row| row.path == photo.to_string_lossy())
+            .unwrap();
+        let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        (dir, photo, engine, row.id, session)
+    }
+
+    #[test]
+    fn failed_close_repairs_without_a_new_edit_and_only_then_drains_worker() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("close-repair.jpg");
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(photo.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+
+        let first = session.close().unwrap_err();
+        assert!(first.to_string().contains("injected post-recipe failure"));
+        assert!(!session.shared.lock().unwrap().closed);
+        assert!(session.writer.lock().unwrap().is_some());
+        let committed = std::fs::read(sidecar::Sidecar::paths(&photo).recipe).unwrap();
+        assert_eq!(
+            sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe)
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.7
+        );
+
+        session.close().unwrap();
+        assert_eq!(
+            std::fs::read(sidecar::Sidecar::paths(&photo).recipe).unwrap(),
+            committed
+        );
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.7
+        );
+        assert_eq!(
+            engine
+                .list_images(crate::ImageQuery::default())
+                .unwrap()
+                .into_iter()
+                .find(|row| row.id == id)
+                .unwrap()
+                .recipe_hash,
+            sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe)
+                .unwrap()
+                .recipe
+                .recipe_hash()
+                .to_string()
+        );
+        assert!(session.writer.lock().unwrap().is_none());
+        session.close().unwrap();
+    }
+
+    #[test]
+    fn failed_close_retains_live_session_for_a_later_edit() {
+        let (_dir, photo, _engine, _id, session) = tiny_develop_session("close-edit.jpg");
+        let retained = session.clone();
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(photo.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        assert!(session.close().is_err());
+        assert!(!session.shared.lock().unwrap().closed);
+
+        retained
+            .set_settings(r#"{"tone":{"exposure":1.2}}"#.into(), false)
+            .unwrap();
+        assert!(retained.commit("After failed close".into()).unwrap());
+        retained.close().unwrap();
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            1.2
+        );
+    }
+
+    #[test]
+    fn successful_close_rejects_retained_arc_mutations_and_flush() {
+        let (_dir, photo, _engine, _id, session) = tiny_develop_session("close-closed.jpg");
+        let retained = session.clone();
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        session.close().unwrap();
+        assert!(session.shared.lock().unwrap().closed);
+        assert!(session.writer.lock().unwrap().is_none());
+        assert!(
+            retained
+                .set_settings(r#"{"tone":{"exposure":1.2}}"#.into(), false)
+                .is_err()
+        );
+        assert!(retained.commit("After close".into()).is_err());
+        assert!(retained.undo().is_err());
+        assert!(retained.flush().is_err());
+        assert_eq!(
+            sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&photo).recipe)
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.7
+        );
+        let save = session.shared.save.lock().unwrap();
+        assert!(save.due.is_none() && !save.busy && save.retry.is_none());
+    }
+
     #[test]
     fn flush_without_new_edit_repairs_sidecars_after_recipe_write_failure() {
         let dir = tempfile::tempdir().unwrap();
