@@ -178,6 +178,16 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
     }
     final class ProbeView: NSView {
         var capture: ((NSWindow) -> Void)?
+        var ownerIdentity: ObjectIdentifier?
+        var requestIdentity: UUID?
+        var finishOwnership: (() -> Void)?
+        func endOwnership() {
+            capture = nil
+            let finish = finishOwnership
+            finishOwnership = nil
+            ownerIdentity = nil; requestIdentity = nil
+            finish?()
+        }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let window { capture?(window) }
@@ -192,9 +202,22 @@ struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
         DocumentSaveAsTrace.emit("probe.update", requestID, DocumentSaveAsTrace.window(view.window))
         refreshCapture(on: view)
     }
+    static func dismantleNSView(_ view: ProbeView, coordinator: ()) {
+        if let window = view.window { view.capture?(window) }
+        view.endOwnership()
+    }
     func refreshCapture(on view: ProbeView) {
         DocumentSaveAsTrace.emit("probe.refresh", requestID, DocumentSaveAsTrace.window(view.window))
         let id = requestID
+        if view.ownerIdentity != ObjectIdentifier(workspace) || view.requestIdentity != id {
+            view.endOwnership()
+            view.ownerIdentity = ObjectIdentifier(workspace)
+            view.requestIdentity = id
+            let probe = UUID()
+            if workspace.saveAsProbeBegan(id, probe: probe) {
+                view.finishOwnership = { [weak workspace] in workspace?.saveAsProbeEnded(id, probe: probe) }
+            }
+        }
         let report = reportWindow
         view.capture = { [weak workspace] window in
             DocumentSaveAsTrace.emit("probe.windowCallback", id, "owner=\(workspace != nil) \(DocumentSaveAsTrace.window(window))")

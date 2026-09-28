@@ -87,6 +87,7 @@ private final class DocumentSaveNativeDismissal {
     var swiftDismissed = false
     var nativeDetached = false
     var observedAttachment = false
+    var activeProbes: Set<UUID> = []
     var parent: NSWindow?
     var sheet: NSWindow?
     var removeObservers: (() -> Void)?
@@ -362,6 +363,7 @@ final class DocumentWorkspace {
     @ObservationIgnored private(set) var saveAsPresentationID: UUID?
     @ObservationIgnored private var queuedSaveAs: SaveAsRequest?
     @ObservationIgnored private var nativeSaveDismissals: [UUID: DocumentSaveNativeDismissal] = [:]
+    @ObservationIgnored var saveSheetParentIsClear: (() -> Bool)?
     @ObservationIgnored var saveSheetDetachmentObserver: ((UUID, @escaping @MainActor () -> Void) -> (() -> Void))?
     // The Shell binding's nil setter carries no request identity. Dismissal is
     // settled by SaveAsSheet.onDisappear with its captured ID, never this setter.
@@ -493,6 +495,46 @@ final class DocumentWorkspace {
         saveOperations[id]?.saveSheetWindow = window
     }
 
+    @discardableResult
+    func saveAsProbeBegan(_ id: UUID, probe: UUID) -> Bool {
+        guard saveAsPresentationID == id, let state = nativeSaveDismissals[id],
+              !state.swiftDismissed else { return false }
+        state.activeProbes.insert(probe)
+        return true
+    }
+
+    func saveAsProbeEnded(_ id: UUID, probe: UUID) {
+        guard let state = nativeSaveDismissals[id], state.activeProbes.remove(probe) != nil else { return }
+        finishTerminalSavePresentationIfReady(id, state)
+    }
+
+    private func finishTerminalSavePresentationIfReady(_ id: UUID, _ state: DocumentSaveNativeDismissal) {
+        // Dismantle is view teardown, not proof of native detachment. Join it
+        // with dismissal of this generation AND the actual parent's clear slot.
+        // A content claim that never materialized a probe has no view lease to drain.
+        guard nativeSaveDismissals[id] === state, state.swiftDismissed,
+              state.activeProbes.isEmpty else { return }
+        let parentClear = saveSheetParentIsClear?()
+            ?? state.parent.map { $0.attachedSheet == nil } ?? false
+        guard parentClear else { return }
+        state.nativeDetached = true
+        finishNativeSaveDismissalIfReady(id, state)
+    }
+
+    func saveAsParentSheetDidEnd(_ id: UUID) {
+        guard let state = nativeSaveDismissals[id] else { return }
+        if state.observedAttachment, let parent = state.parent, let sheet = state.sheet,
+           DocumentSaveSheetAttachment.hasDetached(capturedSheet: ObjectIdentifier(sheet),
+                parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }) {
+            state.nativeDetached = true
+            finishNativeSaveDismissalIfReady(id, state)
+        } else {
+            // Also handles end-before-probe ordering. Teardown/dismissal may
+            // arrive later and re-evaluate the parent without needing another event.
+            finishTerminalSavePresentationIfReady(id, state)
+        }
+    }
+
     private func trackNativeSavePresentation(_ id: UUID) {
         guard nativeSaveDismissals[id] == nil else { return }
         let state = DocumentSaveNativeDismissal()
@@ -519,15 +561,8 @@ final class DocumentWorkspace {
             }
         }
         let ended = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification,
-                                                           object: parent, queue: .main) { [weak self, weak state] _ in
-            MainActor.assumeIsolated {
-                guard let self, let state, self.nativeSaveDismissals[id] === state,
-                      state.observedAttachment, let parent = state.parent, let sheet = state.sheet,
-                      DocumentSaveSheetAttachment.hasDetached(
-                        capturedSheet: ObjectIdentifier(sheet),
-                        parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }) else { return }
-                detached()
-            }
+                                                           object: parent, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.saveAsParentSheetDidEnd(id) }
         }
         let closed = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification,
                                                             object: parent, queue: .main) { [weak self] _ in
@@ -593,7 +628,8 @@ final class DocumentWorkspace {
         DocumentSaveAsTrace.emit("swift.onDismiss.received", id, "matching=\(saveAsPresentationID == id) nativeRecord=\(nativeSaveDismissals[id] != nil)")
         guard saveAsPresentationID == id else { return }
         if let state = nativeSaveDismissals[id] {
-            state.swiftDismissed = true
+            state.swiftDismissed = true // Seals this generation against new view leases.
+            finishTerminalSavePresentationIfReady(id, state)
             finishNativeSaveDismissalIfReady(id, state)
             return
         }
