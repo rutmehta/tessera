@@ -90,7 +90,7 @@ final class DevelopRecoveryCoordinator {
         let token: UUID
         let task: Task<Void, Never>
         var produced: DevelopController?
-        var transferred = false
+        var recipient: SessionID?
     }
 
     private(set) var presentations: [Presentation] = []
@@ -123,7 +123,8 @@ final class DevelopRecoveryCoordinator {
         }
     }
 
-    func canMutate(owner: EngineLibrary, imageID: String) -> Bool {
+    /// Only checks an in-app scoped gate. It is not a global writer permission.
+    func isUnreservedForHostMutation(owner: EngineLibrary, imageID: String) -> Bool {
         !gates.values.contains { $0.owner === owner && $0.imageIDs.contains(imageID) }
     }
 
@@ -147,16 +148,25 @@ final class DevelopRecoveryCoordinator {
         return true
     }
 
-    func transferOpen(token: UUID) {
-        opens[token]?.transferred = true
+    @discardableResult
+    func transferOpen(token: UUID, to sessionID: SessionID) -> Bool {
+        guard let produced = opens[token]?.produced,
+              let recipient = records[sessionID], recipient.controller === produced else { return false }
+        opens[token]?.recipient = sessionID
         changed()
+        return true
     }
 
     func finishOpen(token: UUID) {
         guard let ticket = opens.removeValue(forKey: token) else { return }
-        if let controller = ticket.produced, !ticket.transferred {
-            let id = register(owner: ticket.owner, controller: controller, displayName: controller.imageID)
-            _ = requestClose(id)
+        if let controller = ticket.produced {
+            let handedOff = ticket.recipient.map { id in
+                records[id]?.controller === controller || closedSessions.contains(id)
+            } ?? false
+            if !handedOff {
+                let id = register(owner: ticket.owner, controller: controller, displayName: controller.imageID)
+                _ = requestClose(id)
+            }
         }
         changed()
     }
