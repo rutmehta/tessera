@@ -1,0 +1,38 @@
+[
+  {
+    "local_raw_path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/run.json",
+    "raw_sha256": "42388d2f85c83622b2f6cbd1907d68243e2a6ab7bda8ecd0586e7905081ac1f5",
+    "published_relative_path": "attempt-01/run.redacted.json",
+    "published_sha256": "d58abf3dac9e7028e849ae09f5e6890fbcfa9e92e3ba8315b62a5e966ea7d35d",
+    "rule": "Remove title fields from window dictionaries unless owner_pid is this attempt recorded test PID. All non-title fields retained. Re-encode JSON; raw file remains local only.",
+    "allowed_test_pids": []
+  },
+  {
+    "local_raw_path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-precreated-stdio/run.json",
+    "raw_sha256": "049851c750ff6686fea3c23cc6697520fa03e87157f811a0a561645744b7097b",
+    "published_relative_path": "attempt-02/run.redacted.json",
+    "published_sha256": "5f78825167a92853f8153b42f8709a0211b1b2aa962dd2b5d16df3006121806e",
+    "rule": "Remove title fields from window dictionaries unless owner_pid is this attempt recorded test PID. All non-title fields retained. Re-encode JSON; raw file remains local only.",
+    "allowed_test_pids": []
+  },
+  {
+    "local_raw_path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-tmpstdio/run.json",
+    "raw_sha256": "bf9db5e95e481c936b94be98a74593466d2fde2528e90366d716ba841d5182be",
+    "published_relative_path": "attempt-03/run.redacted.json",
+    "published_sha256": "c5fb22601a18244e71bfa45b6f849a0e49f86261d88c9dc1fd4919c6486266e5",
+    "rule": "Remove title fields from window dictionaries unless owner_pid is this attempt recorded test PID. All non-title fields retained. Re-encode JSON; raw file remains local only.",
+    "allowed_test_pids": [
+      67652
+    ]
+  },
+  {
+    "local_raw_path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-tmpstdio/window-observations.jsonl",
+    "raw_sha256": "794a7694cec48f44e22c5493b54b8beaf3940f6699125b2399b509200932f56c",
+    "published_relative_path": "attempt-03/window-observations.redacted.jsonl",
+    "published_sha256": "78952f501acd603b7d0759d316d295847cc12c5acf62a2ef15dc6ff198777f88",
+    "rule": "Remove title fields from window dictionaries unless owner_pid is this attempt recorded test PID. All non-title fields retained. Re-encode JSON; raw file remains local only.",
+    "allowed_test_pids": [
+      67652
+    ]
+  }
+]

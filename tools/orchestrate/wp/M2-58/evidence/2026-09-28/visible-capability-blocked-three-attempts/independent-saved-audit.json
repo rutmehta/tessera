@@ -1,0 +1,106 @@
+[
+  {
+    "attempt": "visible-run-f1d13c11",
+    "exit": "1",
+    "failure": {
+      "launch_id": "22a264c5-e5bc-4c05-a7aa-8df22fc650a6",
+      "error_type": "CalledProcessError",
+      "error": "Command '['open', '-n', '-a', '/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app', '--stdout', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/app-stdout.log', '--stderr', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/app-stderr.log', '--args', '--timing-visible', '--timing-selftest', '--develop-selftest', '--timing-output', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/trace.json', '--app-dir', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/app-support', '--folder', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture']' returned non-zero exit status 1.",
+      "owned_app": null
+    },
+    "trace_exists": false,
+    "receipt_exists": false,
+    "app_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+    "expected_commit": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393",
+    "fixture_sha": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+    "probe_source_sha": "25ad8af1d39220f97effb8263f6e88e6139156f77e1654e39507596f7ef4787b",
+    "probe_binary_sha": "e2f40d5902dba0e118a60a050809c6e2584d0fcf384c4bb4b396a26ca70fd3b3",
+    "provenance_commit": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393"
+  },
+  {
+    "attempt": "visible-run-f1d13c11-precreated-stdio",
+    "exit": "1",
+    "failure": {
+      "launch_id": "dac6e360-51a8-4b01-a342-9bb5effca4ad",
+      "error_type": "CalledProcessError",
+      "error": "Command '['open', '-n', '-a', '/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app', '--stdout', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-precreated-stdio/app-stdout.log', '--stderr', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-precreated-stdio/app-stderr.log', '--args', '--timing-visible', '--timing-selftest', '--develop-selftest', '--timing-output', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-precreated-stdio/trace.json', '--app-dir', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-precreated-stdio/app-support', '--folder', '/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-precreated-stdio/fixture']' returned non-zero exit status 1.",
+      "owned_app": null
+    },
+    "trace_exists": false,
+    "receipt_exists": false,
+    "app_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+    "expected_commit": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393",
+    "fixture_sha": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+    "probe_source_sha": "25ad8af1d39220f97effb8263f6e88e6139156f77e1654e39507596f7ef4787b",
+    "probe_binary_sha": "e2f40d5902dba0e118a60a050809c6e2584d0fcf384c4bb4b396a26ca70fd3b3",
+    "provenance_commit": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393"
+  },
+  {
+    "attempt": "visible-run-f1d13c11-tmpstdio",
+    "exit": "1",
+    "failure": {
+      "launch_id": "2d32193d-7d6c-4925-a993-4c8fa9fd6d68",
+      "error_type": "ValueError",
+      "error": "test app did not reach a foreground visible regular window within startup allowance",
+      "owned_app": {
+        "launch_id": "2d32193d-7d6c-4925-a993-4c8fa9fd6d68",
+        "pid": 67652,
+        "bundle_id": "dev.tessera.m258.visible.f1d13c11",
+        "bundle_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+        "launch_date": 1790600100.922871,
+        "ownership_basis": "bundle absent at preflight; exact bundle ID and app URL observed after this run's launch"
+      }
+    },
+    "trace_exists": false,
+    "receipt_exists": false,
+    "app_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+    "expected_commit": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393",
+    "fixture_sha": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+    "probe_source_sha": "25ad8af1d39220f97effb8263f6e88e6139156f77e1654e39507596f7ef4787b",
+    "probe_binary_sha": "e2f40d5902dba0e118a60a050809c6e2584d0fcf384c4bb4b396a26ca70fd3b3",
+    "provenance_commit": "f1d13c11ca1abe1c95b36176bb1e0c57d2b5b393",
+    "cleanup.json": {
+      "launch_id": "2d32193d-7d6c-4925-a993-4c8fa9fd6d68",
+      "pid": 67652,
+      "bundle_id": "dev.tessera.m258.visible.f1d13c11",
+      "bundle_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+      "launch_date": 1790600100.922871,
+      "ownership_basis": "bundle absent at preflight; exact bundle ID and app URL observed after this run's launch",
+      "graceful_terminate_attempted": true,
+      "terminate_response": {
+        "bundle_id": "dev.tessera.m258.visible.f1d13c11",
+        "bundle_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+        "graceful_terminate_requested": true,
+        "launch_date": 1790600100.922871,
+        "pid": 67652
+      },
+      "process_exited": false,
+      "note": "Graceful terminate was requested; no force kill was attempted."
+    },
+    "owned-app.json": {
+      "launch_id": "2d32193d-7d6c-4925-a993-4c8fa9fd6d68",
+      "pid": 67652,
+      "bundle_id": "dev.tessera.m258.visible.f1d13c11",
+      "bundle_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+      "launch_date": 1790600100.922871,
+      "ownership_basis": "bundle absent at preflight; exact bundle ID and app URL observed after this run's launch"
+    },
+    "stdio-settlement.json": {
+      "owned_app_observed": true,
+      "polls": 80,
+      "process_exited": false,
+      "owned_app": {
+        "launch_id": "2d32193d-7d6c-4925-a993-4c8fa9fd6d68",
+        "pid": 67652,
+        "bundle_id": "dev.tessera.m258.visible.f1d13c11",
+        "bundle_url": "/Volumes/betterSSD/tessera-validation/m258-current/package-f1d13c11/TesseraM258Visible.app",
+        "launch_date": 1790600100.922871,
+        "ownership_basis": "bundle absent at preflight; exact bundle ID and app URL observed after this run's launch"
+      },
+      "wait_limit_seconds": 20
+    },
+    "samples": 17,
+    "target_foreground_samples": 0,
+    "target_layer0_samples": 0
+  }
+]
