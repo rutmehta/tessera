@@ -66,12 +66,14 @@ impl BasketChange {
 }
 impl<I: Deref<Target = Index>> CullSession<I> {
     pub fn set_library(&mut self, path: impl AsRef<Path>) -> EngineResult<()> {
+        self.require_writable()?;
         Library::read(&path)?;
         self.library = Some(path.as_ref().to_path_buf());
         Ok(())
     }
     /// Select or create a named target album on the next toggle.
     pub fn set_basket_target(&mut self, name: impl Into<String>) -> EngineResult<()> {
+        self.require_writable()?;
         let name = name.into();
         if name.trim().is_empty() {
             return Err(EngineError::invalid("album", "empty name"));
@@ -150,6 +152,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         album: String,
         change: impl FnOnce(&mut Vec<ImageId>),
     ) -> EngineResult<()> {
+        self.require_writable()?;
         let path = self.library.clone().ok_or_else(|| {
             EngineError::invalid("library", "set library.json for a query session")
         })?;
@@ -193,13 +196,21 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         self.status_with(&self.library()?, id)
     }
     fn status_with(&self, library: &Library, id: ImageId) -> EngineResult<DerivedStatus> {
-        let document = persistence::load(&self.index, id)?;
+        let edited = if self.declared.is_some() {
+            false
+        } else {
+            !persistence::load(&self.index, id)?
+                .recipe
+                .history
+                .entries
+                .is_empty()
+        };
         let (exported, published) = self.index.export_status(id)?;
         let status = if published {
             Status::Published
         } else if exported {
             Status::Exported
-        } else if !document.recipe.history.entries.is_empty() {
+        } else if edited {
             Status::Edited
         } else {
             Status::Unedited

@@ -133,7 +133,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         let mut parents: Vec<_> = (0..infos.len()).collect();
         let mut errors = Vec::new();
         let mut hashes = vec![None; infos.len()];
-        if options.near_duplicates {
+        if options.near_duplicates && self.declared.is_none() {
             for (n, info) in infos.iter().enumerate() {
                 match preview_hash(info) {
                     Ok(hash) => hashes[n] = hash,
@@ -197,7 +197,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         };
         let options = self.options;
         let hash = |id| {
-            if options.near_duplicates {
+            if options.near_duplicates && self.declared.is_none() {
                 self.hashes.get(&id).copied().flatten()
             } else {
                 None
@@ -217,7 +217,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     pub(crate) fn refresh_grouping_inputs(&mut self, id: ImageId) -> EngineResult<()> {
         let info = self.index.image_info(id)?;
         self.preview_errors.retain(|(e, _)| *e != id);
-        let hash = if self.options.near_duplicates {
+        let hash = if self.options.near_duplicates && self.declared.is_none() {
             match preview_hash(&info) {
                 Ok(hash) => hash,
                 Err(error) => {

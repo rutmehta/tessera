@@ -214,3 +214,70 @@ fn updates_from_other_connections_are_reported_without_regrouping() {
         Decision::Reject
     );
 }
+
+#[test]
+fn declared_offline_queue_reads_catalog_and_retains_missing_members() {
+    let shoot = Shoot::new(&[0, 1]);
+    let id = shoot.id(0);
+    let excluded = shoot.id(1);
+    let selection = cull::Selection::keep(Some(cull::Grade::Three));
+    shoot.writer.set_selection(id, &selection).unwrap();
+    let folder = shoot.folder.canonicalize().unwrap();
+    std::fs::rename(&folder, shoot._dir.path().join("unmounted")).unwrap();
+    let mut session = OwnedCullSession::open_owned_declared(
+        Index::open(&shoot.db).unwrap(),
+        folder.clone(),
+        [id].into_iter().collect(),
+    )
+    .unwrap();
+    assert_eq!(session.images(), &[id]);
+    assert_eq!(session.selection(id).unwrap(), selection);
+    assert!(session.preview_errors().is_empty());
+    assert!(session.grade_images(&[id], 2).is_err());
+    assert!(session.set_library(folder.join("library.json")).is_err());
+    assert!(session.set_basket_target("Album").is_err());
+    assert!(session.undo().is_err());
+    let sequence = session.change_sequence();
+    let delta = session
+        .apply_changes(&index::ChangeBatch {
+            from: sequence,
+            to: sequence + 1,
+            reset: false,
+            changes: vec![index::ImageChange {
+                seq: sequence + 1,
+                id,
+                kind: index::ChangeKind::Updated(index::ChangeFields::FILE),
+            }],
+        })
+        .unwrap();
+    assert!(delta.removed.is_empty());
+    assert_eq!(session.images(), &[id]);
+    assert!(session.insert_images(&[excluded]).unwrap().is_empty());
+    assert!(
+        !folder.exists(),
+        "read-only queue must never recreate originals"
+    );
+    assert!(OwnedCullSession::open_owned(Index::open(&shoot.db).unwrap(), folder.clone()).is_err());
+    let empty = OwnedCullSession::open_owned_declared(
+        Index::open(&shoot.db).unwrap(),
+        folder,
+        Default::default(),
+    )
+    .unwrap();
+    assert!(empty.images().is_empty());
+}
+
+#[test]
+fn declared_queue_requires_absolute_component_safe_folder() {
+    let shoot = Shoot::new(&[0]);
+    for folder in [PathBuf::from("relative"), shoot.folder.join("../shoot")] {
+        assert!(
+            OwnedCullSession::open_owned_declared(
+                Index::open(&shoot.db).unwrap(),
+                folder,
+                Default::default()
+            )
+            .is_err()
+        );
+    }
+}

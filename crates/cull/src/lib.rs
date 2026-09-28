@@ -19,7 +19,7 @@ pub use incremental::QueueChange;
 use index::{ImageInfo, Index, Query};
 pub use library::{Album, DerivedStatus, Library, Status};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ops::Deref,
     path::{Path, PathBuf},
 };
@@ -114,6 +114,8 @@ pub struct CullSession<I> {
     keys: HashMap<ImageId, (Option<String>, String)>,
     /// Catalog change sequence applied so far (see `sync_catalog`).
     change_seq: u64,
+    /// Host-declared local assets; this explicit queue never reads original files.
+    declared: Option<HashSet<ImageId>>,
 }
 /// Session that owns its own index connection.
 pub type OwnedCullSession = CullSession<Box<Index>>;
@@ -124,6 +126,25 @@ impl<'a> CullSession<&'a Index> {
     }
 }
 impl OwnedCullSession {
+    /// Catalog-only, read-only queue for host-declared local assets. The host
+    /// validates declarations; membership is a snapshot refreshed by reopening.
+    pub fn open_owned_declared(
+        index: Index,
+        folder: PathBuf,
+        ids: HashSet<ImageId>,
+    ) -> EngineResult<Self> {
+        if !folder.is_absolute()
+            || folder
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            return Err(EngineError::invalid(
+                "folder",
+                "expected absolute catalog folder without ..",
+            ));
+        }
+        Self::open_with_policy(Box::new(index), Source::Folder(folder), Some(ids))
+    }
     /// Open a second connection to the same SQLite file for this; WAL lets it
     /// coexist with the host's own connection.
     pub fn open_owned(index: Index, source: impl Into<Source>) -> EngineResult<Self> {
@@ -132,10 +153,18 @@ impl OwnedCullSession {
 }
 impl<I: Deref<Target = Index>> CullSession<I> {
     fn open_with(index: I, source: Source) -> EngineResult<Self> {
+        Self::open_with_policy(index, source, None)
+    }
+    fn open_with_policy(
+        index: I,
+        source: Source,
+        declared: Option<HashSet<ImageId>>,
+    ) -> EngineResult<Self> {
         // Read first: changes committed while the queue is built are re-applied (idempotently).
         let change_seq = index.change_head()?;
         let (query, folder) = match source {
             Source::Query(q) => (q, None),
+            Source::Folder(p) if declared.is_some() => (Query::default(), Some(p)),
             Source::Folder(p) => (
                 Query::default(),
                 Some(p.canonicalize().map_err(|e| EngineError::io_at(&p, &e))?),
@@ -159,6 +188,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             &query,
             folder.as_deref(),
             index.search(&candidates)?,
+            declared.as_ref(),
         )?;
         let images = images
             .into_iter()
@@ -180,7 +210,11 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             preview_errors: Vec::new(),
             scorer: None,
             grouping_strategy: None,
-            library: folder.as_ref().map(|p| p.join("library.json")),
+            library: if declared.is_none() {
+                folder.as_ref().map(|p| p.join("library.json"))
+            } else {
+                None
+            },
             basket_target: None,
             folder,
             query,
@@ -189,9 +223,23 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             hashes: HashMap::new(),
             keys: HashMap::new(),
             change_seq,
+            declared,
         };
         session.regroup(GroupingOptions::default())?;
         Ok(session)
+    }
+    /// Whether this is a catalog-only declaration snapshot.
+    pub fn is_declared_read_only(&self) -> bool {
+        self.declared.is_some()
+    }
+    pub fn require_writable(&self) -> EngineResult<()> {
+        if self.is_declared_read_only() {
+            return Err(EngineError::invalid(
+                "session",
+                "Smart Preview library session is read-only",
+            ));
+        }
+        Ok(())
     }
     /// The index this session reads and writes through.
     pub fn index(&self) -> &Index {
@@ -225,6 +273,9 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     }
     /// Authoritative (sidecar-first) selection for any indexed image.
     pub fn selection(&self, id: ImageId) -> EngineResult<Selection> {
+        if self.declared.is_some() {
+            return Ok(self.index.selection(id)?.unwrap_or_default());
+        }
         Ok(persistence::load(&self.index, id)?.recipe.selection)
     }
     pub fn can_undo(&self) -> bool {
@@ -252,6 +303,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             .ok_or_else(|| EngineError::invalid("session", "empty review queue"))
     }
     fn change(&mut self, targets: Targets, change: impl Fn(&mut Selection)) -> EngineResult<()> {
+        self.require_writable()?;
         let ids = match targets {
             Targets::Current => vec![self.require_current()?],
             Targets::Images(ids) => {
@@ -323,6 +375,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     /// One undo step with a decision per image, e.g. "choose this" in compare
     /// (keep one, reject the other). Never moves the cursor.
     pub fn decide_each(&mut self, decisions: &[(ImageId, Decision)]) -> EngineResult<()> {
+        self.require_writable()?;
         let mut changes: Vec<Change> = Vec::with_capacity(decisions.len());
         for (id, decision) in decisions {
             if !self.images.contains(id) {
@@ -353,6 +406,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         self.change(Targets::Images(ids), |s| s.mark = mark.clone())
     }
     pub fn undo(&mut self) -> EngineResult<bool> {
+        self.require_writable()?;
         let Some(action) = self.undo.last() else {
             return Ok(false);
         };
@@ -363,6 +417,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         Ok(true)
     }
     pub fn redo(&mut self) -> EngineResult<bool> {
+        self.require_writable()?;
         let Some(action) = self.redo.last() else {
             return Ok(false);
         };
@@ -381,12 +436,19 @@ fn admit(
     query: &Query,
     folder: Option<&Path>,
     ids: Vec<ImageId>,
+    declared: Option<&HashSet<ImageId>>,
 ) -> EngineResult<Vec<ImageId>> {
     // Folder matching uses Path components rather than SQLite glob metacharacters.
     let mut images = Vec::new();
     for id in ids {
         let info = index.image_info(id)?;
         if folder.is_some_and(|p| !info.path.starts_with(p)) {
+            continue;
+        }
+        if let Some(declared) = declared {
+            if declared.contains(&id) {
+                images.push(id);
+            }
             continue;
         }
         // Deleted or moved since indexing: not reviewable, never recreated.
