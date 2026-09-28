@@ -1110,6 +1110,27 @@ final class AppModel {
         item.engineImage?.imageID ?? item.url?.standardizedFileURL.path ?? "stub:\(item.seed):\(item.id)"
     }
 
+    private struct CapturedPhotoTarget {
+        let owner: EngineLibrary?
+        let imageID: String?
+        let key: String
+    }
+
+    private func capturePhotoTarget(id: Int) -> CapturedPhotoTarget? {
+        guard library.items.indices.contains(id) else { return nil }
+        let item = library.items[id]
+        return CapturedPhotoTarget(owner: engineLibrary, imageID: item.engineImage?.imageID,
+                                   key: workspaceKey(for: item))
+    }
+
+    private func resolvePhotoTarget(_ target: CapturedPhotoTarget) -> Int? {
+        guard engineLibrary === target.owner else { return nil }
+        if let owner = target.owner, let imageID = target.imageID {
+            return owner.itemOfImage[imageID]
+        }
+        return library.items.firstIndex { workspaceKey(for: $0) == target.key }
+    }
+
     func requestLayeredCopy() {
         guard !isReviewing, source != .people, viewMode != .document, let item = focusedItem else { return }
         if let owner = engineLibrary, let imageID = item.engineImage?.imageID,
@@ -1460,10 +1481,11 @@ final class AppModel {
     /// A grid double-click is one navigation: its selection must survive the
     /// Develop close along with the requested Loupe mode.
     func selectAndShowInLoupe(position: Int) {
-        let sourceRevision = libraryRevision
+        guard visible.indices.contains(position), let target = capturePhotoTarget(id: visible[position]) else { return }
         navigateAfterDevelopSave { [weak self] in
-            guard let self, self.libraryRevision == sourceRevision else { return }
-            self.commitSelect(position: position, extend: false)
+            guard let self, let id = self.resolvePhotoTarget(target),
+                  self.positionOfID.indices.contains(id), self.positionOfID[id] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[id], extend: false)
             self.viewMode = .loupe
         }
     }
@@ -1471,12 +1493,12 @@ final class AppModel {
     /// Tether auto-advance keeps Compare open, but otherwise selects and opens
     /// the newly filed frame as one admitted action.
     func selectAndAutoAdvance(id: Int) {
-        guard positionOfID.indices.contains(id), positionOfID[id] >= 0 else { return }
-        let sourceRevision = libraryRevision
+        guard positionOfID.indices.contains(id), positionOfID[id] >= 0,
+              let target = capturePhotoTarget(id: id) else { return }
         navigateAfterDevelopSave { [weak self] in
-            guard let self, self.libraryRevision == sourceRevision,
-                  self.positionOfID.indices.contains(id), self.positionOfID[id] >= 0 else { return }
-            self.commitSelect(position: self.positionOfID[id], extend: false)
+            guard let self, let currentID = self.resolvePhotoTarget(target),
+                  self.positionOfID.indices.contains(currentID), self.positionOfID[currentID] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[currentID], extend: false)
             if self.viewMode != .compare { self.viewMode = .loupe }
         }
     }
@@ -1484,15 +1506,15 @@ final class AppModel {
     /// A tether tile first tries the current source, then its session album.
     /// Both the fallback source and final selection share the same save gate.
     func revealTetherItem(_ id: Int, fallbackAlbum: String?) {
-        let sourceRevision = libraryRevision
+        guard let target = capturePhotoTarget(id: id) else { return }
         navigateAfterDevelopSave { [weak self] in
-            guard let self, self.libraryRevision == sourceRevision else { return }
-            if !(self.positionOfID.indices.contains(id) && self.positionOfID[id] >= 0),
+            guard let self, let currentID = self.resolvePhotoTarget(target) else { return }
+            if !(self.positionOfID.indices.contains(currentID) && self.positionOfID[currentID] >= 0),
                let fallbackAlbum {
                 self.commitSetSource(.album(fallbackAlbum))
             }
-            guard self.positionOfID.indices.contains(id), self.positionOfID[id] >= 0 else { return }
-            self.commitSelect(position: self.positionOfID[id], extend: false)
+            guard self.positionOfID.indices.contains(currentID), self.positionOfID[currentID] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[currentID], extend: false)
         }
     }
 
@@ -2422,16 +2444,21 @@ final class AppModel {
 
     /// Inspection callers (People and tether) retain Library Loupe and its culling keys.
     func showInLoupe(_ itemID: Int) {
-        navigateAfterDevelopSave { [weak self] in self?.commitShowInLoupe(itemID) }
+        guard let target = capturePhotoTarget(id: itemID) else { return }
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, let currentID = self.resolvePhotoTarget(target) else { return }
+            self.commitShowInLoupe(currentID)
+        }
     }
 
     /// A People face's Show in Loupe command also leaves the People source.
     /// Keep that source change and focus change in one saved navigation.
     func showInAllPhotosLoupe(_ itemID: Int) {
+        guard let target = capturePhotoTarget(id: itemID) else { return }
         navigateAfterDevelopSave { [weak self] in
-            guard let self else { return }
+            guard let self, let currentID = self.resolvePhotoTarget(target) else { return }
             self.commitSetSource(.all)
-            self.commitShowInLoupe(itemID)
+            self.commitShowInLoupe(currentID)
         }
     }
 
