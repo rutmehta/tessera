@@ -4,6 +4,22 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## PSD/Review full Release green; isolated GUI underway — 2026-09-28 00:28 UTC
+
+Product dc4073de/currentFFI0a9b: focused2/2, full509XCTest/1skip/0fail plus5
+SwiftTesting, directexit0. Root independently checked24 frozen source hashes and
+raw full log; native45/strict evidence retained. Three-line libraryRevision
+notification fixes deterministic stale Review after catalog pixel updates.
+Original Debug/Release failures, setup failures and behavioral RED preserved;
+directJSONrewrite InvalidTransition exception remains unexplained, separate from
+supported Develop-route regression. Portable evidence8ac2e1ae is docs-only.
+
+Luna now owns desktop/heavy slot for tiny PSD save/reopen and stub visibility;
+normal65fa userpreview stays untouched. Resource Sol performs source-only
+exception audit while recipe-write102bce66 waits RED slot. B hold stays; latest
+mailbox has no new messages and two PSD results remain accepted pending combined
+GUI acceptance. Peer cursor14 unchanged; no duplicate message queued.
+
 ## Fixed preview open; PSD native resumed — 2026-09-27 23:39 UTC
 
 Source65fa6a33/currentFFI2f241fe7 passed504XCTest/1skip/0fail+5, directexit0.

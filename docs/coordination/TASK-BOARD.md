@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 23:39 UTC
+Updated: 2026-09-28 00:28 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -54,24 +54,20 @@ in the new package parent/evidence; portable82dc4902 evidence merged mainf09a66f
 B result45d3595b published; SSHqueue01a0e53c-917e-76c2-b216-56ee3b2c0d3a accepted,
 peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor13.
 
-1. **Engine Sol — exclusive heavy slot:** native5326f2f passed45 tests across
-   five groups; strict initially failed test-module layout. Module moved unchanged
-   (production differs only blank separators), repaired1cb strict passed. Root
-   verified25file hashes/exits. Reused clean workspace-redesign with historical
-   archive preserved; current FFI0a9b build passed. Generated ABI plus stub-hide
-   source729962d9 Debug fullSwift FAILED508/1skip/1failure (Review preview nil);
-   focused failure reproduced. Exact prior65fa Release binary passes same test
-   with userpreview still open. Candidate matched Release focused also FAILED; fullRelease was not run.
-   Native bytes/ImageIOdecode succeeded; cache laterempty. Instrumented lifecycle
-   run passed with timingperturbation, not a fix. Deterministic realcatalogupdate
-   Review-refresh regression now prepared on codex/psd-review-refresh, no PSDapp
-   acceptance. Native/FFIgates preserved separately.
-2. **Luna — source/preparation only:** preview evidence82dc merged mainf09a66ff.
-   Stub UI source8dd1e2a9 is included in729962d9 gate, not current openpreview.
-   Prepare tinyPSD save/reopen and normal/diagnostic visibility GUI checks after
-   fullSwift passes; no activation/compiler overlap. Preserve userpreview.
-Review debug failure remains a separate open investigation: see
-REVIEW-PREVIEW-DEBUG-INVESTIGATION.md. No increased deadline or waived assertion.
+1. **PSD/Review integration — full Release green, GUI pending:** tested product
+   dc4073de/current FFI0a9b passed focused2/2 and full509XCTest/1skip/0fail
+   plus5SwiftTesting, directexit0. Root verified24 frozen source hashes and raw
+   full log. Native45/strict gates remain separately accepted. Deterministic
+   catalog recipe+file update RED reproduced missing libraryRevision signal;
+   three-line rows-only invalidation notification fixes it without deadlines or
+   diagnostics. Original failures and unresolved directJSON rewrite exception
+   remain in evidence; do not label the latter fixture misuse. Portable evidence
+   8ac2e1ae published, product bytes unchanged. A main merge waits for tinyGUI.
+2. **Luna — exclusive desktop/heavy slot:** package exact tested dc4073de
+   executable with unique support/bundle. TinyJPEG Open-in-Layers, PSD copy save,
+   unchanged source and PSD reopen; ordinary stub controls hidden and explicit
+   diagnostic flag visible without loading20k. User65fa preview stays untouched.
+   No large-image cancellation race or performance claim. GUI acceptance pending.
 
 3. **Resource Sol — waiting RED slot:** UNRUN102bce66 tests for raw complete
    revision and shared destination gate, only two Engine writer adopters. Uses

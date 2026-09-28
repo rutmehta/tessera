@@ -38,3 +38,19 @@ Candidate729962d9 Debug full suite:508 XCTest,1skip,1failure;5SwiftTesting pass.
 Candidate729 Release focused also failed the same15s assertion (1test/1failure); fullRelease correctly did not run. Build mode alone does not explain this. Opt-in boundary diagnostic af4de453 reproduced the failure while logging selectedJPEG nativePreview pending=false/168422bytes and successfulImageIO decode. At timeout loader had zeroactive/zeroqueued/zerosubscribers and emptycache. More detailed lifecycle trace1b45ddc1 passed1test; logging perturbedtiming, not a productionfix.
 
 Root source review identified rows-only AppModel catalogupdates that invalidate pixelcache and return without updating libraryRevision, which Review watches; the same field is documented to signal everyin-place libraryupdate. This is a testable missingnotification path, not yet a proven cause of the originalrace. Engine Sol prepares a deterministic realcatalogtoneupdate regression on clean codex/psd-review-refresh from729, without diagnosticcode. Existing15s assertion stays unchanged.
+
+## Deterministic regression and green fix
+
+Test8cb19719579f uses supported native Develop save, changes tinyJPEG pixels,
+indexes and syncs the same selected image. Initial preview and saved exposure
+succeed; RED retains libraryRevision0 and fails changed-pixel refresh within the
+original15s. This covers combined recipe+file update, not tone-only rendering.
+Fixdc4073de increments libraryRevision when the rows-only branch invalidates stale
+preview entries. No diagnostics or deadline modifications. Focused2/2 and full
+Release509XCTest/1skip/0fail plus5SwiftTesting pass, directexit0. Root checked24
+source hashes. Portable raw evidence8ac2e1ae; actual GUI remains separate.
+
+Earlier77c4733058af direct setRecipeJson attempt threw InvalidTransition with
+idle→failed(deinit), before behavioral assertions. Source audit did not locate a
+matching state machine or establish fixture misuse. Its provenance remains open;
+using supported Develop writes for the regression does not resolve that exception.
