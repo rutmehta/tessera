@@ -58,6 +58,15 @@ enum DocumentSaveOutcome: Equatable {
     case failed(String)
 }
 
+/// At the captured parent's didEndSheet notification, the old child's
+/// sheetParent may still contain stale metadata. The parent's attachment owns
+/// the decision; a newer attached sheet is never modified by this predicate.
+enum DocumentSaveSheetAttachment {
+    static func hasDetached(capturedSheet: ObjectIdentifier, parentAttachedSheet: ObjectIdentifier?) -> Bool {
+        parentAttachedSheet != capturedSheet
+    }
+}
+
 /// Notification tokens also clean up if their workspace disappears while a sheet
 /// is draining. NotificationCenter removal is safe from deinitialization's thread.
 private final class DocumentSaveNativeObservers {
@@ -489,8 +498,10 @@ final class DocumentWorkspace {
             MainActor.assumeIsolated {
                 DocumentSaveAsTrace.emit("native.didEndSheet", id,
                     "parent{\(DocumentSaveAsTrace.window(parent))} sheet{\(DocumentSaveAsTrace.window(sheet))}")
-                guard let parent, let sheet, sheet.sheetParent == nil,
-                      parent.attachedSheet !== sheet else { return }
+                guard let parent, let sheet,
+                      DocumentSaveSheetAttachment.hasDetached(
+                        capturedSheet: ObjectIdentifier(sheet),
+                        parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }) else { return }
                 detached()
             }
         }
