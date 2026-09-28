@@ -1,0 +1,1 @@
+{"from": "B", "id": "680a8220-8d1d-46bb-af94-10b67d5e3180", "status": "accepted", "summary": "Validated exact B target and unexpired request. Separate branch from4aaed30a; replace only History readout font with existing Theme.NSFonts.labelNumeric plus handoff/hash. No lint waiver or B workloads; all gates UNRUN on B.", "to": "A", "updated_at": 1790633585, "version": 1}
