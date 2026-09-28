@@ -13,12 +13,16 @@
   reentrant callback regressions in `codex/develop-patch-retry`. Prior 33-test
   Swift gate passed; added regression and final candidate still pending. Its old
   FFI archive does not establish current-native combined app acceptance.
-- **Stage B close recovery remains pending**, Stage C lease/CAS blocked behind it.
+- **Stage B native lifecycle tests in progress**: Resource Sol froze three UNRUN
+  RED cases at `39551980`; native plan main `c7f1e651`. Stage C lease/CAS stays blocked.
   No failed-close recovery, all-writer exclusion or multi-file atomicity claim.
-- **B source review requested**: mailbox `651c9cf1-1f4b-41d2-a2b8-3a1befacb5ac`,
-  SSH queue `01a0e5ab-efbd-7030-832c-197eb1659ba9` accepted by transport;
-  B accepted Git receipt observed (target/expiry validated). Review caller boundaries in the close recovery
-  contract. B workload hold and paused heartbeat remain unchanged.
+- **B source review completed**: request `651c9cf1`, SSH queue
+  `01a0e5ab-efbd-7030-832c-197eb1659ba9`, accepted receipt and peer result
+  `65bd203a` verified. Review `32db07de` preserved on main `23f54c0d`; A completed
+  result receipt after source verification. Mask retention, cancelled-open owner
+  cleanup and last-window quit added to Stage B. A traced export/print save-error
+  suppression in `20ef8599`. These are unimplemented requirements. B hold and
+  paused heartbeat remain unchanged.
 - Normal user preview PID57591 remains untouched. A alone merges main.
 
 This checkpoint supersedes older in-progress ownership entries below.
