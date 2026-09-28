@@ -1,0 +1,14 @@
+{
+  "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW": {
+    "bytes": 16646144,
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+  },
+  "/Volumes/betterSSD/tessera-validation/smart-previews/codec/sony-camera-linear.clp": {
+    "bytes": 16632169,
+    "sha256": "cdb3bd51ec85234cadc8a3e39f8a33accf34903bbde03eca38271fb8a16c8ab1"
+  },
+  "/Volumes/betterSSD/tessera-validation/smart-previews/codec/sony-measurement.json": {
+    "bytes": 829,
+    "sha256": "6e160d0909b162d0f15bf886113c024ed6d653c3ba9df031e65a3d2359761c35"
+  }
+}

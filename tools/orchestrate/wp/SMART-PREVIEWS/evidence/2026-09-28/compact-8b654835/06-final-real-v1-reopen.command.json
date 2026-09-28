@@ -1,0 +1,24 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "pipeline-cpu",
+    "--release",
+    "--test",
+    "smart_preview_codec",
+    "real_legacy_v1_asset_reopen_and_edit_parity",
+    "--",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "CARGO_BUILD_JOBS": "2",
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "fixture_env": {
+    "TESSERA_CODEC_LEGACY_ASSET": "/Volumes/betterSSD/tessera-validation/smart-previews/codec/sony-camera-linear.clp",
+    "TESSERA_CODEC_LEGACY_REPORT": "/Volumes/betterSSD/tessera-validation/smart-previews/codec/sony-measurement.json",
+    "TESSERA_CODEC_OUTPUT_DIR": "/Volumes/betterSSD/tessera-validation/smart-previews/compact-tier"
+  }
+}

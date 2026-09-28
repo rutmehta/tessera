@@ -1,0 +1,17 @@
+{
+  "decode_ms": 51.217708,
+  "decoded_tier": "Detail2560",
+  "dimensions": [
+    2460,
+    1638
+  ],
+  "edited_render_blake3": "2e4203c668ff6373626e21475a5b0e26c50cac9a76e7866ec8eabe7c1779369d",
+  "edited_render_ms": 344.29625000000004,
+  "legacy_blake3": "2788d378f70b82df328b81339ab3002c38c6c07b34e759deea4dd0bd4b256126",
+  "legacy_bytes": 16632169,
+  "legacy_file_unchanged": true,
+  "legacy_version": 1,
+  "matches_historical_render": true,
+  "v2_upgrade_edit_exact": true,
+  "v2_upgrade_samples_exact": true
+}

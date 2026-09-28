@@ -1,0 +1,42 @@
+{
+  "baseline_render_ms": 132.048916,
+  "decode_ms": 20.888334,
+  "edit": {
+    "exposure": 0.7,
+    "temperature": 4200,
+    "tint": 13
+  },
+  "edit_changed_render": true,
+  "edited_render_blake3": "f46e89e7950853e31a41a5b1380326acb4e9ec0915de0671cfced5189cfaffd5",
+  "edited_render_dimensions": [
+    1640,
+    1092
+  ],
+  "edited_render_ms": 134.485416,
+  "encode_ms": 79.681584,
+  "encoding": "F16",
+  "generation_ms": 523.526917,
+  "max_edge": 2048,
+  "max_edited_render_error": 0.0005311965942382812,
+  "max_sample_error": 0.0001220703125,
+  "original_blake3": "df562403774a8c7e249fa52d229e35834af45e9eadca9ade92f31fac45c24fb0",
+  "original_bytes": 16646144,
+  "original_crop": [
+    0,
+    0,
+    4920,
+    3276
+  ],
+  "proxy_dimensions": [
+    1640,
+    1092
+  ],
+  "proxy_encoded_bytes": 7319246,
+  "raw_decode_ms": 58.20725,
+  "scale": 3,
+  "sensor_dimensions": [
+    4928,
+    3276
+  ],
+  "tier": "Compact2048"
+}

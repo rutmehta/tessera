@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "fmt",
+    "-p",
+    "pipeline-cpu",
+    "-p",
+    "image-core",
+    "--",
+    "--check"
+  ],
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+  "CARGO_BUILD_JOBS": "2",
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "fixture_env": {}
+}
