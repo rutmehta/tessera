@@ -32,18 +32,19 @@ final class DevelopRecoveryCoordinator {
                        bookmark: WorkspaceBookmark) -> SessionID
     func requestSaveClose(_ sessionID: SessionID) -> Task<Outcome, Never>
     func retrySave(_ sessionID: SessionID) -> Task<Outcome, Never>
-    func observe(owner: EngineLibrary, imageIDs: Set<String>) -> SaveBarrier
-    func initiate(owner: EngineLibrary, imageIDs: Set<String>) -> SaveBarrier
+    func reserveObserve(owner: EngineLibrary, imageIDs: Set<String>) -> SaveGate
+    func reserveInitiate(owner: EngineLibrary, imageIDs: Set<String>) -> SaveGate
+    func finishGate(_ gateID: UUID) // idempotent, only after commit/cancel
     func cancelIntent(_ intentID: UUID) // never cancels Core close
 }
 
-struct SaveBarrier {
+struct SaveGate {
     let owner: EngineLibrary
     let imageIDs: Set<String>
-    let operationID: UUID
-    func result() async -> SaveBarrierOutcome
+    let id: UUID
+    func result() async -> SaveGateOutcome
 }
-enum SaveBarrierOutcome {
+enum SaveGateOutcome {
     case saved
     case blocked([DevelopRecoveryCoordinator.SessionID])
 }
@@ -51,16 +52,18 @@ enum SaveBarrierOutcome {
 
 `Outcome` is immutable per attempt; all joiners receive the same result. A retry starts a new attempt only from an explicit UI action outside `DevelopController`'s callback TaskLocal context. The coordinator maps `.failure(Error)` from Core to a retained record; it does not infer durability stage from text. A failed or still-active record makes an observer barrier blocked. The registry publishes a record before AppModel notifies live observers. An ownerless session is an invariant failure retained by SessionID (with optional owner key), blocks destructive transitions and all gates explicitly, and is never assigned a fake current owner or closed fire-and-forget.
 
-An open ticket is a separate private type: `(owner: EngineLibrary, key: Key, token: UUID, task: Task<OpenSettlement,Never>)`. `openDevelop` captures nonoptional owner before suspension; cancelled/stale completion transfers any created controller into a recovery record before settling the ticket. Barriers drain every captured open/close, then recheck the same-key registry/open generation before returning `.saved`. If a new same-key open can race that recheck, admission reserves the key synchronously until its consumer commits or cancels. No barrier cancels shared durability work.
+An open ticket is a separate private type: `(owner: EngineLibrary, key: Key, token: UUID, task: Task<OpenSettlement,Never>, controllerIfCreated: DevelopController?)`. `openDevelop` captures nonoptional owner before suspension. `AppModel.shared` (the app-lifetime root at AppModel.swift:129) strongly owns the independent coordinator, which strongly owns every ticket and any returned controller until cleanup succeeds or the controller is transferred to a recovery record. The task does not rely on weak `self` to retain the only cleanup owner. This ownership is one-way: the ticket/completion does not strongly capture AppModel, so it cannot form a permanent AppModel cycle. Cancelled/stale completion transfers any created controller into a recovery record before settling/removing the ticket. Tests hold the backend open past caller cancellation/owner replacement, then reject cleanup close and verify a retained recovery entry after the ticket settles.
+
+The synchronous `reserveObserve`/`reserveInitiate` call creates a scoped gate in coordinator storage before any await. The same-key open and host mutation entry points consult that reservation; a successful `result()` is permission to proceed **only while the gate remains reserved**. Consumer code calls `finishGate` exactly once at its actual token-checked commit or cancellation; a coordinator-owned `withGate` wrapper may enforce `defer` release when practical. A navigation intent superseded while awaiting releases its own gate after observing/draining shared save, without cancelling that save. Agent/Review/Layers reservations span dispatch or snapshot capture, not merely `.result()`; their exact end must be explicit in each caller. Output's longer all-input-read reservation remains a separate unimplemented contract. Tests pause between `.saved` and commit, assert same-key open/mutation is blocked and unrelated image is available, then assert release only after commit/cancel. Barriers drain every captured open/close, then recheck the same-key registry/open generation before returning `.saved`. No gate cancels shared durability work.
 
 ## AppModel adapters and navigation order
 
 Replace `closeDevelop()`, `pendingDevelopSaveBarrier`, `prepareForAgent`, and `releaseDevelop`'s ignored flush with result-bearing adapters. Avoid a compatibility `Task<Void,Never>` shim. Suggested signatures:
 
 ```swift
-@discardableResult func requestDevelopSaveClose() -> Task<SaveBarrierOutcome, Never>
-func observeDevelopSave(imageID: String, library: EngineLibrary) -> SaveBarrier
-func prepareForAgent(imageIDs: Set<String>, library: EngineLibrary) -> SaveBarrier
+@discardableResult func requestDevelopSaveClose() -> Task<SaveGateOutcome, Never>
+func observeDevelopSave(imageID: String, library: EngineLibrary) -> SaveGate
+func prepareForAgent(imageIDs: Set<String>, library: EngineLibrary) -> SaveGate
 func retryDevelopRecovery(_ sessionID: SessionID)
 func keepEditingDevelopRecovery(_ sessionID: SessionID)
 ```
@@ -72,7 +75,7 @@ Navigation uses synchronous intent capture followed by async save and a token-ch
 - `AgentController` start/accept/revert/resume use initiating barriers, check `.saved` before engine mutation, and settle matching run/busy/resume state on blocked outcome. Review preview uses an observing barrier and checks result before invalidation/request.
 - Output presentation and actual Export/Print dispatch check a result and keep their original captured owner/targets. This slice does **not** satisfy output read reservations or quit veto; those still require their planned tests and later implementation. Until then, uncovered output/termination paths must fail closed and must not ignore a result.
 - `openFolder` owns a request UUID and callback settlement separately from `loadGeneration`; scan/install and completion callback occur only on a successful current commit. A newer request settles superseded callback false once. A blocked save retains the request for explicit Retry/Keep Editing settlement.
-- No call site may discard `Result`/`SaveBarrierOutcome`, use `try?` to bypass the gate, or treat a cancelled/superseded consumer as proof of successful durability.
+- No call site may discard `Result`/`SaveGateOutcome`, use `try?` to bypass the gate, release admission at `.saved` before commit/cancel, or treat a cancelled/superseded consumer as proof of successful durability.
 
 Initial acceptance remains narrow: Luna's admission REDs; then coordinator shared-attempt/recovery/open-ticket tests and caller-specific fail-closed tests before any merged consumer path. Output worker reservation, Document veto, termination restoration, and GUI recovery remain unaccepted until their dedicated checks.
 
