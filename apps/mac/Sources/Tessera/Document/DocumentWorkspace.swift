@@ -40,6 +40,15 @@ enum DocumentSaveOutcome: Equatable {
     case failed(String)
 }
 
+/// Notification tokens also clean up if their workspace disappears while a sheet
+/// is draining. NotificationCenter removal is safe from deinitialization's thread.
+private final class DocumentSaveNativeObservers {
+    let tokens: [NSObjectProtocol]
+    init(_ tokens: [NSObjectProtocol]) { self.tokens = tokens }
+    func remove() { for token in tokens { NotificationCenter.default.removeObserver(token) } }
+    deinit { remove() }
+}
+
 @MainActor
 private final class DocumentSaveNativeDismissal {
     var swiftDismissed = false
@@ -462,10 +471,8 @@ final class DocumentWorkspace {
                                                             object: parent, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.documentSaveWindowLost(id) }
         }
-        state.removeObservers = {
-            NotificationCenter.default.removeObserver(ended)
-            NotificationCenter.default.removeObserver(closed)
-        }
+        let observers = DocumentSaveNativeObservers([ended, closed])
+        state.removeObservers = { observers.remove() }
         return true
     }
 
