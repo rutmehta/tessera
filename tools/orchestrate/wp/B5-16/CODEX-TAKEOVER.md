@@ -446,3 +446,35 @@ legacy exit. Production collector drains all results; first genuine failure wins
 cancellation. Six tiny tests added UNRUN; details in
 LEGACY-EFFECT-TYPED-IMPLEMENTATION.md. Formatting/diff checks only. B hold and
 paused heartbeat preserved; A owns compilation/main and editing-readiness smoke.
+
+## PSD / typed-effect packages integrated by A — 2026-09-28 UTC
+
+Reconciled coordinator result628f798f-d6a4-4c36-889b-6fad24601338 and completed
+receipts for b7294f0e and ccb9e8f1. Fetched mainc000a772 and verified merge
+7757f628 exists. Direct git diff of crates, apps/mac/Sources, apps/mac/Tests and
+Cargo files between tested dc4073de and merge7757f628 is empty. These B source
+packages are now INTEGRATED by A, superseding their source-only pending status:
+PSD operation7240948, typed error correction0df02c4, typed legacy route463922c,
+with A's compilation repairs, same-token compositor wiring and validation fixes.
+
+Read portable evidence README and green-release/full.json at origin/main:
+- Native gates: copy private8, IO4, filter private20, copy host1, document filters12
+  (one large fixture ignored): 45 passed. Strict gate passed after retained
+  compilation/Clippy repairs; initial missing legacy-call mappings preserved.
+- Current FFI SHA2560a9b2de3dee742751da067147805715925ac005e7036d0268d36296dc25168ae.
+- Full Release directexit0:509 XCTest executed,1skip,0fail,+5SwiftTesting.
+  Exact source dc4073de34b2da17f556e2f237d3f8b6322b4f14.
+- Coordinator result reports tiny320x240 GUI Open-in-Layers -> PSD copy -> reopen
+  passed, original JPEG hash unchanged. GUI report publication remains pending;
+  B did not independently run or view this GUI. Automated evidence is portable at
+  tools/orchestrate/wp/B5-16/evidence/2026-09-27-psd-copy-operation on main.
+
+Original Debug/Release failures, setup failures and behavioral RED remain retained.
+The direct recipe JSON InvalidTransition exception is unresolved, separate from
+supported Develop-route coverage. No complex-stack GUI, large-file cancellation
+latency, global memory, performance or full-project acceptance follows.
+
+Existing user preview65fa6a33 remains open on A unchanged and does not acquire
+these changes merely because main merged. A continues narrow recipe-writer work.
+B hold/paused heartbeat and dirty B5-16a snapshot remain preserved. No B builds,
+tests, apps, benchmarks, main merges or receipt acknowledgements performed.
