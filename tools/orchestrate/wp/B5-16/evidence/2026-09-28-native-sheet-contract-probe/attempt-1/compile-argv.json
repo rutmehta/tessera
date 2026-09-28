@@ -1,0 +1,14 @@
+[
+  "xcrun",
+  "swiftc",
+  "-swift-version",
+  "6",
+  "-strict-concurrency=complete",
+  "-warnings-as-errors",
+  "-parse-as-library",
+  "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/NativeSheetContractProbe.swift",
+  "-framework",
+  "AppKit",
+  "-o",
+  "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe"
+]

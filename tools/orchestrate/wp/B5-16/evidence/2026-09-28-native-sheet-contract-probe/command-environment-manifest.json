@@ -1,0 +1,125 @@
+{
+  "compileArgv": [
+    "xcrun",
+    "swiftc",
+    "-swift-version",
+    "6",
+    "-strict-concurrency=complete",
+    "-warnings-as-errors",
+    "-parse-as-library",
+    "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/NativeSheetContractProbe.swift",
+    "-framework",
+    "AppKit",
+    "-o",
+    "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe"
+  ],
+  "executionRule": "Await explicit exclusive compiler/GUI lane; preserve each direct exit and raw stdout/stderr; never infer success from timeout or synthetic callback.",
+  "host": {
+    "machine": "arm64",
+    "python": "3.13.5",
+    "release": "25.6.0",
+    "system": "Darwin"
+  },
+  "repo": "/Users/rutmehta/Developer/tessera",
+  "serialRuns": [
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "queued-cancel"
+      ],
+      "logStem": "queued-cancel-raw",
+      "orderOutInCompletion": false,
+      "scenario": "queued-cancel"
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "queued-cancel",
+        "--order-out-in-completion"
+      ],
+      "logStem": "queued-cancel-orderout",
+      "orderOutInCompletion": true,
+      "scenario": "queued-cancel"
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "parent-close"
+      ],
+      "logStem": "parent-close-raw",
+      "orderOutInCompletion": false,
+      "scenario": "parent-close"
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "parent-close",
+        "--order-out-in-completion"
+      ],
+      "logStem": "parent-close-orderout",
+      "orderOutInCompletion": true,
+      "scenario": "parent-close"
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "end-then-parent-close"
+      ],
+      "logStem": "end-then-parent-close-raw",
+      "orderOutInCompletion": false,
+      "scenario": "end-then-parent-close"
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "end-then-parent-close",
+        "--order-out-in-completion"
+      ],
+      "logStem": "end-then-parent-close-orderout",
+      "orderOutInCompletion": true,
+      "scenario": "end-then-parent-close"
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "close-handler-end"
+      ],
+      "logStem": "close-handler-end-raw",
+      "orderOutInCompletion": false,
+      "scenario": "close-handler-end"
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/source/run_probe.py",
+        "/Volumes/betterSSD/tessera-validation/native-sheet-contract-probe/5ebeb17a/probe",
+        "close-handler-end",
+        "--order-out-in-completion"
+      ],
+      "logStem": "close-handler-end-orderout",
+      "orderOutInCompletion": true,
+      "scenario": "close-handler-end"
+    }
+  ],
+  "sourceCommit": "5ebeb17a6754adde2132a0ef17de5a2481964804",
+  "sourceFilesSha256": {
+    "NativeSheetContractProbe.swift": "ccf1ce633ea49b8ccbbc92f73ecfaa52b5342d462c291062d4ad4ab1c9eaad2d",
+    "README.md": "7dff40fe3c781a012acc655e065d188f91202825016c0df9fefc4d2fa1d746a7",
+    "run_probe.py": "927e111eecc7a27bc4911a99c34135b57111245cc22fcfb5f6d7a44f72bb06eb"
+  },
+  "status": "PREPARED_UNRUN"
+}
