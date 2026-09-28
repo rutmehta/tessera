@@ -4146,9 +4146,10 @@ mod tests {
         let close_thread = thread::spawn(move || close_tx.send(closing.close()).unwrap());
         entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         let contender_engine = second_engine.clone();
+        let contender_id = id.clone();
         let (contender_tx, contender_rx) = std::sync::mpsc::channel();
         let contender = thread::spawn(move || {
-            let outcome = match contender_engine.open_develop_session(id) {
+            let outcome = match contender_engine.open_develop_session(contender_id) {
                 Ok(opened) => {
                     opened.close().unwrap();
                     Ok(())
