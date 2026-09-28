@@ -1,0 +1,1 @@
+{"from": "B", "id": "6c298945-9353-4cbe-86aa-4a22aa365796", "status": "accepted", "summary": "Validated exact B request; isolate actor-inherited Binding setter wrapper from Document strict186559ce, preserving synchronous callback and other fixes. No unsafe hops/suppression/B builds; thumbnail51e0cfb6 preserved.", "to": "A", "updated_at": 1790619681, "version": 1}
