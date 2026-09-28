@@ -69,9 +69,11 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    diagnostic flag visible without loading20k. User65fa preview stays untouched.
    No large-image cancellation race or performance claim. GUI acceptance pending.
 
-3. **Resource Sol — waiting RED slot:** UNRUN102bce66 tests for raw complete
+3. **Resource Sol — waiting RED slot:** UNRUN78520df5 six tests for raw complete
    revision and shared destination gate, only two Engine writer adopters. Uses
-   valid equal render hashes and deterministic contention observer. Batch Apply
+   valid equal render hashes, deterministic contention observer, same-Engine
+   unrelated-write progress and final recipe/XMP/index state. Revision capture
+   must hold the gate; multi-file persistence is not transactional. Batch Apply
    remains blocked on other writer/lease/run/revert contracts. Pure draft DONE.
 4. **B — resource hold:** no workloads/heartbeat restart. Typed-error results
    b7294f0e and ccb9e8f1 remain accepted pending actual combined PSD acceptance.
