@@ -2,6 +2,7 @@ import AppKit
 import CoreGraphics
 import Darwin
 import Foundation
+import QuartzCore
 
 func emit(_ value: [String: Any]) {
     do {
@@ -50,7 +51,7 @@ func snapshot(bundleID: String) -> [String: Any] {
     }
     let frontmost: Any
     if let frontmostPID { frontmost = Int(frontmostPID) } else { frontmost = NSNull() }
-    return ["bundle_id": bundleID, "bundle_apps": bundleApps,
+    return ["sample_time": CACurrentMediaTime(), "bundle_id": bundleID, "bundle_apps": bundleApps,
             "bundle_pids": applications.map(\.processIdentifier).sorted().map(Int.init),
             "frontmost_pid": frontmost, "windows": windows]
 }

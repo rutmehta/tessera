@@ -2332,21 +2332,29 @@ final class AppModel {
         liveObservers.forEach { $0.itemsDidChange(positions) }
     }
 
-    /// `--develop-selftest`: the Exposure slider's own path (coalesced per display frame, then a
-    /// final mouse-up commit), timed by the engine's `render_ms` per frame.
+    /// `--develop-selftest`: scripted AppModel Exposure updates and a final commit, timed by the
+    /// engine's `render_ms` per frame. This does not synthesize the OS slider/mouse gesture path.
     private func runDevelopSelfTest(_ controller: DevelopController) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1.5))   // first paint settles
             guard let self, self.develop === controller else { return }
             self.selfTestFrames = []
             let id = controller.itemID
-            let steps = ProcessInfo.processInfo.arguments.contains("--timing-selftest") ? 120 : 60
-            for i in 0...steps {
-                self.setAdjustment(.exposure, 1.5 * Double(i) / Double(steps), final: i == steps, for: id)
-                if ProcessInfo.processInfo.arguments.contains("--timing-selftest") {
-                    controller.flushPending() // background windows may pause their display link
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--timing-visible") && arguments.contains("--timing-selftest") {
+                guard await runQualifiedVisibleTimingInputs(model: self, controller: controller) else {
+                    self.selfTestFrames = nil
+                    return
                 }
-                try? await Task.sleep(for: .milliseconds(16))
+            } else {
+                let steps = ProcessInfo.processInfo.arguments.contains("--timing-selftest") ? 120 : 60
+                for i in 0...steps {
+                    self.setAdjustment(.exposure, 1.5 * Double(i) / Double(steps), final: i == steps, for: id)
+                    if ProcessInfo.processInfo.arguments.contains("--timing-selftest") {
+                        controller.flushPending() // background windows may pause their display link
+                    }
+                    try? await Task.sleep(for: .milliseconds(16))
+                }
             }
             try? await Task.sleep(for: .seconds(1))
             self.developRevision += 1   // the sliders were bypassed: show the new values

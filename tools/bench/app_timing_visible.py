@@ -41,6 +41,29 @@ def _finite_timestamp(value, label):
     return float(value)
 
 
+class StableForegroundDwell:
+    """Require at least 500 ms of good probes, with no observed gap over 250 ms."""
+    def __init__(self, duration=0.5, max_gap=0.250):
+        self.duration = duration
+        self.max_gap = max_gap
+        self.first = None
+        self.last = None
+        self.samples = 0
+        self.maximum_gap = 0.0
+
+    def observe(self, sample_time):
+        sample_time = _finite_timestamp(sample_time, "foreground dwell probe")
+        if self.last is None or sample_time <= self.last or sample_time - self.last > self.max_gap:
+            self.first = sample_time
+            self.samples = 1
+            self.maximum_gap = 0.0
+        else:
+            self.samples += 1
+            self.maximum_gap = max(self.maximum_gap, sample_time - self.last)
+        self.last = sample_time
+        return self.samples >= 2 and self.last - self.first >= self.duration
+
+
 def validate_qualified_interval(trace, ready, permit, samples, identity, expected_nonce,
                                 minimum_inputs=100, max_sample_gap=0.250):
     """Validate a nonce-bound, same-process/window/session P01 measurement interval.
@@ -50,6 +73,8 @@ def validate_qualified_interval(trace, ready, permit, samples, identity, expecte
     """
     if trace.get("dropped") != 0:
         raise ValueError("trace dropped records")
+    if any(event.get("name") == "qualification_failed" for event in trace.get("events", [])):
+        raise ValueError("app recorded a qualification failure")
     required = {"nonce": expected_nonce, **identity}
     for label, record in (("ready", ready), ("start permit", permit)):
         for key, expected in required.items():
@@ -92,7 +117,7 @@ def validate_qualified_interval(trace, ready, permit, samples, identity, expecte
     final_input = markers.get("input_sequence_complete")
     sequence_marker = next(event for event in events if event.get("name") == "input_sequence_complete")
     final_input = sequence_marker.get("input")
-    if final_input not in inputs:
+    if not isinstance(final_input, int) or isinstance(final_input, bool) or final_input not in inputs:
         raise ValueError("final input is absent from the measured interval")
     if len(inputs) != 121:
         raise ValueError(f"the fixed input sequence must contain exactly 121 unique inputs; found {len(inputs)}")
@@ -105,6 +130,27 @@ def validate_qualified_interval(trace, ready, permit, samples, identity, expecte
                            for input_id in ordered_ids]
     if any(value > sequence_done for value in ordered_input_times) or ordered_input_times != sorted(ordered_input_times):
         raise ValueError("input events are out of order or occur after the fixed sequence completes")
+    app_checks = [event for event in events if event.get("name") == "app_visibility_check"
+                  and event.get("session") == identity["session"]
+                  and start <= _finite_timestamp(event.get("time"), "app visibility check") <= sequence_done]
+    checks_by_ordinal = {}
+    for event in app_checks:
+        span = event.get("span")
+        prefix = "scripted-input-"
+        try:
+            ordinal = int(span[len(prefix):]) if isinstance(span, str) and span.startswith(prefix) else None
+        except ValueError:
+            ordinal = None
+        if ordinal is None or ordinal in checks_by_ordinal:
+            raise ValueError("app visibility checks have missing or duplicate sequence identity")
+        checks_by_ordinal[ordinal] = event
+    if set(checks_by_ordinal) != set(range(1, 122)):
+        raise ValueError("each of the 121 scripted inputs requires one app-side visibility check")
+    for ordinal, input_id in enumerate(ordered_ids, start=1):
+        check_time = _finite_timestamp(checks_by_ordinal[ordinal].get("time"), "app visibility check")
+        previous_input_time = start if ordinal == 1 else ordered_input_times[ordinal - 2]
+        if not previous_input_time <= check_time <= ordered_input_times[ordinal - 1]:
+            raise ValueError("app visibility check was outside its scripted input boundary")
 
     chain_count = 0
     final_presented = False
@@ -153,7 +199,9 @@ def validate_qualified_interval(trace, ready, permit, samples, identity, expecte
     if chain_count < minimum_inputs:
         raise ValueError(f"fewer than {minimum_inputs} complete causal presentations inside the interval")
 
-    samples = sorted(samples, key=lambda sample: _finite_timestamp(sample.get("time"), "visibility sample"))
+    sample_times = [_finite_timestamp(sample.get("time"), "visibility sample") for sample in samples]
+    if sample_times != sorted(sample_times):
+        raise ValueError("visibility samples are not in monotonic acquisition order")
     bracketing = [sample for sample in samples if start <= float(sample["time"]) <= end]
     before = [sample for sample in samples if float(sample["time"]) < start]
     after = [sample for sample in samples if float(sample["time"]) > end]
@@ -162,8 +210,10 @@ def validate_qualified_interval(trace, ready, permit, samples, identity, expecte
     relevant = [before[-1], *bracketing, after[0]]
     max_gap = 0.0
     for index, sample in enumerate(relevant):
-        if sample.get("pid") != identity["pid"] or sample.get("window_number") != identity["window_number"]:
+        if any(sample.get(key) != expected for key, expected in identity.items()):
             raise ValueError("visibility sample process/window identity changed")
+        if sample.get("nonce") != expected_nonce:
+            raise ValueError("visibility sample nonce does not match the qualified run")
         if sample.get("frontmost") is not True or sample.get("visible") is not True:
             raise ValueError("visibility sample did not confirm foreground visible window")
         if index:
@@ -173,11 +223,13 @@ def validate_qualified_interval(trace, ready, permit, samples, identity, expecte
                 raise ValueError("visibility sampling gap exceeds the qualified maximum")
     return {"measurement_start": start, "measurement_end": end,
             "causal_presentations": chain_count, "in_interval_inputs": len(inputs),
+            "app_side_visibility_checks": len(checks_by_ordinal),
             "final_input": final_input, "visibility_samples": len(bracketing),
             "maximum_observed_sample_gap_seconds": max_gap,
             "input_to_present_ms": input_to_present_ms,
             "input_to_present_p50_ms": app_timing.percentile(input_to_present_ms, .5),
             "input_to_present_p95_ms": app_timing.percentile(input_to_present_ms, .95),
+            "visibility_sample_target_seconds": 0.050,
             "qualified_interval": True}
 
 
@@ -417,6 +469,8 @@ def main():
     if _digest(copied_fixture) != _digest(fixture):
         raise ValueError("copied fixture hash mismatch")
     support = out / "app-support"
+    control_dir = out / "timing-control"
+    control_dir.mkdir()
     trace_path = out / "trace.json"
     stdio_directory, stdout_path, stderr_path = prepare_launch_stdio(out, args.stdio_relay_directory)
     probe_source = Path(__file__).with_name("VisibleWindowProbe.swift")
@@ -429,15 +483,18 @@ def main():
         raise ValueError("the unique test bundle is already running")
 
     launch_id = str(uuid.uuid4())
+    run_nonce = str(uuid.uuid4())
     launch = ["open", "-n", "-a", str(app), "--stdout", str(stdout_path), "--stderr", str(stderr_path),
               "--args", "--timing-visible", "--timing-selftest", "--develop-selftest",
-              "--timing-output", str(trace_path), "--app-dir", str(support),
+              "--timing-output", str(trace_path), "--timing-control-dir", str(control_dir),
+              "--timing-nonce", run_nonce, "--app-dir", str(support),
               "--folder", str(fixture_dir)]
     preflight = {"launch_id": launch_id, "command": launch,
                  "initial_observation": initial_observation,
                  "bundle_id": args.expected_bundle_id,
                  "expected_commit": args.expected_commit, "app_url": str(app),
                  "fixture": str(copied_fixture), "fixture_sha256": _digest(copied_fixture),
+                 "control_directory": str(control_dir), "run_nonce": run_nonce,
                  "app_provenance": provenance, "probe_source_sha256": probe_hash,
                  "probe_binary_sha256": probe_binary_hash,
                  "runner_source_sha256": _digest(Path(__file__)),
@@ -449,6 +506,7 @@ def main():
     context = RunArtifacts(out, app, args.expected_bundle_id, launch_id)
     context.probe = probe
     observation_path = out / "window-observations.jsonl"
+    sample_path = out / "visibility-samples.jsonl"
     try:
         context.launch_attempted = True
         subprocess.run(launch, check=True, timeout=15)
@@ -458,9 +516,14 @@ def main():
         window_seen = False
         first_pid_time = None
         observations = []
+        ready_record = None
+        start_permit = None
+        visible_samples = []
+        dwell = StableForegroundDwell()
+        dwell_qualified = None
         deadline = time.monotonic() + 180
         receipt_path = trace_path.with_suffix(trace_path.suffix + ".window.json")
-        with observation_path.open("w") as stream:
+        with observation_path.open("w") as stream, sample_path.open("w") as sample_stream:
             while time.monotonic() < deadline and not trace_path.is_file():
                 observation = _run_probe(probe, args.expected_bundle_id, timeout=5)
                 elapsed = 0 if first_pid_time is None else time.monotonic() - first_pid_time
@@ -488,9 +551,49 @@ def main():
                         elapsed = 0
                     foreground_seen, window_seen, _ = validate_visibility_sample(
                         observation, test_pid, elapsed, foreground_seen, window_seen)
+                    ready_path = control_dir / "ready.json"
+                    if ready_path.is_file():
+                        current_ready = json.loads(ready_path.read_text())
+                        if ready_record is None:
+                            ready_record = current_ready
+                            if (ready_record.get("nonce") != run_nonce
+                                    or ready_record.get("pid") != test_pid
+                                    or ready_record.get("bundle_id") != args.expected_bundle_id
+                                    or not ready_record.get("session")
+                                    or not isinstance(ready_record.get("window_number"), int)
+                                    or ready_record.get("window_number") <= 0
+                                    or not math.isclose(float(ready_record.get("launch_date", -1)),
+                                                        pinned_identity["launch_date"], rel_tol=0, abs_tol=1e-6)
+                                    or not _same_path(ready_record.get("bundle_url", ""), app)):
+                                raise ValueError("app ready record does not match this nonce/process/session run")
+                            _finite_timestamp(ready_record.get("time"), "app ready record")
+                        elif current_ready != ready_record:
+                            raise ValueError("app readiness identity changed during qualification")
+                        target = validate_window_observation(observation, test_pid,
+                                                             ready_record["window_number"])
+                        if start_permit is None:
+                            sample_time = _finite_timestamp(observation.get("sample_time"), "window probe")
+                            if dwell.observe(sample_time):
+                                dwell_qualified = {"first_sample_time": dwell.first,
+                                    "permit_sample_time": sample_time, "samples": dwell.samples,
+                                    "maximum_observed_gap_seconds": dwell.maximum_gap}
+                                start_permit = {**ready_record, "time": sample_time}
+                                temporary_permit = control_dir / "start.json.tmp"
+                                temporary_permit.write_text(json.dumps(start_permit, sort_keys=True) + "\n")
+                                os.replace(temporary_permit, control_dir / "start.json")
+                        if start_permit is not None:
+                            sample_time = _finite_timestamp(observation.get("sample_time"), "window probe")
+                            sample_record = {"time": sample_time, "pid": test_pid,
+                                "bundle_id": args.expected_bundle_id, "bundle_url": str(app),
+                                "launch_date": ready_record["launch_date"],
+                                "window_number": target["window_id"], "session": ready_record["session"],
+                                "nonce": run_nonce, "frontmost": True, "visible": bool(target["onscreen"])}
+                            visible_samples.append(sample_record)
+                            sample_stream.write(json.dumps(sample_record, sort_keys=True) + "\n")
+                            sample_stream.flush()
                 elif test_pid is not None and not trace_path.exists():
                     raise ValueError("test app exited before writing its trace")
-                time.sleep(.25)
+                time.sleep(.05)
         if not trace_path.is_file():
             raise ValueError("timed out without the self-test trace")
         # The app writes the receipt synchronously before atomically publishing its trace.
@@ -523,18 +626,28 @@ def main():
         if len(foreground_samples) < 2 or not window_seen:
             raise ValueError("too few foreground/on-screen samples to corroborate a visible run")
         trace = json.loads(trace_path.read_text())
-        summary = validate_trace(trace)
+        if ready_record is None or start_permit is None:
+            raise ValueError("visible ready/start handshake did not complete")
+        identity = {"pid": test_pid, "bundle_id": args.expected_bundle_id,
+                    "bundle_url": str(app), "launch_date": pinned_identity["launch_date"],
+                    "window_number": ready_record["window_number"], "session": ready_record["session"]}
+        summary = validate_qualified_interval(trace, ready_record, start_permit, visible_samples,
+                                             identity, run_nonce)
         summary.update({"provenance": {key: provenance[key] for key in
                                        ("commit", "configuration", "source_sha256", "archive_sha256", "bindings")},
+                        "p01_interval_qualified": True,
+                        "input_path": "scripted AppModel.setAdjustment Exposure sequence with explicit flushPending; not an OS mouse gesture",
                         "launch_id": launch_id, "bundle_id": args.expected_bundle_id,
                         "bundle_url": str(app), "process_id": test_pid,
                         "process_launch_date": pinned_identity["launch_date"],
                         "window_number": target["window_id"], "window_receipt": receipt,
+                        "ready_record": ready_record, "start_permit": start_permit,
+                        "foreground_dwell": dwell_qualified,
                         "foreground_observations": len(observations),
                         "foreground_samples_for_test_app": len(foreground_samples),
                         "foreground_seen": foreground_seen, "visible_window_seen": window_seen,
                         "visibility_limit": "Window-server ordering/overlap and NSWindow occlusion state are evidence of a visible frontmost window, not a pixel-perfect guarantee that every pixel was unobscured.",
-                        "measurement_limit": "Foreground samples corroborate the isolated self-test; they do not bound the P01 measured interval because the self-test starts before sampling begins.",
+                        "measurement_limit": "Only same-session causal input-to-positive-present joins inside the nonce-bound, foreground-sampled interval contribute to qualified P01 metrics.",
                         "grid_appeared": any(e.get("name") == "grid_appeared" for e in trace.get("events", [])),
                         "selftest_complete": any(e.get("name") == "selftest_complete" for e in trace.get("events", []))})
         if not summary["grid_appeared"] or not summary["selftest_complete"]:

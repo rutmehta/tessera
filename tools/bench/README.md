@@ -99,10 +99,17 @@ without a mounted view are a failed run, not a zero-cost first grid.
 `app_timing_visible.py` is an opt-in capability check for the same isolated
 self-test in a regular foreground window. It requires a unique, provenance-pinned
 test app, copied fixture, and disposable app-support directory. Its foreground
-and window samples corroborate the app's actual-present trace; because the
-self-test begins before sampling starts, this mode does **not** establish a
-P01 benchmark interval or performance result. A later measured interval needs
-an explicit start barrier and shared clock observations.
+and exact-window samples are timestamped with the app's `CACurrentMediaTime`
+clock and bracket a nonce-bound ready/start/end interval. The fixed 121 scripted
+`AppModel.setAdjustment` inputs are sent only after the matching start permit;
+visibility is rechecked at each input, and the interval ends only after the final
+input has a positive actual drawable presentation. The analyzer counts only
+same-session causal chains inside that interval, requires at least 100, rejects
+drops and sample gaps over 250 ms, and reports interval-only latency values.
+This is scripted app input with the self-test's explicit flush aid, not an OS
+mouse drag or a display-link-coalesced user gesture. These checks qualify P01
+measurement conditions; they do not claim P11 detail appearance or physical
+panel scanout.
 
 `test_app_timing.py`, `test_app_timing_visible.py`, `test_provenance.py`, and
 `test_performance_foundations.py` are standard-library Python tests.

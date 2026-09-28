@@ -61,6 +61,7 @@ struct TesseraApp: App {
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --nonactivating   background audits: accessory policy, no activation, ignores --front
 ///   --timing-visible  opt in to the regular-window host for an isolated timing capability run
+///   --timing-control-dir / --timing-nonce  private ready/start handshake for visible timing only
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
 ///   --new-document    (test aid) create a layered document (2400 × 1600; one blank layer on the engine, sample layers
 ///                     on the stub) after launch. Documents use the engine unless --stub-library is given
@@ -68,8 +69,8 @@ struct TesseraApp: App {
 ///                     opacity drag timing, undo, save, reopen, export, PSD), step markers on stderr, then quit;
 ///                     --document-selftest-hold <s> sets the pause per step (2.5)
 ///   --open-document <file>  open a .tessera-doc / .psd / .psb / flat image in document mode after launch
-///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
-///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
+///   --develop-selftest  once a Develop session opens, script Exposure 0 → +1.5 through AppModel.setAdjustment
+///                     (60 steps, then final commit); this does not synthesize an OS mouse gesture
 ///   --develop-panels-selftest  open the first photo in the loupe and drag one control of each develop
 ///                     panel likewise (TESSERA_SELFTEST_CROP=1|commit also opens/applies a crop)
 ///   --export-selftest <dir>   (test aid) export every photo with the first (Web) preset into <dir>, then quit
