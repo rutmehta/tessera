@@ -68,8 +68,7 @@ final class InspectorFocusTraceTests: XCTestCase {
     }
 
     func testCapturePrecedesExactlyOneHandlerAndReturnIsUnchanged() {
-        let sink = Sink(), trace = InspectorFocusTrace(sink: Sink())
-        _ = trace // independent sink isolation
+        let sink = Sink()
         let recording = InspectorFocusTrace(sink: sink)
         for result in [false, true] {
             var order: [String] = []
@@ -194,5 +193,26 @@ final class InspectorFocusTraceTests: XCTestCase {
         let before = try Data(contentsOf: URL(fileURLWithPath: path))
         XCTAssertNil(InspectorFocusTrace.configured(arguments: ["Tessera", "--inspector-focus-trace", path]))
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: path)), before)
+    }
+
+    func testReentrantRoutingDoesNotCaptureTwiceOrChangeNestedResult() {
+        let sink = Sink(), trace = InspectorFocusTrace(sink: Sink())
+        let recording = InspectorFocusTrace(sink: sink)
+        var captures = 0, handlers = 0
+        XCTAssertFalse(InspectorFocusTrace.route(recording, input: input(), capture: {
+            captures += 1
+            return .unknown
+        }, handler: {
+            handlers += 1
+            XCTAssertTrue(InspectorFocusTrace.route(recording, input: self.input(), capture: {
+                captures += 1; return .unknown
+            }, handler: { handlers += 1; return true }))
+            return false
+        }))
+        XCTAssertEqual(captures, 1)
+        XCTAssertEqual(handlers, 2)
+        XCTAssertTrue(String(decoding: sink.data, as: UTF8.self).contains("\"reentrantEventsSkipped\":1"))
+        // A separate collector is unaffected by another collector's capture state.
+        XCTAssertFalse(InspectorFocusTrace.route(trace, input: input(), capture: { .unknown }, handler: { false }))
     }
 }
