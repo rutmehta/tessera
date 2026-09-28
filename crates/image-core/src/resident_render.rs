@@ -94,6 +94,11 @@ impl Renderer {
         settings: &DevelopSettings,
         cancel: &CancellationToken,
     ) -> EngineResult<Option<crate::resident::OutputMetrics>> {
+        if image.camera_linear_proxy().is_some() {
+            cancel.check()?;
+            self.validate_camera_linear_proxy(image, settings)?;
+            return Ok(None);
+        }
         cancel.check()?;
         self.validate_settings(settings)?;
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
@@ -128,6 +133,11 @@ impl Renderer {
         rect: PixelRect,
         cancel: &CancellationToken,
     ) -> EngineResult<Option<Vec<Tile>>> {
+        if image.camera_linear_proxy().is_some() {
+            cancel.check()?;
+            self.validate_camera_linear_proxy(image, settings)?;
+            return Ok(None);
+        }
         if !crate::resident_export_lens_supported(&settings.lens)
             || settings.geometry != Default::default()
         {
@@ -152,6 +162,11 @@ impl Renderer {
         lens: Option<&pipeline_cpu::LensPlan>,
         cancel: &CancellationToken,
     ) -> EngineResult<Option<Vec<Tile>>> {
+        if image.camera_linear_proxy().is_some() {
+            cancel.check()?;
+            self.validate_camera_linear_proxy(image, settings)?;
+            return Ok(None);
+        }
         cancel.check()?;
         self.validate_settings(settings)?;
         let mut r = self.resolve(image, settings)?;
@@ -242,6 +257,11 @@ impl Renderer {
         dst: &mut [f32],
         cancel: &CancellationToken,
     ) -> EngineResult<bool> {
+        if image.camera_linear_proxy().is_some() {
+            cancel.check()?;
+            self.validate_camera_linear_proxy(image, settings)?;
+            return Ok(false);
+        }
         cancel.check()?;
         self.validate_settings(settings)?;
         let mut r = self.resolve(image, settings)?;
@@ -437,6 +457,10 @@ impl Renderer {
         image: &RawImage,
         settings: &DevelopSettings,
     ) -> EngineResult<bool> {
+        if image.camera_linear_proxy().is_some() {
+            self.validate_camera_linear_proxy(image, settings)?;
+            return Ok(false);
+        }
         self.validate_settings(settings)?;
         let lens = self.interactive_lens_plan(image, settings, &CancellationToken::new())?;
         if lens.is_none() && !crate::resident_export_lens_supported(&settings.lens) {
@@ -451,6 +475,9 @@ impl Renderer {
     /// `level`: the level to render, when known. Texture/Clarity/Dehaze need a
     /// backend whole-level barrier that fits that level (any level when None).
     pub(super) fn supports_resident(&self, r: &Resolved<'_>, level: Option<u8>) -> bool {
+        if r.image.camera_linear_proxy().is_some() {
+            return false;
+        }
         let s = r.settings;
         if (r.image.rgb().is_none() && pipeline_cpu::denoise_active(&s.denoise) && !self.cfa_supported(r.cfa, s))
             || (r.image.rgb().is_none() && !matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_)))
@@ -496,6 +523,11 @@ impl Renderer {
         surface: u32,
         cancel: &CancellationToken,
     ) -> EngineResult<bool> {
+        if image.camera_linear_proxy().is_some() {
+            cancel.check()?;
+            self.validate_camera_linear_proxy(image, settings)?;
+            return Ok(false);
+        }
         cancel.check()?;
         let r = self.resolve(image, settings)?;
         if level > MAX_LEVEL || !self.supports_resident(&r, Some(level)) {
@@ -655,6 +687,11 @@ impl Renderer {
         output: RenderOutput,
         cancel: &CancellationToken,
     ) -> EngineResult<Option<DisplayHistogram>> {
+        if image.camera_linear_proxy().is_some() {
+            cancel.check()?;
+            self.validate_camera_linear_proxy(image, settings)?;
+            return Ok(None);
+        }
         if output == RenderOutput::SceneLinear {
             return Err(engine_api::EngineError::invalid(
                 "IOSurface",

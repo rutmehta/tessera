@@ -72,6 +72,11 @@ impl Renderer {
         cancel: &CancellationToken,
     ) -> EngineResult<Arc<Image>> {
         cancel.check()?;
+        if image.camera_linear_proxy().is_some() {
+            return Err(EngineError::Unsupported {
+                what: "smart preview: original required for the working-RGB layer API; use camera-linear tile rendering".into(),
+            });
+        }
         if self.is_adobe() {
             return Err(EngineError::Unsupported {
                 what: "native RGB Develop entry point requires native process version".into(),
