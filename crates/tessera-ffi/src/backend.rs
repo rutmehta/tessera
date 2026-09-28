@@ -74,9 +74,18 @@ pub(crate) fn sync_process(recipe: &mut engine_api::recipe::Recipe) -> EngineRes
 fn gpu_is_faster(cpu: [f64; 3], gpu: [f64; 3]) -> bool {
     cpu.iter().chain(&gpu).all(|v| v.is_finite() && *v > 0.) && gpu[1] < cpu[1] && gpu[2] < cpu[2]
 }
+#[cfg(test)]
 fn measure(renderer: &Renderer, image: &RawImage) -> EngineResult<[f64; 3]> {
-    let mut s = DevelopSettings::default();
-    let extent = image.level_extent(2);
+    measure_at(renderer, image, &DevelopSettings::default(), 2)
+}
+fn measure_at(
+    renderer: &Renderer,
+    image: &RawImage,
+    settings: &DevelopSettings,
+    level: u8,
+) -> EngineResult<[f64; 3]> {
+    let mut s = settings.clone();
+    let extent = Renderer::output_extent(image, &s, level)?;
     let rect = PixelRect::full(extent);
     // Match the actual develop sink on both backends. Timing GPU pixel
     // readback here can reject a faster zero-copy presentation path.
@@ -87,16 +96,20 @@ fn measure(renderer: &Renderer, image: &RawImage) -> EngineResult<[f64; 3]> {
     let mut times = [0.; 3];
     for (i, time) in times.iter_mut().enumerate() {
         if i == 1 {
-            s.tone.exposure = 0.25;
+            s.tone.exposure += 0.25;
         }
         if i == 2 {
-            s.white_balance.mode = WhiteBalanceMode::Daylight;
+            s.white_balance.mode = if matches!(s.white_balance.mode, WhiteBalanceMode::Daylight) {
+                WhiteBalanceMode::AsShot
+            } else {
+                WhiteBalanceMode::Daylight
+            };
         }
         let start = Instant::now();
-        let histogram = match renderer.render_surface(image, &s, 2, surface.id(), &cancel)? {
+        let histogram = match renderer.render_surface(image, &s, level, surface.id(), &cancel)? {
             Some(histogram) => histogram,
             None => {
-                let tiles = renderer.render_region(image, &s, 2, rect)?;
+                let tiles = renderer.render_region(image, &s, level, rect)?;
                 crate::develop::write_level(Some(&surface), &tiles)
                     .map_err(engine_api::EngineError::internal)?
             }
@@ -139,6 +152,38 @@ pub(crate) fn select(
     image: &RawImage,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
 ) -> Backend {
+    select_at(image, &DevelopSettings::default(), 2, gpu)
+}
+
+/// Explicit proxy route: actual immutable-prefix-compatible settings and default
+/// screen IOSurface sink, independent of the original's backend decision.
+pub(crate) fn select_proxy(
+    image: &RawImage,
+    settings: &DevelopSettings,
+    gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
+) -> Backend {
+    // Match Develop's pre-surface default screen level. Explicit surface-size
+    // and adaptive-level benchmarks remain required before enabling by default.
+    let level = (0..=4)
+        .find(|&level| {
+            let extent = image.level_extent(level);
+            extent.width.max(extent.height) <= 2048
+        })
+        .unwrap_or(4);
+    // Calibration precedes the host's display-headroom probe and uses an SDR
+    // ring. Match Develop's separation of presentation policy from pixel settings
+    // without dropping any other unsupported recipe controls.
+    let mut pixels = settings.clone();
+    pixels.output.hdr = false;
+    pixels.output.hdr_headroom_stops = 0.;
+    select_at(image, &pixels, level, gpu)
+}
+fn select_at(
+    image: &RawImage,
+    settings: &DevelopSettings,
+    level: u8,
+    gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
+) -> Backend {
     let config = RendererConfig::default();
     let cpu = Backend::new(
         Arc::new(CpuStageOp),
@@ -160,21 +205,35 @@ pub(crate) fn select(
             return cpu;
         }
     };
+    #[cfg(all(test, target_os = "macos"))]
+    if std::env::var_os("TESSERA_QUALIFY_ROUTE").is_some() {
+        assert_eq!(ctx.adapter_info.backend, wgpu::Backend::Metal);
+        eprintln!("qualification adapter: {:?}", ctx.adapter_info);
+    }
     let name = format!("Metal ({})", ctx.adapter_info.name);
     let ops = Arc::new(pipeline_gpu::GpuStageOp::with_cache_budget(
         ctx,
         config.cache_budget_bytes,
     ));
+    #[cfg(all(test, target_os = "macos"))]
+    crate::develop::preview_qualification::capture_gpu(ops.clone());
     let gpu = Backend::new(ops, config, name);
     if preference.eq_ignore_ascii_case("gpu") {
         return gpu;
     }
     match (
-        measure(&cpu.renderer(), image),
-        measure(&gpu.renderer(), image),
+        measure_at(&cpu.renderer(), image, settings, level),
+        measure_at(&gpu.renderer(), image, settings, level),
     ) {
         (Ok(c), Ok(g)) => {
-            eprintln!("develop L2 calibration [first, tone, WB] ms: CPU {c:?}; GPU {g:?}");
+            eprintln!(
+                "develop {} L{level} calibration [first, tone, WB] ms: CPU {c:?}; GPU {g:?}",
+                if image.camera_linear_proxy().is_some() {
+                    "Smart Preview"
+                } else {
+                    "original"
+                }
+            );
             if gpu_is_faster(c, g) {
                 return gpu;
             }

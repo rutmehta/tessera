@@ -441,16 +441,44 @@ impl ResolvedLens {
         )
     }
 
+    pub(crate) fn camera_linear_tail_plan(
+        &self,
+        settings: &DevelopSettings,
+        metadata: &raw_decode::RawMetadata,
+        frame: [u32; 2],
+    ) -> EngineResult<Option<LensPlan>> {
+        self.plan_in_frame(settings, metadata, None, frame, true)
+    }
+
     fn plan_impl(
         &self,
         settings: &DevelopSettings,
         metadata: &raw_decode::RawMetadata,
         analyzed: Option<lens::Homography>,
     ) -> EngineResult<Option<LensPlan>> {
+        self.plan_in_frame(
+            settings,
+            metadata,
+            analyzed,
+            [metadata.default_crop[2], metadata.default_crop[3]],
+            false,
+        )
+    }
+
+    fn plan_in_frame(
+        &self,
+        settings: &DevelopSettings,
+        metadata: &raw_decode::RawMetadata,
+        analyzed: Option<lens::Homography>,
+        frame: [u32; 2],
+        prefix_baked: bool,
+    ) -> EngineResult<Option<LensPlan>> {
         let s = &settings.lens;
         let g = &settings.geometry;
         crate::optics::validate(s)?;
-        if !self.manual_ca.is_identity()
+        if (!prefix_baked && !self.manual_ca.is_identity())
+            // Embedded snapshots retain original sensor-coordinate dependencies;
+            // their tails stay scalar until independently qualified.
             || self.embedded.present()
             || s.defringe_purple.amount != 0.
             || s.defringe_green.amount != 0.
@@ -463,7 +491,7 @@ impl ResolvedLens {
         {
             return Ok(None);
         }
-        let ca = if self.ca_active(s) {
+        let ca = if !prefix_baked && self.ca_active(s) {
             let Some(sample) = &self.sample else {
                 // Embedded per-channel warps need a Newton channel factorization.
                 return Ok(None);
@@ -525,12 +553,9 @@ impl ResolvedLens {
         let upright = if let Some(upright) = analyzed {
             upright
         } else if g.upright.mode == UprightMode::Guided {
-            crate::upright::guided_inverse(
-                metadata.default_crop[2],
-                metadata.default_crop[3],
-                g,
-                &|p, c| Some(self.map(p, c, &common)),
-            )?
+            crate::upright::guided_inverse(frame[0], frame[1], g, &|p, c| {
+                Some(self.map(p, c, &common))
+            })?
         } else {
             if !g.upright.guides.is_empty() {
                 return Err(engine_api::EngineError::invalid(

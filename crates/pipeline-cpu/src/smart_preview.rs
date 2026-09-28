@@ -99,7 +99,13 @@ impl CameraLinearProxy {
         if !matches!(settings.denoise.method, DenoiseMethod::Off) {
             return Err(required("raw denoise must be Off"));
         }
-        crate::validate_settings(settings)?;
+        // HDR/headroom select the host's presentation, not the immutable RAW
+        // prefix. Validate all other controls strictly without mutating the
+        // caller's recipe or weakening the legacy SDR renderer's validator.
+        let mut prefix_settings = settings.clone();
+        prefix_settings.output.hdr = false;
+        prefix_settings.output.hdr_headroom_stops = 0.;
+        crate::validate_settings(&prefix_settings)?;
         // Late sensor-coordinate operations cannot be replayed on crop-first
         // pixels without explicit original-sensor bin-centre transforms.
         let embedded = crate::embedded_lens::Embedded::parse(metadata)?;
@@ -135,6 +141,20 @@ impl CameraLinearProxy {
             scale,
             tier,
         })
+    }
+    /// Portable unbaked tail for camera-linear L0 rendering. Captured sensor,
+    /// demosaic and lateral CA corrections are never replayed or re-estimated.
+    /// None means the caller must retain the scalar camera-linear renderer.
+    pub fn resident_tail_plan(
+        &self,
+        settings: &DevelopSettings,
+    ) -> EngineResult<Option<crate::LensPlan>> {
+        self.validate_prefix(settings)?;
+        self.correction.camera_linear_tail_plan(
+            settings,
+            &self.metadata,
+            [self.pixels.width(), self.pixels.height()],
+        )
     }
     pub fn pixels(&self) -> &Image {
         &self.pixels

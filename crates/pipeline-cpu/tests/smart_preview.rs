@@ -332,3 +332,41 @@ fn geometry_remains_editable_but_lens_and_raw_denoise_require_original() {
         Err(engine_api::EngineError::Unsupported { .. })
     ));
 }
+
+#[test]
+fn hdr_presentation_policy_does_not_change_proxy_prefix_or_relax_legacy_validation() {
+    let (cfa, metadata) = fixture(32, 24);
+    let baseline = DevelopSettings::default();
+    let generate = |settings: &DevelopSettings| {
+        CameraLinearProxy::generate(
+            &cfa,
+            &metadata,
+            settings,
+            ProcessVersion::NATIVE_CURRENT,
+            [91; 32],
+            &LensContext::default(),
+        )
+    };
+    let expected = generate(&baseline).unwrap().encode_persistent(100).unwrap();
+    let mut hdr = baseline.clone();
+    hdr.output.hdr = true;
+    hdr.output.hdr_headroom_stops = 2.;
+    let preserved = hdr.clone();
+    let actual = generate(&hdr).unwrap().encode_persistent(100).unwrap();
+    assert_eq!(
+        actual, expected,
+        "presentation policy is not baked into the prefix"
+    );
+    assert_eq!(hdr, preserved);
+    assert!(
+        pipeline_cpu::validate_settings(&hdr).is_err(),
+        "legacy scalar validation remains strict"
+    );
+    hdr.output.proof_profile = Some(engine_api::color::IccProfileHandle(engine_api::id::Digest(
+        [9; 32],
+    )));
+    assert!(
+        generate(&hdr).is_err(),
+        "unrelated unsupported output controls remain rejected"
+    );
+}

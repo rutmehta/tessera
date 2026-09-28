@@ -997,7 +997,7 @@ impl Engine {
         } else {
             engine_api::recipe::SourceKind::Raw
         };
-        let resources = self.develop_render_resources(&image)?;
+        let resources = self.develop_render_resources(&image, &recipe.settings)?;
         let settings = session_renderable(&recipe.settings, true, false);
         let input = resources.depth_input(&image, settings, recipe.process_version)?;
         Ok(resources
@@ -1077,7 +1077,7 @@ impl Engine {
         } else {
             engine_api::recipe::SourceKind::Raw
         };
-        let resources = self.develop_render_resources(&image)?;
+        let resources = self.develop_render_resources(&image, &recipe.settings)?;
         let screen_level = default_level(&image);
         let shared = Arc::new(Shared {
             engine: Arc::downgrade(&self),
@@ -1206,8 +1206,12 @@ impl Engine {
         })
     }
 
-    fn develop_render_resources(&self, image: &RawImage) -> Result<DevelopRenderResources> {
-        let (renderer, backend) = self.develop_renderer(image);
+    fn develop_render_resources(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+    ) -> Result<DevelopRenderResources> {
+        let (renderer, backend) = self.develop_renderer(image, settings);
         let masks = masks::MaskShared::new(image);
         renderer
             .mask_cache()
@@ -2049,6 +2053,8 @@ impl LevelSink {
     }
 
     fn finish_surface(&self, level: u8, surface: Arc<Surface>, hist: Hist) {
+        #[cfg(all(test, target_os = "macos"))]
+        preview_qualification::resident_receipt(self.generation, level, self.output);
         if let Some(shared) = self.shared.upgrade() {
             self.publish(
                 &shared,
@@ -6239,3 +6245,6 @@ mod depth_histogram_read_only_contract_tests {
         drop(editor);
     }
 }
+
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) mod preview_qualification;

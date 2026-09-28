@@ -206,7 +206,7 @@ impl Batch<'_> {
         let (cx, cy) = ((r.left + r.right) * iw / 2., (r.top + r.bottom) * ih / 2.);
         let (sin, cos) = plan.angle.to_radians().sin_cos();
         let sample = lens.and_then(|l| l.sample.as_ref());
-        let flags = 8
+        let flags = (u32::from(plan.upright.0 != [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]) << 3)
             | u32::from(plan.transform.is_some())
             | u32::from(lens.is_some()) << 1
             | u32::from(sample.is_some()) << 2;
