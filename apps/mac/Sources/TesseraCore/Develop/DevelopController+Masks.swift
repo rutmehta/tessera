@@ -22,6 +22,27 @@ private final class MaskFlushFlight {
 /// Basic sliders. Nothing here commits: callers commit one undo step on mouse-up.
 extension DevelopController {
     private static var maskFlushFlights: [ObjectIdentifier: MaskFlushFlight] = [:]
+    private static var maskFollowOnDrains: [ObjectIdentifier: (id: UUID, task: Task<Void, Never>)] = [:]
+
+    /// Internal observation for deterministic source tests; awaiting does not trigger work.
+    var scheduledMaskFlushTask: Task<Void, Never>? {
+        Self.maskFollowOnDrains[ObjectIdentifier(self)]?.task
+    }
+
+    private func scheduleMaskFollowOnDrain() {
+        let identity = ObjectIdentifier(self)
+        guard Self.maskFollowOnDrains[identity] == nil else { return }
+        let id = UUID()
+        let task = Task { @MainActor [weak self] in
+            guard Self.maskFollowOnDrains[identity]?.id == id else { return }
+            Self.maskFollowOnDrains.removeValue(forKey: identity)
+            guard !Task.isCancelled, let self else { return }
+            // One batch per queued task: synchronous handlers cannot recurse.
+            // A successful second generation may enqueue one further task.
+            self.flushMaskPending()
+        }
+        Self.maskFollowOnDrains[identity] = (id, task)
+    }
 
     /// `'L008'`: one byte per pixel, imported by Metal as `.r8Unorm`.
     public static let overlayPixelFormat: UInt32 = 0x4C30_3038
@@ -207,9 +228,14 @@ extension DevelopController {
     @discardableResult
     func flushMaskPending() -> Bool {
         let identity = ObjectIdentifier(self)
-        guard !closed, hasPendingMaskChanges, Self.maskFlushFlights[identity] == nil else { return false }
+        guard Self.maskFlushFlights[identity] == nil else { return false }
+        // Any explicit consuming attempt supersedes previously scheduled work,
+        // including an attempt that rejects or discovers a closed/empty queue.
+        Self.maskFollowOnDrains.removeValue(forKey: identity)?.task.cancel()
+        guard !closed, hasPendingMaskChanges else { return false }
         let flight = MaskFlushFlight()
         Self.maskFlushFlights[identity] = flight
+        var succeeded = false
         defer {
             Self.maskFlushFlights.removeValue(forKey: identity)
             // On failure the old coalescer is intact; on success it has already
@@ -217,7 +243,9 @@ extension DevelopController {
             for sample in flight.brushSamples {
                 _ = pendingStroke?.add(x: sample.x, y: sample.y, pressure: sample.pressure)
             }
-            if !flight.brushSamples.isEmpty, pendingStroke?.isEmpty == false { onNeedsFlush?() }
+            // Do not depend on an optional or synchronous host handler to make
+            // progress, and never schedule an automatic retry of a failed batch.
+            if succeeded, !closed, hasPendingMaskChanges { scheduleMaskFollowOnDrain() }
         }
         do {
             if var stroke = pendingStroke, !stroke.isEmpty {
@@ -260,6 +288,7 @@ extension DevelopController {
                     throw error
                 }
             }
+            succeeded = true
         } catch {
             // Restore before invoking observers: a recovery callback may enqueue
             // newer coalesced values; the reentrancy gate prevents nested replay.
