@@ -1,0 +1,11 @@
+# Smart-filter mask thumbnail retention — source-only follow-up
+
+Reviewed on Machine A against main47c43b65, 2026-09-28. This is a queued B-owned Document FFI investigation, not a product repair or measured memory result. Existing source reservations remain in place; no new B workload has been dispatched.
+
+`crates/tessera-ffi/src/document/filters.rs` stores `FilterState.mask_thumbs` in a `HashMap` keyed by `(layer, index, max_px)`. `smart_filter_mask_thumbnail` accepts max_px from1 through1024 and replaces the same slot when mask contents differ, but there is no entry/byte cap or invalidation of obsolete slots in the reviewed references. Each retained entry owns a mask PNG string and an `Arc<Surface>`. Distinct deleted/recreated layer IDs and size variants can therefore accumulate through the session. The completed512MiB retained float-image cache bound does not cover this map.
+
+The visible smart-filter row requests64px thumbnails in `apps/mac/Sources/Tessera/Document/Filters/SmartFilterRows.swift`; this observation does not establish a process-wide bound or the cause of B’s resource incident. Other callers and FFI consumers must be accounted for before choosing a policy.
+
+A naive eviction/skip-retention change is not ready: the FFI returns only an IOSurface ID, and `ThumbnailCache.image` looks it up after the native call returns. Any cache policy must preserve native-to-consumer surface lifetime, including concurrent calls, before returning an ID. It must account for actual surface allocation and retained string bytes, preserve pixels, and avoid deep copies under the cache lock. A bounded copied-thumbnail or explicit lease contract may be needed; this requires the B-owned Swift/FFI boundary review.
+
+Next action: when B completes or releases its existing destination-safety reservation, scope the retention and surface-lifetime contract with B before source implementation. Tiny acceptance should distinguish retained-cache accounting from transient/GPU/RSS, cover obsolete-slot churn, replacement, oversize/zero budgets and lookup lifetime, and preserve independent destination progress. No arbitrary cap, new protocol, test result or incident closure is asserted here.
