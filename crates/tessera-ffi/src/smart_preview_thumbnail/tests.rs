@@ -582,3 +582,77 @@ fn unsafe_cache_paths_fail_without_external_writes_and_recover_without_identity_
         assert_eq!(fs::read(&source).unwrap(), baseline);
     }
 }
+
+#[test]
+fn hdr_saved_offline_recipe_keeps_policy_and_renders_sdr_thumbnail_without_mutation() {
+    let f = Fixture::new();
+    let expected = f.bytes();
+    let session = f
+        .engine
+        .clone()
+        .open_smart_preview_develop_session(f.id.to_string())
+        .unwrap();
+    session
+        .set_settings(
+            r#"{"output":{"hdr":true,"hdr_headroom_stops":2.0}}"#.into(),
+            false,
+        )
+        .unwrap();
+    session.flush().unwrap();
+    session.close().unwrap();
+    let (_, saved) = SmartPreviewJournal::open(f.engine.support_dir().unwrap(), f.id).unwrap();
+    let doc: sidecar::RecipeDocument = serde_json::from_slice(&saved.recipe).unwrap();
+    assert!(doc.recipe.settings.output.hdr);
+    assert_eq!(doc.recipe.settings.output.hdr_headroom_stops, 2.);
+    assert!(saved.dirty);
+    assert_eq!(
+        f.bytes(),
+        expected,
+        "SDR thumbnail ignores only HDR presentation policy"
+    );
+    let (_, after) = SmartPreviewJournal::open(f.engine.support_dir().unwrap(), f.id).unwrap();
+    assert_eq!(
+        saved.recipe, after.recipe,
+        "thumbnail must not rewrite settings/history"
+    );
+    let reopened = f
+        .engine
+        .clone()
+        .open_smart_preview_develop_session(f.id.to_string())
+        .unwrap();
+    let live: serde_json::Value =
+        serde_json::from_str(&reopened.get_settings_json().unwrap()).unwrap();
+    assert_eq!(live["output"]["hdr"], true);
+    assert_eq!(live["output"]["hdr_headroom_stops"], 2.);
+    reopened.close().unwrap();
+    assert!(!f.original.parent().unwrap().exists());
+}
+
+#[test]
+fn hdr_thumbnail_still_rejects_unsupported_proofing_without_journal_mutation() {
+    let f = Fixture::new();
+    let (mut journal, snapshot) =
+        SmartPreviewJournal::open(f.engine.support_dir().unwrap(), f.id).unwrap();
+    let mut doc: sidecar::RecipeDocument = serde_json::from_slice(&snapshot.recipe).unwrap();
+    let previous = doc.recipe.settings.clone();
+    doc.recipe.settings.output.hdr = true;
+    doc.recipe.settings.output.hdr_headroom_stops = 2.;
+    doc.recipe.settings.output.proof_profile = Some(engine_api::color::IccProfileHandle(
+        engine_api::id::Digest([9; 32]),
+    ));
+    doc.recipe
+        .history
+        .record(
+            &previous,
+            &doc.recipe.settings,
+            engine_api::recipe::EditMeta::user("unsupported proofing", 1),
+        )
+        .unwrap();
+    let saved = serde_json::to_vec(&doc).unwrap();
+    journal.save_recipe(saved.clone()).unwrap();
+    let job = f.job();
+    let ctx = JobContext::new(JobId(0), CancellationToken::new(), None);
+    assert!(job.render(&f.engine, &ctx).is_err());
+    assert_eq!(journal.snapshot().unwrap().recipe, saved);
+    assert!(!f.original.parent().unwrap().exists());
+}

@@ -255,6 +255,11 @@ impl ThumbnailJob {
         let source =
             RawImage::from_camera_linear_proxy(self.slot.0, render_id, Arc::new(decoded.proxy))?;
         crate::smart_preview::validate_proxy_recipe(&source, &document.recipe)?;
+        // Library thumbnails are explicitly SDR. Preserve the journal's HDR
+        // presentation policy and validate every other setting unchanged.
+        let mut settings = document.recipe.settings.clone();
+        settings.output.hdr = false;
+        settings.output.hdr_headroom_stops = 0.;
         // The renderer enforces the same unsupported dependency rules as Develop.
         let renderer = Renderer::new(RendererConfig {
             threads: 1,
@@ -270,7 +275,7 @@ impl ThumbnailJob {
         // Empty tile admission runs the complete dependency/settings validator.
         renderer.render_tiles(
             &source,
-            &document.recipe.settings,
+            &settings,
             &[],
             RenderOutput::Display,
             &ctx.cancellation,
@@ -283,7 +288,7 @@ impl ThumbnailJob {
         {
             return Ok(key);
         }
-        let extent = Renderer::output_extent(&source, &document.recipe.settings, 0)?;
+        let extent = Renderer::output_extent(&source, &settings, 0)?;
         let grid = extent.tile_grid(TILE_SIZE);
         let coords: Vec<_> = (0..grid.1)
             .flat_map(|y| (0..grid.0).map(move |x| TileCoord::new(0, x, y)))
@@ -292,7 +297,7 @@ impl ThumbnailJob {
         let mut tile_error = None;
         renderer.render_tiles(
             &source,
-            &document.recipe.settings,
+            &settings,
             &coords,
             RenderOutput::Display,
             &ctx.cancellation,

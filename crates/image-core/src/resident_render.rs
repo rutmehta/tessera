@@ -458,8 +458,7 @@ impl Renderer {
         settings: &DevelopSettings,
     ) -> EngineResult<bool> {
         if image.camera_linear_proxy().is_some() {
-            self.validate_camera_linear_proxy(image, settings)?;
-            return Ok(false);
+            return self.camera_linear_resident_supported(image, settings);
         }
         self.validate_settings(settings)?;
         let lens = self.interactive_lens_plan(image, settings, &CancellationToken::new())?;
@@ -475,7 +474,7 @@ impl Renderer {
     /// `level`: the level to render, when known. Texture/Clarity/Dehaze need a
     /// backend whole-level barrier that fits that level (any level when None).
     pub(super) fn supports_resident(&self, r: &Resolved<'_>, level: Option<u8>) -> bool {
-        if r.image.camera_linear_proxy().is_some() {
+        if r.image.camera_linear_proxy().is_some() && level != Some(0) {
             return false;
         }
         let s = r.settings;
@@ -526,7 +525,21 @@ impl Renderer {
         if image.camera_linear_proxy().is_some() {
             cancel.check()?;
             self.validate_camera_linear_proxy(image, settings)?;
-            return Ok(false);
+            let extent = Self::output_extent(image, settings, level)?;
+            let coords = Self::tiles_in_extent(extent, level, PixelRect::full(extent));
+            return self
+                .try_camera_linear_resident(
+                    image,
+                    settings,
+                    &coords,
+                    RenderOutput::Display,
+                    cancel,
+                    Some(SurfaceTarget {
+                        id: surface,
+                        histogram: false,
+                    }),
+                )
+                .map(|result| result.is_some());
         }
         cancel.check()?;
         let r = self.resolve(image, settings)?;
@@ -690,7 +703,29 @@ impl Renderer {
         if image.camera_linear_proxy().is_some() {
             cancel.check()?;
             self.validate_camera_linear_proxy(image, settings)?;
-            return Ok(None);
+            if output == RenderOutput::SceneLinear {
+                return Err(EngineError::invalid("IOSurface", "display output required"));
+            }
+            let extent = Self::output_extent(image, settings, level)?;
+            let coords = Self::tiles_in_extent(extent, level, PixelRect::full(extent));
+            return self
+                .try_camera_linear_resident(
+                    image,
+                    settings,
+                    &coords,
+                    output,
+                    cancel,
+                    Some(SurfaceTarget {
+                        id: surface,
+                        histogram: true,
+                    }),
+                )?
+                .map(|result| {
+                    result
+                        .histogram
+                        .ok_or_else(|| EngineError::internal("resident histogram missing"))
+                })
+                .transpose();
         }
         if output == RenderOutput::SceneLinear {
             return Err(engine_api::EngineError::invalid(
@@ -763,6 +798,33 @@ impl Renderer {
         let mut balanced = HashMap::new();
         for c in needed {
             cancel.check()?;
+            if let Some(proxy) = r.image.camera_linear_proxy() {
+                if c.level != 0 {
+                    return Err(EngineError::internal("camera-linear resident requires L0"));
+                }
+                let t = if let Some(t) = batch.cached(&key(StageId::WhiteBalance, c))? {
+                    t
+                } else {
+                    let source_key = key(StageId::Demosaic, c);
+                    let camera = if let Some(t) = batch.cached(&source_key)? {
+                        t
+                    } else {
+                        let uploaded = batch.upload(&proxy.pixels().tile(c, 0, 1)?)?;
+                        // upload_cached/cache would add an f16 conversion for this
+                        // stage, invalidating signed HDR / codec F32 fallback.
+                        batch.cache_exact(source_key, &uploaded)?
+                    };
+                    let t = batch.run(&Op::Matrix(r.profile), &camera)?;
+                    let t = batch.run(&Op::Matrix(r.wb), &t)?;
+                    let t = match r.lens.and_then(|l| l.vignette.as_ref()) {
+                        Some(plan) => batch.lens_gain(&t, r.image.active_extent(), plan)?,
+                        None => t,
+                    };
+                    batch.cache_exact(key(StageId::WhiteBalance, c), &t)?
+                };
+                balanced.insert(c, t);
+                continue;
+            }
             let t = if cache_wb && let Some(t) = batch.cached(&key(StageId::WhiteBalance, c))? {
                 t
             } else {
@@ -904,21 +966,17 @@ impl Renderer {
         Ok(balanced)
     }
 
-    /// Whole-level resident develop: one level-sized tile per stage instead
-    /// of one dispatch per pyramid tile. The WB level (padded by the largest
-    /// Detail halo, edges replicated like `gather`) and the developed level
-    /// are memoized, so point-stage edits cost one fused pass plus output.
-    #[allow(clippy::too_many_arguments)]
-    fn run_resident_level(
+    /// Shared resident tail, including geometry and optional display conversion.
+    /// SceneLinear leaves the result unencoded so proxy pyramid reduction can
+    /// occur after all nonlinear development, exactly like the scalar reference.
+    fn develop_resident_level(
         &self,
         r: &Resolved<'_>,
         all: &[TileCoord],
-        coords: &[TileCoord],
         output: RenderOutput,
         cancel: &CancellationToken,
-        mut batch: Box<dyn ResidentBatch + '_>,
-        surface: Option<SurfaceTarget>,
-    ) -> EngineResult<ResidentOutput> {
+        batch: &mut dyn ResidentBatch,
+    ) -> EngineResult<(crate::resident::ResidentTile, Extent)> {
         let level = all[0].level;
         let frame = r.image.level_extent(level);
         let lc = TileCoord::new(level, 0, 0);
@@ -949,7 +1007,7 @@ impl Renderer {
             let padded = if cache_wb && let Some(t) = batch.cached(&wb_key)? {
                 t
             } else {
-                let tiles = self.balanced_tiles(r, all.iter().copied(), &mut *batch, cancel)?;
+                let tiles = self.balanced_tiles(r, all.iter().copied(), batch, cancel)?;
                 cancel.check()?;
                 let t = batch.gather_level(frame, lc, LEVEL_PAD, &tiles)?;
                 if cache_wb {
@@ -1014,6 +1072,26 @@ impl Renderer {
         } else {
             frame
         };
+        Ok((t, frame))
+    }
+
+    /// Whole-level resident develop: one level-sized tile per stage instead
+    /// of one dispatch per pyramid tile. The WB level (padded by the largest
+    /// Detail halo, edges replicated like `gather`) and the developed level
+    /// are memoized, so point-stage edits cost one fused pass plus output.
+    #[allow(clippy::too_many_arguments)]
+    fn run_resident_level(
+        &self,
+        r: &Resolved<'_>,
+        all: &[TileCoord],
+        coords: &[TileCoord],
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        mut batch: Box<dyn ResidentBatch + '_>,
+        surface: Option<SurfaceTarget>,
+    ) -> EngineResult<ResidentOutput> {
+        let level = all[0].level;
+        let (mut t, frame) = self.develop_resident_level(r, all, output, cancel, &mut *batch)?;
         if batch.metrics_enabled() && level == 0 && r.lens.is_none() {
             t = batch.cache_exact(metrics_output_key(r), &t)?;
         }
@@ -1034,6 +1112,58 @@ impl Renderer {
                 .collect::<EngineResult<Vec<_>>>()?
         };
         batch.finish(finished, output == RenderOutput::Display, surface, cancel)
+    }
+
+    /// Camera-linear coarse previews share the L0 resident tail. Only after
+    /// geometry do we box-average linear pixels, then apply display conversion.
+    /// No original RAW path calls this function.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn run_camera_linear_coarse(
+        &self,
+        r: &Resolved<'_>,
+        coords: &[TileCoord],
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        mut batch: Box<dyn ResidentBatch + '_>,
+        surface: Option<SurfaceTarget>,
+    ) -> EngineResult<Option<ResidentOutput>> {
+        let input = r.image.level_extent(0);
+        if !batch.supports_level(input, LEVEL_PAD) {
+            return Ok(None);
+        }
+        let all = Self::tiles_for(r.image, 0, PixelRect::full(input));
+        let (linear, frame) =
+            self.develop_resident_level(r, &all, RenderOutput::SceneLinear, cancel, &mut *batch)?;
+        cancel.check()?;
+        let crop = [0, 0, frame.width, frame.height];
+        // Keep the generic ResidentBatch resample contract: regular L0 tiles,
+        // including odd edge tiles, rather than a backend-specific giant tile.
+        let needed: BTreeSet<_> = coords
+            .iter()
+            .flat_map(|&c| resample_sources(crop, c))
+            .collect();
+        let mut sources = HashMap::new();
+        for c in needed {
+            cancel.check()?;
+            let (x, y) = c.pixel_origin(TILE_SIZE);
+            let extent = Extent::new(
+                (frame.width - x).min(TILE_SIZE),
+                (frame.height - y).min(TILE_SIZE),
+            );
+            sources.insert(c, batch.crop(&linear, c, (x, y), extent)?);
+        }
+        let mut reduced = Vec::with_capacity(coords.len());
+        for &c in coords {
+            cancel.check()?;
+            let mut tile = batch.resample(crop, c, &sources, None)?;
+            if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
+                tile = batch.run(&display, &tile)?;
+            }
+            reduced.push(tile);
+        }
+        batch
+            .finish(reduced, output == RenderOutput::Display, surface, cancel)
+            .map(Some)
     }
 
     #[allow(clippy::too_many_arguments)]
