@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Broader Develop native gates verified — 2026-09-28 12:29 UTC
+
+At generated checkpointabe317c0 (Rust exactlyc1c3), original three-crate Release command passed579 named tests,0failed,29ignored across94 summaries;9 zero-pass summaries are not additional tests. Strict Clippy retry, fmt and workspace check exited0. Initial Clippy wrapper used zsh's read-only `status` variable and failed to record an exit; its raw successful-looking output is retained but not counted as a verified direct success. Retry has explicit direct0. All6419 before/after-release/after-gates inputs are byte-identical SHA256f3be2fd7fe084bbb6883d6b0eff7db6c3dc1a16a74e78e13d14e8c375720ecb4. Astra verified1177 native Git blobs against the source checkpoint. Root independently read exits/raw summaries and manifest hashes. LibRaw warnings remain recorded.
+
+Visible diagnostic4d4587c3 has root/Astra source clearance after exact process-launch identity and failure-handling corrections. Seven paths await integration into the native-validated candidate before focused/full Swift. Its100causal positive-present check plus sampled foreground evidence is a capability check, not a fully qualified P01 benchmark interval. Swift and GUI remain unrun. Filtered display-capture helper source-only evidence is mainf074f975; no capture or P11 acceptance claimed. Normal preview remains unchanged.
+
+A statusc0ea2967-3d6f-4585-b2ac-f7838a32b2d7 is published through Git; peer receipt/wakeup unverified. B hostname still fails resolution. Existing request8638c362 remains reserved with no duplicate queue attempt. A alone merges main; B hold remains.
+
+
 ## Current Develop gates and display capability — 2026-09-28 12:19 UTC
 
 M2 native source remains c1c3b6cc; generated-only checkpoint abe317c0 records actual bindgen output. The native arm64 archive SHA256 is 07d924df6866bdf5404452dcdf54a21976d88322b5858c9c0cb3a91191027414, relocated with verified bytes/mode to BetterSSD. Existing accepted archive4a45 remains unchanged. The original broader image-core/pipeline-gpu/tessera-ffi Release test command is compiling optimized dependencies in the sole lane; no result is claimed. Bounded139+3, fmt and strict gates remain verified separately.
