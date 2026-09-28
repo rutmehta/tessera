@@ -167,6 +167,28 @@ struct SaveAsRequest: Identifiable {
     }
 }
 
+/// Captures the actual window hosting this Save As content, not an arbitrary
+/// attached sheet discovered later from the application's current main window.
+private struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
+    let workspace: DocumentWorkspace
+    let requestID: UUID
+    final class ProbeView: NSView {
+        var capture: ((NSWindow) -> Void)?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { capture?(window) }
+        }
+    }
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.capture = { [weak workspace] window in
+            workspace?.captureSaveAsSheetWindow(requestID, window: window)
+        }
+        return view
+    }
+    func updateNSView(_ view: ProbeView, context: Context) {}
+}
+
 /// Non-observable identity latch: capturing sheet content must not rely on an
 /// onAppear state update, which may never occur after a synchronous cancellation.
 @MainActor
@@ -196,6 +218,8 @@ struct DocumentSaveAsPresentation: ViewModifier {
             // in the workspace does not claim this presentation identity.
             if capture.claim(request, in: workspace) {
                 SaveAsSheet(workspace: workspace, request: request)
+                    .background(DocumentSaveSheetWindowProbe(workspace: workspace, requestID: request.id)
+                        .frame(width: 0, height: 0))
             }
         }
     }
