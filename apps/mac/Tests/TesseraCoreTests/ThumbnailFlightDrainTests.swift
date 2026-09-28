@@ -20,7 +20,11 @@ private final class ControlledPreviewWorker: @unchecked Sendable {
     }
 
     func waitUntilEntered() async -> Bool {
-        await Task.detached { self.entered.wait(timeout: .now() + 5) == .success }.value
+        await Task.detached { self.waitEnteredBlocking() }.value
+    }
+
+    private func waitEnteredBlocking() -> Bool {
+        entered.wait(timeout: .now() + 5) == .success
     }
 }
 
