@@ -1,0 +1,54 @@
+{
+  "base": "5ad1cbcc078cefeb6945533cba8637a974f0de65",
+  "builds_or_tests_run": false,
+  "candidate_head": "358d19d3857af55bff07f1b8db69a17c48006320",
+  "files": {
+    "apps/mac/Package.resolved": {
+      "sha256": "864591e727a84baf306a284db39a5952b23de2e426b4ff4bbfa652446aa77844",
+      "bytes": 388
+    },
+    "apps/mac/Package.swift": {
+      "sha256": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86",
+      "bytes": 2079
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentSheets.swift": {
+      "sha256": "812e5b3a242d272e59635374738e8023701f67a4a32cd71e2e2cb3c5d107b81c",
+      "bytes": 12609
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": {
+      "sha256": "20c3bf4a03176d070dd361d505cd5cf1d5ec6e50b99224eddaa1d5e49b2e78f8",
+      "bytes": 33586
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift": {
+      "sha256": "16747ff20139ca40ec5f66a35839036ec18d21966b06b20e5fe7c67b9d836232",
+      "bytes": 3115
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift": {
+      "sha256": "d472b9ef5949f0f874f5417bd6258fbc571bcf33f758deb3465800c7c8807c35",
+      "bytes": 12944
+    },
+    "apps/mac/build/ffi/libtessera_ffi.a": {
+      "sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03",
+      "bytes": 298484480
+    },
+    "tools/orchestrate/wp/B5-16/DOCUMENT-LAYERS-COMPLETION-HANDOFF.md": {
+      "sha256": "d1e55633557e0cabfbf32f0ab2da090449627b8ded7cd81334686607848609cd",
+      "bytes": 2888
+    },
+    "tools/orchestrate/wp/B5-16/DOCUMENT-SAVE-SETTLEMENT-HANDOFF.md": {
+      "sha256": "7f6e4b44ade1ff0c4717012ea48c5df011dd0e520ceac75be0ec90e8fccdc66c",
+      "bytes": 4071
+    },
+    "apps/mac/Sources/Tessera/Shell/ContentView.swift": {
+      "sha256": "85cb4fb087d9d824993bb4f1d0f314c5694e8c774da1ea17ebf03a3425518072",
+      "bytes": 33279
+    }
+  },
+  "planned_test_filters": [
+    "DocumentSaveSettlementTests",
+    "DocumentLoadSettlementTests",
+    "testSaveAsNames|testSaveOpenAndExport|testEngineSessionThroughTheAdapter"
+  ],
+  "status_porcelain": "",
+  "worktree": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera"
+}

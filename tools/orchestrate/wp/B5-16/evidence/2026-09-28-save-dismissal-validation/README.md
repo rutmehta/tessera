@@ -1,0 +1,11 @@
+# Save As dismissal validation — GUI failed
+
+Candidate `358d19d3857af55bff07f1b8db69a17c48006320` passed the focused Release gates: 17 Document save tests, 4 Document load tests, and 3 adjacent tests, each with direct exit 0 and no timeout. The exact source manifest was verified after the gates. Raw commands, logs, direct results, and hashes are retained here.
+
+The exact tested executable was packaged into a new isolated betterSSD app with bundle ID `dev.tessera.document-save-validation.358d19d3`, separate from the earlier failed 5ad1 bundle and the normal preview. `codesign --verify --deep --strict` passed. Its source executable SHA-256 is `15af16ab74f2f4e84c6bcffda330a93035095f6a96e2922d9e932eb37a49e713`; the packaged binary hash after rpath/signing is in `package-manifest.json`. The GUI used an isolated `--app-dir`, a 32 × 32 generated JPEG folder, and a new 32 × 32 layered document.
+
+Save As Cancel and Escape dismissed the sheet. A new document save succeeded, producing `tiny-validation.tessera-doc` (999 bytes, SHA-256 `ff91da52…`). Reopening Save As with that same existing path and clicking Save dismissed the sheet without a Replace alert. The canvas reported **`Save: Another sheet is still attached to the document window`**. Repeating with a distinct existing `already-exists.tessera-doc` produced the same status. Both files retained their original hashes. This is a failed GUI acceptance despite the focused unit passes.
+
+Save As continued to reopen after those failures. With Save As visible, File ▸ Close did not immediately remove its parent document; Cancel dismissed the sheet, then the document closed. Open Document restored it, and Save As reopened and cancelled normally. That covers a queued close after modal dismissal, not abrupt parent destruction or preappearance cancellation. Replace Cancel and confirmed Replace remain untested because no alert appeared. The earlier failed 5ad1 GUI results remain preserved separately in `../2026-09-27-document-save-validation/`.
+
+`GUI-RESULTS.json` has the per-step AX observations and remaining limits. CUA screenshots were displayed inline during validation but were not exported as files. The isolated app was stopped, and normal preview PID 57591 was left untouched. No product source changed during this validation. The full Swift suite was not run.
