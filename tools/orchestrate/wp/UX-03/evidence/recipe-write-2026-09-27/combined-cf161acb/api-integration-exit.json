@@ -1,0 +1,19 @@
+{
+  "name": "api-integration",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--test",
+    "api",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "elapsed_seconds": 26.963374137878418,
+  "jobs": 2,
+  "rayon_threads": 2,
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target"
+}

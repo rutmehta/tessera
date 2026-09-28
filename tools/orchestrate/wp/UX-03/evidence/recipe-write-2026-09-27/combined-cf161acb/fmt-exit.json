@@ -1,0 +1,16 @@
+{
+  "name": "fmt",
+  "command": [
+    "cargo",
+    "fmt",
+    "--all",
+    "--",
+    "--check"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "elapsed_seconds": 1.954653024673462,
+  "jobs": 2,
+  "rayon_threads": 2,
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target"
+}
