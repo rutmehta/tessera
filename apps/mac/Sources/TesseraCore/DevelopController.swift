@@ -115,6 +115,9 @@ public final class DevelopController {
     private var timingInput: UInt64 = 0
     private(set) var closed = false
     private var closeTask: Task<Void, Never>?
+    /// Internal observation point for a caller joining an in-flight close. Nil in production.
+    /// Tests use it to release a backend gate only after the second caller has joined.
+    var onCloseWaiterJoined: (() -> Void)?
 
     // Masking (see DevelopController+Masks.swift): changes coalesced like the sliders.
     var pendingMaskParams: [MaskParamKey: Float] = [:]
@@ -159,6 +162,7 @@ public final class DevelopController {
     /// Stops rendering and writes pending edits (off the main actor). Idempotent.
     public func close() async {
         if let closeTask {
+            onCloseWaiterJoined?()
             await closeTask.value
             return
         }
