@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib concurrent_flushes_both_report_the_same_failed_save -- --nocapture
