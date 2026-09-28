@@ -219,7 +219,7 @@ struct DocumentInspector: View {
                     if historyExpanded { resizeHandle(current: height, column: column) }
                 }
                 .zIndex(1)
-            historyHeader
+            historyHeader(column: column)
                 .inspectorProbe("historyHeader")
             if historyExpanded {
                 DocumentHistoryPanel(document: doc, workspace: workspace)
@@ -232,7 +232,19 @@ struct DocumentInspector: View {
         .accessibilityIdentifier("document.history")
     }
 
-    private var historyHeader: some View {
+    private func historyHeader(column: CGFloat) -> some View {
+        HStack(spacing: Theme.Space.xs) {
+            historyToggle
+            if historyExpanded {
+                DocumentHistoryHeightControls(requested: $historyRequested, column: column)
+                    .frame(width: 132, height: Theme.Height.small)
+            }
+        }
+        .padding(.horizontal, Theme.Space.gutter)
+        .frame(height: Theme.Height.sectionHeader)
+    }
+
+    private var historyToggle: some View {
         Button {
             historyExpanded.toggle()
         } label: {
@@ -246,7 +258,6 @@ struct DocumentInspector: View {
                     .foregroundStyle(headerHover ? Theme.textSecondary : Theme.textTertiary)
                     .rotationEffect(.degrees(historyExpanded ? 90 : 0))
             }
-            .padding(.horizontal, Theme.Space.gutter)
             .frame(height: Theme.Height.sectionHeader)
             .contentShape(Rectangle())
         }
