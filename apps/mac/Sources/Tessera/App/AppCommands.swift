@@ -173,6 +173,8 @@ struct AppCommands: Commands {
         documentMenus
         Group {   // M2-50: Library + Photo as one builder item (the builder takes at most 10)
         CommandMenu("Library") {
+            SmartPreviewMenu(model: model)
+            Divider()
             Button("Open in Layers…") { model.requestLayeredCopy() }
                 .shortcut(!docMode, "e", .command)
                 .disabled(docMode || model.isReviewing || model.focusedItem == nil)

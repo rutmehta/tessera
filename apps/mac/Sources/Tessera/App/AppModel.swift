@@ -451,6 +451,12 @@ final class AppModel {
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
+    private(set) var smartPreviews = SmartPreviewController()
+    private(set) var preferSmartPreviews = UserDefaults.standard.object(forKey: "UseSmartPreviews") as? Bool ?? true
+    private(set) var developSourceRoute: DevelopSourceRoute?
+    private(set) var smartPreviewSelectionRevision = 0
+    private(set) var smartPreviewBatchActive = false
+    private(set) var smartPreviewCancelRequested = false
     var statusMessage: String?
     /// Set by the loupe view: colour space and EDR headroom of the current screen.
     var loupeInfo = ""
@@ -706,7 +712,15 @@ final class AppModel {
         (library as? EngineLibrary)?.onCatalogChange(nil)
         syncWaiters.removeAll()
         syncRequested = false
+        smartPreviews.cancel() // any captured old native operation still drains on its owner
         library = lib
+        let previews = SmartPreviewController(api: (lib as? EngineLibrary).map { .live(engine: $0.engine) })
+        smartPreviews = previews
+        previews.onChange = { [weak self, weak previews] imageID in
+            guard let self, let previews, self.smartPreviews === previews,
+                  let id = self.engineLibrary?.itemOfImage[imageID] else { return }
+            self.libraryItemsChanged([id])
+        }
         cull = snapshot.map { CullController(library: lib, snapshot: $0) } ?? lib.makeCullController()
         isEngineBacked = cull.isEngineBacked
         closeDevelop()
@@ -1140,7 +1154,7 @@ final class AppModel {
         if isReviewing { return selectedReviewEntry == nil ? "No review photo selected" : "Review actions apply to 1 photo" }
         if isPhotoEditing {
             guard let item = editTarget else { return "No photo selected" }
-            return item.kind == .synthetic ? "Preview only · STUB" : "Editing 1 photo · \(item.kind.rawValue)"
+            return item.kind == .synthetic ? "Preview only · STUB" : "Editing 1 photo · \(item.kind.rawValue)" + (develop?.imageID == item.engineImage?.imageID ? developSourceRoute.map { " · " + $0.label } ?? "" : "")
         }
         if source == .people { return "People directory" }
         if compare != nil { return "Active candidate · decisions apply to 1 photo" }
@@ -1617,6 +1631,8 @@ final class AppModel {
     private func notifySelection(scroll: Bool) {
         // Identity, not just the count: a same-size selection can have different mixed fields.
         collections.focusDidChange()
+        smartPreviewSelectionRevision += 1
+        refreshSmartPreviewSelection()
         if let d = develop, d.itemID != focusedItem?.id { closeDevelop() }
         for o in liveObservers { o.selectionDidChange(scrollToFocus: scroll) }
     }
@@ -2127,6 +2143,102 @@ final class AppModel {
         showToast("Rejected \(ids.count) frame\(ids.count == 1 ? "" : "s") from the defect sweep", undoable: true)
     }
 
+    // MARK: Smart Previews (source-only native API integration)
+
+    var smartPreviewTargets: [SmartPreviewTarget] {
+        // Observe selection identity through its existing revision, not only count.
+        _ = libraryRevision
+        _ = smartPreviewSelectionRevision
+        _ = focusedItem
+        _ = selectionCount
+        return targetIDs.compactMap { id in
+            guard library.items.indices.contains(id) else { return nil }
+            let item = library.items[id]
+            guard item.kind == .raw, let ref = item.engineImage else { return nil }
+            return SmartPreviewTarget(id: ref.imageID, name: item.name)
+        }
+    }
+
+    func smartPreviewBadge(for item: PhotoItem) -> String? {
+        guard let ref = item.engineImage else { return nil }
+        return smartPreviews.snapshots[ref.imageID]?.badge
+    }
+
+    private func refreshSmartPreviewSelection() {
+        let item = focusedItem
+        smartPreviews.select(imageID: item?.kind == .raw ? item?.engineImage?.imageID : nil)
+    }
+
+    func setPreferSmartPreviews(_ value: Bool) {
+        guard preferSmartPreviews != value, !developRecovery.hasActiveReservations else { return }
+        guard let owner = engineLibrary, let item = focusedItem, let ref = item.engineImage else {
+            preferSmartPreviews = value
+            UserDefaults.standard.set(value, forKey: "UseSmartPreviews")
+            return
+        }
+        let generation = loadGeneration
+        let barrier = prepareForRecipeRead(imageIDs: [ref.imageID], library: owner)
+        Task { [weak self] in
+            let result = await barrier.result()
+            // Reopening inside an active read reservation is forbidden. Release only
+            // after actual close/drain, then perform the same owner/generation checks.
+            barrier.finish()
+            guard let self, self.engineLibrary === owner, self.loadGeneration == generation,
+                  self.focusedItem?.engineImage?.imageID == ref.imageID else { return }
+            guard result.isSaved else {
+                self.statusMessage = "Finish saving this photo before changing editing source"
+                return
+            }
+            self.preferSmartPreviews = value
+            UserDefaults.standard.set(value, forKey: "UseSmartPreviews")
+            if self.viewMode == .loupe, let current = self.focusedItem { self.openDevelop(for: current) }
+        }
+    }
+
+    func cancelSmartPreviewBatch() {
+        smartPreviewCancelRequested = true
+        smartPreviews.cancel()
+    }
+
+    func runSmartPreviewBatch(_ action: SmartPreviewController.Action) {
+        let targets = smartPreviewTargets
+        guard !targets.isEmpty else {
+            statusMessage = "Select indexed RAW photos to manage Smart Previews"
+            return
+        }
+        guard !smartPreviewBatchActive, let owner = engineLibrary,
+              !developRecovery.hasActiveReservations,
+              !targets.contains(where: { agent.isMutating(imageID: $0.id, library: owner) }) else { return }
+        let controller = smartPreviews
+        let generation = loadGeneration
+        // Retain the same recipe-read reservation through the entire native drain.
+        let barrier = prepareForRecipeRead(imageIDs: Set(targets.map(\.id)), library: owner)
+        smartPreviewBatchActive = true
+        smartPreviewCancelRequested = false
+        Task { [weak self, controller] in
+            defer {
+                barrier.finish()
+                self?.smartPreviewBatchActive = false
+                if let self, self.smartPreviews === controller, self.loadGeneration == generation,
+                   self.engineLibrary === owner, self.viewMode == .loupe, self.develop == nil,
+                   !self.developRecovery.hasUnresolvedSessions, let item = self.focusedItem {
+                    self.openDevelop(for: item)
+                }
+            }
+            let result = await barrier.result()
+            guard let self, self.engineLibrary === owner, self.loadGeneration == generation,
+                  self.smartPreviews === controller else { return }
+            guard result.isSaved else {
+                self.statusMessage = "Smart Previews: finish saving pending photo edits first"
+                return
+            }
+            guard !self.smartPreviewCancelRequested else { return }
+            await controller.run(action, targets: targets)
+            // Results belong to the captured batch; no global status overwrite after selection changes.
+            if self.smartPreviews === controller { self.refreshSmartPreviewSelection() }
+        }
+    }
+
     // MARK: Develop (Basic panel on the engine)
 
     /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
@@ -2154,6 +2266,7 @@ final class AppModel {
         developStatus = .loading
         let generation = loadGeneration
         let opener = developControllerOpener
+        let preferPreview = preferSmartPreviews
         let token = UUID()
         let recovery = developRecovery
         let task = Task { [weak self, recovery, owner] in
@@ -2162,9 +2275,21 @@ final class AppModel {
                 recovery.finishOpen(token: token)
             }
             do {
-                let controller = try await opener(ref, item.id)
+                let controller: DevelopController
+                if item.kind == .raw {
+                    let snapshot = try await SmartPreviewAPI.live(engine: ref.engine).info(ref.imageID)
+                    try Task.checkCancellation()
+                    controller = try await SmartPreviewRouting.open(snapshot, preferPreview: preferPreview) { route in
+                        switch route {
+                        case .original: try await opener(ref, item.id)
+                        case .smartPreview: try await DevelopController.open(ref, itemID: item.id, source: .smartPreview)
+                        }
+                    }
+                } else {
+                    controller = try await opener(ref, item.id)
+                }
                 guard recovery.producedOpen(controller, owner: owner, token: token) else { return }
-                guard let self, !Task.isCancelled, generation == self.loadGeneration,
+                guard let self, !Task.isCancelled, self.activeDevelopOpen == token, generation == self.loadGeneration,
                       self.engineLibrary === owner,
                       self.focusedItem?.engineImage?.imageID == ref.imageID else {
                     let id = recovery.register(owner: owner, controller: controller,
@@ -2211,6 +2336,7 @@ final class AppModel {
             })
         developSessionID = sessionID
         develop = controller
+        developSourceRoute = controller.sourceRoute
         developLibrary = owner
         developStatus = .ready
         developHistory = controller.history
@@ -2249,6 +2375,7 @@ final class AppModel {
         switch outcome {
         case .saved:
             develop = nil
+            developSourceRoute = nil
             developLibrary = nil
             developSessionID = nil
             developStatus = .none
@@ -2311,6 +2438,7 @@ final class AppModel {
 
     /// Recipe + XMP were written: refresh the grid thumbnail (recipe-hash keyed) and the status.
     private func developDidSave(itemID: Int) {
+        refreshSmartPreviewSelection()
         if let d = develop, d.itemID == itemID { developHistory = d.history }
         guard library.items.indices.contains(itemID) else { return }
         loader.invalidate(library.items[itemID])

@@ -265,7 +265,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
                        basketTarget: model.basketTarget, suggestedBest: model.isSuggestedBest(item),
                        groupIndex: model.indexInGroup(of: item), groupSize: model.groupSize(of: item),
                        focused: p == model.focus, style: style, loader: model.loader,
-                       suggestion: model.suggestion(at: p))
+                       suggestion: model.suggestion(at: p), smartPreviewBadge: model.smartPreviewBadge(for: item))
         if !loadingVisible { cell.stopLoading() }
     }
 
@@ -273,7 +273,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         for p in positions {
             guard let cell = collectionView.item(at: IndexPath(item: p, section: 0)) as? ThumbnailCell else { continue }
             cell.update(state: model.state(at: p), status: model.status(at: p), basketTarget: model.basketTarget,
-                        suggestion: model.suggestion(at: p))
+                        suggestion: model.suggestion(at: p), smartPreviewBadge: model.smartPreviewBadge(for: model.item(at: p)))
         }
     }
 
