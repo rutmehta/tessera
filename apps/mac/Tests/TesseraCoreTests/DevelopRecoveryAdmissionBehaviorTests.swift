@@ -59,6 +59,61 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         if let close = model.closeDevelop() { _ = await close.value }
     }
 
+    func testSuccessfulRetryClearsRecoveryOwnedBlockedNavigationStatus() async throws {
+        let fixture = try makeFixture(photoCount: 1)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let model = fixture.model
+        model.enterPhotoEdit()
+        model.openDevelop(for: try XCTUnwrap(fixture.library.items.first))
+        guard await waitUntil({ model.develop != nil }) else { return }
+        fixture.closePlan.failNextClose()
+
+        model.requestLibraryViewMode(.grid)
+        guard await waitUntil({ model.statusMessage == "Finish saving the photo before leaving this workspace"
+            && !model.developRecovery.hasActiveReservations }) else { return }
+        let sessionID = try XCTUnwrap(model.developRecoveries.first?.id)
+        model.keepEditingDevelopRecovery()
+
+        // A fresh Back request is blocked by the retained failed close and owns this status.
+        model.requestLibraryViewMode(.grid)
+        guard await waitUntil({ model.statusMessage == "Finish saving the photo before leaving this workspace"
+            && !model.developRecovery.hasActiveReservations }) else { return }
+        XCTAssertTrue(model.photoEditing)
+
+        model.retryDevelopRecovery(sessionID)
+        guard await waitUntil({ model.viewMode == .grid && !model.photoEditing
+            && model.develop == nil && model.developRecoveries.isEmpty }) else { return }
+        XCTAssertNil(model.statusMessage,
+                     "A successful current retry should clear its stale blocked-navigation message")
+    }
+
+    func testSuccessfulRetryPreservesNewerUnrelatedStatus() async throws {
+        let fixture = try makeFixture(photoCount: 1)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let model = fixture.model
+        model.enterPhotoEdit()
+        model.openDevelop(for: try XCTUnwrap(fixture.library.items.first))
+        guard await waitUntil({ model.develop != nil }) else { return }
+        fixture.closePlan.failNextClose()
+
+        model.requestLibraryViewMode(.grid)
+        guard await waitUntil({ model.statusMessage == "Finish saving the photo before leaving this workspace"
+            && !model.developRecovery.hasActiveReservations }) else { return }
+        let sessionID = try XCTUnwrap(model.developRecoveries.first?.id)
+        model.keepEditingDevelopRecovery()
+        model.requestLibraryViewMode(.grid)
+        guard await waitUntil({ model.statusMessage == "Finish saving the photo before leaving this workspace"
+            && !model.developRecovery.hasActiveReservations }) else { return }
+
+        let newerStatus = "A newer import completed"
+        model.statusMessage = newerStatus
+        model.retryDevelopRecovery(sessionID)
+        guard await waitUntil({ model.viewMode == .grid && !model.photoEditing
+            && model.develop == nil && model.developRecoveries.isEmpty }) else { return }
+        XCTAssertEqual(model.statusMessage, newerStatus,
+                       "Retry cleanup must not erase status published by another operation")
+    }
+
     func testLatestViewIntentCommitsAfterOneHeldDevelopClose() async throws {
         let fixture = try makeFixture(photoCount: 1)
         defer { try? FileManager.default.removeItem(at: fixture.root) }
