@@ -23,6 +23,12 @@
   cleanup and last-window quit added to Stage B. A traced export/print save-error
   suppression in `20ef8599`. These are unimplemented requirements. B hold and
   paused heartbeat remain unchanged.
+- **B mask retention source candidate assigned**: request `a25ad2ff`, existing-chat
+  SSH queue `01a0e5b3-ae20-70e2-a513-4c7bf7551799` transport accepted; peer
+  receipt pending. Only mask extension and a new dedicated fault-test file;
+  ordinary settings controller/AppModel excluded. B tests remain UNRUN, A gates.
+- Native close first RED `39551980` failed fixture row lookup before lifecycle
+  assertions; preserved as setup failure, not a behavioral RED. Correction pending.
 - Normal user preview PID57591 remains untouched. A alone merges main.
 
 This checkpoint supersedes older in-progress ownership entries below.
