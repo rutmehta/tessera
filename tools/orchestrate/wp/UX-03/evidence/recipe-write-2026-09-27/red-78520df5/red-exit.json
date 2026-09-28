@@ -1,0 +1,18 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--lib",
+    "recipe_write_tests",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 101,
+  "timed_out": false,
+  "elapsed_seconds": 229.82262086868286,
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target",
+  "jobs": 2,
+  "rayon_threads": 2
+}

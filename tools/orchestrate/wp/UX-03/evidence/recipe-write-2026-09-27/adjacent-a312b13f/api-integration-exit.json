@@ -1,0 +1,16 @@
+{
+  "name": "api-integration",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--test",
+    "api",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "elapsed_seconds": 29.42080783843994
+}
