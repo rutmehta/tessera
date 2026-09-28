@@ -201,8 +201,17 @@ fn renderer_config_and_ordered_graph_fields_change_key() {
 fn identical_inputs_are_deterministic_and_key_failure_is_explicit_bypass() {
     let settings = DevelopSettings::default(); let config = RendererConfig::default();
     assert_eq!(key(&input(&settings, &config)).unwrap(), key(&input(&settings, &config)).unwrap());
-    let mut invalid = settings.clone(); invalid.tone.exposure = f32::NAN;
-    assert!(key(&input(&invalid, &config)).is_err());
+    // serde_json may emit null for nonfinite floats: successful JSON encoding
+    // alone cannot authorize a cache key. All these must explicitly bypass.
+    for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        for field in 0..3 {
+            let mut invalid = settings.clone();
+            match field { 0 => invalid.tone.exposure = bad,
+                1 => invalid.output.hdr_headroom_stops = bad,
+                _ => invalid.tone.curves.rgb.0.push(engine_api::recipe::settings::CurvePoint { x: 0.5, y: bad }) }
+            assert!(key(&input(&invalid, &config)).is_err(), "nonfinite field {field}");
+        }
+    }
 }
 
 #[test]
