@@ -1,40 +1,36 @@
 # Tessera task board — Machine A coordinator
 
-## Current coordinator checkpoint — 2026-09-28 02:25 UTC
+## Current coordinator checkpoint — 2026-09-28 02:39 UTC
 
-- **DONE native save retry**, main `d4274a68`, tested `85de2860`:21Develop plus
-  two adjacent tests, strict/fmt passed. Explicit repair reads current disk recipe.
-- **DONE bounded native close lifecycle and Swift rejected-settings retention**,
-  main `01ac555e`, exact tested `40d3054e`. Fresh native archive `8ab43f64`, matching
-  regenerated Swift checksum; focused41/0 and full Release516XCTest/1existing skip/
-  0failures +5SwiftTesting, directexit0. Root verified1626source hashes and exact
-  product equality after merge. Native41unit +9Develop-integration +3mask-integration
-  and final strict/fmt passed; ignored tests remain excluded. All earlier test
-  setup failures, semaphore stall, wrapper SIGSEGV and lint failure are preserved.
-  Evidence: `tools/orchestrate/wp/UX-03/evidence/develop-retry-integration-2026-09-28/`.
-- **Luna owns compiler** for B mask retention validation. Baseline `36f5845d` on
-  tested integration40d, matching8abFFI. Safe rejected-component baseline RED completed:1test/2expectedassertions,
-  directexit1; old code lost rejected component. Baseline nested reentry would
-  recurse indefinitely and was not run. Final2file overlay `8c628e63` from B639da049
-  is running11tests +adjacentmaskcontrols on unchanged8ab bridge. Initial B986512b6
-  source review failed liveness; revised source review has no blocker.
-- **B communication verified**: requesta25ad2ff and revision13fb8907 delivered via
-  existing-chat SSH queues; peer results48f8e3c2 and737e0d32 received and validated.
-  First result failed source acceptance; revised result accepted for A validation,
-  NOT completed. No B workloads, main merges or heartbeat restart authorized.
-- **NEXT Core result-bearing close**, amended source plan `d1cf2926` on main.
-  Resource Sol prepared UNRUN behavioralRED `e96781ac` with separate internal
-  nil-default joinobserver `422c2f0c`; current Voidclose semantics retained.
-  Reviewer checks deterministicjoin/noHandleforwarding/cleanup before nextslot.
-  Historical resource-worktree FFI symlink remains untouched; copy matching8ab
-  inputs safely before its Swift gate. No close implementation yet. Retain failures/sharedattempt, block host edits duringclose,
-  and propagate actual settings/mask errors. Then AppModel strong recovery owner,
-  navigation/Review/Layers/Agent/export/print/quit gates and Retry/Keep Editing UI.
-  Discard and Stage C lease/CAS remain blocked. Ignored close results are unsafe;
-  native improvements alone do not make app-level recovery complete.
-- Normal user preview PID57591 remains untouched on older65fa build. It does not
-  acquire merged changes automatically. A alone owns main merges. No new GUI or
-  performance/resource acceptance claimed by the automated gate.
+- **DONE native save retry** main `d4274a68`, tested `85de2860`: 21 Develop
+  plus two adjacent tests, strict/fmt passed; repair reads current disk recipe.
+- **DONE native close lifecycle and settings retention** main `01ac555e`,
+  exact tested `40d3054e`, archive `8ab43f64`. Full Release 516 XCTest,
+  one existing skip, zero failures, plus five Swift Testing tests; focused 41/0.
+  Earlier failures remain preserved. This is not application recovery acceptance.
+- **DONE coalesced mask retention** main `447772f5`, exact product `8c628e63`
+  from B `639da049`. Safe baseline `36f5845d` failed two expected assertions;
+  final 11 retention + 14 adjacent tests passed, direct exit 0. Root verified
+  source/archive hashes and merged product equality. Portable evidence `bac0dcaa`
+  under `tools/orchestrate/wp/UX-03/evidence/mask-retention-2026-09-28/`.
+  No full-suite or GUI gate was run for this change. B result `737e0d32`
+  has a completed receipt; initial source-review failure remains recorded.
+- **Resource Sol owns compiler** for two Core close behavioral RED tests at
+  `e96781ac`. Independent source review accepted deterministic waiter observation.
+  Old FFI symlink target `19f9f548` was backed up and left unchanged; this checkout
+  now has a regular copy of matching `8ab43f64`. Fresh external Release scratch,
+  two jobs, bounded watchdog. No result-bearing close implementation yet.
+- **Next:** make host drains return actual errors, retain a failed shared close
+  attempt and reject mutations during close. Independent reviewer audits all
+  admission entry points. Then implement AppModel strong recovery ownership and
+  navigation/Review/Layers/Agent/export/print/quit barriers. Discard and Stage C
+  lease/CAS remain blocked. Existing callers that ignore close failure are unsafe.
+- **B source-only planning:** request `3efd98f3` asks for concrete AppModel recovery
+  slices and deterministic tests. SSH queue `01a0e5e1-4676-7cd1-b874-89d4a06dc690`
+  accepted transport; peer receipt not yet verified. No B workloads, main merges
+  or heartbeat restart. A alone owns main merges.
+- Normal user preview PID57591 remains untouched on older65fa build; merging
+  main does not update that package. No new performance acceptance claimed.
 
 This checkpoint supersedes older in-progress ownership entries below.
 
