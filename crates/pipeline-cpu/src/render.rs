@@ -471,31 +471,6 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parallel_detail_is_bit_exact_across_tiles_and_edges() {
-        let input = Image::new(
-            519,
-            263,
-            (0..3)
-                .map(|c| {
-                    (0..519 * 263)
-                        .map(|i| ((i * 17 + c * 13) % 257) as f32 / 256.0)
-                        .collect()
-                })
-                .collect(),
-        )
-        .unwrap();
-        let settings = Default::default();
-        let serial = detail_image(&input, &settings, 1).unwrap();
-        let parallel = detail_image(&input, &settings, 4).unwrap();
-        assert_eq!(serial.planes(), parallel.planes());
-    }
-}
-
 /// The single original-sensor prefix used by full RAW and proxy generation.
 pub(crate) fn camera_linear_prefix(
     settings: &DevelopSettings,
@@ -617,4 +592,29 @@ pub(crate) fn camera_linear_prefix(
         &settings.lens,
     )?;
     Ok((out, correction, embedded, use_embedded))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parallel_detail_is_bit_exact_across_tiles_and_edges() {
+        let input = Image::new(
+            519,
+            263,
+            (0..3)
+                .map(|c| {
+                    (0..519 * 263)
+                        .map(|i| ((i * 17 + c * 13) % 257) as f32 / 256.0)
+                        .collect()
+                })
+                .collect(),
+        )
+        .unwrap();
+        let settings = Default::default();
+        let serial = detail_image(&input, &settings, 1).unwrap();
+        let parallel = detail_image(&input, &settings, 4).unwrap();
+        assert_eq!(serial.planes(), parallel.planes());
+    }
 }
