@@ -43,8 +43,10 @@ extension DocumentController {
     /// A new adjustment layer's parameters: neutral, or analysed from the composite for the image-dependent kinds.
     func initialAdjustment(_ kind: AdjustmentModel.Kind) -> AdjustmentModel {
         switch kind {
-        case .equalize, .auto:
+        case .equalize:
             return analyzed(kind.neutral, samples: compositeSamples())
+        case .auto:
+            return analyzed(.auto(.fresh(.tone)), samples: compositeSamples())
         case .matchColor:
             guard let source = defaultMatchSource() else { return kind.neutral }
             return AdjustmentAnalysis.matchColor(sourceLayer: source, source: layerSamples(source),
@@ -55,14 +57,16 @@ extension DocumentController {
         }
     }
 
-    /// `model` with its frozen parameters recomputed from `samples` (Auto keeps its mode, `clip` is its tail).
-    func analyzed(_ model: AdjustmentModel, samples: [SIMD3<Float>], clip: Double = AdjustmentEditorState.defaultAutoClip) -> AdjustmentModel {
+    /// `model` with its frozen parameters recomputed from `samples` (Auto keeps its mode and its persisted
+    /// shadow / highlight clips, M5-32).
+    func analyzed(_ model: AdjustmentModel, samples: [SIMD3<Float>]) -> AdjustmentModel {
         guard !samples.isEmpty else { return model }
         switch model {
         case .equalize:
             return .equalize(maps: AdjustmentAnalysis.equalizeMaps(AdjustmentAnalysis.histograms(samples)))
         case .auto(let m):
-            return .auto(AdjustmentAnalysis.auto(m.mode, histograms: AdjustmentAnalysis.histograms(samples), clip: clip))
+            return .auto(AdjustmentAnalysis.auto(m.mode, histograms: AdjustmentAnalysis.histograms(samples),
+                                                 shadowClip: m.shadowClip, highlightClip: m.highlightClip))
         case .hdrToning(let m):
             return m.method == .equalizeHistogram ? .hdrToning(AdjustmentAnalysis.hdrEqualize(samples, base: m)) : model
         default:
@@ -72,16 +76,11 @@ extension DocumentController {
 }
 
 /// Editor state that outlives an editor view (the Image ▸ Adjustments sheet rebuilds its editor on every
-/// committed change): tone range, colour row, Auto clip and the file a Color Lookup was loaded from, per layer.
+/// committed change): tone range and colour row, per layer. (B5-16: Auto clips, Match Color Neutralize and the
+/// Color Lookup file name are adjustment fields since M5-32, so they persist with the document.)
 @MainActor @Observable
 final class AdjustmentEditorState {
     static let shared = AdjustmentEditorState()
-    /// Photoshop's Auto default: 0.1 % from each end.
-    nonisolated static let defaultAutoClip = 0.001
     var colorBalanceRange: [DocLayerID: Int] = [:]
     var selectiveColorRow: [DocLayerID: Int] = [:]
-    var autoClip: [DocLayerID: Double] = [:]
-    /// The `.cube` / `.3dl` each Color Lookup layer was loaded from this session (the engine stores samples,
-    /// not a file name; COMPOSITOR.md §4).
-    var lookupFile: [String: String] = [:]
 }
