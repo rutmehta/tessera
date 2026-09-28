@@ -1,5 +1,16 @@
 # Tessera task board — Machine A coordinator
 
+## Active coordinator lanes — 2026-09-28 06:00 UTC
+
+| Work | Owner | Verified state and next action |
+| --- | --- | --- |
+| Document Save As cancellation | B diagnostic source; A reviewer GUI | `88de50ea` failed compilation (SDK has no didBeginSheet notification). Narrow A repair `e8ddabfa` passed 43 focused tests, but actual first Save As Cancel made three subsequent enabled Save As commands show no sheet. FAILED; no product merge. Portable evidence on main `ee8b46f0`, 20 payload hashes independently verified. Next: opt-in event tracing before another correction. |
+| Review preview recovery | Resource Sol source; Luna tests and sole heavy lane | Opt-in gate drain wait `7f5c4c49` reviewed without source blocker. Held-flight regression `e042bac6` is unrun; Luna adds cancelled-waiter and failed-save controls before RED/green, unchanged layout and full suite. Prior full597 missing-preview failure remains unaccepted. |
+| Layers handoff | B API; A recovery integration | `5a82058d` passed 58+7 unique focused tests; prior full597 failed only Review preview. c4ba RED and scoped passes published main `da6c5220` (44 payloads verified). Overall recovery acceptance awaits current gates and real GUI. |
+| Staged filter composition | Resource Sol separate source; A later gate | Nine tests remain unrun. Transplant tests then explicit AppModel hunks onto accepted recovery; do not merge divergent branch/DocumentWorkspace ancestry. Preserve existing navigation cancellation helper and current Document APIs. |
+
+B source-only diagnostic request `95510c13-77dc-4af0-8be4-aa4ebe0fa1f6` published; SSH queue `01a0e699-2282-7bf1-875c-d6ab85b63909` accepted, peer receipt not yet verified. Terminal/choosing results `5018e46b` and `6b02b287` now have failed receipts with actual GUI evidence. B resource hold and paused heartbeat remain. A alone merges main; one heavy lane. Isolated Document app is closed; normal preview PID57591 untouched. No source-only work or failed acceptance is counted as passing.
+
 ## Current blockers and active lanes — 2026-09-28 05:51 UTC
 
 | Lane | Owner | Verified outcome / next action |
