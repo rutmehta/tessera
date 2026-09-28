@@ -120,11 +120,11 @@ private struct ReviewCurrentPreview: View {
         .padding(Theme.Space.gutter)
         .accessibilityIdentifier("review-current-preview")
         .onChange(of: identity, initial: true) { _, _ in load() }
-        .onDisappear { request?.cancel(); request = nil; loadTask?.cancel(); loadTask = nil; loadToken = UUID() }
+        .onDisappear { request = nil; loadTask?.cancel(); loadTask = nil; loadToken = UUID() }
     }
 
     private func load() {
-        request?.cancel(); request = nil; image = nil
+        request = nil; image = nil
         loadTask?.cancel(); loadTask = nil
         let token = UUID()
         loadToken = token
@@ -137,20 +137,39 @@ private struct ReviewCurrentPreview: View {
         let generation = model.agent.reviewGeneration
         let barrier = model.pendingDevelopSaveBarrier(imageID: selected, library: owner)
         loadTask = Task {
-            await barrier.value
+            var flightOwnsBarrier = false
+            defer { if !flightOwnsBarrier { barrier.finish() } }
+            guard await barrier.resultWaitingForPrecedingDrain().isSaved else {
+                if !Task.isCancelled, loadToken == token, model.engineLibrary === owner,
+                   model.reviewNavigation.selectedID == selected,
+                   model.agent.reviewGeneration == generation { loading = false }
+                return
+            }
             guard !Task.isCancelled, loadToken == token, model.engineLibrary === owner,
                   model.reviewNavigation.selectedID == selected, model.agent.reviewGeneration == generation else { return }
             // A just-closed session may have saved after this item's previous preview was cached.
             model.loader.invalidate(item)
-            request = model.loader.request(item, tier: .preview, priority: .veryHigh) { next in
+            let subscribed = model.loader.request(item, tier: .preview, priority: .veryHigh) { next in
                 guard loadToken == token, model.engineLibrary === owner,
                       model.reviewNavigation.selectedID == selected, model.agent.reviewGeneration == generation else { return }
                 image = next
                 loading = false
             }
+            guard let subscribed else { loading = false; return }
+            request = subscribed
+            flightOwnsBarrier = true
+            // The UI subscriber may detach before its non-interruptible native
+            // read returns. Keep the reservation through actual flight drain.
+            Task {
+                await subscribed.waitForFlightDrain()
+                barrier.finish()
+            }
             // ThumbnailLoader reports successful delivery only; a failed decode must not spin forever.
             try? await Task.sleep(for: .seconds(30))
-            if !Task.isCancelled, loadToken == token { loading = false }
+            if !Task.isCancelled, loadToken == token {
+                request = nil
+                loading = false
+            }
         }
     }
 }

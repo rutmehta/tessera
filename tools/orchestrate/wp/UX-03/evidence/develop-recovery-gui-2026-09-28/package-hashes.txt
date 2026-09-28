@@ -1,0 +1,4 @@
+c955d9f73f8f1773e44fe0bf1850fe9c70928ecc49f0304501bedbe8593c7c2b  /Volumes/betterSSD/tessera-cache/swift/develop-recovery-app-admission-cf4f4114/scratch/arm64-apple-macosx/release/Tessera
+d0d85173fd5ede0b057406ba15dd2df5c1619846c35d338223af49985700ca77  /Volumes/betterSSD/tessera-validation/develop-recovery-app/gui-634b7e68/Tessera Develop Recovery 634b7e68.app/Contents/MacOS/Tessera
+9c22ce70f7369e6de3b098ca202814957b2b3db82c8004bf74aa7b5090889fca  /Volumes/betterSSD/tessera-validation/develop-recovery-app/gui-634b7e68/Tessera Develop Recovery 634b7e68.app/Contents/Info.plist
+8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03  /Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/ffi/libtessera_ffi.a

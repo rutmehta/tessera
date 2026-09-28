@@ -128,14 +128,21 @@ final class AgentReviewNavigationTests: XCTestCase {
         firstController.onNeedsFlush = {}
         firstController.set(.exposure, 1.25, interactive: true)
         model.returnFromPhotoEdit()
+        try await settle { model.isReviewing && model.develop == nil }
         let previewBarrier = model.pendingDevelopSaveBarrier(imageID: selected.imageID, library: try XCTUnwrap(model.engineLibrary))
-        await previewBarrier.value
+        guard case .saved = await previewBarrier.result() else {
+            XCTFail("The settled photo edit should admit a preview read")
+            previewBarrier.finish()
+            return
+        }
+        previewBarrier.finish()
         model.editReviewedPhoto() // Same native loupe/shown ID must reopen the closed session.
         try await settle { model.developStatus == .ready }
         XCTAssertEqual(model.develop?.imageID, selected.imageID)
         XCTAssertFalse(model.develop === firstController)
         XCTAssertEqual(model.develop?.value(.exposure), 1.25, "Preview/edit return must await the pending manual save")
         model.returnFromPhotoEdit()
+        try await settle { model.isReviewing && model.develop == nil }
         XCTAssertTrue(model.isReviewing)
         XCTAssertEqual(model.reviewNavigation.instruction, "Keep the sky")
         XCTAssertEqual(model.reviewNavigation.selectedID, selected.imageID)
@@ -145,6 +152,7 @@ final class AgentReviewNavigationTests: XCTestCase {
         XCTAssertEqual(model.reviewNavigation.selectedID, next.imageID)
         XCTAssertFalse(model.reviewNavigation.isDrafting)
         model.returnToLibrary()
+        try await settle { !model.isReviewing && !model.isPhotoEditing && model.viewMode == .grid }
         XCTAssertEqual(model.focusedItem?.engineImage?.imageID, original)
         XCTAssertEqual(model.selection, [0])
         XCTAssertEqual(model.source, .decision(.keep))
@@ -308,7 +316,10 @@ final class AgentReviewNavigationTests: XCTestCase {
             if changeOwner { model.loadStubItems(count: 2) }
             else { model.select(position: 1) }
             if laterStatus { model.statusMessage = "A newer operation completed" }
-            await model.pendingDevelopSaveBarrier(imageID: try XCTUnwrap(item.engineImage?.imageID), library: owner).value
+            let gate = model.pendingDevelopSaveBarrier(
+                imageID: try XCTUnwrap(item.engineImage?.imageID), library: owner)
+            _ = await gate.result()
+            gate.finish()
             // Drain the handoff continuation after its captured barrier settles.
             try await Task.sleep(for: .milliseconds(40))
             XCTAssertTrue(model.documents.documents.isEmpty)

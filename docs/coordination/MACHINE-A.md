@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Recovery accepted for integration — 2026-09-28 06:25 UTC
+
+- Exact candidate `634b7e68` passed the behavioral preview RED/green, 68 adjacent tests, full599 XCTest/1skip/0fail plus5 Swift Testing, and isolated recovery GUI. Root verified unchanged source/FFI and signed package hash. Product Sources/Tests staged for main are byte-identical to this tested candidate; no other product paths differ.
+- Real generated64×48 JPEG save obstruction retained the +1.19 editor, Retry Save/Keep Editing controls and window-close veto. Keep Editing canceled prior navigation; a fresh navigation stayed blocked. After moving only the fault directory, explicit Retry saved valid JSON1.19 and navigated to Library. Reopen showed +1.19; JPEG hash unchanged. Export settings preserved active editor; Layers installed a64×48 16-bit single-layer copy. Disposable app quit normally; user preview57591 untouched.
+- Follow-up UX issue: previous blocked-navigation status text lingers after successful Retry. Owner A, ready for a guarded status-publication fix/test; core banner/navigation/persistence passed. Global multi-window Quit, crash/all-writer durability, actual export-start GUI, and B Save As remain outside this acceptance.
+- Source product integration excludes unaccepted typed Save As and diagnostic traces. Recovery includes only tested Layers completion/status/activation APIs. Staged-filter tests-only branch `codex/staged-filter-recovery-red` at `f0155326` remains UNRUN; no product filter changes included.
+- Resource Sol now owns sole heavy lane for RES05a Rust RED/green/adjacent/strict gates. Combined source `4f6b9751` contains reviewed A estimator and B pre-rasterization hook; still UNRUN until direct results. B result4abfa0c9 accepted and source reviewed. Refined Save As diagnostic `e51ef7fd` awaits next serial GUI slot. B source-only hold/paused heartbeat unchanged; A alone merges main.
+
 ## Validation advances — 2026-09-28 06:16 UTC
 
 | Lane | Owner | Current evidence / next action |

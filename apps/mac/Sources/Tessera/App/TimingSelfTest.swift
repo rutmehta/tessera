@@ -42,7 +42,7 @@ func runTimingSelfTest(model: AppModel) {
                 if gridAppeared, !model.library.items.isEmpty { finished = true; break }
             } else {
                 if gridAppeared, !model.isLoading, !model.library.items.isEmpty, model.viewMode != .loupe {
-                    model.viewMode = .loupe
+                    model.requestViewMode(.loupe)
                 }
                 let inputs = events.filter { $0.name == "input" }.count
                 if inputs >= 121 { finished = true; break }

@@ -1,0 +1,109 @@
+import AppKit
+
+/// Intercepts only the Tessera main window's close decision. SwiftUI still owns
+/// its window delegate callbacks through forwarding to the delegate we replaced.
+@MainActor
+final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
+    private static var installed: [ObjectIdentifier: RecoveryWindowCloseGuard] = [:]
+
+    private weak var window: NSWindow?
+    private let windowID: ObjectIdentifier
+    // Strongly retain the displaced SwiftUI delegate until close/teardown.
+    nonisolated(unsafe) private var previous: (any NSWindowDelegate)?
+    private let shouldBlock: @MainActor () -> Bool
+    private let blocked: @MainActor (NSWindow) -> Void
+    private var closeObserver: NSObjectProtocol?
+    private var forwardedClose = false
+
+    private init(window: NSWindow, previous: (any NSWindowDelegate)?,
+                 shouldBlock: @escaping @MainActor () -> Bool,
+                 blocked: @escaping @MainActor (NSWindow) -> Void) {
+        self.window = window
+        self.windowID = ObjectIdentifier(window)
+        self.previous = previous
+        self.shouldBlock = shouldBlock
+        self.blocked = blocked
+        super.init()
+    }
+
+    /// Called only by the NSViewRepresentable hosted in ContentView's main window.
+    static func install(on window: NSWindow) {
+        let id = ObjectIdentifier(window)
+        if let stale = installed[id], stale.window !== window { stale.uninstall() }
+        if let guardDelegate = installed[id] {
+            guard window.delegate !== guardDelegate else { return }
+            // SwiftUI may replace its delegate after the view first appears.
+            // Capture the new one, never our former proxy as a forwarding target.
+            if let replacement = window.delegate {
+                if replacement !== guardDelegate, !(replacement is RecoveryWindowCloseGuard) {
+                    guardDelegate.previous = replacement
+                }
+            } else {
+                // A removed delegate must not be resurrected when this guard exits.
+                guardDelegate.previous = nil
+            }
+            window.delegate = guardDelegate
+            return
+        }
+        let guardDelegate = RecoveryWindowCloseGuard(window: window, previous: window.delegate,
+            shouldBlock: {
+                let recovery = AppModel.shared.developRecovery
+                return recovery.hasUnresolvedSessions || recovery.hasActiveReservations
+            }, blocked: { window in
+                AppModel.shared.statusMessage = "Finish the current photo save or operation before closing the window"
+                window.makeKeyAndOrderFront(nil)
+            })
+        installed[id] = guardDelegate
+        guardDelegate.closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak guardDelegate] _ in
+            // Window notifications can precede the delegate callback. Defer
+            // fallback cleanup so windowWillClose forwards the original once.
+            Task { @MainActor [weak guardDelegate] in guardDelegate?.uninstall() }
+        }
+        window.delegate = guardDelegate
+    }
+
+    /// Internal test seam; production always uses `install(on:)` above.
+    static func testing(window: NSWindow, previous: (any NSWindowDelegate)?,
+                        shouldBlock: @escaping @MainActor () -> Bool,
+                        blocked: @escaping @MainActor (NSWindow) -> Void) -> RecoveryWindowCloseGuard {
+        RecoveryWindowCloseGuard(window: window, previous: previous,
+                                 shouldBlock: shouldBlock, blocked: blocked)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard sender === window else { return previous?.windowShouldClose?(sender) ?? true }
+        if shouldBlock() {
+            blocked(sender)
+            return false
+        }
+        return previous?.windowShouldClose?(sender) ?? true
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if !forwardedClose {
+            forwardedClose = true
+            previous?.windowWillClose?(notification)
+        }
+        uninstall()
+    }
+
+    private func uninstall() {
+        if let closeObserver {
+            NotificationCenter.default.removeObserver(closeObserver)
+            self.closeObserver = nil
+        }
+        if let window, window.delegate === self { window.delegate = previous }
+        if Self.installed[windowID] === self { Self.installed.removeValue(forKey: windowID) }
+    }
+
+    nonisolated override func responds(to selector: Selector!) -> Bool {
+        super.responds(to: selector) || (previous as? NSObject)?.responds(to: selector) == true
+    }
+
+    nonisolated override func forwardingTarget(for selector: Selector!) -> Any? {
+        if let prior = previous as? NSObject, prior.responds(to: selector) { return prior }
+        return super.forwardingTarget(for: selector)
+    }
+}

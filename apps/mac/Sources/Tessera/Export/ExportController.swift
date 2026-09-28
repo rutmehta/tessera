@@ -27,7 +27,9 @@ final class ExportController {
     private(set) var presetName: String?
     private(set) var presets: [ExportPresetEntry] = []
     private(set) var targets: [Target] = []
-    var targetID: String?
+    var targetID: String? {
+        didSet { if targetID != oldValue { previewGeneration = UUID() } }
+    }
     var error: String?
 
     /// The last watermark and JPEG size limit, so None ↔ Text ↔ Graphic and the limit's checkbox
@@ -41,9 +43,11 @@ final class ExportController {
     private(set) var enginePreviewMark: ExportWatermark?
     private(set) var isRenderingPreview = false
     private(set) var previewError: String?
+    @ObservationIgnored private var previewGeneration = UUID()
 
     /// Non-nil while an export runs (the sheet is closed meanwhile).
     private(set) var progress: ExportProgress?
+    private(set) var starting = false
     private(set) var lastReport: ExportReport?
     /// Warnings of the last finished run (M2-51), shown in the completion toast.
     private(set) var lastWarnings = ExportWarnings()
@@ -53,8 +57,11 @@ final class ExportController {
 
     /// Called with the report when a run ends (toast, statuses, Finder).
     @ObservationIgnored var onFinish: (ExportReport, ExportSettings) -> Void = { _, _ in }
+    /// Synchronous host reservation; the caller owns the captured library and target set.
+    @ObservationIgnored var acquireSaveGate: ((Set<String>) -> DevelopRecoveryCoordinator.Gate?)?
     @ObservationIgnored private var engine: Engine?
     @ObservationIgnored private var cancelFlag: CancelFlag?
+    @ObservationIgnored private var cancelledBeforeRun = false
     @ObservationIgnored private var applyingPreset = false
     /// Observation's generated accessors run `didSet` during init too; persist only afterwards.
     @ObservationIgnored private var ready = false
@@ -62,8 +69,13 @@ final class ExportController {
     private static let settingsKey = "ExportSettings"
     private static let presetKey = "ExportPresetName"
 
-    var isRunning: Bool { progress != nil }
+    var isRunning: Bool { progress != nil || starting }
     var target: Target? { targets.first { $0.id == targetID } ?? targets.first }
+
+    private func savedGate(for target: ExportTarget) -> DevelopRecoveryCoordinator.Gate? {
+        guard case .images(let ids) = target else { return nil }
+        return acquireSaveGate?(Set(ids))
+    }
 
     init() {
         let saved = UserDefaults.standard.string(forKey: Self.settingsKey).flatMap { try? ExportSettings(json: $0) }
@@ -80,6 +92,7 @@ final class ExportController {
     }
 
     private func settingsChanged() {
+        previewGeneration = UUID()
         guard ready else { return }
         if let mark = settings.watermark { watermarkDraft = mark }
         if let kb = settings.maxFileKilobytes { sizeLimitDraftKB = kb }
@@ -92,6 +105,9 @@ final class ExportController {
 
     /// Refreshes presets and targets before the sheet opens.
     func prepare(engine: Engine, targets: [Target], preferred: Target.Kind) {
+        previewGeneration = UUID()
+        enginePreview = nil
+        enginePreviewMark = nil
         self.engine = engine
         self.targets = targets
         targetID = (targets.first { $0.kind == preferred } ?? targets.first)?.id
@@ -215,7 +231,13 @@ final class ExportController {
     /// (the exact compositor `export_batch` uses), into a temporary folder.
     func renderWatermarkPreview() {
         guard let engine, let id = previewImageID, let mark = settings.watermark, !isRenderingPreview else { return }
+        let targetID = self.targetID
+        let capturedSettings = settings
         if let problem = mark.problem { previewError = problem; return }
+        guard let gate = acquireSaveGate?([id]) else {
+            previewError = "This preview's photo is no longer available for a saved read"
+            return
+        }
         var s = settings
         s.format = .png
         s.normalizeForFormat()
@@ -231,10 +253,28 @@ final class ExportController {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tessera-watermark-\(UUID().uuidString)")
         s.destination = folder.path
         let json = s.json
+        let generation = UUID()
+        previewGeneration = generation
         isRenderingPreview = true
         previewError = nil
-        Task.detached(priority: .userInitiated) {
-            let result = Result { try engine.exportBatch(target: .images(imageIds: [id]), settingsJson: json, listener: nil, cancel: nil) }
+        Task {
+            defer { gate.finish() }
+            let admitted = await gate.result().isSaved
+            guard previewGeneration == generation, self.engine === engine,
+                  self.targetID == targetID, self.previewImageID == id,
+                  self.settings == capturedSettings else {
+                isRenderingPreview = false
+                return
+            }
+            guard admitted else {
+                isRenderingPreview = false
+                previewError = "Finish saving the photo before previewing its watermark"
+                return
+            }
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try engine.exportBatch(target: .images(imageIds: [id]), settingsJson: json,
+                                                listener: nil, cancel: nil) }
+            }.value
             let image: NSImage?
             var failure: String?
             switch result {
@@ -246,12 +286,13 @@ final class ExportController {
                 failure = e.localizedDescription
             }
             try? FileManager.default.removeItem(at: folder)
-            await MainActor.run {
-                self.isRenderingPreview = false
-                self.enginePreview = image
-                self.enginePreviewMark = image == nil ? nil : mark
-                self.previewError = failure
-            }
+            isRenderingPreview = false
+            guard previewGeneration == generation, self.engine === engine,
+                  self.targetID == targetID, self.previewImageID == id,
+                  self.settings == capturedSettings else { return }
+            enginePreview = image
+            enginePreviewMark = image == nil ? nil : mark
+            previewError = failure
         }
     }
 
@@ -273,42 +314,66 @@ final class ExportController {
     func start() {
         guard let engine, let target, !isRunning else { return }
         if let problem = validate() { error = problem; return }
-        let settings = settings
-        let cancel = CancelFlag()
-        cancelFlag = cancel
-        lastReport = nil
-        lastWarnings = ExportWarnings()
-        runningTitle = target.title
-        progress = ExportProgress(done: 0, total: UInt32(target.count), exported: 0, failed: 0, current: "")
-        let relay = ExportRelay { [weak self] p in
-            Task { @MainActor in if self?.progress != nil { self?.progress = p } }
+        guard let gate = savedGate(for: target.target) else {
+            error = "This export target is no longer available for a saved read"
+            return
         }
+        let settings = settings
         let ffiTarget = target.target
         let json = settings.json
-        Task.detached(priority: .userInitiated) {
-            let result = Result { try engine.exportBatch(target: ffiTarget, settingsJson: json, listener: relay, cancel: cancel) }
+        cancelledBeforeRun = false
+        starting = true
+        Task {
+            defer { gate.finish() }
+            let admitted = await gate.result().isSaved
+            guard !cancelledBeforeRun else {
+                starting = false
+                error = "Export cancelled"
+                return
+            }
+            guard admitted, self.target?.id == target.id,
+                  self.settings == settings else {
+                starting = false
+                error = "Finish saving the photo before Export"
+                return
+            }
+            let cancel = CancelFlag()
+            cancelFlag = cancel
+            lastReport = nil
+            lastWarnings = ExportWarnings()
+            runningTitle = target.title
+            progress = ExportProgress(done: 0, total: UInt32(target.count), exported: 0, failed: 0, current: "")
+            starting = false
+            let relay = ExportRelay { [weak self] p in
+                Task { @MainActor in if self?.progress != nil { self?.progress = p } }
+            }
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try engine.exportBatch(target: ffiTarget, settingsJson: json, listener: relay,
+                                                cancel: cancel) }
+            }.value
             // Recoverable omissions ("Lens Blur skipped: …") the engine wrote beside each file.
             let warnings = (try? result.get()).map { ExportWarnings.read($0) } ?? ExportWarnings()
-            await MainActor.run {
-                self.progress = nil
-                self.cancelFlag = nil
-                switch result {
-                case .success(let report):
-                    self.lastReport = report
-                    self.lastWarnings = warnings
-                    Self.warningsByReport = (report, warnings)
-                    self.onFinish(report, settings)
-                case .failure(let e):
-                    self.error = e.localizedDescription
-                    self.onFailure(e.localizedDescription)
-                }
+            progress = nil
+            cancelFlag = nil
+            switch result {
+            case .success(let report):
+                lastReport = report
+                lastWarnings = warnings
+                Self.warningsByReport = (report, warnings)
+                onFinish(report, settings)
+            case .failure(let e):
+                error = e.localizedDescription
+                onFailure(e.localizedDescription)
             }
         }
     }
 
     @ObservationIgnored var onFailure: (String) -> Void = { _ in }
 
-    func cancel() { cancelFlag?.cancel() }
+    func cancel() {
+        if starting { cancelledBeforeRun = true }
+        cancelFlag?.cancel()
+    }
 }
 
 /// Engine progress (exporting thread) → main actor.

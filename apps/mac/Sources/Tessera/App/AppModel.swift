@@ -126,6 +126,8 @@ private enum UndoDomain { case cull, develop }
 
 @MainActor @Observable
 final class AppModel {
+    typealias DevelopControllerOpener = @MainActor (EngineImageReference, Int) async throws -> DevelopController
+
     static let shared = AppModel()
 
     // MARK: Observed summary state (SwiftUI)
@@ -200,9 +202,37 @@ final class AppModel {
         let inspectorVisible: Bool
     }
 
+    @ObservationIgnored private var savedNavigationIntent: UUID?
+    @ObservationIgnored private var committingSavedNavigation = false
+    @ObservationIgnored private var revertingViewMode = false
+    private struct BlockedSavedNavigation {
+        let intent: UUID
+        let owner: EngineLibrary?
+        let generation: Int
+        let folderRequestID: UUID?
+        let commit: @MainActor () -> Void
+    }
+    @ObservationIgnored private var blockedSavedNavigation: BlockedSavedNavigation?
+    @ObservationIgnored private var navigationCloseGateID: UUID?
+    @ObservationIgnored private var navigationClosePending: BlockedSavedNavigation?
+    @ObservationIgnored private var currentFolderRequestID: UUID?
+    @ObservationIgnored private var folderCallbacks: [UUID: @MainActor (AppModel, Bool) -> Void] = [:]
+    var developRecoveries: [DevelopRecoveryCoordinator.Presentation] { developRecovery.presentations }
     var viewMode: ViewMode = .grid {
         didSet {
+            guard !revertingViewMode else { return }
             guard viewMode != oldValue else { return }
+            if !committingSavedNavigation,
+               (developRecovery.hasUnresolvedSessions || developRecovery.hasActiveReservations) {
+                // Legacy direct bindings still assign this property. Restore the old
+                // value before any workspace observer or teardown can run, then gate.
+                let requested = viewMode
+                revertingViewMode = true
+                viewMode = oldValue
+                revertingViewMode = false
+                requestViewMode(requested)
+                return
+            }
             if !workspaceTransition, (oldValue == .review || (viewMode != .loupe && photoEditing)) {
                 if photoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
                 photoEditing = false
@@ -230,6 +260,147 @@ final class AppModel {
             if !workspaceTransition { notifySelection(scroll: true) }
         }
     }
+
+    func requestViewMode(_ mode: ViewMode) {
+        navigateAfterDevelopSave { [weak self] in
+            self?.viewMode = mode
+        }
+    }
+
+    func requestLibraryViewMode(_ mode: ViewMode) {
+        if mode != viewMode || isPhotoEditing || isReviewing {
+            supersedePendingLayeredCopyForNavigation()
+        }
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: mode == .grid) }
+            self.viewMode = mode
+        }
+    }
+
+    private func commitAdmittedNavigation(_ action: () -> Void) {
+        let prior = committingSavedNavigation
+        committingSavedNavigation = true
+        defer { committingSavedNavigation = prior }
+        action()
+    }
+
+    func requestLibraryFilter(_ filter: LibraryFilter) {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.collections.commitFilter(filter)
+        }
+    }
+
+    func updateLibraryFilter(_ mutate: (inout LibraryFilter) -> Void) {
+        var requested = collections.filter
+        mutate(&requested)
+        requestLibraryFilter(requested)
+    }
+
+    private func navigateAfterDevelopSave(folderRequestID: UUID? = nil,
+                                          _ commit: @escaping @MainActor () -> Void) {
+        // A second navigation may replace the first while the *same* Develop
+        // close is pending. Other recipe readers still block admission.
+        guard !developRecovery.hasActiveReservations(excluding: navigationCloseGateID) else {
+            statusMessage = "Wait for the current photo operation before leaving this workspace"
+            if let folderRequestID { finishFolderRequest(folderRequestID, loaded: false) }
+            return
+        }
+        let intent = UUID()
+        let sourceOwner = engineLibrary
+        let sourceGeneration = loadGeneration
+        let supersededFolder = navigationClosePending?.folderRequestID
+            ?? blockedSavedNavigation?.folderRequestID
+        let pending = BlockedSavedNavigation(intent: intent, owner: sourceOwner,
+                                             generation: sourceGeneration,
+                                             folderRequestID: folderRequestID, commit: commit)
+        savedNavigationIntent = intent
+        blockedSavedNavigation = nil
+        if navigationCloseGateID != nil { navigationClosePending = pending }
+        if let supersededFolder, supersededFolder != folderRequestID {
+            finishFolderRequest(supersededFolder, loaded: false)
+        }
+        guard savedNavigationIntent == intent else { return }
+        if navigationCloseGateID != nil { return }
+        guard developRecovery.hasUnresolvedSessions else { commitAdmittedNavigation(commit); return }
+        guard let owner = developLibrary, let controller = develop else {
+            blockedSavedNavigation = pending
+            statusMessage = "Finish saving the photo before leaving this workspace"
+            return
+        }
+        let imageID = controller.imageID
+        let gate = developRecovery.reserveInitiate(owner: owner, imageIDs: [imageID])
+        navigationCloseGateID = gate.id
+        navigationClosePending = pending
+        closeDevelop()
+        Task { [weak self] in
+            defer { gate.finish() }
+            let result = await gate.result()
+            guard let self, self.navigationCloseGateID == gate.id else { return }
+            let latest = self.navigationClosePending
+            self.navigationCloseGateID = nil
+            self.navigationClosePending = nil
+            guard let latest, self.savedNavigationIntent == latest.intent,
+                  self.loadGeneration == latest.generation,
+                  self.engineLibrary === latest.owner,
+                  self.developLibrary === owner || self.developLibrary == nil else {
+                if let requestID = latest?.folderRequestID {
+                    self.finishFolderRequest(requestID, loaded: false)
+                }
+                return
+            }
+            guard result.isSaved, !self.developRecovery.hasUnresolvedSessions,
+                  !self.developRecovery.hasActiveReservations(excluding: gate.id) else {
+                self.blockedSavedNavigation = latest
+                self.statusMessage = "Finish saving the photo before leaving this workspace"
+                return
+            }
+            self.commitAdmittedNavigation(latest.commit)
+        }
+    }
+
+    func retryDevelopRecovery(_ sessionID: DevelopRecoveryCoordinator.SessionID) {
+        guard !developRecovery.hasActiveReservations else {
+            statusMessage = "Wait for the current photo operation before retrying the save"
+            return
+        }
+        let task = developRecovery.retryClose(sessionID)
+        Task { [weak self] in
+            let result = await task.value
+            guard let self else { return }
+            switch result {
+            case .saved:
+                if let blocked = self.blockedSavedNavigation,
+                   self.savedNavigationIntent == blocked.intent,
+                   self.engineLibrary === blocked.owner,
+                   self.loadGeneration == blocked.generation,
+                   !self.developRecovery.hasActiveReservations,
+                   !self.developRecovery.hasUnresolvedSessions {
+                    self.blockedSavedNavigation = nil
+                    self.commitAdmittedNavigation(blocked.commit)
+                }
+            case .failed(_, let message):
+                self.statusMessage = "Develop: \(message)"
+            }
+        }
+    }
+
+    func keepEditingDevelopRecovery() {
+        let folderRequestID = blockedSavedNavigation?.folderRequestID
+        savedNavigationIntent = UUID()
+        blockedSavedNavigation = nil
+        if let requestID = folderRequestID {
+            finishFolderRequest(requestID, loaded: false)
+        }
+        // No workspace mutation happened before admission, so the original editor
+        // and its callbacks remain attached when its close attempt failed.
+    }
+
+    func canKeepEditingDevelopRecovery(_ sessionID: DevelopRecoveryCoordinator.SessionID) -> Bool {
+        developSessionID == sessionID && develop != nil
+    }
     var autoAdvance = true
     var showInspector = true
     var showFilmstrip = true
@@ -256,7 +427,7 @@ final class AppModel {
 
     // MARK: Unobserved hot state (AppKit)
 
-    @ObservationIgnored let loader = ThumbnailLoader()
+    @ObservationIgnored let loader: ThumbnailLoader
     @ObservationIgnored private(set) var cull = StubLibrary.empty.makeCullController()
     /// Visible item ids in display order (group by group), after the sidebar filter.
     @ObservationIgnored private(set) var visible: [Int] = []
@@ -274,21 +445,12 @@ final class AppModel {
     @ObservationIgnored private var activeDevelopOpen: UUID?
     /// Captured when opening, before a folder switch can replace `library`.
     @ObservationIgnored private var developLibrary: EngineLibrary?
-    private struct DevelopCloseKey: Hashable {
-        let owner: ObjectIdentifier
-        let imageID: String
-    }
-    private struct PendingDevelopClose {
-        // Retain the owner while its object identity keys a pending operation.
-        let owner: EngineLibrary
-        let token: UUID
-        let task: Task<Void, Never>
-    }
-    @ObservationIgnored private var pendingDevelopCloses: [DevelopCloseKey: PendingDevelopClose] = [:]
-    @ObservationIgnored private var pendingDevelopOpens: [DevelopCloseKey: PendingDevelopClose] = [:]
+    @ObservationIgnored private(set) var developRecovery = DevelopRecoveryCoordinator()
+    @ObservationIgnored private var developSessionID: DevelopRecoveryCoordinator.SessionID?
     @ObservationIgnored private var undoDomain = UndoDomain.cull
     @ObservationIgnored private var pendingReadout: String?
     @ObservationIgnored private var developSelfTestRan = false
+    @ObservationIgnored private let developControllerOpener: DevelopControllerOpener
     @ObservationIgnored private var selfTestFrames: [DevelopFrame]?
     @ObservationIgnored private var readoutTask: Task<Void, Never>?
     @ObservationIgnored private var loadGeneration = 0
@@ -309,8 +471,16 @@ final class AppModel {
     private static let basketTargetKey = "BasketTarget"
     static let renderReadoutKey = "ShowRenderReadout"
 
-    init(agent: AgentController = AgentController()) {
+    init(
+        agent: AgentController = AgentController(),
+        developControllerOpener: @escaping DevelopControllerOpener = { ref, itemID in
+            try await DevelopController.open(ref, itemID: itemID)
+        },
+        thumbnailLoader: ThumbnailLoader? = nil
+    ) {
         self.agent = agent
+        self.developControllerOpener = developControllerOpener
+        self.loader = thumbnailLoader ?? ThumbnailLoader()
         recentFolders = (UserDefaults.standard.stringArray(forKey: Self.recentFoldersKey) ?? [])
             .map { URL(fileURLWithPath: $0) }
         basketTarget = UserDefaults.standard.string(forKey: Self.basketTargetKey) ?? EngineLibrary.defaultBasketTarget
@@ -378,12 +548,38 @@ final class AppModel {
 
     /// `then` runs after the load (success or failure; the tether session restores its view on reloads).
     func openFolder(_ url: URL, message: String? = nil, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
-        leavePhotoEditForLibraryChange()
+        guard !developRecovery.hasActiveReservations(excluding: navigationCloseGateID) else {
+            statusMessage = "Wait for the current photo operation before opening another folder"
+            then?(self, false)
+            return
+        }
+        let superseded = currentFolderRequestID
+        let requestID = UUID()
+        currentFolderRequestID = requestID
+        if let then { folderCallbacks[requestID] = then }
+        if let superseded { finishFolderRequest(superseded, loaded: false) }
+        guard currentFolderRequestID == requestID else { return }
+        navigateAfterDevelopSave(folderRequestID: requestID) { [weak self] in
+            guard let self, self.currentFolderRequestID == requestID else { return }
+            self.commitOpenFolder(url, message: message, requestID: requestID)
+        }
+    }
+
+    private func finishFolderRequest(_ id: UUID, loaded: Bool) {
+        if currentFolderRequestID == id { currentFolderRequestID = nil }
+        let callback = folderCallbacks.removeValue(forKey: id)
+        callback?(self, loaded)
+    }
+
+    private func commitOpenFolder(_ url: URL, message: String?, requestID: UUID) {
+        if isPhotoEditing || isReviewing { commitReturnToLibrary(grid: false) }
         // The open folder again (a catalog import into it, reopening it): rescan in the
         // background and apply the changes in place, keeping history, filters and selection.
         if let lib = engineLibrary, let folder = lib.folder, !isLoading,
            Self.sameFolder(folder, url) {
-            rescan(lib, message: message, then: then)
+            rescan(lib, message: message, requestID: requestID) { [weak self] _, loaded in
+                self?.finishFolderRequest(requestID, loaded: loaded)
+            }
             return
         }
         loadGeneration += 1
@@ -402,7 +598,11 @@ final class AppModel {
                 return (library, CullController.prepare(library))
             }
             await MainActor.run {
-                guard generation == self.loadGeneration else { return }
+                guard generation == self.loadGeneration,
+                      self.currentFolderRequestID == requestID else {
+                    self.finishFolderRequest(requestID, loaded: false)
+                    return
+                }
                 self.isLoading = false
                 switch result {
                 case .success(let (lib, snapshot)):
@@ -414,10 +614,10 @@ final class AppModel {
                     self.statusMessage = message ?? "Opened \(lib.title): \(lib.items.count.formatted()) images (\(raws.formatted()) RAW), "
                         + "\(lib.groups.count.formatted()) groups (\(multi.formatted()) with 2+), \(Self.ms(lib.scanDuration))"
                         + (seedFaces ? ", synthetic faces seeded" : "")
-                    then?(self, true)
+                    self.finishFolderRequest(requestID, loaded: true)
                 case .failure(let error):
                     self.statusMessage = error.localizedDescription
-                    then?(self, false)
+                    self.finishFolderRequest(requestID, loaded: false)
                 }
             }
         }
@@ -544,7 +744,23 @@ final class AppModel {
     }
 
     func setSource(_ s: LibrarySource) {
-        leavePhotoEditForLibraryChange()
+        if s != source { supersedePendingLayeredCopyForNavigation() }
+        navigateAfterDevelopSave { [weak self] in self?.commitSetSource(s) }
+    }
+
+    /// Saving a new smart album opens it and clears the temporary filter as
+    /// one navigation after any active Develop close.
+    func showSavedSmartAlbum(id: Int64, name: String, clearFilter: Bool) {
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            self.commitSetSource(.smartAlbum(id: id, name: name))
+            if clearFilter { self.collections.commitFilter(LibraryFilter()) }
+        }
+    }
+
+    private func commitSetSource(_ s: LibrarySource) {
+        if isPhotoEditing || isReviewing { commitReturnToLibrary(grid: false) }
         let opening = s == .people && source != .people
         refreshVisible {
             source = s
@@ -586,26 +802,44 @@ final class AppModel {
     }
 
     func togglePersonFacet(_ id: String) {
-        leavePhotoEditForLibraryChange()
-        refreshVisible { people.toggleFacet(id) }
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.refreshVisible { self.people.toggleFacet(id) }
+        }
     }
 
     func setPersonFacet(_ ids: Set<String>) {
-        leavePhotoEditForLibraryChange()
-        refreshVisible { people.setFacet(ids) }
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.refreshVisible { self.people.setFacet(ids) }
+        }
+    }
+
+    func clearLibraryFilters() {
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.collections.commitFilter(LibraryFilter())
+            self.refreshVisible { self.people.setFacet([]) }
+        }
     }
 
     /// People ▸ Show Photos: All Photos with the Person facet set to this person.
     func showPhotos(of id: String) {
-        leavePhotoEditForLibraryChange()
-        refreshVisible {
-            people.setFacet([id])
-            source = .all
-            collections.refreshMatches()
-        }
-        viewMode = .grid
-        if let p = people.person(id) {
-            statusMessage = "\(p.displayName): \(visibleCount.formatted()) photo\(visibleCount == 1 ? "" : "s")"
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.refreshVisible {
+                self.people.setFacet([id])
+                self.source = .all
+                self.collections.refreshMatches()
+            }
+            self.viewMode = .grid
+            if let person = self.people.person(id) {
+                self.statusMessage = "\(person.displayName): \(self.visibleCount.formatted()) photo\(self.visibleCount == 1 ? "" : "s")"
+            }
         }
     }
 
@@ -679,16 +913,25 @@ final class AppModel {
     }
 
     /// Re-indexes the open folder in the background, then applies what changed in place.
-    private func rescan(_ lib: EngineLibrary, message: String?, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)?) {
+    private func rescan(_ lib: EngineLibrary, message: String?, requestID: UUID? = nil,
+                        then: (@MainActor (AppModel, _ loaded: Bool) -> Void)?) {
         guard let folder = lib.folder else { return }
         statusMessage = "Updating \(folder.lastPathComponent)…"
         Task.detached(priority: .userInitiated) {
             let result = Result { try lib.engine.indexFolder(path: folder.path) }
             await MainActor.run {
-                guard self.engineLibrary === lib else { then?(self, false); return }
+                guard self.engineLibrary === lib,
+                      requestID == nil || self.currentFolderRequestID == requestID else {
+                    then?(self, false)
+                    return
+                }
                 switch result {
                 case .success(let handle):
                     self.syncLibrary {
+                        guard requestID == nil || self.currentFolderRequestID == requestID else {
+                            then?(self, false)
+                            return
+                        }
                         self.statusMessage = message ?? "Updated \(lib.title): \(handle.updated) changed, \(lib.items.count.formatted()) images"
                         then?(self, true)
                     }
@@ -874,6 +1117,27 @@ final class AppModel {
         item.engineImage?.imageID ?? item.url?.standardizedFileURL.path ?? "stub:\(item.seed):\(item.id)"
     }
 
+    private struct CapturedPhotoTarget {
+        let owner: EngineLibrary?
+        let imageID: String?
+        let key: String
+    }
+
+    private func capturePhotoTarget(id: Int) -> CapturedPhotoTarget? {
+        guard library.items.indices.contains(id) else { return nil }
+        let item = library.items[id]
+        return CapturedPhotoTarget(owner: engineLibrary, imageID: item.engineImage?.imageID,
+                                   key: workspaceKey(for: item))
+    }
+
+    private func resolvePhotoTarget(_ target: CapturedPhotoTarget) -> Int? {
+        guard engineLibrary === target.owner else { return nil }
+        if let owner = target.owner, let imageID = target.imageID {
+            return owner.itemOfImage[imageID]
+        }
+        return library.items.firstIndex { workspaceKey(for: $0) == target.key }
+    }
+
     func requestLayeredCopy() {
         guard !isReviewing, source != .people, viewMode != .document, let item = focusedItem else { return }
         if let owner = engineLibrary, let imageID = item.engineImage?.imageID,
@@ -892,37 +1156,94 @@ final class AppModel {
         if let owner = request.library, let imageID = request.item.engineImage?.imageID,
            agent.isMutating(imageID: imageID, library: owner) { return }
         pendingLayeredCopyRequestID = request.id
-        returnToLibrary()
         guard let owner = request.library, let imageID = request.item.engineImage?.imageID else {
             pendingLayeredCopyRequestID = nil
+            guard !developRecovery.hasUnresolvedSessions,
+                  !developRecovery.hasActiveReservations else {
+                statusMessage = "Finish saving the photo before opening Layers"
+                return
+            }
+            if isPhotoEditing || isReviewing { commitReturnToLibrary(grid: false) }
             documents.editInLayers(request.item)
             return
         }
-        if developLibrary === owner, develop?.imageID == imageID { closeDevelop() }
         let selected = selection
         let focusedKey = focusedItem.map { workspaceKey(for: $0) }
         let source = self.source
         let view = viewMode
-        let barrier = pendingDevelopSaveBarrier(imageID: imageID, library: owner)
+        let generation = loadGeneration
+        let barrier = prepareForRecipeRead(imageIDs: [imageID], library: owner)
         let savingMessage = "Saving photo before opening Layers…"
         layeredCopyStatusOwner = request.id
         statusMessage = savingMessage
         Task { [weak self] in
-            await barrier.value
-            guard let self else { return }
+            var backendOwnsGate = false
             defer {
+                if !backendOwnsGate {
+                    barrier.finish()
+                    if self?.pendingLayeredCopyRequestID == request.id { self?.pendingLayeredCopyRequestID = nil }
+                    if self?.layeredCopyStatusOwner == request.id {
+                        if self?.statusMessage == savingMessage { self?.statusMessage = nil }
+                        self?.layeredCopyStatusOwner = nil
+                    }
+                }
+            }
+            guard await barrier.result().isSaved else {
+                if self?.pendingLayeredCopyRequestID == request.id {
+                    self?.statusMessage = "Finish saving this photo before opening Layers"
+                    self?.pendingLayeredCopyRequestID = nil
+                    self?.layeredCopyStatusOwner = nil
+                }
+                return
+            }
+            guard let self else { return }
+            guard !self.developRecovery.hasUnresolvedSessions,
+                  self.pendingLayeredCopyRequestID == request.id, self.engineLibrary === owner,
+                  self.loadGeneration == generation,
+                  !self.agent.isMutating(imageID: imageID, library: owner),
+                  self.source == source, self.viewMode == view,
+                  self.selection == selected,
+                  self.focusedItem.map({ self.workspaceKey(for: $0) }) == focusedKey else { return }
+            if self.isPhotoEditing || self.isReviewing {
+                self.commitAdmittedNavigation { self.commitReturnToLibrary(grid: false) }
+            }
+            let dispatchedSource = self.source
+            let dispatchedView = self.viewMode
+            let dispatchedSelection = self.selection
+            let dispatchedFocus = self.focusedItem.map { self.workspaceKey(for: $0) }
+            backendOwnsGate = true
+            self.documents.editInLayers(request.item, statusPublication: .caller, activateDocument: false) { [weak self, barrier] outcome in
+                // DocumentWorkspace installs/selects before settling. This caller
+                // publishes the destination only after the backend reservation drains.
+                let mayShowInstalled: Bool
+                if let model = self {
+                    mayShowInstalled = model.pendingLayeredCopyRequestID == request.id
+                        && model.engineLibrary === owner
+                        && model.loadGeneration == generation
+                        && model.source == dispatchedSource
+                        && model.viewMode == dispatchedView
+                        && model.selection == dispatchedSelection
+                        && model.focusedItem.map({ model.workspaceKey(for: $0) }) == dispatchedFocus
+                } else { mayShowInstalled = false }
+                barrier.finish()
+                guard let self else { return }
                 if self.layeredCopyStatusOwner == request.id {
                     if self.statusMessage == savingMessage { self.statusMessage = nil }
                     self.layeredCopyStatusOwner = nil
                 }
                 if self.pendingLayeredCopyRequestID == request.id { self.pendingLayeredCopyRequestID = nil }
+                if case .installed = outcome, mayShowInstalled {
+                    self.requestViewMode(.document)
+                    self.statusMessage = nil
+                }
+                // A backend may fail after the user has installed another
+                // library or chosen another destination. Its cleanup still
+                // drains, but its error no longer owns the visible status.
+                if mayShowInstalled {
+                    if case .failed(let message) = outcome { self.statusMessage = message }
+                    if case .rejected(let message) = outcome { self.statusMessage = message }
+                }
             }
-            guard self.pendingLayeredCopyRequestID == request.id, self.engineLibrary === owner,
-                  !self.agent.isMutating(imageID: imageID, library: owner),
-                  self.isLibraryWorkspace, self.source == source, self.viewMode == view,
-                  self.selection == selected,
-                  self.focusedItem.map({ self.workspaceKey(for: $0) }) == focusedKey else { return }
-            self.documents.editInLayers(request.item)
         }
     }
 
@@ -958,9 +1279,14 @@ final class AppModel {
     }
 
     func returnToLibrary(grid: Bool = false) {
+        guard isPhotoEditing || isReviewing, libraryReturnState != nil else { return }
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in self?.commitReturnToLibrary(grid: grid) }
+    }
+
+    private func commitReturnToLibrary(grid: Bool) {
         guard isPhotoEditing || isReviewing, let saved = libraryReturnState else { return }
         if isPhotoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
-        closeDevelop()
         workspaceTransition = true
         photoEditing = false
         explicitEditKey = nil
@@ -1017,16 +1343,10 @@ final class AppModel {
         return reviewTargetItem == nil ? "This photo is no longer available in the open library." : nil
     }
 
-    /// Read saved pixels only after the captured session tasks finish. Observing this
-    /// barrier neither cancels nor opens a session (Review previews and Layers handoff).
-    func pendingDevelopSaveBarrier(imageID: String, library owner: EngineLibrary) -> Task<Void, Never> {
-        let key = DevelopCloseKey(owner: ObjectIdentifier(owner), imageID: imageID)
-        let opening = pendingDevelopOpens[key]?.task
-        let closing = pendingDevelopCloses[key]?.task
-        return Task {
-            await opening?.value
-            await closing?.value
-        }
+    /// Observation reserves this owner/photo through the caller's actual read or cancellation.
+    /// It does not itself initiate an active editor close.
+    func pendingDevelopSaveBarrier(imageID: String, library owner: EngineLibrary) -> DevelopRecoveryCoordinator.Gate {
+        developRecovery.reserveObserve(owner: owner, imageIDs: [imageID])
     }
 
     func reconcileReviewNavigation() {
@@ -1036,11 +1356,14 @@ final class AppModel {
     func enterReview() {
         guard viewMode != .document else { return }
         if isReviewEditing { returnFromPhotoEdit(); return }
-        if isPhotoEditing { returnToLibrary() }
+        navigateAfterDevelopSave { [weak self] in self?.commitEnterReview() }
+    }
+
+    private func commitEnterReview() {
+        if isPhotoEditing { commitReturnToLibrary(grid: false) }
         guard !isReviewing else { reconcileReviewNavigation(); return }
         rememberLibraryPlace()
         liveObservers.forEach { $0.workspaceWillEnterReview() }
-        closeDevelop()
         reconcileReviewNavigation()
         statusMessage = nil
         workspaceTransition = true
@@ -1053,11 +1376,19 @@ final class AppModel {
     }
 
     func selectReviewPhoto(_ imageID: String) {
+        navigateAfterDevelopSave { [weak self] in self?.commitSelectReviewPhoto(imageID) }
+    }
+
+    private func commitSelectReviewPhoto(_ imageID: String) {
         reviewNavigation.select(imageID, queue: agent.queue)
         agent.persistReviewCursor()
     }
 
     func moveReviewSelection(_ delta: Int) {
+        navigateAfterDevelopSave { [weak self] in self?.commitMoveReviewSelection(delta) }
+    }
+
+    private func commitMoveReviewSelection(_ delta: Int) {
         if isReviewEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
         reviewNavigation.move(delta, queue: agent.queue)
         agent.persistReviewCursor()
@@ -1082,8 +1413,12 @@ final class AppModel {
 
     func returnFromPhotoEdit() {
         guard isReviewEditing else { returnToLibrary(); return }
+        navigateAfterDevelopSave { [weak self] in self?.commitReturnFromPhotoEdit() }
+    }
+
+    private func commitReturnFromPhotoEdit() {
+        guard isReviewEditing else { return }
         liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() }
-        closeDevelop()
         workspaceTransition = true
         photoEditing = false
         explicitEditKey = nil
@@ -1125,8 +1460,28 @@ final class AppModel {
 
     // MARK: Selection
 
+    /// A newer explicit destination abandons the Layers destination, even when
+    /// its recipe-read reservation must keep draining before navigation admits.
+    /// The handoff completion still owns clearing its status and finishing its gate.
+    private func supersedePendingLayeredCopyForNavigation() {
+        pendingLayeredCopyRequestID = nil
+    }
+
     /// From mouse interaction in a collection view.
     func setSelectionFromUI(_ positions: IndexSet, clicked: Int?) {
+        if positions.allSatisfy({ visible.indices.contains($0) }),
+           clicked.map({ visible.indices.contains($0) }) ?? true,
+           positions != selection || (clicked != nil && clicked != focus) {
+            supersedePendingLayeredCopyForNavigation()
+        }
+        let sourceRevision = libraryRevision
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, self.libraryRevision == sourceRevision else { return }
+            self.commitSelectionFromUI(positions, clicked: clicked)
+        }
+    }
+
+    private func commitSelectionFromUI(_ positions: IndexSet, clicked: Int?) {
         selection = positions
         if let clicked { focus = clicked; anchor = clicked }
         else if let f = focus, !positions.contains(f) { focus = positions.first; anchor = focus }
@@ -1135,6 +1490,61 @@ final class AppModel {
     }
 
     func select(position: Int, extend: Bool = false) {
+        if visible.indices.contains(position),
+           extend || selection != IndexSet(integer: position) || focus != position {
+            supersedePendingLayeredCopyForNavigation()
+        }
+        let sourceRevision = libraryRevision
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, self.libraryRevision == sourceRevision else { return }
+            self.commitSelect(position: position, extend: extend)
+        }
+    }
+
+    /// A grid double-click is one navigation: its selection must survive the
+    /// Develop close along with the requested Loupe mode.
+    func selectAndShowInLoupe(position: Int) {
+        guard visible.indices.contains(position), let target = capturePhotoTarget(id: visible[position]) else { return }
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, let id = self.resolvePhotoTarget(target),
+                  self.positionOfID.indices.contains(id), self.positionOfID[id] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[id], extend: false)
+            self.viewMode = .loupe
+        }
+    }
+
+    /// Tether auto-advance keeps Compare open, but otherwise selects and opens
+    /// the newly filed frame as one admitted action.
+    func selectAndAutoAdvance(id: Int) {
+        guard positionOfID.indices.contains(id), positionOfID[id] >= 0,
+              let target = capturePhotoTarget(id: id) else { return }
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, let currentID = self.resolvePhotoTarget(target),
+                  self.positionOfID.indices.contains(currentID), self.positionOfID[currentID] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[currentID], extend: false)
+            if self.viewMode != .compare { self.viewMode = .loupe }
+        }
+    }
+
+    /// A tether tile first tries the current source, then its session album.
+    /// Both the fallback source and final selection share the same save gate.
+    func revealTetherItem(_ id: Int, fallbackAlbum: String?) {
+        guard let target = capturePhotoTarget(id: id) else { return }
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, let currentID = self.resolvePhotoTarget(target) else { return }
+            if !(self.positionOfID.indices.contains(currentID) && self.positionOfID[currentID] >= 0),
+               let fallbackAlbum {
+                self.commitSetSource(.album(fallbackAlbum))
+            }
+            guard self.positionOfID.indices.contains(currentID), self.positionOfID[currentID] >= 0 else { return }
+            self.commitSelect(position: self.positionOfID[currentID], extend: false)
+        }
+    }
+
+    private func commitSelect(position: Int, extend: Bool) {
         guard !visible.isEmpty else { return }
         let p = min(max(position, 0), visible.count - 1)
         if extend, let a = anchor {
@@ -1155,6 +1565,14 @@ final class AppModel {
     func selectAll() {
         if viewMode == .document { documents.current?.selectAll(); return }
         guard !isReviewing, !isReviewEditing, !visible.isEmpty else { return }
+        if selection != IndexSet(integersIn: 0..<visible.count) {
+            supersedePendingLayeredCopyForNavigation()
+        }
+        navigateAfterDevelopSave { [weak self] in self?.commitSelectAll() }
+    }
+
+    private func commitSelectAll() {
+        guard !visible.isEmpty else { return }
         selection = IndexSet(integersIn: 0..<visible.count)
         refreshFocusSummary()
         notifySelection(scroll: false)
@@ -1589,6 +2007,21 @@ final class AppModel {
 
     /// C: the two selected frames, or the focused frame and its neighbour in the group.
     func enterCompare() {
+        navigateAfterDevelopSave { [weak self] in self?.commitEnterCompare() }
+    }
+
+    /// The Compare menu command returns from Edit/Review and opens Compare in
+    /// the same saved navigation, so a pending close cannot discard the return.
+    func requestLibraryCompare() {
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
+            self.commitEnterCompare()
+        }
+    }
+
+    private func commitEnterCompare() {
         guard let f = focus else { return }
         var ids: [Int]
         if selection.count >= 2 {
@@ -1666,57 +2099,81 @@ final class AppModel {
         // mutation began. Do not create a new stale session after that barrier.
         if let owner = engineLibrary, let ref = item.engineImage,
            agent.isMutating(imageID: ref.imageID, library: owner) { return }
-        if develop?.itemID == item.id, developLibrary === engineLibrary {
+        if let controller = develop, let owner = engineLibrary, let ref = item.engineImage,
+           developLibrary === owner, controller.imageID == ref.imageID {
+            if controller.itemID != item.id { controller.relink(itemID: item.id) }
             liveObservers.forEach { $0.developDidChange() }
             return
         }
-        closeDevelop()
-        guard item.kind != .synthetic, let ref = item.engineImage else {
+        guard item.kind != .synthetic, let ref = item.engineImage, let owner = engineLibrary else {
             developStatus = .unavailable(item.kind == .synthetic
                 ? "Stub items have no pixels to develop" : "Develop needs an indexed photo (\(item.kind.rawValue))")
             return
         }
+        guard developRecovery.canOpen(owner: owner, imageID: ref.imageID) else {
+            developStatus = .unavailable("Finish saving this photo before opening another editor")
+            return
+        }
+        closeDevelop()
         developStatus = .loading
         let generation = loadGeneration
-        let owner = engineLibrary
-        let key = owner.map { DevelopCloseKey(owner: ObjectIdentifier($0), imageID: ref.imageID) }
-        let pendingClose = key.flatMap { pendingDevelopCloses[$0]?.task }
-        let pendingOpen = key.flatMap { pendingDevelopOpens[$0]?.task }
+        let opener = developControllerOpener
         let token = UUID()
-        let task = Task { [weak self] in
+        let recovery = developRecovery
+        let task = Task { [weak self, recovery, owner] in
             defer {
-                if let key, self?.pendingDevelopOpens[key]?.token == token {
-                    self?.pendingDevelopOpens.removeValue(forKey: key)
-                }
+                self?.settlePendingDevelopOpen(token: token)
+                recovery.finishOpen(token: token)
             }
             do {
-                // Cancelled opens can still produce a controller; await their cleanup as well.
-                await pendingOpen?.value
-                await pendingClose?.value
-                guard !Task.isCancelled else { return }
-                let controller = try await DevelopController.open(ref, itemID: item.id)
+                let controller = try await opener(ref, item.id)
+                guard recovery.producedOpen(controller, owner: owner, token: token) else { return }
                 guard let self, !Task.isCancelled, generation == self.loadGeneration,
-                      self.engineLibrary === owner, self.focusedItem?.id == item.id else {
-                    await controller.close()
+                      self.engineLibrary === owner,
+                      self.focusedItem?.engineImage?.imageID == ref.imageID else {
+                    let id = recovery.register(owner: owner, controller: controller,
+                                               displayName: item.url?.lastPathComponent ?? ref.imageID)
+                    recovery.transferOpen(token: token, to: id)
+                    _ = await recovery.requestClose(id).value
                     return
                 }
-                self.install(develop: controller, library: owner)
+                let id = self.install(develop: controller, library: owner)
+                recovery.transferOpen(token: token, to: id)
             } catch {
-                guard let self, !Task.isCancelled, self.engineLibrary === owner,
-                      self.focusedItem?.id == item.id else { return }
+                guard let self, !Task.isCancelled, self.activeDevelopOpen == token,
+                      generation == self.loadGeneration, self.engineLibrary === owner,
+                      self.focusedItem?.engineImage?.imageID == ref.imageID else { return }
                 self.developStatus = .unavailable(error.localizedDescription)
             }
         }
         developTask = task
         activeDevelopOpen = token
-        if let owner, let key {
-            pendingDevelopOpens[key] = PendingDevelopClose(owner: owner, token: token, task: task)
+        recovery.beginOpen(owner: owner, imageID: ref.imageID, token: token, task: task)
+    }
+
+    /// A cancelled or superseded opener may still return a controller that must
+    /// be closed by the recovery registry. Its UI loading state belongs only to
+    /// this token; a later owner/photo opener must keep its own status.
+    private func settlePendingDevelopOpen(token: UUID) {
+        guard activeDevelopOpen == token else { return }
+        activeDevelopOpen = nil
+        developTask = nil
+        if develop == nil, developStatus == .loading {
+            developStatus = .none
+            liveObservers.forEach { $0.developDidChange() }
         }
     }
 
-    private func install(develop controller: DevelopController, library owner: EngineLibrary?) {
+    private func install(develop controller: DevelopController, library owner: EngineLibrary?)
+        -> DevelopRecoveryCoordinator.SessionID {
         developTask = nil
         activeDevelopOpen = nil
+        let sessionID = developRecovery.register(owner: owner, controller: controller,
+            displayName: focusedItem?.url?.lastPathComponent ?? controller.imageID,
+            onClose: { [weak self] id, outcome in
+                self?.publishDevelopClose(outcome, sessionID: id)
+            })
+        developSessionID = sessionID
         develop = controller
         developLibrary = owner
         developStatus = .ready
@@ -1746,66 +2203,59 @@ final class AppModel {
             statusMessage = "Develop: \(controller.ignoredSettings.count) imported setting(s) are kept but not rendered yet"
         }
         liveObservers.forEach { $0.developDidChange() }
+        return sessionID
     }
 
-    /// Stops rendering and writes pending edits of the current session (in the background).
-    func closeDevelop() {
-        developTask?.cancel()
-        developTask = nil
-        activeDevelopOpen = nil
-        if developStatus != .none { developStatus = .none }
-        guard let controller = develop else { return }
-        let owner = developLibrary
-        develop = nil
-        developLibrary = nil
-        controller.onFrame = nil
-        controller.onFailure = nil
-        developHistory = nil
-        renderReadout = nil
-        guard let owner else {
-            Task { await controller.close() }
-            liveObservers.forEach { $0.developDidChange() }
-            return
+    /// Starts one shared close. A failure retains the editor and its callbacks.
+    private func publishDevelopClose(_ outcome: DevelopRecoveryCoordinator.Outcome,
+                                     sessionID: DevelopRecoveryCoordinator.SessionID) {
+        guard developSessionID == sessionID else { return }
+        switch outcome {
+        case .saved:
+            develop = nil
+            developLibrary = nil
+            developSessionID = nil
+            developStatus = .none
+            developHistory = nil
+            renderReadout = nil
+        case .failed(_, let message):
+            guard developRecovery.presentations.contains(where: { presentation in
+                guard presentation.id == sessionID,
+                      case .failed = presentation.phase else { return false }
+                return true
+            }) else { return }
+            developStatus = .ready
+            statusMessage = "Develop: \(message)"
         }
-        let key = DevelopCloseKey(owner: ObjectIdentifier(owner), imageID: controller.imageID)
-        let previous = pendingDevelopCloses[key]?.task
-        let token = UUID()
-        let task = Task { [weak self] in
-            await previous?.value
-            await controller.close()
-            if self?.pendingDevelopCloses[key]?.token == token {
-                self?.pendingDevelopCloses.removeValue(forKey: key)
-            }
-        }
-        pendingDevelopCloses[key] = PendingDevelopClose(owner: owner, token: token, task: task)
-        // Publish only after the barrier exists; observers may synchronously reopen the photo.
         liveObservers.forEach { $0.developDidChange() }
     }
 
-    /// Capture the save barriers synchronously, before an agent action suspends or changes folder.
-    /// Already-closing sessions remain visible here after `develop` has been cleared.
-    func prepareForAgent(imageIDs: Set<String>, library owner: EngineLibrary) -> Task<Void, Never> {
+    @discardableResult
+    func closeDevelop() -> Task<DevelopRecoveryCoordinator.Outcome, Never>? {
+        let cancelledPendingOpen = activeDevelopOpen != nil
+        developTask?.cancel()
+        developTask = nil
+        activeDevelopOpen = nil
+        if cancelledPendingOpen, develop == nil, developStatus == .loading {
+            developStatus = .none
+            liveObservers.forEach { $0.developDidChange() }
+        }
+        guard let sessionID = developSessionID else { return nil }
+        let task = developRecovery.requestClose(sessionID)
+        return task
+    }
+
+    /// Reserve target photos before a consumer can suspend or read their recipes.
+    func prepareForRecipeRead(imageIDs: Set<String>, library owner: EngineLibrary) -> DevelopRecoveryCoordinator.Gate {
+        let gate = developRecovery.reserveInitiate(owner: owner, imageIDs: imageIDs)
         if developLibrary === owner, let controller = develop, imageIDs.contains(controller.imageID) {
             closeDevelop()
         }
-        let ownerID = ObjectIdentifier(owner)
-        let closes = pendingDevelopCloses.compactMap { key, close in
-            key.owner == ownerID && imageIDs.contains(key.imageID) ? close.task : nil
-        }
-        let openings = pendingDevelopOpens.filter { key, _ in
-            key.owner == ownerID && imageIDs.contains(key.imageID)
-        }.map(\.value)
-        // Do not cancel another library's currently opening photo or clear its loading state.
-        for open in openings { open.task.cancel() }
-        if let activeDevelopOpen, openings.contains(where: { $0.token == activeDevelopOpen }) {
-            self.activeDevelopOpen = nil
-            developTask = nil
-            if develop == nil { developStatus = .none }
-        }
-        let opens = openings.map(\.task)
-        return Task {
-            for barrier in opens + closes { await barrier.value }
-        }
+        return gate
+    }
+
+    func prepareForAgent(imageIDs: Set<String>, library owner: EngineLibrary) -> DevelopRecoveryCoordinator.Gate {
+        prepareForRecipeRead(imageIDs: imageIDs, library: owner)
     }
 
     private func developDidRender(_ frame: DevelopFrame, _ controller: DevelopController) {
@@ -2027,12 +2477,35 @@ final class AppModel {
 
     /// Inspection callers (People and tether) retain Library Loupe and its culling keys.
     func showInLoupe(_ itemID: Int) {
-        returnToLibrary()
+        guard let target = capturePhotoTarget(id: itemID) else { return }
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, let currentID = self.resolvePhotoTarget(target) else { return }
+            self.commitShowInLoupe(currentID)
+        }
+    }
+
+    /// A People face's Show in Loupe command also leaves the People source.
+    /// Keep that source change and focus change in one saved navigation.
+    func showInAllPhotosLoupe(_ itemID: Int) {
+        guard let target = capturePhotoTarget(id: itemID) else { return }
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self, let currentID = self.resolvePhotoTarget(target) else { return }
+            self.commitSetSource(.all)
+            self.commitShowInLoupe(currentID)
+        }
+    }
+
+    private func commitShowInLoupe(_ itemID: Int) {
+        if isPhotoEditing || isReviewing { commitReturnToLibrary(grid: false) }
         if positionOfID.indices.contains(itemID), positionOfID[itemID] < 0 {
             assist.clearPersonFilter()
-            if positionOfID[itemID] < 0 { setSource(.all) }
+            if positionOfID[itemID] < 0 { commitSetSource(.all) }
         }
-        select(id: itemID)
+        if positionOfID.indices.contains(itemID), positionOfID[itemID] >= 0 {
+            commitSelect(position: positionOfID[itemID], extend: false)
+        }
         viewMode = .loupe
     }
 
@@ -2043,18 +2516,6 @@ final class AppModel {
         editingFromReview = true
         explicitEditKey = workspaceKey(for: library.items[itemID])
         beginPhotoEdit()
-    }
-
-    /// Writes pending develop edits and closes the session when it shows one of `itemIDs`, so an
-    /// agent run or a revert does not race the session's debounced save.
-    func releaseDevelop(for itemIDs: Set<Int>) async {
-        guard let d = develop else { return }
-        guard itemIDs.contains(d.itemID) else {
-            try? d.session.flush()
-            return
-        }
-        closeDevelop()
-        await d.close()
     }
 
     /// The agent changed these photos' recipes: thumbnails, derived status, the inspector's

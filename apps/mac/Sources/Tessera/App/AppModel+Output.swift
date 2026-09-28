@@ -30,11 +30,11 @@ extension AppModel {
     /// Export targets: the selection, and the current view when it is narrower than "All Photos".
     func exportTargets() -> [ExportController.Target] {
         guard let lib = engineLibrary else { return [] }
-        func target(_ kind: ExportController.Target.Kind, _ title: String, _ items: [PhotoItem],
-                    _ ffi: ExportTarget? = nil) -> ExportController.Target? {
+        func target(_ kind: ExportController.Target.Kind, _ title: String, _ items: [PhotoItem])
+            -> ExportController.Target? {
             let ids = items.compactMap { $0.engineImage?.imageID }
             guard let first = items.first, !ids.isEmpty else { return nil }
-            return ExportController.Target(kind: kind, title: title, target: ffi ?? .images(imageIds: ids),
+            return ExportController.Target(kind: kind, title: title, target: .images(imageIds: ids),
                                            count: ids.count, firstName: first.name, firstDate: first.captureDate)
         }
         var result: [ExportController.Target] = []
@@ -43,15 +43,10 @@ extension AppModel {
             result.append(t)
         }
         if source != .all || selected.count <= 1 {
-            // A manual album without a filter exports through the engine's album target (album order).
-            var ffi: ExportTarget?
-            if case .album(let name) = source, collections.matches == nil,
-               let node = collections.flatNodes.first(where: { $0.kind == .album && $0.handle == name }),
-               let path = collections.catalog?.store.path() {
-                ffi = .album(libraryPath: path, albumId: node.id)
-            }
+            // Freeze the offered view to explicit image IDs so a later run gates
+            // precisely the same photos, including a manual album's displayed order.
             let title = source == .all ? "All photos in \(lib.title)" : "“\(source.title)”"
-            if let t = target(.view, title, visibleItems, ffi), t.count != result.first?.count || source != .all {
+            if let t = target(.view, title, visibleItems), t.count != result.first?.count || source != .all {
                 result.append(t)
             }
         }
@@ -64,9 +59,14 @@ extension AppModel {
         guard let lib = engineLibrary else { statusMessage = "Export needs a folder opened on the engine"; return }
         let targets = exportTargets()
         guard !targets.isEmpty else { statusMessage = "Select photos to export"; return }
-        // Pending develop edits reach the sidecar before the engine reads it.
-        if let d = develop { try? d.session.flush() }
         let preferred: ExportController.Target.Kind = selectionCount > 1 || source == .all ? .selection : .view
+        // Preparing the sheet only loads presets and frozen target IDs. The
+        // actual image reads in Start and watermark Render reserve their own
+        // saved-pixel gates for precisely the chosen target.
+        exporter.acquireSaveGate = { [weak self, lib] ids in
+            guard let self, self.engineLibrary === lib else { return nil }
+            return self.prepareForRecipeRead(imageIDs: ids, library: lib)
+        }
         exporter.prepare(engine: lib.engine, targets: targets, preferred: preferred)
         showExport = true
     }
@@ -91,14 +91,32 @@ extension AppModel {
     /// ⌘P: the selection (several) or the current view.
     func presentPrint() {
         guard !printing.isRunning else { statusMessage = "Printing is already in progress"; return }
-        guard engineLibrary != nil else { statusMessage = "Printing needs a folder opened on the engine"; return }
+        guard let lib = engineLibrary else { statusMessage = "Printing needs a folder opened on the engine"; return }
         let items = (selectionCount > 1 ? selectedItems : (source == .all ? selectedItems : visibleItems))
             .filter { $0.engineImage != nil }
         guard !items.isEmpty else { statusMessage = "Select photos to print"; return }
-        if let d = develop { try? d.session.flush() }
-        printing.prepare(items: items, title: selectionCount > 1 || source == .all ? "Selection" : source.title,
-                         loader: loader)
-        showPrint = true
+        let imageIDs = Set(items.compactMap { $0.engineImage?.imageID })
+        let selected = selection
+        let revision = libraryRevision
+        let title = selectionCount > 1 || source == .all ? "Selection" : source.title
+        let gate = prepareForRecipeRead(imageIDs: imageIDs, library: lib)
+        Task { [weak self] in
+            var previewOwnsGate = false
+            defer { if !previewOwnsGate { gate.finish() } }
+            guard await gate.result().isSaved else {
+                self?.statusMessage = "Finish saving the photo before Print"
+                return
+            }
+            guard let self, self.engineLibrary === lib, self.selection == selected,
+                  self.libraryRevision == revision else { return }
+            self.printing.acquireSaveGate = { [weak self, lib] ids in
+                guard let self, self.engineLibrary === lib else { return nil }
+                return self.prepareForRecipeRead(imageIDs: ids, library: lib)
+            }
+            self.printing.prepare(items: items, title: title, loader: self.loader, gate: gate)
+            previewOwnsGate = true
+            self.showPrint = true
+        }
     }
 }
 
@@ -122,6 +140,10 @@ extension AppModel {
         }
         selectAll()
         if let dir {
+            exporter.acquireSaveGate = { [weak self, lib] ids in
+                guard let self, self.engineLibrary === lib else { return nil }
+                return self.prepareForRecipeRead(imageIDs: ids, library: lib)
+            }
             exporter.prepare(engine: lib.engine, targets: exportTargets(), preferred: .selection)
             if let web = exporter.presets.first { exporter.apply(web) }
             exporter.settings.destination = dir.path
@@ -146,6 +168,10 @@ extension AppModel {
             return
         }
         if let pdf {
+            printing.acquireSaveGate = { [weak self, lib] ids in
+                guard let self, self.engineLibrary === lib else { return nil }
+                return self.prepareForRecipeRead(imageIDs: ids, library: lib)
+            }
             printing.prepare(items: visibleItems.filter { $0.engineImage != nil }, title: "Self-test", loader: loader)
             printing.settings.layout.style = .contactSheet
             printing.settings.layout.rows = 5

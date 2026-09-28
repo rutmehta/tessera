@@ -632,7 +632,8 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertEqual(f.model.developStatus, .loading)
         let barrier = f.model.prepareForAgent(imageIDs: [f.a.imageIDs[0]], library: f.a)
         XCTAssertEqual(f.model.developStatus, .loading, "A's barrier must preserve B's loading state")
-        await barrier.value
+        _ = await barrier.result()
+        barrier.finish()
         try await settle { f.model.develop != nil }
         let controller = try XCTUnwrap(f.model.develop)
         XCTAssertEqual(controller.imageID, f.b.imageIDs[0])
@@ -667,10 +668,12 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertNil(f.model.develop)
         try await settle { f.agent.busy.isEmpty && f.model.develop != nil }
         XCTAssertEqual(try f.a.engine.agentProvenance(imageId: entry.imageID)?.item.reviewStatus, "accepted")
+        let controllerBeforeRevert = try XCTUnwrap(f.model.develop)
         f.agent.revert(target)
         f.model.openDevelop(for: f.a.items[0])
-        XCTAssertNotEqual(f.model.developStatus, .loading)
-        XCTAssertNil(f.model.develop)
+        XCTAssertTrue(f.agent.busy.contains(entry.imageID), "The revert owns admission until its recipe write settles")
+        XCTAssertTrue(f.model.develop == nil || f.model.develop === controllerBeforeRevert,
+                      "A new Develop session must not open across the in-flight revert")
         try await settle { f.agent.busy.isEmpty && f.model.develop != nil }
         let controller = try XCTUnwrap(f.model.develop)
         XCTAssertEqual(try controller.session.historyGroups().first { $0.groupId == entry.groupID }?.amount, 0,
@@ -819,15 +822,24 @@ final class AgentReviewOwnershipTests: XCTestCase {
 
     func testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted() async throws {
         let f = try fixture(useModelAgent: true)
+        let folder = try XCTUnwrap(f.a.folder)
+        let store = ReviewResumeStore(directory: f.support)
+        let entered = expectation(description: "scripted run reached held native-run boundary")
+        let hold = AgentRunHold(entered: entered)
+        defer { hold.release() }
+        f.agent.beforeNativeAgentRun = { try hold.wait() }
         f.agent.start(itemIDs: [0], provider: .scripted)
+        await fulfillment(of: [entered], timeout: 5)
         XCTAssertTrue(f.agent.isRunning)
+        XCTAssertEqual(try store.load(libraryFolder: folder)?.state, .running,
+                       "The deterministic worker hold begins only after the durable intent is written")
         let reopened = try EngineLibrary.scan(folder: try XCTUnwrap(f.a.folder), appSupport: f.support)
         f.model.install(reopened)
-        let store = ReviewResumeStore(directory: f.support)
-        XCTAssertEqual(try store.load(libraryFolder: try XCTUnwrap(f.a.folder))?.state, .running,
+        XCTAssertEqual(try store.load(libraryFolder: folder)?.state, .running,
                        "installing another engine owner in the same session is not a relaunch")
         XCTAssertTrue(f.agent.resumeMessage?.contains("still running") == true)
 
+        hold.release()
         try await settle { !f.agent.isRunning }
 
         XCTAssertTrue(f.agent.reviewLibrary === reopened, "completed work rebinds to the newly installed owner")
@@ -950,4 +962,22 @@ private enum InjectedDevelopSessionFailure: LocalizedError {
     case settings
 
     var errorDescription: String? { "injected set_settings rejection" }
+}
+
+private final class AgentRunHold: @unchecked Sendable {
+    private let semaphore = DispatchSemaphore(value: 0)
+    private let entered: XCTestExpectation
+
+    init(entered: XCTestExpectation) { self.entered = entered }
+
+    func wait() throws {
+        entered.fulfill()
+        guard semaphore.wait(timeout: .now() + 10) == .success else { throw AgentRunHoldTimedOut() }
+    }
+
+    func release() { semaphore.signal() }
+}
+
+private struct AgentRunHoldTimedOut: LocalizedError {
+    var errorDescription: String? { "scripted run hold was not released" }
 }

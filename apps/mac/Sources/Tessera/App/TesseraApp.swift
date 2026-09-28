@@ -297,5 +297,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppModel.shared.tether.disconnect()
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let model = AppModel.shared
+        guard !model.developRecovery.hasUnresolvedSessions,
+              !model.developRecovery.hasActiveReservations else {
+            model.statusMessage = "Finish the current photo save or operation before quitting"
+            model.mainWindow?.makeKeyAndOrderFront(nil)
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        let recovery = AppModel.shared.developRecovery
+        return !recovery.hasUnresolvedSessions && !recovery.hasActiveReservations
+    }
 }

@@ -174,16 +174,32 @@ final class DevelopTests: XCTestCase {
             let item = try XCTUnwrap(library.items.first { $0.name == name })
             XCTAssertEqual(item.kind, kind)
             XCTAssertNotNil(item.engineImage)
+            let expectedPosition = try XCTUnwrap(model.visible.firstIndex(of: item.id))
             model.select(id: item.id)
-            model.openDevelop(for: item)
-            let deadline = Date().addingTimeInterval(20)
-            while model.developStatus == .loading && Date() < deadline {
-                try await Task.sleep(for: .milliseconds(20))
+            try await settle {
+                model.focusedItem?.id == item.id && model.selection == IndexSet(integer: expectedPosition)
             }
+            model.openDevelop(for: item)
+            try await settle { model.developStatus == .ready && model.develop?.itemID == item.id }
             XCTAssertEqual(model.developStatus, .ready, "\(name): \(model.developStatus)")
             XCTAssertEqual(model.develop?.itemID, item.id)
-            model.closeDevelop()
+            if let close = model.closeDevelop() {
+                switch await close.value {
+                case .saved: break
+                case .failed(_, let message): XCTFail("\(name) Develop close failed: \(message)")
+                }
+            }
+            try await settle { model.develop == nil && model.developStatus == .none }
         }
+    }
+
+    private func settle(_ condition: @MainActor () -> Bool,
+                        file: StaticString = #filePath, line: UInt = #line) async throws {
+        let deadline = Date().addingTimeInterval(20)
+        while !condition(), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertTrue(condition(), "Develop state did not settle", file: file, line: line)
     }
 
     private func mean(_ bins: [UInt32]) -> Double {

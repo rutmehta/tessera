@@ -73,11 +73,11 @@ struct AppCommands: Commands {
                 .disabled(!model.isPhotoEditing && !model.isReviewing)
             Divider()
             Button("Grid    (G)") {
-                if model.isPhotoEditing || model.isReviewing { model.returnToLibrary(grid: true) } else { model.viewMode = .grid }
+                model.requestLibraryViewMode(.grid)
             }
-            Button("Loupe    (E / Return)") { model.returnToLibrary(); model.viewMode = .loupe }
-            Button("Compare    (C)") { model.returnToLibrary(); model.enterCompare() }
-            Button("Layered Documents") { model.viewMode = .document }
+            Button("Loupe    (E / Return)") { model.requestLibraryViewMode(.loupe) }
+            Button("Compare    (C)") { model.requestLibraryCompare() }
+            Button("Layered Documents") { model.requestViewMode(.document) }
             Divider()
             Group {
             Button("Zoom In") { doc?.viewport?.zoomIn() }
@@ -184,7 +184,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .option, .shift])
             Divider()
             Button("Save Filter as Smart Album…") { model.collections.saveFilterAsSmartAlbum() }
-            Button("Clear Filter") { model.collections.clearFilter(); model.setPersonFacet([]) }
+            Button("Clear Filter") { model.clearLibraryFilters() }
                 .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
             Button("Show Photos Not in Any Album") { model.setSource(.notInAlbum) }

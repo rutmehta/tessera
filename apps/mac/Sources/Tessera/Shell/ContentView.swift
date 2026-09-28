@@ -33,6 +33,24 @@ struct ContentView: View {
                                                 max: Theme.Width.sidebarMax)
         } detail: {
             VStack(spacing: 0) {
+                ForEach(model.developRecoveries) { recovery in
+                    if case .failed(let message) = recovery.phase {
+                        HStack(spacing: Theme.Space.m) {
+                            Text("Could not finish saving \(recovery.displayName): \(message)")
+                                .lineLimit(2)
+                            Spacer(minLength: Theme.Space.m)
+                            Button("Retry Save") { model.retryDevelopRecovery(recovery.id) }
+                            if model.canKeepEditingDevelopRecovery(recovery.id) {
+                                Button("Keep Editing") { model.keepEditingDevelopRecovery() }
+                            }
+                        }
+                        .font(Theme.Fonts.caption)
+                        .padding(.horizontal, Theme.Space.gutter)
+                        .padding(.vertical, Theme.Space.s)
+                        .background(Theme.panel)
+                        .accessibilityIdentifier("develop-save-recovery")
+                    }
+                }
                 if model.viewMode != .document { WorkspaceHeader(model: model) }
                 if model.isEngineBacked, model.source != .people, model.isLibraryWorkspace {
                     FilterBar(library: model.collections, model: model)
@@ -266,7 +284,7 @@ struct ContentView: View {
         .flatToolbarItem()
         ToolbarItem(id: "mode", placement: .principal) {
             if model.viewMode == .document {
-                Button("Library") { model.viewMode = .grid }
+                Button("Library") { model.requestLibraryViewMode(.grid) }
                     .buttonStyle(ToolbarButtonStyle())
                     .help("Return to Library; open documents stay available")
             } else {
@@ -290,7 +308,11 @@ struct ContentView: View {
         .flatToolbarItem()
         ToolbarItem(id: "library-view", placement: .primaryAction) {
             if model.isLibraryWorkspace {
-                SegmentedPicker(selection: $model.viewMode, segments: [
+                SegmentedPicker(selection: Binding(get: {
+                    model.viewMode
+                }, set: { mode in
+                    model.requestLibraryViewMode(mode)
+                }), segments: [
                     .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
                     .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
                     .init(value: ViewMode.compare, title: "Compare", symbol: "rectangle.split.2x1", help: "Compare (C)"),
@@ -474,12 +496,24 @@ private struct ToolbarButtonBody: View {
 
 /// Lets the window's toolbar keep the title visible and the items flat (no per-item glass).
 struct WindowToolbarConfigurator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { NSView() }
+    private final class Anchor: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { configure(window) }
+        }
+
+        func configure(_ window: NSWindow) {
+            window.titlebarSeparatorStyle = .line
+            RecoveryWindowCloseGuard.install(on: window)
+        }
+    }
+
+    func makeNSView(context: Context) -> NSView { Anchor() }
     func updateNSView(_ view: NSView, context: Context) {
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
-                guard let window = view.window else { return }
-                window.titlebarSeparatorStyle = .line
+                guard let anchor = view as? Anchor, let window = anchor.window else { return }
+                anchor.configure(window)
             }
         }
     }
