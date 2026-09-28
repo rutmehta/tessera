@@ -550,7 +550,7 @@ enum SaveWork {
 struct SaveFailure {
     error: BridgeError,
     retry: SaveWork,
-    published: Option<Box<Recipe>>,
+    published: Option<Box<OwnerBaseline>>,
 }
 
 impl SaveFailure {
@@ -570,7 +570,7 @@ impl SaveFailure {
         }
     }
 
-    fn after_recipe(error: impl Into<BridgeError>, published: &Recipe) -> Self {
+    fn after_recipe(error: impl Into<BridgeError>, published: &OwnerBaseline) -> Self {
         Self {
             error: error.into(),
             retry: SaveWork::Repair,
@@ -611,7 +611,7 @@ pub(crate) struct Shared {
     /// The Develop-owned fields last read or authoritatively published by
     /// this session. The save worker updates this from its published snapshot,
     /// never from newer UI state that arrived during I/O.
-    owner_baseline: Mutex<Recipe>,
+    owner_baseline: Mutex<OwnerBaseline>,
     // Held through GPU completion and publication: cancelled jobs cannot
     // release an IOSurface while a submitted write is still in flight.
     render_serial: Mutex<()>,
@@ -940,8 +940,17 @@ impl Engine {
             Self::path(&c, &image_id)?
         };
         let path = PathBuf::from(path);
-        let mut recipe = catalog::document(&path, id)?.recipe;
-        let owner_baseline = recipe.clone();
+        let (mut recipe, owner_baseline) = {
+            let gate = crate::recipe_write::gate_for(&path)?;
+            let _read = gate.begin_read()?;
+            let c = self.lock()?;
+            if Path::new(&Self::path(&c, &image_id)?) != path {
+                return Err(failure("image path changed before Develop open"));
+            }
+            let recipe = catalog::document(&path, id)?.recipe;
+            let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
+            (recipe, baseline)
+        };
         let image = RawImage::open(id, &path)?;
         recipe.source_kind = if image.source_kind() == "rgb" {
             engine_api::recipe::SourceKind::Rgb
@@ -1043,8 +1052,8 @@ impl Engine {
         image_id: &str,
         path: &Path,
         recipe: &Recipe,
-        baseline: &Recipe,
-    ) -> std::result::Result<(String, Recipe), SaveFailure> {
+        baseline: &OwnerBaseline,
+    ) -> std::result::Result<(String, OwnerBaseline), SaveFailure> {
         let id = parse_id(image_id).map_err(SaveFailure::full)?;
         let gate = crate::recipe_write::gate_for(path).map_err(SaveFailure::full)?;
         let _write = gate.begin_write().map_err(SaveFailure::full)?;
@@ -1055,9 +1064,16 @@ impl Engine {
             )));
         }
         let mut doc = catalog::document(path, id).map_err(SaveFailure::full)?;
-        if !same_develop_owner_fields(&doc.recipe, baseline) {
+        let current =
+            OwnerBaseline::from_disk(path, doc.recipe.clone()).map_err(SaveFailure::full)?;
+        if baseline.has_unrepresented_nested || current.has_unrepresented_nested {
             return Err(SaveFailure::full(failure(
-                "conflict: Develop-owned recipe fields changed on disk",
+                "conflict: unsupported nested Develop recipe fields would be lost",
+            )));
+        }
+        if !baseline.matches(&current) {
+            return Err(SaveFailure::full(failure(
+                "conflict: newer Develop-owned recipe fields changed on disk",
             )));
         }
         doc.recipe.process_version = recipe.process_version;
@@ -1077,23 +1093,24 @@ impl Engine {
         let packet = catalog::selection_packet(path, &doc)
             .and_then(|packet| packet.with_recipe(&doc.recipe))
             .map_err(SaveFailure::full)?;
+        let published = OwnerBaseline::published(doc.recipe.clone()).map_err(SaveFailure::full)?;
         sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(path).recipe, &doc)
             .map_err(SaveFailure::full)?;
         #[cfg(test)]
         injected_post_recipe_failure(path)
-            .map_err(|error| SaveFailure::after_recipe(error, &doc.recipe))?;
+            .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)
-            .map_err(|error| SaveFailure::after_recipe(error, &doc.recipe))?;
+            .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         c.index
             .scan(
                 path.parent().ok_or_else(|| {
-                    SaveFailure::after_recipe(failure("image has no folder"), &doc.recipe)
+                    SaveFailure::after_recipe(failure("image has no folder"), &published)
                 })?,
                 &catalog::Sidecars,
                 &catalog::EmbeddedMetadata,
             )
-            .map_err(|error| SaveFailure::after_recipe(error, &doc.recipe))?;
-        Ok((doc.recipe.recipe_hash().to_string(), doc.recipe))
+            .map_err(|error| SaveFailure::after_recipe(error, &published))?;
+        Ok((doc.recipe.recipe_hash().to_string(), published))
     }
 
     /// Complete auxiliary outputs after a recipe was already published. Read
@@ -1135,6 +1152,107 @@ fn same_develop_owner_fields(left: &Recipe, right: &Recipe) -> bool {
     same_develop_fields(left, right)
         && left.ids.next_mask == right.ids.next_mask
         && left.ids.next_retouch == right.ids.next_retouch
+}
+
+/// Known owner fields use the same defaulting and XMP fallback as
+/// `catalog::document`. Raw nested members not represented by the current
+/// serializer are retained in this comparison, then rejected before a write
+/// because publishing a typed Recipe would otherwise erase them.
+#[derive(Clone)]
+struct OwnerBaseline {
+    recipe: Recipe,
+    projection: Value,
+    has_unrepresented_nested: bool,
+}
+
+impl OwnerBaseline {
+    fn published(recipe: Recipe) -> Result<Self> {
+        Ok(Self {
+            projection: canonical_owner_projection(&recipe)?,
+            recipe,
+            has_unrepresented_nested: false,
+        })
+    }
+
+    fn from_disk(path: &Path, recipe: Recipe) -> Result<Self> {
+        let mut projection = canonical_owner_projection(&recipe)?;
+        let raw = match std::fs::read(sidecar::Sidecar::paths(path).recipe) {
+            Ok(bytes) => Some(serde_json::from_slice::<Value>(&bytes).map_err(failure)?),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error.into()),
+        };
+        let mut has_unrepresented_nested = false;
+        if let Some(raw_recipe) = raw.as_ref().and_then(|value| value.get("recipe")) {
+            for key in [
+                "process_version",
+                "source_kind",
+                "settings",
+                "history",
+                "ids",
+            ] {
+                if let Some(raw_field) = raw_recipe.get(key) {
+                    has_unrepresented_nested |=
+                        merge_unrepresented(raw_field, &mut projection[key]);
+                }
+            }
+        }
+        Ok(Self {
+            recipe,
+            projection,
+            has_unrepresented_nested,
+        })
+    }
+
+    fn matches(&self, current: &Self) -> bool {
+        !self.has_unrepresented_nested
+            && !current.has_unrepresented_nested
+            && same_develop_owner_fields(&self.recipe, &current.recipe)
+            && self.projection == current.projection
+    }
+}
+
+fn canonical_owner_projection(recipe: &Recipe) -> Result<Value> {
+    let value = serde_json::to_value(recipe).map_err(failure)?;
+    let mut owner = serde_json::Map::new();
+    for key in [
+        "process_version",
+        "source_kind",
+        "settings",
+        "history",
+        "ids",
+    ] {
+        owner.insert(key.to_owned(), value[key].clone());
+    }
+    Ok(Value::Object(owner))
+}
+
+fn merge_unrepresented(raw: &Value, normalized: &mut Value) -> bool {
+    match (raw, normalized) {
+        (Value::Object(raw), Value::Object(normalized)) => {
+            let mut found = false;
+            for (key, value) in raw {
+                if let Some(known) = normalized.get_mut(key) {
+                    found |= merge_unrepresented(value, known);
+                } else {
+                    normalized.insert(key.clone(), value.clone());
+                    found = true;
+                }
+            }
+            found
+        }
+        (Value::Array(raw), Value::Array(normalized)) => {
+            if raw.len() != normalized.len() {
+                *normalized = raw.clone();
+                return true;
+            }
+            raw.iter()
+                .zip(normalized.iter_mut())
+                .fold(false, |found, (value, known)| {
+                    merge_unrepresented(value, known) || found
+                })
+        }
+        _ => false,
+    }
 }
 
 /// Before a surface is attached: the level whose long edge is ≤ 2048 px.
@@ -1438,7 +1556,7 @@ impl Shared {
                     if matches!(failed.retry, SaveWork::Full) {
                         s.retry_recipe = None;
                     } else if let Some(published) = failed.published {
-                        s.retry_recipe = Some(published);
+                        s.retry_recipe = Some(Box::new(published.recipe.clone()));
                     }
                     s.failure_seq = s.failure_seq.checked_add(1).expect("save failure sequence");
                     s.error = Some(failed.error.to_string());
