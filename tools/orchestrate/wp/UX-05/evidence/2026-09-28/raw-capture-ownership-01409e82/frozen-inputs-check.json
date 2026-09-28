@@ -1,0 +1,8 @@
+{
+  "02-behavior-red": true,
+  "03-ownership-green": true,
+  "04-full-raw-decode": true,
+  "05-strict": true,
+  "06-fmt": true,
+  "07-final-raw-decode": true
+}

@@ -1,0 +1,49 @@
+{
+  "ref": "01409e822b19a45f68e81a8eb16f0ef4fbc3f166",
+  "gates": {
+    "02-behavior-red": {
+      "exit": 101,
+      "source_equal": true,
+      "fixture_equal": true,
+      "before_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf",
+      "after_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf"
+    },
+    "03-ownership-green": {
+      "exit": 0,
+      "source_equal": true,
+      "fixture_equal": true,
+      "before_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf",
+      "after_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf"
+    },
+    "04-full-raw-decode": {
+      "exit": 0,
+      "source_equal": true,
+      "fixture_equal": true,
+      "before_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf",
+      "after_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf"
+    },
+    "05-strict": {
+      "exit": 0,
+      "source_equal": true,
+      "fixture_equal": true,
+      "before_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf",
+      "after_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf"
+    },
+    "06-fmt": {
+      "exit": 0,
+      "source_equal": true,
+      "fixture_equal": true,
+      "before_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf",
+      "after_head": "838c8e496bf4cb5bcecf74801e7402bedababfcf"
+    },
+    "07-final-raw-decode": {
+      "exit": 0,
+      "source_equal": true,
+      "fixture_equal": true,
+      "before_head": "01409e822b19a45f68e81a8eb16f0ef4fbc3f166",
+      "after_head": "01409e822b19a45f68e81a8eb16f0ef4fbc3f166"
+    }
+  },
+  "final_git_count": 8202,
+  "final_git_mismatches": []
+}

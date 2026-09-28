@@ -1,0 +1,19 @@
+{
+  "command": [
+    "cargo",
+    "clippy",
+    "-p",
+    "raw-decode",
+    "--release",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "start": "2026-09-28T20:56:00.193207+00:00"
+}
