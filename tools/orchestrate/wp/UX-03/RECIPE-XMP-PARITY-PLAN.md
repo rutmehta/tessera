@@ -1,0 +1,11 @@
+# Engine recipe setter XMP parity
+
+Status: tests-only source prepared; **no compiler gate or production change run**. Base is `origin/main` at `03a7222fadbb794270f97282c1638c9bcb585b38` on `codex/recipe-xmp-parity`.
+
+`Engine::set_recipe_json` changes a recipe, then calls `Engine::persist`. The latter writes an XMP packet built only with `catalog::selection_packet`; it does not encode the new Develop settings. A successful exposure edit can therefore leave recipe JSON and the index on the new settings while XMP still contains old or neutral CRS values. This is inconsistent with `docs/05-catalog-storage-and-import.md:19-31,80` and with full Develop and Agent writers, both of which call `with_recipe`. Existing setter tests cover XMP selection but not Develop settings. The source audit is `/tmp/tessera-engine-recipe-xmp-audit.md`.
+
+The first new 2×2 JPEG test edits exposure through the valid recipe history API, calls `set_recipe_json`, and checks literal exposure `1.25` in JSON and XMP plus the indexed recipe hash. This should fail behaviorally on XMP exposure while the other outputs match. The second test seeds an XMP packet with exposure `0.75` and descriptive metadata, calls `set_selection`, and checks those values remain while selection changes. That is the behavior the repair must preserve.
+
+After a recorded RED, change only the `set_recipe_json` persistence path to build `catalog::selection_packet(...).with_recipe(&doc.recipe)` **before** the recipe rename, while its destination gate and catalog lock are held. Keep `set_selection` selection-only. Recipe remains the authoritative commit; XMP and index remain sequential, rebuildable outputs, not an atomic three-file transaction. Do not change baked export metadata or Original pass-through behavior.
+
+Proposed bounded RED: `CARGO_BUILD_JOBS=2 RAYON_NUM_THREADS=2 CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/main cargo test -p tessera-ffi --lib recipe_write_tests:: -- --nocapture` under a process watchdog, preserving direct exit, raw log, exact source manifest and target identity. Then implement the minimal change and rerun the focused module, tiny FFI API tests, strict format/lint, and only broader gates justified by observed failures. No pass is claimed here.
