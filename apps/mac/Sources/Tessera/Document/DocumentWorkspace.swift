@@ -43,6 +43,7 @@ private final class DocumentLoadSettlement {
 enum DocumentSaveOutcome: Equatable {
     case saved(URL?, continuationCancelled: Bool)
     case cancelled
+    case destinationConflict(URL)
     case failed(String)
 }
 
@@ -58,6 +59,7 @@ private final class DocumentSaveOperation {
     var host: DocumentSaveHostIdentity?
     var pendingRequest: SaveAsRequest?
     var needsReplacement = false
+    var destinationIntent: DocSaveDestinationIntent?
     init(id: UUID, document: DocumentController, requiresWindow: Bool,
          completion: @escaping (DocumentSaveOutcome) -> Void) {
         self.id = id; self.document = document; self.requiresWindow = requiresWindow
@@ -324,6 +326,7 @@ final class DocumentWorkspace {
     // the presenter's driver boundary, never by synthesizing dismissal callbacks.
     @ObservationIgnored var saveHasWindow: (() -> Bool)?
     @ObservationIgnored var saveFileExists: ((URL) -> Bool)?
+    @ObservationIgnored var checkedSaveWriter: ((DocumentController, URL, DocSaveDestinationIntent, @escaping @MainActor (Result<DocSaveAsResult, Error>) -> Void) -> Void)?
     @ObservationIgnored var saveWriter: ((DocumentController, URL?, @escaping @MainActor (Result<Void, Error>) -> Void) -> Void)?
 
     /// Preparation-facing seam only: does not close, finalize drafts or enable Quit.
@@ -469,6 +472,7 @@ final class DocumentWorkspace {
                 case .replacing:
                     if response == NSApplication.ModalResponse.alertFirstButtonReturn.rawValue,
                        let request = operation.pendingRequest {
+                        operation.destinationIntent = .replaceConfirmed
                         admitDocumentWrite(operation, url: request.url, folder: request.folder)
                     } else { settleDocumentSave(operation.id, .cancelled) }
                 case .writing: break
@@ -490,6 +494,7 @@ final class DocumentWorkspace {
               let token = savePresentation, token.requestID == request.id else { return }
         guard request.isValid else { settleDocumentSave(request.id, .failed("Invalid file name")); return }
         operation.needsReplacement = saveFileExists?(request.url) ?? FileManager.default.fileExists(atPath: request.url.path)
+        operation.destinationIntent = operation.needsReplacement ? nil : .createIfAbsent
         operation.pendingRequest = request
         operation.phase = .waitingForDismissal
         presentedSaveAs = nil
@@ -502,14 +507,22 @@ final class DocumentWorkspace {
         if operation.requiresWindow, !(saveHasWindow?() ?? (savePresenter.host != nil)) {
             settleDocumentSave(operation.id, .failed("Document window closed before save")); return
         }
+        guard operation.pendingRequest == nil || (operation.destinationIntent != nil && url != nil) else {
+            settleDocumentSave(operation.id, .failed("Save As requires a confirmed destination intent")); return
+        }
         operation.phase = .writing
         if activeSavePrompt == operation.id { activeSavePrompt = nil }
         if presentedSaveAs?.id == operation.id { presentedSaveAs = nil }
         // Strong self/operation ownership lasts until an admitted writer settles.
-        let done: @MainActor (Result<Void, Error>) -> Void = { [self, operation] result in
+        let done: @MainActor (Result<DocSaveAsResult, Error>) -> Void = { [self, operation] result in
             guard saveOperations[operation.id] === operation, operation.phase == .writing else { return }
             switch result {
-            case .success:
+            case .success(.destinationExists):
+                guard let url else {
+                    settleDocumentSave(operation.id, .failed("Save returned a conflict without a destination")); return
+                }
+                settleDocumentSave(operation.id, .destinationConflict(url))
+            case .success(.saved):
                 operation.document.reloadModel()
                 operation.document.reloadHistory()
                 if latestSaveRequest == operation.id {
@@ -521,11 +534,17 @@ final class DocumentWorkspace {
             case .failure(let error): settleDocumentSave(operation.id, .failed(error.localizedDescription))
             }
         }
-        if let saveWriter { saveWriter(operation.document, url, done) }
-        else {
+        if let intent = operation.destinationIntent, let url {
+            if let checkedSaveWriter { checkedSaveWriter(operation.document, url, intent, done) }
+            else { done(Result { try operation.document.backend.saveAs(path: url.path, intent: intent) }) }
+        } else if let saveWriter {
+            // Legacy headless Save As and ordinary Save preserve their Void route.
+            saveWriter(operation.document, url) { result in done(result.map { .saved }) }
+        } else {
             done(Result {
                 if let url { try operation.document.backend.saveAs(path: url.path) }
                 else { try operation.document.backend.save() }
+                return .saved
             })
         }
     }
@@ -538,7 +557,14 @@ final class DocumentWorkspace {
         if presentedSaveAs?.id == id { presentedSaveAs = nil }
         let completion = operation.completion
         operation.completion = nil // Latch before reentrant observers.
-        if latestSaveRequest == id, case .failed(let message) = outcome { say("Save: \(message)") }
+        if latestSaveRequest == id {
+            switch outcome {
+            case .failed(let message): say("Save: \(message)")
+            case .destinationConflict:
+                say("Save: A file appeared at this destination. Choose another name or confirm Replace.")
+            default: break
+            }
+        }
         // Clear logical ownership before native end or caller completion reenters.
         let token = savePresentation.flatMap { $0.requestID == id ? $0 : nil }
         if let token { savePresenter.end(token) }

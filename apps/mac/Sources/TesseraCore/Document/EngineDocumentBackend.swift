@@ -251,6 +251,23 @@ extension DocumentChange {
     }
 }
 
+extension DocSaveDestinationIntent {
+    var ffi: DocumentSaveDestinationIntent {
+        switch self {
+        case .createIfAbsent: .createIfAbsent
+        case .replaceConfirmed: .replaceConfirmed
+        }
+    }
+}
+extension DocSaveAsResult {
+    init(_ result: DocumentSaveAsResult) {
+        switch result {
+        case .saved: self = .saved
+        case .destinationExists: self = .destinationExists
+        }
+    }
+}
+
 extension DocumentError {
     /// `BridgeError.Failure` messages (the engine's `EngineError` text) by kind.
     init(bridge: BridgeError) {
@@ -580,6 +597,9 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
 
     public func save() throws { try bridged { try session.save() } }
     public func saveAs(path: String) throws { try bridged { try session.saveAs(path: path) } }
+    public func saveAs(path: String, intent: DocSaveDestinationIntent) throws -> DocSaveAsResult {
+        try bridged { DocSaveAsResult(try session.saveAsChecked(path: path, intent: intent.ffi)) }
+    }
     public func exportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws {
         try bridged { try session.exportFlat(path: path, format: format.ffi, quality: quality, color: color.ffi) }
     }
