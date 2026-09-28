@@ -1,0 +1,112 @@
+{
+  "source": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+  "source_sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+  "copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/aux-marker-order/A-aux-order-swapped.jpg",
+  "copy_sha256": "449195f44b39de0aa3e68bc7fa009a55ea98e3e9cf86016f5bbd59c0c7a23f28",
+  "bytes": 1956,
+  "aux_soi_offset": 1436,
+  "mpf_primary": [
+    537067520,
+    1436,
+    0
+  ],
+  "mpf_auxiliary": [
+    0,
+    520,
+    177
+  ],
+  "swapped_byte_range": [
+    1438,
+    1549
+  ],
+  "source_markers": [
+    {
+      "label": "APP0-JFIF",
+      "start": 1438,
+      "end": 1456,
+      "sha256": "4ee93f04ce50acbb8abde17758e15ab55ac708c92dccaefb0c48f7c4a7a608bf"
+    },
+    {
+      "label": "APP2-ISO",
+      "start": 1456,
+      "end": 1549,
+      "sha256": "12331a638de007769de99a3fb93750fe7a1ad484cddb234ea491a00c72196da0"
+    },
+    {
+      "label": "0xc0",
+      "start": 1549,
+      "end": 1562,
+      "sha256": "28d23907ce0f8545ad27a4d46279ae20bc3f30eac579d09301af02488acd1349"
+    },
+    {
+      "label": "0xdb",
+      "start": 1562,
+      "end": 1631,
+      "sha256": "1bdbf1793d27844fd92aac9a6324f08179ed7385751734255e4d27b9982220a7"
+    },
+    {
+      "label": "0xdb",
+      "start": 1631,
+      "end": 1700,
+      "sha256": "22c4b348b9e9b3ea76afe1ba6607d5165fc3861564766ec3434645f40174ba25"
+    },
+    {
+      "label": "0xc4",
+      "start": 1700,
+      "end": 1733,
+      "sha256": "8b7de04a62a93a0c046ac4b10fbd481d5efad815d21c2656253ecba006b6df70"
+    },
+    {
+      "label": "0xc4",
+      "start": 1733,
+      "end": 1916,
+      "sha256": "2a69b763ce3a04f14fccd428916925f89a70abfd7ebf6a4ebdd51f634787ede3"
+    }
+  ],
+  "copy_markers": [
+    {
+      "label": "APP2-ISO",
+      "start": 1438,
+      "end": 1531,
+      "sha256": "12331a638de007769de99a3fb93750fe7a1ad484cddb234ea491a00c72196da0"
+    },
+    {
+      "label": "APP0-JFIF",
+      "start": 1531,
+      "end": 1549,
+      "sha256": "4ee93f04ce50acbb8abde17758e15ab55ac708c92dccaefb0c48f7c4a7a608bf"
+    },
+    {
+      "label": "0xc0",
+      "start": 1549,
+      "end": 1562,
+      "sha256": "28d23907ce0f8545ad27a4d46279ae20bc3f30eac579d09301af02488acd1349"
+    },
+    {
+      "label": "0xdb",
+      "start": 1562,
+      "end": 1631,
+      "sha256": "1bdbf1793d27844fd92aac9a6324f08179ed7385751734255e4d27b9982220a7"
+    },
+    {
+      "label": "0xdb",
+      "start": 1631,
+      "end": 1700,
+      "sha256": "22c4b348b9e9b3ea76afe1ba6607d5165fc3861564766ec3434645f40174ba25"
+    },
+    {
+      "label": "0xc4",
+      "start": 1700,
+      "end": 1733,
+      "sha256": "8b7de04a62a93a0c046ac4b10fbd481d5efad815d21c2656253ecba006b6df70"
+    },
+    {
+      "label": "0xc4",
+      "start": 1733,
+      "end": 1916,
+      "sha256": "2a69b763ce3a04f14fccd428916925f89a70abfd7ebf6a4ebdd51f634787ede3"
+    }
+  ],
+  "outside_swapped_range_byte_identical": true,
+  "all_whole_marker_contents_identical": true
+}

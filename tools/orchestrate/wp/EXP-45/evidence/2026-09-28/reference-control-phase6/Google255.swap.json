@@ -1,0 +1,100 @@
+{
+  "source": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/reference-16-bright255-explicit.jpg",
+  "source_sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+  "copy": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/aux-marker-order/Google255-aux-order-swapped.jpg",
+  "copy_sha256": "1677ad705596932cf4e5c27ef4eac010aaaf6eb2f2012a79744277d762fbe4b7",
+  "bytes": 1918,
+  "aux_soi_offset": 1478,
+  "mpf_primary": [
+    196608,
+    1478,
+    0
+  ],
+  "mpf_auxiliary": [
+    0,
+    440,
+    826
+  ],
+  "swapped_byte_range": [
+    1480,
+    1591
+  ],
+  "source_markers": [
+    {
+      "label": "APP2-ISO",
+      "start": 1480,
+      "end": 1573,
+      "sha256": "a08293b19b40718a21667a19d63d1e7b74b3a34574da0ced138c84cd1c3e3fcd"
+    },
+    {
+      "label": "APP0-JFIF",
+      "start": 1573,
+      "end": 1591,
+      "sha256": "66084db20c7052073ae4cbc10c3e4a610e463acea230fac553093fe4b6331623"
+    },
+    {
+      "label": "0xdb",
+      "start": 1591,
+      "end": 1660,
+      "sha256": "1bdbf1793d27844fd92aac9a6324f08179ed7385751734255e4d27b9982220a7"
+    },
+    {
+      "label": "0xc0",
+      "start": 1660,
+      "end": 1673,
+      "sha256": "1029a5bf9744929cf9c356aa4a2d852ac1b0671e55378c62b3db158dd4cc0bed"
+    },
+    {
+      "label": "0xc4",
+      "start": 1673,
+      "end": 1706,
+      "sha256": "8b7de04a62a93a0c046ac4b10fbd481d5efad815d21c2656253ecba006b6df70"
+    },
+    {
+      "label": "0xc4",
+      "start": 1706,
+      "end": 1889,
+      "sha256": "2a69b763ce3a04f14fccd428916925f89a70abfd7ebf6a4ebdd51f634787ede3"
+    }
+  ],
+  "copy_markers": [
+    {
+      "label": "APP0-JFIF",
+      "start": 1480,
+      "end": 1498,
+      "sha256": "66084db20c7052073ae4cbc10c3e4a610e463acea230fac553093fe4b6331623"
+    },
+    {
+      "label": "APP2-ISO",
+      "start": 1498,
+      "end": 1591,
+      "sha256": "a08293b19b40718a21667a19d63d1e7b74b3a34574da0ced138c84cd1c3e3fcd"
+    },
+    {
+      "label": "0xdb",
+      "start": 1591,
+      "end": 1660,
+      "sha256": "1bdbf1793d27844fd92aac9a6324f08179ed7385751734255e4d27b9982220a7"
+    },
+    {
+      "label": "0xc0",
+      "start": 1660,
+      "end": 1673,
+      "sha256": "1029a5bf9744929cf9c356aa4a2d852ac1b0671e55378c62b3db158dd4cc0bed"
+    },
+    {
+      "label": "0xc4",
+      "start": 1673,
+      "end": 1706,
+      "sha256": "8b7de04a62a93a0c046ac4b10fbd481d5efad815d21c2656253ecba006b6df70"
+    },
+    {
+      "label": "0xc4",
+      "start": 1706,
+      "end": 1889,
+      "sha256": "2a69b763ce3a04f14fccd428916925f89a70abfd7ebf6a4ebdd51f634787ede3"
+    }
+  ],
+  "outside_swapped_range_byte_identical": true,
+  "all_whole_marker_contents_identical": true
+}

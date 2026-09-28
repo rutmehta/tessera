@@ -1,0 +1,6 @@
+A-original.hdr-linear-half 61cf27b4757daa75048dc3c4d44e4520838872ee7096e23df001442a91547aa5 (16.0, 16.0, 16.0, 1.0)
+Traceback (most recent call last):
+  File "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/aux-marker-order/reference_qualify.py", line 15, in <module>
+    assert run.returncode==0,(cmd,run.stdout.decode(errors='replace'))
+           ^^^^^^^^^^^^^^^^^
+AssertionError: (['./build/ultrahdr_app', '-m', '1', '-j', '/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg', '-o', '3', '-O', '0', '-f', '/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/aux-marker-order/A-original.sdr-srgb-u8.cfg', '-z', '/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/aux-marker-order/A-original.sdr-srgb-u8.raw'], 'invalid output format 0, expects one of {UHDR_IMG_FMT_32bppRGBA8888,  UHDR_IMG_FMT_64bppRGBAHalfFloat, UHDR_IMG_FMT_32bppRGBA1010102}\n')

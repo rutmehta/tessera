@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/aux-marker-order/static_validate.py", line 9, in <module>
+    m0,m1=r['source_markers'][:2];assert a[m0['start']:m0['end']]==b[m1['start']:m1['end']]
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
