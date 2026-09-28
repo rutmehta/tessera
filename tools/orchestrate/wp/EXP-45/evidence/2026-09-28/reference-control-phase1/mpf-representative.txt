@@ -1,0 +1,5 @@
+[MPF0]          MPFVersion                      : 0100
+[MPF0]          NumberOfImages                  : 2
+[MPImage2]      MPImageStart                    : 1479
+[MPImage2]      MPImageLength                   : 416
+[MPImage2]      MPImage2                        : (Binary data 416 bytes, use -b option to extract)

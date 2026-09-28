@@ -1,0 +1,104 @@
+[
+  {
+    "path" : "\/Volumes\/betterSSD\/tessera-validation\/exp45-independent-control\/d52a0d13814ca399fc8a07e23de1d2c63f0e8404\/fixtures\/reference-4-representative.jpg",
+    "default_expand" : {
+      "nonzero" : 3840,
+      "alpha_max" : 1,
+      "min" : 0.051271930336952209,
+      "peak" : 0.871368408203125,
+      "content_headroom" : 1,
+      "nonfinite" : 0,
+      "alpha_min" : 1,
+      "patches" : [
+        [
+          0.051271982491016388,
+          0.051271967589855194,
+          0.051271930336952209,
+          1
+        ],
+        [
+          0.051271982491016388,
+          0.051271967589855194,
+          0.051271930336952209,
+          1
+        ],
+        [
+          0.21586465835571289,
+          0.21586458384990692,
+          0.21586458384990692,
+          1
+        ],
+        [
+          0.871368408203125,
+          0.8713681697845459,
+          0.87136822938919067,
+          1
+        ],
+        [
+          0.871368408203125,
+          0.8713681697845459,
+          0.87136822938919067,
+          1
+        ]
+      ],
+      "valid_pixels" : 1,
+      "image_created" : true
+    },
+    "explicit_gain" : {
+      "image_created" : false
+    },
+    "gain_created" : 0,
+    "base_created" : 1
+  },
+  {
+    "path" : "\/Volumes\/betterSSD\/tessera-validation\/exp45-independent-control\/d52a0d13814ca399fc8a07e23de1d2c63f0e8404\/fixtures\/reference-16-representative.jpg",
+    "default_expand" : {
+      "nonzero" : 3840,
+      "alpha_max" : 1,
+      "min" : 0.051271930336952209,
+      "peak" : 0.871368408203125,
+      "content_headroom" : 1,
+      "nonfinite" : 0,
+      "alpha_min" : 1,
+      "patches" : [
+        [
+          0.051271982491016388,
+          0.051271967589855194,
+          0.051271930336952209,
+          1
+        ],
+        [
+          0.051271982491016388,
+          0.051271967589855194,
+          0.051271930336952209,
+          1
+        ],
+        [
+          0.21586465835571289,
+          0.21586458384990692,
+          0.21586458384990692,
+          1
+        ],
+        [
+          0.871368408203125,
+          0.8713681697845459,
+          0.87136822938919067,
+          1
+        ],
+        [
+          0.871368408203125,
+          0.8713681697845459,
+          0.87136822938919067,
+          1
+        ]
+      ],
+      "valid_pixels" : 1,
+      "image_created" : true
+    },
+    "explicit_gain" : {
+      "image_created" : false
+    },
+    "gain_created" : 0,
+    "base_created" : 1
+  }
+]

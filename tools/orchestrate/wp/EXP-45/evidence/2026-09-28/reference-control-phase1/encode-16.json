@@ -1,0 +1,19 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "0",
+    "-i",
+    "fixtures/base.jpg",
+    "-g",
+    "fixtures/gain.jpg",
+    "-f",
+    "fixtures/cap-16.cfg",
+    "-z",
+    "fixtures/reference-16.jpg"
+  ],
+  "exit": 0,
+  "output_exists": true,
+  "output_sha256": "6c8c2bad6287de3c51ea6b1a5d4ce203b0edd66d046958acd7cb7631109567a4",
+  "output_bytes": 1895
+}

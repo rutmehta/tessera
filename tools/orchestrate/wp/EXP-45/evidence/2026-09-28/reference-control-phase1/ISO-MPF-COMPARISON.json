@@ -1,0 +1,168 @@
+[
+  {
+    "path": "fixtures/reference-4.jpg",
+    "sha256": "a4564ba16f3febd8330bc751e181209bf9a8bfd1b4118d7ec004db9a724315ce",
+    "bytes": 1895,
+    "primary_iso_offset": 612,
+    "secondary_iso_offset": 1485,
+    "iso_version_bytes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "secondary_flags_hex": "48",
+    "metadata": {
+      "common_denominator": 1,
+      "base_headroom_n": 0,
+      "alternate_headroom_n": 2,
+      "gain_min_n": 0,
+      "gain_max_n": 2,
+      "gamma_n": 1,
+      "base_offset_n": 0,
+      "alternate_offset_n": 0,
+      "alternate_headroom": 2.0,
+      "gain_max": 2.0
+    },
+    "mpf_offset": 648,
+    "mpf_primary_attr_hex": "00030000",
+    "mpf_aux_attr_hex": "00000000",
+    "aux_offset": 1479,
+    "aux_length": 416,
+    "aux_sha256": "a32e140fbfbd2663e63900cd1a32225fe530024f2ee111ce0ff892a414eb7ec7"
+  },
+  {
+    "path": "fixtures/reference-16.jpg",
+    "sha256": "6c8c2bad6287de3c51ea6b1a5d4ce203b0edd66d046958acd7cb7631109567a4",
+    "bytes": 1895,
+    "primary_iso_offset": 612,
+    "secondary_iso_offset": 1485,
+    "iso_version_bytes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "secondary_flags_hex": "48",
+    "metadata": {
+      "common_denominator": 1,
+      "base_headroom_n": 0,
+      "alternate_headroom_n": 4,
+      "gain_min_n": 0,
+      "gain_max_n": 4,
+      "gamma_n": 1,
+      "base_offset_n": 0,
+      "alternate_offset_n": 0,
+      "alternate_headroom": 4.0,
+      "gain_max": 4.0
+    },
+    "mpf_offset": 648,
+    "mpf_primary_attr_hex": "00030000",
+    "mpf_aux_attr_hex": "00000000",
+    "aux_offset": 1479,
+    "aux_length": 416,
+    "aux_sha256": "d3f01478d2b3af26c3c6d80a6417b33f066992ee229c5a730bb473cc72dc24d8"
+  },
+  {
+    "path": "fixtures/reference-4-representative.jpg",
+    "sha256": "bc905bee5302cc1c207daa777729646fa864fbed2182f12724a88975aaf4d20f",
+    "bytes": 1895,
+    "primary_iso_offset": 612,
+    "secondary_iso_offset": 1485,
+    "iso_version_bytes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "secondary_flags_hex": "48",
+    "metadata": {
+      "common_denominator": 1,
+      "base_headroom_n": 0,
+      "alternate_headroom_n": 2,
+      "gain_min_n": 0,
+      "gain_max_n": 2,
+      "gamma_n": 1,
+      "base_offset_n": 0,
+      "alternate_offset_n": 0,
+      "alternate_headroom": 2.0,
+      "gain_max": 2.0
+    },
+    "mpf_offset": 648,
+    "mpf_primary_attr_hex": "20030000",
+    "mpf_aux_attr_hex": "00000000",
+    "aux_offset": 1479,
+    "aux_length": 416,
+    "aux_sha256": "a32e140fbfbd2663e63900cd1a32225fe530024f2ee111ce0ff892a414eb7ec7"
+  },
+  {
+    "path": "fixtures/reference-16-representative.jpg",
+    "sha256": "66ced9d5787f648fcd8489923f9b6a2f226c1d918c1d366fdb5140de0436eb02",
+    "bytes": 1895,
+    "primary_iso_offset": 612,
+    "secondary_iso_offset": 1485,
+    "iso_version_bytes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "secondary_flags_hex": "48",
+    "metadata": {
+      "common_denominator": 1,
+      "base_headroom_n": 0,
+      "alternate_headroom_n": 4,
+      "gain_min_n": 0,
+      "gain_max_n": 4,
+      "gamma_n": 1,
+      "base_offset_n": 0,
+      "alternate_offset_n": 0,
+      "alternate_headroom": 4.0,
+      "gain_max": 4.0
+    },
+    "mpf_offset": 648,
+    "mpf_primary_attr_hex": "20030000",
+    "mpf_aux_attr_hex": "00000000",
+    "aux_offset": 1479,
+    "aux_length": 416,
+    "aux_sha256": "d3f01478d2b3af26c3c6d80a6417b33f066992ee229c5a730bb473cc72dc24d8"
+  },
+  {
+    "path": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+    "sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+    "bytes": 1956,
+    "primary_iso_offset": 24,
+    "secondary_iso_offset": 1460,
+    "iso_version_bytes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "secondary_flags_hex": "40",
+    "metadata": {
+      "base_n": 0,
+      "base_d": 1,
+      "alternate_n": 4000000,
+      "alternate_d": 1000000,
+      "gain_min_n": 0,
+      "gain_min_d": 1,
+      "gain_max_n": 4000000,
+      "gain_max_d": 1000000,
+      "gamma_n": 1,
+      "gamma_d": 1,
+      "base_offset_n": 0,
+      "base_offset_d": 1,
+      "alternate_offset_n": 0,
+      "alternate_offset_d": 1,
+      "alternate_headroom": 4.0,
+      "gain_max": 4.0
+    },
+    "mpf_offset": 1255,
+    "mpf_primary_attr_hex": "20030000",
+    "mpf_aux_attr_hex": "00000000",
+    "aux_offset": 1436,
+    "aux_length": 520,
+    "aux_sha256": "4d9d66cd12750911c93a19a65ddadc3a08df28a0d9f50282a1be79c672d84fcd"
+  }
+]

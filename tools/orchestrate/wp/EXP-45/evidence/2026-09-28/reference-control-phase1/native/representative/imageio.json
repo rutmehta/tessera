@@ -1,0 +1,260 @@
+[
+  {
+    "apple_aux_present" : 0,
+    "iso_aux_present" : 0,
+    "image_count" : 1,
+    "hdr" : {
+      "context_target_before" : 0,
+      "input_color_space_components" : 3,
+      "provider_bytes" : 5120,
+      "rgb_min" : 0.05126953125,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "input_icc_sha256" : "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+      "context_target_after" : 0,
+      "context_target_set" : false,
+      "input_color_space_present" : 1,
+      "headroom" : 1,
+      "rgb_mean" : 0.38357849121093751,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "unknown",
+      "bits_per_component" : 8,
+      "nonfinite_rgb" : 0,
+      "height" : 16,
+      "samples_above_one" : 0,
+      "width" : 80,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.2158203125,
+          0.2158203125,
+          0.2158203125,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ]
+      ],
+      "input_icc_bytes" : 588,
+      "bitmap_info" : 5,
+      "rgb_max" : 0.871337890625,
+      "input_color_space_model" : 1,
+      "nonzero_rgb_samples" : 3840,
+      "bytes_per_row" : 320
+    },
+    "path" : "\/Volumes\/betterSSD\/tessera-validation\/exp45-independent-control\/d52a0d13814ca399fc8a07e23de1d2c63f0e8404\/fixtures\/reference-4-representative.jpg",
+    "sdr" : {
+      "context_target_before" : 0,
+      "input_color_space_components" : 3,
+      "provider_bytes" : 5120,
+      "rgb_min" : 0.05126953125,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "input_icc_sha256" : "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+      "context_target_after" : 0,
+      "context_target_set" : false,
+      "input_color_space_present" : 1,
+      "headroom" : 1,
+      "rgb_mean" : 0.38357849121093751,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "unknown",
+      "bits_per_component" : 8,
+      "nonfinite_rgb" : 0,
+      "height" : 16,
+      "samples_above_one" : 0,
+      "width" : 80,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.2158203125,
+          0.2158203125,
+          0.2158203125,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ]
+      ],
+      "input_icc_bytes" : 588,
+      "bitmap_info" : 5,
+      "rgb_max" : 0.871337890625,
+      "input_color_space_model" : 1,
+      "nonzero_rgb_samples" : 3840,
+      "bytes_per_row" : 320
+    },
+    "max_sdr_hdr_delta" : 0
+  },
+  {
+    "apple_aux_present" : 0,
+    "iso_aux_present" : 0,
+    "image_count" : 1,
+    "hdr" : {
+      "context_target_before" : 0,
+      "input_color_space_components" : 3,
+      "provider_bytes" : 5120,
+      "rgb_min" : 0.05126953125,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "input_icc_sha256" : "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+      "context_target_after" : 0,
+      "context_target_set" : false,
+      "input_color_space_present" : 1,
+      "headroom" : 1,
+      "rgb_mean" : 0.38357849121093751,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "unknown",
+      "bits_per_component" : 8,
+      "nonfinite_rgb" : 0,
+      "height" : 16,
+      "samples_above_one" : 0,
+      "width" : 80,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.2158203125,
+          0.2158203125,
+          0.2158203125,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ]
+      ],
+      "input_icc_bytes" : 588,
+      "bitmap_info" : 5,
+      "rgb_max" : 0.871337890625,
+      "input_color_space_model" : 1,
+      "nonzero_rgb_samples" : 3840,
+      "bytes_per_row" : 320
+    },
+    "path" : "\/Volumes\/betterSSD\/tessera-validation\/exp45-independent-control\/d52a0d13814ca399fc8a07e23de1d2c63f0e8404\/fixtures\/reference-16-representative.jpg",
+    "sdr" : {
+      "context_target_before" : 0,
+      "input_color_space_components" : 3,
+      "provider_bytes" : 5120,
+      "rgb_min" : 0.05126953125,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "input_icc_sha256" : "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+      "context_target_after" : 0,
+      "context_target_set" : false,
+      "input_color_space_present" : 1,
+      "headroom" : 1,
+      "rgb_mean" : 0.38357849121093751,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "unknown",
+      "bits_per_component" : 8,
+      "nonfinite_rgb" : 0,
+      "height" : 16,
+      "samples_above_one" : 0,
+      "width" : 80,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.05126953125,
+          0.05126953125,
+          0.05126953125,
+          1
+        ],
+        [
+          0.2158203125,
+          0.2158203125,
+          0.2158203125,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ],
+        [
+          0.871337890625,
+          0.871337890625,
+          0.871337890625,
+          1
+        ]
+      ],
+      "input_icc_bytes" : 588,
+      "bitmap_info" : 5,
+      "rgb_max" : 0.871337890625,
+      "input_color_space_model" : 1,
+      "nonzero_rgb_samples" : 3840,
+      "bytes_per_row" : 320
+    },
+    "max_sdr_hdr_delta" : 0
+  }
+]

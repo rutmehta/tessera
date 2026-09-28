@@ -1,0 +1,21 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "fixtures/reference-16-representative.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "fixtures/decoded-16-representative.cfg",
+    "-z",
+    "fixtures/decoded-16-representative.raw"
+  ],
+  "exit": 0,
+  "raw_sha256": "bbddc6f6788ca1d72f79b14329812622f24ee2ac20e62f45dd252078705baa4a",
+  "raw_identical_to_original_decode": true,
+  "center_bright_r": 13.9453125
+}
