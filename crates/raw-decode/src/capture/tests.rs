@@ -441,3 +441,6 @@ fn initial_setup_failure_cleans_once_and_reports_secondary_failure() {
 
 #[cfg(unix)]
 pub(super) mod stream;
+
+#[cfg(unix)]
+mod consumer;

@@ -38,7 +38,12 @@ pub struct CapturePool {
     inner: Arc<PoolInner>,
 }
 
-/// No public constructor: only a future verified copy may create this owner.
+/// Verified ephemeral bytes retained until this owner is closed or dropped.
+///
+/// This is not decoded RAW data, a recipe snapshot, or durable reopen storage.
+/// A future closed decoder adapter must retain this owner through all probe/read
+/// operations and return fully owned pixels/metadata before releasing it (or
+/// transfer ownership into a lazy decoder). No public pathname escapes here.
 pub struct CapturedRaw {
     stage: StageGuard,
     identity: CapturedAssetIdentity,
@@ -736,5 +741,33 @@ impl CaptureIo {
             return hook(file, buffer);
         }
         file.read(buffer)
+    }
+}
+
+// Deliberately test-only: generic T does not prove an owned decoded result.
+// A production decoder adapter requires a separately reviewed closed output type.
+#[cfg(all(test, unix))]
+impl CapturedRaw {
+    fn consume_for_test<T>(
+        self,
+        cancel: &CancellationToken,
+        consumer: impl FnOnce(&Path, PinnedRawDecoderRoute) -> EngineResult<T>,
+    ) -> EngineResult<T> {
+        cancel.check()?;
+        let result = consumer(self.stage.path()?, self.route);
+        let pool = self.stage.reservation.pool.clone();
+        let cleanup = self.close();
+        match result {
+            Ok(value) => {
+                cleanup?;
+                Ok(value)
+            }
+            Err(primary) => {
+                if let Err(secondary) = cleanup {
+                    pool.operations.report(&secondary);
+                }
+                Err(primary)
+            }
+        }
     }
 }
