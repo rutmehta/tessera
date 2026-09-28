@@ -671,3 +671,27 @@ manifest are on new branch under tools/orchestrate/wp/B5-16/
 SAVE-DESTINATION-CURRENT-MAIN-HANDOFF.md and sibling SOURCE.sha256.
 B performed Git/source comparison and diff-check only; no workloads/apps/GPU,
 heartbeat restart, writer change or main integration. A remains sole integrator.
+
+
+## B5-16 bounded inspector reconciliation — 2026-09-28
+
+Accepted5d86ed1a-53ad-40eb-a8db-dca97e44f94e; new branch
+codex/b5-16-current-main at ddb28101, source374ea0ed, pinned qualification
+1e45baaead70b1bcd208afba800bcacd92213ee8. Layout787f935a, persisted
+Auto/LUT3953e730, Neutralize/runnerf17bc349, matrix-count/comment374ea0ed.
+Sixteen source/test/harness files; no Rust/generated/shared SaveAs replacement.
+Current strict synchronous MainActor Sendable checkbox setter, resource fixes,
+Transform ownership and Smart Preview APIs retained. Only Workspace delta is
+inspector tab preference. Old models already present; no duplicate B5-16a fixes.
+All old branches preserved, dirty B5-16a untouched.
+
+Source diff-check only. All compile/tests/Python/GUI interactions UNRUN;
+base703+5 reported A gates do not qualify this candidate. History sizing/reset/
+persistence, scroll/footer, compact overflow, selection/editor continuity,
+Auto/LUT persistence, shortcuts/VoiceOver, checked SaveAs and Transform completion
+are explicitly separate UNRUN rows in CURRENT-MAIN-INSPECTOR-HANDOFF.md on new
+branch, with sixteen-file CURRENT-MAIN-INSPECTOR-SOURCE.sha256. Runner regressions
+preserved; --nonactivating cannot guarantee individual app selftests never raise
+windows. No old background host fallback or sheet sizing changes transplanted.
+A must qualify isolated GUI/harness use and retains sole compiler/runtime/main.
+B workload and heartbeat hold unchanged; no apps/builds/tests/benchmarks/GPU.
