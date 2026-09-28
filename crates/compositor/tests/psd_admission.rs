@@ -1,8 +1,10 @@
 use compositor::{
-    Depth,
+    Depth, DocState, Document, Fill, Layer, LayerKind, Raster,
+    channels::{ChannelId, ChannelKind, DocumentChannel},
     psd::{PsdCopyEstimateInput, estimate_rasterized_psd_copy},
 };
 use engine_api::tile::Extent;
+use std::sync::Arc;
 
 fn input(depth: Depth) -> PsdCopyEstimateInput {
     PsdCopyEstimateInput {
@@ -107,5 +109,33 @@ fn invalid_geometry_and_checked_weight_overflow_fail_without_allocation() {
             ..input(Depth::F32)
         })
         .is_err()
+    );
+}
+
+#[test]
+fn native_document_guaranteed_alpha_fails_before_layer_export() {
+    let extent = Extent::new(1, 1);
+    let mut state = DocState::new(extent, Depth::U8);
+    // Fill is intentionally unsupported by the PSD layer exporter. If layer
+    // traversal wins, it returns that error instead of the guaranteed
+    // 3 RGB + 1 native merged-alpha + 53 saved-channel limit.
+    state.root.push(Arc::new(Layer::new(
+        "unexportable",
+        LayerKind::Fill(Fill::Solid { color: [0.5; 3] }),
+    )));
+    for id in 0..53 {
+        state.channels.push(DocumentChannel {
+            id: ChannelId(id + 1),
+            name: format!("alpha-{id}"),
+            kind: ChannelKind::Alpha,
+            raster: Raster::new(extent, 1, Depth::U8, 0.0),
+        });
+    }
+    let failure = compositor::psd::to_psd(&Document::new(state)).unwrap_err();
+    assert!(
+        failure
+            .to_string()
+            .contains("at most 56 composite channels"),
+        "format preflight must precede layer traversal: {failure}"
     );
 }
