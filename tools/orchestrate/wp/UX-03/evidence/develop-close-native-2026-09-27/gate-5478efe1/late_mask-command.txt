@@ -1,0 +1,1 @@
+cargo test -p tessera-ffi --lib completed_ai_mask_job_does_not_revive_closed_session -- --test-threads=1

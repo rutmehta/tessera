@@ -1,0 +1,12 @@
+{
+  "head": "96aa223a202cb558e8e56a3587d3b00d10b3cb8e",
+  "hashes": {
+    "crates/tessera-ffi/src/develop.rs": "2a4034d923e0d91030cdcc564f20f201e3a288af1e4d24da2fa70d500bb56081",
+    "crates/tessera-ffi/src/masks.rs": "3830e650125a141d076dfc5844c238cc6e6316b864b1c46a540bec5b28e47d83",
+    "Cargo.lock": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+    "crates/tessera-ffi/Cargo.toml": "3d44fb1fc0c21eff4d7a2de2cad0a3c65e2599855087eee380716fc65e83a0d4"
+  },
+  "target": "/Volumes/betterSSD/tessera-cache/target",
+  "jobs": 2,
+  "rayon_threads": 2
+}

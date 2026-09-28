@@ -1,0 +1,7 @@
+{
+  "head": "6222f4104b825be6bdf59e413989e3f8b52f92d7",
+  "source_sha256": "89385462aef0b1eb9638bc962941b569310ce4a01bcb0b5c3ead45ef0ab9bdad",
+  "target": "/Volumes/betterSSD/tessera-cache/target",
+  "jobs": 2,
+  "rayon_threads": 2
+}
