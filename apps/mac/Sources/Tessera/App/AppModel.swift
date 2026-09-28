@@ -213,6 +213,8 @@ final class AppModel {
         let commit: @MainActor () -> Void
     }
     @ObservationIgnored private var blockedSavedNavigation: BlockedSavedNavigation?
+    @ObservationIgnored private var navigationCloseGateID: UUID?
+    @ObservationIgnored private var navigationClosePending: BlockedSavedNavigation?
     @ObservationIgnored private var currentFolderRequestID: UUID?
     @ObservationIgnored private var folderCallbacks: [UUID: @MainActor (AppModel, Bool) -> Void] = [:]
     var developRecoveries: [DevelopRecoveryCoordinator.Presentation] { developRecovery.presentations }
@@ -296,46 +298,63 @@ final class AppModel {
 
     private func navigateAfterDevelopSave(folderRequestID: UUID? = nil,
                                           _ commit: @escaping @MainActor () -> Void) {
+        // A second navigation may replace the first while the *same* Develop
+        // close is pending. Other recipe readers still block admission.
+        guard !developRecovery.hasActiveReservations(excluding: navigationCloseGateID) else {
+            statusMessage = "Wait for the current photo operation before leaving this workspace"
+            if let folderRequestID { finishFolderRequest(folderRequestID, loaded: false) }
+            return
+        }
         let intent = UUID()
         let sourceOwner = engineLibrary
         let sourceGeneration = loadGeneration
-        let supersededFolder = blockedSavedNavigation?.folderRequestID
+        let supersededFolder = navigationClosePending?.folderRequestID
+            ?? blockedSavedNavigation?.folderRequestID
+        let pending = BlockedSavedNavigation(intent: intent, owner: sourceOwner,
+                                             generation: sourceGeneration,
+                                             folderRequestID: folderRequestID, commit: commit)
         savedNavigationIntent = intent
         blockedSavedNavigation = nil
+        if navigationCloseGateID != nil { navigationClosePending = pending }
         if let supersededFolder, supersededFolder != folderRequestID {
             finishFolderRequest(supersededFolder, loaded: false)
         }
         guard savedNavigationIntent == intent else { return }
-        guard !developRecovery.hasActiveReservations else {
-            statusMessage = "Wait for the current photo operation before leaving this workspace"
-            return
-        }
+        if navigationCloseGateID != nil { return }
         guard developRecovery.hasUnresolvedSessions else { commitAdmittedNavigation(commit); return }
         guard let owner = developLibrary, let controller = develop else {
-            blockedSavedNavigation = BlockedSavedNavigation(
-                intent: intent, owner: sourceOwner, generation: sourceGeneration,
-                folderRequestID: folderRequestID, commit: commit)
+            blockedSavedNavigation = pending
             statusMessage = "Finish saving the photo before leaving this workspace"
             return
         }
         let imageID = controller.imageID
         let gate = developRecovery.reserveInitiate(owner: owner, imageIDs: [imageID])
+        navigationCloseGateID = gate.id
+        navigationClosePending = pending
         closeDevelop()
         Task { [weak self] in
             defer { gate.finish() }
             let result = await gate.result()
-            guard let self, self.savedNavigationIntent == intent,
-                  self.loadGeneration == sourceGeneration,
-                  self.engineLibrary === sourceOwner,
-                  self.developLibrary === owner || self.developLibrary == nil else { return }
-            guard result.isSaved, !self.developRecovery.hasUnresolvedSessions else {
-                self.blockedSavedNavigation = BlockedSavedNavigation(
-                    intent: intent, owner: sourceOwner, generation: sourceGeneration,
-                    folderRequestID: folderRequestID, commit: commit)
+            guard let self, self.navigationCloseGateID == gate.id else { return }
+            let latest = self.navigationClosePending
+            self.navigationCloseGateID = nil
+            self.navigationClosePending = nil
+            guard let latest, self.savedNavigationIntent == latest.intent,
+                  self.loadGeneration == latest.generation,
+                  self.engineLibrary === latest.owner,
+                  self.developLibrary === owner || self.developLibrary == nil else {
+                if let requestID = latest?.folderRequestID {
+                    self.finishFolderRequest(requestID, loaded: false)
+                }
+                return
+            }
+            guard result.isSaved, !self.developRecovery.hasUnresolvedSessions,
+                  !self.developRecovery.hasActiveReservations(excluding: gate.id) else {
+                self.blockedSavedNavigation = latest
                 self.statusMessage = "Finish saving the photo before leaving this workspace"
                 return
             }
-            self.commitAdmittedNavigation(commit)
+            self.commitAdmittedNavigation(latest.commit)
         }
     }
 
@@ -525,17 +544,17 @@ final class AppModel {
 
     /// `then` runs after the load (success or failure; the tether session restores its view on reloads).
     func openFolder(_ url: URL, message: String? = nil, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
+        guard !developRecovery.hasActiveReservations(excluding: navigationCloseGateID) else {
+            statusMessage = "Wait for the current photo operation before opening another folder"
+            then?(self, false)
+            return
+        }
         let superseded = currentFolderRequestID
         let requestID = UUID()
         currentFolderRequestID = requestID
         if let then { folderCallbacks[requestID] = then }
         if let superseded { finishFolderRequest(superseded, loaded: false) }
         guard currentFolderRequestID == requestID else { return }
-        if developRecovery.hasActiveReservations {
-            statusMessage = "Wait for the current photo operation before opening another folder"
-            finishFolderRequest(requestID, loaded: false)
-            return
-        }
         navigateAfterDevelopSave(folderRequestID: requestID) { [weak self] in
             guard let self, self.currentFolderRequestID == requestID else { return }
             self.commitOpenFolder(url, message: message, requestID: requestID)
