@@ -33,7 +33,7 @@ struct SmartPreviewMenu: View {
             Button("Check Status for Selected Photo") { model.checkSmartPreviewStatus() }
                 .disabled(model.smartPreviewBatchActive || model.focusedItem?.kind != .raw)
                 .accessibilityIdentifier("smart-preview-check-status")
-            Text(SmartPreviewSnapshot.libraryThumbnailNotice)
+            Text(model.smartPreviews.libraryThumbnailNotice)
                 .accessibilityIdentifier("smart-preview-thumbnail-limitation")
             Divider()
             ForEach(SmartPreviewController.Action.allCases, id: \.self) { action in

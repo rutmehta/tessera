@@ -20,13 +20,42 @@ extension StubLibrary: PhotoLibrary {
     public func makeCullController() -> CullController { CullController(memory: self) }
 }
 
+/// Thumbnail pixels are independent from the user's explicit Develop source choice.
+/// A cached Library owns proxy references; an online Library owns original references.
+public enum EnginePreviewSource: Hashable, Sendable { case original, smartPreview }
+
+/// Injectable synchronous worker boundary; native owns validation/cache identity.
+struct EngineThumbnailAPI: Sendable {
+    let original: @Sendable (String, UInt32) throws -> PreviewResponse
+    let smartPreview: @Sendable (String, UInt32) throws -> PreviewResponse
+
+    static func live(engine: Engine) -> Self {
+        Self(original: { try engine.embeddedPreview(imageId: $0, maxPx: $1) },
+             smartPreview: { try engine.smartPreviewThumbnail(imageId: $0, maxPx: $1) })
+    }
+    func response(source: EnginePreviewSource, imageID: String, maxPx: UInt32) throws -> PreviewResponse {
+        switch source {
+        case .original: return try original(imageID, maxPx)
+        case .smartPreview: return try smartPreview(imageID, maxPx)
+        }
+    }
+}
+
 /// Retained by immutable items, so in-flight thumbnails cannot switch to a newly opened catalog.
 public final class EngineImageReference: Sendable, Hashable {
     public let engine: Engine
     public let imageID: String
+    public let previewSource: EnginePreviewSource
     let previewEvents: PreviewEvents
-    init(engine: Engine, imageID: String, previewEvents: PreviewEvents) {
+    private let thumbnailAPI: EngineThumbnailAPI
+    init(engine: Engine, imageID: String, previewEvents: PreviewEvents,
+         previewSource: EnginePreviewSource = .original, thumbnailAPI: EngineThumbnailAPI? = nil) {
         self.engine = engine; self.imageID = imageID; self.previewEvents = previewEvents
+        self.previewSource = previewSource
+        self.thumbnailAPI = thumbnailAPI ?? .live(engine: engine)
+    }
+    func thumbnail(maxPx: UInt32) throws -> PreviewResponse {
+        try thumbnailAPI.response(source: previewSource, imageID: imageID, maxPx: maxPx)
     }
     public static func == (lhs: EngineImageReference, rhs: EngineImageReference) -> Bool { lhs === rhs }
     public func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
@@ -199,7 +228,8 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
                 } ?? Date(timeIntervalSince1970: 0)
                 if imageID == group.best { best.append(newItems.count) }
                 let reference = references[imageID] ?? {
-                    let r = EngineImageReference(engine: engine, imageID: imageID, previewEvents: previewEvents)
+                    let r = EngineImageReference(engine: engine, imageID: imageID, previewEvents: previewEvents,
+                                                 previewSource: isReadOnly ? .smartPreview : .original)
                     references[imageID] = r
                     return r
                 }()

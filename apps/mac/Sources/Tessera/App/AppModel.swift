@@ -735,12 +735,22 @@ final class AppModel {
         smartPreviews.cancel() // any captured old native operation still drains on its owner
         smartPreviews.select(imageID: nil)
         library = lib
-        let previews = SmartPreviewController(api: (lib as? EngineLibrary).map { .live(engine: $0.engine) })
+        let previews = SmartPreviewController(api: (lib as? EngineLibrary).map { .live(engine: $0.engine) },
+                                              thumbnailSource: (lib as? EngineLibrary)?.isReadOnly == true ? .smartPreview : .original)
         smartPreviews = previews
         previews.onChange = { [weak self, weak previews] imageID in
             guard let self, let previews, self.smartPreviews === previews,
                   let id = self.engineLibrary?.itemOfImage[imageID] else { return }
             self.libraryItemsChanged([id])
+        }
+        previews.onThumbnailInvalidation = { [weak self, weak previews] imageID in
+            guard let self, let previews, self.smartPreviews === previews,
+                  let id = self.engineLibrary?.itemOfImage[imageID] else { return }
+            self.loader.invalidate(self.library.items[id])
+            self.libraryRevision += 1
+            let positions = IndexSet(self.positionOfID.indices.contains(id) && self.positionOfID[id] >= 0
+                                     ? [self.positionOfID[id]] : [])
+            self.liveObservers.forEach { $0.thumbnailsDidChange(positions) }
         }
         cull = snapshot.map { CullController(library: lib, snapshot: $0) } ?? lib.makeCullController()
         isEngineBacked = cull.isEngineBacked
@@ -2503,6 +2513,7 @@ final class AppModel {
         if let d = develop, d.itemID == itemID { developHistory = d.history }
         guard library.items.indices.contains(itemID) else { return }
         loader.invalidate(library.items[itemID])
+        if library.items[itemID].engineImage?.previewSource == .smartPreview { libraryRevision += 1 }
         cull.refreshStatuses([itemID])
         var positions = IndexSet()
         if positionOfID.indices.contains(itemID), positionOfID[itemID] >= 0 { positions.insert(positionOfID[itemID]) }
