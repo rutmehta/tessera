@@ -1,3 +1,9 @@
+## Diagnostic repair dispatched; RAW fixture setup failure preserved
+
+B request `58e629b8-cc38-48fb-9ee3-f14f023ce3d6` asks for a bounded AX collection bridge repair with native-boundary tests, preserving routing semantics. SSH queue `01a0ea6c-8aee-78d1-a3ec-482f0536e74c` accepted; peer receipt is pending. Crash evidence main `33b95e39` and failed result receipt are published. No duplicate writer or routing fix.
+
+RAW `c595dad2` compiled and all 20 mandatory tests passed, but full image-core suite failed at `linear_dng.rs:62` because checkout `fixtures/raw/sample.dng` is absent. No product assertion in that case was reached; strict/format are unrun, failed attempt preserved. Runtime released; independent fixture-identity reconciliation is active. Cache frame/performance harness is prepared source-only and under independent review.
+
 ## Actual focus observer crashed; diagnostic failed
 
 At `c5f8bca7`, trace-disabled GUI reproduced Name → Tab to Load LUT → second Tab hides panels. Trace-enabled PID12227 crashed on the second Tab: EXC_BREAKPOINT/SIGTRAP, Swift ArrayBuffer type check → Collection.prefix → AppKitFocusNode.children(limit:) line285 → snapshot229 → routeEvent174. Only the first Name-field event was recorded (AXTextField/native FieldEditor, matched owned window, handled=false). Second-event routing remains unknown.
