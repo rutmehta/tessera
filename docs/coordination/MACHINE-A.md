@@ -1,3 +1,11 @@
+## 2026-09-28 22:31 UTC — inspector full suite passed; cache integration contracts under review
+
+Inspector candidate `858147a3` reports 67 focused tests and full 720 XCTest cases passing, one existing opt-in skip, zero failures, plus five Swift Testing cases. The runner enforced all 84 adjacent cases, six History cases, layout and both actual Sony workflows. Source, archive and fixture freezes passed. The inspector worker retains the sole runtime lane for the strict build; independent final provenance review and actual GUI acceptance remain pending. No inspector main merge yet.
+
+Cache foundation `02752d28` has independent verification of 19 passing tests, strict/formatting checks and 8,644 immutable Git inputs. It remains test-only and unmerged. Task 2 `640f2c27` contains six Engine contract groups and scalar stubs, currently under independent source review; no production integration, runtime or speedup claim. Frozen reopen baseline and accepted RAW capture/decoder work remain preserved.
+
+Mailbox poll found no new messages or invalid targets. Six accepted B inspector results remain in progress because integrated acceptance is incomplete. No duplicate requests, receipt acknowledgements or writer changes were sent.
+
 ## Inspector theme correction requested; pure cache foundation active
 
 A7732a03e passed66focused,15keyboard,4layout,84adjacent. Full720XCTest/1existingopt-in skip/1ThemeLintfailure plus5SwiftTesting; bothactualSony andallHistory/keyboard passed. Solefailure ad-hoc Historyfont, B source request680a8220 and SSHqueue01a0ea13 published. ExistinglabelNumeric token requested, no lintwaiver or equivalenceclaim. Strict/GUI unrun; allfailures durable onmainb1567cd9.
