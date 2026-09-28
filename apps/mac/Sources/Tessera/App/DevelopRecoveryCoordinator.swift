@@ -325,7 +325,8 @@ final class DevelopRecoveryCoordinator {
         }
         // A later gate may be queued while another consumer still owns the
         // saved pixels. It must fail closed before starting a close attempt.
-        let precedingConflict = gates.contains { otherID, other in
+        let precedingConflict = gates.contains { entry in
+            let (otherID, other) = entry
             guard otherID != id, other.order < gate.order else { return false }
             if other.owner === gate.owner && !other.imageIDs.isDisjoint(with: gate.imageIDs) { return true }
             return other.sources.contains { source in gate.sources.contains { source.overlaps($0) } }
