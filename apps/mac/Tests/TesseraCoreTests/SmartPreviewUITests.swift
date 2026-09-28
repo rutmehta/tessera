@@ -198,6 +198,25 @@ final class SmartPreviewUITests: XCTestCase {
         XCTAssertEqual(controller.libraryBadge(imageID: "raw"), synced.libraryBadge)
     }
 
+    func testFailedValidationCannotUsePresentationAsOpeningAuthority() async {
+        var reads = 0
+        let offline = info("raw", .originalOffline, dirty: true, online: false)
+        let controller = SmartPreviewController(api: .init(info: { _ in
+            reads += 1
+            if reads == 1 { return offline }
+            throw ProbeError.failed
+        }, build: { _ in offline }, discard: { _ in }, synchronize: { _ in offline }))
+        await controller.select(imageID: "raw")?.value
+        controller.didSave(imageID: "raw", source: .smartPreview)
+        do {
+            _ = try await controller.statusForOpening(imageID: "raw")
+            XCTFail("Presentation warning cannot substitute for a validated native snapshot")
+        } catch {}
+        XCTAssertEqual(reads, 2)
+        XCTAssertNil(controller.selectedInfo)
+        XCTAssertTrue(controller.libraryBadge(imageID: "raw")?.contains("Thumbnail: last synchronized image") == true)
+    }
+
     func testOriginalSaveDoesNotInventProxyPresentation() async {
         let probe = PreviewProbe()
         let controller = SmartPreviewController(api: probe.api)
