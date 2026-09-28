@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current execution queue — 2026-09-28 07:47 UTC
+## Current execution queue — 2026-09-28 08:31 UTC
 
 | Task | Owner | Verified state | Next action |
 | --- | --- | --- | --- |
@@ -10,8 +10,8 @@
 | PSD copy format preflight | A + B source | DONE main08e86f39;51 selected Rust tests +strict | No memory-budget/RSS claim. |
 | Develop stale-writer protection | A / Resource Sol | DONE mainf4bc0c0b, Rust/Cargo exactly915c7f7b;25 tests +fmt/strict | Newer/unsupported owner fields fail closed;185 payloads and40 source hashes verified. No lease, all-writer CAS or conflict-resolution UI. |
 | Recipe setter XMP parity | A / reviewer Sol | DONE main4ad017ab, exact Rust/Cargo3bd2e341. Genuine RED then19 combined tests +fmt/strict/direct0;15 frozen inputs verified. | Evidence535950bb/FFI737dcd09 published; current arm64 archive4a45, generated bindings unchanged. Earlier compile failure retained; normal preview unchanged. |
-| Save As native ownership | B source; A integration/GUI | B source93244f8f received; resultd9b94a94 accepted. Resource Sol and Luna found no source-level ownership/UI blocker; reviews archived. | Native evidence379ae615:6 passes/2 unassisted close failures. Historical010 real1-failure RED375e2caa verified. Correctedd695 passes90 focused/full642/1skip/0+5 with4a45;308 input hashes matched. Reviewer sole GUI lane; product acceptance pending. Failed62d test compile retained. |
-| Save As destination safety | A Resource Sol native; B later Swift | Designf426 reviewed/decisionf093e3c8; receiptacb4ab35 complete. Native candidatebcbf6dde source-only in separate branch, tests still UNRUN. | Typed create-if-absent/confirmed Replace, unique staging; use portable persist_noclobber with honest cleanup limits. No compiler or main merge during current presenter gate. |
+| Save As native ownership | B source; A integration/GUI | DONE main `11b31be6`. Product d695 passed 90 focused, full 642 XCTest/1 skip/0 failures +5 Swift Testing; actual isolated create/Replace/cancel/repeat/reopen passed. Test-only a927 passed actual parent close during native folder chooser. | Evidence cc9eb6f4, ede27821 and integration parent-modal manifest; historical RED and failed probes retained. Result d9b94a94 completed. No full 643 rerun, leak-proof or preview-refresh claim. |
+| Save As destination safety | A Resource Sol native; B later Swift; Luna review | Design f426 reviewed/decision f093e3c8. Native bcbf6dde source-reviewed; Resource now owns exclusive compiler lane after merging accepted presenter baseline. | Run native collision/concurrency/reopen/adjacent and strict gates, preserve failures; generated API checkpoint then B source integration. Luna independently reviews Swift test matrix without builds. No product acceptance yet. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 

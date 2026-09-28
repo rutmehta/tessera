@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Owned Save As accepted; destination race gate active — 2026-09-28 08:31 UTC
+
+Main `11b31be6` integrates the exact accepted owned presenter. Product d695 passed 90 focused tests and full 642 XCTest/1 skip/0 failures plus 5 Swift Testing with archive 4a45. Isolated GUI exercised Cancel/repeat, chooser cancellation, create, same/different destination Replace cancel/confirm and actual reopen; evidence ede27821. Test-only a927 then passed real parent close during NSOpenPanel modal operation, suppressing folder completion and draining the actual captured sheet. No full 643 rerun, deallocation proof or normal-preview refresh is claimed. Historical genuine RED 375e2caa, failed native close probes 379ae615 and initial candidate compile failure cc9eb6f4 remain preserved. B result d9b94a94 completed through Git mailbox; publication alone is not a new peer acknowledgement.
+
+Resource Sol owns the sole heavy native lane for checked destination-intent collision/race/reopen tests and strict checks, merging current main into its reviewed separate candidate. Luna independently prepares source-only Swift test coverage. B remains source-only with heartbeat held, awaiting generated API checkpoint before implementation. A alone merges main. Isolated GUI and modal test processes exited; normal preview PID57591 remains untouched.
+
 ## Full presenter tests passed; GUI active — 2026-09-28 08:08 UTC
 
 Candidate d695e6a1 passed90 focused and full642 XCTest/1skip/0 +5 SwiftTesting; direct0/no watchdog. Root verified308 source/generated/archive hashes and4 generated/archive entries identical before/after, clean frozenHEAD. Initial62d test compile failure (nested fixture actor annotation/request.id) preserved; no product source workaround. Reviewer Sol now owns sole GUI lane for unique signed current5038548a executable/4a45 archive. Do not package stale85f scratch or touch preview57591. Full tests alone do not accept Save As.
