@@ -103,9 +103,28 @@ use std::{
 #[cfg(test)]
 static FAIL_AFTER_DEVELOP_RECIPE: Mutex<std::collections::BTreeMap<PathBuf, usize>> =
     Mutex::new(std::collections::BTreeMap::new());
+#[cfg(test)]
+type PostRecipePause = Arc<(Mutex<(bool, bool)>, Condvar)>;
+#[cfg(test)]
+static PAUSE_AFTER_DEVELOP_RECIPE: Mutex<std::collections::BTreeMap<PathBuf, PostRecipePause>> =
+    Mutex::new(std::collections::BTreeMap::new());
 
 #[cfg(test)]
 fn injected_post_recipe_failure(path: &Path) -> Result<()> {
+    let pause = PAUSE_AFTER_DEVELOP_RECIPE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(path)
+        .cloned();
+    if let Some(pause) = pause {
+        let (state, cv) = &*pause;
+        let mut state = state.lock().unwrap();
+        state.0 = true;
+        cv.notify_all();
+        while !state.1 {
+            state = cv.wait(state).unwrap();
+        }
+    }
     let mut fault = FAIL_AFTER_DEVELOP_RECIPE
         .lock()
         .unwrap_or_else(|e| e.into_inner());
@@ -530,20 +549,31 @@ enum SaveWork {
 struct SaveFailure {
     error: BridgeError,
     retry: SaveWork,
+    published: Option<Recipe>,
 }
 
 impl SaveFailure {
-    fn full(error: impl std::fmt::Display) -> Self {
+    fn full(error: impl Into<BridgeError>) -> Self {
         Self {
-            error: failure(error),
+            error: error.into(),
             retry: SaveWork::Full,
+            published: None,
         }
     }
 
-    fn repair(error: impl std::fmt::Display) -> Self {
+    fn repair(error: impl Into<BridgeError>) -> Self {
         Self {
-            error: failure(error),
+            error: error.into(),
             retry: SaveWork::Repair,
+            published: None,
+        }
+    }
+
+    fn after_recipe(error: impl Into<BridgeError>, published: &Recipe) -> Self {
+        Self {
+            error: error.into(),
+            retry: SaveWork::Repair,
+            published: Some(published.clone()),
         }
     }
 }
@@ -553,10 +583,15 @@ struct SaveState {
     due: Option<Instant>,
     due_work: SaveWork,
     retry: Option<SaveWork>,
+    retry_recipe: Option<Recipe>,
     flush: bool,
     busy: bool,
     shutdown: bool,
     error: Option<String>,
+    failure_seq: u64,
+    error_reported: bool,
+    #[cfg(test)]
+    flush_waiters: usize,
 }
 
 pub(crate) struct Shared {
@@ -996,25 +1031,32 @@ impl Engine {
         sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(path).recipe, &doc)
             .map_err(SaveFailure::full)?;
         #[cfg(test)]
-        injected_post_recipe_failure(path).map_err(SaveFailure::repair)?;
+        injected_post_recipe_failure(path)
+            .map_err(|error| SaveFailure::after_recipe(error, &doc.recipe))?;
         sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)
-            .map_err(SaveFailure::repair)?;
+            .map_err(|error| SaveFailure::after_recipe(error, &doc.recipe))?;
         c.index
             .scan(
-                path.parent()
-                    .ok_or_else(|| SaveFailure::repair("image has no folder"))?,
+                path.parent().ok_or_else(|| {
+                    SaveFailure::after_recipe(failure("image has no folder"), &doc.recipe)
+                })?,
                 &catalog::Sidecars,
                 &catalog::EmbeddedMetadata,
             )
-            .map_err(SaveFailure::repair)?;
+            .map_err(|error| SaveFailure::after_recipe(error, &doc.recipe))?;
         Ok(doc.recipe.recipe_hash().to_string())
     }
 
     /// Complete auxiliary outputs after a recipe was already published. Read
     /// the current document so a retry never republishes stale session state.
-    fn repair_develop(&self, image_id: &str, path: &Path) -> Result<()> {
+    fn repair_develop(&self, image_id: &str, path: &Path) -> Result<Recipe> {
         let id = parse_id(image_id)?;
+        let gate = crate::recipe_write::gate_for(path)?;
+        let _write = gate.begin_write()?;
         let mut c = self.lock()?;
+        if Path::new(&Self::path(&c, image_id)?) != path {
+            return Err(failure("image path changed before Develop repair"));
+        }
         let doc = catalog::document(path, id)?;
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
         #[cfg(test)]
@@ -1026,8 +1068,15 @@ impl Engine {
             &catalog::Sidecars,
             &catalog::EmbeddedMetadata,
         )?;
-        Ok(())
+        Ok(doc.recipe)
     }
+}
+
+fn same_develop_fields(left: &Recipe, right: &Recipe) -> bool {
+    left.process_version == right.process_version
+        && left.source_kind == right.source_kind
+        && left.settings == right.settings
+        && left.history == right.history
 }
 
 /// Before a surface is attached: the level whose long edge is ≤ 2048 px.
@@ -1302,38 +1351,69 @@ impl Shared {
                 }
             }
             let work = s.due_work;
+            let retry_recipe = s.retry_recipe.clone();
             s.due = None;
             s.due_work = SaveWork::Full;
             s.flush = false;
             s.busy = true;
             drop(s);
-            let result = self.save_now(work);
+            let result = self.save_now(work, retry_recipe);
             let mut s = self.save.lock().unwrap_or_else(|e| e.into_inner());
             s.busy = false;
             match result {
-                Ok(()) => s.retry = None,
+                Ok(()) => {
+                    s.retry = None;
+                    s.retry_recipe = None;
+                }
                 Err(failed) => {
                     s.retry = Some(failed.retry);
-                    // A newer queued edit may succeed, but callers still need
-                    // to observe the first failed attempt.
-                    if s.error.is_none() {
-                        s.error = Some(failed.error.to_string());
+                    if matches!(failed.retry, SaveWork::Full) {
+                        s.retry_recipe = None;
+                    } else if let Some(published) = failed.published {
+                        s.retry_recipe = Some(published);
                     }
+                    s.failure_seq = s.failure_seq.checked_add(1).expect("save failure sequence");
+                    s.error = Some(failed.error.to_string());
+                    s.error_reported = false;
                 }
             }
             self.save_cv.notify_all();
         }
     }
 
-    fn save_now(&self, work: SaveWork) -> std::result::Result<(), SaveFailure> {
+    fn save_now(
+        &self,
+        work: SaveWork,
+        retry_recipe: Option<Recipe>,
+    ) -> std::result::Result<(), SaveFailure> {
         let engine = self
             .engine
             .upgrade()
-            .ok_or_else(|| SaveFailure::full("engine closed"))?;
+            .ok_or_else(|| SaveFailure::full(failure("engine closed")))?;
         if matches!(work, SaveWork::Repair) {
-            return engine
+            let committed = retry_recipe
+                .ok_or_else(|| SaveFailure::repair(failure("missing Develop repair recipe")))?;
+            let disk_recipe = engine
                 .repair_develop(&self.image_id, &self.path)
-                .map_err(SaveFailure::repair);
+                .map_err(SaveFailure::repair)?;
+            let (session_recipe, frame) = {
+                let st = self.lock().map_err(SaveFailure::repair)?;
+                (st.recipe.clone(), st.frame.clone())
+            };
+            if same_develop_fields(&disk_recipe, &committed)
+                && same_develop_fields(&session_recipe, &committed)
+            {
+                if let Some(frame) = frame.filter(|f| {
+                    f.settings == session_renderable(&disk_recipe.settings, true, false)
+                }) && let Err(error) = self.store_previews(&engine, &disk_recipe, &frame)
+                {
+                    eprintln!("develop: edited preview not stored: {error}");
+                }
+                if let Some(listener) = self.listener() {
+                    listener.saved(disk_recipe.recipe_hash().to_string());
+                }
+            }
+            return Ok(());
         }
         let (recipe, frame) = {
             let st = self.lock().map_err(SaveFailure::full)?;
@@ -2505,6 +2585,8 @@ impl DevelopSession {
             }
         }
         let mut s = self.shared.save.lock().map_err(failure)?;
+        let starting_failure_seq = s.failure_seq;
+        let unreported_error = (!s.error_reported).then(|| s.error.clone()).flatten();
         if s.due.is_none()
             && !s.busy
             && let Some(retry) = s.retry
@@ -2516,12 +2598,29 @@ impl DevelopSession {
             s.flush = true;
             self.shared.save_cv.notify_all();
         }
+        #[cfg(test)]
+        {
+            s.flush_waiters += 1;
+            self.shared.save_cv.notify_all();
+        }
         while s.due.is_some() || s.busy {
             s = self.shared.save_cv.wait(s).map_err(failure)?;
         }
-        match s.error.take() {
-            Some(e) => Err(failure(e)),
-            None => Ok(()),
+        #[cfg(test)]
+        {
+            s.flush_waiters -= 1;
+            self.shared.save_cv.notify_all();
+        }
+        let observed_error = if s.failure_seq != starting_failure_seq {
+            s.error.clone()
+        } else {
+            unreported_error
+        };
+        if let Some(error) = observed_error {
+            s.error_reported = true;
+            Err(failure(error))
+        } else {
+            Ok(())
         }
     }
 
@@ -3156,6 +3255,42 @@ impl DevelopSession {
 mod tests {
     use super::*;
 
+    fn edited_preview_key(
+        photo: &Path,
+        recipe: &Recipe,
+        orientation: u8,
+        size: u32,
+    ) -> previews::PreviewKey {
+        let mut hash = blake3::Hasher::new();
+        hash.update(&std::fs::read(photo).unwrap());
+        hash.update(&size.to_le_bytes());
+        previews::PreviewKey {
+            file_hash: *hash.finalize().as_bytes(),
+            orientation,
+            recipe_hash: recipe.recipe_hash().0.0,
+        }
+    }
+
+    #[derive(Default)]
+    struct SavedHashes(Mutex<Vec<String>>);
+
+    impl DevelopListener for SavedHashes {
+        fn frame_ready(&self, _: FrameInfo) {}
+        fn render_failed(&self, _: String) {}
+        fn saved(&self, recipe_hash: String) {
+            self.0.lock().unwrap().push(recipe_hash);
+        }
+    }
+
+    struct ReleasePause(PostRecipePause);
+    impl Drop for ReleasePause {
+        fn drop(&mut self) {
+            let (state, cv) = &*self.0;
+            state.lock().unwrap().1 = true;
+            cv.notify_all();
+        }
+    }
+
     #[test]
     fn flush_without_new_edit_repairs_sidecars_after_recipe_write_failure() {
         let dir = tempfile::tempdir().unwrap();
@@ -3172,6 +3307,9 @@ mod tests {
             .unwrap()
             .remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        let saved = Arc::new(SavedHashes::default());
+        session.set_listener(Some(saved.clone()));
+        engine.clone().embedded_preview(row.id.clone(), 16).unwrap();
         FAIL_AFTER_DEVELOP_RECIPE
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -3179,13 +3317,34 @@ mod tests {
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
+        {
+            let mut state = session.shared.lock().unwrap();
+            state.frame = Some(Arc::new(Frame {
+                level: 0,
+                settings: session_renderable(&state.live, true, false),
+                tiles: None,
+            }));
+        }
         let first = session.flush().unwrap_err();
         assert!(first.to_string().contains("injected post-recipe failure"));
+        assert!(saved.0.lock().unwrap().is_empty());
         let recipe: Recipe =
             serde_json::from_str(&engine.get_recipe(row.id.clone()).unwrap()).unwrap();
         assert_eq!(recipe.settings.tone.exposure, 0.7);
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let committed_bytes = std::fs::read(&recipe_path).unwrap();
+        let preview_key = edited_preview_key(
+            &photo,
+            &recipe,
+            session.shared.image.metadata().orientation as u8,
+            16,
+        );
+        assert!(
+            engine
+                .previews
+                .get(&preview_key, previews::Level::Full)
+                .is_none()
+        );
 
         session.flush().unwrap();
         assert_eq!(std::fs::read(&recipe_path).unwrap(), committed_bytes);
@@ -3194,6 +3353,16 @@ mod tests {
         assert_eq!(
             engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
             recipe.recipe_hash().to_string()
+        );
+        assert!(
+            engine
+                .previews
+                .get(&preview_key, previews::Level::Full)
+                .is_some()
+        );
+        assert_eq!(
+            *saved.0.lock().unwrap(),
+            vec![recipe.recipe_hash().to_string()]
         );
     }
 
@@ -3252,6 +3421,9 @@ mod tests {
             .unwrap()
             .remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        let saved = Arc::new(SavedHashes::default());
+        session.set_listener(Some(saved.clone()));
+        engine.clone().embedded_preview(row.id.clone(), 16).unwrap();
         FAIL_AFTER_DEVELOP_RECIPE
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -3259,7 +3431,16 @@ mod tests {
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
+        {
+            let mut state = session.shared.lock().unwrap();
+            state.frame = Some(Arc::new(Frame {
+                level: 0,
+                settings: session_renderable(&state.live, true, false),
+                tiles: None,
+            }));
+        }
         assert!(session.flush().is_err());
+        assert!(saved.0.lock().unwrap().is_empty());
 
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let mut foreign = sidecar::Sidecar::read_recipe(&recipe_path).unwrap();
@@ -3277,6 +3458,173 @@ mod tests {
         assert_eq!(
             engine.list_images(crate::ImageQuery::default()).unwrap()[0].recipe_hash,
             foreign.recipe.recipe_hash().to_string()
+        );
+        assert!(saved.0.lock().unwrap().is_empty());
+        let foreign_preview = edited_preview_key(
+            &photo,
+            &foreign.recipe,
+            session.shared.image.metadata().orientation as u8,
+            16,
+        );
+        assert!(
+            engine
+                .previews
+                .get(&foreign_preview, previews::Level::Full)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn newer_develop_edit_does_not_hide_previous_save_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let photo = dir.path().join("newer.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(session.shared.path.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        assert!(session.commit("First".into()).unwrap());
+        let mut save = session.shared.save.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while save.retry.is_none() || save.busy || save.due.is_some() {
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .expect("first save did not fail");
+            save = session
+                .shared
+                .save_cv
+                .wait_timeout(save, remaining)
+                .unwrap()
+                .0;
+        }
+        drop(save);
+
+        session
+            .set_settings(r#"{"tone":{"exposure":1.2}}"#.into(), false)
+            .unwrap();
+        assert!(session.commit("Second".into()).unwrap());
+        let first_error = session.flush().unwrap_err();
+        assert!(
+            first_error
+                .to_string()
+                .contains("injected post-recipe failure")
+        );
+        let saved: Recipe = serde_json::from_str(&engine.get_recipe(row.id).unwrap()).unwrap();
+        assert_eq!(saved.settings.tone.exposure, 1.2);
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            1.2
+        );
+        session.flush().unwrap();
+    }
+
+    #[test]
+    fn concurrent_flushes_both_report_the_same_failed_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let photo = dir.path().join("two-waiters.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.open_develop_session(row.id).unwrap();
+        let path = session.shared.path.clone();
+        let pause: PostRecipePause = Arc::new((Mutex::new((false, false)), Condvar::new()));
+        let _release = ReleasePause(pause.clone());
+        PAUSE_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(path.clone(), pause.clone());
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(path.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        let first = {
+            let session = session.clone();
+            std::thread::spawn(move || session.flush())
+        };
+        let (pause_state, pause_cv) = &*pause;
+        let mut state = pause_state.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !state.0 {
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .expect("save did not reach post-recipe boundary");
+            state = pause_cv.wait_timeout(state, remaining).unwrap().0;
+        }
+        drop(state);
+        let second = {
+            let session = session.clone();
+            std::thread::spawn(move || session.flush())
+        };
+        let mut save = session.shared.save.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while save.flush_waiters != 2 {
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .expect("both flush calls did not wait on the save");
+            save = session
+                .shared
+                .save_cv
+                .wait_timeout(save, remaining)
+                .unwrap()
+                .0;
+        }
+        drop(save);
+        let mut state = pause_state.lock().unwrap();
+        state.1 = true;
+        pause_cv.notify_all();
+        drop(state);
+        PAUSE_AFTER_DEVELOP_RECIPE.lock().unwrap().remove(&path);
+        for result in [first.join().unwrap(), second.join().unwrap()] {
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("injected post-recipe failure")
+            );
+        }
+        session.flush().unwrap();
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.7
         );
     }
 
