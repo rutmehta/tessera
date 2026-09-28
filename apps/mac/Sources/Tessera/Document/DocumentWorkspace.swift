@@ -5,6 +5,24 @@ import TesseraCore
 import TesseraFFI
 import UniformTypeIdentifiers
 
+/// Opt-in diagnostic only. No paths, names, content or error descriptions.
+@MainActor
+enum DocumentSaveAsTrace {
+    private static let enabled = ProcessInfo.processInfo.environment["TESSERA_TRACE_SAVE_AS"] == "1"
+    static func emit(_ event: String, _ request: UUID?, _ fields: @autoclosure () -> String = "") {
+        guard enabled else { return }
+        let time = String(format: "%.6f", ProcessInfo.processInfo.systemUptime)
+        let line = "[save-as] t=\(time) request=\(request?.uuidString ?? "nil") event=\(event) \(fields())\n"
+        FileHandle.standardError.write(Data(line.utf8))
+    }
+    private static func identity(_ window: NSWindow?) -> UInt {
+        window.map { UInt(bitPattern: Unmanaged.passUnretained($0).toOpaque()) } ?? 0
+    }
+    static func window(_ window: NSWindow?) -> String {
+        "window=\(identity(window)) parent=\(identity(window?.sheetParent)) attached=\(identity(window?.attachedSheet))"
+    }
+}
+
 /// Terminal settlement of backend source capture and optional workspace install.
 enum DocumentLoadOutcome: Equatable, Sendable {
     case installed
@@ -408,6 +426,7 @@ final class DocumentWorkspace {
     }
 
     func cancelDocumentSave(_ id: UUID) {
+        DocumentSaveAsTrace.emit("cancel", id)
         guard let operation = saveOperations[id] else { return }
         if operation.phase == .writing {
             operation.continuationCancelled = true
@@ -415,12 +434,14 @@ final class DocumentWorkspace {
     }
 
     func saveAsSheetDidDisappear(_ id: UUID) {
+        DocumentSaveAsTrace.emit("swift.contentDisappear", id)
         // Choosing -> replacing/writing hides the sheet deliberately.
         guard saveOperations[id]?.phase == .choosing else { return }
         cancelDocumentSave(id)
     }
 
     func documentSaveWindowLost(_ id: UUID) {
+        DocumentSaveAsTrace.emit("native.windowLost", id)
         if let operation = saveOperations[id] {
             if operation.phase == .writing { operation.continuationCancelled = true }
             else { settleDocumentSave(id, .failed("Document window closed before save")) }
@@ -432,17 +453,21 @@ final class DocumentWorkspace {
     }
 
     func captureSaveAsSheetWindow(_ id: UUID, window: NSWindow) {
+        DocumentSaveAsTrace.emit("probe.capture.attempt", id, "matching=\(saveAsPresentationID == id) \(DocumentSaveAsTrace.window(window))")
         guard saveAsPresentationID == id, let operation = saveOperations[id],
               operation.phase == .choosing else { return }
+        DocumentSaveAsTrace.emit("probe.capture.accepted", id, DocumentSaveAsTrace.window(window))
         operation.saveSheetWindow = window
     }
 
     private func observeNativeSaveSheetDismissal(_ operation: DocumentSaveOperation) -> Bool {
         let id = operation.id
+        DocumentSaveAsTrace.emit("observer.registration.begin", id, "parent{\(DocumentSaveAsTrace.window(operation.presentingWindow))} sheet{\(DocumentSaveAsTrace.window(operation.saveSheetWindow))}")
         let state = DocumentSaveNativeDismissal()
         nativeSaveDismissals[id] = state
         let detached: @MainActor () -> Void = { [weak self, weak state] in
             guard let self, let state, self.nativeSaveDismissals[id] === state else { return }
+            DocumentSaveAsTrace.emit("native.detached.accepted", id)
             state.nativeDetached = true
             self.finishNativeSaveDismissalIfReady(id, state)
         }
@@ -462,6 +487,8 @@ final class DocumentWorkspace {
         let ended = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification,
                                                            object: parent, queue: .main) { [weak parent, weak sheet] _ in
             MainActor.assumeIsolated {
+                DocumentSaveAsTrace.emit("native.didEndSheet", id,
+                    "parent{\(DocumentSaveAsTrace.window(parent))} sheet{\(DocumentSaveAsTrace.window(sheet))}")
                 guard let parent, let sheet, sheet.sheetParent == nil,
                       parent.attachedSheet !== sheet else { return }
                 detached()
@@ -472,11 +499,16 @@ final class DocumentWorkspace {
             MainActor.assumeIsolated { self?.documentSaveWindowLost(id) }
         }
         let observers = DocumentSaveNativeObservers([ended, closed])
-        state.removeObservers = { observers.remove() }
+        DocumentSaveAsTrace.emit("observer.registration.complete", id)
+        state.removeObservers = {
+            DocumentSaveAsTrace.emit("observer.remove", id)
+            observers.remove()
+        }
         return true
     }
 
     private func finishNativeSaveDismissalIfReady(_ id: UUID, _ state: DocumentSaveNativeDismissal) {
+        DocumentSaveAsTrace.emit("join.check", id, "matching=\(nativeSaveDismissals[id] === state) native=\(state.nativeDetached) swift=\(state.swiftDismissed)")
         guard nativeSaveDismissals[id] === state, state.nativeDetached, state.swiftDismissed else { return }
         nativeSaveDismissals.removeValue(forKey: id)
         state.removeObservers?(); state.removeObservers = nil
@@ -484,6 +516,7 @@ final class DocumentWorkspace {
     }
 
     private func presentDocumentSaveSheet(_ request: SaveAsRequest) {
+        DocumentSaveAsTrace.emit("presentation.request", request.id, "queued=\(saveAsPresentationID != nil)")
         if saveAsPresentationID != nil {
             queuedSaveAs = request
             presentedSaveAs = nil
@@ -499,6 +532,7 @@ final class DocumentWorkspace {
     /// for a cancelled item must drain before a newer requested sheet can appear.
     @discardableResult
     func saveAsPresentationWillPresent(_ id: UUID) -> Bool {
+        DocumentSaveAsTrace.emit("presentation.claim", id, "hasClaim=\(saveAsPresentationID != nil) matching=\(saveAsPresentationID == id)")
         if let current = saveAsPresentationID { return current == id }
         saveAsPresentationID = id
         if presentedSaveAs?.id != id {
@@ -511,6 +545,7 @@ final class DocumentWorkspace {
     /// Native SwiftUI sheet completion, not content onDisappear. ID remains owned
     /// until this boundary so stale nil binding writes cannot dismiss a successor.
     func saveAsPresentationDidDismiss(_ id: UUID) {
+        DocumentSaveAsTrace.emit("swift.onDismiss.received", id, "matching=\(saveAsPresentationID == id) nativeRecord=\(nativeSaveDismissals[id] != nil)")
         guard saveAsPresentationID == id else { return }
         if let state = nativeSaveDismissals[id] {
             state.swiftDismissed = true
@@ -521,6 +556,7 @@ final class DocumentWorkspace {
     }
 
     private func completeSaveAsPresentationDismissal(_ id: UUID) {
+        DocumentSaveAsTrace.emit("presentation.dismiss.complete", id, "matching=\(saveAsPresentationID == id) successor=\(queuedSaveAs != nil)")
         guard saveAsPresentationID == id else { return }
         saveAsPresentationID = nil
         if presentedSaveAs?.id == id { presentedSaveAs = nil }
@@ -539,6 +575,7 @@ final class DocumentWorkspace {
     }
 
     func finishSaveAs(_ request: SaveAsRequest) {
+        DocumentSaveAsTrace.emit("finish.request", request.id, "phase=\(saveOperations[request.id].map { String(describing: $0.phase) } ?? "missing")")
         guard let operation = saveOperations[request.id], operation.document === request.doc,
               operation.phase == .choosing, activeSavePrompt == request.id else { return }
         guard request.isValid else { settleDocumentSave(request.id, .failed("Invalid file name")); return }
@@ -546,6 +583,7 @@ final class DocumentWorkspace {
             settleDocumentSave(request.id, .failed("Save As presentation is not active")); return
         }
         let exists = saveFileExists?(request.url) ?? FileManager.default.fileExists(atPath: request.url.path)
+        DocumentSaveAsTrace.emit("finish.exists", request.id, "exists=\(exists) phase=\(operation.phase)")
         if exists {
             operation.phase = .waitingForDismissal
             operation.pendingReplacement = request
@@ -556,6 +594,7 @@ final class DocumentWorkspace {
     }
 
     private func beginReplacementPrompt(_ operation: DocumentSaveOperation, request: SaveAsRequest) {
+        DocumentSaveAsTrace.emit("replace.admission", request.id, "phase=\(operation.phase) \(DocumentSaveAsTrace.window(operation.presentingWindow))")
         guard saveOperations[request.id] === operation, operation.document === request.doc,
               operation.phase == .waitingForDismissal, activeSavePrompt == request.id else { return }
         operation.phase = .replacing
@@ -579,12 +618,14 @@ final class DocumentWorkspace {
         alert.informativeText = "A file already exists at this destination. Replacing it will overwrite its contents."
         alert.addButton(withTitle: "Replace")
         alert.addButton(withTitle: "Cancel")
+        DocumentSaveAsTrace.emit("replace.beginSheet", request.id, DocumentSaveAsTrace.window(window))
         alert.beginSheetModal(for: window) { response in
             MainActor.assumeIsolated { proceed(response == .alertFirstButtonReturn) }
         }
     }
 
     private func admitDocumentWrite(_ operation: DocumentSaveOperation, url: URL?, folder: URL?) {
+        DocumentSaveAsTrace.emit("write.admission", operation.id, "phase=\(operation.phase)")
         guard saveOperations[operation.id] === operation, operation.phase != .writing else { return }
         guard !operation.document.isClosed else { settleDocumentSave(operation.id, .failed("Document is closed")); return }
         if operation.requiresWindow, !(saveHasWindow?() ?? (window != nil)) {
@@ -619,6 +660,13 @@ final class DocumentWorkspace {
     }
 
     private func settleDocumentSave(_ id: UUID, _ outcome: DocumentSaveOutcome) {
+        let traceOutcome: String
+        switch outcome {
+        case .saved(_, let cancelled): traceOutcome = "saved continuationCancelled=\(cancelled)"
+        case .cancelled: traceOutcome = "cancelled"
+        case .failed: traceOutcome = "failed"
+        }
+        DocumentSaveAsTrace.emit("settlement", id, "outcome=\(traceOutcome) matching=\(saveOperations[id] != nil)")
         guard let operation = saveOperations.removeValue(forKey: id) else { return }
         if let observer = operation.windowObserver { NotificationCenter.default.removeObserver(observer) }
         if let alert = operation.replaceAlert, let parent = alert.window.sheetParent {
