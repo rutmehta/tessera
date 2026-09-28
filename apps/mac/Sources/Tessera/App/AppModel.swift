@@ -126,6 +126,8 @@ private enum UndoDomain { case cull, develop }
 
 @MainActor @Observable
 final class AppModel {
+    typealias DevelopControllerOpener = @MainActor (EngineImageReference, Int) async throws -> DevelopController
+
     static let shared = AppModel()
 
     // MARK: Observed summary state (SwiftUI)
@@ -289,6 +291,7 @@ final class AppModel {
     @ObservationIgnored private var undoDomain = UndoDomain.cull
     @ObservationIgnored private var pendingReadout: String?
     @ObservationIgnored private var developSelfTestRan = false
+    @ObservationIgnored private let developControllerOpener: DevelopControllerOpener
     @ObservationIgnored private var selfTestFrames: [DevelopFrame]?
     @ObservationIgnored private var readoutTask: Task<Void, Never>?
     @ObservationIgnored private var loadGeneration = 0
@@ -309,8 +312,14 @@ final class AppModel {
     private static let basketTargetKey = "BasketTarget"
     static let renderReadoutKey = "ShowRenderReadout"
 
-    init(agent: AgentController = AgentController()) {
+    init(
+        agent: AgentController = AgentController(),
+        developControllerOpener: @escaping DevelopControllerOpener = { ref, itemID in
+            try await DevelopController.open(ref, itemID: itemID)
+        }
+    ) {
         self.agent = agent
+        self.developControllerOpener = developControllerOpener
         recentFolders = (UserDefaults.standard.stringArray(forKey: Self.recentFoldersKey) ?? [])
             .map { URL(fileURLWithPath: $0) }
         basketTarget = UserDefaults.standard.string(forKey: Self.basketTargetKey) ?? EngineLibrary.defaultBasketTarget
@@ -1682,6 +1691,7 @@ final class AppModel {
         let key = owner.map { DevelopCloseKey(owner: ObjectIdentifier($0), imageID: ref.imageID) }
         let pendingClose = key.flatMap { pendingDevelopCloses[$0]?.task }
         let pendingOpen = key.flatMap { pendingDevelopOpens[$0]?.task }
+        let opener = developControllerOpener
         let token = UUID()
         let task = Task { [weak self] in
             defer {
@@ -1694,7 +1704,7 @@ final class AppModel {
                 await pendingOpen?.value
                 await pendingClose?.value
                 guard !Task.isCancelled else { return }
-                let controller = try await DevelopController.open(ref, itemID: item.id)
+                let controller = try await opener(ref, item.id)
                 guard let self, !Task.isCancelled, generation == self.loadGeneration,
                       self.engineLibrary === owner, self.focusedItem?.id == item.id else {
                     await controller.close()
