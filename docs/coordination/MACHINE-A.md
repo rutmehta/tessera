@@ -1,3 +1,11 @@
+## Actual focus observer crashed; diagnostic failed
+
+At `c5f8bca7`, trace-disabled GUI reproduced Name → Tab to Load LUT → second Tab hides panels. Trace-enabled PID12227 crashed on the second Tab: EXC_BREAKPOINT/SIGTRAP, Swift ArrayBuffer type check → Collection.prefix → AppKitFocusNode.children(limit:) line285 → snapshot229 → routeEvent174. Only the first Name-field event was recorded (AXTextField/native FieldEditor, matched owned window, handled=false). Second-event routing remains unknown.
+
+CUA observation then relaunched the owned bundle as PID12310 without arguments. Worker quit it ordinarily and shell-verified absence; effects on the default profile are unknown. Source executable, package files and three copied fixture/document hashes are unchanged. Evidence is under `B5-16/evidence/2026-09-28/focus-trace-c5f8bca7-gui-failed`. Result `b93a3d5b` has a failed receipt. No routing fix, GUI acceptance or inspector merge.
+
+RAW worker now owns runtime at `c595dad2`; focused20 passed, full/strict/format pending. B receives a bounded diagnostic bridge repair request next; FFI remains source-only on cache performance qualification.
+
 ## Inspector trace automated qualification verified; actual diagnosis active
 
 Candidate `c5f8bca7` passed 42 mandatory focused tests and strict Release. Independent review verified 8,387 immutable inputs, four FFI artifacts, explicit Sony fixture, imported runner/oracle freezes and preserved executable `7a26729cb661fbece69850a5687fcf55789c4e7c9d973a43169cd23b2e49920f`. Portable gates are preserved under `B5-16/evidence/2026-09-28/focus-trace-c5f8bca7`. No full suite rerun or GUI acceptance is claimed at this diagnostic checkpoint.

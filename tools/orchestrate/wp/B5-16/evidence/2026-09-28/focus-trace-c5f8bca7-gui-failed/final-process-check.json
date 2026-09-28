@@ -1,0 +1,8 @@
+{
+  "ordinary_quit": "CUA super+q",
+  "enabled_pid": 12227,
+  "unexpected_noargs_pid": 12310,
+  "anchored_check_exit": 1,
+  "stdout": "",
+  "stderr": ""
+}

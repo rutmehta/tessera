@@ -1,0 +1,26 @@
+{
+  "source_commit": "c5f8bca7de595dcbf11702e59560ca7a3caa9cfa",
+  "disabled_pid": 7873,
+  "enabled_pid": 12227,
+  "replacement_noargs_pid": 12310,
+  "outcome": "disabled reproduces; enabled observer crash; inconclusive second-event semantics",
+  "crash_sha256": "8b713e65282e0fa06a8c1b51fec7a54d404a57968bf54a35f4ae37c16999729d",
+  "trace_sha256": "ebca8d2ebabe85c7e05af1aaee7ab380cba0013aeb79ea2fa037273cb2249085",
+  "fixture_after": {
+    "fixtures/warm-gradient.png": "19368177c8efae46512730f86ec03dc069782330843678e8b6aa82cc01009f63",
+    "fixtures/owned-warm.cube": "97c1492280596e6d75dac8ddb4df5802b32a885b25b08280068e55138c63f3ce",
+    "outputs/warm-gradient.tessera-doc": "473076631db502fff7c2b9bfc19f51769c336f5d7c14630677434e6bbf9eb29f"
+  },
+  "fixtures_equal": true,
+  "source_executable_sha256": "7a26729cb661fbece69850a5687fcf55789c4e7c9d973a43169cd23b2e49920f",
+  "packaged_executable_sha256": "0354dd87e9f81db1145d82f1ae8a40026d9cb01eb58c9307f5f17fcdaac72acb",
+  "final_absence": {
+    "ordinary_quit": "CUA super+q",
+    "enabled_pid": 12227,
+    "unexpected_noargs_pid": 12310,
+    "anchored_check_exit": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "package_files_equal": true
+}

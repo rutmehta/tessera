@@ -1,0 +1,141 @@
+{
+  "pid": 12227,
+  "captureTime": "2026-09-28 19:46:26.5738 -0400",
+  "procPath": "/Volumes/VOLUME/*/Tessera Inspector c5f8bca7.app/Contents/MacOS/Tessera",
+  "exception": {
+    "codes": "0x0000000000000001, 0x00000001a2156fd4",
+    "rawCodes": [
+      1,
+      7014281172
+    ],
+    "type": "EXC_BREAKPOINT",
+    "signal": "SIGTRAP"
+  },
+  "frames": [
+    {
+      "imageOffset": 1327060,
+      "symbol": "_assertionFailure(_:_:flags:)",
+      "symbolLocation": 136,
+      "imageIndex": 4
+    },
+    {
+      "imageOffset": 264132,
+      "symbol": "_ArrayBuffer._typeCheckSlowPath(_:)",
+      "symbolLocation": 1988,
+      "imageIndex": 4
+    },
+    {
+      "imageOffset": 3534172,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "specialized _ArrayBuffer._typeCheck(_:)",
+      "imageIndex": 0,
+      "symbolLocation": 24,
+      "inline": true
+    },
+    {
+      "imageOffset": 3534172,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "specialized _ArrayBuffer.subscript.getter",
+      "imageIndex": 0,
+      "symbolLocation": 40,
+      "inline": true
+    },
+    {
+      "imageOffset": 3534172,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "specialized Array.subscript.getter",
+      "imageIndex": 0,
+      "symbolLocation": 48,
+      "inline": true
+    },
+    {
+      "imageOffset": 3534172,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "specialized protocol witness for Collection.subscript.getter in conformance [A]",
+      "imageIndex": 0,
+      "symbolLocation": 48,
+      "inline": true
+    },
+    {
+      "imageOffset": 3534172,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "specialized Collection.prefix(_:)",
+      "imageIndex": 0,
+      "symbolLocation": 84,
+      "inline": true
+    },
+    {
+      "imageOffset": 3534172,
+      "sourceLine": 285,
+      "sourceFile": "InspectorFocusTrace.swift",
+      "symbol": "AppKitFocusNode.children(limit:)",
+      "imageIndex": 0,
+      "symbolLocation": 240
+    },
+    {
+      "imageOffset": 3529844,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "protocol witness for InspectorFocusTraceNode.children(limit:) in conformance AppKitFocusNode",
+      "imageIndex": 0,
+      "symbolLocation": 12,
+      "inline": true
+    },
+    {
+      "imageOffset": 3529844,
+      "sourceLine": 229,
+      "sourceFile": "InspectorFocusTrace.swift",
+      "symbol": "static InspectorFocusTrace.snapshot(focused:root:window:nativeType:nativeIdentity:)",
+      "imageIndex": 0,
+      "symbolLocation": 1064
+    },
+    {
+      "imageOffset": 3528596,
+      "sourceLine": 174,
+      "sourceFile": "InspectorFocusTrace.swift",
+      "symbol": "closure #2 in static InspectorFocusTrace.routeEvent(_:event:document:ownedWindow:handler:)",
+      "imageIndex": 0,
+      "symbolLocation": 752
+    },
+    {
+      "symbol": "specialized static InspectorFocusTrace.route(_:input:capture:handler:)",
+      "inline": true,
+      "imageIndex": 0,
+      "imageOffset": 3588632,
+      "symbolLocation": 16,
+      "sourceLine": 112,
+      "sourceFile": "InspectorFocusTrace.swift"
+    },
+    {
+      "imageOffset": 3588632,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "static InspectorFocusTrace.route(_:input:capture:handler:)",
+      "imageIndex": 0,
+      "symbolLocation": 16,
+      "inline": true
+    },
+    {
+      "symbol": "static InspectorFocusTrace.routeEvent(_:event:document:ownedWindow:handler:)",
+      "inline": true,
+      "imageIndex": 0,
+      "imageOffset": 3588632,
+      "symbolLocation": 16,
+      "sourceLine": 170,
+      "sourceFile": "InspectorFocusTrace.swift"
+    },
+    {
+      "imageOffset": 3588632,
+      "sourceLine": 46,
+      "sourceFile": "KeyRouter.swift",
+      "symbol": "closure #1 in closure #1 in KeyRouter.install()",
+      "imageIndex": 0,
+      "symbolLocation": 1588
+    },
+    {
+      "imageOffset": 3603476,
+      "sourceFile": "/<compiler-generated>",
+      "symbol": "partial apply for closure #1 in closure #1 in KeyRouter.install()",
+      "symbolLocation": 16,
+      "imageIndex": 0
+    }
+  ]
+}

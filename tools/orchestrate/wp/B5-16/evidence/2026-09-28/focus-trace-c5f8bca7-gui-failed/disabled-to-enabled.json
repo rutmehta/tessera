@@ -1,0 +1,19 @@
+{
+  "disabled_pid": 7873,
+  "disabled_quit": "CUA super+q",
+  "anchored_absence_exit": 1,
+  "enabled_launch": [
+    "open",
+    "-n",
+    "/Volumes/betterSSD/tessera-validation/b5-16-focus-trace-c5f8bca7/gui-c5f8bca7/Tessera Inspector c5f8bca7.app",
+    "--args",
+    "--app-dir",
+    "/tmp/tessera-inspector-focus-trace-c5f8bca7/profile",
+    "--inspector-focus-trace",
+    "/tmp/tessera-inspector-focus-trace-c5f8bca7/evidence/focus-01.jsonl"
+  ],
+  "launch_exit": 0,
+  "stdout": "",
+  "stderr": "",
+  "time": 1790639149.788723
+}
