@@ -89,6 +89,8 @@ pub struct JournalSnapshot {
 
 impl SmartPreviewJournal {
     /// Create a clean journal from the recipe owner and exact original sidecar baseline.
+    /// `root` must be an existing application-support directory; generated store
+    /// entries are synchronized beneath it before this call succeeds.
     pub fn create(
         root: impl AsRef<Path>,
         id: ImageId,
@@ -202,9 +204,18 @@ impl SmartPreviewJournal {
     }
 
     fn new(root: &Path, id: ImageId) -> StoreResult<Self> {
-        let root = root.join("smart-previews").join(id.to_string());
-        create_dir_all_durable(&root)?;
-        let root = fs::canonicalize(root)?;
+        // The caller supplies an existing app-support root. Canonicalize it
+        // first so symlink aliases converge on the same generated store path.
+        let app_root = fs::canonicalize(root)?;
+        if !fs::metadata(&app_root)?.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                app_root.display().to_string(),
+            )
+            .into());
+        }
+        let preview_root = ensure_child_dir_durable(&app_root, "smart-previews")?;
+        let root = ensure_child_dir_durable(&preview_root, &id.to_string())?;
         let lock_path = root.join("journal.json");
         let table = LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
         let mut table = table.lock().map_err(|_| StoreError::LockPoisoned)?;
@@ -358,66 +369,42 @@ fn sync_directory(path: &Path) -> io::Result<()> {
     fs::File::open(path)?.sync_all()
 }
 
-fn create_dir_all_durable(path: &Path) -> StoreResult<()> {
-    create_dir_all_durable_with(path, sync_directory)?;
-    Ok(())
+fn ensure_child_dir_durable(parent: &Path, name: &str) -> StoreResult<PathBuf> {
+    ensure_child_dir_durable_with(parent, name, sync_directory).map_err(StoreError::from)
 }
 
-fn create_dir_all_durable_with(
-    path: &Path,
-    mut sync: impl FnMut(&Path) -> io::Result<()>,
-) -> io::Result<()> {
-    let owned_path;
-    let path = if path.is_absolute() {
-        path
-    } else {
-        owned_path = std::env::current_dir()?.join(path);
-        &owned_path
-    };
-    let mut missing = Vec::new();
-    let mut cursor = path;
-    loop {
-        match fs::symlink_metadata(cursor) {
-            Ok(meta) => {
-                if !meta.file_type().is_dir() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::NotADirectory,
-                        cursor.display().to_string(),
-                    ));
-                }
-                break;
-            }
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                missing.push(cursor.to_path_buf());
-                cursor = cursor.parent().ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::NotFound,
-                        "directory has no existing ancestor",
-                    )
-                })?;
-            }
-            Err(error) => return Err(error),
+fn ensure_child_dir_durable_with(
+    parent: &Path,
+    name: &str,
+    sync: impl FnOnce(&Path) -> io::Result<()>,
+) -> io::Result<PathBuf> {
+    let child = parent.join(name);
+    match fs::symlink_metadata(&child) {
+        Ok(meta) if meta.file_type().is_dir() => {}
+        Ok(_) => {
+            return Err(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                child.display().to_string(),
+            ));
         }
-    }
-    for directory in missing.into_iter().rev() {
-        let parent = directory
-            .parent()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "directory has no parent"))?;
-        match fs::create_dir(&directory) {
-            Ok(()) => sync(parent)?,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => match fs::create_dir(&child) {
+            Ok(()) => {}
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-                if !fs::symlink_metadata(&directory)?.file_type().is_dir() {
+                if !fs::symlink_metadata(&child)?.file_type().is_dir() {
                     return Err(io::Error::new(
                         io::ErrorKind::NotADirectory,
-                        directory.display().to_string(),
+                        child.display().to_string(),
                     ));
                 }
-                sync(parent)?;
             }
             Err(error) => return Err(error),
-        }
+        },
+        Err(error) => return Err(error),
     }
-    Ok(())
+    // Sync even when the child already exists: an earlier attempt may have
+    // created it but returned after the parent sync failed.
+    sync(parent)?;
+    Ok(child)
 }
 
 fn remove_file_and_sync_directory(
@@ -748,37 +735,46 @@ mod tests {
         fs::create_dir(&real_root).unwrap();
         symlink(&real_root, &alias_root).unwrap();
         let id = ImageId(37);
-        let real = SmartPreviewJournal::create(&real_root, id, [0; 32], 1, recipe(id), None, None)
-            .unwrap();
-        let alias = SmartPreviewJournal::open(&alias_root, id).unwrap().0;
+        let alias =
+            SmartPreviewJournal::create(&alias_root, id, [0; 32], 1, recipe(id), None, None)
+                .unwrap();
+        let real = SmartPreviewJournal::open(&real_root, id).unwrap().0;
         assert!(Arc::ptr_eq(&real._guard, &alias._guard));
     }
 
     #[test]
-    fn directory_creation_syncs_each_new_ancestry_entry_and_propagates_sync_failure() {
+    fn existing_generated_directory_is_resynced_after_create_sync_failure() {
         let dir = tempdir().unwrap();
-        let nested = dir.path().join("first").join("second");
-        let mut synced = Vec::new();
-        create_dir_all_durable_with(&nested, |parent| {
-            synced.push(parent.to_path_buf());
+        let mut fail_once = true;
+        let first = ensure_child_dir_durable_with(dir.path(), "generated", |_| {
+            if fail_once {
+                fail_once = false;
+                Err(io::Error::other("injected directory sync failure"))
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(first.unwrap_err().kind(), io::ErrorKind::Other);
+        assert!(dir.path().join("generated").is_dir());
+
+        let mut sync_count = 0;
+        let retried = ensure_child_dir_durable_with(dir.path(), "generated", |parent| {
+            assert_eq!(parent, dir.path());
+            sync_count += 1;
             Ok(())
         })
         .unwrap();
-        assert_eq!(
-            synced,
-            vec![dir.path().to_path_buf(), dir.path().join("first")]
-        );
+        assert_eq!(retried, dir.path().join("generated"));
+        assert_eq!(sync_count, 1, "retry must sync the existing entry");
 
-        let failing = dir.path().join("failed").join("child");
-        let result = create_dir_all_durable_with(&failing, |_| {
+        let child_failure = ensure_child_dir_durable_with(&retried, "child", |_| {
             Err(io::Error::other("injected directory sync failure"))
         });
-        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::Other);
         assert!(
-            failing.parent().unwrap().is_dir(),
-            "the directory whose parent sync failed may remain visible"
+            child_failure.is_err(),
+            "the parent fsync failure must remain visible to callers"
         );
-        assert!(!failing.exists(), "creation must stop after a failed sync");
+        assert!(retried.join("child").is_dir());
     }
 
     #[test]
