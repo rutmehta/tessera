@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Native contract measured; Swift gate next — 2026-09-28 07:47 UTC
+
+Strict standalone Swift6 probe5ebeb17a compiled0. Eight native runs retired/exited with unchanged source: queued-only cancellation raw/orderOut and both explicit parent shutdown variants passed6/direct0. Unassisted parent-close raw/orderOut failed2/direct1 at watchdog, still-member/no completion before cleanup. Root verified raw result/join/retirement/exit records. These failures establish close-alone is insufficient, not an adapter verdict; actual adapter explicitly ends captured sheet. No SwiftUI/chooser/full-product claim.
+
+Resource released all probe processes and packages evidence source-only. Luna now sole compiler lane for historical010617b8 unseen-lifetime RED, then source-reviewed93244f8f/current-main integration. New coherent FFI archive4a45 hash verified; bindings byte unchanged, build direct0, portable receipt737dcd09. Old8ab baseline preserved. B next design-only request636b1603/queue01a0e6fb covers atomic create-if-absent destination intent while preserving confirmed Replace. No B workload restart; A owns main merges; preview57591 unchanged.
+
 ## Recipe/XMP integration — 2026-09-28 07:39 UTC
 
 Main4ad017ab now publishes Develop settings to XMP for set_recipe_json, retaining selection-only and merge persistence. Exact complete Rust/Cargo tree equals tested3bd2e341. Root independently verified19 tests (8 recipe,8 owner,3 public API), format/strict direct0 and15 frozen inputs against checkout/Git. Behavioral RED had actual0 vs1.25 XMP; failed compile attempt preserved. Portable evidence follows; new coherent FFI archive preparation stays in isolated checkout. No GUI/preview-update claim.

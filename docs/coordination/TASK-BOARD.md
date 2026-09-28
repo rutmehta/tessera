@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current execution queue — 2026-09-28 07:34 UTC
+## Current execution queue — 2026-09-28 07:47 UTC
 
 | Task | Owner | Verified state | Next action |
 | --- | --- | --- | --- |
@@ -9,8 +9,9 @@
 | Staged filters and person facets | A / Luna | DONE mainf27f96e4, evidenceb6608ee9; genuine6-failure RED,9 focused +44 adjacent/1skip/0 | Integrated source exactly matchesdd6;32 evidence payloads verified. No new GUI/full-suite claim. |
 | PSD copy format preflight | A + B source | DONE main08e86f39;51 selected Rust tests +strict | No memory-budget/RSS claim. |
 | Develop stale-writer protection | A / Resource Sol | DONE mainf4bc0c0b, Rust/Cargo exactly915c7f7b;25 tests +fmt/strict | Newer/unsupported owner fields fail closed;185 payloads and40 source hashes verified. No lease, all-writer CAS or conflict-resolution UI. |
-| Recipe setter XMP parity | A / reviewer Sol | DONE main4ad017ab, exact Rust/Cargo3bd2e341. Genuine RED then19 combined tests +fmt/strict/direct0;15 frozen inputs verified. | Portable evidence and coherent current FFI preparation next. Earlier compile failure retained; normal user preview unchanged. |
-| Save As native ownership | B source; A integration/GUI | B source93244f8f received; resultd9b94a94 accepted. Resource Sol and Luna found no source-level ownership/UI blocker; reviews archived. | All source UNRUN. Probe5ebeb17a/result6c41957d accepted for review. Native queued/parent-close checks, headless regression, focused/full tests and real GUI remain mandatory. |
+| Recipe setter XMP parity | A / reviewer Sol | DONE main4ad017ab, exact Rust/Cargo3bd2e341. Genuine RED then19 combined tests +fmt/strict/direct0;15 frozen inputs verified. | Evidence535950bb/FFI737dcd09 published; current arm64 archive4a45, generated bindings unchanged. Earlier compile failure retained; normal preview unchanged. |
+| Save As native ownership | B source; A integration/GUI | B source93244f8f received; resultd9b94a94 accepted. Resource Sol and Luna found no source-level ownership/UI blocker; reviews archived. | Probe actual6/8: queued and explicit close-handler paths pass;2 unassisted parent-close failures retained. Luna sole lane historical010 RED then current integration/4a45; headless/focused/full/GUI still pending. |
+| Save As destination safety | B design; A review | Source audit complete; request636b1603 queued01a0e6fb, peer receipt pending | Add create-if-absent intent/unique staging; preserve confirmed Replace semantics. Design only while presenter validates. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 
