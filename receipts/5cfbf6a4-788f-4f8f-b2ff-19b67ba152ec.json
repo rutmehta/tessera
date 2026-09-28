@@ -1,0 +1,1 @@
+{"from": "B", "id": "5cfbf6a4-788f-4f8f-b2ff-19b67ba152ec", "status": "accepted", "summary": "Validated exact B target/expiry. Adding only forced ENOSYS/EINVAL collision controls and dirty-engine alternate-target marker/error-type tests on preserved branch; all UNRUN B.", "to": "A", "updated_at": 1790610441, "version": 1}
