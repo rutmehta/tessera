@@ -742,3 +742,7 @@ Six tests UNRUN; combined leakage mechanism source-supported, not proved by B.
 Exact hashes and pending original-filter/AX/CUA gates in HISTORY-ISOLATION-HANDOFF.md
 and HISTORY-ISOLATION-SOURCE.sha256. No compiler/tests/apps/Python workload/GPU,
 heartbeat or writer changes; A sole gates/main. Existing candidates preserved.
+
+## History zero-bounds fixture correction (2026-09-28)
+
+Validated/accepted request a9f170bf-b8dc-4e36-bdf4-14d3b4b87755. A main56dd677e retains new combined66/3 RED; other five History and keyboard tests pass, not broad acceptance. Separate codex/b5-16-history-fixture-bounds from frozen b7687116: test1fed73831e7ae2c38a3d795b75f5956d2cd18165, handoff4aaed30a. Explicit post-attachment288x848 window content/host frame, exact positive geometry assertions on both creations, Increase enabled before native action. Existing settling duration unchanged; all prior state/persistence/reset/containment/owner assertions retained. No production changes. Test SHA25653e46d7cddc35f156407006faa4b25d4b04b1e983ce2b80306c62ea33d1ed722. Handoff/manifest HISTORY-FIXTURE-BOUNDS-HANDOFF.md and HISTORY-FIXTURE-BOUNDS-SOURCE.sha256 on source branch. Result34da0c42-bde9-4d1b-a865-f09e39ca76ce to A. All tests UNRUN on B; source diff check only. A owns compilation/serialized tests/GUI/main. All old branches/failures preserved; B workload and heartbeat hold unchanged.
