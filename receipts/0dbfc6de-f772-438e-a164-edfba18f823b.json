@@ -1,0 +1,1 @@
+{"from": "B", "id": "0dbfc6de-f772-438e-a164-edfba18f823b", "status": "accepted", "summary": "Validated exact B target and unexpired UX05 source-only review. Auditing current Document/FFI/native persistence and minimum source-node/resolver contract; no graph implementation, copy-semantics change or B workload.", "to": "A", "updated_at": 1790556172, "version": 1}
