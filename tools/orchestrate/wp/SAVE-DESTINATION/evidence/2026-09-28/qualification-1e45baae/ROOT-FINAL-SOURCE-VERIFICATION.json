@@ -1,0 +1,278 @@
+{
+  "commit": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+  "git_blob_count": 7804,
+  "gates": {
+    "01-native-commit-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "7671fc9b99e4817c98f95f624b7f405db73e45dc41dab0536791260523c3ecb0",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "02-native-session-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "8d5f3b5a301c693a6345c07acc0df1ea9cf694ec3e8a931250f23dd366f8c5db",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "03-native-roundtrip-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "fecab384ef6f4f3fddec31c339a6ef566f70d482c2ed71c01981a1313886bfe1",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "04-psd-psb-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "683c9b958028768828611d7d053e17ed302caba373d38349455d613c134fd1d1",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "05-native-document-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "6dcbf038a3ae2ceb50ec53074f48d955f2e4686dc2c34f667de1c638435854c6",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "06-native-ffi-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "505b8d76ec834c0b636b7435f95997ccf717b912ba2c21a2a324a6cb5cc749a1",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "07-native-strict-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "159f41b29b4905c9d9b094683529c140eda30c31258ec60622ff709c5745ff2a",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "08-native-format-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archive_sha256": "f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80"
+    },
+    "09-regenerate-01": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [
+        "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+        "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h"
+      ],
+      "versus_final_git_mismatches": [
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": false,
+      "fixture_equal": true,
+      "log_sha256": "b90169b158a58a59de257d515ba2740e59ad219132faab26a240bd735e4700b3",
+      "archive_sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+    },
+    "10-swift-focused-01": {
+      "direct_exit": 1,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "2565ddf7b5cb03a39c852c300c8e1dea0e2cf97712e41ec1b3e64c0ed7881a4d",
+      "archive_sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+    },
+    "10-swift-focused-02": {
+      "direct_exit": 1,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [
+        "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift"
+      ],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "a6f5634a19596a95ff2ac9e6e1712cf8b92a229fb1bb259b75c7d13c853912c6",
+      "archive_sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+    },
+    "10-swift-focused-03": {
+      "direct_exit": 0,
+      "before_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "after_head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "a0f2447436f7881470c39ed3eb622800b46a4571d0c25ccf9f43e51afa69eade",
+      "archive_sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+    },
+    "11-swift-adjacent-01": {
+      "direct_exit": 0,
+      "before_head": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+      "after_head": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "3406e6797e8260e9c9d9b010e61c9f4af6fa32ad3e1c6c99014d8b43f72a1c62",
+      "archive_sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+    },
+    "12-swift-full-01": {
+      "direct_exit": 0,
+      "before_head": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+      "after_head": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "382388ba46be5f923f87bae0b8ee420de3e69d0b444256b4c7e35d2f995e6398",
+      "archive_sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+    },
+    "13-swift-strict-01": {
+      "direct_exit": 0,
+      "before_head": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+      "after_head": "1e45baaead70b1bcd208afba800bcacd92213ee8",
+      "source_count": 7804,
+      "source_delta": [],
+      "versus_final_git_mismatches": [],
+      "native_vs_final_mismatches": [],
+      "ignored_ffi_equal": true,
+      "fixture_equal": true,
+      "log_sha256": "76f4bc7732c67841da811dc0ea159b4863ea28b7c3514b0be169fafcbbd7e1a4",
+      "archive_sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+    }
+  },
+  "current_artifacts": {
+    "apps/mac/build/ffi/CTesseraFFI.h": {
+      "sha256": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+      "matches_final": true
+    },
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": {
+      "sha256": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "matches_final": true
+    },
+    "apps/mac/build/ffi/TesseraFFI.swift": {
+      "sha256": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+      "matches_final": true
+    },
+    "apps/mac/build/ffi/libtessera_ffi.a": {
+      "sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594",
+      "matches_final": true
+    }
+  },
+  "current_git_inputs_mismatch": [],
+  "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+  "fixture_matches": true,
+  "actual_workflows": {
+    "testActualCachedThumbnailAfterOriginalDisconnect": [
+      "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' passed (5.162 seconds)."
+    ],
+    "testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect": [
+      "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (5.235 seconds)."
+    ]
+  },
+  "full_totals": [
+    "\t Executed 703 tests, with 1 test skipped and 0 failures (0 unexpected) in 218.475 (218.538) seconds",
+    "\t Executed 703 tests, with 1 test skipped and 0 failures (0 unexpected) in 218.475 (218.539) seconds",
+    "\u2714 Test run with 5 tests in 2 suites passed after 0.024 seconds."
+  ],
+  "revalidation_log_hash_matches": true,
+  "revalidation_exact_matches": true
+}

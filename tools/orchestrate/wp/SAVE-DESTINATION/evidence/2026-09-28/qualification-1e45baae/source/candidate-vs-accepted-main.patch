@@ -1,0 +1,1676 @@
+diff --git a/apps/mac/Sources/CTesseraFFI/CTesseraFFI.h b/apps/mac/Sources/CTesseraFFI/CTesseraFFI.h
+index 4f29f98d..0c1a6389 100644
+--- a/apps/mac/Sources/CTesseraFFI/CTesseraFFI.h
++++ b/apps/mac/Sources/CTesseraFFI/CTesseraFFI.h
+@@ -1601,6 +1601,11 @@ void uniffi_tessera_ffi_fn_method_documentsession_save(uint64_t ptr, RustCallSta
+ void uniffi_tessera_ffi_fn_method_documentsession_save_as(uint64_t ptr, RustBuffer path, RustCallStatus *_Nonnull out_status
+ );
+ #endif
++#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
++#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
++RustBuffer uniffi_tessera_ffi_fn_method_documentsession_save_as_checked(uint64_t ptr, RustBuffer path, RustBuffer intent, RustCallStatus *_Nonnull out_status
++);
++#endif
+ #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SET_ADJUSTMENT_JSON
+ #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SET_ADJUSTMENT_JSON
+ RustBuffer uniffi_tessera_ffi_fn_method_documentsession_set_adjustment_json(uint64_t ptr, uint64_t id, RustBuffer json, int8_t interactive, RustCallStatus *_Nonnull out_status
+@@ -4488,6 +4493,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_save(void
+ #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SAVE_AS
+ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_save_as(void
+     
++);
++#endif
++#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
++#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
++uint16_t uniffi_tessera_ffi_checksum_method_documentsession_save_as_checked(void
++    
+ );
+ #endif
+ #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SET_ADJUSTMENT_JSON
+diff --git a/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift b/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift
+index 9954e7ad..5b0bbd96 100644
+--- a/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift
++++ b/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift
+@@ -43,6 +43,7 @@ private final class DocumentLoadSettlement {
+ enum DocumentSaveOutcome: Equatable {
+     case saved(URL?, continuationCancelled: Bool)
+     case cancelled
++    case destinationConflict(URL)
+     case failed(String)
+ }
+ 
+@@ -58,6 +59,7 @@ private final class DocumentSaveOperation {
+     var host: DocumentSaveHostIdentity?
+     var pendingRequest: SaveAsRequest?
+     var needsReplacement = false
++    var destinationIntent: DocSaveDestinationIntent?
+     init(id: UUID, document: DocumentController, requiresWindow: Bool,
+          completion: @escaping (DocumentSaveOutcome) -> Void) {
+         self.id = id; self.document = document; self.requiresWindow = requiresWindow
+@@ -324,6 +326,7 @@ final class DocumentWorkspace {
+     // the presenter's driver boundary, never by synthesizing dismissal callbacks.
+     @ObservationIgnored var saveHasWindow: (() -> Bool)?
+     @ObservationIgnored var saveFileExists: ((URL) -> Bool)?
++    @ObservationIgnored var checkedSaveWriter: ((DocumentController, URL, DocSaveDestinationIntent, @escaping @MainActor (Result<DocSaveAsResult, Error>) -> Void) -> Void)?
+     @ObservationIgnored var saveWriter: ((DocumentController, URL?, @escaping @MainActor (Result<Void, Error>) -> Void) -> Void)?
+ 
+     /// Preparation-facing seam only: does not close, finalize drafts or enable Quit.
+@@ -469,6 +472,7 @@ final class DocumentWorkspace {
+                 case .replacing:
+                     if response == NSApplication.ModalResponse.alertFirstButtonReturn.rawValue,
+                        let request = operation.pendingRequest {
++                        operation.destinationIntent = .replaceConfirmed
+                         admitDocumentWrite(operation, url: request.url, folder: request.folder)
+                     } else { settleDocumentSave(operation.id, .cancelled) }
+                 case .writing: break
+@@ -490,6 +494,7 @@ final class DocumentWorkspace {
+               let token = savePresentation, token.requestID == request.id else { return }
+         guard request.isValid else { settleDocumentSave(request.id, .failed("Invalid file name")); return }
+         operation.needsReplacement = saveFileExists?(request.url) ?? FileManager.default.fileExists(atPath: request.url.path)
++        operation.destinationIntent = operation.needsReplacement ? nil : .createIfAbsent
+         operation.pendingRequest = request
+         operation.phase = .waitingForDismissal
+         presentedSaveAs = nil
+@@ -502,14 +507,22 @@ final class DocumentWorkspace {
+         if operation.requiresWindow, !(saveHasWindow?() ?? (savePresenter.host != nil)) {
+             settleDocumentSave(operation.id, .failed("Document window closed before save")); return
+         }
++        guard operation.pendingRequest == nil || (operation.destinationIntent != nil && url != nil) else {
++            settleDocumentSave(operation.id, .failed("Save As requires a confirmed destination intent")); return
++        }
+         operation.phase = .writing
+         if activeSavePrompt == operation.id { activeSavePrompt = nil }
+         if presentedSaveAs?.id == operation.id { presentedSaveAs = nil }
+         // Strong self/operation ownership lasts until an admitted writer settles.
+-        let done: @MainActor (Result<Void, Error>) -> Void = { [self, operation] result in
++        let done: @MainActor (Result<DocSaveAsResult, Error>) -> Void = { [self, operation] result in
+             guard saveOperations[operation.id] === operation, operation.phase == .writing else { return }
+             switch result {
+-            case .success:
++            case .success(.destinationExists):
++                guard let url else {
++                    settleDocumentSave(operation.id, .failed("Save returned a conflict without a destination")); return
++                }
++                settleDocumentSave(operation.id, .destinationConflict(url))
++            case .success(.saved):
+                 operation.document.reloadModel()
+                 operation.document.reloadHistory()
+                 if latestSaveRequest == operation.id {
+@@ -521,11 +534,17 @@ final class DocumentWorkspace {
+             case .failure(let error): settleDocumentSave(operation.id, .failed(error.localizedDescription))
+             }
+         }
+-        if let saveWriter { saveWriter(operation.document, url, done) }
+-        else {
++        if let intent = operation.destinationIntent, let url {
++            if let checkedSaveWriter { checkedSaveWriter(operation.document, url, intent, done) }
++            else { done(Result { try operation.document.backend.saveAs(path: url.path, intent: intent) }) }
++        } else if let saveWriter {
++            // Legacy headless Save As and ordinary Save preserve their Void route.
++            saveWriter(operation.document, url) { result in done(result.map { .saved }) }
++        } else {
+             done(Result {
+                 if let url { try operation.document.backend.saveAs(path: url.path) }
+                 else { try operation.document.backend.save() }
++                return .saved
+             })
+         }
+     }
+@@ -538,7 +557,14 @@ final class DocumentWorkspace {
+         if presentedSaveAs?.id == id { presentedSaveAs = nil }
+         let completion = operation.completion
+         operation.completion = nil // Latch before reentrant observers.
+-        if latestSaveRequest == id, case .failed(let message) = outcome { say("Save: \(message)") }
++        if latestSaveRequest == id {
++            switch outcome {
++            case .failed(let message): say("Save: \(message)")
++            case .destinationConflict:
++                say("Save: A file appeared at this destination. Choose another name or confirm Replace.")
++            default: break
++            }
++        }
+         // Clear logical ownership before native end or caller completion reenters.
+         let token = savePresentation.flatMap { $0.requestID == id ? $0 : nil }
+         if let token { savePresenter.end(token) }
+diff --git a/apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift b/apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift
+index 7eb6dcce..6b75276e 100644
+--- a/apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift
++++ b/apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift
+@@ -304,6 +304,15 @@ public enum DocExportColor: String, CaseIterable, Sendable {
+ }
+ 
+ /// `EngineError` variants a document call can raise.
++/// Explicit admission for the opt-in checked Save As path. Legacy save APIs
++/// retain their replacing semantics; backends never infer this intent from disk.
++public enum DocSaveDestinationIntent: Equatable, Sendable {
++    case createIfAbsent, replaceConfirmed
++}
++public enum DocSaveAsResult: Equatable, Sendable {
++    case saved, destinationExists
++}
++
+ public enum DocumentError: LocalizedError, Equatable {
+     case notFound(String)
+     case invalid(String)
+@@ -421,6 +430,7 @@ public protocol DocumentBackend: AnyObject, Sendable {
+     // Output
+     func save() throws
+     func saveAs(path: String) throws
++    func saveAs(path: String, intent: DocSaveDestinationIntent) throws -> DocSaveAsResult
+     func exportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
+     func close()
+ }
+diff --git a/apps/mac/Sources/TesseraCore/Document/DocumentSaveDestinationCommit.swift b/apps/mac/Sources/TesseraCore/Document/DocumentSaveDestinationCommit.swift
+new file mode 100644
+index 00000000..ab9fab89
+--- /dev/null
++++ b/apps/mac/Sources/TesseraCore/Document/DocumentSaveDestinationCommit.swift
+@@ -0,0 +1,116 @@
++import Darwin
++import Foundation
++
++/// Same-directory staged publication. Exists checks are never overwrite admission.
++/// Hooks are per-call source-test seams; production supplies none.
++enum DocumentSaveDestinationCommit {
++    struct Hooks: Sendable {
++        var beforeCommit: (@Sendable (URL) throws -> Void)? = nil
++        var afterCommit: (@Sendable (URL) throws -> Void)? = nil
++        var exclusiveRename: (@Sendable (String, String) -> Int32)? = nil
++        var unlinkStage: (@Sendable (String) -> Int32)? = nil
++    }
++
++    static func write(_ data: Data, to destination: URL, intent: DocSaveDestinationIntent,
++                      hooks: Hooks = Hooks()) throws -> DocSaveAsResult {
++        let parent = destination.deletingLastPathComponent()
++        var template = Array(parent.appendingPathComponent(".tessera-save-XXXXXX").path.utf8CString)
++        let descriptor = template.withUnsafeMutableBufferPointer { Darwin.mkstemp($0.baseAddress!) }
++        guard descriptor >= 0 else { throw ioError("create staging file", errno) }
++        let stagePath = template.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
++        let stage = URL(fileURLWithPath: stagePath)
++        var ownsStageName = true
++        var identity = stat()
++        guard Darwin.fstat(descriptor, &identity) == 0 else {
++            let code = errno
++            // Identity was not established; do not unlink an unverified path.
++            Darwin.close(descriptor)
++            diagnostic("Could not identify staging file; retained \(stagePath)", code)
++            throw ioError("identify staging file", code)
++        }
++        func cleanupStage() {
++            guard ownsStageName else { return }
++            // Attempt at most once. In particular, never retry an old name after
++            // successful rename/unlink where another writer may reuse that name.
++            ownsStageName = false
++            var current = stat()
++            guard Darwin.lstat(stagePath, &current) == 0 else {
++                if errno != ENOENT { diagnostic("Could not inspect staging file \(stagePath)", errno) }
++                return
++            }
++            guard current.st_dev == identity.st_dev, current.st_ino == identity.st_ino else {
++                diagnostic("Staging name no longer identifies our file; retained \(stagePath)", 0)
++                return
++            }
++            let result = hooks.unlinkStage?(stagePath) ?? Darwin.unlink(stagePath)
++            if result != 0 { diagnostic("Could not remove staging file \(stagePath)", errno) }
++        }
++        defer {
++            cleanupStage()
++            // Keep the descriptor through publication/cleanup to pin this inode.
++            // Closing an already-published file cannot turn it into a failed save.
++            if Darwin.close(descriptor) != 0 { diagnostic("Could not close staging descriptor", errno) }
++        }
++        try data.withUnsafeBytes { bytes in
++            guard let base = bytes.baseAddress else { return }
++            var offset = 0
++            while offset < bytes.count {
++                let count = Darwin.write(descriptor, base.advanced(by: offset), bytes.count - offset)
++                if count < 0 {
++                    if errno == EINTR { continue }
++                    throw ioError("write staging file", errno)
++                }
++                guard count > 0 else { throw ioError("write staging file", EIO) }
++                offset += count
++            }
++        }
++        while Darwin.fsync(descriptor) != 0 {
++            if errno == EINTR { continue }
++            throw ioError("sync staging file", errno)
++        }
++        try hooks.beforeCommit?(stage)
++
++        // A test may deliberately disturb the stage. Refuse to publish another
++        // file at that name. This is not a hostile-directory identity-CAS claim.
++        var current = stat()
++        guard Darwin.lstat(stagePath, &current) == 0 else { throw ioError("inspect staging file", errno) }
++        guard current.st_dev == identity.st_dev, current.st_ino == identity.st_ino else {
++            ownsStageName = false
++            throw DocumentError.io("Save staging file was replaced before publication")
++        }
++        switch intent {
++        case .replaceConfirmed:
++            guard Darwin.rename(stagePath, destination.path) == 0 else { throw ioError("replace destination", errno) }
++            ownsStageName = false
++        case .createIfAbsent:
++            let result = hooks.exclusiveRename?(stagePath, destination.path)
++                ?? Darwin.renamex_np(stagePath, destination.path, UInt32(RENAME_EXCL))
++            if result == 0 {
++                ownsStageName = false
++            } else {
++                let code = errno
++                if code == EEXIST { return .destinationExists }
++                guard code == ENOSYS || code == EINVAL else { throw ioError("create destination exclusively", code) }
++                // Compatibility only for unsupported exclusive rename; never on
++                // collision/permission failure, and never a replacing fallback.
++                guard Darwin.link(stagePath, destination.path) == 0 else {
++                    let linkCode = errno
++                    if linkCode == EEXIST { return .destinationExists }
++                    throw ioError("link destination exclusively", linkCode)
++                }
++                // Publication has succeeded. Cleanup failure is diagnostic only;
++                // reporting failure here would misrepresent an already-created file.
++                cleanupStage()
++            }
++        }
++        do { try hooks.afterCommit?(stage) }
++        catch { diagnostic("Post-publication hook failed: \(error)", 0) }
++        return .saved
++    }
++    private static func ioError(_ operation: String, _ code: Int32) -> DocumentError {
++        .io("Could not \(operation): \(String(cString: strerror(code)))")
++    }
++    private static func diagnostic(_ message: String, _ code: Int32) {
++        NSLog("Document save cleanup: %@ (errno %d)", message, code)
++    }
++}
+diff --git a/apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift b/apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift
+index 54ac65b3..bfcc3b42 100644
+--- a/apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift
++++ b/apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift
+@@ -251,6 +251,23 @@ extension DocumentChange {
+     }
+ }
+ 
++extension DocSaveDestinationIntent {
++    var ffi: DocumentSaveDestinationIntent {
++        switch self {
++        case .createIfAbsent: .createIfAbsent
++        case .replaceConfirmed: .replaceConfirmed
++        }
++    }
++}
++extension DocSaveAsResult {
++    init(_ result: DocumentSaveAsResult) {
++        switch result {
++        case .saved: self = .saved
++        case .destinationExists: self = .destinationExists
++        }
++    }
++}
++
+ extension DocumentError {
+     /// `BridgeError.Failure` messages (the engine's `EngineError` text) by kind.
+     init(bridge: BridgeError) {
+@@ -580,6 +597,9 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
+ 
+     public func save() throws { try bridged { try session.save() } }
+     public func saveAs(path: String) throws { try bridged { try session.saveAs(path: path) } }
++    public func saveAs(path: String, intent: DocSaveDestinationIntent) throws -> DocSaveAsResult {
++        try bridged { DocSaveAsResult(try session.saveAsChecked(path: path, intent: intent.ffi)) }
++    }
+     public func exportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws {
+         try bridged { try session.exportFlat(path: path, format: format.ffi, quality: quality, color: color.ffi) }
+     }
+diff --git a/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift b/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift
+index c1892427..3ce133f6 100644
+--- a/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift
++++ b/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift
+@@ -105,6 +105,7 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
+ 
+     typealias Viewport = (level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double)
+ 
++    private let saveGate = NSLock()
+     private let lock = NSLock()
+     private weak var engine: StubDocumentEngine?
+     private static let counter = NSLock()
+@@ -904,15 +905,39 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
+     // MARK: Output
+ 
+     public func save() throws {
+-        lock.lock(); let p = path; lock.unlock()
+-        guard let p, p.hasSuffix(".tessera-doc") else {
+-            throw DocumentError.invalid("Choose File ▸ Save As… to save this document as .tessera-doc")
+-        }
+-        try saveAs(path: p)
++        _ = try saveOutput(path: nil, intent: .replaceConfirmed)
+     }
+ 
+     public func saveAs(path newPath: String) throws {
+-        let url = URL(fileURLWithPath: newPath).standardizedFileURL
++        _ = try saveOutput(path: newPath, intent: .replaceConfirmed)
++    }
++
++    public func saveAs(path newPath: String, intent: DocSaveDestinationIntent) throws -> DocSaveAsResult {
++        try saveOutput(path: newPath, intent: intent)
++    }
++
++    /// Per-call deterministic barriers. No mutable process-wide test configuration.
++    func saveForTesting(path: String? = nil, intent: DocSaveDestinationIntent = .replaceConfirmed,
++                        willAcquireSaveGate: (@Sendable () -> Void)? = nil,
++                        beforeCommit: (@Sendable (URL) throws -> Void)? = nil) throws -> DocSaveAsResult {
++        try saveOutput(path: path, intent: intent, willAcquireSaveGate: willAcquireSaveGate,
++                       beforeCommit: beforeCommit)
++    }
++
++    private func saveOutput(path requestedPath: String?, intent: DocSaveDestinationIntent,
++                            willAcquireSaveGate: (@Sendable () -> Void)? = nil,
++                            beforeCommit: (@Sendable (URL) throws -> Void)? = nil) throws -> DocSaveAsResult {
++        willAcquireSaveGate?()
++        saveGate.lock()
++        defer { saveGate.unlock() }
++        // Gate first, then read current path and snapshot. No model->save inversion.
++        lock.lock()
++        let destination = requestedPath ?? path
++        lock.unlock()
++        guard let destination, requestedPath != nil || destination.hasSuffix(".tessera-doc") else {
++            throw DocumentError.invalid("Choose File ▸ Save As… to save this document as .tessera-doc")
++        }
++        let url = URL(fileURLWithPath: destination).standardizedFileURL
+         switch url.pathExtension.lowercased() {
+         case "tessera-doc": break
+         case "psd", "psb": throw DocumentError.unsupported("Saving as PSD / PSB needs the engine (B5-03); save as .tessera-doc")
+@@ -920,21 +945,21 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
+         }
+         lock.lock()
+         if pending { appendEntry("Change", live) }
+-        let state = live
++        let state = live, capturedHead = head
+         lock.unlock()
+-        do {
+-            try JSONEncoder().encode(File(state: state)).write(to: url, options: .atomic)
+-        } catch {
+-            throw DocumentError.io("Could not save \(url.lastPathComponent): \(error.localizedDescription)")
+-        }
++        let bytes = try JSONEncoder().encode(File(state: state))
++        let outcome = try DocumentSaveDestinationCommit.write(bytes, to: url, intent: intent,
++            hooks: .init(beforeCommit: beforeCommit))
++        guard outcome == .saved else { return outcome }
+         lock.lock()
+         let old = path
+         path = url.path
+         title = url.lastPathComponent
+-        savedHead = head
++        savedHead = capturedHead
+         lock.unlock()
+         if old != url.path { engine?.forget(old); engine?.remember(self, path: url.path) }
+         post(layers: [], history: true)
++        return .saved
+     }
+ 
+     public func exportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws {
+diff --git a/apps/mac/Sources/TesseraFFI/TesseraFFI.swift b/apps/mac/Sources/TesseraFFI/TesseraFFI.swift
+index 2997dbb2..11806f69 100644
+--- a/apps/mac/Sources/TesseraFFI/TesseraFFI.swift
++++ b/apps/mac/Sources/TesseraFFI/TesseraFFI.swift
+@@ -4088,6 +4088,13 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
+      */
+     func saveAs(path: String) throws 
+     
++    /**
++     * Saves only if the destination is absent, or replaces a path after the
++     * caller has explicitly confirmed that action. Existing Save As remains
++     * available to legacy callers with its replacing behavior.
++     */
++    func saveAsChecked(path: String, intent: DocumentSaveDestinationIntent) throws  -> DocumentSaveAsResult
++    
+     /**
+      * Replaces an adjustment layer's parameters (`compositor::Adjustment`
+      * JSON); `interactive` as for `set_opacity`.
+@@ -5351,6 +5358,22 @@ open func saveAs(path: String)throws   {try rustCallWithError(FfiConverterTypeBr
+         FfiConverterString.lower(path),uniffiCallStatus
+     )
+ }
++}
++    
++    /**
++     * Saves only if the destination is absent, or replaces a path after the
++     * caller has explicitly confirmed that action. Existing Save As remains
++     * available to legacy callers with its replacing behavior.
++     */
++open func saveAsChecked(path: String, intent: DocumentSaveDestinationIntent)throws  -> DocumentSaveAsResult  {
++    return try  FfiConverterTypeDocumentSaveAsResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
++        uniffiCallStatus in
++    uniffi_tessera_ffi_fn_method_documentsession_save_as_checked(
++            self.uniffiCloneHandle(),
++        FfiConverterString.lower(path),
++        FfiConverterTypeDocumentSaveDestinationIntent_lower(intent),uniffiCallStatus
++    )
++})
+ }
+     
+     /**
+@@ -26436,6 +26459,144 @@ public func FfiConverterTypeDocLayerKind_lower(_ value: DocLayerKind) -> RustBuf
+ 
+ 
+ 
++/**
++ * A checked Save As collision is a normal, typed non-success outcome.
++ */
++
++public enum DocumentSaveAsResult: Equatable, Hashable {
++    
++    case saved
++    case destinationExists
++
++
++
++
++
++}
++
++#if compiler(>=6)
++extension DocumentSaveAsResult: Sendable {}
++#endif
++
++#if swift(>=5.8)
++@_documentation(visibility: private)
++#endif
++public struct FfiConverterTypeDocumentSaveAsResult: FfiConverterRustBuffer {
++    typealias SwiftType = DocumentSaveAsResult
++
++    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentSaveAsResult {
++        let variant: Int32 = try readInt(&buf)
++        switch variant {
++        
++        case 1: return .saved
++        
++        case 2: return .destinationExists
++        
++        default: throw UniffiInternalError.unexpectedEnumCase
++        }
++    }
++
++    public static func write(_ value: DocumentSaveAsResult, into buf: inout [UInt8]) {
++        switch value {
++        
++        
++        case .saved:
++            writeInt(&buf, Int32(1))
++        
++        
++        case .destinationExists:
++            writeInt(&buf, Int32(2))
++        
++        }
++    }
++}
++
++
++#if swift(>=5.8)
++@_documentation(visibility: private)
++#endif
++public func FfiConverterTypeDocumentSaveAsResult_lift(_ buf: RustBuffer) throws -> DocumentSaveAsResult {
++    return try FfiConverterTypeDocumentSaveAsResult.lift(buf)
++}
++
++#if swift(>=5.8)
++@_documentation(visibility: private)
++#endif
++public func FfiConverterTypeDocumentSaveAsResult_lower(_ value: DocumentSaveAsResult) -> RustBuffer {
++    return FfiConverterTypeDocumentSaveAsResult.lower(value)
++}
++
++
++
++/**
++ * The destination policy chosen for a checked Save As operation.
++ */
++
++public enum DocumentSaveDestinationIntent: Equatable, Hashable {
++    
++    case createIfAbsent
++    case replaceConfirmed
++
++
++
++
++
++}
++
++#if compiler(>=6)
++extension DocumentSaveDestinationIntent: Sendable {}
++#endif
++
++#if swift(>=5.8)
++@_documentation(visibility: private)
++#endif
++public struct FfiConverterTypeDocumentSaveDestinationIntent: FfiConverterRustBuffer {
++    typealias SwiftType = DocumentSaveDestinationIntent
++
++    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentSaveDestinationIntent {
++        let variant: Int32 = try readInt(&buf)
++        switch variant {
++        
++        case 1: return .createIfAbsent
++        
++        case 2: return .replaceConfirmed
++        
++        default: throw UniffiInternalError.unexpectedEnumCase
++        }
++    }
++
++    public static func write(_ value: DocumentSaveDestinationIntent, into buf: inout [UInt8]) {
++        switch value {
++        
++        
++        case .createIfAbsent:
++            writeInt(&buf, Int32(1))
++        
++        
++        case .replaceConfirmed:
++            writeInt(&buf, Int32(2))
++        
++        }
++    }
++}
++
++
++#if swift(>=5.8)
++@_documentation(visibility: private)
++#endif
++public func FfiConverterTypeDocumentSaveDestinationIntent_lift(_ buf: RustBuffer) throws -> DocumentSaveDestinationIntent {
++    return try FfiConverterTypeDocumentSaveDestinationIntent.lift(buf)
++}
++
++#if swift(>=5.8)
++@_documentation(visibility: private)
++#endif
++public func FfiConverterTypeDocumentSaveDestinationIntent_lower(_ value: DocumentSaveDestinationIntent) -> RustBuffer {
++    return FfiConverterTypeDocumentSaveDestinationIntent.lower(value)
++}
++
++
++
+ 
+ public enum EngineEvent: Equatable, Hashable {
+     
+@@ -34299,6 +34460,9 @@ private let initializationResult: InitializationResult = {
+     if (uniffi_tessera_ffi_checksum_method_documentsession_save_as() != 45094) {
+         return InitializationResult.apiChecksumMismatch
+     }
++    if (uniffi_tessera_ffi_checksum_method_documentsession_save_as_checked() != 46144) {
++        return InitializationResult.apiChecksumMismatch
++    }
+     if (uniffi_tessera_ffi_checksum_method_documentsession_set_adjustment_json() != 34764) {
+         return InitializationResult.apiChecksumMismatch
+     }
+diff --git a/apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift b/apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift
+new file mode 100644
+index 00000000..9f5f961e
+--- /dev/null
++++ b/apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift
+@@ -0,0 +1,218 @@
++import Darwin
++import Foundation
++import XCTest
++@testable import TesseraCore
++
++// SOURCE ONLY / UNRUN on B. Real tiny files, deterministic per-call barriers.
++final class DocumentSaveDestinationCommitTests: XCTestCase {
++    private final class Results: @unchecked Sendable {
++        private let lock = NSLock()
++        private var values: [DocSaveAsResult] = []
++        private var failures: [String] = []
++        func run(_ body: () throws -> DocSaveAsResult) {
++            do { let result = try body(); lock.lock(); values.append(result); lock.unlock() }
++            catch { lock.lock(); failures.append(String(describing: error)); lock.unlock() }
++        }
++        func read() -> ([DocSaveAsResult], [String]) { lock.lock(); defer { lock.unlock() }; return (values, failures) }
++    }
++    private func directory() throws -> URL {
++        let url = FileManager.default.temporaryDirectory.appendingPathComponent("checked-stub-\(UUID().uuidString)")
++        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
++        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
++        return url
++    }
++    func testRealCollisionLeavesSentinelAndMarkersThenRetryAndLegacyReplaceWork() throws {
++        let dir = try directory(), url = dir.appendingPathComponent("out.tessera-doc")
++        let doc = StubDocumentBackend(sampleWidth: 4, height: 4)
++        _ = try doc.setOpacity(id: 2, value: 0.4, interactive: false)
++        let before = try doc.info(), sentinel = Data("sentinel".utf8)
++        try sentinel.write(to: url)
++        let identity = try FileManager.default.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber
++        XCTAssertEqual(try doc.saveAs(path: url.path, intent: .createIfAbsent), .destinationExists)
++        XCTAssertEqual(try Data(contentsOf: url), sentinel)
++        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber, identity)
++        XCTAssertEqual(try doc.info().path, before.path); XCTAssertEqual(try doc.info().title, before.title)
++        XCTAssertTrue(try doc.info().dirty)
++        let next = dir.appendingPathComponent("next.tessera-doc")
++        XCTAssertEqual(try doc.saveAs(path: next.path, intent: .createIfAbsent), .saved)
++        XCTAssertFalse(try doc.info().dirty)
++        XCTAssertEqual(try doc.saveAs(path: url.path, intent: .replaceConfirmed), .saved)
++        try doc.saveAs(path: url.path) // Existing legacy replacing control.
++        try doc.save()
++        XCTAssertNotEqual(try Data(contentsOf: url), sentinel)
++        XCTAssertThrowsError(try doc.saveAs(path: dir.appendingPathComponent("out.psd").path, intent: .createIfAbsent))
++        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: dir.path)), ["out.tessera-doc", "next.tessera-doc"])
++    }
++    func testLateFileAppearanceAndUnsafeEntriesNeverClobber() throws {
++        let dir = try directory(), target = dir.appendingPathComponent("race.tessera-doc")
++        let sentinel = Data("late".utf8)
++        let doc = StubDocumentBackend(sampleWidth: 4, height: 4)
++        XCTAssertEqual(try doc.saveForTesting(path: target.path, intent: .createIfAbsent, beforeCommit: { _ in
++            try sentinel.write(to: target)
++        }), .destinationExists)
++        XCTAssertEqual(try Data(contentsOf: target), sentinel)
++        for name in ["directory.tessera-doc", "symlink.tessera-doc"] {
++            let url = dir.appendingPathComponent(name)
++            if name.hasPrefix("directory") { try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false) }
++            else { try FileManager.default.createSymbolicLink(atPath: url.path, withDestinationPath: dir.appendingPathComponent("missing").path) }
++            XCTAssertEqual(try doc.saveAs(path: url.path, intent: .createIfAbsent), .destinationExists)
++        }
++        XCTAssertThrowsError(try doc.saveAs(path: dir.appendingPathComponent("missing/out.tessera-doc").path, intent: .createIfAbsent))
++        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 3)
++    }
++    func testConcurrentSameNamePublishesExactlyOneAndUsesUniqueStaging() throws {
++        let dir = try directory(), target = dir.appendingPathComponent("race.tessera-doc")
++        let ready = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0), group = DispatchGroup()
++        let results = Results()
++        for _ in 0..<2 {
++            let doc = StubDocumentBackend(sampleWidth: 4, height: 4)
++            group.enter()
++            DispatchQueue.global().async {
++                defer { group.leave() }
++                results.run { try doc.saveForTesting(path: target.path, intent: .createIfAbsent, beforeCommit: { _ in
++                    ready.signal()
++                    guard release.wait(timeout: .now() + 5) == .success else { throw NSError(domain: "barrier", code: 1) }
++                }) }
++            }
++        }
++        defer { release.signal(); release.signal() }
++        XCTAssertEqual(ready.wait(timeout: .now() + 5), .success)
++        XCTAssertEqual(ready.wait(timeout: .now() + 5), .success)
++        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 2, "two exclusively reserved stages")
++        release.signal(); release.signal()
++        XCTAssertEqual(group.wait(timeout: .now() + 5), .success)
++        let (values, failures) = results.read()
++        XCTAssertTrue(failures.isEmpty, "\(failures)")
++        XCTAssertEqual(values.filter { $0 == .saved }.count, 1)
++        XCTAssertEqual(values.filter { $0 == .destinationExists }.count, 1)
++        _ = try StubDocumentEngine().openDocument(path: target.path)
++        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), ["race.tessera-doc"])
++    }
++    func testCapturedHeadLeavesLaterEditDirtyAndOrdinarySaveReadsPathAfterGate() throws {
++        let dir = try directory(), a = dir.appendingPathComponent("a.tessera-doc"), b = dir.appendingPathComponent("b.tessera-doc")
++        let doc = StubDocumentBackend(sampleWidth: 4, height: 4)
++        try doc.saveAs(path: a.path)
++        let oldA = try Data(contentsOf: a)
++        _ = try doc.setOpacity(id: 2, value: 0.4, interactive: false)
++        let snapshotReady = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0), group = DispatchGroup()
++        let result = Results()
++        group.enter()
++        DispatchQueue.global().async {
++            defer { group.leave() }
++            result.run { try doc.saveForTesting(path: b.path, intent: .createIfAbsent, beforeCommit: { _ in
++                snapshotReady.signal()
++                guard release.wait(timeout: .now() + 5) == .success else { throw NSError(domain: "barrier", code: 2) }
++            }) }
++        }
++        defer { release.signal() }
++        XCTAssertEqual(snapshotReady.wait(timeout: .now() + 5), .success)
++        _ = try doc.setOpacity(id: 2, value: 0.8, interactive: false)
++        release.signal()
++        XCTAssertEqual(group.wait(timeout: .now() + 5), .success)
++        XCTAssertTrue(result.read().1.isEmpty)
++        XCTAssertTrue(try doc.info().dirty)
++        let captured = try StubDocumentEngine().openDocument(path: b.path)
++        XCTAssertEqual(try captured.layer(id: 2).opacity, 0.4, accuracy: 0.001)
++        XCTAssertEqual(try Data(contentsOf: a), oldA)
++
++        // Hold a second Save As while an ordinary Save reaches the save gate.
++        let c = dir.appendingPathComponent("c.tessera-doc"), ready = DispatchSemaphore(value: 0)
++        let allow = DispatchSemaphore(value: 0), queued = DispatchSemaphore(value: 0)
++        let oldB = try Data(contentsOf: b)
++        group.enter()
++        DispatchQueue.global().async {
++            defer { group.leave() }
++            result.run { try doc.saveForTesting(path: c.path, intent: .createIfAbsent, beforeCommit: { _ in
++                ready.signal()
++                guard allow.wait(timeout: .now() + 5) == .success else { throw NSError(domain: "barrier", code: 3) }
++            }) }
++        }
++        defer { allow.signal() }
++        XCTAssertEqual(ready.wait(timeout: .now() + 5), .success)
++        _ = try doc.setOpacity(id: 2, value: 0.6, interactive: false)
++        group.enter()
++        DispatchQueue.global().async {
++            defer { group.leave() }
++            result.run { try doc.saveForTesting(willAcquireSaveGate: { queued.signal() }) }
++        }
++        XCTAssertEqual(queued.wait(timeout: .now() + 5), .success)
++        allow.signal()
++        XCTAssertEqual(group.wait(timeout: .now() + 5), .success)
++        XCTAssertTrue(result.read().1.isEmpty)
++        XCTAssertEqual(try Data(contentsOf: b), oldB, "ordinary Save must not resolve stale path before the gate")
++        let saved = try StubDocumentEngine().openDocument(path: c.path)
++        XCTAssertEqual(try saved.layer(id: 2).opacity, 0.6, accuracy: 0.001)
++        XCTAssertFalse(try doc.info().dirty)
++    }
++    func testExclusiveRenameFallbackAndPostCommitCleanupFailureKeepActualResult() throws {
++        let dir = try directory(), url = dir.appendingPathComponent("out.tessera-doc"), bytes = Data("file".utf8)
++        let hooks = DocumentSaveDestinationCommit.Hooks(exclusiveRename: { _, _ in errno = ENOSYS; return -1 },
++            unlinkStage: { _ in errno = EACCES; return -1 })
++        XCTAssertEqual(try DocumentSaveDestinationCommit.write(bytes, to: url, intent: .createIfAbsent, hooks: hooks), .saved)
++        XCTAssertEqual(try Data(contentsOf: url), bytes)
++        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 2, "failed cleanup is not hidden")
++        XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("other".utf8), to: url, intent: .createIfAbsent), .destinationExists)
++        XCTAssertEqual(try Data(contentsOf: url), bytes)
++    }
++    // SOURCE ONLY / UNRUN: both unsupported exclusive-rename results must
++    // exercise the real no-clobber link fallback when a destination already exists.
++    func testForcedExclusiveRenameFallbackCollisionPreservesSentinelAndRemovesStage() throws {
++        for unsupported in [ENOSYS, EINVAL] {
++            let dir = try directory(), url = dir.appendingPathComponent("sentinel.tessera-doc")
++            let sentinel = Data("existing destination".utf8)
++            try sentinel.write(to: url)
++            let inode = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber)
++            let invoked = DispatchSemaphore(value: 0)
++            let hooks = DocumentSaveDestinationCommit.Hooks(exclusiveRename: { _, _ in
++                invoked.signal()
++                errno = unsupported
++                return -1
++            })
++            XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("must not replace".utf8), to: url,
++                               intent: .createIfAbsent, hooks: hooks), .destinationExists)
++            XCTAssertEqual(invoked.wait(timeout: .now()), .success, "forced fallback hook must run")
++            XCTAssertEqual(invoked.wait(timeout: .now()), .timedOut, "exclusive rename attempted once")
++            XCTAssertEqual(try Data(contentsOf: url), sentinel)
++            XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber, inode)
++            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), [url.lastPathComponent],
++                           "the failed attempt must remove its own stage")
++        }
++    }
++
++    func testSuccessfulRenameDoesNotCleanupReusedOldStageName() throws {
++        let dir = try directory(), url = dir.appendingPathComponent("out.tessera-doc")
++        let hooks = DocumentSaveDestinationCommit.Hooks(afterCommit: { stage in try Data("unowned".utf8).write(to: stage) })
++        XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("owned".utf8), to: url, intent: .replaceConfirmed, hooks: hooks), .saved)
++        let other = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil).filter { $0.lastPathComponent != url.lastPathComponent }
++        XCTAssertEqual(try Data(contentsOf: url), Data("owned".utf8))
++        XCTAssertEqual(other.count, 1)
++        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(other.first)), Data("unowned".utf8))
++    }
++    func testReplacedStagingNameIsNeitherPublishedNorDeleted() throws {
++        let dir = try directory(), target = dir.appendingPathComponent("out.tessera-doc")
++        let retained = dir.appendingPathComponent("original-stage")
++        let hooks = DocumentSaveDestinationCommit.Hooks(beforeCommit: { stage in
++            try FileManager.default.moveItem(at: stage, to: retained)
++            try Data("foreign".utf8).write(to: stage)
++        })
++        XCTAssertThrowsError(try DocumentSaveDestinationCommit.write(Data("ours".utf8), to: target,
++                                                                     intent: .createIfAbsent, hooks: hooks))
++        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
++        let entries = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
++        XCTAssertEqual(entries.count, 2)
++        XCTAssertEqual(try Data(contentsOf: retained), Data("ours".utf8))
++        let foreign = try XCTUnwrap(entries.first { $0.lastPathComponent != retained.lastPathComponent })
++        XCTAssertEqual(try Data(contentsOf: foreign), Data("foreign".utf8))
++    }
++    func testConfirmedReplaceStillReplacesPathChangedAfterConfirmation() throws {
++        let dir = try directory(), target = dir.appendingPathComponent("out.tessera-doc")
++        try Data("initial".utf8).write(to: target)
++        let hooks = DocumentSaveDestinationCommit.Hooks(beforeCommit: { _ in
++            try Data("changed externally".utf8).write(to: target, options: .atomic)
++        })
++        XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("confirmed".utf8), to: target,
++                            intent: .replaceConfirmed, hooks: hooks), .saved)
++        XCTAssertEqual(try Data(contentsOf: target), Data("confirmed".utf8))
++    }
++
++}
+diff --git a/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift b/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift
+index 3ad8dbfe..3d406867 100644
+--- a/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift
++++ b/apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift
+@@ -83,7 +83,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
+     func testSaveWaitsForCompletionAndMembershipThenWritesOnce() throws {
+         let f = try Fixture(), w = f.workspace
+         var writes = 0, outcomes: [DocumentSaveOutcome] = []
+-        w.saveWriter = { _, _, done in writes += 1; done(.success(())) }
++        w.checkedSaveWriter = { _, _, _, done in writes += 1; done(.success(.saved)) }
+         w.saveForPreparation(f.document, saveAs: true) { outcomes.append($0) }
+         let request = try XCTUnwrap(w.saveAsRequest)
+         w.finishSaveAs(request); w.finishSaveAs(request)
+@@ -96,7 +96,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
+         let f = try Fixture(), w = f.workspace
+         w.saveFileExists = { _ in true }
+         var writes = 0
+-        w.saveWriter = { _, _, done in writes += 1; done(.success(())) }
++        w.checkedSaveWriter = { _, _, _, done in writes += 1; done(.success(.saved)) }
+         w.saveForPreparation(f.document, saveAs: true) { _ in }
+         w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
+         f.sessions[0].detach(); XCTAssertEqual(f.sessions.count, 1)
+@@ -111,7 +111,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
+         let f = try Fixture(), w = f.workspace
+         w.saveFileExists = { _ in true }
+         var writes = 0, outcomes: [DocumentSaveOutcome] = []
+-        w.saveWriter = { _, _, _ in writes += 1 }
++        w.checkedSaveWriter = { _, _, _, _ in writes += 1 }
+         w.saveForPreparation(f.document, saveAs: true) { outcomes.append($0) }
+         w.finishSaveAs(try XCTUnwrap(w.saveAsRequest)); f.drain(0)
+         let stale = f.sessions[1].completed
+@@ -132,15 +132,15 @@ final class DocumentSaveSettlementTests: XCTestCase {
+             let f = try Fixture(), w = f.workspace
+             let old = URL(fileURLWithPath: "/old")
+             w.lastSaveFolder = old
+-            var finish: (@MainActor (Result<Void, Error>) -> Void)?
+-            w.saveWriter = { _, _, done in finish = done }
++            var finish: (@MainActor (Result<DocSaveAsResult, Error>) -> Void)?
++            w.checkedSaveWriter = { _, _, _, done in finish = done }
+             var outcomes: [DocumentSaveOutcome] = []
+             let id = w.saveForPreparation(f.document, saveAs: true) { outcomes.append($0) }
+             var request = try XCTUnwrap(w.saveAsRequest); request.folder = URL(fileURLWithPath: "/new")
+             w.finishSaveAs(request); f.drain(0); w.cancelDocumentSave(id)
+             XCTAssertTrue(outcomes.isEmpty)
+-            if success { finish?(.success(())) } else { finish?(.failure(NSError(domain: "injected", code: 4))) }
+-            finish?(.success(())); finish = nil; w.saveWriter = nil
++            if success { finish?(.success(.saved)) } else { finish?(.failure(NSError(domain: "injected", code: 4))) }
++            finish?(.success(.saved)); finish = nil; w.checkedSaveWriter = nil
+             XCTAssertEqual(outcomes.count, 1)
+             if success {
+                 XCTAssertEqual(outcomes, [.saved(request.url, continuationCancelled: true)])
+@@ -154,8 +154,8 @@ final class DocumentSaveSettlementTests: XCTestCase {
+     }
+     func testOldWriteCannotOverwriteNewPromptOrAdmitDuplicateDocumentWrite() throws {
+         let f = try Fixture(), w = f.workspace
+-        var finish: (@MainActor (Result<Void, Error>) -> Void)?
+-        w.saveWriter = { _, _, done in finish = done }
++        var finish: (@MainActor (Result<DocSaveAsResult, Error>) -> Void)?
++        w.checkedSaveWriter = { _, _, _, done in finish = done }
+         w.saveForPreparation(f.document, saveAs: true) { _ in }
+         w.finishSaveAs(try XCTUnwrap(w.saveAsRequest)); f.drain(0)
+         var conflict: [DocumentSaveOutcome] = []
+@@ -163,7 +163,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
+         XCTAssertEqual(conflict, [.failed("A save for this document is still running")])
+         let other = try DocumentController(backend: StubDocumentBackend())
+         let next = w.saveForPreparation(other, saveAs: true) { _ in }
+-        finish?(.success(())); finish = nil; w.saveWriter = nil
++        finish?(.success(.saved)); finish = nil; w.checkedSaveWriter = nil
+         XCTAssertEqual(w.saveAsRequest?.id, next)
+         w.cancelDocumentSave(next); f.drain(1)
+     }
+@@ -191,8 +191,8 @@ final class DocumentSaveSettlementTests: XCTestCase {
+     }
+     func testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation() throws {
+         let f = try Fixture(), w = f.workspace
+-        var finish: (@MainActor (Result<Void, Error>) -> Void)?
+-        w.saveWriter = { _, _, done in finish = done }
++        var finish: (@MainActor (Result<DocSaveAsResult, Error>) -> Void)?
++        w.checkedSaveWriter = { _, _, _, done in finish = done }
+         var outcomes: [DocumentSaveOutcome] = []
+         w.saveForPreparation(f.document, saveAs: true) { outcomes.append($0) }
+         let request = try XCTUnwrap(w.saveAsRequest)
+@@ -200,7 +200,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
+         let binding = try XCTUnwrap(w.savePresenter.host?.bindingID)
+         w.savePresenter.removeBinding(binding)
+         XCTAssertTrue(outcomes.isEmpty)
+-        finish?(.success(())); finish = nil; w.saveWriter = nil
++        finish?(.success(.saved)); finish = nil; w.checkedSaveWriter = nil
+         XCTAssertEqual(outcomes, [.saved(request.url, continuationCancelled: true)])
+     }
+     func testReentrantCancelledCallerSupersedesIntermediateQueuedRequest() throws {
+@@ -221,4 +221,67 @@ final class DocumentSaveSettlementTests: XCTestCase {
+         f.drain(1)
+     }
+ 
++    // SOURCE ONLY / UNRUN: typed destination intent through the real writer seam.
++    func testAbsentIntentSurvivesLateAppearanceAndConflictDoesNotAdvanceState() throws {
++        let f = try Fixture(), w = f.workspace, model = AppModel()
++        w.app = model
++        let oldFolder = URL(fileURLWithPath: "/old")
++        w.lastSaveFolder = oldFolder
++        let oldInfo = f.document.info
++        var intents: [DocSaveDestinationIntent] = [], outcomes: [DocumentSaveOutcome] = []
++        var finish: (@MainActor (Result<DocSaveAsResult, Error>) -> Void)?
++        w.checkedSaveWriter = { _, _, intent, done in intents.append(intent); finish = done }
++        let id = w.saveForPreparation(f.document, saveAs: true) { outcomes.append($0) }
++        var request = try XCTUnwrap(w.saveAsRequest); request.folder = URL(fileURLWithPath: "/new")
++        w.finishSaveAs(request)
++        w.saveFileExists = { _ in true }
++        f.sessions[0].complete(); XCTAssertTrue(intents.isEmpty)
++        f.sessions[0].detach(); XCTAssertEqual(intents, [.createIfAbsent])
++        w.cancelDocumentSave(id)
++        XCTAssertTrue(outcomes.isEmpty)
++        finish?(.success(.destinationExists)); finish?(.success(.saved))
++        finish = nil; w.checkedSaveWriter = nil
++        XCTAssertEqual(outcomes, [.destinationConflict(request.url)])
++        XCTAssertEqual(w.lastSaveFolder, oldFolder)
++        XCTAssertEqual(f.document.info.path, oldInfo.path)
++        XCTAssertEqual(f.document.info.title, oldInfo.title)
++        XCTAssertEqual(f.document.info.dirty, oldInfo.dirty)
++        XCTAssertEqual(model.statusMessage?.contains("appeared"), true)
++        XCTAssertNotEqual(model.statusMessage?.hasPrefix("Saved"), true)
++        XCTAssertEqual(f.sessions.count, 1, "conflict cannot auto-upgrade to Replace")
++    }
++    func testOnlyAffirmativeMatchingReplaceDrainGrantsReplacementIntent() throws {
++        let f = try Fixture(), w = f.workspace
++        w.saveFileExists = { _ in true }
++        var intents: [DocSaveDestinationIntent] = []
++        w.checkedSaveWriter = { _, _, intent, done in intents.append(intent); done(.success(.saved)) }
++        w.saveForPreparation(f.document, saveAs: true) { _ in }
++        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest))
++        let oldCompletion = f.sessions[0].completed
++        f.drain(0)
++        oldCompletion?(NSApplication.ModalResponse.alertFirstButtonReturn.rawValue)
++        XCTAssertTrue(intents.isEmpty)
++        f.sessions[1].complete(NSApplication.ModalResponse.alertFirstButtonReturn.rawValue)
++        XCTAssertTrue(intents.isEmpty)
++        f.sessions[1].detach()
++        XCTAssertEqual(intents, [.replaceConfirmed])
++    }
++    func testSupersededWriterConflictPreservesNewStatusAndNeverRunsThen() throws {
++        let f = try Fixture(), w = f.workspace, model = AppModel()
++        w.app = model
++        var finish: (@MainActor (Result<DocSaveAsResult, Error>) -> Void)?
++        w.checkedSaveWriter = { _, _, _, done in finish = done }
++        var thenCount = 0
++        w.saveAs(f.document) { thenCount += 1 }
++        w.finishSaveAs(try XCTUnwrap(w.saveAsRequest)); f.drain(0)
++        let other = try DocumentController(backend: StubDocumentBackend())
++        let next = w.saveForPreparation(other, saveAs: true) { _ in }
++        model.statusMessage = "Newer request"
++        finish?(.success(.destinationExists)); finish = nil; w.checkedSaveWriter = nil
++        XCTAssertEqual(model.statusMessage, "Newer request")
++        XCTAssertEqual(thenCount, 0)
++        XCTAssertEqual(w.saveAsRequest?.id, next)
++        w.cancelDocumentSave(next); f.drain(1)
++    }
++
+ }
+diff --git a/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift b/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift
+index 481efca8..dd9e245a 100644
+--- a/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift
++++ b/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift
+@@ -18,6 +18,60 @@ final class EngineDocumentBackendTests: XCTestCase {
+ 
+     private func engine(_ dir: URL) throws -> Engine { try Engine.open(appSupportDir: dir.appendingPathComponent("support").path) }
+ 
++    // SOURCE ONLY / UNRUN: actual generated checkpoint81cc08eb.
++    func testCheckedSaveAsMapsTypedResultsAndPreservesOtherErrors() throws {
++        let dir = try temp()
++        let docs = EngineDocumentEngine.for(try engine(dir))
++        let backend = try docs.newDocument(width: 4, height: 4, depth: .u8, profile: nil)
++        defer { backend.close() }
++        let path = dir.appendingPathComponent("checked.tessera-doc")
++        XCTAssertEqual(try backend.saveAs(path: path.path, intent: .createIfAbsent), .saved)
++        let bytes = try Data(contentsOf: path)
++        XCTAssertEqual(try backend.saveAs(path: path.path, intent: .createIfAbsent), .destinationExists)
++        XCTAssertEqual(try Data(contentsOf: path), bytes)
++        XCTAssertEqual(try backend.saveAs(path: path.path, intent: .replaceConfirmed), .saved)
++        XCTAssertThrowsError(try backend.saveAs(path: dir.appendingPathComponent("missing/out.tessera-doc").path,
++                                               intent: .createIfAbsent)) { error in
++            XCTAssertTrue(error is DocumentError, "ordinary FFI failure must be bridged, got \(error)")
++        }
++    }
++
++    // SOURCE ONLY / UNRUN: conflict against a different destination must preserve
++    // the dirty document's existing identity and its earlier successful saved node.
++    func testDirtyCheckedSaveConflictAtDifferentTargetPreservesIdentityAndSavedMarker() throws {
++        let dir = try temp()
++        let docs = EngineDocumentEngine.for(try engine(dir))
++        let backend = try docs.newDocument(width: 4, height: 4, depth: .u8, profile: nil)
++        defer { backend.close() }
++        let original = dir.appendingPathComponent("original.tessera-doc")
++        XCTAssertEqual(try backend.saveAs(path: original.path, intent: .createIfAbsent), .saved)
++        let originalBytes = try Data(contentsOf: original)
++        XCTAssertFalse(try backend.info().dirty)
++        _ = try backend.addLayer(kind: .pixel, name: "Unsaved change", parent: nil, index: nil)
++        let before = try backend.info()
++        XCTAssertTrue(before.dirty)
++        let target = dir.appendingPathComponent("different.tessera-doc")
++        let sentinel = Data("other file".utf8)
++        try sentinel.write(to: target)
++        XCTAssertEqual(try backend.saveAs(path: target.path, intent: .createIfAbsent), .destinationExists)
++        let after = try backend.info()
++        XCTAssertEqual(after.path, before.path)
++        XCTAssertEqual(after.title, before.title)
++        XCTAssertTrue(after.dirty)
++        XCTAssertEqual(after.historyHead, before.historyHead)
++        XCTAssertEqual(try Data(contentsOf: target), sentinel)
++        XCTAssertEqual(try Data(contentsOf: original), originalBytes)
++        XCTAssertThrowsError(try backend.saveAs(path: dir.appendingPathComponent("missing/out.tessera-doc").path,
++                                               intent: .createIfAbsent)) { error in
++            XCTAssertTrue(error is DocumentError, "I/O must remain a bridged error, got \(error)")
++        }
++        XCTAssertEqual(try backend.info().path, before.path)
++        XCTAssertEqual(try backend.info().title, before.title)
++        XCTAssertTrue(try backend.info().dirty)
++        _ = try backend.undo()
++        XCTAssertFalse(try backend.info().dirty, "undo to the earlier saved node must still be clean")
++    }
++
+     // MARK: Record conversion
+ 
+     func testEnumsRoundTripEveryValue() {
+diff --git a/crates/tessera-ffi/src/document.rs b/crates/tessera-ffi/src/document.rs
+index 18762783..1bad1d2a 100644
+--- a/crates/tessera-ffi/src/document.rs
++++ b/crates/tessera-ffi/src/document.rs
+@@ -124,6 +124,20 @@ pub enum DocDepth {
+     F32,
+ }
+ 
++/// The destination policy chosen for a checked Save As operation.
++#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
++pub enum DocumentSaveDestinationIntent {
++    CreateIfAbsent,
++    ReplaceConfirmed,
++}
++
++/// A checked Save As collision is a normal, typed non-success outcome.
++#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
++pub enum DocumentSaveAsResult {
++    Saved,
++    DestinationExists,
++}
++
+ impl From<DocDepth> for compositor::Depth {
+     fn from(d: DocDepth) -> Self {
+         match d {
+@@ -2110,33 +2124,25 @@ impl DocumentSession {
+     /// (with the flattened composite for compatibility), and makes it the
+     /// document's path.
+     pub fn save_as(&self, path: String) -> Result<()> {
+-        let path = PathBuf::from(path);
+-        io::save_kind(&path)?;
+-        // B5-14: the file is written from a snapshot, outside the lock.
+-        let _order = self.shared.saving.lock().map_err(failure)?;
+-        self.save_snapshot(&path)?;
+-        let title = path
+-            .file_name()
+-            .map(|n| n.to_string_lossy().into_owned())
+-            .unwrap_or_default();
+-        let mut st = self.shared.lock()?;
+-        st.title = title;
+-        st.path = Some(path.clone());
+-        drop(st);
+-        // Later opens of the new file find this session.
+-        if let (Ok(canon), Some(engine)) =
+-            (std::fs::canonicalize(&path), self.shared.engine.upgrade())
+-            && let Some(me) = engine.document_session(self.shared.id.clone())
+-        {
+-            engine
+-                .documents
+-                .lock()
+-                .by_key
+-                .insert(canon.to_string_lossy().into_owned(), Arc::downgrade(&me));
+-        }
++        self.save_as_with_mode(path, io::CommitMode::Replace)?;
+         Ok(())
+     }
+ 
++    /// Saves only if the destination is absent, or replaces a path after the
++    /// caller has explicitly confirmed that action. Existing Save As remains
++    /// available to legacy callers with its replacing behavior.
++    pub fn save_as_checked(
++        &self,
++        path: String,
++        intent: DocumentSaveDestinationIntent,
++    ) -> Result<DocumentSaveAsResult> {
++        let mode = match intent {
++            DocumentSaveDestinationIntent::CreateIfAbsent => io::CommitMode::CreateIfAbsent,
++            DocumentSaveDestinationIntent::ReplaceConfirmed => io::CommitMode::Replace,
++        };
++        self.save_as_with_mode(path, mode)
++    }
++
+     /// Exports the flattened composite at full resolution: PNG/TIFF keep
+     /// transparency (8-bit for 8-bit documents, else 16-bit), JPEG is
+     /// flattened over white; `quality` is JPEG 1–100. Colours are converted
+@@ -2168,10 +2174,53 @@ impl DocumentSession {
+ }
+ 
+ impl DocumentSession {
++    fn save_as_with_mode(
++        &self,
++        path: String,
++        mode: io::CommitMode,
++    ) -> Result<DocumentSaveAsResult> {
++        let path = PathBuf::from(path);
++        io::save_kind(&path)?;
++        // B5-14: the file is written from a snapshot, outside the lock.
++        let _order = self.shared.saving.lock().map_err(failure)?;
++        let outcome = self.save_snapshot_with_mode(&path, mode)?;
++        if outcome == DocumentSaveAsResult::DestinationExists {
++            return Ok(outcome);
++        }
++        let title = path
++            .file_name()
++            .map(|n| n.to_string_lossy().into_owned())
++            .unwrap_or_default();
++        let mut st = self.shared.lock()?;
++        st.title = title;
++        st.path = Some(path.clone());
++        drop(st);
++        // Later opens of the new file find this session.
++        if let (Ok(canon), Some(engine)) =
++            (std::fs::canonicalize(&path), self.shared.engine.upgrade())
++            && let Some(me) = engine.document_session(self.shared.id.clone())
++        {
++            engine
++                .documents
++                .lock()
++                .by_key
++                .insert(canon.to_string_lossy().into_owned(), Arc::downgrade(&me));
++        }
++        Ok(outcome)
++    }
+     /// B5-14 (P14): commits a pending drag and snapshots the document under
+     /// the lock, writes the file without it (edits, frames and undo go on),
+     /// then records the saved node. Callers hold `Shared::saving`.
+     fn save_snapshot(&self, path: &std::path::Path) -> Result<()> {
++        self.save_snapshot_with_mode(path, io::CommitMode::Replace)?;
++        Ok(())
++    }
++
++    fn save_snapshot_with_mode(
++        &self,
++        path: &std::path::Path,
++        mode: io::CommitMode,
++    ) -> Result<DocumentSaveAsResult> {
+         let (doc, node) = {
+             let mut st = self.shared.lock()?;
+             st.open()?;
+@@ -2182,10 +2231,12 @@ impl DocumentSession {
+             }
+             (st.doc.share(), st.doc.history().current())
+         };
+-        io::save(&doc, path)?;
++        let outcome = io::save_with_mode(&doc, path, mode)?;
+         drop(doc);
+-        self.shared.lock()?.saved_node = Some(node);
+-        Ok(())
++        if outcome == DocumentSaveAsResult::Saved {
++            self.shared.lock()?.saved_node = Some(node);
++        }
++        Ok(outcome)
+     }
+ }
+ 
+diff --git a/crates/tessera-ffi/src/document/io.rs b/crates/tessera-ffi/src/document/io.rs
+index 0c66eca6..de09ea33 100644
+--- a/crates/tessera-ffi/src/document/io.rs
++++ b/crates/tessera-ffi/src/document/io.rs
+@@ -1,7 +1,7 @@
+ //! Opening (native, PSD/PSB, flat images, library images), saving, flat
+ //! export, and the raster-producing edits (merge down, flatten, selections).
+ 
+-use super::{Opened, find, render::composite_raster, tile_from_f32};
++use super::{DocumentSaveAsResult, Opened, find, render::composite_raster, tile_from_f32};
+ use crate::{Engine, Result, catalog, failure, parse_id};
+ use compositor::{
+     BlendMode, ColorProfile, DocOp, DocState, Document, Knockout, Layer, LayerId, LayerKind,
+@@ -12,7 +12,7 @@ use engine_api::{
+     tile::{Extent, TileCoord},
+ };
+ use std::{
+-    io::Write,
++    io::{self, Write},
+     path::{Path, PathBuf},
+     sync::Arc,
+ };
+@@ -335,8 +335,14 @@ pub(crate) fn save_kind(path: &Path) -> Result<SaveKind> {
+     }
+ }
+ 
+-/// Writes `bytes` next to `path` and renames it into place.
+-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
++/// A private commit mode; legacy saves replace without implying a UI approval.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(super) enum CommitMode {
++    Replace,
++    CreateIfAbsent,
++}
++
++fn stage_bytes(path: &Path, bytes: &[u8]) -> Result<tempfile::NamedTempFile> {
+     let dir = path
+         .parent()
+         .filter(|p| !p.as_os_str().is_empty())
+@@ -344,13 +350,59 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
+     tmp.write_all(bytes)?;
+     tmp.as_file().sync_all()?;
+-    tmp.persist(path).map_err(|e| failure(e.error))?;
++    Ok(tmp)
++}
++
++fn commit_staged(
++    staged: tempfile::NamedTempFile,
++    path: &Path,
++    mode: CommitMode,
++) -> Result<DocumentSaveAsResult> {
++    match mode {
++        CommitMode::Replace => {
++            staged.persist(path).map_err(|e| failure(e.error))?;
++            Ok(DocumentSaveAsResult::Saved)
++        }
++        CommitMode::CreateIfAbsent => match staged.persist_noclobber(path) {
++            Ok(_) => {
++                // tempfile may use hard-link/unlink on a filesystem lacking
++                // exclusive rename; its unlink error is not observable here.
++                // Publication already succeeded, so never report failure or
++                // try to remove a possibly reused stage path afterward.
++                Ok(DocumentSaveAsResult::Saved)
++            }
++            Err(error) if error.error.kind() == io::ErrorKind::AlreadyExists => {
++                Ok(DocumentSaveAsResult::DestinationExists)
++            }
++            Err(error) => Err(failure(error.error)),
++        },
++    }
++}
++
++fn write_atomic_with_mode(
++    path: &Path,
++    bytes: &[u8],
++    mode: CommitMode,
++) -> Result<DocumentSaveAsResult> {
++    commit_staged(stage_bytes(path, bytes)?, path, mode)
++}
++
++/// Existing flat-export behavior retains replacing publication.
++fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
++    write_atomic_with_mode(path, bytes, CommitMode::Replace)?;
+     Ok(())
+ }
+ 
+-pub(crate) fn save(doc: &Document, path: &Path) -> Result<()> {
++pub(super) fn save_with_mode(
++    doc: &Document,
++    path: &Path,
++    mode: CommitMode,
++) -> Result<DocumentSaveAsResult> {
+     match save_kind(path)? {
+-        SaveKind::Native => Ok(compositor::format::save(doc, path)?),
++        SaveKind::Native => {
++            let bytes = compositor::format::to_bytes(doc.state())?;
++            write_atomic_with_mode(path, &bytes, mode)
++        }
+         kind => {
+             let mut psd = compositor::psd::to_psd(doc)?;
+             if kind == SaveKind::Psb {
+@@ -361,7 +413,7 @@ pub(crate) fn save(doc: &Document, path: &Path) -> Result<()> {
+                 psd.version = ::psd::Version::Psd;
+             }
+             let bytes = psd.write().map_err(failure)?;
+-            write_atomic(path, &bytes)
++            write_atomic_with_mode(path, &bytes, mode)
+         }
+     }
+ }
+@@ -830,3 +882,129 @@ mod copy_transaction_tests {
+         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+     }
+ }
++
++#[cfg(test)]
++mod destination_commit_tests {
++    use super::*;
++    use crate::document::DocumentSaveAsResult;
++    use std::{
++        os::unix::fs::symlink,
++        sync::{Arc, Barrier},
++    };
++
++    #[test]
++    fn create_if_absent_conflicts_with_file_created_after_staging() {
++        let dir = tempfile::tempdir().unwrap();
++        let destination = dir.path().join("new.tessera-doc");
++        let staged = stage_bytes(&destination, b"complete-new-bytes").unwrap();
++        let staged_path = staged.path().to_owned();
++        std::fs::write(&destination, b"other-writer").unwrap();
++
++        let result = commit_staged(staged, &destination, CommitMode::CreateIfAbsent).unwrap();
++        assert_eq!(result, DocumentSaveAsResult::DestinationExists);
++        assert_eq!(std::fs::read(&destination).unwrap(), b"other-writer");
++        assert!(
++            !staged_path.exists(),
++            "failed publication must release its owned stage"
++        );
++    }
++
++    #[test]
++    fn two_independent_stages_cannot_overwrite_each_other() {
++        let dir = tempfile::tempdir().unwrap();
++        let destination = dir.path().join("same.psd");
++        let left = stage_bytes(&destination, b"left-complete").unwrap();
++        let right = stage_bytes(&destination, b"right-complete").unwrap();
++        assert_ne!(left.path(), right.path(), "stages must have unique names");
++        let left_path = left.path().to_owned();
++        let right_path = right.path().to_owned();
++        let barrier = Arc::new(Barrier::new(3));
++        let (left_result, right_result) = std::thread::scope(|scope| {
++            let left_gate = barrier.clone();
++            let left_dest = destination.clone();
++            let left_worker = scope.spawn(move || {
++                left_gate.wait();
++                commit_staged(left, &left_dest, CommitMode::CreateIfAbsent).unwrap()
++            });
++            let right_gate = barrier.clone();
++            let right_dest = destination.clone();
++            let right_worker = scope.spawn(move || {
++                right_gate.wait();
++                commit_staged(right, &right_dest, CommitMode::CreateIfAbsent).unwrap()
++            });
++            barrier.wait();
++            (left_worker.join().unwrap(), right_worker.join().unwrap())
++        });
++        assert_eq!(
++            [left_result, right_result]
++                .into_iter()
++                .filter(|outcome| *outcome == DocumentSaveAsResult::Saved)
++                .count(),
++            1
++        );
++        assert_eq!(
++            [left_result, right_result]
++                .into_iter()
++                .filter(|outcome| *outcome == DocumentSaveAsResult::DestinationExists)
++                .count(),
++            1
++        );
++        let bytes = std::fs::read(&destination).unwrap();
++        assert!(bytes == b"left-complete" || bytes == b"right-complete");
++        // Failed publication owns a removable stage. A successful
++        // persist_noclobber may retain a hard-link fallback staging name if
++        // its internal unlink fails; do not assert a stronger cleanup contract.
++        if left_result == DocumentSaveAsResult::DestinationExists {
++            assert!(!left_path.exists());
++        }
++        if right_result == DocumentSaveAsResult::DestinationExists {
++            assert!(!right_path.exists());
++        }
++    }
++
++    #[test]
++    fn no_clobber_rejects_regular_file_dangling_symlink_and_directory() {
++        let dir = tempfile::tempdir().unwrap();
++        let file = dir.path().join("existing.psb");
++        std::fs::write(&file, b"sentinel").unwrap();
++        let staged = stage_bytes(&file, b"new").unwrap();
++        assert_eq!(
++            commit_staged(staged, &file, CommitMode::CreateIfAbsent).unwrap(),
++            DocumentSaveAsResult::DestinationExists
++        );
++        assert_eq!(std::fs::read(&file).unwrap(), b"sentinel");
++
++        let link = dir.path().join("broken.psb");
++        symlink("absent-target", &link).unwrap();
++        let staged = stage_bytes(&link, b"new").unwrap();
++        assert_eq!(
++            commit_staged(staged, &link, CommitMode::CreateIfAbsent).unwrap(),
++            DocumentSaveAsResult::DestinationExists
++        );
++        assert_eq!(
++            std::fs::read_link(&link).unwrap(),
++            std::path::PathBuf::from("absent-target")
++        );
++        assert!(!dir.path().join("absent-target").exists());
++
++        let folder = dir.path().join("directory.psb");
++        std::fs::create_dir(&folder).unwrap();
++        let staged = stage_bytes(&folder, b"new").unwrap();
++        let result = commit_staged(staged, &folder, CommitMode::CreateIfAbsent);
++        assert_eq!(result.unwrap(), DocumentSaveAsResult::DestinationExists);
++        assert!(folder.is_dir());
++    }
++
++    #[test]
++    fn confirmed_replace_preserves_existing_path_semantics() {
++        let dir = tempfile::tempdir().unwrap();
++        let destination = dir.path().join("replace.psd");
++        let staged = stage_bytes(&destination, b"confirmed-bytes").unwrap();
++        std::fs::write(&destination, b"changed-after-confirmation").unwrap();
++        assert_eq!(
++            commit_staged(staged, &destination, CommitMode::Replace).unwrap(),
++            DocumentSaveAsResult::Saved
++        );
++        assert_eq!(std::fs::read(&destination).unwrap(), b"confirmed-bytes");
++    }
++}
+diff --git a/crates/tessera-ffi/tests/document_save_destination.rs b/crates/tessera-ffi/tests/document_save_destination.rs
+new file mode 100644
+index 00000000..f1c38e53
+--- /dev/null
++++ b/crates/tessera-ffi/tests/document_save_destination.rs
+@@ -0,0 +1,231 @@
++//! Checked Document Save As destination outcomes through the real session.
++#![cfg(target_os = "macos")]
++
++use std::sync::{Arc, Barrier};
++use tessera_ffi::{DocDepth, DocumentSaveAsResult, DocumentSaveDestinationIntent, Engine};
++
++fn new_document() -> (
++    tempfile::TempDir,
++    Arc<Engine>,
++    Arc<tessera_ffi::DocumentSession>,
++) {
++    let dir = tempfile::tempdir().unwrap();
++    let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
++    let session = engine
++        .clone()
++        .new_document(4, 4, DocDepth::U8, None)
++        .unwrap();
++    (dir, engine, session)
++}
++
++fn assert_reopens_with_tiny_extent(dir: &std::path::Path, path: &std::path::Path, label: &str) {
++    let support = dir.join(format!("reopen-{label}"));
++    let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
++    let reopened = engine
++        .clone()
++        .open_document(path.to_string_lossy().into_owned())
++        .unwrap();
++    let info = reopened.info().unwrap();
++    assert_eq!((info.width, info.height), (4, 4));
++}
++
++#[test]
++fn checked_collision_keeps_destination_and_unsaved_session_then_new_name_saves() {
++    let (dir, engine, session) = new_document();
++    let occupied = dir.path().join("occupied.tessera-doc");
++    std::fs::write(&occupied, b"external-sentinel").unwrap();
++    let before = session.info().unwrap();
++    assert!(before.dirty);
++    assert!(before.path.is_none());
++
++    let outcome = session
++        .save_as_checked(
++            occupied.to_string_lossy().into_owned(),
++            DocumentSaveDestinationIntent::CreateIfAbsent,
++        )
++        .unwrap();
++    assert_eq!(outcome, DocumentSaveAsResult::DestinationExists);
++    assert_eq!(std::fs::read(&occupied).unwrap(), b"external-sentinel");
++    let after = session.info().unwrap();
++    assert_eq!(after.path, before.path);
++    assert_eq!(after.title, before.title);
++    assert_eq!(after.dirty, before.dirty);
++    assert_eq!(after.history_head, before.history_head);
++
++    let fresh = dir.path().join("fresh.tessera-doc");
++    assert_eq!(
++        session
++            .save_as_checked(
++                fresh.to_string_lossy().into_owned(),
++                DocumentSaveDestinationIntent::CreateIfAbsent
++            )
++            .unwrap(),
++        DocumentSaveAsResult::Saved
++    );
++    let saved = session.info().unwrap();
++    let fresh_path = fresh.to_string_lossy().into_owned();
++    assert_eq!(saved.path.as_deref(), Some(fresh_path.as_str()));
++    assert_eq!(saved.title, "fresh.tessera-doc");
++    assert!(!saved.dirty);
++    assert!(std::fs::read(&fresh).unwrap().starts_with(b"TSRDOC\0\x01"));
++    assert_reopens_with_tiny_extent(dir.path(), &fresh, "fresh-native");
++    session.close();
++    let reopened = engine
++        .clone()
++        .open_document(fresh.to_string_lossy().into_owned())
++        .unwrap();
++    assert_ne!(reopened.id(), session.id());
++    assert_eq!(reopened.info().unwrap().width, 4);
++}
++
++#[test]
++fn checked_native_psd_and_psb_create_and_confirmed_replace() {
++    for ext in ["tessera-doc", "psd", "psb"] {
++        let (dir, _engine, session) = new_document();
++        let destination = dir.path().join(format!("document.{ext}"));
++        assert_eq!(
++            session
++                .save_as_checked(
++                    destination.to_string_lossy().into_owned(),
++                    DocumentSaveDestinationIntent::CreateIfAbsent
++                )
++                .unwrap(),
++            DocumentSaveAsResult::Saved
++        );
++        let first = std::fs::read(&destination).unwrap();
++        let expected_magic: &[u8] = if ext == "tessera-doc" {
++            b"TSRDOC\0\x01"
++        } else {
++            b"8BPS"
++        };
++        assert!(
++            first.starts_with(expected_magic),
++            "{ext} output should have its expected format header"
++        );
++        assert_reopens_with_tiny_extent(dir.path(), &destination, &format!("created-{ext}"));
++
++        std::fs::write(&destination, b"changed-after-approval").unwrap();
++        assert_eq!(
++            session
++                .save_as_checked(
++                    destination.to_string_lossy().into_owned(),
++                    DocumentSaveDestinationIntent::ReplaceConfirmed
++                )
++                .unwrap(),
++            DocumentSaveAsResult::Saved
++        );
++        assert!(
++            std::fs::read(&destination)
++                .unwrap()
++                .starts_with(expected_magic)
++        );
++        assert_reopens_with_tiny_extent(dir.path(), &destination, &format!("replaced-{ext}"));
++        assert!(!session.info().unwrap().dirty);
++    }
++}
++
++#[test]
++fn two_independent_sessions_race_same_absent_name_for_each_format() {
++    for ext in ["tessera-doc", "psd", "psb"] {
++        let destination_dir = tempfile::tempdir().unwrap();
++        let destination = destination_dir.path().join(format!("shared.{ext}"));
++        let (_left_dir, _left_engine, left) = new_document();
++        let (_right_dir, _right_engine, right) = new_document();
++        let barrier = Arc::new(Barrier::new(3));
++        let (left_outcome, right_outcome) = std::thread::scope(|scope| {
++            let left_barrier = barrier.clone();
++            let left_session = left.clone();
++            let left_path = destination.clone();
++            let left_worker = scope.spawn(move || {
++                left_barrier.wait();
++                left_session
++                    .save_as_checked(
++                        left_path.to_string_lossy().into_owned(),
++                        DocumentSaveDestinationIntent::CreateIfAbsent,
++                    )
++                    .unwrap()
++            });
++            let right_barrier = barrier.clone();
++            let right_session = right.clone();
++            let right_path = destination.clone();
++            let right_worker = scope.spawn(move || {
++                right_barrier.wait();
++                right_session
++                    .save_as_checked(
++                        right_path.to_string_lossy().into_owned(),
++                        DocumentSaveDestinationIntent::CreateIfAbsent,
++                    )
++                    .unwrap()
++            });
++            barrier.wait();
++            (left_worker.join().unwrap(), right_worker.join().unwrap())
++        });
++        assert_eq!(
++            [left_outcome, right_outcome]
++                .into_iter()
++                .filter(|outcome| *outcome == DocumentSaveAsResult::Saved)
++                .count(),
++            1
++        );
++        assert_eq!(
++            [left_outcome, right_outcome]
++                .into_iter()
++                .filter(|outcome| *outcome == DocumentSaveAsResult::DestinationExists)
++                .count(),
++            1
++        );
++        let destination_path = destination.to_string_lossy().into_owned();
++        for (outcome, session) in [(left_outcome, &left), (right_outcome, &right)] {
++            let info = session.info().unwrap();
++            if outcome == DocumentSaveAsResult::Saved {
++                assert_eq!(info.path.as_deref(), Some(destination_path.as_str()));
++                assert!(!info.dirty);
++            } else {
++                assert!(info.path.is_none());
++                assert!(info.dirty);
++            }
++        }
++        assert_reopens_with_tiny_extent(destination_dir.path(), &destination, ext);
++    }
++}
++
++#[test]
++fn checked_native_psd_and_psb_collisions_preserve_session_markers() {
++    for ext in ["tessera-doc", "psd", "psb"] {
++        let (dir, _engine, session) = new_document();
++        let destination = dir.path().join(format!("occupied.{ext}"));
++        std::fs::write(&destination, b"another-writer").unwrap();
++        let before = session.info().unwrap();
++        assert_eq!(
++            session
++                .save_as_checked(
++                    destination.to_string_lossy().into_owned(),
++                    DocumentSaveDestinationIntent::CreateIfAbsent
++                )
++                .unwrap(),
++            DocumentSaveAsResult::DestinationExists
++        );
++        assert_eq!(std::fs::read(&destination).unwrap(), b"another-writer");
++        let after = session.info().unwrap();
++        assert_eq!(after.path, before.path);
++        assert_eq!(after.title, before.title);
++        assert_eq!(after.dirty, before.dirty);
++        assert_eq!(after.history_head, before.history_head);
++    }
++}
++
++#[test]
++fn legacy_save_as_still_replaces_existing_destination() {
++    let (dir, _engine, session) = new_document();
++    let path = dir.path().join("legacy.tessera-doc");
++    std::fs::write(&path, b"old").unwrap();
++    session
++        .save_as(path.to_string_lossy().into_owned())
++        .unwrap();
++    assert!(std::fs::read(&path).unwrap().starts_with(b"TSRDOC\0\x01"));
++    assert!(!session.info().unwrap().dirty);
++
++    std::fs::write(&path, b"changed-after-save-as").unwrap();
++    session.save().unwrap();
++    assert!(std::fs::read(&path).unwrap().starts_with(b"TSRDOC\0\x01"));
++}

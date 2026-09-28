@@ -1,0 +1,255 @@
+{
+  "cwd": "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera",
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "commands": {
+    "01-native-commit": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "tessera-ffi",
+      "--release",
+      "--lib",
+      "destination_commit_tests",
+      "--",
+      "--test-threads=1"
+    ],
+    "02-native-session": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "tessera-ffi",
+      "--release",
+      "--test",
+      "document_save_destination",
+      "--",
+      "--test-threads=1"
+    ],
+    "03-native-roundtrip": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "tessera-ffi",
+      "--release",
+      "--test",
+      "document",
+      "tessera_doc_round_trip_and_same_path_same_session",
+      "--",
+      "--test-threads=1"
+    ],
+    "04-psd-psb": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "tessera-ffi",
+      "--release",
+      "--test",
+      "document",
+      "psd_opens_with_names_and_modes_and_saves_back_unknown_keys",
+      "--",
+      "--test-threads=1"
+    ],
+    "05-native-document": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "tessera-ffi",
+      "--release",
+      "--test",
+      "document",
+      "--",
+      "--test-threads=1"
+    ],
+    "06-native-ffi": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "tessera-ffi",
+      "--release",
+      "--lib",
+      "--",
+      "--test-threads=1"
+    ],
+    "07-native-strict": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "-p",
+      "tessera-ffi",
+      "--release",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "08-native-format": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "09-regenerate": [
+      "bash",
+      "apps/mac/build-ffi.sh"
+    ],
+    "10-swift-focused": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/save-destination-current-main/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--filter",
+      "DocumentSaveDestinationCommitTests|DocumentSaveSettlementTests|EngineDocumentBackendTests"
+    ],
+    "11-swift-adjacent": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/save-destination-current-main/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--filter",
+      "DocumentSavePresenterTests|DocumentSaveSheetAttachmentTests|DocumentLoadSettlementTests|DocumentLoadStatusTests|DocumentOutlineLifecycleTests|DocumentTransformTests"
+    ],
+    "12-swift-full": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/save-destination-current-main/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2"
+    ],
+    "13-swift-strict": [
+      "swift",
+      "build",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-validation/save-destination-current-main/swift-build",
+      "-c",
+      "release",
+      "--jobs",
+      "2",
+      "--product",
+      "Tessera",
+      "-Xswiftc",
+      "-strict-concurrency=complete",
+      "-Xswiftc",
+      "-warnings-as-errors"
+    ]
+  },
+  "gate_environment": {
+    "01-native-commit": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "02-native-session": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "03-native-roundtrip": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "04-psd-psb": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "05-native-document": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "06-native-ffi": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "07-native-strict": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0"
+    },
+    "08-native-format": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0"
+    },
+    "09-regenerate": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0"
+    },
+    "10-swift-focused": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "11-swift-adjacent": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "12-swift-full": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0",
+      "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+    },
+    "13-swift-strict": {
+      "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+      "CARGO_BUILD_JOBS": "2",
+      "RAYON_NUM_THREADS": "2",
+      "MACOSX_DEPLOYMENT_TARGET": "15.0"
+    }
+  },
+  "executed": false
+}

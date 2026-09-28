@@ -1,0 +1,15 @@
+{
+  "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+  "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": "3caa29e9861f4a5685edadcb88f580db94ae47594424b5349257665c21471d47",
+  "apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift": "f30204694aa2270f22b89aab1ebfe26fb9c9c4b9f0d9ef1e8feef527d1400ffc",
+  "apps/mac/Sources/TesseraCore/Document/DocumentSaveDestinationCommit.swift": "a7ef1d2c8222e755822fb913ce1dc7c3faa923d35828923f76e9925647fbe552",
+  "apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift": "98b10ac119779eaad9add88f7e550bb882d7cbc41f40b17617ac5838331e5ca9",
+  "apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift": "0c5f9d6a4a90336252a86fc7f8a2646e45825973cb93d904a26e07cf88b91cee",
+  "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+  "apps/mac/Tests/TesseraCoreTests/DocumentSaveDestinationCommitTests.swift": "e74a2fba2f549871a756ed08a4064ae1a182bd3bba1eb4714c298328e82a411d",
+  "apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift": "3e101f87adb89638d25c374685c04a5616d09df027216e12b1c84bbc87179634",
+  "apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift": "a1f064eebf813a5696dc4b668737c29b05531bb354afa6e8cb6c4e28b775f777",
+  "crates/tessera-ffi/src/document.rs": "1a6277ad23db2234cf832a6bf9051f37af2feea9ffcc245c8009b17044e842fc",
+  "crates/tessera-ffi/src/document/io.rs": "a583e5bf70eba53d434cbf0a77a08454835b1a09fcdcda9c553f21a02f566d7b",
+  "crates/tessera-ffi/tests/document_save_destination.rs": "31908b15d230ab3a5a96181c02f8d647755ac754cff06a495f68f77c1e36aad0"
+}

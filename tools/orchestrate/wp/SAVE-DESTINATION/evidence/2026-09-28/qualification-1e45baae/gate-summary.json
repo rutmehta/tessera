@@ -1,0 +1,140 @@
+{
+  "10-swift-focused-03": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 36.46291529200971,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "04-psd-psb-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 1.5292769996449351,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "10-swift-focused-02": {
+    "direct_exit": 1,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 39.11557291680947,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "12-swift-full-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 221.87577258283272,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "01-native-commit-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 239.49184424988925,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "02-native-session-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 63.19877662463114,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "03-native-roundtrip-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 8.343300542328507,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "13-swift-strict-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 156.1849743751809,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "11-swift-adjacent-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 3.0616327500902116,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "10-swift-focused-01": {
+    "direct_exit": 1,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 178.71913004107773,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "06-native-ffi-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 6.330326249822974,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "09-regenerate-01": {
+    "direct_exit": 0,
+    "source_equal": false,
+    "head_equal": true,
+    "source_changed_paths": [
+      "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+      "apps/mac/Sources/TesseraFFI/TesseraFFI.swift"
+    ],
+    "elapsed_seconds": 68.00347862485796,
+    "ignored_ffi_equal": false,
+    "fixture_equal": true
+  },
+  "07-native-strict-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 21.803523958195,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "08-native-format-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 6.84301079204306,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  },
+  "05-native-document-01": {
+    "direct_exit": 0,
+    "source_equal": true,
+    "head_equal": true,
+    "source_changed_paths": [],
+    "elapsed_seconds": 3.706034875009209,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true
+  }
+}

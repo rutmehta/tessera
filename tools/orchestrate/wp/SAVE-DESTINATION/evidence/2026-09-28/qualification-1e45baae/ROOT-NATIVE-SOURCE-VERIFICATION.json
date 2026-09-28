@@ -1,0 +1,53 @@
+{
+  "commit": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+  "gates": [
+    {
+      "gate": "01-native-commit-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    },
+    {
+      "gate": "02-native-session-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    },
+    {
+      "gate": "03-native-roundtrip-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    },
+    {
+      "gate": "04-psd-psb-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    },
+    {
+      "gate": "05-native-document-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    },
+    {
+      "gate": "06-native-ffi-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    },
+    {
+      "gate": "07-native-strict-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    },
+    {
+      "gate": "08-native-format-01",
+      "git_matches": 7804,
+      "non_git": [],
+      "exit": 0
+    }
+  ]
+}

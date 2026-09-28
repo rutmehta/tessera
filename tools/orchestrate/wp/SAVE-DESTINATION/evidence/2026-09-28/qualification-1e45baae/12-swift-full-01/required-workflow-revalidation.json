@@ -1,0 +1,12 @@
+{
+  "reason": "Original runner expected dotted class.method but Darwin XCTest reports class method in ObjC brackets; native subprocess exit remains zero. Existing log revalidated without rerunning or modifying evidence.",
+  "log_sha256": "382388ba46be5f923f87bae0b8ee420de3e69d0b444256b4c7e35d2f995e6398",
+  "matches": {
+    "testActualCachedThumbnailAfterOriginalDisconnect": [
+      "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' passed (5.162 seconds)."
+    ],
+    "testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect": [
+      "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (5.235 seconds)."
+    ]
+  }
+}

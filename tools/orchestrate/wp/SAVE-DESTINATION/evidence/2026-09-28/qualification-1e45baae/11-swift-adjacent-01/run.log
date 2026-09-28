@@ -1,0 +1,128 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.27s)
+Test Suite 'Selected tests' started at 2026-09-28 16:34:39.714.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 16:34:39.715.
+Test Suite 'DocumentLoadSettlementTests' started at 2026-09-28 16:34:39.715.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testBackendFailureSettlesOnceWithoutInstall]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testBackendFailureSettlesOnceWithoutInstall]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testDelayedBackendCompletionDoesNotReleaseAtDispatch]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testDelayedBackendCompletionDoesNotReleaseAtDispatch]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testEarlyRejectsSettleWithoutExecutor]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testEarlyRejectsSettleWithoutExecutor]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testReleasedWorkspaceStillSettlesAfterBackendReturns]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testReleasedWorkspaceStillSettlesAfterBackendReturns]' passed (0.000 seconds).
+Test Suite 'DocumentLoadSettlementTests' passed at 2026-09-28 16:34:39.723.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.007 (0.008) seconds
+Test Suite 'DocumentLoadStatusTests' started at 2026-09-28 16:34:39.723.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedFailureDoesNotOverwriteNewerStatus]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedFailureDoesNotOverwriteNewerStatus]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedRejectionDoesNotPublishStatus]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedRejectionDoesNotPublishStatus]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedSuccessPreservesStatusAndStillInstallsAndSettles]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testCallerOwnedSuccessPreservesStatusAndStillInstallsAndSettles]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultRetainsStartFailureAndRejectionMessages]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultRetainsStartFailureAndRejectionMessages]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultSuccessStillPublishesLegacyMessage]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadStatusTests testDefaultSuccessStillPublishesLegacyMessage]' passed (0.000 seconds).
+Test Suite 'DocumentLoadStatusTests' passed at 2026-09-28 16:34:39.726.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'DocumentOutlineLifecycleTests' started at 2026-09-28 16:34:39.726.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testClearDropsPendingAndCannotResurrectOldOutline]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testClearDropsPendingAndCannotResurrectOldOutline]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testCloseRejectsRunningResultAndDropsPendingWork]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testCloseRejectsRunningResultAndDropsPendingWork]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testSwitchDiscardsOldOutlineAndRunsOnlyNewestPendingDocument]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testSwitchDiscardsOldOutlineAndRunsOnlyNewestPendingDocument]' passed (0.001 seconds).
+Test Suite 'DocumentOutlineLifecycleTests' passed at 2026-09-28 16:34:39.728.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'DocumentSavePresenterTests' started at 2026-09-28 16:34:39.728.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelBeforeBeginFromFactoryNeverBeginsNativeSession]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelBeforeBeginFromFactoryNeverBeginsNativeSession]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelThenWholeNativeLifetimeBeforeBeginReturnsStillDrains]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCancelThenWholeNativeLifetimeBeforeBeginReturnsStillDrains]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCompletionWithCapturedSheetStillNativeQueuedCannotRelease]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testCompletionWithCapturedSheetStillNativeQueuedCannotRelease]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testDuplicateCompletionBeforeDetachPreservesFirstResponse]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testDuplicateCompletionBeforeDetachPreservesFirstResponse]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testHeldChildCancellationDefersParentEndIncludingReentrantChildReturn]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testHeldChildCancellationDefersParentEndIncludingReentrantChildReturn]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testNewBindingMayWaitForOldDrainButOldCloseCannotRemoveNewHost]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testNewBindingMayWaitForOldDrainButOldCloseCannotRemoveNewHost]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testOldWindowCloseForCurrentBridgeCannotShutdownReboundWindow]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testOldWindowCloseForCurrentBridgeCannotShutdownReboundWindow]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentCloseSettlesLossButNativeMembershipStillMustDrain]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentCloseSettlesLossButNativeMembershipStillMustDrain]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentLossCancelsHeldChildEvenIfNativeCompletionAlreadyArrived]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testParentLossCancelsHeldChildEvenIfNativeCompletionAlreadyArrived]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testReentrantCancelDuringBeginAndCompletionDuringEndAreIdempotent]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testReentrantCancelDuringBeginAndCompletionDuringEndAreIdempotent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testSameWindowNewGenerationRejectsOldUpdateAndTeardown]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testSameWindowNewGenerationRejectsOldUpdateAndTeardown]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testStaleCompletionCannotRetireSuccessorAndUnrelatedAdmissionFailsClosed]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testStaleCompletionCannotRetireSuccessorAndUnrelatedAdmissionFailsClosed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testWhollyUnseenAttachmentWithLiveViewWaitsCompletionAndDetachInEitherOrder]' started.
+Test Case '-[TesseraCoreTests.DocumentSavePresenterTests testWhollyUnseenAttachmentWithLiveViewWaitsCompletionAndDetachInEitherOrder]' passed (0.000 seconds).
+Test Suite 'DocumentSavePresenterTests' passed at 2026-09-28 16:34:39.730.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'DocumentSaveSheetAttachmentTests' started at 2026-09-28 16:34:39.730.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testNewSheetIsNotModifiedWhenOldSheetHasDetached]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testNewSheetIsNotModifiedWhenOldSheetHasDetached]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testQueuedCapturedSheetStillBelongsToParentUnderUnrelatedAttachedSheet]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testQueuedCapturedSheetStillBelongsToParentUnderUnrelatedAttachedSheet]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSheetAttachmentTests' passed at 2026-09-28 16:34:39.730.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'DocumentTransformTests' started at 2026-09-28 16:34:39.730.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testContentAwareBoxHandlesProportionsAndLimits]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testContentAwareBoxHandlesProportionsAndLimits]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEnginePuppetMeshAndProtectionChannels]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEnginePuppetMeshAndProtectionChannels]' passed (0.075 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode]' passed (0.020 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSplitAddsLinesWithoutMovingTheSurface]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSplitAddsLinesWithoutMovingTheSurface]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testOperationJSONCarriesKernelAndNeverAProtectMask]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testOperationJSONCarriesKernelAndNeverAProtectMask]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveQuadsArePerimeterOrderedAndRoundTrip]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveQuadsArePerimeterOrderedAndRoundTrip]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveSplitKeepsTheWarpedImageInPlace]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveSplitKeepsTheWarpedImageInPlace]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPresetsBendZeroIsIdentityAndInvalidBendFails]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPresetsBendZeroIsIdentityAndInvalidBendFails]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetModelRoundTripsAndPinsNeverJump]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetModelRoundTripsAndPinsNeverJump]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetRebaseKeepsPinsOnTheNearestNewVertex]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetRebaseKeepsPinsOnTheNearestNewVertex]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformKeyRoutingIgnoresOnlyIncidentalFlags]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformKeyRoutingIgnoresOnlyIncidentalFlags]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformReturnAndEnterUseTheSameModifierGuard]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformReturnAndEnterUseTheSameModifierGuard]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpAnchorDragCarriesItsHandles]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpAnchorDragCarriesItsHandles]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpMeshJSONMatchesTheEngineSchema]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpMeshJSONMatchesTheEngineSchema]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity]' passed (0.000 seconds).
+Test Suite 'DocumentTransformTests' passed at 2026-09-28 16:34:39.830.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.099 (0.100) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 16:34:39.830.
+	 Executed 48 tests, with 0 failures (0 unexpected) in 0.112 (0.115) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 16:34:39.830.
+	 Executed 48 tests, with 0 failures (0 unexpected) in 0.112 (0.116) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

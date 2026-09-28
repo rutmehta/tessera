@@ -1,0 +1,66 @@
+{
+  "head": "5f34221d4dcd64a93a6de596e90c487d3ea31ffc",
+  "files": {
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": {
+      "sha256": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+      "matches_after": true,
+      "old_sha256": "bac698ba64bbf69a7ff0d126edd400e30e9bc7d7e062824072d7a1cf50939955"
+    },
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": {
+      "sha256": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+      "matches_after": true,
+      "old_sha256": "29c3c952411bcab52c458ca2a07a48fea1e5c21047aab0b16980e2475126f913"
+    }
+  },
+  "ignored_ffi": {
+    "apps/mac/build/ffi/CTesseraFFI.h": {
+      "sha256": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+      "matches_after": true
+    },
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": {
+      "sha256": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "matches_after": true
+    },
+    "apps/mac/build/ffi/TesseraFFI.swift": {
+      "sha256": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+      "matches_after": true
+    },
+    "apps/mac/build/ffi/libtessera_ffi.a": {
+      "sha256": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594",
+      "matches_after": true
+    }
+  },
+  "checksums": {
+    "before_count": 434,
+    "after_count": 435,
+    "removed": [],
+    "changed": {},
+    "added": {
+      "uniffi_tessera_ffi_checksum_method_documentsession_save_as_checked": "46144"
+    },
+    "smart_preview": {
+      "uniffi_tessera_ffi_checksum_method_engine_open_smart_preview_develop_session": "44215",
+      "uniffi_tessera_ffi_checksum_method_engine_open_smart_preview_library_session": "4323",
+      "uniffi_tessera_ffi_checksum_method_engine_build_smart_preview": "4018",
+      "uniffi_tessera_ffi_checksum_method_engine_discard_smart_preview": "43019",
+      "uniffi_tessera_ffi_checksum_method_engine_smart_preview_info": "49720",
+      "uniffi_tessera_ffi_checksum_method_engine_synchronize_smart_preview": "5803",
+      "uniffi_tessera_ffi_checksum_method_engine_smart_preview_thumbnail": "32945"
+    }
+  },
+  "smart_preview_lines_unchanged": true,
+  "source_delta": [
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift"
+  ],
+  "current_source_mismatches": [],
+  "fixture": {
+    "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+  },
+  "fixture_current_matches": true,
+  "native_document_sha256": "1a6277ad23db2234cf832a6bf9051f37af2feea9ffcc245c8009b17044e842fc",
+  "generation_dylib_sha256": "7332276e93ac41e4502a9463f4285d409d07e4006009dc93cf13dd20cd2dc084",
+  "native_checksum_disassembly": "mov w0, #0xb440; ret (46144)",
+  "diff_numstat": "11\t0\tapps/mac/Sources/CTesseraFFI/CTesseraFFI.h\n164\t0\tapps/mac/Sources/TesseraFFI/TesseraFFI.swift\n"
+}

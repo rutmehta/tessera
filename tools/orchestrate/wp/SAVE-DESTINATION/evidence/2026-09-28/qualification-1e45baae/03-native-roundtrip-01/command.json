@@ -1,0 +1,24 @@
+{
+  "cwd": "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera",
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "tessera-ffi",
+    "--release",
+    "--test",
+    "document",
+    "tessera_doc_round_trip_and_same_path_same_session",
+    "--",
+    "--test-threads=1"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "TESSERA_SMART_PREVIEW_RAW": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW"
+  },
+  "inherited_TESSERA_removed": true
+}

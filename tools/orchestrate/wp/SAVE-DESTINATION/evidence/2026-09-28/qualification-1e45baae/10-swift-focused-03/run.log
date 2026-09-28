@@ -1,0 +1,142 @@
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[3/5] Write Objects.LinkFileList
+[4/5] Linking TesseraPackageTests
+Build complete! (31.59s)
+Test Suite 'Selected tests' started at 2026-09-28 16:33:55.223.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 16:33:55.224.
+Test Suite 'DocumentSaveDestinationCommitTests' started at 2026-09-28 16:33:55.224.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testCapturedHeadLeavesLaterEditDirtyAndOrdinarySaveReadsPathAfterGate]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testCapturedHeadLeavesLaterEditDirtyAndOrdinarySaveReadsPathAfterGate]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testConcurrentSameNamePublishesExactlyOneAndUsesUniqueStaging]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testConcurrentSameNamePublishesExactlyOneAndUsesUniqueStaging]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testConfirmedReplaceStillReplacesPathChangedAfterConfirmation]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testConfirmedReplaceStillReplacesPathChangedAfterConfirmation]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testExclusiveRenameFallbackAndPostCommitCleanupFailureKeepActualResult]' started.
+2026-09-28 16:33:55.236 xctest[2530:105094685] Document save cleanup: Could not remove staging file /var/folders/_f/grgzfz9j7c1bq0m39nwqz9mm0000gn/T/checked-stub-BFE459D6-55B8-47DE-877E-855CD3BEDAD6/.tessera-save-iqhB5I (errno 13)
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testExclusiveRenameFallbackAndPostCommitCleanupFailureKeepActualResult]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testForcedExclusiveRenameFallbackCollisionPreservesSentinelAndRemovesStage]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testForcedExclusiveRenameFallbackCollisionPreservesSentinelAndRemovesStage]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testLateFileAppearanceAndUnsafeEntriesNeverClobber]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testLateFileAppearanceAndUnsafeEntriesNeverClobber]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testRealCollisionLeavesSentinelAndMarkersThenRetryAndLegacyReplaceWork]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testRealCollisionLeavesSentinelAndMarkersThenRetryAndLegacyReplaceWork]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testReplacedStagingNameIsNeitherPublishedNorDeleted]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testReplacedStagingNameIsNeitherPublishedNorDeleted]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testSuccessfulRenameDoesNotCleanupReusedOldStageName]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveDestinationCommitTests testSuccessfulRenameDoesNotCleanupReusedOldStageName]' passed (0.001 seconds).
+Test Suite 'DocumentSaveDestinationCommitTests' passed at 2026-09-28 16:33:55.250.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.025 (0.026) seconds
+Test Suite 'DocumentSaveSettlementTests' started at 2026-09-28 16:33:55.250.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAbsentIntentSurvivesLateAppearanceAndConflictDoesNotAdvanceState]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAbsentIntentSurvivesLateAppearanceAndConflictDoesNotAdvanceState]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringFormDrainCannotStartReplacementOrWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringFormDrainCannotStartReplacementOrWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testKnownGapEntireAttachmentAfterCancelWithoutAnyObservationNeedsProgress]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLegacyHeadlessSaveAsUsesAutomaticDestinationAndReportsSuccess]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLegacyHeadlessSaveAsUsesAutomaticDestinationAndReportsSuccess]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCannotOverwriteNewPromptOrAdmitDuplicateDocumentWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCannotOverwriteNewPromptOrAdmitDuplicateDocumentWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOnlyAffirmativeMatchingReplaceDrainGrantsReplacementIntent]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOnlyAffirmativeMatchingReplaceDrainGrantsReplacementIntent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentCloseFailsQueuedSuccessorAndKeepsNativeDrain]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentCloseFailsQueuedSuccessorAndKeepsNativeDrain]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReentrantCancelledCallerSupersedesIntermediateQueuedRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReentrantCancelledCallerSupersedesIntermediateQueuedRequest]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndStaleApprovalCannotWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndStaleApprovalCannotWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceOwnsDistinctTokenAndWaitsForItsPhysicalDrainBeforeWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceOwnsDistinctTokenAndWaitsForItsPhysicalDrainBeforeWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSaveWaitsForCompletionAndMembershipThenWritesOnce]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSaveWaitsForCompletionAndMembershipThenWritesOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersededWriterConflictPreservesNewStatusAndNeverRunsThen]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersededWriterConflictPreservesNewStatusAndNeverRunsThen]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailurePreservesFolderAndAdmittedWriteDrainsThroughCancellation]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailurePreservesFolderAndAdmittedWriteDrainsThroughCancellation]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndStaleActionsCannotAffectSuccessor]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndStaleActionsCannotAffectSuccessor]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSettlementTests' passed at 2026-09-28 16:33:55.264.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.013 (0.014) seconds
+Test Suite 'EngineDocumentBackendTests' started at 2026-09-28 16:33:55.264.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testBlendModeStringsMatchTheEngine]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testBlendModeStringsMatchTheEngine]' passed (0.144 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testCheckedSaveAsMapsTypedResultsAndPreservesOtherErrors]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testCheckedSaveAsMapsTypedResultsAndPreservesOtherErrors]' passed (0.042 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testDirtyCheckedSaveConflictAtDifferentTargetPreservesIdentityAndSavedMarker]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testDirtyCheckedSaveConflictAtDifferentTargetPreservesIdentityAndSavedMarker]' passed (0.036 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEngineSessionThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEngineSessionThroughTheAdapter]' passed (0.034 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEnumsRoundTripEveryValue]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEnumsRoundTripEveryValue]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testFramesReachTheListenerOnMain]' started.
+document: frames on the Cpu path (L1, requested Rect { x0: 0, y0: 0, x1: 128, y1: 64 })
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 128, y1: 64 })
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testFramesReachTheListenerOnMain]' passed (0.044 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testHistoryIDMapShowsTheBaseAsOpened]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testHistoryIDMapShowsTheBaseAsOpened]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerCoalescesUntilTheMainQueueDrains]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerCoalescesUntilTheMainQueueDrains]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerDeliversOnTheMainThread]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerDeliversOnTheMainThread]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testRecordsRoundTripFieldByField]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testRecordsRoundTripFieldByField]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testWorkspaceChoosesTheEngineOrTheStub]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testWorkspaceChoosesTheEngineOrTheStub]' passed (0.029 seconds).
+Test Suite 'EngineDocumentBackendTests' passed at 2026-09-28 16:33:55.595.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.331 (0.331) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 16:33:55.595.
+	 Executed 36 tests, with 0 failures (0 unexpected) in 0.369 (0.371) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 16:33:55.595.
+	 Executed 36 tests, with 0 failures (0 unexpected) in 0.369 (0.372) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

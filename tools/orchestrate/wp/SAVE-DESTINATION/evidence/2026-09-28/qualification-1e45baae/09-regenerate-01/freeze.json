@@ -1,0 +1,11 @@
+{
+  "source_equal": false,
+  "head_equal": true,
+  "source_changed_paths": [
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift"
+  ],
+  "elapsed_seconds": 68.00347862485796,
+  "ignored_ffi_equal": false,
+  "fixture_equal": true
+}
