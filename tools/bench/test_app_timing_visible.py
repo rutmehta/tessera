@@ -69,6 +69,24 @@ class VisibleTimingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "foreground"):
             visible.validate_window_observation({"frontmost_pid": 99, "windows": [target]}, 42, 7)
 
+    def test_window_startup_allowance_is_explicit_and_focus_loss_fails(self):
+        startup, visible_window, _ = visible.validate_visibility_sample(
+            {"frontmost_pid": 1, "windows": []}, 42, 2.0, False, False, startup_allowance=5.0)
+        self.assertFalse(startup)
+        self.assertFalse(visible_window)
+        with self.assertRaisesRegex(ValueError, "startup allowance"):
+            visible.validate_visibility_sample(
+                {"frontmost_pid": 1, "windows": []}, 42, 5.1, False, False, startup_allowance=5.0)
+        target = {"owner_pid": 42, "window_id": 7, "layer": 0, "onscreen": True,
+                  "bounds": {"x": 0, "y": 0, "width": 100, "height": 100}, "alpha": 1}
+        startup, visible_window, _ = visible.validate_visibility_sample(
+            {"frontmost_pid": 42, "windows": [target]}, 42, 0.1, False, False)
+        self.assertTrue(startup)
+        self.assertTrue(visible_window)
+        with self.assertRaisesRegex(ValueError, "lost foreground"):
+            visible.validate_visibility_sample(
+                {"frontmost_pid": 1, "windows": [target]}, 42, 0.2, True, True)
+
 
 if __name__ == "__main__":
     unittest.main()

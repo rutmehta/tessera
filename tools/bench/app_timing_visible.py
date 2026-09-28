@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.dont_write_bytecode = True
@@ -84,9 +85,115 @@ def _digest(path):
     return h.hexdigest()
 
 
-def _run_probe(probe, bundle_id):
-    raw = subprocess.check_output([str(probe), bundle_id], text=True)
-    return json.loads(raw)
+def _same_path(left, right):
+    return Path(left).resolve() == Path(right).resolve()
+
+
+def _run_probe(probe, bundle_id, timeout=5):
+    result = subprocess.run([str(probe), bundle_id], check=True, capture_output=True,
+                            text=True, timeout=timeout)
+    return json.loads(result.stdout)
+
+
+def validate_visibility_sample(observation, pid, elapsed, foreground_seen, window_seen,
+                               startup_allowance=5.0):
+    frontmost = observation.get("frontmost_pid") == pid
+    if foreground_seen and not frontmost:
+        raise ValueError("test app lost foreground during the capability sample")
+    candidates = [window for window in observation.get("windows", [])
+                  if window.get("owner_pid") == pid and window.get("layer") == 0
+                  and window.get("onscreen")]
+    if window_seen and not candidates:
+        raise ValueError("test window disappeared from the on-screen window list during measurement")
+    if elapsed > startup_allowance and (not frontmost or not candidates):
+        raise ValueError("test app did not reach a foreground visible regular window within startup allowance")
+    target = None
+    if frontmost and candidates:
+        target = validate_window_observation(observation, pid)
+    return foreground_seen or frontmost, window_seen or bool(candidates), target
+
+
+class RunArtifacts:
+    def __init__(self, out, app, bundle_id, launch_id):
+        self.out = out
+        self.app = app
+        self.bundle_id = bundle_id
+        self.launch_id = launch_id
+        self.probe = None
+        self.launch_attempted = False
+        self.owned = None
+        self.success = False
+
+    def write_json(self, name, value):
+        (self.out / name).write_text(json.dumps(value, indent=2) + "\n")
+
+    def record_owned(self, application, reason):
+        self.owned = {"launch_id": self.launch_id,
+                      "pid": int(application["pid"]),
+                      "bundle_id": self.bundle_id,
+                      "bundle_url": application["bundle_url"],
+                      "ownership_basis": reason}
+        self.write_json("owned-app.json", self.owned)
+
+    def _discover_after_open_abort(self):
+        """Find only the new, exact-URL process when the bounded `open` call itself failed."""
+        if self.owned or not self.launch_attempted or not self.probe:
+            return
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                observation = _run_probe(self.probe, self.bundle_id, timeout=3)
+            except (OSError, ValueError, subprocess.SubprocessError):
+                return
+            exact = [app for app in observation.get("bundle_apps", [])
+                     if app.get("bundle_id") == self.bundle_id
+                     and app.get("bundle_url") and _same_path(app["bundle_url"], self.app)]
+            if len(exact) == 1 and len(observation.get("bundle_apps", [])) == 1:
+                self.record_owned(exact[0], "unique bundle absent before launch; exact app URL appeared after this run's open request")
+                return
+            if observation.get("bundle_apps"):
+                return
+            time.sleep(.2)
+
+    def cleanup_owned_after_failure(self):
+        if self.success:
+            return
+        self._discover_after_open_abort()
+        if not self.owned or not self.probe:
+            return
+        cleanup = {**self.owned, "graceful_terminate_attempted": True}
+        try:
+            before = _run_probe(self.probe, self.bundle_id, timeout=3)
+            matches = [app for app in before.get("bundle_apps", [])
+                       if int(app["pid"]) == self.owned["pid"]
+                       and app.get("bundle_id") == self.bundle_id
+                       and app.get("bundle_url") == self.owned["bundle_url"]]
+            if not matches:
+                cleanup["graceful_terminate_attempted"] = False
+                cleanup["process_already_exited_or_identity_changed"] = True
+                self.write_json("cleanup.json", cleanup)
+                return
+            command = [str(self.probe), "--terminate", str(self.owned["pid"]),
+                       self.bundle_id, self.owned["bundle_url"]]
+            response = subprocess.run(command, check=True, capture_output=True, text=True, timeout=5)
+            cleanup["terminate_response"] = json.loads(response.stdout)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                observation = _run_probe(self.probe, self.bundle_id, timeout=3)
+                still_running = any(int(app["pid"]) == self.owned["pid"]
+                                    and app.get("bundle_url") == self.owned["bundle_url"]
+                                    for app in observation.get("bundle_apps", []))
+                if not still_running:
+                    cleanup["process_exited"] = True
+                    break
+                time.sleep(.25)
+            else:
+                cleanup["process_exited"] = False
+                cleanup["note"] = "Graceful terminate was requested; no force kill was attempted."
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+            cleanup["error"] = str(error)
+            cleanup["note"] = "Cleanup failed safely; no other process was targeted."
+        self.write_json("cleanup.json", cleanup)
 
 
 def main():
@@ -106,14 +213,15 @@ def main():
     info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     validate_bundle_identity(info.get("CFBundleIdentifier"), args.expected_bundle_id)
     subprocess.run([sys.executable, str(ROOT / "apps/mac/Support/provenance.py"),
-                    "verify", "--app", str(app)], check=True)
-    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
+                    "verify", "--app", str(app)], check=True, timeout=30)
+    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True, timeout=30)
     provenance = json.loads((app / "Contents/Resources/build-provenance.json").read_text())
     validate_provenance(provenance, args.expected_commit)
     if not fixture.is_file():
         raise ValueError("fixture does not exist")
     if "TESSERA_DOC_FRAME_LOG" in os.environ or "TESSERA_SELFTEST_VERBOSE" in os.environ:
         raise ValueError("frame/self-test verbose logging must be disabled")
+
     out.mkdir(parents=True)
     fixture_dir = out / "fixture"
     fixture_dir.mkdir()
@@ -126,88 +234,123 @@ def main():
     stdout_path, stderr_path = out / "app-stdout.log", out / "app-stderr.log"
     probe_source = Path(__file__).with_name("VisibleWindowProbe.swift")
     probe = out / "visible-window-probe"
-    subprocess.run(["swiftc", str(probe_source), "-o", str(probe)], check=True)
+    subprocess.run(["swiftc", str(probe_source), "-o", str(probe)], check=True, timeout=60)
     probe_hash = _digest(probe_source)
+    probe_binary_hash = _digest(probe)
     initial_observation = _run_probe(probe, args.expected_bundle_id)
-    if initial_observation.get("bundle_pids"):
+    if initial_observation.get("bundle_apps"):
         raise ValueError("the unique test bundle is already running")
+
+    launch_id = str(uuid.uuid4())
     launch = ["open", "-n", "-a", str(app), "--stdout", str(stdout_path), "--stderr", str(stderr_path),
               "--args", "--timing-visible", "--timing-selftest", "--develop-selftest",
               "--timing-output", str(trace_path), "--app-dir", str(support),
               "--folder", str(fixture_dir)]
-    preflight = {"command": launch, "initial_observation": initial_observation,
+    preflight = {"launch_id": launch_id, "command": launch,
+                 "initial_observation": initial_observation,
                  "bundle_id": args.expected_bundle_id,
-                 "expected_commit": args.expected_commit, "fixture": str(copied_fixture),
-                 "fixture_sha256": _digest(copied_fixture), "app_provenance": provenance,
-                 "probe_source_sha256": probe_hash, "visible_mode": True,
-                 "nonactivating": False, "app_support": str(support)}
+                 "expected_commit": args.expected_commit, "app_url": str(app),
+                 "fixture": str(copied_fixture), "fixture_sha256": _digest(copied_fixture),
+                 "app_provenance": provenance, "probe_source_sha256": probe_hash,
+                 "probe_binary_sha256": probe_binary_hash, "visible_mode": True,
+                 "nonactivating": False, "app_support": str(support),
+                 "startup_allowance_seconds": 5, "outer_deadline_seconds": 180}
     (out / "run.json").write_text(json.dumps(preflight, indent=2) + "\n")
-    subprocess.run(launch, check=True)
+    context = RunArtifacts(out, app, args.expected_bundle_id, launch_id)
+    context.probe = probe
+    observation_path = out / "window-observations.jsonl"
+    try:
+        context.launch_attempted = True
+        subprocess.run(launch, check=True, timeout=15)
+        test_pid = None
+        foreground_seen = False
+        window_seen = False
+        first_pid_time = None
+        observations = []
+        deadline = time.monotonic() + 180
+        with observation_path.open("w") as stream:
+            while time.monotonic() < deadline and not trace_path.exists():
+                observation = _run_probe(probe, args.expected_bundle_id, timeout=5)
+                elapsed = 0 if first_pid_time is None else time.monotonic() - first_pid_time
+                record = {"elapsed_since_first_pid_seconds": elapsed, "observation": observation}
+                stream.write(json.dumps(record, sort_keys=True) + "\n")
+                stream.flush()
+                observations.append(record)
 
-    observations = []
-    test_pid = None
-    foreground_seen = False
-    deadline = time.monotonic() + 180
-    while time.monotonic() < deadline and not trace_path.exists():
-        observation = _run_probe(probe, args.expected_bundle_id)
-        pids = observation.get("bundle_pids", [])
-        if len(pids) > 1:
-            raise ValueError("more than one instance of the unique test bundle is running")
-        if pids:
-            test_pid = pids[0]
-            if observation.get("frontmost_pid") == test_pid:
-                foreground_seen = True
-            elif foreground_seen:
-                raise ValueError("test app lost foreground before trace completion")
-            visible = [w for w in observation.get("windows", [])
-                       if w.get("owner_pid") == test_pid and w.get("layer") == 0 and w.get("onscreen")]
-            observation["visible_test_windows"] = visible
-        observations.append(observation)
-        time.sleep(.25)
-    (out / "window-observations.json").write_text(json.dumps(observations, indent=2) + "\n")
-    receipt_path = trace_path.with_suffix(trace_path.suffix + ".window.json")
-    if not trace_path.is_file() or not receipt_path.is_file():
-        raise ValueError("timed out without trace and regular-window receipt")
-    receipt = json.loads(receipt_path.read_text())
-    if test_pid is None or receipt.get("processID") != test_pid:
-        raise ValueError("window receipt process does not match the observed app instance")
-    if not foreground_seen or not receipt.get("appActive") or not receipt.get("isKeyWindow"):
-        raise ValueError("foreground/key-window evidence did not identify the active test app")
-    if (receipt.get("activationPolicy") != "regular" or receipt.get("windowTitle") != "Tessera"
-            or not receipt.get("isRegularWindow") or not receipt.get("isVisible")
-            or not receipt.get("occlusionVisible")):
-        raise ValueError("regular test window was not visible at self-test completion")
-    matching_observation = next((item for item in reversed(observations)
-                                 if item.get("frontmost_pid") == test_pid), None)
-    if matching_observation is None:
-        raise ValueError("no foreground window-server observation for the test app")
-    content_frame = receipt["contentScreenFrame"]
-    if content_frame.get("width", 0) <= 0 or content_frame.get("height", 0) <= 0:
-        raise ValueError("visible window receipt has an empty content frame")
-    target = validate_window_observation(matching_observation, test_pid, receipt.get("windowNumber"))
-    foreground_samples = [item for item in observations if item.get("frontmost_pid") == test_pid]
-    if len(foreground_samples) < 2:
-        raise ValueError("too few foreground samples to corroborate a visible run")
-    trace = json.loads(trace_path.read_text())
-    summary = validate_trace(trace)
-    summary.update({"provenance": {key: provenance[key] for key in
-                                   ("commit", "configuration", "source_sha256", "archive_sha256", "bindings")},
-                    "bundle_id": args.expected_bundle_id, "process_id": test_pid,
-                    "window_number": target["window_id"], "window_receipt": receipt,
-                    "foreground_observations": len(observations),
-                    "foreground_samples_for_test_app": len(foreground_samples),
-                    "foreground_seen": foreground_seen,
-                    "visibility_limit": "Window-server ordering/occlusion and key-window state are corroborating evidence, not a pixel-level proof that every window pixel was unobscured.",
-                    "grid_appeared": any(e.get("name") == "grid_appeared" for e in trace.get("events", [])),
-                    "selftest_complete": any(e.get("name") == "selftest_complete" for e in trace.get("events", []))})
-    (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(json.dumps(summary, indent=2))
-    return 0 if summary["grid_appeared"] and summary["selftest_complete"] else 1
+                applications = observation.get("bundle_apps", [])
+                if len(applications) > 1:
+                    raise ValueError("more than one instance of the unique test bundle is running")
+                if applications:
+                    launched_app = applications[0]
+                    if not launched_app.get("bundle_url") or not _same_path(launched_app["bundle_url"], app):
+                        raise ValueError("running bundle URL differs from the verified test app")
+                    test_pid = int(launched_app["pid"])
+                    if context.owned is None:
+                        context.record_owned(launched_app,
+                                             "bundle absent at preflight; exact bundle ID and app URL observed after this run's launch")
+                        first_pid_time = time.monotonic()
+                        elapsed = 0
+                    foreground_seen, window_seen, _ = validate_visibility_sample(
+                        observation, test_pid, elapsed, foreground_seen, window_seen)
+                elif test_pid is not None and not trace_path.exists():
+                    raise ValueError("test app exited before writing its trace")
+                time.sleep(.25)
+        receipt_path = trace_path.with_suffix(trace_path.suffix + ".window.json")
+        if not trace_path.is_file() or not receipt_path.is_file():
+            raise ValueError("timed out without trace and regular-window receipt")
+        receipt = json.loads(receipt_path.read_text())
+        if test_pid is None or receipt.get("processID") != test_pid:
+            raise ValueError("window receipt process does not match the observed app instance")
+        if not foreground_seen or not receipt.get("appActive") or not receipt.get("isKeyWindow"):
+            raise ValueError("foreground/key-window evidence did not identify the active test app")
+        if (receipt.get("activationPolicy") != "regular" or receipt.get("windowTitle") != "Tessera"
+                or not receipt.get("isRegularWindow") or not receipt.get("isVisible")
+                or not receipt.get("occlusionVisible")):
+            raise ValueError("regular test window was not visible at self-test completion")
+        content_frame = receipt["contentScreenFrame"]
+        if content_frame.get("width", 0) <= 0 or content_frame.get("height", 0) <= 0:
+            raise ValueError("visible window receipt has an empty content frame")
+        matching_record = next((record for record in reversed(observations)
+                                if record["observation"].get("frontmost_pid") == test_pid), None)
+        if matching_record is None:
+            raise ValueError("no foreground window-server observation for the test app")
+        matching_observation = matching_record["observation"]
+        target = validate_window_observation(matching_observation, test_pid, receipt.get("windowNumber"))
+        foreground_samples = [record for record in observations
+                              if record["observation"].get("frontmost_pid") == test_pid]
+        if len(foreground_samples) < 2 or not window_seen:
+            raise ValueError("too few foreground/on-screen samples to corroborate a visible run")
+        trace = json.loads(trace_path.read_text())
+        summary = validate_trace(trace)
+        summary.update({"provenance": {key: provenance[key] for key in
+                                       ("commit", "configuration", "source_sha256", "archive_sha256", "bindings")},
+                        "launch_id": launch_id, "bundle_id": args.expected_bundle_id,
+                        "bundle_url": str(app), "process_id": test_pid,
+                        "window_number": target["window_id"], "window_receipt": receipt,
+                        "foreground_observations": len(observations),
+                        "foreground_samples_for_test_app": len(foreground_samples),
+                        "foreground_seen": foreground_seen, "visible_window_seen": window_seen,
+                        "visibility_limit": "Window-server ordering/overlap and NSWindow occlusion state are evidence of a visible frontmost window, not a pixel-perfect guarantee that every pixel was unobscured.",
+                        "grid_appeared": any(e.get("name") == "grid_appeared" for e in trace.get("events", [])),
+                        "selftest_complete": any(e.get("name") == "selftest_complete" for e in trace.get("events", []))})
+        if not summary["grid_appeared"] or not summary["selftest_complete"]:
+            raise ValueError("timing self-test did not complete with the regular library grid mounted")
+        context.write_json("summary.json", summary)
+        context.success = True
+        print(json.dumps(summary, indent=2))
+        return 0
+    except Exception as error:
+        context.write_json("runner-failure.json", {"launch_id": launch_id,
+                            "error_type": type(error).__name__, "error": str(error),
+                            "owned_app": context.owned})
+        raise
+    finally:
+        context.cleanup_owned_after_failure()
 
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         print(f"Visible timing capability failed: {error}", file=sys.stderr)
         sys.exit(1)

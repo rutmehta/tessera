@@ -134,8 +134,8 @@ private func writeVisibleWindowReceipt(nextTo traceURL: URL) {
         isVisible: window.isVisible,
         isKeyWindow: window.isKeyWindow,
         occlusionVisible: window.occlusionState.contains(.visible),
-        contentScreenFrame: .init(x: frame.origin.x, y: frame.origin.y,
-                                  width: frame.width, height: frame.height))
+        contentScreenFrame: .init(x: Double(frame.origin.x), y: Double(frame.origin.y),
+                                  width: Double(frame.width), height: Double(frame.height)))
     do {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
