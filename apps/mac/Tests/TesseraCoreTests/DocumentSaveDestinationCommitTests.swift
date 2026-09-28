@@ -154,6 +154,31 @@ final class DocumentSaveDestinationCommitTests: XCTestCase {
         XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("other".utf8), to: url, intent: .createIfAbsent), .destinationExists)
         XCTAssertEqual(try Data(contentsOf: url), bytes)
     }
+    // SOURCE ONLY / UNRUN: both unsupported exclusive-rename results must
+    // exercise the real no-clobber link fallback when a destination already exists.
+    func testForcedExclusiveRenameFallbackCollisionPreservesSentinelAndRemovesStage() throws {
+        for unsupported in [ENOSYS, EINVAL] {
+            let dir = try directory(), url = dir.appendingPathComponent("sentinel.tessera-doc")
+            let sentinel = Data("existing destination".utf8)
+            try sentinel.write(to: url)
+            let inode = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber)
+            let invoked = DispatchSemaphore(value: 0)
+            let hooks = DocumentSaveDestinationCommit.Hooks(exclusiveRename: { _, _ in
+                invoked.signal()
+                errno = unsupported
+                return -1
+            })
+            XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("must not replace".utf8), to: url,
+                               intent: .createIfAbsent, hooks: hooks), .destinationExists)
+            XCTAssertEqual(invoked.wait(timeout: .now()), .success, "forced fallback hook must run")
+            XCTAssertEqual(invoked.wait(timeout: .now()), .timedOut, "exclusive rename attempted once")
+            XCTAssertEqual(try Data(contentsOf: url), sentinel)
+            XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber, inode)
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), [url.lastPathComponent],
+                           "the failed attempt must remove its own stage")
+        }
+    }
+
     func testSuccessfulRenameDoesNotCleanupReusedOldStageName() throws {
         let dir = try directory(), url = dir.appendingPathComponent("out.tessera-doc")
         let hooks = DocumentSaveDestinationCommit.Hooks(afterCommit: { stage in try Data("unowned".utf8).write(to: stage) })
