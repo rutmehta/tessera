@@ -235,8 +235,7 @@ fn future_native_version_is_reported_before_unknown_layer_kind_parse() {
     let bytes = format::to_bytes(rich_doc().state()).unwrap();
     let future = rewrite_manifest(&bytes, |manifest| {
         manifest["version"] = serde_json::json!(format::FORMAT_VERSION + 1);
-        manifest["document"]["layers"][0]["kind"]["type"] =
-            serde_json::json!("future_layer_kind");
+        manifest["document"]["layers"][0]["kind"]["type"] = serde_json::json!("future_layer_kind");
     });
 
     assert_eq!(
@@ -253,8 +252,7 @@ fn future_native_version_is_reported_before_unknown_layer_kind_parse() {
 fn current_native_version_still_rejects_unknown_layer_kind_as_decode_error() {
     let bytes = format::to_bytes(rich_doc().state()).unwrap();
     let malformed = rewrite_manifest(&bytes, |manifest| {
-        manifest["document"]["layers"][0]["kind"]["type"] =
-            serde_json::json!("future_layer_kind");
+        manifest["document"]["layers"][0]["kind"]["type"] = serde_json::json!("future_layer_kind");
     });
 
     assert!(matches!(
