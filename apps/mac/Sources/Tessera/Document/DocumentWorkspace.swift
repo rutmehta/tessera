@@ -603,6 +603,13 @@ final class DocumentWorkspace {
     func saveAsPresentationDidDismiss(_ id: UUID) {
         guard saveAsPresentationID == id else { return }
         if let state = nativeSaveDismissals[id] {
+            // The first probe can precede native attachment with no later update.
+            // At dismissal, record only the captured parent's actual ownership
+            // of the captured sheet; didEnd must still prove its detachment.
+            if let parent = state.parent, let sheet = state.sheet,
+               parent.attachedSheet === sheet {
+                state.observedAttachment = true
+            }
             state.swiftDismissed = true // Seals this generation against new view leases.
             finishTerminalSavePresentationIfReady(id, state)
             finishNativeSaveDismissalIfReady(id, state)
