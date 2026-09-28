@@ -1,0 +1,134 @@
+{
+  "checkpoint": "5e698e1836c2cf050b00d8ae7c8f8f93c3161edb",
+  "focused_configuration": "Debug",
+  "groups": {
+    "timing-visible-protocol": {
+      "exit": 0,
+      "passed": 5,
+      "names": [
+        "TesseraCoreTests.TimingVisibleProtocolTests testAcceptsOneMatchingStartAndEndInterval",
+        "TesseraCoreTests.TimingVisibleProtocolTests testHandshakeUsesStableSnakeCaseRunnerFields",
+        "TesseraCoreTests.TimingVisibleProtocolTests testRejectsDuplicateStartEarlyEndAndTimeout",
+        "TesseraCoreTests.TimingVisibleProtocolTests testRejectsNonfinitePermitAndIntervalTimes",
+        "TesseraCoreTests.TimingVisibleProtocolTests testRejectsStaleNonceAndWrongProcessWindowOrSession"
+      ]
+    },
+    "timing-launch-mode": {
+      "exit": 0,
+      "passed": 4,
+      "names": [
+        "TesseraCoreTests.TimingSelfTestLaunchModeTests testConflictingAndUnscopedVisibleRequestsFailClosed",
+        "TesseraCoreTests.TimingSelfTestLaunchModeTests testLegacyTimingSelfTestWithoutHostModeDoesNotChangeBehavior",
+        "TesseraCoreTests.TimingSelfTestLaunchModeTests testNonactivatingTimingSelfTestRetainsBackgroundMode",
+        "TesseraCoreTests.TimingSelfTestLaunchModeTests testVisibleTimingSelfTestUsesExplicitMode"
+      ]
+    },
+    "performance-trace": {
+      "exit": 0,
+      "passed": 3,
+      "names": [
+        "TesseraCoreTests.PerformanceTraceTests testBoundedTraceReportsDropsAndPreservesIdentity",
+        "TesseraCoreTests.PerformanceTraceTests testDisabledTraceDoesNotRecord",
+        "TesseraCoreTests.PerformanceTraceTests testSpanDurationAndConcurrentCallbacks"
+      ]
+    },
+    "detail-preview-scheduling": {
+      "exit": 0,
+      "passed": 9,
+      "names": [
+        "TesseraCoreTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testEngineMutationRejectsDetailBeforeViewportCallback",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testModelNotifiesBeforeMutationAndSettlesAfterFinalSetter",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testSettingsChangingBeforeCompletionRejectsOldDetail",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult",
+        "TesseraCoreTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork"
+      ]
+    },
+    "latest-frame-mailbox": {
+      "exit": 0,
+      "passed": 2,
+      "names": [
+        "TesseraCoreTests.LatestFrameMailboxTests testDelayedDrainOnlyTakesNewestAndSchedulesOnce",
+        "TesseraCoreTests.LatestFrameMailboxTests testLateOldGenerationCannotReplacePendingOrDeliveredFrame"
+      ]
+    },
+    "develop-tests": {
+      "exit": 0,
+      "passed": 4,
+      "names": [
+        "TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic",
+        "TesseraCoreTests.DevelopTests testAutoUprightMainSetterAndFinalIdentity",
+        "TesseraCoreTests.DevelopTests testJpegIsDevelopable",
+        "TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure"
+      ]
+    }
+  },
+  "focused_unique_tests": 27,
+  "python_exit": 0,
+  "python_raw": ".................\n----------------------------------------------------------------------\nRan 17 tests in 0.077s\n\nOK\n",
+  "initial_manifest_entries": 6425,
+  "fixed_manifest_entries": 6425,
+  "only_snapshot_delta": [
+    "apps/mac/Tests/TesseraCoreTests/TimingVisibleProtocolTests.swift"
+  ],
+  "git_source_blobs_verified": 1538,
+  "current_generated_archive_hashes_match_saved_before": true,
+  "initial_generated_bindings_manifest_empty": true,
+  "preserved_compile_failure_direct_exit": 1,
+  "compile_failure_tests_executed": 0,
+  "first_compile_attempt": "Owner reports session/tool-observed only; no durable raw log. Not independently raw-verified.",
+  "full_release": [
+    {
+      "prefix": "swift-release-full",
+      "direct_exit": null,
+      "xctest_executed": 666,
+      "xctest_passed": 665,
+      "xctest_skipped": [
+        "TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement"
+      ],
+      "swift_testing_passed": 5,
+      "configuration": "Release",
+      "qualified_direct_gate": false,
+      "log_sha256": "4c7ea50dfd661404136b46f832b861a282d2506ee84337adba209df69f20d6c9",
+      "missing_exit_reason": "Owner reports tool session expired before status collection"
+    },
+    {
+      "prefix": "swift-release-full-direct-exit",
+      "direct_exit": null,
+      "xctest_executed": 666,
+      "xctest_passed": 665,
+      "xctest_skipped": [
+        "TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement"
+      ],
+      "swift_testing_passed": 5,
+      "configuration": "Release",
+      "qualified_direct_gate": false,
+      "log_sha256": "11533c0f5e1f7d000c7eb865ac08496c1ccb2928fd273cc34dc3a9005551b763",
+      "wrapper_failure": "Coordinator/owner report zsh reserved status assignment, wrapper direct1; no durable raw wrapper error file, Swift child status unknown."
+    },
+    {
+      "prefix": "swift-release-full-exit-captured",
+      "direct_exit": 0,
+      "xctest_executed": 666,
+      "xctest_passed": 665,
+      "xctest_skipped": [
+        "TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement"
+      ],
+      "swift_testing_passed": 5,
+      "configuration": "Release",
+      "qualified_direct_gate": true,
+      "log_sha256": "01f6a82d0bcac5236fe1cde04103b8742f7aa4cfdc7cc1700ad0b65d12a8c615"
+    }
+  ],
+  "git_source_scope": "All tracked .rs/.swift/.h/.metal, Cargo.toml/lock, Package.swift/resolved, and protocol Python runner/test",
+  "release-inputs-before.sha256_sha256": "3eb6e8474432cf96e9c18f576d0a8eb8d8f2affce19e0a0b32e4d9046028373e",
+  "release-inputs-after.sha256_sha256": "3eb6e8474432cf96e9c18f576d0a8eb8d8f2affce19e0a0b32e4d9046028373e",
+  "release-generated-before.sha256_sha256": "936b38406aa60c51a9378f207ce7085fc54f7fe61949fad4ad1916825c0a2630",
+  "release-generated-after.sha256_sha256": "936b38406aa60c51a9378f207ce7085fc54f7fe61949fad4ad1916825c0a2630",
+  "full_release_unique_counts_not_additive": true,
+  "focused_is_subset_of_full": true,
+  "after_release_inputs_and_native_bindings_unchanged": true
+}

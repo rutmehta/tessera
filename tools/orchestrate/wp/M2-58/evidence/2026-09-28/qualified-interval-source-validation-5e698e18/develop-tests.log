@@ -1,0 +1,32 @@
+Building for debugging...
+[0/4] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.10s)
+Test Suite 'Selected tests' started at 2026-09-28 09:39:22.484.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 09:39:22.485.
+Test Suite 'DevelopTests' started at 2026-09-28 09:39:22.485.
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' started.
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/develop-app-rendered-90589F58-4D23-407B-9013-5BB97CEBFC77/shoot/photo.jpg
+  /Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/develop-app-rendered-90589F58-4D23-407B-9013-5BB97CEBFC77/shoot/photo.heic
+develop L2 calibration [first, tone, WB] ms: CPU [0.9349999999999999, 0.276458, 0.314667]; GPU [4.045166999999999, 1.0491249999999999, 1.056375]
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' passed (0.366 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testAutoUprightMainSetterAndFinalIdentity]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [444.552625, 184.820167, 218.5535]; GPU [273.922375, 1.418583, 7.01925]
+Test Case '-[TesseraCoreTests.DevelopTests testAutoUprightMainSetterAndFinalIdentity]' passed (6.387 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.34975, 0.289292, 0.244625]; GPU [2.283125, 0.605916, 0.5912499999999999]
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' passed (0.037 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [447.135375, 196.586333, 215.57795900000002]; GPU [260.008292, 1.779041, 6.493459]
+develop L2 calibration [first, tone, WB] ms: CPU [445.245334, 189.56033299999999, 218.324917]; GPU [266.618792, 1.7416669999999999, 6.923165999999999]
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' passed (2.655 seconds).
+Test Suite 'DevelopTests' passed at 2026-09-28 09:39:31.929.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 9.444 (9.445) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 09:39:31.929.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 9.444 (9.445) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 09:39:31.929.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 9.444 (9.445) seconds
+M2-58 Auto Upright Swift setter: count=101 median_ms=0.030333176255226135 p95_ms=0.03991648554801941 max_ms=0.8202916942536831
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
