@@ -1,0 +1,3 @@
+366efdd609bcbe1b6fb1bcc89d09070d7a5cbb26954a216f3937057ec4587fe1  apps/mac/Tests/TesseraCoreTests/DocumentInspectorFocusRoutingTests.swift
+2fe9eb36453da713d21479320a6764c833e808ff1b22382471b39093b6f79cb9  apps/mac/Sources/Tessera/App/KeyRouter.swift
+4b43980b55a1a3c60f01767c7bceafbbb8a89951749241e9ad2d88d695dc0c4a  apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift
