@@ -156,7 +156,75 @@ pub(crate) struct Inner {
 /// thread for large queues.
 #[derive(uniffi::Object)]
 pub struct CullSession {
+    pub(crate) support_dir: std::path::PathBuf,
     inner: Mutex<Inner>,
+}
+
+impl CullSession {
+    pub(crate) fn with_selection_write<T>(
+        &self,
+        ids: &[ImageId],
+        operation: impl FnOnce() -> Result<T>,
+    ) -> Result<T> {
+        let mut ids = ids.to_vec();
+        ids.sort_by_key(|id| id.0);
+        ids.dedup();
+        let gates = ids
+            .iter()
+            .map(|id| crate::image_edit_admission::gate_for(*id))
+            .collect::<Result<Vec<_>>>()?;
+        let _guards = gates
+            .iter()
+            .map(|gate| gate.begin_selection_write())
+            .collect::<Result<Vec<_>>>()?;
+        for id in &ids {
+            let path = self
+                .support_dir
+                .join("smart-previews")
+                .join(id.to_string())
+                .join("journal.json");
+            if path.try_exists()?
+                && crate::smart_preview_store::SmartPreviewJournal::open(&self.support_dir, *id)
+                    .map_err(failure)?
+                    .1
+                    .dirty
+            {
+                return Err(failure(
+                    "Smart Preview needs sync before changing original selection",
+                ));
+            }
+        }
+        // The core cull writer predates destination admission. Protect its
+        // actual sidecars here, after image guards, including same-stem aliases.
+        let reader = Connection::open_with_flags(
+            self.support_dir.join("index.sqlite"),
+            OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?;
+        let mut destinations = Vec::new();
+        for id in &ids {
+            let path: String = reader.query_row(
+                "SELECT f.path FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
+                [id.to_string()],
+                |row| row.get(0),
+            )?;
+            let path = Path::new(&path);
+            if !path.is_file() {
+                return Err(failure(
+                    "original unavailable: reconnect before changing original selection",
+                ));
+            }
+            let gate = crate::recipe_write::gate_for(path)?;
+            if !destinations.iter().any(|old| Arc::ptr_eq(old, &gate)) {
+                destinations.push(gate);
+            }
+        }
+        destinations.sort_by(|a, b| a.order_key().cmp(b.order_key()));
+        let _destinations = destinations
+            .iter()
+            .map(|gate| gate.begin_selection_write())
+            .collect::<Result<Vec<_>>>()?;
+        operation()
+    }
 }
 
 fn ids(values: &[String]) -> Result<Vec<ImageId>> {
@@ -179,6 +247,7 @@ impl Engine {
         // The host owns cursor movement so it can follow its display order.
         core.set_auto_advance(false);
         Ok(Arc::new(CullSession {
+            support_dir: self.support_dir()?.to_path_buf(),
             inner: Mutex::new(Inner {
                 core,
                 reader,
@@ -498,18 +567,22 @@ impl CullSession {
     pub fn decide(&self, decision: Decision) -> Result<CullUpdate> {
         let mut s = self.lock()?;
         let id = s.core.current();
-        s.decide_learning(decision.into())?;
+        self.with_selection_write(&id.into_iter().collect::<Vec<_>>(), || {
+            s.decide_learning(decision.into())
+        })?;
         s.update(id.into_iter().collect(), false)
     }
     pub fn grade(&self, grade: u8) -> Result<CullUpdate> {
         let mut s = self.lock()?;
-        s.core.grade(grade)?;
+        let current = s.core.current().into_iter().collect::<Vec<_>>();
+        self.with_selection_write(&current, || Ok(s.core.grade(grade)?))?;
         s.current_update()
     }
     /// Empty name clears the mark.
     pub fn mark(&self, name: String) -> Result<CullUpdate> {
         let mut s = self.lock()?;
-        s.core.mark(name)?;
+        let current = s.core.current().into_iter().collect::<Vec<_>>();
+        self.with_selection_write(&current, || Ok(s.core.mark(name)?))?;
         s.current_update()
     }
 
@@ -517,7 +590,7 @@ impl CullSession {
     pub fn decide_images(&self, image_ids: Vec<String>, decision: Decision) -> Result<CullUpdate> {
         let ids = ids(&image_ids)?;
         let mut s = self.lock()?;
-        s.core.decide_images(&ids, decision.into())?;
+        self.with_selection_write(&ids, || Ok(s.core.decide_images(&ids, decision.into())?))?;
         s.update(ids, false)
     }
     /// A different decision per image as one undo step ("choose this" in
@@ -528,19 +601,20 @@ impl CullSession {
             .map(|d| Ok((parse_id(&d.image_id)?, d.decision.into())))
             .collect::<Result<Vec<_>>>()?;
         let mut s = self.lock()?;
-        s.core.decide_each(&pairs)?;
+        let touched = pairs.iter().map(|(id, _)| *id).collect::<Vec<_>>();
+        self.with_selection_write(&touched, || Ok(s.core.decide_each(&pairs)?))?;
         s.update(pairs.iter().map(|(id, _)| *id).collect(), false)
     }
     pub fn grade_images(&self, image_ids: Vec<String>, grade: u8) -> Result<CullUpdate> {
         let ids = ids(&image_ids)?;
         let mut s = self.lock()?;
-        s.core.grade_images(&ids, grade)?;
+        self.with_selection_write(&ids, || Ok(s.core.grade_images(&ids, grade)?))?;
         s.update(ids, false)
     }
     pub fn mark_images(&self, image_ids: Vec<String>, name: String) -> Result<CullUpdate> {
         let ids = ids(&image_ids)?;
         let mut s = self.lock()?;
-        s.core.mark_images(&ids, name)?;
+        self.with_selection_write(&ids, || Ok(s.core.mark_images(&ids, name)?))?;
         s.update(ids, false)
     }
     /// Keeps the group's suggested best and rejects the rest as one undo step.
@@ -553,7 +627,9 @@ impl CullSession {
             .ok_or_else(|| failure("group outside session"))?
             .images
             .clone();
-        let best = s.core.keep_best_reject_rest(group as usize)?;
+        let best = self.with_selection_write(&members, || {
+            Ok(s.core.keep_best_reject_rest(group as usize)?)
+        })?;
         Ok(GroupDecision {
             best: best.to_string(),
             rejected: members.len().saturating_sub(1) as u32,
@@ -565,7 +641,7 @@ impl CullSession {
     pub fn undo(&self) -> Result<Option<CullUpdate>> {
         let mut s = self.lock()?;
         let touched = s.core.undo_images();
-        if !s.core.undo()? {
+        if !self.with_selection_write(&touched, || Ok(s.core.undo()?))? {
             return Ok(None);
         }
         s.update(touched, true).map(Some)
@@ -573,7 +649,7 @@ impl CullSession {
     pub fn redo(&self) -> Result<Option<CullUpdate>> {
         let mut s = self.lock()?;
         let touched = s.core.redo_images();
-        if !s.core.redo()? {
+        if !self.with_selection_write(&touched, || Ok(s.core.redo()?))? {
             return Ok(None);
         }
         s.update(touched, true).map(Some)

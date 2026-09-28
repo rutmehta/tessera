@@ -801,6 +801,14 @@ impl Engine {
     }
 
     fn recipe_and_xmp(&self, item: &Pending) -> Result<(Recipe, Option<sidecar::XmpPacket>)> {
+        let id_gate = crate::image_edit_admission::gate_for(parse_id(&item.id)?)?;
+        let _id_read = id_gate.begin_read()?;
+        self.require_smart_preview_synced(parse_id(&item.id)?)?;
+        if !item.path.is_file() {
+            return Err(failure(
+                "original unavailable: full-quality export requires the original",
+            ));
+        }
         // The recipe document is authoritative; read it under the catalog
         // lock so a concurrent develop save cannot tear it.
         let _c = self.lock()?;

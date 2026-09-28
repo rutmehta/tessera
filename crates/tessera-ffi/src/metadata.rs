@@ -211,10 +211,22 @@ impl LibraryStore {
             .map(|id| parse_id(id))
             .collect::<Result<_>>()?;
         let pairs = self.read()?.keyword_pairs();
+        let paths = {
+            let c = self.engine.lock()?;
+            ids.iter()
+                .zip(image_ids)
+                .map(|(id, key)| Ok((*id, PathBuf::from(Engine::path(&c, key)?))))
+                .collect::<Result<Vec<_>>>()?
+        };
+        let admission = crate::original_write::OriginalWriteReservation::acquire(
+            self.engine.support_dir()?,
+            &paths,
+        )?;
         let mut c = self.engine.lock()?;
         let mut folders = BTreeSet::new();
         for (id, key) in ids.iter().zip(image_ids) {
             let path = PathBuf::from(Engine::path(&c, key)?);
+            admission.validate(*id, &path)?;
             let doc = catalog::document(&path, *id)?;
             let xmp = catalog::xmp_path(&path);
             let packet = if xmp.exists() {

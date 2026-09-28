@@ -35,6 +35,20 @@ pub fn name_person(
     name: Option<&str>,
     options: &NamePersonOptions,
 ) -> EngineResult<()> {
+    name_person_admitted(index, library_path, person_id, name, options, |_, _| Ok(()))
+}
+
+/// The caller admits every actual original selected by this operation before
+/// sidecar preparation. If membership grows after caller preflight, admission
+/// must fail before any file or person-name mutation occurs.
+pub fn name_person_admitted(
+    index: &Index,
+    library_path: impl AsRef<Path>,
+    person_id: &str,
+    name: Option<&str>,
+    options: &NamePersonOptions,
+    mut admit: impl FnMut(ImageId, &Path) -> EngineResult<()>,
+) -> EngineResult<()> {
     let library_path = library_path.as_ref();
     let mut library = Library::read(library_path)?;
     let old_library = crate::persistence::optional_bytes(library_path)?;
@@ -102,6 +116,7 @@ pub fn name_person(
                 })
                 .collect::<Vec<_>>();
             let image = index.image_info(id)?.path;
+            admit(id, &image)?;
             let mut path = Sidecar::paths(&image).xmp;
             let mut old = crate::persistence::optional_bytes(&path)?;
             if old.is_none() {

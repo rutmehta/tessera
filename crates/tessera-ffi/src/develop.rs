@@ -595,6 +595,11 @@ struct SaveState {
     flush_waiters: usize,
 }
 
+enum DevelopPersistence {
+    Original(crate::recipe_write::DevelopAuthority),
+    SmartPreview(Mutex<crate::smart_preview_store::SmartPreviewJournal>),
+}
+
 pub(crate) struct Shared {
     engine: std::sync::Weak<Engine>,
     image_id: String,
@@ -614,7 +619,8 @@ pub(crate) struct Shared {
     owner_baseline: Mutex<OwnerBaseline>,
     /// Non-owning write capability. Reservation lifetime belongs to the
     /// session and writer closure, not render-held Shared references.
-    authority: crate::recipe_write::DevelopAuthority,
+    persistence: DevelopPersistence,
+    image_authority: crate::image_edit_admission::ImageEditAuthority,
     // Held through GPU completion and publication: cancelled jobs cannot
     // release an IOSurface while a submitted write is still in flight.
     render_serial: Mutex<()>,
@@ -675,6 +681,7 @@ impl DevelopRenderResources {
 pub struct DevelopSession {
     shared: Arc<Shared>,
     lease: Mutex<Option<crate::recipe_write::DevelopLease>>,
+    image_lease: Mutex<Option<crate::image_edit_admission::ImageEditLease>>,
     writer: Mutex<Option<JoinHandle<()>>>,
     writer_thread: ThreadId,
     close_phase: Mutex<ClosePhase>,
@@ -1003,10 +1010,68 @@ impl Engine {
     /// Opens a develop session on an indexed RAW or rendered RGB image.
     /// Blocking decode: call off the main thread. One session per visible image.
     pub fn open_develop_session(self: Arc<Self>, image_id: String) -> Result<Arc<DevelopSession>> {
-        let snapshot = self.develop_disk_snapshot(&image_id, true)?;
+        self.open_develop_source(image_id, false)
+    }
+
+    pub fn open_smart_preview_develop_session(
+        self: Arc<Self>,
+        image_id: String,
+    ) -> Result<Arc<DevelopSession>> {
+        self.open_develop_source(image_id, true)
+    }
+}
+
+impl Engine {
+    fn open_develop_source(
+        self: Arc<Self>,
+        image_id: String,
+        proxy: bool,
+    ) -> Result<Arc<DevelopSession>> {
+        let id = parse_id(&image_id)?;
+        let gate = crate::image_edit_admission::gate_for(id)?;
+        let image_lease = gate.reserve_develop(if proxy {
+            crate::image_edit_admission::EditSource::SmartPreview
+        } else {
+            crate::image_edit_admission::EditSource::Original
+        })?;
+        let (snapshot, image, persistence) = if proxy {
+            let (journal, local, image, path) = self.load_smart_preview(id)?;
+            crate::smart_preview::reconcile_acknowledged_intent(&journal)?;
+            let doc = crate::smart_preview::validate_local_document(&local.recipe)?;
+            if path.is_file()
+                && (crate::smart_preview::optional_bytes(sidecar::Sidecar::paths(&path).recipe)?
+                    != local.baseline_recipe
+                    || crate::smart_preview::optional_bytes(catalog::xmp_path(&path))?
+                        != local.baseline_xmp)
+            {
+                return Err(failure(
+                    "conflict: original sidecars changed; synchronize or rebuild Smart Preview",
+                ));
+            }
+            crate::smart_preview::validate_proxy_recipe(&image, &doc.recipe)?;
+            let snapshot = DevelopDiskSnapshot {
+                image_id: id,
+                path,
+                recipe: doc.recipe.clone(),
+                owner_baseline: OwnerBaseline::published(doc.recipe)?,
+                lease: None,
+            };
+            (
+                snapshot,
+                image,
+                DevelopPersistence::SmartPreview(Mutex::new(journal)),
+            )
+        } else {
+            self.require_smart_preview_synced(id)?;
+            let snapshot = self.develop_disk_snapshot(&image_id, true)?;
+            let image = RawImage::open(id, &snapshot.path)?;
+            let persistence = DevelopPersistence::Original(
+                snapshot.lease.as_ref().expect("original lease").authority(),
+            );
+            (snapshot, image, persistence)
+        };
         let path = snapshot.path;
         let mut recipe = snapshot.recipe;
-        let image = RawImage::open(snapshot.image_id, &path)?;
         recipe.source_kind = if image.source_kind() == "rgb" {
             engine_api::recipe::SourceKind::Rgb
         } else {
@@ -1027,11 +1092,8 @@ impl Engine {
             depth_provider: resources.depth_provider,
             backend: resources.backend,
             owner_baseline: Mutex::new(snapshot.owner_baseline),
-            authority: snapshot
-                .lease
-                .as_ref()
-                .expect("editor snapshot reserves lease")
-                .authority(),
+            persistence,
+            image_authority: image_lease.authority(),
             state: Mutex::new(State {
                 live: recipe.settings.clone(),
                 cfa_configured: false,
@@ -1073,15 +1135,14 @@ impl Engine {
             let shared = shared.clone();
             #[cfg(test)]
             let exit_observer = shared.clone();
-            let worker_lease = snapshot
-                .lease
-                .clone()
-                .expect("editor snapshot reserves lease");
+            let worker_lease = snapshot.lease.clone();
+            let worker_image_lease = image_lease.clone();
             std::thread::Builder::new()
                 .name("develop-save".into())
                 .spawn(move || {
                     shared.writer_loop();
                     drop(worker_lease);
+                    drop(worker_image_lease);
                     #[cfg(test)]
                     exit_observer.notify_worker_exit_for_test();
                 })?
@@ -1093,6 +1154,7 @@ impl Engine {
         Ok(Arc::new(DevelopSession {
             shared,
             lease: Mutex::new(snapshot.lease),
+            image_lease: Mutex::new(Some(image_lease)),
             writer: Mutex::new(Some(writer)),
             writer_thread,
             close_phase: Mutex::new(ClosePhase::Open),
@@ -1742,7 +1804,31 @@ impl Shared {
         work: SaveWork,
         retry_recipe: Option<Box<Recipe>>,
     ) -> std::result::Result<(), SaveFailure> {
-        let authority = self.authority.clone();
+        let gate = crate::image_edit_admission::gate_for(
+            parse_id(&self.image_id).map_err(SaveFailure::full)?,
+        )
+        .map_err(SaveFailure::full)?;
+        let _write = gate
+            .begin_develop_write(&self.image_authority)
+            .map_err(SaveFailure::full)?;
+        if let DevelopPersistence::SmartPreview(journal) = &self.persistence {
+            let recipe = self.lock().map_err(SaveFailure::full)?.recipe.clone();
+            crate::smart_preview::validate_proxy_recipe(&self.image, &recipe)
+                .map_err(SaveFailure::full)?;
+            let mut journal = journal.lock().map_err(|e| SaveFailure::full(failure(e)))?;
+            crate::smart_preview::save_local_recipe(&mut journal, &recipe)
+                .map_err(SaveFailure::full)?;
+            drop(journal);
+            drop(_write);
+            if let Some(listener) = self.listener() {
+                listener.saved(recipe.recipe_hash().to_string());
+            }
+            return Ok(());
+        }
+        let DevelopPersistence::Original(authority) = &self.persistence else {
+            unreachable!()
+        };
+        let authority = authority.clone();
         let engine = self
             .engine
             .upgrade()
@@ -1766,6 +1852,7 @@ impl Shared {
                 {
                     eprintln!("develop: edited preview not stored: {error}");
                 }
+                drop(_write);
                 if let Some(listener) = self.listener() {
                     listener.saved(disk_recipe.recipe_hash().to_string());
                 }
@@ -1805,6 +1892,7 @@ impl Shared {
         {
             eprintln!("develop: edited preview not stored: {e}");
         }
+        drop(_write);
         if let Some(listener) = self.listener() {
             listener.saved(hash);
         }
@@ -3081,6 +3169,7 @@ impl DevelopSession {
             self.shared.close();
             let released = self.lease.lock().map_err(failure)?.take();
             drop(released);
+            drop(self.image_lease.lock().map_err(failure)?.take());
             Ok(())
         })();
         if result.is_err()

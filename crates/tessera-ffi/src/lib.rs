@@ -19,17 +19,20 @@ mod lrcat_fidelity;
 mod merge;
 mod metadata;
 mod models;
+mod original_write;
 mod preview;
 mod proof;
 mod recipe_write;
 #[cfg(test)]
 mod recipe_write_tests;
 mod session;
+mod smart_preview;
 #[allow(
     dead_code,
     reason = "journal storage awaits Smart Preview caller integration"
 )]
 mod smart_preview_store;
+pub use smart_preview::{SmartPreviewInfo, SmartPreviewState};
 #[doc(hidden)]
 pub mod surface;
 mod understanding;
@@ -249,6 +252,12 @@ impl Engine {
         &self,
         image: &image_core::RawImage,
     ) -> (Arc<image_core::Renderer>, String) {
+        if image.camera_linear_proxy().is_some() {
+            return (
+                Arc::new(image_core::Renderer::new(Default::default())),
+                "CPU Smart Preview".into(),
+            );
+        }
         let backend = self
             .renderer
             .get_or_init(|| backend::select(image, || self.shared_gpu()));
@@ -415,6 +424,9 @@ impl Engine {
         Ok(result)
     }
     pub fn set_selection(&self, image_id: String, selection: Selection) -> Result<()> {
+        let id_gate = image_edit_admission::gate_for(parse_id(&image_id)?)?;
+        let _id_write = id_gate.begin_selection_write()?;
+        self.require_smart_preview_synced(parse_id(&image_id)?)?;
         let selection = selection.into_core()?;
         let path = {
             let c = self.lock()?;
@@ -432,10 +444,26 @@ impl Engine {
         Self::persist(&mut c, Path::new(&path), &doc)?;
         drop(c);
         drop(write);
+        drop(_id_write);
         self.notify_changes();
         Ok(())
     }
     pub fn get_recipe(&self, image_id: String) -> Result<String> {
+        let id = parse_id(&image_id)?;
+        let gate = image_edit_admission::gate_for(id)?;
+        let _read = gate.begin_read()?;
+        if let Some((_, snapshot)) = self.local_smart_preview(id)?
+            && (snapshot.dirty || {
+                let catalog = self.lock()?;
+                // Indexed ownership is sufficient offline; never canonicalize the
+                // absent original folder or synthesize a default recipe here.
+                !Path::new(&Self::path(&catalog, &image_id)?).is_file()
+            })
+        {
+            let doc: sidecar::RecipeDocument =
+                serde_json::from_slice(&snapshot.recipe).map_err(failure)?;
+            return String::from_utf8(doc.recipe.to_json()?).map_err(failure);
+        }
         let c = self.lock()?;
         let path = Self::path(&c, &image_id)?;
         String::from_utf8(
@@ -446,6 +474,9 @@ impl Engine {
         .map_err(failure)
     }
     pub fn set_recipe_json(&self, image_id: String, json: String) -> Result<()> {
+        let id_gate = image_edit_admission::gate_for(parse_id(&image_id)?)?;
+        let _id_write = id_gate.begin_write()?;
+        self.require_smart_preview_synced(parse_id(&image_id)?)?;
         let mut recipe: core::Recipe = serde_json::from_str(&json).map_err(failure)?;
         if recipe.image_id != Some(parse_id(&image_id)?) {
             return Err(failure("recipe image_id mismatch"));
@@ -486,6 +517,7 @@ impl Engine {
         Self::persist_with_packet(&mut c, Path::new(&path), &doc, &packet)?;
         drop(c);
         drop(write);
+        drop(_id_write);
         self.notify_changes();
         Ok(())
     }

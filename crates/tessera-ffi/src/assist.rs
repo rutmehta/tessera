@@ -875,6 +875,8 @@ struct PeopleEdit {
     after: String,
     files_before: Vec<PeopleFile>,
     files_after: Vec<PeopleFile>,
+    // Exact original owners/locators whose sidecars this history entry restores.
+    sidecar_images: Vec<(engine_api::id::ImageId, PathBuf)>,
 }
 
 #[derive(PartialEq)]
@@ -923,6 +925,7 @@ impl Inner {
         ids: &[String],
         faces: &[index::FaceKey],
         paths: Vec<PathBuf>,
+        sidecar_images: Vec<(engine_api::id::ImageId, PathBuf)>,
         edit: impl FnOnce(&mut Self) -> Result<()>,
     ) -> Result<()> {
         let before = self.core.index().snapshot_people_edit(ids, faces)?;
@@ -947,6 +950,7 @@ impl Inner {
                 after,
                 files_before,
                 files_after,
+                sidecar_images,
             });
         }
         // A manual edit must not implicitly recluster on the next read. The
@@ -955,7 +959,11 @@ impl Inner {
         Ok(())
     }
 
-    fn replay_people_edit(&mut self, redo: bool) -> Result<Option<String>> {
+    fn replay_people_edit(
+        &mut self,
+        redo: bool,
+        admission: &crate::original_write::OriginalWriteReservation,
+    ) -> Result<Option<String>> {
         let stack = if redo {
             &self.assist.people_redo
         } else {
@@ -964,6 +972,9 @@ impl Inner {
         let Some(edit) = stack.last() else {
             return Ok(None);
         };
+        for (id, path) in &edit.sidecar_images {
+            admission.validate(*id, path)?;
+        }
         let (expected, desired, old_files, new_files) = if redo {
             (
                 &edit.before,
@@ -1130,12 +1141,38 @@ impl CullSession {
     /// Undo the last session-local people edit and return its menu description.
     /// None means empty history; conflicts/errors leave history and state intact.
     pub fn undo_people_edit(&self) -> Result<Option<String>> {
-        self.lock()?.replay_people_edit(false)
+        {
+            let mut s = self.lock()?;
+            let images = s
+                .assist
+                .people_undo
+                .last()
+                .map(|edit| edit.sidecar_images.clone())
+                .unwrap_or_default();
+            let admission = crate::original_write::OriginalWriteReservation::acquire(
+                &self.support_dir,
+                &images,
+            )?;
+            s.replay_people_edit(false, &admission)
+        }
     }
 
     /// Redo the last undone people edit. A new successful edit clears redo.
     pub fn redo_people_edit(&self) -> Result<Option<String>> {
-        self.lock()?.replay_people_edit(true)
+        {
+            let mut s = self.lock()?;
+            let images = s
+                .assist
+                .people_redo
+                .last()
+                .map(|edit| edit.sidecar_images.clone())
+                .unwrap_or_default();
+            let admission = crate::original_write::OriginalWriteReservation::acquire(
+                &self.support_dir,
+                &images,
+            )?;
+            s.replay_people_edit(true, &admission)
+        }
     }
 
     /// Read persisted names and confirmation state, including manual assignments
@@ -1173,7 +1210,7 @@ impl CullSession {
                 .filter(|a| a.face == key)
                 .map(|a| a.person_id),
         );
-        s.edit_people("Assign face", &ids, &[key], vec![], |s| {
+        s.edit_people("Assign face", &ids, &[key], vec![], vec![], |s| {
             Ok(s.core.index().assign_face(key, &person_id)?)
         })
     }
@@ -1199,6 +1236,7 @@ impl CullSession {
             &ids,
             &[key],
             vec![],
+            vec![],
             |s| Ok(s.core.index().confirm_face(key, confirmed)?),
         )
     }
@@ -1210,6 +1248,7 @@ impl CullSession {
             "Merge people",
             &[target_id.clone(), source_id.clone()],
             &[],
+            vec![],
             vec![],
             |s| Ok(s.core.index().merge_people(&target_id, &source_id)?),
         )
@@ -1233,6 +1272,7 @@ impl CullSession {
             &[source_id.clone(), new_id.clone()],
             &keys,
             vec![],
+            vec![],
             |s| Ok(s.core.index().split_person(&source_id, &new_id, &keys)?),
         )
     }
@@ -1252,22 +1292,30 @@ impl CullSession {
             .library_path()
             .ok_or_else(|| failure("naming requires a library-backed session"))?
             .to_path_buf();
+        let sidecar_images = if options.write_sidecars {
+            s.core
+                .index()
+                .images_with_person(&person_id, false, i64::MAX as usize, 0)?
+                .into_iter()
+                .map(|id| Ok((id, s.core.index().image_info(id)?.path)))
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            Vec::new()
+        };
+        let admission = crate::original_write::OriginalWriteReservation::acquire(
+            &self.support_dir,
+            &sidecar_images,
+        )?;
         let mut paths = vec![path.clone()];
-        if options.write_sidecars {
-            for image in
-                s.core
-                    .index()
-                    .images_with_person(&person_id, false, i64::MAX as usize, 0)?
+        for (id, image) in &sidecar_images {
+            admission.validate(*id, image)?;
+            let mut destination = sidecar::Sidecar::paths(image).xmp;
+            if !destination.try_exists().map_err(failure)?
+                && image.with_extension("xmp").try_exists().map_err(failure)?
             {
-                let image = s.core.index().image_info(image)?.path;
-                let mut destination = sidecar::Sidecar::paths(&image).xmp;
-                if !destination.try_exists().map_err(failure)?
-                    && image.with_extension("xmp").try_exists().map_err(failure)?
-                {
-                    destination = image.with_extension("xmp");
-                }
-                paths.push(destination);
+                destination = image.with_extension("xmp");
             }
+            paths.push(destination);
         }
         paths.sort();
         paths.dedup();
@@ -1276,8 +1324,9 @@ impl CullSession {
             std::slice::from_ref(&person_id),
             &[],
             paths,
+            sidecar_images,
             |s| {
-                cull::people::name_person(
+                cull::people::name_person_admitted(
                     s.core.index(),
                     &path,
                     &person_id,
@@ -1286,6 +1335,11 @@ impl CullSession {
                         write_sidecars: options.write_sidecars,
                         person_keywords: options.person_keywords,
                         dimensions: HashMap::new(),
+                    },
+                    |id, path| {
+                        admission.validate(id, path).map_err(|error| {
+                            engine_api::EngineError::invalid("original", error.to_string())
+                        })
                     },
                 )?;
                 Ok(())
@@ -1511,7 +1565,9 @@ impl CullSession {
                 .ok_or_else(|| failure("call review() first"))?;
             inner.assist.learner()?;
             let learner = inner.assist.learner.as_mut().expect("learner loaded");
-            inner.core.confirm_suggestions(&plan, &ids, learner)?;
+            self.with_selection_write(&ids, || {
+                Ok(inner.core.confirm_suggestions(&plan, &ids, learner)?)
+            })?;
         }
         // A model-save failure never undoes the confirmed decisions.
         if let Err(e) = s.assist.save_learner() {

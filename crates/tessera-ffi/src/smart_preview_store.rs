@@ -180,6 +180,37 @@ impl SmartPreviewJournal {
         Ok(self.revision)
     }
 
+    /// Acknowledge published original sidecars only against this exact incarnation/revision.
+    pub fn mark_synced(
+        &mut self,
+        recipe: Vec<u8>,
+        baseline_recipe: Option<Vec<u8>>,
+        baseline_xmp: Option<Vec<u8>>,
+    ) -> StoreResult<()> {
+        validate_recipe(self.id, &recipe)?;
+        check_payload_sizes(&recipe, baseline_recipe.as_deref(), baseline_xmp.as_deref())?;
+        let guard = self._guard.clone();
+        let _lock = lock_guard(&guard)?;
+        let mut record = read_record(&self.path(), self.id)?;
+        self.check_record(&record)?;
+        record.generation = record
+            .generation
+            .checked_add(1)
+            .ok_or_else(|| StoreError::Corrupt("journal generation exhausted".into()))?;
+        record.recipe_digest = *blake3::hash(&recipe).as_bytes();
+        record.recipe = recipe;
+        record.baseline_recipe_digest = baseline_recipe
+            .as_deref()
+            .map(|v| *blake3::hash(v).as_bytes());
+        record.baseline_xmp_digest = baseline_xmp.as_deref().map(|v| *blake3::hash(v).as_bytes());
+        record.baseline_recipe = baseline_recipe;
+        record.baseline_xmp = baseline_xmp;
+        record.dirty = false;
+        write_record(&self.path(), &record)?;
+        self.revision = record.generation;
+        Ok(())
+    }
+
     /// Read the latest validated snapshot for this handle's current generation.
     pub fn snapshot(&self) -> StoreResult<JournalSnapshot> {
         let guard = self._guard.clone();
@@ -230,6 +261,10 @@ impl SmartPreviewJournal {
             incarnation: [0; 32],
             _guard: guard,
         })
+    }
+
+    pub(crate) fn directory(&self) -> &Path {
+        &self.root
     }
 
     fn path(&self) -> PathBuf {

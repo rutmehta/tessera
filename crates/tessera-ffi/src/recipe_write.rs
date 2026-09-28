@@ -64,12 +64,18 @@ pub(crate) fn gate_for(image: &Path) -> Result<Arc<GateState>> {
     Ok(state)
 }
 
+#[derive(Clone, Copy)]
+struct DestinationOwner {
+    id: u64,
+    external: bool,
+}
+
 pub(crate) struct GateState {
     key: PathBuf,
     epoch: Mutex<u64>,
     // Accessed only while `epoch` is held, preserving one lock order for
     // ordinary writers, admission, and lease release.
-    owner: Mutex<Option<u64>>,
+    owner: Mutex<Option<DestinationOwner>>,
     next_owner: AtomicU64,
     #[cfg(test)]
     contended_observer: Mutex<Option<mpsc::Sender<()>>>,
@@ -122,6 +128,10 @@ struct LeaseReservation {
 }
 
 impl GateState {
+    pub(crate) fn order_key(&self) -> &Path {
+        &self.key
+    }
+
     fn lock(&self) -> Result<MutexGuard<'_, u64>> {
         #[cfg(test)]
         match self.epoch.try_lock() {
@@ -196,6 +206,17 @@ impl GateState {
     /// Selection is orthogonal to Develop and remains writable during an edit.
     pub(crate) fn begin_selection_write(&self) -> Result<WriteGuard<'_>> {
         let epoch = self.lock()?;
+        if self
+            .owner
+            .lock()
+            .map_err(failure)?
+            .as_ref()
+            .is_some_and(|owner| owner.external)
+        {
+            return Err(failure(
+                "conflict: original sidecars have an active external writer",
+            ));
+        }
         if *epoch == u64::MAX {
             return Err(failure("recipe write epoch exhausted"));
         }
@@ -212,6 +233,20 @@ impl GateState {
         image: &Path,
         snapshot: impl FnOnce() -> Result<T>,
     ) -> Result<(DevelopLease, T)> {
+        self.reserve(image, false, snapshot)
+    }
+
+    pub(crate) fn reserve_external(self: &Arc<Self>, image: &Path) -> Result<DevelopLease> {
+        self.reserve(image, true, || Ok(()))
+            .map(|(lease, ())| lease)
+    }
+
+    fn reserve<T>(
+        self: &Arc<Self>,
+        image: &Path,
+        external: bool,
+        snapshot: impl FnOnce() -> Result<T>,
+    ) -> Result<(DevelopLease, T)> {
         let _epoch = self.lock()?;
         self.check_image(image)?;
         let mut owner = self.owner.lock().map_err(failure)?;
@@ -226,7 +261,7 @@ impl GateState {
                 current.checked_add(1)
             })
             .map_err(|_| failure("Develop lease identifier exhausted"))?;
-        *owner = Some(id);
+        *owner = Some(DestinationOwner { id, external });
         match snapshot() {
             Ok(value) => Ok((
                 DevelopLease(Arc::new(LeaseReservation {
@@ -254,7 +289,14 @@ impl GateState {
                 "conflict: Develop lease belongs to a different destination",
             ));
         }
-        if *self.owner.lock().map_err(failure)? != Some(authority.id) {
+        if self
+            .owner
+            .lock()
+            .map_err(failure)?
+            .as_ref()
+            .map(|owner| owner.id)
+            != Some(authority.id)
+        {
             return Err(failure("conflict: Develop lease is no longer active"));
         }
         if *epoch == u64::MAX {
@@ -270,7 +312,7 @@ impl Drop for LeaseReservation {
         // and owner is always cleared only when the matching ID still owns it.
         if let Ok(_epoch) = self.state.epoch.lock()
             && let Ok(mut owner) = self.state.owner.lock()
-            && *owner == Some(self.id)
+            && owner.as_ref().map(|owner| owner.id) == Some(self.id)
         {
             *owner = None;
         }
