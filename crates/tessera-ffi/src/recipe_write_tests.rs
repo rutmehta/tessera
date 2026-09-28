@@ -22,8 +22,10 @@ fn raw_revision_includes_unknown_envelope_and_xmp_bytes_and_presence() {
     let image = dir.path().join("one.jpg");
     tiny_jpeg(&image);
     let paths = Sidecar::paths(&image);
-    let mut original = sidecar::RecipeDocument::default();
-    original.recipe = engine_api::recipe::Recipe::new(engine_api::id::ImageId(1));
+    let original = sidecar::RecipeDocument {
+        recipe: engine_api::recipe::Recipe::new(engine_api::id::ImageId(1)),
+        ..Default::default()
+    };
     let render_hash = original.recipe.recipe_hash();
     Sidecar::write_recipe(&paths.recipe, &original).unwrap();
     let gate = gate_for(&image).unwrap();

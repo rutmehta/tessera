@@ -60,6 +60,10 @@ pub(crate) fn gate_for(image: &Path) -> Result<Arc<GateState>> {
 }
 
 pub(crate) struct GateState {
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "retained for the internal full-byte revision")
+    )]
     key: PathBuf,
     epoch: Mutex<u64>,
     #[cfg(test)]
@@ -68,6 +72,10 @@ pub(crate) struct GateState {
 
 /// Keeps its gate state alive so a weak-table prune/recreate cannot reset the
 /// epoch while a caller still holds an old revision.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "internal revision awaits a guarded write caller")
+)]
 pub(crate) struct RecipeRevision {
     state: Arc<GateState>,
     epoch: u64,
@@ -75,6 +83,10 @@ pub(crate) struct RecipeRevision {
 }
 
 pub(crate) struct WriteGuard<'a> {
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "held-guard revision comparison awaits a caller")
+    )]
     state: &'a GateState,
     epoch: MutexGuard<'a, u64>,
 }
@@ -101,6 +113,10 @@ impl GateState {
         receiver
     }
 
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "internal revision awaits a caller")
+    )]
     fn check_image(&self, image: &Path) -> Result<()> {
         if destination_key(image)? != self.key {
             return Err(failure("image does not use this recipe destination"));
@@ -116,6 +132,10 @@ impl GateState {
         Ok(WriteGuard { state: self, epoch })
     }
 
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "internal revision awaits a caller")
+    )]
     pub(crate) fn capture_revision(self: &Arc<Self>, image: &Path) -> Result<RecipeRevision> {
         let epoch = self.lock()?;
         self.check_image(image)?;
@@ -126,6 +146,10 @@ impl GateState {
         })
     }
 
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "internal revision awaits a caller")
+    )]
     pub(crate) fn matches_revision(&self, revision: &RecipeRevision, image: &Path) -> Result<bool> {
         let epoch = self.lock()?;
         revision_matches(self, *epoch, revision, image)
@@ -135,6 +159,10 @@ impl GateState {
 impl WriteGuard<'_> {
     /// Must use this held guard: calling `GateState::matches_revision` here
     /// would recursively acquire the same mutex.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "internal guarded comparison awaits a caller")
+    )]
     pub(crate) fn matches_revision(&self, revision: &RecipeRevision, image: &Path) -> Result<bool> {
         revision_matches(self.state, *self.epoch, revision, image)
     }
@@ -148,6 +176,10 @@ impl Drop for WriteGuard<'_> {
     }
 }
 
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "internal revision awaits a caller")
+)]
 fn revision_matches(
     state: &GateState,
     epoch: u64,
@@ -161,6 +193,10 @@ fn revision_matches(
     Ok(revision.bytes == raw_revision(image)?)
 }
 
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "internal revision awaits a caller")
+)]
 fn hash_path(hasher: &mut blake3::Hasher, path: &Path) -> Result<()> {
     let encoded = path.as_os_str().as_encoded_bytes();
     hasher.update(&u64::try_from(encoded.len()).map_err(failure)?.to_le_bytes());
@@ -168,6 +204,10 @@ fn hash_path(hasher: &mut blake3::Hasher, path: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "internal revision awaits a caller")
+)]
 fn hash_file(hasher: &mut blake3::Hasher, path: &Path) -> Result<()> {
     match fs::read(path) {
         Ok(bytes) => {
@@ -183,6 +223,10 @@ fn hash_file(hasher: &mut blake3::Hasher, path: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "internal revision awaits a caller")
+)]
 fn raw_revision(image: &Path) -> Result<blake3::Hash> {
     let paths = Sidecar::paths(image);
     let selected_xmp = catalog::xmp_path(image);
