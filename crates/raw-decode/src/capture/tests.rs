@@ -444,3 +444,6 @@ pub(super) mod stream;
 
 #[cfg(unix)]
 mod consumer;
+
+#[cfg(unix)]
+pub(super) mod decode;
