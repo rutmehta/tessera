@@ -496,13 +496,24 @@ private struct ToolbarButtonBody: View {
 
 /// Lets the window's toolbar keep the title visible and the items flat (no per-item glass).
 struct WindowToolbarConfigurator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { NSView() }
+    private final class Anchor: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { configure(window) }
+        }
+
+        func configure(_ window: NSWindow) {
+            window.titlebarSeparatorStyle = .line
+            RecoveryWindowCloseGuard.install(on: window)
+        }
+    }
+
+    func makeNSView(context: Context) -> NSView { Anchor() }
     func updateNSView(_ view: NSView, context: Context) {
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
-                guard let window = view.window else { return }
-                window.titlebarSeparatorStyle = .line
-                RecoveryWindowCloseGuard.install(on: window)
+                guard let anchor = view as? Anchor, let window = anchor.window else { return }
+                anchor.configure(window)
             }
         }
     }
