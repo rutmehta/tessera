@@ -720,17 +720,33 @@ final class DocumentTransforms {
         return true
     }
 
+    enum KeyAction: Equatable { case apply, cancel, removePin }
+
+    /// Keyboard variants share the same guard. Numeric-pad/function/caps-lock
+    /// flags are incidental; Shift/Option/Control must not commit or remove a pin.
+    static func keyAction(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> KeyAction? {
+        let mods = modifiers.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+        switch keyCode {
+        case 36, 76:
+            return mods.isEmpty || mods == [.command] ? .apply : nil
+        case 53:
+            return mods.isEmpty ? .cancel : nil
+        case 51, 117:
+            return mods.isEmpty ? .removePin : nil
+        default: return nil
+        }
+    }
+
     /// Return applies, Esc cancels, ⌫ removes the selected pin. Returns whether the key was used.
     func handleKey(_ e: NSEvent) -> Bool {
-        guard session != nil, isActive(document) else { return false }
-        let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
-        switch e.keyCode {
-        case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
-        case 53 where mods.isEmpty: cancel(); return true
-        case 51, 117 where mods.isEmpty:
+        guard session != nil, isActive(document),
+              let action = Self.keyAction(keyCode: e.keyCode, modifiers: e.modifierFlags) else { return false }
+        switch action {
+        case .apply: apply(); return true
+        case .cancel: cancel(); return true
+        case .removePin:
             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
             return false
-        default: return false
         }
     }
 
