@@ -1310,7 +1310,7 @@ impl DevelopSession {
     pub fn add_mask(&self, definition_json: String, interactive: bool) -> Result<u32> {
         let mut kind = parse_kind(&definition_json)?;
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = self
             .shared
             .new_group(&mut st, vec![MaskComponent::new(kind)]);
@@ -1328,7 +1328,7 @@ impl DevelopSession {
     ) -> Result<u32> {
         let mut kind = parse_kind(&definition_json)?;
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         g.components.push(MaskComponent {
             kind,
@@ -1350,7 +1350,7 @@ impl DevelopSession {
     ) -> Result<()> {
         let mut kind = parse_kind(&definition_json)?;
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         component_at(g, index)?.kind = kind;
         self.shared.masks_changed(&mut st, interactive);
@@ -1364,7 +1364,7 @@ impl DevelopSession {
         combine: MaskCombineMode,
         invert: bool,
     ) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         let c = component_at(g, index)?;
         c.combine = combine.into();
@@ -1375,7 +1375,7 @@ impl DevelopSession {
 
     /// Removes a component; removing the last one deletes the group.
     pub fn remove_mask_component(&self, group_id: u32, index: u32) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         component_at(g, index)?;
         g.components.remove(index as usize);
@@ -1392,7 +1392,7 @@ impl DevelopSession {
         patch: MaskGroupPatch,
         interactive: bool,
     ) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         if let Some(name) = patch.name {
             g.name = name;
@@ -1421,7 +1421,7 @@ impl DevelopSession {
         if !LOCAL_PARAMS.contains(&name.as_str()) || !value.is_finite() {
             return Err(failure(format!("unknown local parameter {name}")));
         }
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         let mut params = serde_json::to_value(&g.params).map_err(failure)?;
         params[name.as_str()] = serde_json::json!(value);
@@ -1432,14 +1432,14 @@ impl DevelopSession {
 
     /// Every local slider of a group back to neutral.
     pub fn reset_mask_params(&self, group_id: u32) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         find_group(&mut st.live.locals.adjustments, group_id)?.params = LocalParams::default();
         self.shared.masks_changed(&mut st, false);
         Ok(())
     }
 
     pub fn delete_mask(&self, group_id: u32) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         find_group(&mut st.live.locals.adjustments, group_id)?;
         st.live.locals.adjustments.retain(|g| g.id.0 != group_id);
         self.shared.masks_changed(&mut st, false);
@@ -1448,7 +1448,7 @@ impl DevelopSession {
 
     /// Copies a group (components and sliders) under a new id; returns it.
     pub fn duplicate_mask(&self, group_id: u32) -> Result<u32> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let mut copy = find_group(&mut st.live.locals.adjustments, group_id)?.clone();
         copy.id = self.shared.next_mask_id(&mut st);
         copy.name = format!("{} Copy", copy.name);
@@ -1477,7 +1477,7 @@ impl DevelopSession {
             flow: unit(brush.flow, 100.0),
             erase: brush.erase,
         };
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = match group_id {
             Some(id) => {
                 find_group(&mut st.live.locals.adjustments, id)?;
@@ -1514,7 +1514,7 @@ impl DevelopSession {
 
     /// Appends samples to the stroke in progress and renders interactively.
     pub fn add_brush_points(&self, points: Vec<BrushPoint>) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let (id, index) = st
             .masks
             .stroke
@@ -1546,7 +1546,7 @@ impl DevelopSession {
 
     /// Ends the stroke: refines the viewport (commit makes it an undo step).
     pub fn end_brush_stroke(&self) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         if let Some((id, index)) = st.masks.stroke.take()
             && let Ok(g) = find_group(&mut st.live.locals.adjustments, id)
         {
@@ -1594,7 +1594,7 @@ impl DevelopSession {
                 }
             }
         };
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = match group_id {
             Some(id) => {
                 find_group(&mut st.live.locals.adjustments, id)?
@@ -1617,7 +1617,7 @@ impl DevelopSession {
     /// Adds another sampled colour to a colour range component. Blocking.
     pub fn add_color_range_sample(&self, group_id: u32, index: u32, x: f32, y: f32) -> Result<()> {
         let lab = oklab(self.sample_prelocal(x, y)?);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         match &mut component_at(g, index)?.kind {
             MaskKind::ColorRange { samples, .. } if samples.len() < 8 => samples.push(lab),
@@ -1710,7 +1710,7 @@ impl DevelopSession {
             }
         };
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = match group_id {
             Some(id) => {
                 find_group(&mut st.live.locals.adjustments, id)?
@@ -1734,8 +1734,9 @@ impl DevelopSession {
 
     /// Re-runs segmentation for a failed (or stale) AI component.
     pub fn retry_ai_mask(&self, key: String) -> Result<()> {
+        let st = self.shared.edit_lock()?;
         self.shared.masks.ai.lock().map_err(failure)?.remove(&key);
-        let live = self.shared.lock()?.live.clone();
+        let live = st.live.clone();
         ensure_ai_jobs(&self.shared, &live);
         Ok(())
     }
@@ -1750,6 +1751,7 @@ impl DevelopSession {
         height: u32,
     ) -> Result<()> {
         let surface = Arc::new(Surface::lookup_r8(iosurface_id, width, height).map_err(failure)?);
+        let _st = self.shared.edit_lock()?;
         let mut o = self.shared.masks.overlay.lock().map_err(failure)?;
         if o.surfaces
             .first()
@@ -1774,9 +1776,9 @@ impl DevelopSession {
     /// Shows `group_id`'s mask in the overlay surfaces after every frame
     /// (`None`: off). Writes the current frame's overlay at once.
     pub fn set_mask_overlay(&self, group_id: Option<u32>) -> Result<()> {
+        let st = self.shared.edit_lock()?;
         self.shared.masks.overlay.lock().map_err(failure)?.group = group_id;
         if group_id.is_some() {
-            let st = self.shared.lock()?;
             if let (Some(frame), Some(level)) = (&st.frame, st.rendered_level) {
                 let (settings, generation) = (frame.settings.clone(), st.generation);
                 drop(st);

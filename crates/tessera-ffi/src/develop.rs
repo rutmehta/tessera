@@ -96,7 +96,7 @@ use std::{
         Arc, Condvar, Mutex, MutexGuard, OnceLock,
         atomic::{AtomicU64, Ordering},
     },
-    thread::JoinHandle,
+    thread::{JoinHandle, ThreadId},
     time::{Duration, Instant},
 };
 
@@ -334,6 +334,7 @@ struct State {
     histogram: Histogram,
     frame: Option<Arc<Frame>>,
     closed: bool,
+    closing: bool,
     /// Crop tool active: render without geometry.
     crop_editing: bool,
     render_uncorrected: bool,
@@ -626,6 +627,31 @@ pub(crate) struct Shared {
 pub struct DevelopSession {
     shared: Arc<Shared>,
     writer: Mutex<Option<JoinHandle<()>>>,
+    writer_thread: ThreadId,
+    close_phase: Mutex<ClosePhase>,
+}
+
+#[derive(Clone)]
+enum CloseOutcome {
+    Success,
+    Failure(String),
+}
+
+struct CloseAttempt {
+    state: Mutex<CloseAttemptState>,
+    cv: Condvar,
+}
+
+struct CloseAttemptState {
+    outcome: Option<CloseOutcome>,
+    #[cfg(test)]
+    waiters: usize,
+}
+
+enum ClosePhase {
+    Open,
+    Closing(Arc<CloseAttempt>),
+    Closed,
 }
 
 // ─────────────────────────── settings helpers ───────────────────────────
@@ -964,6 +990,7 @@ impl Engine {
                 histogram: Histogram::default(),
                 frame: None,
                 closed: false,
+                closing: false,
                 crop_editing: false,
                 render_uncorrected: false,
                 render_depth_visualisation: false,
@@ -990,9 +1017,12 @@ impl Engine {
                 .name("develop-save".into())
                 .spawn(move || shared.writer_loop())?
         };
+        let writer_thread = writer.thread().id();
         Ok(Arc::new(DevelopSession {
             shared,
             writer: Mutex::new(Some(writer)),
+            writer_thread,
+            close_phase: Mutex::new(ClosePhase::Open),
         }))
     }
 }
@@ -1126,6 +1156,16 @@ impl Shared {
 
     fn lock(&self) -> Result<MutexGuard<'_, State>> {
         self.state.lock().map_err(failure)
+    }
+
+    /// A state mutation and any matching save enqueue must both finish while
+    /// this guard is held. Close takes the same lock to stop new mutations.
+    fn edit_lock(&self) -> Result<MutexGuard<'_, State>> {
+        let st = self.lock()?;
+        if st.closed || st.closing {
+            return Err(failure("Develop session is closing or closed"));
+        }
+        Ok(st)
     }
 
     fn depth_input(&self) -> Result<pipeline_cpu::Image> {
@@ -1492,6 +1532,7 @@ impl Shared {
     fn close(&self) {
         if let Ok(mut st) = self.state.lock() {
             st.closed = true;
+            st.closing = false;
             st.generation += 1;
             self.generation.store(st.generation, Ordering::SeqCst);
             if let Some(job) = st.job.take() {
@@ -1896,13 +1937,113 @@ impl Job for DevelopJob {
 impl Drop for DevelopSession {
     fn drop(&mut self) {
         self.shared.close();
+        self.stop_writer();
+    }
+}
+
+impl DevelopSession {
+    fn on_save_worker(&self) -> bool {
+        std::thread::current().id() == self.writer_thread
+    }
+
+    fn stop_writer(&self) {
         {
             let mut s = self.shared.save.lock().unwrap_or_else(|e| e.into_inner());
             s.shutdown = true;
             self.shared.save_cv.notify_all();
         }
-        if let Some(writer) = self.writer.lock().ok().and_then(|mut w| w.take()) {
-            let _ = writer.join();
+        let writer = self.writer.lock().ok().and_then(|mut w| w.take());
+        if let Some(writer) = writer {
+            // The final session Arc may be released by a listener on this
+            // worker. Dropping its handle detaches it; joining self deadlocks.
+            if writer.thread().id() != std::thread::current().id() {
+                let _ = writer.join();
+            }
+        }
+    }
+
+    fn wait_close_attempt(attempt: &CloseAttempt) -> Result<()> {
+        let mut state = attempt.state.lock().map_err(failure)?;
+        #[cfg(test)]
+        {
+            state.waiters += 1;
+            attempt.cv.notify_all();
+        }
+        while state.outcome.is_none() {
+            state = attempt.cv.wait(state).map_err(failure)?;
+        }
+        match state.outcome.as_ref().expect("close attempt completed") {
+            CloseOutcome::Success => Ok(()),
+            CloseOutcome::Failure(message) => Err(failure(message.clone())),
+        }
+    }
+
+    fn finish_close_attempt(&self, attempt: &CloseAttempt, result: &Result<()>) {
+        let outcome = match result {
+            Ok(()) => CloseOutcome::Success,
+            Err(error) => CloseOutcome::Failure(error.to_string()),
+        };
+        attempt
+            .state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .outcome = Some(outcome);
+        *self.close_phase.lock().unwrap_or_else(|e| e.into_inner()) = if result.is_ok() {
+            ClosePhase::Closed
+        } else {
+            ClosePhase::Open
+        };
+        attempt.cv.notify_all();
+    }
+
+    fn flush_inner(&self, close_owned: bool) -> Result<()> {
+        {
+            let mut st = if close_owned {
+                self.shared.lock()?
+            } else {
+                self.shared.edit_lock()?
+            };
+            if self.shared.commit_pending(&mut st, "Edit")? {
+                self.shared.schedule_save();
+            }
+        }
+        let mut s = self.shared.save.lock().map_err(failure)?;
+        let starting_failure_seq = s.failure_seq;
+        let unreported_error = (!s.error_reported).then(|| s.error.clone()).flatten();
+        if s.due.is_none()
+            && !s.busy
+            && let Some(retry) = s.retry
+        {
+            s.due = Some(Instant::now());
+            s.due_work = retry;
+        }
+        if s.due.is_some() {
+            s.flush = true;
+            self.shared.save_cv.notify_all();
+        }
+        #[cfg(test)]
+        {
+            s.flush_waiters += 1;
+            self.shared.save_cv.notify_all();
+        }
+        while s.due.is_some() || s.busy {
+            s = self.shared.save_cv.wait(s).map_err(failure)?;
+        }
+        #[cfg(test)]
+        {
+            s.flush_waiters -= 1;
+            self.shared.save_cv.notify_all();
+        }
+        let observed_error = if s.failure_seq != starting_failure_seq {
+            s.error.clone()
+        } else {
+            unreported_error
+        };
+        if let Some(error) = observed_error {
+            s.error_reported = true;
+            Err(failure(error))
+        } else {
+            Ok(())
         }
     }
 }
@@ -1976,7 +2117,7 @@ impl DevelopSession {
             let frame = self.shared.image.sensor_extent();
             adapter = adapter.with_mask(frame.width, frame.height, mask)?;
         }
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         *self
             .shared
             .cfa_denoiser
@@ -2048,7 +2189,7 @@ impl DevelopSession {
             .ok_or_else(|| failure("surface size must come from plan_surface"))?;
         let surface =
             Arc::new(Surface::lookup_presentation(iosurface_id, width, height).map_err(failure)?);
-        let mut st = s.lock()?;
+        let mut st = s.edit_lock()?;
         if st.surfaces.first().is_some_and(|f| {
             f.width() != width || f.height() != height || f.kind() != surface.kind()
         }) {
@@ -2075,7 +2216,7 @@ impl DevelopSession {
     /// (1.0 on SDR displays). Float rings tone-map for at most this; a
     /// change re-renders only when it changes the frame's headroom.
     pub fn set_display_headroom(&self, headroom: f32) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let before = st.output();
         st.display_headroom = finite_or(headroom, 1.0).max(1.0);
         if st.output() != before && !st.surfaces.is_empty() {
@@ -2104,7 +2245,7 @@ impl DevelopSession {
 
     /// Re-renders the live settings at the screen level (first paint).
     pub fn refresh(&self) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         self.shared.render(&mut st, false);
         Ok(())
     }
@@ -2114,7 +2255,7 @@ impl DevelopSession {
     /// `custom`. Not recorded in history until `commit`.
     pub fn set_settings(&self, json_patch: String, interactive: bool) -> Result<()> {
         let patch: Value = serde_json::from_str(&json_patch).map_err(failure)?;
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let mut value = serde_json::to_value(&st.live).map_err(failure)?;
         merge_patch(&mut value, &patch);
         if let Some(wb) = patch.get("white_balance").and_then(Value::as_object)
@@ -2154,16 +2295,11 @@ impl DevelopSession {
     /// Records the live changes since the last commit as one undo step
     /// labelled `label`, refines the viewport and schedules a save.
     pub fn commit(&self, label: String) -> Result<bool> {
-        let recorded = {
-            let mut st = self.shared.lock()?;
-            let recorded = self.shared.commit_pending(&mut st, &label)?;
-            if st.rendered_level != Some(st.screen_level)
-                || st.rendered.as_ref() != Some(&st.drawn())
-            {
-                self.shared.render(&mut st, false);
-            }
-            recorded
-        };
+        let mut st = self.shared.edit_lock()?;
+        let recorded = self.shared.commit_pending(&mut st, &label)?;
+        if st.rendered_level != Some(st.screen_level) || st.rendered.as_ref() != Some(&st.drawn()) {
+            self.shared.render(&mut st, false);
+        }
         if recorded {
             self.shared.schedule_save();
         }
@@ -2189,7 +2325,7 @@ impl DevelopSession {
         {
             return Err(failure("unsupported process version"));
         }
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         if st.recipe.process_version == version {
             return Ok(false);
         }
@@ -2198,7 +2334,6 @@ impl DevelopSession {
         st.rendered = None;
         st.frame = None;
         self.shared.render(&mut st, false);
-        drop(st);
         self.shared.schedule_save();
         Ok(true)
     }
@@ -2246,22 +2381,17 @@ impl DevelopSession {
 
     /// Resets every setting to its default as one undo step.
     pub fn reset(&self) -> Result<bool> {
-        let changed = {
-            let mut st = self.shared.lock()?;
-            self.shared.commit_pending(&mut st, "Edit")?;
-            let changed = st
-                .recipe
-                .edit(EditMeta::user("Reset", now_ms()), |s| {
-                    *s = DevelopSettings::default()
-                })?
-                .is_some();
-            if changed {
-                st.live = st.recipe.settings.clone();
-                self.shared.render(&mut st, false);
-            }
-            changed
-        };
+        let mut st = self.shared.edit_lock()?;
+        self.shared.commit_pending(&mut st, "Edit")?;
+        let changed = st
+            .recipe
+            .edit(EditMeta::user("Reset", now_ms()), |s| {
+                *s = DevelopSettings::default()
+            })?
+            .is_some();
         if changed {
+            st.live = st.recipe.settings.clone();
+            self.shared.render(&mut st, false);
             self.shared.schedule_save();
         }
         Ok(changed)
@@ -2269,11 +2399,9 @@ impl DevelopSession {
 
     /// Names the current state (after committing pending changes).
     pub fn snapshot(&self, name: String) -> Result<()> {
-        {
-            let mut st = self.shared.lock()?;
-            self.shared.commit_pending(&mut st, "Edit")?;
-            st.recipe.create_snapshot(name, now_ms())?;
-        }
+        let mut st = self.shared.edit_lock()?;
+        self.shared.commit_pending(&mut st, "Edit")?;
+        st.recipe.create_snapshot(name, now_ms())?;
         self.shared.schedule_save();
         Ok(())
     }
@@ -2292,15 +2420,13 @@ impl DevelopSession {
 
     /// Moves to a snapshot's state; later edits branch from it.
     pub fn restore_snapshot(&self, name: String) -> Result<()> {
-        {
-            let mut st = self.shared.lock()?;
-            self.shared.commit_pending(&mut st, "Edit")?;
-            st.recipe.restore_snapshot(&name)?;
-            crate::backend::sync_process(&mut st.recipe)?;
-            st.frame = None;
-            st.live = st.recipe.settings.clone();
-            self.shared.render(&mut st, false);
-        }
+        let mut st = self.shared.edit_lock()?;
+        self.shared.commit_pending(&mut st, "Edit")?;
+        st.recipe.restore_snapshot(&name)?;
+        crate::backend::sync_process(&mut st.recipe)?;
+        st.frame = None;
+        st.live = st.recipe.settings.clone();
+        self.shared.render(&mut st, false);
         self.shared.schedule_save();
         Ok(())
     }
@@ -2309,7 +2435,7 @@ impl DevelopSession {
     /// frame (geometry is kept in the settings) so the host can draw and
     /// edit the crop over it; off renders the cropped result again.
     pub fn set_crop_editing(&self, editing: bool) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         if st.crop_editing != editing {
             st.crop_editing = editing;
             self.shared.render(&mut st, false);
@@ -2320,7 +2446,7 @@ impl DevelopSession {
     /// Session-only uncorrected image for Guided Upright placement. Saved
     /// lens, Upright, manual transform and crop controls remain intact.
     pub fn set_render_uncorrected(&self, enabled: bool) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         if st.render_uncorrected != enabled {
             st.render_uncorrected = enabled;
             st.rendered = None;
@@ -2333,7 +2459,7 @@ impl DevelopSession {
     /// Session-only grayscale depth overlay. Missing weights surface through
     /// render_failed just like other rendering errors; this never downloads.
     pub fn set_render_depth_visualisation(&self, enabled: bool) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         if st.render_depth_visualisation != enabled {
             st.render_depth_visualisation = enabled;
             st.rendered = None;
@@ -2373,7 +2499,7 @@ impl DevelopSession {
     /// image while on; frames report `is_overlay`. Settings changes keep
     /// updating the overlay.
     pub fn set_masking_preview(&self, enabled: bool) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         if st.masking_preview != enabled {
             st.masking_preview = enabled;
             self.shared.render(&mut st, false);
@@ -2409,7 +2535,7 @@ impl DevelopSession {
     /// step: the state is the history replayed without the disabled steps.
     pub fn set_history_step_enabled(&self, id: u64, enabled: bool) -> Result<bool> {
         let changed = {
-            let mut st = self.shared.lock()?;
+            let mut st = self.shared.edit_lock()?;
             self.shared.commit_pending(&mut st, "Edit")?;
             let h = &st.recipe.history;
             let lineage = h.lineage(h.head)?;
@@ -2455,11 +2581,9 @@ impl DevelopSession {
             }
             st.live = st.recipe.settings.clone();
             self.shared.render(&mut st, false);
+            self.shared.schedule_save();
             true
         };
-        if changed {
-            self.shared.schedule_save();
-        }
         Ok(changed)
     }
 
@@ -2479,15 +2603,15 @@ impl DevelopSession {
             return Err(failure("amount must be in [0, 1]"));
         }
         let changed = {
-            let mut st = self.shared.lock()?;
+            let mut st = self.shared.edit_lock()?;
             let changed = record_group_amount(&mut st.recipe, group_id, amount, now_ms())?;
             st.live = st.recipe.settings.clone();
             self.shared.render(&mut st, false);
+            if changed {
+                self.shared.schedule_save();
+            }
             changed
         };
-        if changed {
-            self.shared.schedule_save();
-        }
         Ok(changed)
     }
 
@@ -2508,7 +2632,7 @@ impl DevelopSession {
         let s = &self.shared;
         let surface = Surface::lookup(iosurface_id, width, height).map_err(failure)?;
         let (mut settings, version) = {
-            let st = s.lock()?;
+            let st = s.edit_lock()?;
             (st.drawn(), st.recipe.process_version)
         };
         settings.geometry = Default::default();
@@ -2577,58 +2701,53 @@ impl DevelopSession {
 
     /// Writes pending changes now and waits for the save to finish.
     pub fn flush(&self) -> Result<()> {
-        {
-            let mut st = self.shared.lock()?;
-            if self.shared.commit_pending(&mut st, "Edit")? {
-                drop(st);
-                self.shared.schedule_save();
-            }
+        if self.on_save_worker() {
+            return Err(failure("Develop save worker cannot flush itself"));
         }
-        let mut s = self.shared.save.lock().map_err(failure)?;
-        let starting_failure_seq = s.failure_seq;
-        let unreported_error = (!s.error_reported).then(|| s.error.clone()).flatten();
-        if s.due.is_none()
-            && !s.busy
-            && let Some(retry) = s.retry
-        {
-            s.due = Some(Instant::now());
-            s.due_work = retry;
-        }
-        if s.due.is_some() {
-            s.flush = true;
-            self.shared.save_cv.notify_all();
-        }
-        #[cfg(test)]
-        {
-            s.flush_waiters += 1;
-            self.shared.save_cv.notify_all();
-        }
-        while s.due.is_some() || s.busy {
-            s = self.shared.save_cv.wait(s).map_err(failure)?;
-        }
-        #[cfg(test)]
-        {
-            s.flush_waiters -= 1;
-            self.shared.save_cv.notify_all();
-        }
-        let observed_error = if s.failure_seq != starting_failure_seq {
-            s.error.clone()
-        } else {
-            unreported_error
-        };
-        if let Some(error) = observed_error {
-            s.error_reported = true;
-            Err(failure(error))
-        } else {
-            Ok(())
-        }
+        self.flush_inner(false)
     }
 
-    /// Stops rendering and writes pending changes. The session is unusable
-    /// for rendering afterwards.
+    /// Writes pending changes, drains the save worker and stops rendering.
+    /// A failed write leaves this session open for a later retry.
     pub fn close(&self) -> Result<()> {
-        let result = self.flush();
-        self.shared.close();
+        if self.on_save_worker() {
+            return Err(failure("Develop save worker cannot close itself"));
+        }
+        let (attempt, leader) = {
+            let mut phase = self.close_phase.lock().map_err(failure)?;
+            match &*phase {
+                ClosePhase::Closed => return Ok(()),
+                ClosePhase::Closing(attempt) => (attempt.clone(), false),
+                ClosePhase::Open => {
+                    let attempt = Arc::new(CloseAttempt {
+                        state: Mutex::new(CloseAttemptState {
+                            outcome: None,
+                            #[cfg(test)]
+                            waiters: 0,
+                        }),
+                        cv: Condvar::new(),
+                    });
+                    *phase = ClosePhase::Closing(attempt.clone());
+                    (attempt, true)
+                }
+            }
+        };
+        if !leader {
+            return Self::wait_close_attempt(&attempt);
+        }
+        let result = (|| {
+            self.shared.lock()?.closing = true;
+            self.flush_inner(true)?;
+            self.stop_writer();
+            self.shared.close();
+            Ok(())
+        })();
+        if result.is_err()
+            && let Ok(mut st) = self.shared.lock()
+        {
+            st.closing = false;
+        }
+        self.finish_close_attempt(&attempt, &result);
         result
     }
 }
@@ -3233,7 +3352,7 @@ impl DevelopSession {
         f: impl FnOnce(&mut Recipe) -> engine_api::EngineResult<bool>,
     ) -> Result<bool> {
         let moved = {
-            let mut st = self.shared.lock()?;
+            let mut st = self.shared.edit_lock()?;
             self.shared.commit_pending(&mut st, "Edit")?;
             let moved = f(&mut st.recipe)?;
             if moved {
@@ -3241,12 +3360,10 @@ impl DevelopSession {
                 st.frame = None;
                 st.live = st.recipe.settings.clone();
                 self.shared.render(&mut st, false);
+                self.shared.schedule_save();
             }
             moved
         };
-        if moved {
-            self.shared.schedule_save();
-        }
         Ok(moved)
     }
 }
@@ -3439,6 +3556,122 @@ mod tests {
         );
         let save = session.shared.save.lock().unwrap();
         assert!(save.due.is_none() && !save.busy && save.retry.is_none());
+    }
+
+    #[test]
+    fn concurrent_closes_share_one_failed_attempt_and_later_retry() {
+        let (_dir, photo, _engine, _id, session) = tiny_develop_session("close-two.jpg");
+        let path = session.shared.path.clone();
+        let pause: PostRecipePause = Arc::new((Mutex::new((false, false)), Condvar::new()));
+        let _release = ReleasePause(pause.clone());
+        PAUSE_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(path.clone(), pause.clone());
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(path.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        let first = {
+            let session = session.clone();
+            std::thread::spawn(move || session.close())
+        };
+        let (pause_state, pause_cv) = &*pause;
+        let mut state = pause_state.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !state.0 {
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .expect("first close did not reach the save boundary");
+            state = pause_cv.wait_timeout(state, remaining).unwrap().0;
+        }
+        drop(state);
+        let attempt = match &*session.close_phase.lock().unwrap() {
+            ClosePhase::Closing(attempt) => attempt.clone(),
+            _ => panic!("first close was not in flight"),
+        };
+        let second = {
+            let session = session.clone();
+            std::thread::spawn(move || session.close())
+        };
+        let mut attempt_state = attempt.state.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while attempt_state.waiters != 1 {
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .expect("second close did not join first attempt");
+            attempt_state = attempt.cv.wait_timeout(attempt_state, remaining).unwrap().0;
+        }
+        drop(attempt_state);
+        let before = session.get_settings_json().unwrap();
+        assert!(
+            session
+                .set_settings(r#"{"tone":{"exposure":1.2}}"#.into(), false)
+                .is_err()
+        );
+        assert!(session.flush().is_err());
+        assert_eq!(session.get_settings_json().unwrap(), before);
+        let mut state = pause_state.lock().unwrap();
+        state.1 = true;
+        pause_cv.notify_all();
+        drop(state);
+        PAUSE_AFTER_DEVELOP_RECIPE.lock().unwrap().remove(&path);
+        let first_error = first.join().unwrap().unwrap_err().to_string();
+        let second_error = second.join().unwrap().unwrap_err().to_string();
+        assert_eq!(first_error, second_error);
+        assert!(first_error.contains("injected post-recipe failure"));
+        assert!(!session.shared.lock().unwrap().closed);
+        session.close().unwrap();
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(catalog::xmp_path(&photo))
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.7
+        );
+    }
+
+    struct ReentrantSaved {
+        session: std::sync::Weak<DevelopSession>,
+        results: Mutex<Vec<String>>,
+    }
+
+    impl DevelopListener for ReentrantSaved {
+        fn frame_ready(&self, _: FrameInfo) {}
+        fn render_failed(&self, _: String) {}
+        fn saved(&self, _: String) {
+            let session = self.session.upgrade().expect("listener session retained");
+            let mut results = self.results.lock().unwrap();
+            results.push(session.close().unwrap_err().to_string());
+            results.push(session.flush().unwrap_err().to_string());
+        }
+    }
+
+    #[test]
+    fn save_listener_cannot_self_join_or_self_flush() {
+        let (_dir, _photo, _engine, _id, session) = tiny_develop_session("close-callback.jpg");
+        let listener = Arc::new(ReentrantSaved {
+            session: Arc::downgrade(&session),
+            results: Mutex::new(Vec::new()),
+        });
+        session.set_listener(Some(listener.clone()));
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        let results = listener.results.lock().unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(results[0].contains("cannot close itself"));
+        assert!(results[1].contains("cannot flush itself"));
+        drop(results);
+        session.close().unwrap();
     }
 
     #[test]
