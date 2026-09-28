@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Recipe/XMP integration — 2026-09-28 07:39 UTC
+
+Main4ad017ab now publishes Develop settings to XMP for set_recipe_json, retaining selection-only and merge persistence. Exact complete Rust/Cargo tree equals tested3bd2e341. Root independently verified19 tests (8 recipe,8 owner,3 public API), format/strict direct0 and15 frozen inputs against checkout/Git. Behavioral RED had actual0 vs1.25 XMP; failed compile attempt preserved. Portable evidence follows; new coherent FFI archive preparation stays in isolated checkout. No GUI/preview-update claim.
+
+B probe requestecf80308 accepted by peer after queue01a0e6ef; native queued-sheet and parent-close proof remains pending. Resource source review found no new ownership blocker, but recorded pre-existing Save As destination-creation race for separate atomic-output contract audit. Luna UI/test-coverage review remains active.
+
 ## Native gates and B handoff — 2026-09-28 07:34 UTC
 
 B published owned Save As source93244f8f on codex/document-save-owned-presenter, based010617b8. Exact target/unexpired resultd9b94a94 accepted through Git mailbox before review. Resource Sol reviews native lifetime and Luna reviews SwiftUI/host generation independently, source only. B explicitly leaves queued-only endSheet completion and parent-close drainage unproven; fake tests cannot replace native evidence. No product acceptance or B workload restart.
