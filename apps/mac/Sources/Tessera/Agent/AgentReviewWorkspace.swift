@@ -158,10 +158,10 @@ private struct ReviewCurrentPreview: View {
             guard let subscribed else { loading = false; return }
             request = subscribed
             flightOwnsBarrier = true
-            // The UI task may be cancelled or superseded. Keep the saved-pixel
-            // reservation until the subscribed preview naturally settles.
+            // The UI subscriber may detach before its non-interruptible native
+            // read returns. Keep the reservation through actual flight drain.
             Task {
-                await subscribed.waitForCompletion()
+                await subscribed.waitForFlightDrain()
                 barrier.finish()
             }
             // ThumbnailLoader reports successful delivery only; a failed decode must not spin forever.

@@ -132,6 +132,9 @@ final class DevelopRecoveryCoordinator {
 
     var hasUnresolvedSessions: Bool { !records.isEmpty || !opens.isEmpty }
     var hasActiveReservations: Bool { !gates.isEmpty }
+    func hasActiveReservations(excluding id: UUID?) -> Bool {
+        gates.keys.contains { $0 != id }
+    }
 
     private static func sourceIdentity(owner: EngineLibrary, imageID: String) -> SourceIdentity? {
         guard let index = owner.itemOfImage[imageID], owner.items.indices.contains(index),
