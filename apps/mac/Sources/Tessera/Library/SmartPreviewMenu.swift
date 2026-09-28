@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
-/// Bounded status reads happen on selection; menus and thumbnail drawing only read
-/// cached observable state. No automatic catalog-wide builds or polling.
+/// Full asset validation runs once per changed selection or explicit status check;
+/// menus and thumbnail drawing only read cached state. No per-cell reads or polling.
 struct SmartPreviewMenu: View {
     let model: AppModel
     var body: some View {
@@ -20,6 +20,11 @@ struct SmartPreviewMenu: View {
                 if !info.message.isEmpty { Text(info.message) }
             }
             if let error = model.smartPreviews.selectionError { Text(error) }
+            Button("Check Status for Selected Photo") { model.checkSmartPreviewStatus() }
+                .disabled(model.smartPreviewBatchActive || model.focusedItem?.kind != .raw)
+                .accessibilityIdentifier("smart-preview-check-status")
+            Text(SmartPreviewSnapshot.libraryThumbnailNotice)
+                .accessibilityIdentifier("smart-preview-thumbnail-limitation")
             Divider()
             ForEach(SmartPreviewController.Action.allCases, id: \.self) { action in
                 Button("\(action.rawValue) Smart Previews for Selected RAW Photos") {

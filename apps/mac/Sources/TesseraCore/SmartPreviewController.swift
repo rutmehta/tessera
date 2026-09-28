@@ -16,6 +16,11 @@ public struct SmartPreviewSnapshot: Sendable, Equatable {
         self.imageID = imageID; self.state = state; self.originalAvailable = originalAvailable
         self.dirty = dirty; self.width = width; self.height = height; self.message = message
     }
+    public static let libraryThumbnailNotice = "Library thumbnails show the last synchronized image. Smart Preview edits appear there only after Sync."
+    public var libraryBadge: String {
+        badge + (state != .missing && (hasPendingEdits || !originalAvailable)
+                 ? " · Thumbnail: last synchronized image" : "")
+    }
     public var hasPendingEdits: Bool { dirty || state == .dirty }
     public var needsAttention: Bool { state == .stale || state == .conflict || state == .failed }
     public var badge: String {
@@ -109,6 +114,8 @@ public final class SmartPreviewController {
     public private(set) var total = 0
     @ObservationIgnored private let api: SmartPreviewAPI?
     @ObservationIgnored private var selectionGeneration = UUID()
+    @ObservationIgnored private var selectionTask: Task<Void, Never>?
+    @ObservationIgnored private var selectionNeedsRead = true
     @ObservationIgnored private var revisions: [String: UUID] = [:]
     @ObservationIgnored public var onChange: ((String) -> Void)?
 
@@ -121,29 +128,68 @@ public final class SmartPreviewController {
         return results.isEmpty ? "No batch started" : "\(results.filter(\.succeeded).count)/\(total) succeeded"
     }
 
-    /// Selection reads do not materialize the entire library or launch per-cell work.
-    /// Changing the selection invalidates its async read, including same-image reselect.
+    /// Full asset validation is expensive: keep one active selection read, let it
+    /// drain, then read only the latest queued selection. Repeated notifications and
+    /// the Develop opener share the same result. No native work from cell drawing.
     @discardableResult
-    public func select(imageID: String?) -> Task<Void, Never>? {
+    public func select(imageID: String?, refresh: Bool = false) -> Task<Void, Never>? {
+        if selectedImageID == imageID, !refresh, !selectionNeedsRead { return selectionTask }
+        let previous = selectionTask
+        previous?.cancel() // stops queued work, not a native call already in progress
         selectedImageID = imageID; selectionError = nil
         let generation = UUID(); selectionGeneration = generation
-        guard let imageID, let api else { return nil }
+        selectionNeedsRead = true
+        guard let imageID, let api, !isRunning else { return nil }
+        snapshots[imageID] = nil
+        onChange?(imageID)
+        selectionNeedsRead = false
         let revision = revisions[imageID]
-        return Task { [weak self] in
+        let task = Task { [weak self] in
+            await previous?.value
+            guard !Task.isCancelled, let self, self.selectionGeneration == generation else { return }
             do {
                 let info = try await api.info(imageID)
-                guard let self, self.selectionGeneration == generation,
+                guard !Task.isCancelled, self.selectionGeneration == generation,
                       self.revisions[imageID] == revision else { return }
                 guard info.imageID == imageID else { throw SmartPreviewUIError.unavailable("Smart Preview identity mismatch") }
                 self.snapshots[imageID] = info; self.onChange?(imageID)
             } catch {
-                guard let self, self.selectionGeneration == generation,
+                guard !Task.isCancelled, self.selectionGeneration == generation,
                       self.revisions[imageID] == revision else { return }
                 self.snapshots[imageID] = nil
                 self.selectionError = error.localizedDescription
                 self.onChange?(imageID)
             }
         }
+        selectionTask = task
+        return task
+    }
+
+    /// The snapshot chooses the requested route; native open must independently
+    /// validate current source/journal identity and writer admission. An error never
+    /// triggers Original fallback. Save callbacks invalidate without hashing again.
+    public func statusForOpening(imageID: String) async throws -> SmartPreviewSnapshot {
+        try Task.checkCancellation()
+        guard selectedImageID == imageID else { throw CancellationError() }
+        let task = select(imageID: imageID)
+        await task?.value
+        try Task.checkCancellation()
+        guard selectedImageID == imageID, !isRunning, let info = snapshots[imageID] else {
+            throw SmartPreviewUIError.unavailable(selectionError ?? "Check Smart Preview status before opening this photo")
+        }
+        return info
+    }
+
+    public func invalidateStatus(imageID: String) {
+        revisions[imageID] = UUID()
+        snapshots[imageID] = nil
+        if selectedImageID == imageID {
+            selectionTask?.cancel()
+            selectionGeneration = UUID()
+            selectionNeedsRead = true
+            selectionError = nil
+        }
+        onChange?(imageID)
     }
 
     public func cancel() { if isRunning { cancelRequested = true } }
@@ -154,6 +200,11 @@ public final class SmartPreviewController {
         let targets = targets.filter { seen.insert($0.id).inserted }
         guard !targets.isEmpty else { return }
         isRunning = true; cancelRequested = false; results = []; total = targets.count
+        selectionTask?.cancel()
+        selectionGeneration = UUID()
+        selectionNeedsRead = true
+        // A queued batch must not overlap a full asset validation already running.
+        await selectionTask?.value
         defer { isRunning = false; activeName = nil }
         for target in targets {
             if cancelRequested || Task.isCancelled {
@@ -178,6 +229,7 @@ public final class SmartPreviewController {
                 }
                 guard info.imageID == target.id else { throw SmartPreviewUIError.unavailable("Smart Preview identity mismatch") }
                 snapshots[target.id] = info
+                if selectedImageID == target.id { selectionNeedsRead = false; selectionError = nil }
                 let success: Bool
                 switch action {
                 case .build: success = !info.needsAttention && info.state != .missing
@@ -188,6 +240,7 @@ public final class SmartPreviewController {
                                      message: info.message.isEmpty ? info.badge : info.message))
             } catch {
                 snapshots[target.id] = nil // old ready badges must not mask a failed operation
+                if selectedImageID == target.id { selectionNeedsRead = false; selectionError = error.localizedDescription }
                 results.append(.init(id: target.id, name: target.name, succeeded: false, message: error.localizedDescription))
             }
             revisions[target.id] = UUID() // suppress reads started during the native operation

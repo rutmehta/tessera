@@ -713,6 +713,7 @@ final class AppModel {
         syncWaiters.removeAll()
         syncRequested = false
         smartPreviews.cancel() // any captured old native operation still drains on its owner
+        smartPreviews.select(imageID: nil)
         library = lib
         let previews = SmartPreviewController(api: (lib as? EngineLibrary).map { .live(engine: $0.engine) })
         smartPreviews = previews
@@ -2161,12 +2162,17 @@ final class AppModel {
 
     func smartPreviewBadge(for item: PhotoItem) -> String? {
         guard let ref = item.engineImage else { return nil }
-        return smartPreviews.snapshots[ref.imageID]?.badge
+        return smartPreviews.snapshots[ref.imageID]?.libraryBadge
     }
 
     private func refreshSmartPreviewSelection() {
         let item = focusedItem
         smartPreviews.select(imageID: item?.kind == .raw ? item?.engineImage?.imageID : nil)
+    }
+
+    func checkSmartPreviewStatus() {
+        let item = focusedItem
+        smartPreviews.select(imageID: item?.kind == .raw ? item?.engineImage?.imageID : nil, refresh: true)
     }
 
     func setPreferSmartPreviews(_ value: Bool) {
@@ -2191,6 +2197,7 @@ final class AppModel {
             }
             self.preferSmartPreviews = value
             UserDefaults.standard.set(value, forKey: "UseSmartPreviews")
+            self.smartPreviews.invalidateStatus(imageID: ref.imageID)
             if self.viewMode == .loupe, let current = self.focusedItem { self.openDevelop(for: current) }
         }
     }
@@ -2267,6 +2274,10 @@ final class AppModel {
         let generation = loadGeneration
         let opener = developControllerOpener
         let preferPreview = preferSmartPreviews
+        let previews = smartPreviews
+        // Establish the explicit open target synchronously; an old async opener
+        // may never change a newer selection while awaiting asset validation.
+        previews.select(imageID: item.kind == .raw ? ref.imageID : nil)
         let token = UUID()
         let recovery = developRecovery
         let task = Task { [weak self, recovery, owner] in
@@ -2277,7 +2288,7 @@ final class AppModel {
             do {
                 let controller: DevelopController
                 if item.kind == .raw {
-                    let snapshot = try await SmartPreviewAPI.live(engine: ref.engine).info(ref.imageID)
+                    let snapshot = try await previews.statusForOpening(imageID: ref.imageID)
                     try Task.checkCancellation()
                     controller = try await SmartPreviewRouting.open(snapshot, preferPreview: preferPreview) { route in
                         switch route {
@@ -2438,7 +2449,10 @@ final class AppModel {
 
     /// Recipe + XMP were written: refresh the grid thumbnail (recipe-hash keyed) and the status.
     private func developDidSave(itemID: Int) {
-        refreshSmartPreviewSelection()
+        // Autosaves must not repeatedly hash/decode full originals and proxies.
+        if library.items.indices.contains(itemID), let ref = library.items[itemID].engineImage {
+            smartPreviews.invalidateStatus(imageID: ref.imageID)
+        }
         if let d = develop, d.itemID == itemID { developHistory = d.history }
         guard library.items.indices.contains(itemID) else { return }
         loader.invalidate(library.items[itemID])
