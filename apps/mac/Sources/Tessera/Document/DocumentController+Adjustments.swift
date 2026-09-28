@@ -40,6 +40,21 @@ extension DocumentController {
         return candidates.last?.id
     }
 
+    /// The same Neutralize edit used by the Properties panel and adjustment sheet.
+    func matchColorSettingNeutralize(_ model: MatchColorModel, to enabled: Bool,
+                                    target: @autoclosure () -> [SIMD3<Float>]) -> MatchColorModel? {
+        // Pre-M5-32 documents encoded Neutralize by zeroing the frozen source chroma.
+        // Only disabling that legacy representation needs the original source pixels.
+        // Loading a document and toggling modern flags must retain their frozen statistics.
+        if !enabled, !model.neutralize, model.neutralized {
+            return AdjustmentAnalysis.matchColor(sourceLayer: model.sourceLayer,
+                source: layerSamples(model.sourceLayer), target: target(), neutralize: false, keeping: model)
+        }
+        var result = model
+        result.neutralize = enabled
+        return result
+    }
+
     /// A new adjustment layer's parameters: neutral, or analysed from the composite for the image-dependent kinds.
     func initialAdjustment(_ kind: AdjustmentModel.Kind) -> AdjustmentModel {
         switch kind {
