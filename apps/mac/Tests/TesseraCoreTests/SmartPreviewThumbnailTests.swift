@@ -47,6 +47,25 @@ final class SmartPreviewThumbnailTests: XCTestCase {
         XCTAssertNil(ThumbnailLoader.render(proxy, tier: .preview))
         XCTAssertEqual(calls.values, ["original:same:384", "proxy:same:2560"])
     }
+    func testOriginalCacheCannotSatisfySameImageProxyRequest() async throws {
+        let (engine, events) = try fixture()
+        let bytes = try png()
+        let api = EngineThumbnailAPI(original: { _, _ in PreviewResponse(bytes: bytes, pending: false) },
+            smartPreview: { _, _ in throw ThumbnailProbeError.failed })
+        let original = item(engine, events, .original, api)
+        let proxy = item(engine, events, .smartPreview, api)
+        let loader = ThumbnailLoader()
+        let ready = expectation(description: "original cached")
+        let first = try XCTUnwrap(loader.request(original, tier: .thumbnail) { _ in ready.fulfill() })
+        await fulfillment(of: [ready], timeout: 5)
+        await first.waitForFlightDrain()
+        XCTAssertNotNil(loader.cached(original, tier: .thumbnail))
+        XCTAssertNil(loader.cached(proxy, tier: .thumbnail))
+        let failed = try XCTUnwrap(loader.request(proxy, tier: .thumbnail) { _ in XCTFail("No original-cache fallback") })
+        await failed.waitForFlightDrain()
+        XCTAssertNil(loader.cached(proxy, tier: .thumbnail))
+        XCTAssertNotNil(loader.cached(original, tier: .thumbnail))
+    }
     func testPendingProxyUsesBufferedReadyEventAndKeepsSource() async throws {
         let (engine, events) = try fixture()
         let bytes = try png()
