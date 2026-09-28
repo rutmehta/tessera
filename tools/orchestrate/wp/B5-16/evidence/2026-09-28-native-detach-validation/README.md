@@ -1,0 +1,11 @@
+# Native Save As detachment validation — GUI failed
+
+Candidate `b3a47443db4d86190de22da5178c068da652901b` passed the frozen focused Release gates: **20 save + 2 probe + 4 load + 3 adjacent = 29 tests**, each direct exit 0 with no timeout. Root verified source and FFI hashes after those gates. The copied manifests, raw logs, direct-result JSON, and packaging hashes are alongside this report.
+
+The exact tested Release executable (SHA-256 `f250f27f…`) was packaged without rebuilding into a unique signed app with bundle ID `dev.tessera.document-save-validation.b3a47443`. `codesign --verify --deep --strict` passed. Launch Services `open -n` returned `-10810` even after correcting the isolated plist version to numeric `1`; direct launch of the packaged executable with its own `--app-dir` succeeded. The packaged executable after rpath/signing is SHA-256 `a70f4531…`. Historical 5ad1 and 358d failed bundles/evidence were left intact.
+
+The isolated GUI created and saved a 32 × 32 document (`native-detach.tessera-doc`, 1001 bytes, SHA-256 `a38faab3…`). Save As Cancel and Escape both dismissed normally. Saving again to that **same existing path** dismissed the Save As sheet, but **no Replace prompt** appeared and the editor still showed the earlier “Saved” status. The file hash was unchanged. A new Save As command initially could not present another sheet despite remaining enabled. After closing and reopening the original document, a delayed Save As sheet appeared; it was cancelled. A subsequent Save As to a **distinct existing path** also dismissed without Replace or an error, and both file hashes remained unchanged.
+
+This is a third failed Save As GUI candidate, not an accepted fix. The exact native callback/ordering cause is unproven; test-only probes will be needed before another product change. Replace Cancel, confirmed Replace and reopened replacement could not be exercised. Abrupt parent loss and preappearance cancellation were not observed. The isolated app was quit; normal preview PID 57591 was untouched. No product source was edited and no full Swift suite was run.
+
+`GUI-RESULTS.json` records the per-step AX observations and limitations. CUA displayed one screenshot but did not export it as a file. The prior failed GUI reports remain in the 5ad1 and `2026-09-28-save-dismissal-validation` evidence directories.
