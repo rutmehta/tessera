@@ -24,10 +24,12 @@ the actual display timestamp required by the current P11 acceptance wording.
 1. Preserve the existing input/session/generation identity and actual-residency
    join. Use a source-provenance-verified release and the same copied RAW fixture,
    viewport, display configuration and scripted gesture for both comparisons.
-2. Obtain an authorized, non-occluded presentation surface while preserving the
-   current rule against activating, uncovering or rearranging the user's app
-   windows. If no such surface is available, mark display acceptance unavailable;
-   an offscreen render remains correctness evidence only.
+2. Use an isolated BetterSSD build and disposable catalog for an authorized,
+   non-occluded presentation surface. The user subsequently authorized activating
+   isolated test builds; preserve normal preview PID57591 and inherited apps.
+   Serialize this with the A native/GPU/desktop lane. If no usable surface is
+   available, mark display acceptance unavailable; an offscreen render remains
+   correctness evidence only.
 3. Before collecting benchmarks, confirm positive actual presented timestamps
    and enough causal matches in a short capability run. Fail the capability check
    explicitly on zero timestamps, lost identity or trace drops.

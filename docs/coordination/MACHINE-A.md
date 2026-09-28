@@ -2,6 +2,8 @@
 
 ## Exclusive admission integrated — 2026-09-28 11:32 UTC
 
+Published main `f1f4abe2`. Git mailbox status `23464001-c1d4-4ff7-95d4-4cf142ccf7da` published; no peer receipt/wakeup claimed. Read-only SSH health check still fails hostname resolution. A separate Luna is reviewing M2-58 current-source presentation capability while HDR prepares; no duplicate compiler/desktop use.
+
 Validated native source59373066 is integrated byte-for-byte in four Rust files. Full137/137 FFI library tests, final focused/gate controls, fmt and strict Clippy pass; root verified472 packaged payloads from3cb0c249. UI controls already main049bfe95 passed34 unique tests. See DEVELOP-EXCLUSIVE-ADMISSION-REVIEW.md for scope, preserved failed attempts and exact evidence. Existing destination filename aliases remain excluded. No rebuilt archive or new GUI acceptance is claimed.
 
 Luna prepares the bounded HDR phase10 destination-context default/8/16 experiment; Astra reviews its source before runtime. Original4pass/1fail acceptance remains unchanged. Only that worker may use the native lane. B destination request8638c362 remains published without peer receipt; latest fetch/poll shows no new messages or in-progress receipts. B source ownership/hold and normal preview remain preserved. A alone merges main.
