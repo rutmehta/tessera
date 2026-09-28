@@ -33,17 +33,19 @@
   errors and remain preserved separately from valid behavioral RED `6222f410`.
 - Normal user preview PID57591 remains untouched. A alone merges main.
 
-Latest gate outcomes (2026-09-28 02:06 UTC): native Stage B `96aa223a`
-passed six lifecycle controls, then late-mask test failed fixture Engine Arc
-lifetime; `f5a6b31e` fixes that fixture, UNRUN. Full Develop/adjacent/strict gates
-remain pending. Swift product hash72b64733 is unchanged; the first final gate
-hung on missing test semaphore releases, corrected run exited1/SIGSEGV because
-its noHandle wrapper omitted getHistogram forwarding. Both logs, process sample
-and crash report preserved. Test-only forwarding correction is running next on
-Luna's compiler slot; neither Swift nor native Stage B is accepted yet.
-B initial mask candidate986512b6 is source-review blocked by unsent successful
-reentrant edits. Result48f8e3c2 failed acceptance; revision request13fb8907 and
-SSH queue01a0e5c1-7602-7e12-a2d4-968944a95998 published, peer receipt pending.
+Latest integration (2026-09-28 02:09 UTC): root owns compiler for frozen
+`b7e8b04a` in workspace-redesign / codex/develop-retry-integration. Exact native
+`5478efe1` plus Swift `96fac819`; 1,626 tracked source files frozen. Current FFI
+build running, then focused41 and full Release516+5 gates planned. NO main merge
+of these candidates yet. Swift final39/0 direct0 verified; source72b64733 and
+tests05caa0f5. Prior hung test semaphore and missing-forwarder SIGSEGV retained.
+Native f5 runtime41unit/9Develop-integration/3mask-integration passed (3+1ignored);
+final547 formatting-equivalent conditional correction passed late-mask1/0 and
+strictClippy/fmt. Earlier setup and strict failures remain preserved.
+B initial mask986512b6 review blocked successful-reentrant-edit liveness;
+result48f8e3c2 failed source acceptance. Revision request13fb8907 / SSH queue
+01a0e5c1-7602-7e12-a2d4-968944a95998 published; no B workloads authorized.
+Luna source-plans Core result-bearing close next; AppModel/UI recovery unimplemented.
 
 This checkpoint supersedes older in-progress ownership entries below.
 
