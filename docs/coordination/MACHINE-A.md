@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Swift Release failure diagnosed — 2026-09-28 12:34 UTC
+
+Candidate d53a969e is pushed on codex/m258-current-reconciliation. Its seven diagnostic paths exactly match reviewed4d4587c3; Rust/Cargo/generated bindings remain unchanged from native-validatedabe317c0. Focused launch-mode4 passed/direct0. Full Swift Release FAILED/direct1 with xctest SIGSEGV, not an overall pass despite the separate5 Swift Testing passes printed afterward. GUI is held.
+
+Root/Astra independently matched crash report xctest-2026-09-28-083246.ips (PID25573, incidentEAA88CE7-736E-4B96-A09D-32558FBF035C) to clone_developsession → setSettingsIdentified → controller pending-settings close drain. BlockingCloseSession uses noHandle and overrides only old setSettings, so the new identified call falls through to native handle cloning. Eight wrapped-session test adapters share that stale seam. Owner is authorized tests-only forwarding corrections that preserve fault injection/counters and actual inputID; no product fallback or weakened assertions. Preserve failed source, raw log/exit, crash and unchanged input/artifact hashes before correction. Then focused and full Release must pass before isolated UI validation.
+
+Native evidence package is published maine3efd1f0,17 payloads independently hash-verified. Normal preview/B ownership hold remain unchanged; A alone merges main.
+
+
 ## Broader Develop native gates verified — 2026-09-28 12:27 UTC
 
 At generated checkpointabe317c0 (Rust exactlyc1c3), original three-crate Release command passed579 named tests,0failed,29ignored across94 summaries;9 zero-pass summaries are not additional tests. Strict Clippy retry, fmt and workspace check exited0. Initial Clippy wrapper used zsh's read-only `status` variable and failed to record an exit; its raw successful-looking output is retained but not counted as a verified direct success. Retry has explicit direct0. All6419 before/after-release/after-gates inputs are byte-identical SHA256f3be2fd7fe084bbb6883d6b0eff7db6c3dc1a16a74e78e13d14e8c375720ecb4. Astra verified1177 native Git blobs against the source checkpoint. Root independently read exits/raw summaries and manifest hashes. LibRaw warnings remain recorded.
