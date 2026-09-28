@@ -1,5 +1,9 @@
 # Machine A recovery status
 
+## Export integration gate failed — 2026-09-28
+
+The first broader FFI compile after the accepted CPU-only gate failed: three export exhaustive RenderSource matches did not handle CameraLinear. CPU component tests remain147pass/1ignored, but this is NOT a passing application integration. Failure preserved at /Volumes/betterSSD/tessera-validation/smart-previews/storage/smart-preview-store.log; no concurrent tracked-source change. Original engine implementer owns immediate export admission repair and explicit proxy/full-quality-export refusal tests, plus Adobe-route refusal. Storage tests paused to serialize compilation; codec and image-core work are source-only preparations. Do not treat main's CPU component merge as build-ready application acceptance until repair is validated.
+
 ## Smart Preview CPU component accepted — 2026-09-28 15:55 UTC
 
 Integrated in-memory component 2ab94fd9, exact product a3ab5034/f06ddb2b. Final Release pipeline-cpu gate:147 passed,0 failed,1 existing ignored; strict all-target Clippy and targeted formatting exit0. Root rehashed436 frozen inputs; independent Astra review clean. Portable evidence: tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/engine-a3ab5034 (37 payloads plus manifest). Missing-API, HDR-fixture and lint failures retained. This is NOT complete editable Smart Previews: codec, image-core route, offline journal/admission integration, Library UI and end-to-end acceptance remain.
