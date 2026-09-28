@@ -86,4 +86,24 @@ final class RecoveryWindowCloseGuardTests: XCTestCase {
         XCTAssertEqual(prior.closeChecks, 2)
         XCTAssertEqual(prior.willCloseCount, 1)
     }
+
+    func testLateOldGuardCleanupCannotRemoveReinstalledGuard() throws {
+        let target = window()
+        let prior = PriorDelegate()
+        target.delegate = prior
+        RecoveryWindowCloseGuard.install(on: target)
+        let old = try XCTUnwrap(target.delegate as? RecoveryWindowCloseGuard)
+        let close = Notification(name: NSWindow.willCloseNotification, object: target)
+
+        old.windowWillClose(close)
+        RecoveryWindowCloseGuard.install(on: target)
+        let current = try XCTUnwrap(target.delegate as? RecoveryWindowCloseGuard)
+        XCTAssertFalse(current === old)
+
+        // A deferred notification fallback from the former guard is idempotent.
+        old.windowWillClose(close)
+        RecoveryWindowCloseGuard.install(on: target)
+        XCTAssertTrue(target.delegate === current)
+        target.close()
+    }
 }
