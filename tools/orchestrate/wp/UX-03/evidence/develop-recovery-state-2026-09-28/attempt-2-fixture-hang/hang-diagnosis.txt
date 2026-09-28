@@ -1,0 +1,1 @@
+Observed xctest PID 17860 blocked in ClosePlanSession.close -> ClosePlan.performClose -> _dispatch_semaphore_wait_slow. The fixture removed gatedAttempt before releaseGatedClose looked up its semaphore. Root authorized terminating this owned hung run after preserving sample and log.
