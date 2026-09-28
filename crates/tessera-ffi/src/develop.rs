@@ -3081,7 +3081,7 @@ mod tests {
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         *FAIL_AFTER_DEVELOP_RECIPE
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some(photo.clone());
+            .unwrap_or_else(|e| e.into_inner()) = Some(session.shared.path.clone());
         session
             .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
