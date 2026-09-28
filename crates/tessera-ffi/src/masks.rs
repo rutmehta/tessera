@@ -806,8 +806,9 @@ struct AiMaskJob {
 
 impl AiMaskJob {
     fn finish(&self, shared: &Arc<Shared>, result: anyhow::Result<AlphaPlane>) {
-        // AI jobs are fire-and-forget. Their computation can outlive a close;
-        // completed work must not revive rendering or notify a closed editor.
+        // AI jobs are fire-and-forget. Ignore a completion that observes a
+        // closing/closed session. A callback already in flight may still
+        // finish after close; the recheck below prevents a late re-render.
         if !matches!(shared.state.lock(), Ok(st) if !st.closing && !st.closed) {
             return;
         }
