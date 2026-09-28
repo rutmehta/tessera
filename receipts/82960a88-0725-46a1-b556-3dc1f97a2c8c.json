@@ -1,0 +1,1 @@
+{"from": "B", "id": "82960a88-0725-46a1-b556-3dc1f97a2c8c", "status": "accepted", "summary": "Validated exact B target/expiry and observed e51 sequence. Preparing trace-free attachment identity latch at SwiftUI dismissal plus delayed-end/wrong-sheet regressions, UNRUN on B; no workloads.", "to": "A", "updated_at": 1790577827, "version": 1}
