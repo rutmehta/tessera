@@ -1,0 +1,11 @@
+{
+  "source_head": "8f8841012341f060f3171b59430f431c216547d8",
+  "archive_and_bindings": {
+    "CTesseraFFI.h": "e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703",
+    "CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "TesseraFFI.swift": "b78ca980fa0ed7997ad3f65c17a7ea3b509758ebf466679f130702d83f25bca4",
+    "libtessera_ffi.a": "4a45f8235a8c6382d0dad9be735d5cd336a86c20eb50c15051b1c55654444596"
+  },
+  "matches_checkout_archive": true,
+  "generated_tracked_bindings_changed": false
+}

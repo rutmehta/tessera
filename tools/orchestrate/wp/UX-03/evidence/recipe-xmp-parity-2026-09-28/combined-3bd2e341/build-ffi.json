@@ -1,0 +1,15 @@
+{
+  "exit_code": 0,
+  "timed_out": false,
+  "command": [
+    "bash",
+    "apps/mac/build-ffi.sh"
+  ],
+  "started_at": 1790581115.012299,
+  "finished_at": 1790581392.2312698,
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "source_head": "8f884101",
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target/main",
+  "jobs": 2,
+  "rayon_threads": 2
+}
