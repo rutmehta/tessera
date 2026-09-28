@@ -34,7 +34,9 @@
 Latest integration (2026-09-28 02:09 UTC): root owns compiler for frozen
 `b7e8b04a` in workspace-redesign / codex/develop-retry-integration. Exact native
 `5478efe1` plus Swift `96fac819`; 1,626 tracked source files frozen. Current FFI
-build running, then focused41 and full Release516+5 gates planned. NO main merge
+build passed (archive8ab43f64). Generated close checksum/binding updated in
+`40d3054e`; all other1625 source hashes unchanged. Focused41 then full Release516+5
+gates are running against that fresh bridge. NO main merge
 of these candidates yet. Swift final39/0 direct0 verified; source72b64733 and
 tests05caa0f5. Prior hung test semaphore and missing-forwarder SIGSEGV retained.
 Native f5 runtime41unit/9Develop-integration/3mask-integration passed (3+1ignored);
@@ -43,8 +45,11 @@ strictClippy/fmt. Earlier setup and strict failures remain preserved.
 B initial mask986512b6 review blocked successful-reentrant-edit liveness;
 result48f8e3c2 failed source acceptance. Revision request13fb8907 / SSH queue
 01a0e5c1-7602-7e12-a2d4-968944a95998 received by B; result737e0d32 returns
-revised candidate639da049 and 11 UNRUN tests. A accepted result for source review,
-not runtime/product acceptance. No B workloads authorized.
+revised candidate639da049 and 11 UNRUN tests. A accepted result for source review; independent review finds no blocker after
+revision. Runtime remains UNRUN. Safe first RED is the rejected-component test
+from test-only9ee4957d; do not run its recursive-reentry test on old implementation
+(stack overflow), and later4tests require new internal task API. Queue A validation
+after current combined gate. No B workloads authorized.
 Luna source-plans Core result-bearing close next; AppModel/UI recovery unimplemented.
 
 This checkpoint supersedes older in-progress ownership entries below.
