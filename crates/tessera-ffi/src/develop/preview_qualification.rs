@@ -472,3 +472,157 @@ fn proxy_lifecycle(engine: &Arc<Engine>, id: &str, expect_gpu: bool) -> Vec<serd
     }
     evidence
 }
+
+/// Listener timestamps callback entry, not a subsequent channel dequeue.
+struct ReopenListener(mpsc::Sender<(Instant, std::result::Result<FrameInfo, String>)>);
+impl DevelopListener for ReopenListener {
+    fn frame_ready(&self, frame: FrameInfo) {
+        let _ = self.0.send((Instant::now(), Ok(frame)));
+    }
+    fn render_failed(&self, message: String) {
+        let _ = self.0.send((Instant::now(), Err(message)));
+    }
+    fn saved(&self, _: String) {}
+}
+
+#[test]
+#[ignore = "exclusive runtime lane, explicit read-only fixture and output; no cache implementation"]
+fn engine_same_engine_unchanged_proxy_reopen_baseline() {
+    let route = std::env::var("TESSERA_QUALIFY_ROUTE").unwrap();
+    assert!(["proxy-auto", "proxy-cpu"].contains(&route.as_str()));
+    assert_eq!(std::env::var("TESSERA_RENDER_BACKEND").unwrap_or_default(),
+        if route == "proxy-cpu" { "cpu" } else { "" });
+    assert!(std::env::var_os("TESSERA_SMART_PREVIEW_GPU").is_none());
+    let format = std::env::var("TESSERA_QUALIFY_FORMAT").unwrap();
+    assert!(["sdr", "edr"].contains(&format.as_str()));
+    let float = format == "edr";
+    let output = std::path::PathBuf::from(std::env::var_os("TESSERA_QUALIFY_OUT").unwrap());
+    fs::create_dir_all(&output).unwrap();
+    let fixture = std::path::PathBuf::from(std::env::var_os("TESSERA_SMART_PREVIEW_RAW").unwrap());
+    let fixture_hash = digest(&fixture);
+    let temp = tempfile::tempdir().unwrap();
+    let photos = temp.path().join("photos");
+    fs::create_dir(&photos).unwrap();
+    let original = photos.join(fixture.file_name().unwrap());
+    fs::copy(&fixture, &original).unwrap();
+    let engine = Engine::open(temp.path().join("support").to_string_lossy().into()).unwrap();
+    engine.index_folder(photos.to_string_lossy().into()).unwrap();
+    let images = engine.list_images(crate::ImageQuery::default()).unwrap();
+    assert_eq!(images.len(), 1);
+    let id = images[0].id.clone();
+    let mut recipe: engine_api::recipe::Recipe =
+        serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+    recipe.process_version = engine_api::recipe::ProcessVersion {
+        family: engine_api::recipe::ProcessFamily::Native, revision: 2,
+    };
+    recipe.settings.denoise.method = engine_api::recipe::settings::DenoiseMethod::Off;
+    recipe.settings.tone.exposure = 0.25;
+    if float {
+        recipe.settings.output.hdr = true;
+        recipe.settings.output.hdr_headroom_stops = 2.;
+    }
+    recipe.history.record(&recipe.history.base.clone(), &recipe.settings,
+        engine_api::recipe::EditMeta::user("reopen baseline", 1)).unwrap();
+    engine.set_recipe_json(id.clone(), String::from_utf8(recipe.to_json().unwrap()).unwrap()).unwrap();
+    let captured_recipe = engine.get_recipe(id.clone()).unwrap();
+    let built = engine.build_smart_preview(id.clone()).unwrap();
+    assert!(built.width <= 2048 && built.height <= 2048);
+    let preview_dir = temp.path().join("support").join("smart-previews").join(&id);
+    let journal_path = preview_dir.join("journal.json");
+    let pixels_path = preview_dir.join("pixels.tsp");
+    let journal_hash = digest(&journal_path);
+    let proxy_hash = digest(&pixels_path);
+    let mut rows = Vec::new();
+    // One initial open then five unchanged reopens in exactly this Engine.
+    // No edit/flush/save is introduced between cycles.
+    for cycle in 0..6 {
+        GPU.lock().unwrap().take();
+        RESIDENT.lock().unwrap().clear();
+        let start = Instant::now();
+        let session = engine.clone().open_smart_preview_develop_session(id.clone()).unwrap();
+        let returned = Instant::now();
+        let info = session.info();
+        assert_eq!(info.orientation, 1);
+        let metal = info.backend.starts_with("Metal (");
+        if route == "proxy-cpu" { assert!(!metal); }
+        let weak_shared = Arc::downgrade(&session.shared);
+        let weak_renderer = Arc::downgrade(&session.shared.renderer);
+        let weak_gpu = GPU.lock().unwrap().as_ref().map(Arc::downgrade);
+        assert_eq!(weak_gpu.is_some(), metal);
+        session.set_display_headroom(if float { 4. } else { 1. }).unwrap();
+        let plan = session.plan_surface(640, 426);
+        let ring: Vec<Surface> = (0..2).map(|_| if float {
+            crate::surface::testing::create_owned_rgba16f(plan.width, plan.height)
+        } else {
+            Surface::create_rgba8(plan.width, plan.height).unwrap()
+        }).collect();
+        let surface_ids: Vec<_> = ring.iter().map(Surface::id).collect();
+        let (send, receive) = mpsc::channel();
+        session.set_listener(Some(Arc::new(ReopenListener(send))));
+        RESIDENT.lock().unwrap().clear();
+        let before = stats(); // Calibration excluded from actual-frame proof.
+        for surface in &ring {
+            session.attach_surface(surface.id(), plan.width, plan.height).unwrap();
+        }
+        let expected = session.shared.state.lock().unwrap().generation;
+        let deadline = Instant::now() + Duration::from_secs(60);
+        let (delivered, frame) = loop {
+            let remaining = deadline.checked_duration_since(Instant::now()).expect("frame deadline");
+            let (at, frame) = receive.recv_timeout(remaining).expect("frame timeout");
+            let frame = frame.expect("render error");
+            if frame.generation == expected && frame.is_final { break (at, frame); }
+        };
+        let after = stats();
+        let output_kind = if float { RenderOutput::DisplayLinear(Headroom::new(4.)) }
+            else { RenderOutput::Display };
+        let resident = RESIDENT.lock().unwrap().contains(&(frame.generation, frame.level, output_kind));
+        assert_eq!(resident, metal, "selected backend is not proof of this frame's route");
+        assert_eq!(after.submissions > before.submissions, metal);
+        assert_eq!(after.pixel_readback_bytes, before.pixel_readback_bytes);
+        if metal { assert!(after.last_resident_dispatches > 0); }
+        // All readback, file IO, settings comparison and lifecycle waits are AFTER delivery.
+        let pixel_file = format!("cycle-{cycle}.rgb32f");
+        let pixel_bytes = pixels(ring.iter().find(|s| s.id() == frame.surface_id).unwrap(), &frame, float);
+        if float {
+            assert!(pixel_bytes.as_chunks::<4>().0.iter().any(|v| f32::from_le_bytes(*v) > 1.));
+        }
+        fs::write(output.join(&pixel_file), pixel_bytes).unwrap();
+        let settings: serde_json::Value = serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+        assert_eq!(settings, serde_json::to_value(&recipe.settings).unwrap());
+        session.set_listener(None);
+        session.close().unwrap();
+        drop(session);
+        drop(receive);
+        drop(ring);
+        GPU.lock().unwrap().take();
+        let release_start = Instant::now();
+        loop {
+            let released = weak_shared.upgrade().is_none() && weak_renderer.upgrade().is_none()
+                && weak_gpu.as_ref().is_none_or(|w| w.upgrade().is_none())
+                && surface_ids.iter().all(|&sid| Surface::lookup_presentation(sid, plan.width, plan.height).is_err());
+            if released { break; }
+            assert!(release_start.elapsed() < Duration::from_secs(5), "owned resources failed to drain");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(engine.get_recipe(id.clone()).unwrap(), captured_recipe);
+        assert_eq!(digest(&journal_path), journal_hash, "unchanged open mutated journal");
+        assert_eq!(digest(&pixels_path), proxy_hash);
+        assert_eq!(digest(&fixture), fixture_hash);
+        assert_eq!(digest(&original), fixture_hash);
+        rows.push(json!({"cycle":cycle,"initial_open":cycle==0,"route":route,"backend":info.backend,
+            "format":format,"viewport":[640,426],"settings":settings,"plan_level":plan.level,
+            "level":frame.level,"dimensions":[frame.width,frame.height],
+            "display_dimensions":[frame.display_width,frame.display_height],"generation":frame.generation,
+            "open_ms":returned.duration_since(start).as_secs_f64()*1000.,
+            "post_open_delivery_ms":delivered.duration_since(returned).as_secs_f64()*1000.,
+            "open_to_final_callback_ms":delivered.duration_since(start).as_secs_f64()*1000.,
+            "resident":resident,"submissions":after.submissions-before.submissions,
+            "pixel_readback_bytes":after.pixel_readback_bytes-before.pixel_readback_bytes,
+            "released":true,"release_ms":release_start.elapsed().as_secs_f64()*1000.,
+            "release_deadline_ms":5000,"pixel_file":pixel_file}));
+        // Incremental evidence survives any later cycle failure.
+        fs::write(output.join("reopen-results.json"), serde_json::to_vec_pretty(&json!({
+            "metric":"public open to matching final IOSurface callback (not physical display)",
+            "engine_count":1,"fixture_blake3":fixture_hash,"journal_blake3":journal_hash,"proxy_blake3":proxy_hash,"rows":rows})).unwrap()).unwrap();
+    }
+}
