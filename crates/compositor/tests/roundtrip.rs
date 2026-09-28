@@ -141,6 +141,27 @@ fn rich_doc() -> Document {
     Document::new(st)
 }
 
+fn rewrite_manifest(bytes: &[u8], edit: impl FnOnce(&mut serde_json::Value)) -> Vec<u8> {
+    let trailer = bytes.len() - 24;
+    let manifest_offset =
+        u64::from_le_bytes(bytes[trailer..trailer + 8].try_into().unwrap()) as usize;
+    let manifest_len =
+        u64::from_le_bytes(bytes[trailer + 8..trailer + 16].try_into().unwrap()) as usize;
+    let json =
+        zstd::stream::decode_all(&bytes[manifest_offset..manifest_offset + manifest_len]).unwrap();
+    let mut manifest: serde_json::Value = serde_json::from_slice(&json).unwrap();
+    edit(&mut manifest);
+    let json = serde_json::to_vec(&manifest).unwrap();
+    let compressed = zstd::bulk::compress(&json, 3).unwrap();
+
+    let mut rewritten = bytes[..manifest_offset].to_vec();
+    rewritten.extend_from_slice(&compressed);
+    rewritten.extend_from_slice(&(manifest_offset as u64).to_le_bytes());
+    rewritten.extend_from_slice(&(compressed.len() as u64).to_le_bytes());
+    rewritten.extend_from_slice(&bytes[trailer + 16..]);
+    rewritten
+}
+
 #[test]
 fn round_trip_preserves_model_and_pixels() {
     let d = rich_doc();
@@ -207,4 +228,38 @@ fn save_and_load_files() {
         .rev;
     assert!(rev > d.state().rev);
     assert!(format::from_bytes(b"not a document at all, definitely").is_err());
+}
+
+#[test]
+fn future_native_version_is_reported_before_unknown_layer_kind_parse() {
+    let bytes = format::to_bytes(rich_doc().state()).unwrap();
+    let future = rewrite_manifest(&bytes, |manifest| {
+        manifest["version"] = serde_json::json!(format::FORMAT_VERSION + 1);
+        manifest["document"]["layers"][0]["kind"]["type"] = serde_json::json!("future_layer_kind");
+    });
+
+    assert_eq!(
+        format::from_bytes(&future).unwrap_err(),
+        engine_api::EngineError::SchemaVersion {
+            document: "tessera-doc".into(),
+            found: format::FORMAT_VERSION + 1,
+            supported: format::FORMAT_VERSION,
+        }
+    );
+}
+
+#[test]
+fn current_native_version_still_rejects_unknown_layer_kind_as_decode_error() {
+    let bytes = format::to_bytes(rich_doc().state()).unwrap();
+    let malformed = rewrite_manifest(&bytes, |manifest| {
+        manifest["document"]["layers"][0]["kind"]["type"] = serde_json::json!("future_layer_kind");
+    });
+
+    assert!(matches!(
+        format::from_bytes(&malformed),
+        Err(engine_api::EngineError::Decode {
+            format,
+            ..
+        }) if format == "tessera-doc"
+    ));
 }

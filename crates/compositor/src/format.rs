@@ -47,6 +47,12 @@ struct Manifest {
     document: MDoc,
 }
 
+#[derive(Deserialize)]
+struct ManifestHeader {
+    format: String,
+    version: u32,
+}
+
 #[derive(Serialize, Deserialize, Clone, Copy)]
 struct MChunk {
     offset: u64,
@@ -695,16 +701,20 @@ pub fn from_bytes(bytes: &[u8]) -> EngineResult<DocState> {
         )
         .ok_or_else(|| dec("manifest outside file"))?;
     let json = zstd::stream::decode_all(z).map_err(dec)?;
+    let header: ManifestHeader = serde_json::from_slice(&json).map_err(dec)?;
+    if header.format != "tessera-doc" {
+        return Err(dec("format tag"));
+    }
+    if header.version > FORMAT_VERSION {
+        return Err(EngineError::SchemaVersion {
+            document: "tessera-doc".into(),
+            found: header.version,
+            supported: FORMAT_VERSION,
+        });
+    }
     let m: Manifest = serde_json::from_slice(&json).map_err(dec)?;
     if m.format != "tessera-doc" {
         return Err(dec("format tag"));
-    }
-    if m.version > FORMAT_VERSION {
-        return Err(EngineError::SchemaVersion {
-            document: "tessera-doc".into(),
-            found: m.version,
-            supported: FORMAT_VERSION,
-        });
     }
     let mut r = Reader {
         bytes,
