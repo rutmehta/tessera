@@ -616,3 +616,15 @@ routing with three regressions, MainActor Sendable checkbox setter (A supplement
 corrects original slider report). No DocSlider/AppModel/generated/SaveAs edits.
 A owns compiler/main and SmartPreview alias fixture oracle repair. Handoff:
 DOCUMENT-STRICT-WARNINGS-HANDOFF.md on source branch. No B workloads/heartbeat.
+
+### Smart Preview thumbnails9269efdc — source API routing
+
+Published codex/smart-preview-thumbnails51e0cfb6 from A baselineb6cea8f2.
+Tests3262cc6a/9d35c5d6 (seven UNRUN), productfe5d7911. Immutable thumbnail
+source on EngineImageReference, exact proxy native API/no original fallback,
+source/owner cache+flight identity, mutation before/after invalidation, existing
+save and reconnect retirement, truthful proxy copy. Grid clears stale proxy pixels;
+loupe first paint and Compare source/revision handling updated. Native pending
+API/bindings/validation all A. SMART-PREVIEW-THUMBNAIL-HANDOFF.md has limits/gates.
+Document strict186559ce/SmartPreviewUI775f39b0/SaveAs3ca3e9c9 preserved.
+No B builds/tests/apps/benchmarks/heartbeat/writer changes. A compiler/main.
