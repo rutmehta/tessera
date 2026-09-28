@@ -169,6 +169,45 @@ final class SmartPreviewUITests: XCTestCase {
         XCTAssertEqual(probe.reads, ["new", "new", "new"])
     }
 
+    func testLocalProxySaveKeepsThumbnailWarningButOpeningValidatesAgain() async throws {
+        var reads = 0
+        let offline = info("raw", .originalOffline, dirty: true, online: false)
+        let synced = info("raw", .ready)
+        let controller = SmartPreviewController(api: .init(info: { _ in
+            reads += 1
+            return reads == 1 ? offline : synced
+        }, build: { _ in offline }, discard: { _ in }, synchronize: { _ in synced }))
+        await controller.select(imageID: "raw")?.value
+        controller.didSave(imageID: "raw", source: .smartPreview)
+        XCTAssertNil(controller.selectedInfo, "Invalidated native status is not routing authority")
+        XCTAssertNil(controller.snapshots["raw"])
+        XCTAssertEqual(reads, 1, "Local save must not trigger an asset hash/decode")
+        let warning = try XCTUnwrap(controller.libraryBadge(imageID: "raw"))
+        XCTAssertTrue(warning.contains("Thumbnail: last synchronized image"))
+        XCTAssertTrue(warning.contains("Local edits saved"))
+        XCTAssertTrue(warning.contains("Status needs refresh"))
+        XCTAssertTrue(warning.contains("Original last checked offline"))
+        XCTAssertFalse(warning.contains("Original offline"), "Do not claim current availability from stale status")
+        XCTAssertEqual(controller.selectedPresentationWarning, warning)
+        controller.invalidateStatus(imageID: "raw")
+        XCTAssertEqual(controller.libraryBadge(imageID: "raw"), warning)
+        let refreshed = try await controller.statusForOpening(imageID: "raw")
+        XCTAssertEqual(reads, 2, "Opening must obtain fresh native validation")
+        XCTAssertEqual(refreshed, synced)
+        XCTAssertNil(controller.selectedPresentationWarning)
+        XCTAssertEqual(controller.libraryBadge(imageID: "raw"), synced.libraryBadge)
+    }
+
+    func testOriginalSaveDoesNotInventProxyPresentation() async {
+        let probe = PreviewProbe()
+        let controller = SmartPreviewController(api: probe.api)
+        await controller.select(imageID: "new")?.value
+        controller.didSave(imageID: "new", source: .original)
+        XCTAssertNil(controller.libraryBadge(imageID: "new"))
+        XCTAssertNil(controller.selectedInfo)
+        XCTAssertEqual(probe.reads, ["new"])
+    }
+
     func testStaleOpenerCannotRetargetCurrentSelectionOrStartAnotherRead() async {
         let probe = PreviewProbe()
         let controller = SmartPreviewController(api: probe.api)
