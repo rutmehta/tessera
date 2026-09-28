@@ -265,9 +265,17 @@ impl Engine {
     }
     fn persist(c: &mut Catalog, path: &Path, doc: &sidecar::RecipeDocument) -> Result<()> {
         let packet = catalog::selection_packet(path, doc)?;
+        Self::persist_with_packet(c, path, doc, &packet)
+    }
+    fn persist_with_packet(
+        c: &mut Catalog,
+        path: &Path,
+        doc: &sidecar::RecipeDocument,
+        packet: &sidecar::XmpPacket,
+    ) -> Result<()> {
         // Recipe is the authoritative commit. A later scan repairs the rebuildable index.
         Sidecar::write_recipe(Sidecar::paths(path).recipe, doc)?;
-        Sidecar::write_xmp(catalog::xmp_path(path), &packet)?;
+        Sidecar::write_xmp(catalog::xmp_path(path), packet)?;
         c.index.scan(
             path.parent()
                 .ok_or_else(|| failure("image has no folder"))?,
@@ -458,7 +466,8 @@ impl Engine {
         recipe.ids.next_retouch = recipe.ids.next_retouch.max(doc.recipe.ids.next_retouch);
         doc.recipe = recipe;
         doc.record_write("tessera-mac", now_ms())?;
-        Self::persist(&mut c, Path::new(&path), &doc)?;
+        let packet = catalog::selection_packet(Path::new(&path), &doc)?.with_recipe(&doc.recipe)?;
+        Self::persist_with_packet(&mut c, Path::new(&path), &doc, &packet)?;
         drop(c);
         drop(write);
         self.notify_changes();
