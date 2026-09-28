@@ -3594,7 +3594,7 @@ mod tests {
             .list_images(crate::ImageQuery::default())
             .unwrap()
             .remove(0);
-        let session = engine.open_develop_session(row.id).unwrap();
+        let session = engine.clone().open_develop_session(row.id).unwrap();
         let path = session.shared.path.clone();
         let pause: PostRecipePause = Arc::new((Mutex::new((false, false)), Condvar::new()));
         let _release = ReleasePause(pause.clone());
