@@ -18,6 +18,22 @@ final class EngineDocumentBackendTests: XCTestCase {
 
     private func engine(_ dir: URL) throws -> Engine { try Engine.open(appSupportDir: dir.appendingPathComponent("support").path) }
 
+    // SOURCE ONLY / UNRUN: actual generated checkpoint81cc08eb.
+    func testCheckedSaveAsMapsTypedResultsAndPreservesOtherErrors() throws {
+        let dir = try temp()
+        let docs = EngineDocumentEngine.for(try engine(dir))
+        let backend = try docs.newDocument(width: 4, height: 4, depth: .u8, profile: nil)
+        defer { backend.close() }
+        let path = dir.appendingPathComponent("checked.tessera-doc")
+        XCTAssertEqual(try backend.saveAs(path: path.path, intent: .createIfAbsent), .saved)
+        let bytes = try Data(contentsOf: path)
+        XCTAssertEqual(try backend.saveAs(path: path.path, intent: .createIfAbsent), .destinationExists)
+        XCTAssertEqual(try Data(contentsOf: path), bytes)
+        XCTAssertEqual(try backend.saveAs(path: path.path, intent: .replaceConfirmed), .saved)
+        XCTAssertThrowsError(try backend.saveAs(path: dir.appendingPathComponent("missing/out.tessera-doc").path,
+                                               intent: .createIfAbsent))
+    }
+
     // MARK: Record conversion
 
     func testEnumsRoundTripEveryValue() {
