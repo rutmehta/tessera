@@ -15,6 +15,7 @@ final class StagedLibraryFilterTests: XCTestCase {
         let second: EngineLibrary
         let model: AppModel
         let saves: FilterSavePlan
+        let personIDs: [String]
     }
 
     func testHeldCloseComposesTwoFilterFieldsWithoutEarlyPublication() async throws {
@@ -48,13 +49,13 @@ final class StagedLibraryFilterTests: XCTestCase {
         let hold = f.saves.holdNext(entered: entered)
         defer { hold.release() }
 
-        f.model.togglePersonFacet("person-a")
+        f.model.togglePersonFacet(f.personIDs[0])
         await fulfillment(of: [entered], timeout: 5)
-        f.model.togglePersonFacet("person-b")
+        f.model.togglePersonFacet(f.personIDs[1])
         XCTAssertTrue(f.model.people.facet.isEmpty)
         hold.release()
         guard await waitUntil({ f.model.develop == nil && !f.model.developRecovery.hasActiveReservations
-            && f.model.people.facet == ["person-a", "person-b"] }) else { return }
+            && f.model.people.facet == Set(f.personIDs) }) else { return }
         XCTAssertEqual(f.saves.closeCount, 1)
     }
 
@@ -69,8 +70,8 @@ final class StagedLibraryFilterTests: XCTestCase {
         f.model.updateLibraryFilter { $0.text = "first" }
         await fulfillment(of: [entered], timeout: 5)
         f.model.updateLibraryFilter { $0.text = "second" }
-        f.model.togglePersonFacet("person-a")
-        f.model.togglePersonFacet("person-a")
+        f.model.togglePersonFacet(f.personIDs[0])
+        f.model.togglePersonFacet(f.personIDs[0])
         XCTAssertEqual(f.model.collections.filter.text, "")
         XCTAssertTrue(f.model.people.facet.isEmpty)
 
@@ -111,7 +112,7 @@ final class StagedLibraryFilterTests: XCTestCase {
             && f.model.developRecoveries.contains { if case .failed = $0.phase { return true }; return false } }) else { return }
         XCTAssertEqual(f.saves.failureCount, 1)
         f.model.updateLibraryFilter { $0.cameras.insert("Camera A") }
-        f.model.togglePersonFacet("person-a")
+        f.model.togglePersonFacet(f.personIDs[0])
         XCTAssertEqual(f.model.collections.filter, LibraryFilter())
         XCTAssertTrue(f.model.people.facet.isEmpty)
         guard await waitUntil({ !f.model.developRecovery.hasActiveReservations }) else { return }
@@ -121,7 +122,7 @@ final class StagedLibraryFilterTests: XCTestCase {
         guard await waitUntil({ f.model.develop == nil && f.model.developRecoveries.isEmpty
             && f.model.collections.filter.grades == ["2"]
             && f.model.collections.filter.cameras == ["Camera A"]
-            && f.model.people.facet == ["person-a"] }) else { return }
+            && f.model.people.facet == [f.personIDs[0]] }) else { return }
         XCTAssertEqual(f.saves.closeCount, 2)
     }
 
@@ -135,7 +136,7 @@ final class StagedLibraryFilterTests: XCTestCase {
 
         f.model.updateLibraryFilter { $0.grades.insert("2") }
         await fulfillment(of: [entered], timeout: 5)
-        f.model.togglePersonFacet("person-a")
+        f.model.togglePersonFacet(f.personIDs[0])
         f.model.requestLibraryViewMode(.grid)
         hold.release()
         guard await waitUntil({ f.model.develop == nil && !f.model.developRecovery.hasActiveReservations
@@ -154,7 +155,7 @@ final class StagedLibraryFilterTests: XCTestCase {
 
         f.model.updateLibraryFilter { $0.grades.insert("2") }
         await fulfillment(of: [entered], timeout: 5)
-        f.model.togglePersonFacet("person-a")
+        f.model.togglePersonFacet(f.personIDs[0])
         f.model.install(f.second)
         XCTAssertTrue(f.model.engineLibrary === f.second)
         hold.release()
@@ -177,9 +178,11 @@ final class StagedLibraryFilterTests: XCTestCase {
         let secondFolder = root.appendingPathComponent("photos-b")
         let support = root.appendingPathComponent("support")
         try Self.writePhoto(to: firstFolder.appendingPathComponent("photo-a.jpg"))
+        try Self.writePhoto(to: firstFolder.appendingPathComponent("photo-b.jpg"))
         try Self.writePhoto(to: secondFolder.appendingPathComponent("photo-b.jpg"))
         let first = try EngineLibrary.scan(folder: firstFolder, appSupport: support)
         let second = try EngineLibrary.scan(folder: secondFolder, appSupport: support)
+        try Self.seedTwoPeople(in: first)
         let saves = FilterSavePlan()
         let model = AppModel(
             agent: AgentController(arguments: ["--fake-planner"], supportDirectory: support),
@@ -189,7 +192,12 @@ final class StagedLibraryFilterTests: XCTestCase {
                                              itemID: itemID, imageID: reference.imageID)
             })
         model.install(first)
-        return Fixture(root: root, first: first, second: second, model: model, saves: saves)
+        model.people.reload(refresh: true)
+        let personIDs = model.people.tiles.map(\.id)
+        XCTAssertEqual(personIDs.count, 2, "Two real identities are needed for facet assertions")
+        guard personIDs.count == 2 else { throw FilterFixtureMissingPeople() }
+        return Fixture(root: root, first: first, second: second, model: model,
+                       saves: saves, personIDs: personIDs)
     }
 
     private func waitUntil(_ condition: @MainActor () -> Bool,
@@ -219,6 +227,21 @@ final class StagedLibraryFilterTests: XCTestCase {
             url as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
         CGImageDestinationAddImage(destination, image, nil)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
+    }
+
+    private static func seedTwoPeople(in library: EngineLibrary) throws {
+        var a = [Float](repeating: 0.01, count: 128)
+        var b = [Float](repeating: 0.01, count: 128)
+        a[3] = 1
+        b[40] = 1
+        for imageID in library.imageIDs {
+            try library.engine.setFaces(imageId: imageID, faces: [
+                FaceInput(x: 2, y: 2, width: 10, height: 15, focus: 0.9,
+                          eyesOpen: 0.9, embedding: a),
+                FaceInput(x: 17, y: 2, width: 10, height: 15, focus: 0.9,
+                          eyesOpen: 0.9, embedding: b),
+            ], width: 32, height: 24)
+        }
     }
 }
 
@@ -290,4 +313,7 @@ private struct FilterSaveFailed: LocalizedError {
 }
 private struct FilterHoldTimedOut: LocalizedError {
     var errorDescription: String? { "staged filter close hold timed out" }
+}
+private struct FilterFixtureMissingPeople: LocalizedError {
+    var errorDescription: String? { "tiny fixture did not load both synthetic people" }
 }
