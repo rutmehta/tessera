@@ -20,7 +20,11 @@ private final class ControlledPreviewWorker: @unchecked Sendable {
     }
 
     func waitUntilEntered() async -> Bool {
-        await Task.detached { self.waitEnteredBlocking() }.value
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: self.waitEnteredBlocking())
+            }
+        }
     }
 
     private func waitEnteredBlocking() -> Bool {
