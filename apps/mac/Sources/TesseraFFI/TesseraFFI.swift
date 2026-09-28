@@ -2376,8 +2376,8 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func checkoutHistory(id: UInt64?) throws  -> Bool
     
     /**
-     * Stops rendering and writes pending changes. The session is unusable
-     * for rendering afterwards.
+     * Writes pending changes, drains the save worker and stops rendering.
+     * A failed write leaves this session open for a later retry.
      */
     func close() throws 
     
@@ -2774,8 +2774,8 @@ open func checkoutHistory(id: UInt64?)throws  -> Bool  {
 }
     
     /**
-     * Stops rendering and writes pending changes. The session is unusable
-     * for rendering afterwards.
+     * Writes pending changes, drains the save worker and stops rendering.
+     * A failed write leaves this session open for a later retry.
      */
 open func close()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -33692,7 +33692,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_checkout_history() != 2274) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_developsession_close() != 7846) {
+    if (uniffi_tessera_ffi_checksum_method_developsession_close() != 13264) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_commit() != 58908) {
