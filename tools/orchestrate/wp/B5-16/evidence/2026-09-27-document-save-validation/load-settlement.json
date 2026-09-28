@@ -1,0 +1,30 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "--jobs",
+    "2",
+    "--package-path",
+    "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swift/document-save-settlement/scratch",
+    "-c",
+    "release",
+    "-Xswiftc",
+    "-enable-testing",
+    "--filter",
+    "DocumentLoadSettlementTests"
+  ],
+  "direct_exit_code": 0,
+  "timed_out": false,
+  "started_unix": 1790567337.690743,
+  "elapsed_seconds": 0.8584120273590088,
+  "executed_counts_observed": [
+    4,
+    4,
+    4
+  ],
+  "expected_min": 4,
+  "raw_log": "/Volumes/betterSSD/tessera-validation/document-save-settlement/pre-gate-5ad1cbcc/load-settlement.log",
+  "candidate_head": "5ad1cbcc078cefeb6945533cba8637a974f0de65"
+}

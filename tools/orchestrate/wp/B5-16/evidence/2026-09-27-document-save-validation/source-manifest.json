@@ -1,0 +1,51 @@
+{
+  "base": "fee032e4246cc013702c7fbb9fabaad42d00c11a",
+  "builds_or_tests_run": false,
+  "candidate_head": "5ad1cbcc078cefeb6945533cba8637a974f0de65",
+  "files": {
+    "apps/mac/Package.resolved": {
+      "bytes": 388,
+      "sha256": "864591e727a84baf306a284db39a5952b23de2e426b4ff4bbfa652446aa77844"
+    },
+    "apps/mac/Package.swift": {
+      "bytes": 2079,
+      "sha256": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentSheets.swift": {
+      "bytes": 11151,
+      "sha256": "f0526b64ac0335c4687fcbaf141edfb7729dc0e77468602e80b88e2f7fc0c1cd"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": {
+      "bytes": 29870,
+      "sha256": "11b387b952d1aea2423eb1109dd771422b17c339908154149848e8755aca41ca"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift": {
+      "bytes": 3115,
+      "sha256": "16747ff20139ca40ec5f66a35839036ec18d21966b06b20e5fe7c67b9d836232"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift": {
+      "bytes": 6698,
+      "sha256": "168bab5e54d9418639a17238bccabd2b53e6de41c733cc96bde72260ba8b9a36"
+    },
+    "apps/mac/build/ffi/libtessera_ffi.a": {
+      "bytes": 298484480,
+      "preserved_in_place": true,
+      "sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03"
+    },
+    "tools/orchestrate/wp/B5-16/DOCUMENT-LAYERS-COMPLETION-HANDOFF.md": {
+      "bytes": 2888,
+      "sha256": "d1e55633557e0cabfbf32f0ab2da090449627b8ded7cd81334686607848609cd"
+    },
+    "tools/orchestrate/wp/B5-16/DOCUMENT-SAVE-SETTLEMENT-HANDOFF.md": {
+      "bytes": 4071,
+      "sha256": "7f6e4b44ade1ff0c4717012ea48c5df011dd0e520ceac75be0ec90e8fccdc66c"
+    }
+  },
+  "planned_test_filters": [
+    "DocumentSaveSettlementTests",
+    "DocumentLoadSettlementTests",
+    "testSaveAsNames|testSaveOpenAndExport|testEngineSessionThroughTheAdapter"
+  ],
+  "status_porcelain": "",
+  "worktree": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera"
+}

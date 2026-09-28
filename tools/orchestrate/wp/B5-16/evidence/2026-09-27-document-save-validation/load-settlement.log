@@ -1,0 +1,25 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.24s)
+Test Suite 'Selected tests' started at 2026-09-27 23:48:58.474.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 23:48:58.475.
+Test Suite 'DocumentLoadSettlementTests' started at 2026-09-27 23:48:58.475.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testBackendFailureSettlesOnceWithoutInstall]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testBackendFailureSettlesOnceWithoutInstall]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testDelayedBackendCompletionDoesNotReleaseAtDispatch]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testDelayedBackendCompletionDoesNotReleaseAtDispatch]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testEarlyRejectsSettleWithoutExecutor]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testEarlyRejectsSettleWithoutExecutor]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testReleasedWorkspaceStillSettlesAfterBackendReturns]' started.
+Test Case '-[TesseraCoreTests.DocumentLoadSettlementTests testReleasedWorkspaceStillSettlesAfterBackendReturns]' passed (0.000 seconds).
+Test Suite 'DocumentLoadSettlementTests' passed at 2026-09-27 23:48:58.480.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 23:48:58.480.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 23:48:58.480.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.005 (0.007) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

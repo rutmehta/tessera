@@ -1,0 +1,8 @@
+{
+  "candidate_head": "5ad1cbcc078cefeb6945533cba8637a974f0de65",
+  "source_executable": "/Volumes/betterSSD/tessera-cache/swift/document-save-settlement/scratch/arm64-apple-macosx/release/Tessera",
+  "source_executable_sha256": "6fc86ac45796f1de33468ea95ee35ea8fe22063007977f48a466e11d18832ea5",
+  "source_ffi_sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03",
+  "app": "/Volumes/betterSSD/tessera-validation/document-save-settlement/pre-gate-5ad1cbcc/gui/Tessera Document Save Validation.app",
+  "bundle_id": "dev.tessera.document-save-validation.5ad1cbcc"
+}
