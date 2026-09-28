@@ -2,6 +2,28 @@ import AppKit
 import TesseraCore
 import SwiftUI
 
+/// Keeps the visible presentation capability run explicitly separate from the background audit.
+enum TimingSelfTestLaunchMode: Equatable {
+    case notRequested
+    case background
+    case visible
+    case conflictingArguments
+
+    var shouldStartUpdater: Bool { self == .notRequested }
+
+    static func resolve(arguments: [String]) -> Self {
+        let requestsTest = arguments.contains("--timing-selftest") || arguments.contains("--timing-grid-only")
+        let requestsVisible = arguments.contains("--timing-visible")
+        let requestsBackground = arguments.contains("--nonactivating")
+        guard requestsTest else { return requestsVisible ? .conflictingArguments : .notRequested }
+        if requestsVisible && requestsBackground { return .conflictingArguments }
+        if requestsBackground { return .background }
+        if requestsVisible { return .visible }
+        // Preserve the former no-op behavior for a timing test without an explicit host mode.
+        return .notRequested
+    }
+}
+
 /// Accessory launches may not instantiate SwiftUI's Window scene. Host the same real content,
 /// but never allow this diagnostic window to become key/main or move ahead of another app.
 @MainActor
@@ -22,11 +44,12 @@ final class BackgroundAuditWindow: NSPanel {
     }
 }
 
-/// Background-only diagnostic run. The script copies its fixture so self-test edits never touch originals.
+/// Isolated diagnostic run. The script copies its fixture so self-test edits never touch originals.
 @MainActor
-func runTimingSelfTest(model: AppModel) {
+func runTimingSelfTest(model: AppModel, mode: TimingSelfTestLaunchMode) {
     let args = ProcessInfo.processInfo.arguments
-    guard args.contains("--nonactivating"), let path = PerformanceTrace.outputPath else { return }
+    guard mode == .background || mode == .visible,
+          let path = PerformanceTrace.outputPath else { return }
     let gridOnly = args.contains("--timing-grid-only")
     let environment = ProcessInfo.processInfo.environment
     let verbose = environment["TESSERA_DOC_FRAME_LOG"] != nil || environment["TESSERA_SELFTEST_VERBOSE"] == "1"
@@ -52,6 +75,9 @@ func runTimingSelfTest(model: AppModel) {
         // Give actual drawable-presented callbacks time to arrive; an occluded window can have none.
         try? await Task.sleep(for: .seconds(2))
         PerformanceTrace.shared.record(finished ? "selftest_complete" : "selftest_timeout")
+        if mode == .visible {
+            writeVisibleWindowReceipt(nextTo: URL(fileURLWithPath: path))
+        }
         if !finished {
             let state = "timing-selftest timeout: loading=\(model.isLoading) items=\(model.library.items.count) visible=\(model.visibleCount) mode=\(model.viewMode) focus=\(String(describing: model.focus)) develop=\(model.developStatus) windows=\(NSApp.windows.count)\n"
             FileHandle.standardError.write(Data(state.utf8))
@@ -64,5 +90,57 @@ func runTimingSelfTest(model: AppModel) {
             FileHandle.standardError.write(Data("Timing trace write failed: \(error)\n".utf8))
         }
         NSApp.terminate(nil)
+    }
+}
+
+private struct VisibleWindowReceipt: Encodable {
+    struct Rect: Encodable {
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+    }
+    let processID: Int32
+    let bundleID: String
+    let activationPolicy: String
+    let appActive: Bool
+    let windowNumber: Int
+    let windowTitle: String
+    let isRegularWindow: Bool
+    let isVisible: Bool
+    let isKeyWindow: Bool
+    let occlusionVisible: Bool
+    let contentScreenFrame: Rect
+}
+
+@MainActor
+private func writeVisibleWindowReceipt(nextTo traceURL: URL) {
+    guard let window = NSApp.keyWindow,
+          !(window is NSPanel),
+          let content = window.contentView else {
+        FileHandle.standardError.write(Data("timing-visible: no key regular window at completion\n".utf8))
+        return
+    }
+    let contentInWindow = content.convert(content.bounds, to: nil)
+    let frame = window.convertToScreen(contentInWindow)
+    let receipt = VisibleWindowReceipt(
+        processID: ProcessInfo.processInfo.processIdentifier,
+        bundleID: Bundle.main.bundleIdentifier ?? "",
+        activationPolicy: NSApp.activationPolicy() == .regular ? "regular" : "nonregular",
+        appActive: NSApp.isActive,
+        windowNumber: window.windowNumber,
+        windowTitle: window.title,
+        isRegularWindow: !(window is NSPanel),
+        isVisible: window.isVisible,
+        isKeyWindow: window.isKeyWindow,
+        occlusionVisible: window.occlusionState.contains(.visible),
+        contentScreenFrame: .init(x: frame.origin.x, y: frame.origin.y,
+                                  width: frame.width, height: frame.height))
+    do {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        try encoder.encode(receipt).write(to: traceURL.appendingPathExtension("window.json"), options: .atomic)
+    } catch {
+        FileHandle.standardError.write(Data("timing-visible: window receipt write failed: \(error)\n".utf8))
     }
 }
