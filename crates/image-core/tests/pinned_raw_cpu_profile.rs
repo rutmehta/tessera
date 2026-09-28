@@ -169,7 +169,10 @@ fn pinned_native2_bilinear_profile_has_float_scene_and_u16_display_contract() {
     let max_diff = got_scene
         .iter()
         .zip(&reference_planes)
-        .flat_map(|(actual, expected)| actual.iter().zip(expected))
+        .flat_map(|(actual, expected)| {
+            assert!(expected.iter().all(|value| value.is_finite()));
+            actual.iter().zip(expected)
+        })
         .map(|(actual, expected)| (actual - expected).abs())
         .fold(0.0f32, f32::max);
     assert!(
