@@ -143,7 +143,33 @@ fn public_engine_offline_restart_sync_original_export_and_conflict() {
         .to_rgb8();
     let info = engine.build_smart_preview(id.clone()).unwrap();
     assert!(matches!(info.state, SmartPreviewState::Ready));
-    assert!(info.width.max(info.height) <= 2560);
+    let [_, _, crop_width, crop_height] = original_metadata.default_crop;
+    let expected_scale = crop_width.max(crop_height).div_ceil(2048).max(1);
+    assert_eq!(
+        (info.width, info.height),
+        (
+            crop_width.div_ceil(expected_scale),
+            crop_height.div_ceil(expected_scale)
+        )
+    );
+    assert!(info.width.max(info.height) <= 2048);
+    let persisted = pipeline_cpu::CameraLinearProxy::decode_persistent(
+        &fs::read(support.join("smart-previews").join(&id).join("pixels.tsp")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        persisted.proxy.tier(),
+        pipeline_cpu::SmartPreviewTier::Compact2048
+    );
+    assert_eq!(persisted.proxy.scale(), expected_scale);
+    if (crop_width, crop_height) == (4920, 3276) {
+        assert_eq!((info.width, info.height), (1640, 1092));
+        assert_eq!((expected_width, expected_height), (4920, 3276));
+    }
+    println!(
+        "new Compact preview {}x{}, integer scale {}; full-quality original {}x{}",
+        info.width, info.height, expected_scale, expected_width, expected_height
+    );
     assert_eq!(fs::read(&sidecars.recipe).unwrap(), initial_recipe);
     assert_eq!(fs::read(&sidecars.xmp).unwrap(), initial_xmp);
     assert_eq!(digest(&original), source_before);

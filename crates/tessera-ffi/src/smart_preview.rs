@@ -5,7 +5,7 @@ use crate::{
 };
 use engine_api::{id::ImageId, recipe::Recipe};
 use image_core::RawImage;
-use pipeline_cpu::CameraLinearProxy;
+use pipeline_cpu::{CameraLinearProxy, SmartPreviewTier};
 use std::{
     fs,
     io::{Read, Seek, Write},
@@ -252,13 +252,14 @@ impl Engine {
         if image.source_kind() != "raw" {
             return Err(failure("Smart Preview requires a mosaic RAW original"));
         }
-        let proxy = CameraLinearProxy::generate(
+        let proxy = CameraLinearProxy::generate_with_tier(
             image.cfa(),
             image.metadata(),
             &doc.recipe.settings,
             doc.recipe.process_version,
             digest,
             &Default::default(),
+            SmartPreviewTier::Compact2048,
         )?;
         let bytes = proxy.encode_persistent(len)?;
         CameraLinearProxy::decode_persistent(&bytes)?;
