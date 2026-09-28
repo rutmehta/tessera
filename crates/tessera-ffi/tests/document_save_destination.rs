@@ -5,10 +5,17 @@
 use std::sync::Arc;
 use tessera_ffi::{DocDepth, DocumentSaveAsResult, DocumentSaveDestinationIntent, Engine};
 
-fn new_document() -> (tempfile::TempDir, Arc<Engine>, Arc<tessera_ffi::DocumentSession>) {
+fn new_document() -> (
+    tempfile::TempDir,
+    Arc<Engine>,
+    Arc<tessera_ffi::DocumentSession>,
+) {
     let dir = tempfile::tempdir().unwrap();
     let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
-    let session = engine.clone().new_document(4, 4, DocDepth::U8, None).unwrap();
+    let session = engine
+        .clone()
+        .new_document(4, 4, DocDepth::U8, None)
+        .unwrap();
     (dir, engine, session)
 }
 
@@ -22,7 +29,10 @@ fn checked_collision_keeps_destination_and_unsaved_session_then_new_name_saves()
     assert!(before.path.is_none());
 
     let outcome = session
-        .save_as_checked(occupied.to_string_lossy().into_owned(), DocumentSaveDestinationIntent::CreateIfAbsent)
+        .save_as_checked(
+            occupied.to_string_lossy().into_owned(),
+            DocumentSaveDestinationIntent::CreateIfAbsent,
+        )
         .unwrap();
     assert_eq!(outcome, DocumentSaveAsResult::DestinationExists);
     assert_eq!(std::fs::read(&occupied).unwrap(), b"external-sentinel");
@@ -34,16 +44,25 @@ fn checked_collision_keeps_destination_and_unsaved_session_then_new_name_saves()
 
     let fresh = dir.path().join("fresh.tessera-doc");
     assert_eq!(
-        session.save_as_checked(fresh.to_string_lossy().into_owned(), DocumentSaveDestinationIntent::CreateIfAbsent).unwrap(),
+        session
+            .save_as_checked(
+                fresh.to_string_lossy().into_owned(),
+                DocumentSaveDestinationIntent::CreateIfAbsent
+            )
+            .unwrap(),
         DocumentSaveAsResult::Saved
     );
     let saved = session.info().unwrap();
-    assert_eq!(saved.path.as_deref(), Some(fresh.to_string_lossy().as_ref()));
+    let fresh_path = fresh.to_string_lossy().into_owned();
+    assert_eq!(saved.path.as_deref(), Some(fresh_path.as_str()));
     assert_eq!(saved.title, "fresh.tessera-doc");
     assert!(!saved.dirty);
     assert!(std::fs::read(&fresh).unwrap().starts_with(b"TSRDOC\0\x01"));
     session.close();
-    let reopened = engine.clone().open_document(fresh.to_string_lossy().into_owned()).unwrap();
+    let reopened = engine
+        .clone()
+        .open_document(fresh.to_string_lossy().into_owned())
+        .unwrap();
     assert_ne!(reopened.id(), session.id());
     assert_eq!(reopened.info().unwrap().width, 4);
 }
@@ -54,19 +73,40 @@ fn checked_native_psd_and_psb_create_and_confirmed_replace() {
         let (dir, _engine, session) = new_document();
         let destination = dir.path().join(format!("document.{ext}"));
         assert_eq!(
-            session.save_as_checked(destination.to_string_lossy().into_owned(), DocumentSaveDestinationIntent::CreateIfAbsent).unwrap(),
+            session
+                .save_as_checked(
+                    destination.to_string_lossy().into_owned(),
+                    DocumentSaveDestinationIntent::CreateIfAbsent
+                )
+                .unwrap(),
             DocumentSaveAsResult::Saved
         );
         let first = std::fs::read(&destination).unwrap();
-        let expected_magic: &[u8] = if ext == "tessera-doc" { b"TSRDOC\0\x01" } else { b"8BPS" };
-        assert!(first.starts_with(expected_magic), "{ext} output should be parseable by its magic");
+        let expected_magic: &[u8] = if ext == "tessera-doc" {
+            b"TSRDOC\0\x01"
+        } else {
+            b"8BPS"
+        };
+        assert!(
+            first.starts_with(expected_magic),
+            "{ext} output should be parseable by its magic"
+        );
 
         std::fs::write(&destination, b"changed-after-approval").unwrap();
         assert_eq!(
-            session.save_as_checked(destination.to_string_lossy().into_owned(), DocumentSaveDestinationIntent::ReplaceConfirmed).unwrap(),
+            session
+                .save_as_checked(
+                    destination.to_string_lossy().into_owned(),
+                    DocumentSaveDestinationIntent::ReplaceConfirmed
+                )
+                .unwrap(),
             DocumentSaveAsResult::Saved
         );
-        assert!(std::fs::read(&destination).unwrap().starts_with(expected_magic));
+        assert!(
+            std::fs::read(&destination)
+                .unwrap()
+                .starts_with(expected_magic)
+        );
         assert!(!session.info().unwrap().dirty);
     }
 }
@@ -76,7 +116,9 @@ fn legacy_save_as_still_replaces_existing_destination() {
     let (dir, _engine, session) = new_document();
     let path = dir.path().join("legacy.tessera-doc");
     std::fs::write(&path, b"old").unwrap();
-    session.save_as(path.to_string_lossy().into_owned()).unwrap();
+    session
+        .save_as(path.to_string_lossy().into_owned())
+        .unwrap();
     assert!(std::fs::read(&path).unwrap().starts_with(b"TSRDOC\0\x01"));
     assert!(!session.info().unwrap().dirty);
 }
