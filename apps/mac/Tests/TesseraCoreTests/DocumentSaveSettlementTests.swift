@@ -71,6 +71,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
     func testAdmittedWriteSurvivesCancelAndSettlesActualOutcomeOnce() throws {
         let (w, d) = try fixture()
         var finish: (@MainActor (Result<Void, Error>) -> Void)?
+        defer { finish = nil; w.saveWriter = nil }
         var writes = 0
         w.saveWriter = { _, _, done in writes += 1; finish = done }
         var outcomes: [DocumentSaveOutcome] = []
@@ -131,6 +132,7 @@ final class DocumentSaveSettlementTests: XCTestCase {
         let (w, d) = try fixture()
         let other = try DocumentController(backend: StubDocumentBackend())
         var finish: (@MainActor (Result<Void, Error>) -> Void)?
+        defer { finish = nil; w.saveWriter = nil }
         w.saveWriter = { _, _, done in finish = done }
         var first: [DocumentSaveOutcome] = []
         w.saveForPreparation(d, saveAs: true) { first.append($0) }
