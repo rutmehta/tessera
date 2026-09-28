@@ -1,0 +1,311 @@
+{
+  "head": "cf161acb5d7301390b4025dfe8ffdfd43db0c03d",
+  "origin_main_merged": "7306b4d3ea0fb338248941841ac2a6a22d468d34",
+  "status": "clean",
+  "files": {
+    "Cargo.lock": {
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    "crates/tessera-ffi/Cargo.toml": {
+      "sha256": "3d44fb1fc0c21eff4d7a2de2cad0a3c65e2599855087eee380716fc65e83a0d4",
+      "bytes": 2297
+    },
+    "crates/tessera-ffi/src/agent_runs.rs": {
+      "sha256": "44514d04d0d0639919e25c5c4580a1b9e721e6cb170eb62295da63ef16894aae",
+      "bytes": 31717
+    },
+    "crates/tessera-ffi/src/assist.rs": {
+      "sha256": "2bb21837557fbd65da028b14eba0f7db4229f4b9f9f592b57c1c7cb49f323532",
+      "bytes": 55351
+    },
+    "crates/tessera-ffi/src/backend.rs": {
+      "sha256": "537996fed1a3ef2e57cf7f81def6ff72e3281bf5db23583cbd313e16f3b0b483",
+      "bytes": 10050
+    },
+    "crates/tessera-ffi/src/bin/uniffi-bindgen.rs": {
+      "sha256": "f7a2dd11fb370e9595bdfa6c32fc41a9b67a60bbab06ec711cb7a03eb873ffa6",
+      "bytes": 49
+    },
+    "crates/tessera-ffi/src/catalog.rs": {
+      "sha256": "2fc5e3857f7a441f3fd63ca835059bd9364acd588b4dcef0541eeac55398629e",
+      "bytes": 7718
+    },
+    "crates/tessera-ffi/src/changes.rs": {
+      "sha256": "8149468a2848a0d177ae1a2eca692fe7bcf0b4da313b0ec0785fbb02961e9f71",
+      "bytes": 6941
+    },
+    "crates/tessera-ffi/src/collections.rs": {
+      "sha256": "ae5ff6529bdcb2f83fafc98662bd3f9346163cdbb3bff2bbca74d75ea595adf9",
+      "bytes": 26879
+    },
+    "crates/tessera-ffi/src/develop.rs": {
+      "sha256": "dba3e39c79dd8d43bee7e69405072361fdc9b5565da09ccd39a48d49e9681d3a",
+      "bytes": 147323
+    },
+    "crates/tessera-ffi/src/document.rs": {
+      "sha256": "1f5710afcd26977e80c5258ecda2e88c994d89d29f71589edf4308a9ece89f93",
+      "bytes": 86672
+    },
+    "crates/tessera-ffi/src/document/channels.rs": {
+      "sha256": "e61966e124480206beb8fc5fc7761e99837d3ec147bc5121cda5d0957c78321a",
+      "bytes": 21819
+    },
+    "crates/tessera-ffi/src/document/filters.rs": {
+      "sha256": "e916fee70b6740c1553d0884b36d5bf4019c0b48d61a6f4aa4c97dfd4686a6ea",
+      "bytes": 135963
+    },
+    "crates/tessera-ffi/src/document/fonts.rs": {
+      "sha256": "08e8c70a817c87b15dbace1e4fa382477ccb526bf9dc882cb35255d402127927",
+      "bytes": 1502
+    },
+    "crates/tessera-ffi/src/document/io.rs": {
+      "sha256": "047464f5e6d17eba329841283f38d7871820c66f5c8ac884045dd8e195fb295f",
+      "bytes": 30427
+    },
+    "crates/tessera-ffi/src/document/psd_copy.rs": {
+      "sha256": "2a76dfc549f8bce3420c9c4a0ff7c9d879cf505ff5429a506bb7836d77e51bc8",
+      "bytes": 19478
+    },
+    "crates/tessera-ffi/src/document/render.rs": {
+      "sha256": "d3c26986beee38182cd5103f748d32f238b091d1dafdc1fd5ec4a3069b548b06",
+      "bytes": 57384
+    },
+    "crates/tessera-ffi/src/document/retouch.rs": {
+      "sha256": "a0e0ddb55da2d3df8e003ae54e6f9f397d4052865245550b1b4fcc1914f159a8",
+      "bytes": 49718
+    },
+    "crates/tessera-ffi/src/document/styles.rs": {
+      "sha256": "b0b1dc57c9881d35a94744db76581cbb442a4db61acdda48875cf5f0fb9ab3d2",
+      "bytes": 22106
+    },
+    "crates/tessera-ffi/src/document/text.rs": {
+      "sha256": "4dc392b3e1b5a4d3d1ccd6e6a2a589f3f20d5bb5e25bfd3019fe570badabcc09",
+      "bytes": 25376
+    },
+    "crates/tessera-ffi/src/document/tools.rs": {
+      "sha256": "88f9728f2f1f7e16fd3bb976b546061f08304a0c9317d009342d6a754ba735bc",
+      "bytes": 91868
+    },
+    "crates/tessera-ffi/src/document/transform.rs": {
+      "sha256": "25083bc32e629752d1a874534f1a6ca3247ebde710c95e157efc97ee84ce3779",
+      "bytes": 43626
+    },
+    "crates/tessera-ffi/src/document/vector.rs": {
+      "sha256": "d18eba64d4a8e76e9e06b45914b47b7aee9ef8534109adf2826454604be342b4",
+      "bytes": 36422
+    },
+    "crates/tessera-ffi/src/enhance.rs": {
+      "sha256": "0072a4c1723db50c9a641525ed7bcd452137f051993287a709765d3ec7871e77",
+      "bytes": 10001
+    },
+    "crates/tessera-ffi/src/export.rs": {
+      "sha256": "77aa7249e3d25ad375588cb738a4ea8455ebc5372ce157aa38725ea91741c6dd",
+      "bytes": 56578
+    },
+    "crates/tessera-ffi/src/lib.rs": {
+      "sha256": "92c9cf4a322cd6bae1425cd1cd7972702d0ca9af16cdba72944d5d710cc61e78",
+      "bytes": 21222
+    },
+    "crates/tessera-ffi/src/lrcat.rs": {
+      "sha256": "76e95fe749e85c93af07209c0c1060f1920f6a20cb3759bd4a65f87519c7f27b",
+      "bytes": 53062
+    },
+    "crates/tessera-ffi/src/lrcat_fidelity.rs": {
+      "sha256": "568fa2375ce3b12457135ee958133004458f41d0dc099ffb05de3a2b96b917b4",
+      "bytes": 18353
+    },
+    "crates/tessera-ffi/src/masks.rs": {
+      "sha256": "c44001f4999088fabc125d47482da322666b428cc533c59865a8be808ed05b1c",
+      "bytes": 77216
+    },
+    "crates/tessera-ffi/src/merge.rs": {
+      "sha256": "8109156cc4449436aa14350a325e16ff82d45027fcde5f0df3d9fce8627704a9",
+      "bytes": 25595
+    },
+    "crates/tessera-ffi/src/metadata.rs": {
+      "sha256": "ab6423ff9574dd20404b37f8ed75cc98ebed7760686c278e8fa840b85a2defde",
+      "bytes": 17354
+    },
+    "crates/tessera-ffi/src/models.rs": {
+      "sha256": "536e21e6bdafc9df9da3963fb97069f2e1315b32e0c88341bc1a4bda74c867b6",
+      "bytes": 3456
+    },
+    "crates/tessera-ffi/src/preview.rs": {
+      "sha256": "d1a5ab316d8910b3cfdb89f79aed1d0f8142fa39d0631ed7084af57fa10c5d47",
+      "bytes": 10694
+    },
+    "crates/tessera-ffi/src/proof.rs": {
+      "sha256": "db6c2707156821c61396cda3966bb9d31395b117f294b7b31a081fba2958d532",
+      "bytes": 4736
+    },
+    "crates/tessera-ffi/src/recipe_write.rs": {
+      "sha256": "43bb4d405b06c50cbf3bc0d031a4534c33ccba1d1890cfb48a0b057d75a19928",
+      "bytes": 7618
+    },
+    "crates/tessera-ffi/src/recipe_write_tests.rs": {
+      "sha256": "432021a2d890cdb9d7cd8442a1f9911d92c98a32f2d7c8828d7171bf51ef8bac",
+      "bytes": 11796
+    },
+    "crates/tessera-ffi/src/session.rs": {
+      "sha256": "b5a1af6517a0690aedcbea21b09a475251e490d8f64eac70d884d90af16c935e",
+      "bytes": 24847
+    },
+    "crates/tessera-ffi/src/surface.rs": {
+      "sha256": "36ba36e462897c96df7ef4c51729937ca3f6f41dfe02cf102f4aaa0e994b4893",
+      "bytes": 27866
+    },
+    "crates/tessera-ffi/src/tether.rs": {
+      "sha256": "d93175ae79f33f7039c4e063949092c092d04b1bd08ce091496ecea7c887531a",
+      "bytes": 10537
+    },
+    "crates/tessera-ffi/src/understanding.rs": {
+      "sha256": "62b7eac2e2f929c32dbba60db7451822d460796016e24f120da783b9d5ada926",
+      "bytes": 39894
+    },
+    "crates/tessera-ffi/tests/adjustment_json.rs": {
+      "sha256": "a1ed4f832becbb009cdd198b92d98b95190cdc4df5b4be14cc39cf6a3126feb4",
+      "bytes": 6281
+    },
+    "crates/tessera-ffi/tests/api.rs": {
+      "sha256": "1001ceabccbcb2d9996efff3112fb71c571a6b60b298bc94014219e9fba3ac93",
+      "bytes": 4867
+    },
+    "crates/tessera-ffi/tests/assist.rs": {
+      "sha256": "bfecc5f0b455811c6e24ccaf971af359408a921aba094c4517b400675f89162d",
+      "bytes": 32637
+    },
+    "crates/tessera-ffi/tests/changes.rs": {
+      "sha256": "7d4c21bae6049f46a28f8e5f89724db65526a33335bb36ec0310e321476724fe",
+      "bytes": 7862
+    },
+    "crates/tessera-ffi/tests/develop.rs": {
+      "sha256": "4ce828413ae530ecb515d58d2a2c955a5ca1205e60d157550c51eb269b56a054",
+      "bytes": 46037
+    },
+    "crates/tessera-ffi/tests/document.rs": {
+      "sha256": "54717a69721c7ce5d02b0208eb708083c03fc87b54c400228fbbe0fb2fb8a484",
+      "bytes": 42191
+    },
+    "crates/tessera-ffi/tests/document_channels_ui.rs": {
+      "sha256": "820591dfbca5ba042c67dda641e866bf636a89dceeb4f7b88e273fc7090633e4",
+      "bytes": 20482
+    },
+    "crates/tessera-ffi/tests/document_filters.rs": {
+      "sha256": "ab46511e506aee51e78e9c89ef652c765ff2de41a2993a501699f2ab2e6c96be",
+      "bytes": 27853
+    },
+    "crates/tessera-ffi/tests/document_fonts.rs": {
+      "sha256": "1e0366bfdba6182fe51c6c995db607b3eeac222ba5e5c1e6f4c8f1a92334a0fb",
+      "bytes": 14719
+    },
+    "crates/tessera-ffi/tests/document_perf.rs": {
+      "sha256": "7d2361da170d0a7f313d8ce6740cd780023c776bd3c441e4c67398be80fcb849",
+      "bytes": 18210
+    },
+    "crates/tessera-ffi/tests/document_restoration.rs": {
+      "sha256": "352f7ff1bc02780298526b87c4c2a2d8876d10a16ac1e3b4f75045d8613f1fa3",
+      "bytes": 1830
+    },
+    "crates/tessera-ffi/tests/document_retouch_ui.rs": {
+      "sha256": "246d70404e7d19de9afa280ed9597316c1ddcdc8166c19bd8c756d9e6d94a507",
+      "bytes": 18136
+    },
+    "crates/tessera-ffi/tests/document_styles_ui.rs": {
+      "sha256": "c482cca573abac62dba01964d8cda2d8556b391d9088e4004f6501c952db9411",
+      "bytes": 29333
+    },
+    "crates/tessera-ffi/tests/document_text_ui.rs": {
+      "sha256": "05a3d2298203253e04f25aa89d6f5a8465e2f804cff6f29ec2a14b3bfeb88117",
+      "bytes": 39094
+    },
+    "crates/tessera-ffi/tests/document_tools.rs": {
+      "sha256": "47601ff8dfeaa8e15c3651d6578c55ec6ce79f3a808e7a0eee6cb637b916a37f",
+      "bytes": 39939
+    },
+    "crates/tessera-ffi/tests/document_transform_ui.rs": {
+      "sha256": "c094fc94fb7a6b6693131cb17c32c3bec8a99eb890e681341c0274d79547429a",
+      "bytes": 48751
+    },
+    "crates/tessera-ffi/tests/document_vector_ui.rs": {
+      "sha256": "307388c7f19c0d3ea5bf00eb33f98cbed0bf9ba8935f67db95c413aef921c003",
+      "bytes": 44567
+    },
+    "crates/tessera-ffi/tests/document_viewport.rs": {
+      "sha256": "602d864130af5422d55fefba05c1588b023caebfd3a63980828e78aa80d39239",
+      "bytes": 24232
+    },
+    "crates/tessera-ffi/tests/enhance.rs": {
+      "sha256": "00df500c51e795f39ae7b98f21404bc1e71630be74df354df2b8c383b6ac93ab",
+      "bytes": 6953
+    },
+    "crates/tessera-ffi/tests/errors.rs": {
+      "sha256": "fbd839cf9dea33ca1965bea62446a1342309aa54301a242494cdbdb4b4d121ca",
+      "bytes": 2405
+    },
+    "crates/tessera-ffi/tests/export.rs": {
+      "sha256": "a8b6e03a4fa6bf653336cb5f24c40fa816a942f9ee76976b362e715674851824",
+      "bytes": 44518
+    },
+    "crates/tessera-ffi/tests/export_metadata_policy.rs": {
+      "sha256": "0b72aa7c289c00f49e9059d1ffda60a093413f02dbd762a26f06049d864458f4",
+      "bytes": 745
+    },
+    "crates/tessera-ffi/tests/fallback.rs": {
+      "sha256": "d1d234757e35680229a7c7653b1c28f9406e383b40881fca9217a3009d97697d",
+      "bytes": 2602
+    },
+    "crates/tessera-ffi/tests/fixtures/adjustments.json": {
+      "sha256": "8ee4fc55fccb2929f99dfee685e2ec0d372ebba61438c371d001240c6deba444",
+      "bytes": 5771
+    },
+    "crates/tessera-ffi/tests/hdr.rs": {
+      "sha256": "1812447caf25bb61c22cf7c63a36fb1c9274d73afc309425a1a4bff1bb99695f",
+      "bytes": 16060
+    },
+    "crates/tessera-ffi/tests/library.rs": {
+      "sha256": "322e825a577c0a37c092a7806525c291fb9b4ec01de3f9c46a7c81b7042948c5",
+      "bytes": 17872
+    },
+    "crates/tessera-ffi/tests/lrcat.rs": {
+      "sha256": "d67fccd5bfaebfac24b37b76fc8f65f92d80e68459fc6671923e301c825eb69e",
+      "bytes": 16303
+    },
+    "crates/tessera-ffi/tests/m532_channel_display.rs": {
+      "sha256": "840d744b6c37b02b991c21c4f56ff65aa998f6011119a2611ee8b89bedb3c70c",
+      "bytes": 2556
+    },
+    "crates/tessera-ffi/tests/masks.rs": {
+      "sha256": "37b10023701d8512649f8383b1951e7bf96b67ebeb42209211c0a1db65a61897",
+      "bytes": 23059
+    },
+    "crates/tessera-ffi/tests/merge.rs": {
+      "sha256": "10f6ea81f9be0cf605ebbdd095bac42f9d1457f94f743117c2e2c8c5feda09d2",
+      "bytes": 13669
+    },
+    "crates/tessera-ffi/tests/models/downloads.rs": {
+      "sha256": "7b2af900bc70ef5c31f078346d24fbebb19ff9ac4ca73fbb64bbf2d5a3aa0dae",
+      "bytes": 5728
+    },
+    "crates/tessera-ffi/tests/session.rs": {
+      "sha256": "008566686b36ef1c797faa986808e17584b9be3cd0c5d7e3b4536546bf5fc93c",
+      "bytes": 11404
+    },
+    "crates/tessera-ffi/tests/tether.rs": {
+      "sha256": "783aaa5c1b1b938adff0ed57ada3fb266d4813b0f9bdec46cf5eed1b87a94ca4",
+      "bytes": 5341
+    },
+    "crates/tessera-ffi/tests/understanding.rs": {
+      "sha256": "bc1bd476621e64586daa1884a048171b4d8929ae6355c812210b9f26a5208965",
+      "bytes": 13357
+    },
+    "crates/tessera-ffi/uniffi.toml": {
+      "sha256": "7ac6c0b479ff475c1f380db4b01cb42481484dace6315203d7534e8d358071a9",
+      "bytes": 139
+    },
+    "tools/orchestrate/wp/UX-03/RECIPE-WRITE-REVISION-PROPOSAL.md": {
+      "sha256": "a945a8f6339a07d127ad1047a8a688b3acc00fd0af952feb94967a882f74a253",
+      "bytes": 5841
+    }
+  }
+}

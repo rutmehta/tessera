@@ -1,0 +1,19 @@
+{
+  "name": "clippy",
+  "command": [
+    "cargo",
+    "clippy",
+    "-p",
+    "tessera-ffi",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "elapsed_seconds": 14.38234281539917,
+  "jobs": 2,
+  "rayon_threads": 2,
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target"
+}

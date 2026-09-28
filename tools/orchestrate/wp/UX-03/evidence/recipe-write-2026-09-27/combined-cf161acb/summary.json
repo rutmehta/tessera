@@ -1,0 +1,75 @@
+[
+  {
+    "name": "focused",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "tessera-ffi",
+      "--lib",
+      "recipe_write_tests",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 25.346229076385498,
+    "jobs": 2,
+    "rayon_threads": 2,
+    "target_dir": "/Volumes/betterSSD/tessera-cache/target"
+  },
+  {
+    "name": "api-integration",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "tessera-ffi",
+      "--test",
+      "api",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 26.963374137878418,
+    "jobs": 2,
+    "rayon_threads": 2,
+    "target_dir": "/Volumes/betterSSD/tessera-cache/target"
+  },
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 1.954653024673462,
+    "jobs": 2,
+    "rayon_threads": 2,
+    "target_dir": "/Volumes/betterSSD/tessera-cache/target"
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "tessera-ffi",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "elapsed_seconds": 14.38234281539917,
+    "jobs": 2,
+    "rayon_threads": 2,
+    "target_dir": "/Volumes/betterSSD/tessera-cache/target"
+  }
+]
