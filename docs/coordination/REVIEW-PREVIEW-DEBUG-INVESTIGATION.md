@@ -1,4 +1,4 @@
-# Review preview timeout source audit (read-only)
+# Review preview integration failure — source audit and diagnostics
 
 Candidate checked: `workspace-redesign/codex/psd-current-ffi` at `729962d92524b0a6ed79675f05d2e1f3a3598670` (clean checkout). No source files changed. `AgentReviewLayoutTests.swift`, `ShellLayoutHarness.swift`, `AgentReviewWorkspace.swift`, `ThumbnailLoader.swift`, `PreviewEvents.swift`, and `AppModel.swift` Review barrier code are byte-identical to source at `65fa6a33`.
 
@@ -32,3 +32,9 @@ No cancellation or deadline behavior should be relaxed. The key source-level rep
 ## Preserved runs
 
 Candidate729962d9 Debug full suite:508 XCTest,1skip,1failure;5SwiftTesting pass. Identical-source focusedDebug reproduces the same nil-preview failure. Exact65fa Release baseline binary, without rebuild and with normalpreview still open, passes the focused test. Logs remain under betterSSD/tessera-validation/psd-copy-operation/{swift-729962d92524,baseline-layout-65fa}. Matched candidateRelease run is pending. No root cause or general readiness claim follows from changing build mode.
+
+## Matched release and boundary trace updates
+
+Candidate729 Release focused also failed the same15s assertion (1test/1failure); fullRelease correctly did not run. Build mode alone does not explain this. Opt-in boundary diagnostic af4de453 reproduced the failure while logging selectedJPEG nativePreview pending=false/168422bytes and successfulImageIO decode. At timeout loader had zeroactive/zeroqueued/zerosubscribers and emptycache. More detailed lifecycle trace1b45ddc1 passed1test; logging perturbedtiming, not a productionfix.
+
+Root source review identified rows-only AppModel catalogupdates that invalidate pixelcache and return without updating libraryRevision, which Review watches; the same field is documented to signal everyin-place libraryupdate. This is a testable missingnotification path, not yet a proven cause of the originalrace. Engine Sol prepares a deterministic realcatalogtoneupdate regression on clean codex/psd-review-refresh from729, without diagnosticcode. Existing15s assertion stays unchanged.

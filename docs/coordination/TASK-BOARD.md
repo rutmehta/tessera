@@ -61,8 +61,11 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    archive preserved; current FFI0a9b build passed. Generated ABI plus stub-hide
    source729962d9 Debug fullSwift FAILED508/1skip/1failure (Review preview nil);
    focused failure reproduced. Exact prior65fa Release binary passes same test
-   with userpreview still open. Candidate matched Release focused/full gates now
-   run; Debug failure stays recorded, no PSDapp acceptance yet.
+   with userpreview still open. Candidate matched Release focused also FAILED; fullRelease was not run.
+   Native bytes/ImageIOdecode succeeded; cache laterempty. Instrumented lifecycle
+   run passed with timingperturbation, not a fix. Deterministic realcatalogupdate
+   Review-refresh regression now prepared on codex/psd-review-refresh, no PSDapp
+   acceptance. Native/FFIgates preserved separately.
 2. **Luna — source/preparation only:** preview evidence82dc merged mainf09a66ff.
    Stub UI source8dd1e2a9 is included in729962d9 gate, not current openpreview.
    Prepare tinyPSD save/reopen and normal/diagnostic visibility GUI checks after
