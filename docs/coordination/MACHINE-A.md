@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Save As full qualification; remaining B5-16 source dispatched — 2026-09-28 20:44 UTC
+
+Save As immutable1e45baae now passes adjacent48, full703 XCTest/1skip/0fail plus5 Swift Testing, both actual Sony workflows and strict Release product. Full subprocess exited0; runner postcheck initially mismatched Darwin XCTest naming, and correction revalidates the original retained log without rerunning the suite. Source/artifact/fixture freezes hold per reports; independent final provenance verification is active. Actual isolated GUI existing-destination cancel/new-name retry/affirmative Replace/reopen remains pending. Native barriers, not a claimed GUI race, cover late appearance. No Save As main merge or completed B receipt yet.
+
+B5-16 reconciliation confirms B5-16a model fixes and later resource work already integrated, but tabbed inspector, persisted Auto clip/LUT controls and authored Neutralize regression remain outstanding. Published frozen Save As base1e45baae on origin/codex/save-destination-a-qualification. Sent one bounded source-only request5d86ed1a-53ad-40eb-a8db-dca97e44f94e through Git; existing-writer SSH queue01a0e9c3-0b90-7ae1-9766-5866489b3c99 accepted. Peer receipt pending; no B workloads or writer/heartbeat change authorized. A retains runtime/main ownership. Mailbox has no new invalid/expired messages; three accepted Save As results reconcile to active qualification, no duplicate work.
+
+
 ## Smart Preview acceleration integrated; Save As runtime active — 2026-09-28
 
 Main8e100b80 integrates qualified candidatefbd0f266. Selected proxies now calibrate Metal automatically; Original remains the source default, with exact CPU fallback for mapped geometry. Actual Engine SDR/EDR, HDR recipe/thumbnail preservation, offline public workflow, resource release, full Swift689/1skip0fail+5 and strict product gates passed. Root independently matched7020 tracked Git inputs and the exact regenerated archive; main product/native/Cargo bytes equal the tested candidate. Evidence: `tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/smart-preview-gpu-fbd0f266/VALIDATION.md`. No speedup over Original, cross-camera, physical scanout or new packaged-GPU GUI claim is implied. Calibration opening cost0.6–0.8seconds and retained numerical failures are explicit.
