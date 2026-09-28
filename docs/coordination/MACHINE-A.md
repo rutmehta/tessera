@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Full presenter tests passed; GUI active — 2026-09-28 08:08 UTC
+
+Candidate d695e6a1 passed90 focused and full642 XCTest/1skip/0 +5 SwiftTesting; direct0/no watchdog. Root verified308 source/generated/archive hashes and4 generated/archive entries identical before/after, clean frozenHEAD. Initial62d test compile failure (nested fixture actor annotation/request.id) preserved; no product source workaround. Reviewer Sol now owns sole GUI lane for unique signed current5038548a executable/4a45 archive. Do not package stale85f scratch or touch preview57591. Full tests alone do not accept Save As.
+
+Resource native destination-intent candidate bcbf6dde is frozen/pushed source-only: typedcheckedAPI, unique staging, file collision/session marker/concurrent race and real native/PSD/PSB reopen tests. Runtime/compile/FFIgeneration UNRUN until GUI releases lane. B retains later backend/UI ownership after acceptedpresenter/generatedAPIcheckpoint. Status6469ebb3 published through Git, not claimed peer receipt.
+
 ## Presenter candidate frozen — 2026-09-28 07:58 UTC
 
 Historical010617b8 test executed and failed the intended nil-successor assertion (1 test/1failure/direct1/no timeout); root verified raw hash and all305 before/after freeze entries. Portable20-payload receipt main375e2caa. Candidate62d546dc merges reviewed93244f8f with currentmain without conflicts, preserves exact Rust/Cargo3bd, adds headless legacy Save As and real NSWindow bridge stale-dismantle regressions. Luna owns sole compiler lane for focused Release with fresh scratch/current4a45 archive; generated bindings unchanged and historical8ab preserved. Full/current GUI still pending.
