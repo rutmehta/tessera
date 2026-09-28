@@ -1032,6 +1032,9 @@ impl Engine {
                 .name("develop-save".into())
                 .spawn(move || shared.writer_loop())?
         };
+        #[cfg(test)]
+        self.develop_writer_constructions
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let writer_thread = writer.thread().id();
         Ok(Arc::new(DevelopSession {
             shared,
@@ -5355,6 +5358,164 @@ mod m2_49_depth_histogram_freshness_tests {
         assert!(
             session.depth_histogram().is_err(),
             "cached histogram must not bypass the current recipe's process validation"
+        );
+    }
+}
+
+#[cfg(test)]
+mod depth_histogram_read_only_contract_tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+
+    fn cache_depth_for_input(
+        support: &Path,
+        input: &pipeline_cpu::Image,
+        values: Vec<f32>,
+    ) -> Vec<u64> {
+        let rgb = image_core::depth::model_input(input).unwrap();
+        let key = image_core::ml_depth::cache_key(&rgb, image_core::ml_depth::MODEL_VERSION);
+        let depth =
+            image_core::ml_depth::DepthMap::from_prediction(rgb.width(), rgb.height(), values)
+                .unwrap();
+        let histogram = depth.histogram().to_vec();
+        let store =
+            image_core::ml_depth::DepthStore::new(support.join("previews/depth-cache"), 1 << 20)
+                .unwrap();
+        depth.store(&store, &key).unwrap();
+        histogram
+    }
+
+    fn optional_bytes(path: &Path) -> Option<Vec<u8>> {
+        std::fs::read(path).ok()
+    }
+
+    #[test]
+    fn engine_histogram_uses_saved_pixels_without_starting_a_writer_or_publishing() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("readonly.jpg");
+        image::RgbImage::from_pixel(32, 24, image::Rgb([55, 92, 131]))
+            .save(&photo)
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+
+        // Keep a legacy Raw source tag on an RGB file. Develop's in-memory
+        // normalization must still be used for the histogram input.
+        let mut legacy = catalog::document(&photo, parse_id(&row.id).unwrap()).unwrap();
+        legacy.recipe.source_kind = engine_api::recipe::SourceKind::Raw;
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        sidecar::Sidecar::write_recipe(&recipe_path, &legacy).unwrap();
+        let xmp_path = catalog::xmp_path(&photo);
+        let before_recipe = std::fs::read(&recipe_path).unwrap();
+        let before_xmp = optional_bytes(&xmp_path);
+        let before_change_head = engine.lock().unwrap().index.change_head().unwrap();
+        let saved_recipe = catalog::document(&photo, parse_id(&row.id).unwrap())
+            .unwrap()
+            .recipe;
+        let saved_exposure = saved_recipe.settings.tone.exposure;
+
+        let editor = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        let saved_input = editor.shared.depth_input().unwrap();
+        let pixel_count = (saved_input.width() * saved_input.height()) as usize;
+        let saved_histogram = cache_depth_for_input(
+            engine.db.parent().unwrap(),
+            &saved_input,
+            vec![0.0; pixel_count],
+        );
+
+        editor
+            .set_settings(
+                serde_json::json!({"tone":{"exposure": saved_exposure + 4.0}}).to_string(),
+                false,
+            )
+            .unwrap();
+        let live_input = editor.shared.depth_input().unwrap();
+        let saved_rgb = image_core::depth::model_input(&saved_input).unwrap();
+        let live_rgb = image_core::depth::model_input(&live_input).unwrap();
+        assert_ne!(
+            saved_rgb, live_rgb,
+            "fixture must distinguish live from saved pixels"
+        );
+        let mut live_depth = vec![0.0; pixel_count];
+        live_depth[0] = 1.0;
+        let live_histogram =
+            cache_depth_for_input(engine.db.parent().unwrap(), &live_input, live_depth);
+        assert_ne!(saved_histogram, live_histogram);
+
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
+        assert_eq!(
+            writer_count, 1,
+            "only the visible editor should own a writer"
+        );
+        let actual = engine.clone().depth_histogram(row.id.clone()).unwrap();
+        assert_eq!(
+            actual, saved_histogram,
+            "histogram must use saved recipe pixels"
+        );
+        assert_ne!(
+            actual, live_histogram,
+            "unsaved editor controls must not leak into histogram"
+        );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count,
+            "a read-only histogram must not construct a temporary writer session"
+        );
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), before_recipe);
+        assert_eq!(optional_bytes(&xmp_path), before_xmp);
+        assert_eq!(
+            engine.lock().unwrap().index.change_head().unwrap(),
+            before_change_head,
+            "histogram must not publish index changes"
+        );
+
+        // A close after a live edit is allowed to publish it; restore the
+        // original value first so this test isolates histogram side effects.
+        editor
+            .set_settings(
+                serde_json::json!({"tone":{"exposure": saved_exposure}}).to_string(),
+                false,
+            )
+            .unwrap();
+        editor.close().unwrap();
+    }
+
+    #[test]
+    fn engine_histogram_keeps_the_cached_model_miss_error_without_downloading() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([55, 92, 131]))
+            .save(photos.join("missing-depth.jpg"))
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+
+        let error = engine
+            .clone()
+            .depth_histogram(row.id)
+            .expect_err("cache miss without installed model must remain an error");
+        assert!(
+            error
+                .to_string()
+                .contains(image_core::ml_depth::MISSING_MODEL_MESSAGE),
+            "unexpected depth cache-miss error: {error}"
         );
     }
 }

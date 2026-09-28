@@ -217,6 +217,10 @@ pub struct Engine {
     watching: AtomicBool,
     /// This engine, for background work that must not keep it alive.
     this: std::sync::Weak<Engine>,
+    /// Test-only observation of writer creation, used to prove read-only Engine APIs
+    /// do not construct a temporary Develop session.
+    #[cfg(test)]
+    develop_writer_constructions: std::sync::atomic::AtomicUsize,
 }
 impl Engine {
     fn emit(&self, event: EngineEvent) {
@@ -333,6 +337,8 @@ impl Engine {
             heads,
             watching: AtomicBool::new(false),
             this: this.clone(),
+            #[cfg(test)]
+            develop_writer_constructions: std::sync::atomic::AtomicUsize::new(0),
         }))
     }
     /// Setting a listener also starts watching the catalog for writes made
