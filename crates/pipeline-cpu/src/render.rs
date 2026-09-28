@@ -19,6 +19,8 @@ pub enum RenderSource<'a> {
         metadata: &'a RawMetadata,
     },
     Rgb(&'a Image),
+    /// Immutable camera-space proxy; original RAW calibration is retained.
+    CameraLinear(&'a crate::CameraLinearProxy),
 }
 
 pub fn render(settings: &DevelopSettings, source: &RenderSource<'_>) -> EngineResult<Rgb8Image> {
@@ -225,28 +227,20 @@ fn render_linear_impl(
             }
             (out, crop, correction)
         }
-        RenderSource::Cfa { image, metadata } => {
-            if image.pyramid().extent().width != metadata.width
-                || image.pyramid().extent().height != metadata.height
+        RenderSource::CameraLinear(proxy) => {
+            proxy.validate_prefix(settings)?;
+            if resolved.is_some()
+                || context.profile.is_some()
+                || context.database.is_some()
+                || context.capture.is_some()
+                || !context.manual_ca.is_identity()
             {
-                return Err(EngineError::invalid(
-                    "metadata",
-                    "dimensions do not match CFA",
-                ));
+                return Err(EngineError::Unsupported {
+                    what: "smart preview: original required to replace captured lens dependencies"
+                        .into(),
+                });
             }
-            let cfa = metadata.cfa_layout;
-            crate::mosaic::validate_cfa(cfa)?;
-            let period = if matches!(cfa, CfaLayout::XTrans(_)) {
-                6
-            } else {
-                2
-            };
-            if metadata.width < period || metadata.height < period {
-                return Err(EngineError::invalid(
-                    "CFA",
-                    "image must contain a complete CFA period",
-                ));
-            }
+            let metadata = proxy.original_metadata();
             let camera_xyz = crate::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
                 metadata.cam_xyz[r].map(f64::from)
             })))?;
@@ -256,91 +250,29 @@ fn render_linear_impl(
                 camera_xyz,
                 metadata.as_shot_wb,
             )?;
-            let algorithm = match settings.demosaic.method {
-                DemosaicMethod::Auto => DemosaicAlgorithm::MalvarHeCutler,
-                DemosaicMethod::Bilinear => DemosaicAlgorithm::Bilinear,
-                _ => {
-                    return Err(EngineError::invalid(
-                        "demosaic",
-                        "only Auto (MHC) and Bilinear implemented",
-                    ));
-                }
-            };
-            // Parse regardless of profile selection; malformed required data fails closed.
-            let embedded = crate::embedded_lens::Embedded::parse(metadata)?;
-            let use_embedded = matches!(
-                settings.lens.profile,
-                engine_api::recipe::settings::LensProfileSource::Auto
-                    | engine_api::recipe::settings::LensProfileSource::Embedded
-            );
-            let raw = Image::from_pyramid(image.pyramid())?;
-            let raw = if use_embedded {
-                embedded.apply(raw, 0, Some(cfa), &settings.lens)?
-            } else {
-                raw
-            };
-            let mut recovered = Image::blank(raw.width(), raw.height(), 1);
-            for coord in raw.coords() {
-                let t = raw.tile(coord, 4, period)?;
-                recovered.put(&crate::reconstruct_highlights(
-                    &t,
-                    cfa,
-                    settings.linearize.highlight_reconstruction,
-                )?)?;
+            let mut out = proxy.pixels().clone();
+            for coord in out.coords() {
+                let mut tile = out.tile(coord, 0, 1)?;
+                crate::apply_matrix(&mut tile, profile)?;
+                crate::apply_matrix(&mut tile, wb)?;
+                out.put(&tile)?;
             }
-            drop(raw);
-            let recovered = crate::raw_denoise(recovered, cfa, &settings.denoise, denoiser)?;
-            let demosaic_image = |raw: &Image| -> EngineResult<Image> {
-                let mut out = Image::blank(raw.width(), raw.height(), 3);
-                for coord in raw.coords() {
-                    out.put(&crate::demosaic(
-                        &raw.tile(coord, 3, period)?,
-                        cfa,
-                        algorithm,
-                    )?)?;
-                }
-                Ok(out)
-            };
-            // Resolve/estimate in original camera RGB, never mixed working primaries.
-            let mut out = demosaic_image(&recovered)?;
-            let correction = match resolved.filter(|_| !use_embedded || !embedded.present()) {
-                Some(r) => r.clone(),
-                None => {
-                    let analysis = out.downsample_crop(metadata.default_crop, 1)?;
-                    crate::resolve_lens(&analysis, &settings.lens, Some(metadata), context)?
-                }
-            };
-            if correction.ca_active(&settings.lens) {
-                if correction.source() == crate::CorrectionSource::Database
-                    && matches!(cfa, CfaLayout::Bayer(_))
-                {
-                    let corrected = crate::optics::lateral_ca(
-                        &recovered,
-                        Some(cfa),
-                        metadata.default_crop,
-                        &settings.lens,
-                        &correction,
-                    )?;
-                    out = demosaic_image(&corrected)?;
-                } else {
-                    out = crate::optics::lateral_ca(
-                        &out,
-                        None,
-                        metadata.default_crop,
-                        &settings.lens,
-                        &correction,
-                    )?;
-                }
-            }
-            if use_embedded {
-                out = embedded.apply(out, 1, None, &settings.lens)?;
-            }
-            out = crate::optics::lateral_manual(
-                &out,
-                metadata.default_crop,
-                correction.manual_ca,
-                &settings.lens,
+            let crop = [0, 0, out.width(), out.height()];
+            (out, crop, proxy.correction().clone())
+        }
+        RenderSource::Cfa { image, metadata } => {
+            let (mut out, correction, embedded, use_embedded) =
+                camera_linear_prefix(settings, image, metadata, context, denoiser, resolved)?;
+            let camera_xyz = crate::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
+                metadata.cam_xyz[r].map(f64::from)
+            })))?;
+            let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
+            let wb = crate::white_balance_matrix(
+                &settings.white_balance,
+                camera_xyz,
+                metadata.as_shot_wb,
             )?;
+            let cfa = metadata.cfa_layout;
             if !crate::cfa_denoise_selected(&settings.denoise)
                 || !matches!(cfa, CfaLayout::Bayer(_))
             {
@@ -537,6 +469,129 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
         ));
     }
     Ok(())
+}
+
+/// The single original-sensor prefix used by full RAW and proxy generation.
+pub(crate) fn camera_linear_prefix(
+    settings: &DevelopSettings,
+    image: &CfaImage,
+    metadata: &RawMetadata,
+    context: &crate::LensContext<'_>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+    resolved: Option<&crate::ResolvedLens>,
+) -> EngineResult<(
+    Image,
+    crate::ResolvedLens,
+    crate::embedded_lens::Embedded,
+    bool,
+)> {
+    if image.pyramid().extent().width != metadata.width
+        || image.pyramid().extent().height != metadata.height
+    {
+        return Err(EngineError::invalid(
+            "metadata",
+            "dimensions do not match CFA",
+        ));
+    }
+    let cfa = metadata.cfa_layout;
+    crate::mosaic::validate_cfa(cfa)?;
+    let period = if matches!(cfa, CfaLayout::XTrans(_)) {
+        6
+    } else {
+        2
+    };
+    if metadata.width < period || metadata.height < period {
+        return Err(EngineError::invalid(
+            "CFA",
+            "image must contain a complete CFA period",
+        ));
+    }
+    let algorithm = match settings.demosaic.method {
+        DemosaicMethod::Auto => DemosaicAlgorithm::MalvarHeCutler,
+        DemosaicMethod::Bilinear => DemosaicAlgorithm::Bilinear,
+        _ => {
+            return Err(EngineError::invalid(
+                "demosaic",
+                "only Auto (MHC) and Bilinear implemented",
+            ));
+        }
+    };
+    // Parse regardless of profile selection; malformed required data fails closed.
+    let embedded = crate::embedded_lens::Embedded::parse(metadata)?;
+    let use_embedded = matches!(
+        settings.lens.profile,
+        engine_api::recipe::settings::LensProfileSource::Auto
+            | engine_api::recipe::settings::LensProfileSource::Embedded
+    );
+    let raw = Image::from_pyramid(image.pyramid())?;
+    let raw = if use_embedded {
+        embedded.apply(raw, 0, Some(cfa), &settings.lens)?
+    } else {
+        raw
+    };
+    let mut recovered = Image::blank(raw.width(), raw.height(), 1);
+    for coord in raw.coords() {
+        let t = raw.tile(coord, 4, period)?;
+        recovered.put(&crate::reconstruct_highlights(
+            &t,
+            cfa,
+            settings.linearize.highlight_reconstruction,
+        )?)?;
+    }
+    drop(raw);
+    let recovered = crate::raw_denoise(recovered, cfa, &settings.denoise, denoiser)?;
+    let demosaic_image = |raw: &Image| -> EngineResult<Image> {
+        let mut out = Image::blank(raw.width(), raw.height(), 3);
+        for coord in raw.coords() {
+            out.put(&crate::demosaic(
+                &raw.tile(coord, 3, period)?,
+                cfa,
+                algorithm,
+            )?)?;
+        }
+        Ok(out)
+    };
+    // Resolve/estimate in original camera RGB, never mixed working primaries.
+    let mut out = demosaic_image(&recovered)?;
+    let correction = match resolved.filter(|_| !use_embedded || !embedded.present()) {
+        Some(r) => r.clone(),
+        None => {
+            let analysis = out.downsample_crop(metadata.default_crop, 1)?;
+            crate::resolve_lens(&analysis, &settings.lens, Some(metadata), context)?
+        }
+    };
+    if correction.ca_active(&settings.lens) {
+        if correction.source() == crate::CorrectionSource::Database
+            && matches!(cfa, CfaLayout::Bayer(_))
+        {
+            let corrected = crate::optics::lateral_ca(
+                &recovered,
+                Some(cfa),
+                metadata.default_crop,
+                &settings.lens,
+                &correction,
+            )?;
+            out = demosaic_image(&corrected)?;
+        } else {
+            out = crate::optics::lateral_ca(
+                &out,
+                None,
+                metadata.default_crop,
+                &settings.lens,
+                &correction,
+            )?;
+        }
+    }
+    if use_embedded {
+        out = embedded.apply(out, 1, None, &settings.lens)?;
+    }
+    out = crate::optics::lateral_manual(
+        &out,
+        metadata.default_crop,
+        correction.manual_ca,
+        &settings.lens,
+    )?;
+    Ok((out, correction, embedded, use_embedded))
 }
 
 #[cfg(test)]
