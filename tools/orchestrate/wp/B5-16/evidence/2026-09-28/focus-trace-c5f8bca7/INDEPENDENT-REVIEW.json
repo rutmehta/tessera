@@ -1,0 +1,36 @@
+{
+  "head": "c5f8bca7de595dcbf11702e59560ca7a3caa9cfa",
+  "immutable_sources": 8387,
+  "focused_direct_exit": 0,
+  "mandatory_actual_passes": 42,
+  "frozen_ffi_files": {
+    "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+    "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+  },
+  "fixture": {
+    "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+  },
+  "qualification_inputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-focus-trace-c5f8bca7/run.py": "e80f0ffe2b6d24a7e848945230986d64d195e63d815c6ca74194091f8ff373d2",
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-858147a3/run.py": "81913d3cded8ccbe1242ad1cd639b9539df143e2a4a67aeff6c6def2728aed7c",
+    "/Volumes/betterSSD/tessera-validation/b5-16-focus-trace-c5f8bca7/required-tests.json": "fbec855ac852b2f4925f0d5e761280aa1c6b663435ecc08b473d8ce556dca8b5",
+    "/Volumes/betterSSD/tessera-validation/b5-16-focus-trace-c5f8bca7/baseline.json": "8f7ab9f818ec97ece350273f64e7e32fc942a8d0f22da70f9f0c258bf3d88f66"
+  },
+  "status": "Approved scoped automated qualification; actual GUI remains unrun",
+  "runtime": "none",
+  "strict_direct_exit": 0,
+  "artifacts": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-focus-trace-c5f8bca7/final-binaries/Tessera": {
+      "source": "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build/release/Tessera",
+      "sha256": "7a26729cb661fbece69850a5687fcf55789c4e7c9d973a43169cd23b2e49920f"
+    },
+    "/Volumes/betterSSD/tessera-validation/b5-16-focus-trace-c5f8bca7/final-binaries/TesseraPackageTests": {
+      "source": "/Volumes/betterSSD/tessera-validation/b5-16-history-cd0b850d/swift-build/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests",
+      "sha256": "22f3ceb2906dfe940ab67442c58c373db412256e37adc5afafa8f02bf8be3c0f"
+    }
+  },
+  "full_suite": "Not rerun for this diagnostic; earlier858 results separate"
+}

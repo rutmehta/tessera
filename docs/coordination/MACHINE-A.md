@@ -1,3 +1,9 @@
+## Inspector trace automated qualification verified; actual diagnosis active
+
+Candidate `c5f8bca7` passed 42 mandatory focused tests and strict Release. Independent review verified 8,387 immutable inputs, four FFI artifacts, explicit Sony fixture, imported runner/oracle freezes and preserved executable `7a26729cb661fbece69850a5687fcf55789c4e7c9d973a43169cd23b2e49920f`. Portable gates are preserved under `B5-16/evidence/2026-09-28/focus-trace-c5f8bca7`. No full suite rerun or GUI acceptance is claimed at this diagnostic checkpoint.
+
+A GUI worker now owns the sole runtime lane for a bounded trace-disabled/enabled same-source comparison on a new explicit local profile. Cache frame/performance and RAW qualification runners remain source-only preparation. B trace result stays accepted pending actual diagnostic completion; no routing correction or inspector main merge yet.
+
 ## 2026-09-28 23:38 UTC — cache functional qualification verified
 
 Final cache `7faea4b8` passed strict/format, 22 pure tests, all eight explicit Engine groups and full native 443 passes/25 ignored/zero failures. Independent review verified 8,646 immutable Git inputs and all final freezes. Root verified 132 archived payload hashes; portable evidence is on main `84b5c271`. This does not qualify actual cache-hit frame fidelity, resource drainage, performance or binary/archive/Swift integration. Original failures remain in evidence.
