@@ -1,12 +1,12 @@
 # Tessera task board — Machine A coordinator
 
-## Active validation board — 2026-09-28 04:35 UTC
+## Active validation board — 2026-09-28 04:40 UTC
 
 | Work | Owner | State and next action |
 | --- | --- | --- |
-| Develop navigation, preview drain, output cancellation, window close | Luna; Resource Sol owns product fixes | Candidate `3c44c87f` failed test-helper compilation. Retry `cf4f4114` passed 18 recovery/AppModel, 2 output and the first 2 window tests, then crashed with SIGSEGV during window-test teardown; preview-drain tests were not reached. Both failures and the crash report are preserved. Test-only dispatch-worker and window-lifetime corrections are frozen at `df1f1bc4`; Luna is running the 5 window tests first, then the combined 31 if green. Product bytes are unchanged; acceptance remains pending. |
+| Develop navigation, preview drain, output cancellation, window close | Luna; Resource Sol owns product fixes | Exact `df1f1bc4` passed 5 isolated window tests and all 31 combined focused tests, direct exits 0. Evidence on main `d912e381`; root verified 25 payload hashes and both source freezes. Prior compile failure/SIGSEGV preserved. New stale Layers error-publication correction `982fa98d` awaits deterministic regressions and validation; full suite and GUI remain pending. |
 | Document Save As lifecycle | A root/reviewer; B source author | `358d19d3` passed 24 tests but FAILED real same/distinct-file Replace: “Another sheet is still attached to the document window.” Portable evidence `e3186b62` is on main `046501aa`, 13 payload hashes verified. Isolated app closed. |
-| Document native-detachment correction | B source complete; A validation queued | Native parent/sheet identity handoff `dbe55346` + lifetime cleanup `d91363a2`, probe refresh `9663c0e8`, tests `772896a9` + `58053e60` integrated only into isolated candidate `b3a47443`. Source review found no remaining blocker; 20 save + 2 probe + 4 load + 3 adjacent gate prepared but NOT RUN. Actual GUI ordering mandatory. |
+| Document native-detachment correction | B source complete; A validation queued | Native parent/sheet identity handoff `dbe55346` + lifetime cleanup `d91363a2`, probe refresh `9663c0e8`, tests `772896a9` + `58053e60` integrated only into isolated candidate `b3a47443`. Source review found no remaining blocker; 20 save + 2 probe + 4 load + 3 adjacent gate RUNNING in the sole compiler slot. Actual GUI ordering mandatory. |
 | Export settings UX | Resource Sol source complete | `f67dbc53` removes the no-read sheet-opening reservation; actual Start/watermark and Print reads stay gated. Behavioral regression passed in the interrupted `cf4f4114` run; combined acceptance remains pending. |
 | Recovery GUI | Reviewer Sol | Bounded plan ready: generated tiny JPEG, reversible test-owned `.edits` obstruction, real failed-save banner, Retry/navigation and relaunch persistence. No recovery app launched; wait for focused gate and explicit desktop allocation. |
 
