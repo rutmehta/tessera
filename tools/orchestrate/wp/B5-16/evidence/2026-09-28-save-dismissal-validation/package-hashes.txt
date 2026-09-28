@@ -1,0 +1,3 @@
+15af16ab74f2f4e84c6bcffda330a93035095f6a96e2922d9e932eb37a49e713  /Volumes/betterSSD/tessera-cache/swift/document-save-settlement/scratch/arm64-apple-macosx/release/Tessera
+728eeddd7b4c668a21481fbb94c03365b2bb22c0291d16be31c0789b989979b7  /Volumes/betterSSD/tessera-validation/document-save-settlement/dismissal-358d19d3/gui/Tessera Document Dismissal Validation.app/Contents/MacOS/Tessera
+3a28d4201630a0b21223f15157a030150d033426ac8a74e97c08ded479c5eccf  /Volumes/betterSSD/tessera-validation/document-save-settlement/dismissal-358d19d3/gui/Tessera Document Dismissal Validation.app/Contents/Info.plist

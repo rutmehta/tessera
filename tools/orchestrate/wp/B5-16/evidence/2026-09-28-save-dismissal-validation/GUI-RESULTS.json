@@ -1,0 +1,83 @@
+{
+  "candidate_head": "358d19d3857af55bff07f1b8db69a17c48006320",
+  "result": "failed_gui_acceptance",
+  "gate": {
+    "save_settlement": {
+      "executed": 17,
+      "failures": 0,
+      "direct_exit": 0
+    },
+    "load_settlement": {
+      "executed": 4,
+      "failures": 0,
+      "direct_exit": 0
+    },
+    "adjacent": {
+      "executed": 3,
+      "failures": 0,
+      "direct_exit": 0
+    },
+    "full_suite": "not_run"
+  },
+  "app": "/Volumes/betterSSD/tessera-validation/document-save-settlement/dismissal-358d19d3/gui/Tessera Document Dismissal Validation.app",
+  "fixture": "/Volumes/betterSSD/tessera-validation/document-save-settlement/dismissal-358d19d3/gui/fixture/tiny.jpg",
+  "saved_file": {
+    "path": "/Volumes/betterSSD/tessera-validation/document-save-settlement/dismissal-358d19d3/gui/saved/tiny-validation.tessera-doc",
+    "bytes": 999,
+    "sha256": "ff91da5200b58f1b7d9072461f446e9d5b444d8b00cdedf368b0365c26d3bb9a"
+  },
+  "distinct_preexisting_file": {
+    "path": "/Volumes/betterSSD/tessera-validation/document-save-settlement/dismissal-358d19d3/gui/saved/already-exists.tessera-doc",
+    "bytes": 999,
+    "sha256_after_attempt": "ff91da5200b58f1b7d9072461f446e9d5b444d8b00cdedf368b0365c26d3bb9a"
+  },
+  "observations": [
+    {
+      "case": "Save As Cancel",
+      "result": "pass",
+      "ax": "Cancel dismissed sheet; Untitled document remained open"
+    },
+    {
+      "case": "Save As Escape",
+      "result": "pass",
+      "ax": "One Escape dismissed sheet; Untitled document remained open"
+    },
+    {
+      "case": "Save As new file",
+      "result": "pass",
+      "ax": "Saved tiny-validation.tessera-doc, 32 \u00d7 32 px, 1 layer; file exists"
+    },
+    {
+      "case": "same existing file Replace",
+      "result": "fail",
+      "ax": "Sheet dismissed with no Replace alert. Canvas status: Save: Another sheet is still attached to the document window. File hash unchanged."
+    },
+    {
+      "case": "distinct existing file Replace",
+      "result": "fail",
+      "ax": "Sheet dismissed with no Replace alert. Same exact canvas status. Both file hashes unchanged."
+    },
+    {
+      "case": "repeat Save As after failures",
+      "result": "pass_open",
+      "ax": "Sheet reopened with name/folder controls; replacement remains unavailable"
+    },
+    {
+      "case": "File > Close while Save As shown",
+      "result": "partial",
+      "ax": "Document did not close immediately while sheet visible. Cancel dismissed sheet, then document closed and status read Closed tiny-validation.tessera-doc."
+    },
+    {
+      "case": "reopen after queued close",
+      "result": "pass",
+      "ax": "Open Document restored tiny-validation.tessera-doc, 1 layer; Save As reopened and Cancel dismissed normally."
+    }
+  ],
+  "limits": [
+    "No Replace Cancel or confirmed Replace path could be exercised because alert never appeared.",
+    "Normal UI did not abruptly destroy the parent before sheet dismissal, so preappearance and abrupt-window-loss races are not covered.",
+    "CUA screenshots were displayed inline but no portable screenshot file was exported."
+  ],
+  "isolated_app_stopped": true,
+  "normal_preview_pid_57591_untouched": true
+}

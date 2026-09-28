@@ -1,0 +1,54 @@
+{
+  "source-manifest.json": {
+    "sha256": "8258592ae55e1d4e3b66205c45d1010a94644b9847b7ee1624a0c2130c527dd1",
+    "bytes": 2170
+  },
+  "package-manifest.json": {
+    "sha256": "b6461f737ede1f3ed5c56f4d6209ded771ef98bd70c55d693af6556f624f83e4",
+    "bytes": 784
+  },
+  "save-adjacent.log": {
+    "sha256": "46bc1b03186e2bedb57b3e0063ecbd228d4269d3933c3f5d2da0c1c0178b7de4",
+    "bytes": 1984
+  },
+  "app.stdout.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "save-settlement.log": {
+    "sha256": "789bf5e8a398b1cfcce7c1e42251c5244945cd663b5a90c4771437e798475170",
+    "bytes": 12588
+  },
+  "GUI-RESULTS.json": {
+    "sha256": "1bdacbc88ab2be0b7c867b0d3f6f004f301a433fd73e6f0a005788de6c12c576",
+    "bytes": 3187
+  },
+  "package-hashes.txt": {
+    "sha256": "165673c7d1942d1ce250bf0198512bc45e28a0f3cd71c9ec0940a8e9ffb9ef96",
+    "bytes": 604
+  },
+  "save-adjacent.json": {
+    "sha256": "4e1b9c8460ac144712684ce6706897a416fd8e6014c90e9624ca2841ad928ddd",
+    "bytes": 826
+  },
+  "load-settlement.json": {
+    "sha256": "0a4b9b47930f90c0a9e68c9f5749bdc0dc566107e72bb9fa17149658e4ed561c",
+    "bytes": 768
+  },
+  "app.stderr.log": {
+    "sha256": "a5b53b5b9a239a912beb6c9b806388f7d2a1a0077f91c3a04a9ff6cdb73c1232",
+    "bytes": 94
+  },
+  "fixture-sha256.txt": {
+    "sha256": "1ebe09154447dda05c5967e6694ac17ba32af0b66861e130acf6aa2642af2cf9",
+    "bytes": 169
+  },
+  "load-settlement.log": {
+    "sha256": "8768e8454b7e38a9017feb93a7a8e4af3b37d35536325674540699f117fffce8",
+    "bytes": 1912
+  },
+  "save-settlement.json": {
+    "sha256": "199baa8a90643121510883bff4fe0f7aa8aaf5288bd17c1c5e6c26240c4a8ffd",
+    "bytes": 773
+  }
+}
