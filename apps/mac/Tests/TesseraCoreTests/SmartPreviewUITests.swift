@@ -56,9 +56,9 @@ final class SmartPreviewUITests: XCTestCase {
         let first = controller.select(imageID: "old")!
         await probe.waitForRead()
         let second = controller.select(imageID: "new")!
-        await second.value
         probe.finishRead(info("old", .conflict))
         await first.value
+        await second.value
         XCTAssertEqual(controller.selectedImageID, "new")
         XCTAssertEqual(controller.selectedInfo?.imageID, "new")
         XCTAssertNil(controller.snapshots["old"])
@@ -70,11 +70,11 @@ final class SmartPreviewUITests: XCTestCase {
         let oldRead = controller.select(imageID: "old")!
         await probe.waitForRead()
         let batch = Task { await controller.run(.build, targets: [.init(id: "old", name: "Old")]) }
+        probe.finishRead(info("old", .missing))
+        await oldRead.value
         await probe.waitForBuild()
         probe.finishBuild(info("old", .dirty, dirty: true))
         await batch.value
-        probe.finishRead(info("old", .missing))
-        await oldRead.value
         XCTAssertEqual(controller.selectedInfo?.state, .dirty)
         XCTAssertTrue(controller.selectedInfo?.hasPendingEdits == true)
     }
@@ -92,6 +92,60 @@ final class SmartPreviewUITests: XCTestCase {
         XCTAssertNil(oldOwner.selectedInfo)
         XCTAssertNil(oldOwner.snapshots["old"])
         XCTAssertEqual(newOwner.selectedInfo?.imageID, "new")
+    }
+
+    func testRepeatedSelectionAndOpeningShareOneStatusRead() async throws {
+        let probe = PreviewProbe()
+        let controller = SmartPreviewController(api: probe.api)
+        let first = controller.select(imageID: "old")!
+        await probe.waitForRead()
+        let repeatSelection = controller.select(imageID: "old")
+        let opening = Task { try await controller.statusForOpening(imageID: "old") }
+        probe.finishRead(info("old"))
+        await first.value
+        await repeatSelection?.value
+        let snapshot = try await opening.value
+        XCTAssertEqual(snapshot.imageID, "old")
+        await controller.select(imageID: "old")?.value
+        XCTAssertEqual(probe.reads, ["old"])
+    }
+
+    func testRapidSelectionOnlyDecodesActiveAndLatestPhoto() async {
+        let probe = PreviewProbe()
+        let controller = SmartPreviewController(api: probe.api)
+        let active = controller.select(imageID: "old")!
+        await probe.waitForRead()
+        let skipped = controller.select(imageID: "middle")!
+        let latest = controller.select(imageID: "new")!
+        probe.finishRead(info("old"))
+        await active.value
+        await skipped.value
+        await latest.value
+        XCTAssertEqual(probe.reads, ["old", "new"])
+        XCTAssertEqual(controller.selectedInfo?.imageID, "new")
+    }
+
+    func testSavedStateInvalidationDoesNotAutomaticallyHashAssets() async throws {
+        let probe = PreviewProbe()
+        let controller = SmartPreviewController(api: probe.api)
+        await controller.select(imageID: "new")?.value
+        controller.invalidateStatus(imageID: "new")
+        XCTAssertNil(controller.selectedInfo)
+        XCTAssertEqual(probe.reads, ["new"])
+        let snapshot = try await controller.statusForOpening(imageID: "new")
+        XCTAssertEqual(snapshot.imageID, "new")
+        XCTAssertEqual(probe.reads, ["new", "new"])
+        await controller.select(imageID: "new", refresh: true)?.value
+        XCTAssertEqual(probe.reads, ["new", "new", "new"])
+    }
+
+    func testOfflineAndPendingLibraryBadgesDisclosePreSyncThumbnail() {
+        let offline = info("raw", .originalOffline, online: false)
+        let dirty = info("raw", .dirty, dirty: true)
+        XCTAssertTrue(offline.libraryBadge.contains("Thumbnail: last synchronized image"))
+        XCTAssertTrue(dirty.libraryBadge.contains("Thumbnail: last synchronized image"))
+        XCTAssertFalse(info().libraryBadge.contains("Thumbnail:"))
+        XCTAssertTrue(SmartPreviewSnapshot.libraryThumbnailNotice.contains("only after Sync"))
     }
 
     func testBatchCancelDrainsCurrentPhotoThenStopsAndRetainsOutcome() async {
@@ -137,6 +191,7 @@ private enum ProbeError: Error { case failed }
 @MainActor
 private final class PreviewProbe {
     var builds: [String] = []
+    var reads: [String] = []
     private var read: CheckedContinuation<SmartPreviewSnapshot, Never>?
     private var build: CheckedContinuation<SmartPreviewSnapshot, Never>?
     private var readEntered = false
@@ -145,6 +200,7 @@ private final class PreviewProbe {
     private var buildWaiter: CheckedContinuation<Void, Never>?
     var api: SmartPreviewAPI {
         .init(info: { [self] id in
+            reads.append(id)
             if id != "old" { return snapshot(id) }
             return await withCheckedContinuation { read = $0; readEntered = true; readWaiter?.resume(); readWaiter = nil }
         }, build: { [self] id in
