@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Independent nonuniform-gain failure reproduced — 2026-09-28 09:27 UTC
+
+All seven bounded diagnostic phases are published through main01efee57; root verified471 portable payload hashes. Phase6 main676cbb54 (72 payloads) rules out reciprocal auxiliary segment order for this pair. Phase7 main01efee57 (71 payloads) changes only the independent producer’s gain input from uniform255 to the exact A half-zero/half255 pattern. Same-run ImageIO changes from15.951576/headroom16 to7.983762741/headroom8; original A is7.983762264/headroom8. Independent reference decoder and software Core Image still reach16. Base/profile/ISO metadata were held fixed, with necessary MPF aux-size bookkeeping and changed compressed gain data explicitly recorded. This establishes content/codestream-sensitive behavior in the tested ImageIO path, not a specific algorithm, universal host limitation, or product acceptance. Raw diagnostics remain preserved. Original A core4pass/1fail and dirty unmerged product stay unchanged.
+
+Reviewer released the native lane; no cargo/rustc/swiftc process remained at reconciliation. No product edits resulted from these experiments. Future source integration must follow EXP45-INTEGRATION-AUDIT.md and preserve current unconditional development-XMP removal. Do not repeat the completed marker/profile/rational/white controls without new evidence; next investigation should focus on the reproduced nonuniform gain condition.
+
+B request8638c362 remains published but has no accepted receipt. Read-only SSH retry still returned Host down; no queue was accepted and no duplicate request was sent. Keep B ownership reserved and deliver the existing request only after reachability returns. A heartbeat configuration was inspected: ACTIVE, every5minutes, this exact chat. User preview is unchanged; A alone owns main merges.
+
 ## Exact-white and ICC controls completed — 2026-09-28 09:23 UTC
 
 Phase4 main67d03fdc,51 verified payloads: independent exact-white control reference-decodes16.0 and ImageIO reaches15.951576/headroom16, while A stays7.983762/headroom8 in the same run. This rules out the previous sub-white reference as an explanation. Phase5 maind8b14fe8,79 verified payloads: reciprocal equal-length ICC payload swaps preserve reference SDR/HDR bytes and leave A8 / Google16 unchanged. Entire ICC profile is not causal in that controlled comparison; no smaller TRC/intent inference or product change follows.

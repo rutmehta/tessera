@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current execution queue — 2026-09-28 08:44 UTC
+## Current execution queue — 2026-09-28 09:27 UTC
 
 | Task | Owner | Verified state | Next action |
 | --- | --- | --- | --- |
@@ -12,7 +12,7 @@
 | Recipe setter XMP parity | A / reviewer Sol | DONE main4ad017ab, exact Rust/Cargo3bd2e341. Genuine RED then19 combined tests +fmt/strict/direct0;15 frozen inputs verified. | Evidence535950bb/FFI737dcd09 published; current arm64 archive4a45, generated bindings unchanged. Earlier compile failure retained; normal preview unchanged. |
 | Save As native ownership | B source; A integration/GUI | DONE main `11b31be6`. Product d695 passed 90 focused, full 642 XCTest/1 skip/0 failures +5 Swift Testing; actual isolated create/Replace/cancel/repeat/reopen passed. Test-only a927 passed actual parent close during native folder chooser. | Evidence cc9eb6f4, ede27821 and integration parent-modal manifest; historical RED and failed probes retained. Result d9b94a94 completed. No full 643 rerun, leak-proof or preview-refresh claim. |
 | Save As destination safety | A native; B Swift source reserved | Native 75a1b9a6 passed 11 selected tests + fmt/strict; test-only 2a22145b pins actual directory conflict and passes focused/fmt/strict. Generated checkpoint 81cc08eb built arm64 archive f451870f, input hashes verified. | B request 8638c362 published; SSH delivery failed “Host is down”, no queue ID or receipt. Preserve B ownership, retry existing request when reachable. No full product/UI acceptance. |
-| ISO gain-map interoperability control | A / reviewer Sol + independent source audits | Phase1 e5aceab6 preserved unrecognized Google originals; phase2 b89674a5 establishes recognized explicit-rational control ImageIO headroom16/13.934 pixels, same-host A still7.984/headroom8. Root verified86+49 portable payloads. | Phase3 rules out rational scaling; phase4 67d03fdc proves exact-white reference ImageIO15.952/headroom16; phase5 d8b14fe8 rules out whole ICC profile (51+79 payloads verified). Reviewer tests auxiliary marker order only. A original4pass/1fail unchanged; no product fix. |
+| ISO gain-map interoperability control | A coordinator; diagnostic agents complete | DONE bounded reference diagnostic, evidence through main01efee57. Qualified uniform reference ImageIO~16; changing only its gain input to A’s split pattern reproduces ImageIO~8 while independent decoder/CI stay16. Root verified471 portable payloads across7 phases. | Original A core4pass/1fail and unmerged product remain. Next investigation must isolate content/codestream-sensitive ImageIO behavior; no justified encoder fix yet. Heavy lane released; preserve dirty prototype and current main XMP policy. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 
