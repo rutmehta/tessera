@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/probe/imageio-probe-stats",
+    "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg"
+  ],
+  "cwd": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16",
+  "controlled_env": {
+    "PROBE_OUTPUT_DIR": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/hdr_stats/A80/imageio",
+    "PROBE_DUMP": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/hdr_stats/A80/imageio",
+    "PROBE_RAW": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/hdr_stats/A80/imageio/provider",
+    "PROBE_HDR_STATS": "1"
+  },
+  "cleared_inherited": [
+    "PROBE_OPTIONS",
+    "PROBE_LUMA_OFF",
+    "PROBE_TARGET_ZERO",
+    "PROBE_HDR_STATS"
+  ]
+}

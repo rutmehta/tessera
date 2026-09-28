@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Public HDR option ruled out; engine RED gate next — 2026-09-28 10:03 UTC
+
+Phase8 geometry evidence is main7bcf77ad (163 verified portable payloads). Phase9 sourceeebc6325 contributes97 payloads independently verified against exact Git blobs and imported here. Documented compute-HDR-stats enabled only for HDR changes no provider, rendered-float, ICC or ordinary property bytes on three original80×16 fixtures. Root checked36 payload hashes/pair equality; Astra independently scanned all12 float outputs and confirmed defaults exactly match phase8. All six direct exits0. Original gain-map core4pass/1fail remains unresolved; prototype stays unmerged. No further HDR runtime experiment selected or product fix inferred.
+
+Histogram readiness audit found Engine histogram still creates a temporary editing writer. Safe clean workspace-redesign checkout was reused on codex/depth-histogram-readonly at3dbd4a47; prior accepted Document branchba2978ea is preserved. Luna tests-only77eb68d0 adds a per-Engine test seam and tiny saved/live/cache-miss contracts. Root reviewed draft; Astra independently reviews factoring. Luna now owns the sole compiler lane for genuine RED, before production. No lease activation, B-owned UI edit, or generated binding change.
+
+Latest compact B snapshot remains unavailable; mailbox has no new/in-progress messages and no acceptance for request8638c362. Publication is not peer receipt. No duplicate dispatch, B workload, writer takeover or user-preview change.
+
 ## Geometry outcome and next engine audit — 2026-09-28 09:50 UTC
 
 Matched640×128 fixtures are exact8× nearest-neighbor replicas, independently checked by root. Reference decoding reaches16 in both. All three80×16 native baselines reproduce; ImageIO uniform80/640 remains15.951576/headroom16 and split80/640 remains7.983763/headroom8. A remains7.983762/headroom8. Core Image reaches16 throughout. All ten native process exits are0; root verified40 saved payload hashes/lengths and global maxima; Astra independently checked20 float outputs, provider/profile bytes and ICC bounds. Warnings belong only to uniform controls, so cannot explain failing split/A cases. Returned split/A profiles describe adaptive gain curves, but cause remains unproven. Phase8 source34e17513 has163 portable payloads independently verified against exact Git blobs and imported here; no product acceptance or tolerance change.

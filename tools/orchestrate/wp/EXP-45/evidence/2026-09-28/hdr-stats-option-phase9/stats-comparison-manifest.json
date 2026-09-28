@@ -1,0 +1,2202 @@
+{
+  "phase": "phase9-hdr-stats-option",
+  "probe_source_sha256": "5cfcb528ba3ea5da4698999cc6c1f46c43c753853fe4f370554dedd3213df80b",
+  "probe_binary_sha256": "f7613645cb60c4866d8c332075f3badec4794cb3c3fb0532264082812d76592b",
+  "parent_probe_source_sha256": "ffefb2e681e51763f81f48b2b57b69e55dae0b1d4042476365fc227945968ab3",
+  "parent_probe_binary_sha256": "30b852208589adba5bb37bdb37db90710860b89dfb33b31078c05b1f98801c25",
+  "cases": {
+    "uniform80": {
+      "source_path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/reference-16-bright255-explicit.jpg",
+      "sha256": "61824f8eb85beb703d17c486e4c146c755ab6b6726213d4502aa6bf3b867f351",
+      "bytes": 1918
+    },
+    "split80": {
+      "source_path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/reference-16-split-explicit.jpg",
+      "sha256": "eaeb9524ddfd2cee2d98c34512103ee7e06819471223de9caf1a8642c69c8968",
+      "bytes": 1929
+    },
+    "A80": {
+      "source_path": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+      "sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+      "bytes": 1956
+    }
+  },
+  "runs": {
+    "default": {
+      "uniform80": {
+        "direct_exit": 0,
+        "warning_prefix": [
+          "too few samples",
+          "too few samples"
+        ],
+        "warning_prefix_sha256": "ef6fa1af830ca16e7b375124ade0532c8c623112dd60c6f9fb9881c3d00fe9e4",
+        "record": {
+          "apple_aux_present": 0,
+          "iso_aux_present": 1,
+          "image_count": 1,
+          "hdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0.8205174207687378,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "0a9ec8df0f2cc79542c4c788291c0c9b8ad705ef9fede1185683b51ad23cbf7f",
+            "headroom": 16,
+            "rgb_mean": 6.820297764738401,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "kCGColorSpaceITUR_2100_PQ",
+            "bits_per_component": 10,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 2592,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.8205174207687378,
+                  0.8205175399780273,
+                  0.8205175399780273,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.8205174207687378,
+                  0.8205175399780273,
+                  0.8205175399780273,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  3.466586112976074,
+                  3.4665865898132324,
+                  3.4665865898132324,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  15.951574325561523,
+                  15.95157527923584,
+                  15.951576232910156,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  15.951574325561523,
+                  15.95157527923584,
+                  15.951576232910156,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 13300,
+            "bitmap_info": 204806,
+            "rgb_max": 15.951576232910156,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/reference-16-bright255-explicit.jpg",
+          "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/default/uniform80/imageio/source-properties.plist",
+          "sdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0.05126953125,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+            "headroom": 1,
+            "rgb_mean": 0.427001953125,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 8,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 0,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  0.2158203125,
+                  0.2158203125,
+                  0.2158203125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 588,
+            "bitmap_info": 5,
+            "rgb_max": 1,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "max_sdr_hdr_delta": 14.951576232910156,
+          "source_properties_sha256": "8b6c57f8da691976f4aa36975665313591b0b5143ee50968e721becf1676b54c",
+          "source_properties_bytes": 606,
+          "source_property_keys": [
+            "ColorModel",
+            "Depth",
+            "Headroom",
+            "Orientation",
+            "PixelHeight",
+            "PixelWidth",
+            "ProfileName",
+            "{TIFF}"
+          ],
+          "payloads": {
+            "sdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "cdfdfe2fe5b234ea91c25d406fa52f14530e8b21ce8f4de1b491f728e48efe7f",
+              "returned_icc_bytes": 588,
+              "returned_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+              "headroom": 1,
+              "rgb_min": 0.05126953125,
+              "rgb_max": 1,
+              "rgb_mean": 0.427001953125,
+              "samples_above_one": 0,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    0.2158203125,
+                    0.2158203125,
+                    0.2158203125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            },
+            "hdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "0a9ec8df0f2cc79542c4c788291c0c9b8ad705ef9fede1185683b51ad23cbf7f",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "dfeebfd0196a90a584c947383c9b9be01022d35b9e4e1657e1661ba0ce56a662",
+              "returned_icc_bytes": 13300,
+              "returned_icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16",
+              "headroom": 16,
+              "rgb_min": 0.8205174207687378,
+              "rgb_max": 15.951576232910156,
+              "rgb_mean": 6.820297764738401,
+              "samples_above_one": 2592,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.8205174207687378,
+                    0.8205175399780273,
+                    0.8205175399780273,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.8205174207687378,
+                    0.8205175399780273,
+                    0.8205175399780273,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    3.466586112976074,
+                    3.4665865898132324,
+                    3.4665865898132324,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    15.951574325561523,
+                    15.95157527923584,
+                    15.951576232910156,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    15.951574325561523,
+                    15.95157527923584,
+                    15.951576232910156,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "kCGColorSpaceITUR_2100_PQ"
+            }
+          }
+        }
+      },
+      "split80": {
+        "direct_exit": 0,
+        "warning_prefix": [],
+        "warning_prefix_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "record": {
+          "apple_aux_present": 0,
+          "iso_aux_present": 1,
+          "image_count": 1,
+          "hdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0.05137912184000015,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "8fb756f1b7fd60e207fd8b68962bf173b3cd6947d2d5f9559031f3652bf65d23",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "1878a761cb7ff26d6a737deb48d22b16067abec58dcb2ef892c5ea258b533aaf",
+            "headroom": 8,
+            "rgb_mean": 3.029382730461657,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 10,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 1920,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.05137912184000015,
+                  0.05137912929058075,
+                  0.05137912929058075,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.05137912184000015,
+                  0.05137912929058075,
+                  0.05137912929058075,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  1.7246283292770386,
+                  1.7246285676956177,
+                  1.7246285676956177,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  7.983761787414551,
+                  7.983762741088867,
+                  7.983762264251709,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  7.983761787414551,
+                  7.983762741088867,
+                  7.983762264251709,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 26620,
+            "bitmap_info": 204806,
+            "rgb_max": 7.983762741088867,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/reference-16-split-explicit.jpg",
+          "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/default/split80/imageio/source-properties.plist",
+          "sdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0.05126953125,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+            "headroom": 1,
+            "rgb_mean": 0.427001953125,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 8,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 0,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  0.2158203125,
+                  0.2158203125,
+                  0.2158203125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 588,
+            "bitmap_info": 5,
+            "rgb_max": 1,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "max_sdr_hdr_delta": 6.983762741088867,
+          "source_properties_sha256": "8b6c57f8da691976f4aa36975665313591b0b5143ee50968e721becf1676b54c",
+          "source_properties_bytes": 606,
+          "source_property_keys": [
+            "ColorModel",
+            "Depth",
+            "Headroom",
+            "Orientation",
+            "PixelHeight",
+            "PixelWidth",
+            "ProfileName",
+            "{TIFF}"
+          ],
+          "payloads": {
+            "sdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "cdfdfe2fe5b234ea91c25d406fa52f14530e8b21ce8f4de1b491f728e48efe7f",
+              "returned_icc_bytes": 588,
+              "returned_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+              "headroom": 1,
+              "rgb_min": 0.05126953125,
+              "rgb_max": 1,
+              "rgb_mean": 0.427001953125,
+              "samples_above_one": 0,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    0.2158203125,
+                    0.2158203125,
+                    0.2158203125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            },
+            "hdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "1878a761cb7ff26d6a737deb48d22b16067abec58dcb2ef892c5ea258b533aaf",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "06eb158e4acc183596dee36f482d7b56847927f2065126cb7e33580ded47c9a9",
+              "returned_icc_bytes": 26620,
+              "returned_icc_sha256": "8fb756f1b7fd60e207fd8b68962bf173b3cd6947d2d5f9559031f3652bf65d23",
+              "headroom": 8,
+              "rgb_min": 0.05137912184000015,
+              "rgb_max": 7.983762741088867,
+              "rgb_mean": 3.029382730461657,
+              "samples_above_one": 1920,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.05137912184000015,
+                    0.05137912929058075,
+                    0.05137912929058075,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.05137912184000015,
+                    0.05137912929058075,
+                    0.05137912929058075,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    1.7246283292770386,
+                    1.7246285676956177,
+                    1.7246285676956177,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    7.983761787414551,
+                    7.983762741088867,
+                    7.983762264251709,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    7.983761787414551,
+                    7.983762741088867,
+                    7.983762264251709,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            }
+          }
+        }
+      },
+      "A80": {
+        "direct_exit": 0,
+        "warning_prefix": [],
+        "warning_prefix_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "record": {
+          "apple_aux_present": 0,
+          "iso_aux_present": 1,
+          "image_count": 1,
+          "hdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "f7947012e177fb92ceb9af5d66e48a890f5d50c15806682c1d11e7d2660d799d",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+            "headroom": 8,
+            "rgb_mean": 3.9927808134816587,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 10,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 1920,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  7.983762264251709,
+                  7.983762264251709,
+                  7.983762264251709,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  7.983762264251709,
+                  7.983762264251709,
+                  7.983762264251709,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  7.983762264251709,
+                  7.983762264251709,
+                  7.983762264251709,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 26620,
+            "bitmap_info": 204806,
+            "rgb_max": 7.983762264251709,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 1968,
+            "bytes_per_row": 320
+          },
+          "path": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+          "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/default/A80/imageio/source-properties.plist",
+          "sdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "cd7ea07100f775c17d4b0385428ed2a750442ce93b7358d032e6f0c43422d205",
+            "headroom": 1,
+            "rgb_mean": 0.5009033203125,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "kCGColorSpaceSRGB",
+            "bits_per_component": 8,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 0,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 3144,
+            "bitmap_info": 5,
+            "rgb_max": 1,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 1968,
+            "bytes_per_row": 320
+          },
+          "max_sdr_hdr_delta": 6.983762264251709,
+          "source_properties_sha256": "a11b2e8def471823be27cf3ba1afab51751d8dbef577416644f4adaec6c722d1",
+          "source_properties_bytes": 594,
+          "source_property_keys": [
+            "ColorModel",
+            "Depth",
+            "Headroom",
+            "Orientation",
+            "PixelHeight",
+            "PixelWidth",
+            "ProfileName",
+            "{TIFF}"
+          ],
+          "payloads": {
+            "sdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "cd7ea07100f775c17d4b0385428ed2a750442ce93b7358d032e6f0c43422d205",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "3806b53d7f9c46650fcb8ccf638eb815a4b35903ab34527be07393ac48a258da",
+              "returned_icc_bytes": 3144,
+              "returned_icc_sha256": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+              "headroom": 1,
+              "rgb_min": 0,
+              "rgb_max": 1,
+              "rgb_mean": 0.5009033203125,
+              "samples_above_one": 0,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "kCGColorSpaceSRGB"
+            },
+            "hdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "251345c4350cded78817df16d9d5289531175ed3afff28572be132f53881642c",
+              "returned_icc_bytes": 26620,
+              "returned_icc_sha256": "f7947012e177fb92ceb9af5d66e48a890f5d50c15806682c1d11e7d2660d799d",
+              "headroom": 8,
+              "rgb_min": 0,
+              "rgb_max": 7.983762264251709,
+              "rgb_mean": 3.9927808134816587,
+              "samples_above_one": 1920,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    7.983762264251709,
+                    7.983762264251709,
+                    7.983762264251709,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    7.983762264251709,
+                    7.983762264251709,
+                    7.983762264251709,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    7.983762264251709,
+                    7.983762264251709,
+                    7.983762264251709,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            }
+          }
+        }
+      }
+    },
+    "hdr_stats": {
+      "uniform80": {
+        "direct_exit": 0,
+        "warning_prefix": [
+          "too few samples",
+          "too few samples"
+        ],
+        "warning_prefix_sha256": "ef6fa1af830ca16e7b375124ade0532c8c623112dd60c6f9fb9881c3d00fe9e4",
+        "record": {
+          "apple_aux_present": 0,
+          "iso_aux_present": 1,
+          "image_count": 1,
+          "hdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": true
+            },
+            "rgb_min": 0.8205174207687378,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "0a9ec8df0f2cc79542c4c788291c0c9b8ad705ef9fede1185683b51ad23cbf7f",
+            "headroom": 16,
+            "rgb_mean": 6.820297764738401,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "kCGColorSpaceITUR_2100_PQ",
+            "bits_per_component": 10,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 2592,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.8205174207687378,
+                  0.8205175399780273,
+                  0.8205175399780273,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.8205174207687378,
+                  0.8205175399780273,
+                  0.8205175399780273,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  3.466586112976074,
+                  3.4665865898132324,
+                  3.4665865898132324,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  15.951574325561523,
+                  15.95157527923584,
+                  15.951576232910156,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  15.951574325561523,
+                  15.95157527923584,
+                  15.951576232910156,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 13300,
+            "bitmap_info": 204806,
+            "rgb_max": 15.951576232910156,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/bright-white/reference-16-bright255-explicit.jpg",
+          "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/hdr_stats/uniform80/imageio/source-properties.plist",
+          "sdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0.05126953125,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+            "headroom": 1,
+            "rgb_mean": 0.427001953125,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 8,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 0,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  0.2158203125,
+                  0.2158203125,
+                  0.2158203125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 588,
+            "bitmap_info": 5,
+            "rgb_max": 1,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "max_sdr_hdr_delta": 14.951576232910156,
+          "source_properties_sha256": "8b6c57f8da691976f4aa36975665313591b0b5143ee50968e721becf1676b54c",
+          "source_properties_bytes": 606,
+          "source_property_keys": [
+            "ColorModel",
+            "Depth",
+            "Headroom",
+            "Orientation",
+            "PixelHeight",
+            "PixelWidth",
+            "ProfileName",
+            "{TIFF}"
+          ],
+          "payloads": {
+            "sdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "cdfdfe2fe5b234ea91c25d406fa52f14530e8b21ce8f4de1b491f728e48efe7f",
+              "returned_icc_bytes": 588,
+              "returned_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+              "headroom": 1,
+              "rgb_min": 0.05126953125,
+              "rgb_max": 1,
+              "rgb_mean": 0.427001953125,
+              "samples_above_one": 0,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    0.2158203125,
+                    0.2158203125,
+                    0.2158203125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            },
+            "hdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "0a9ec8df0f2cc79542c4c788291c0c9b8ad705ef9fede1185683b51ad23cbf7f",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "dfeebfd0196a90a584c947383c9b9be01022d35b9e4e1657e1661ba0ce56a662",
+              "returned_icc_bytes": 13300,
+              "returned_icc_sha256": "63cd9f4a8443c71df3633aa0a2ec4594aa8fbca23b1a3231b517bc726a567b16",
+              "headroom": 16,
+              "rgb_min": 0.8205174207687378,
+              "rgb_max": 15.951576232910156,
+              "rgb_mean": 6.820297764738401,
+              "samples_above_one": 2592,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.8205174207687378,
+                    0.8205175399780273,
+                    0.8205175399780273,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.8205174207687378,
+                    0.8205175399780273,
+                    0.8205175399780273,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    3.466586112976074,
+                    3.4665865898132324,
+                    3.4665865898132324,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    15.951574325561523,
+                    15.95157527923584,
+                    15.951576232910156,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    15.951574325561523,
+                    15.95157527923584,
+                    15.951576232910156,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "kCGColorSpaceITUR_2100_PQ"
+            }
+          }
+        },
+        "delta_vs_default": {
+          "sdr": {
+            "provider_identical": true,
+            "draw_identical": true,
+            "returned_icc_identical": true,
+            "same_headroom": true,
+            "rgb_max_delta": 0,
+            "rgb_mean_delta": 0.0,
+            "same_samples_above_one": true
+          },
+          "hdr": {
+            "provider_identical": true,
+            "draw_identical": true,
+            "returned_icc_identical": true,
+            "same_headroom": true,
+            "rgb_max_delta": 0.0,
+            "rgb_mean_delta": 0.0,
+            "same_samples_above_one": true
+          }
+        }
+      },
+      "split80": {
+        "direct_exit": 0,
+        "warning_prefix": [],
+        "warning_prefix_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "record": {
+          "apple_aux_present": 0,
+          "iso_aux_present": 1,
+          "image_count": 1,
+          "hdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": true
+            },
+            "rgb_min": 0.05137912184000015,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "8fb756f1b7fd60e207fd8b68962bf173b3cd6947d2d5f9559031f3652bf65d23",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "1878a761cb7ff26d6a737deb48d22b16067abec58dcb2ef892c5ea258b533aaf",
+            "headroom": 8,
+            "rgb_mean": 3.029382730461657,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 10,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 1920,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.05137912184000015,
+                  0.05137912929058075,
+                  0.05137912929058075,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.05137912184000015,
+                  0.05137912929058075,
+                  0.05137912929058075,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  1.7246283292770386,
+                  1.7246285676956177,
+                  1.7246285676956177,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  7.983761787414551,
+                  7.983762741088867,
+                  7.983762264251709,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  7.983761787414551,
+                  7.983762741088867,
+                  7.983762264251709,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 26620,
+            "bitmap_info": 204806,
+            "rgb_max": 7.983762741088867,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "path": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/split-gain/reference-16-split-explicit.jpg",
+          "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/hdr_stats/split80/imageio/source-properties.plist",
+          "sdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0.05126953125,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+            "headroom": 1,
+            "rgb_mean": 0.427001953125,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 8,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 0,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0.05126953125,
+                  0.05126953125,
+                  0.05126953125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  0.2158203125,
+                  0.2158203125,
+                  0.2158203125,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 588,
+            "bitmap_info": 5,
+            "rgb_max": 1,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 3840,
+            "bytes_per_row": 320
+          },
+          "max_sdr_hdr_delta": 6.983762741088867,
+          "source_properties_sha256": "8b6c57f8da691976f4aa36975665313591b0b5143ee50968e721becf1676b54c",
+          "source_properties_bytes": 606,
+          "source_property_keys": [
+            "ColorModel",
+            "Depth",
+            "Headroom",
+            "Orientation",
+            "PixelHeight",
+            "PixelWidth",
+            "ProfileName",
+            "{TIFF}"
+          ],
+          "payloads": {
+            "sdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "bb0c4719ebc01d19663d6382bcd149db079c8c766775e523604eafe34c04d975",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "cdfdfe2fe5b234ea91c25d406fa52f14530e8b21ce8f4de1b491f728e48efe7f",
+              "returned_icc_bytes": 588,
+              "returned_icc_sha256": "be1eccdf7ba1b4c2b13dae337d96b87040fc9206d2d388f7fbed8187cf2c5a6c",
+              "headroom": 1,
+              "rgb_min": 0.05126953125,
+              "rgb_max": 1,
+              "rgb_mean": 0.427001953125,
+              "samples_above_one": 0,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.05126953125,
+                    0.05126953125,
+                    0.05126953125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    0.2158203125,
+                    0.2158203125,
+                    0.2158203125,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            },
+            "hdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "1878a761cb7ff26d6a737deb48d22b16067abec58dcb2ef892c5ea258b533aaf",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "06eb158e4acc183596dee36f482d7b56847927f2065126cb7e33580ded47c9a9",
+              "returned_icc_bytes": 26620,
+              "returned_icc_sha256": "8fb756f1b7fd60e207fd8b68962bf173b3cd6947d2d5f9559031f3652bf65d23",
+              "headroom": 8,
+              "rgb_min": 0.05137912184000015,
+              "rgb_max": 7.983762741088867,
+              "rgb_mean": 3.029382730461657,
+              "samples_above_one": 1920,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0.05137912184000015,
+                    0.05137912929058075,
+                    0.05137912929058075,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0.05137912184000015,
+                    0.05137912929058075,
+                    0.05137912929058075,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    1.7246283292770386,
+                    1.7246285676956177,
+                    1.7246285676956177,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    7.983761787414551,
+                    7.983762741088867,
+                    7.983762264251709,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    7.983761787414551,
+                    7.983762741088867,
+                    7.983762264251709,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            }
+          }
+        },
+        "delta_vs_default": {
+          "sdr": {
+            "provider_identical": true,
+            "draw_identical": true,
+            "returned_icc_identical": true,
+            "same_headroom": true,
+            "rgb_max_delta": 0,
+            "rgb_mean_delta": 0.0,
+            "same_samples_above_one": true
+          },
+          "hdr": {
+            "provider_identical": true,
+            "draw_identical": true,
+            "returned_icc_identical": true,
+            "same_headroom": true,
+            "rgb_max_delta": 0.0,
+            "rgb_mean_delta": 0.0,
+            "same_samples_above_one": true
+          }
+        }
+      },
+      "A80": {
+        "direct_exit": 0,
+        "warning_prefix": [],
+        "warning_prefix_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "record": {
+          "apple_aux_present": 0,
+          "iso_aux_present": 1,
+          "image_count": 1,
+          "hdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": true
+            },
+            "rgb_min": 0,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "f7947012e177fb92ceb9af5d66e48a890f5d50c15806682c1d11e7d2660d799d",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+            "headroom": 8,
+            "rgb_mean": 3.9927808134816587,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "unknown",
+            "bits_per_component": 10,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 1920,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  7.983762264251709,
+                  7.983762264251709,
+                  7.983762264251709,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  7.983762264251709,
+                  7.983762264251709,
+                  7.983762264251709,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  7.983762264251709,
+                  7.983762264251709,
+                  7.983762264251709,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 26620,
+            "bitmap_info": 204806,
+            "rgb_max": 7.983762264251709,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 1968,
+            "bytes_per_row": 320
+          },
+          "path": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera/tools/orchestrate/wp/M2-45d/a-gainmap-gates-20260927/headroom/artifacts/headroom-4-stops.jpg",
+          "source_properties_plist": "/Volumes/betterSSD/tessera-validation/exp45-independent-control/d52a0d13814ca399fc8a07e23de1d2c63f0e8404/stats-option-80x16/native/hdr_stats/A80/imageio/source-properties.plist",
+          "sdr": {
+            "context_target_before": 0,
+            "input_color_space_components": 3,
+            "provider_bytes": 5120,
+            "decode_request_options": {
+              "compute_hdr_stats": false
+            },
+            "rgb_min": 0,
+            "alpha_min": 1,
+            "alpha_max": 1,
+            "input_icc_sha256": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+            "context_target_after": 0,
+            "context_target_set": false,
+            "input_color_space_present": 1,
+            "provider_sha256": "cd7ea07100f775c17d4b0385428ed2a750442ce93b7358d032e6f0c43422d205",
+            "headroom": 1,
+            "rgb_mean": 0.5009033203125,
+            "pixels_decoded": 1,
+            "image_created": true,
+            "color_space": "kCGColorSpaceSRGB",
+            "bits_per_component": 8,
+            "nonfinite_rgb": 0,
+            "height": 16,
+            "samples_above_one": 0,
+            "width": 80,
+            "bits_per_pixel": 32,
+            "patch_centers": [
+              {
+                "y": 8,
+                "fraction": 0.1,
+                "x": 8,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.3,
+                "x": 24,
+                "rgba": [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.5,
+                "x": 40,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.7,
+                "x": 56,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "y": 8,
+                "fraction": 0.9,
+                "x": 72,
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "input_icc_bytes": 3144,
+            "bitmap_info": 5,
+            "rgb_max": 1,
+            "input_color_space_model": 1,
+            "nonzero_rgb_samples": 1968,
+            "bytes_per_row": 320
+          },
+          "max_sdr_hdr_delta": 6.983762264251709,
+          "source_properties_sha256": "a11b2e8def471823be27cf3ba1afab51751d8dbef577416644f4adaec6c722d1",
+          "source_properties_bytes": 594,
+          "source_property_keys": [
+            "ColorModel",
+            "Depth",
+            "Headroom",
+            "Orientation",
+            "PixelHeight",
+            "PixelWidth",
+            "ProfileName",
+            "{TIFF}"
+          ],
+          "payloads": {
+            "sdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "cd7ea07100f775c17d4b0385428ed2a750442ce93b7358d032e6f0c43422d205",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "3806b53d7f9c46650fcb8ccf638eb815a4b35903ab34527be07393ac48a258da",
+              "returned_icc_bytes": 3144,
+              "returned_icc_sha256": "2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e",
+              "headroom": 1,
+              "rgb_min": 0,
+              "rgb_max": 1,
+              "rgb_mean": 0.5009033203125,
+              "samples_above_one": 0,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "kCGColorSpaceSRGB"
+            },
+            "hdr": {
+              "provider_bytes": 5120,
+              "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+              "drawn_rgba_f32_bytes": 20480,
+              "drawn_rgba_f32_sha256": "251345c4350cded78817df16d9d5289531175ed3afff28572be132f53881642c",
+              "returned_icc_bytes": 26620,
+              "returned_icc_sha256": "f7947012e177fb92ceb9af5d66e48a890f5d50c15806682c1d11e7d2660d799d",
+              "headroom": 8,
+              "rgb_min": 0,
+              "rgb_max": 7.983762264251709,
+              "rgb_mean": 3.9927808134816587,
+              "samples_above_one": 1920,
+              "nonfinite_rgb": 0,
+              "patch_centers": [
+                {
+                  "y": 8,
+                  "fraction": 0.1,
+                  "x": 8,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.3,
+                  "x": 24,
+                  "rgba": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.5,
+                  "x": 40,
+                  "rgba": [
+                    7.983762264251709,
+                    7.983762264251709,
+                    7.983762264251709,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.7,
+                  "x": 56,
+                  "rgba": [
+                    7.983762264251709,
+                    7.983762264251709,
+                    7.983762264251709,
+                    1
+                  ]
+                },
+                {
+                  "y": 8,
+                  "fraction": 0.9,
+                  "x": 72,
+                  "rgba": [
+                    7.983762264251709,
+                    7.983762264251709,
+                    7.983762264251709,
+                    1
+                  ]
+                }
+              ],
+              "color_space": "unknown"
+            }
+          }
+        },
+        "delta_vs_default": {
+          "sdr": {
+            "provider_identical": true,
+            "draw_identical": true,
+            "returned_icc_identical": true,
+            "same_headroom": true,
+            "rgb_max_delta": 0,
+            "rgb_mean_delta": 0.0,
+            "same_samples_above_one": true
+          },
+          "hdr": {
+            "provider_identical": true,
+            "draw_identical": true,
+            "returned_icc_identical": true,
+            "same_headroom": true,
+            "rgb_max_delta": 0.0,
+            "rgb_mean_delta": 0.0,
+            "same_samples_above_one": true
+          }
+        }
+      }
+    }
+  }
+}
