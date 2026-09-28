@@ -1,0 +1,1 @@
+CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/target cargo test -p tessera-ffi --lib engine_histogram_keeps_the_cached_model_miss_error_without_downloading -- --nocapture

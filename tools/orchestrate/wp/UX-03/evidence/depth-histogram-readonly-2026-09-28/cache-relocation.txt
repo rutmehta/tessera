@@ -1,0 +1,7 @@
+source=worktree/target
+destination=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated
+verified_copy=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0
+rsync_checksum_dry_run_exit=0
+source_regular_files=25351
+verified_copy_regular_files=25351
+future_CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated

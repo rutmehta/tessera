@@ -73,7 +73,7 @@ use engine_api::{
     id::{HistoryEntryId, HistoryGroupId, ImageId},
     jobs::{Job, JobContext, JobHandle, Priority, Scheduler},
     recipe::{
-        DevelopSettings, EditMeta, Recipe,
+        DevelopSettings, EditMeta, ProcessVersion, Recipe,
         history::{Author, HistoryEntry, apply_change},
         settings::{
             Curve, DemosaicMethod, DisplayTransform, GradeWheel, HighlightReconstruction, HueBands,
@@ -627,6 +627,45 @@ pub(crate) struct Shared {
     masks: Arc<masks::MaskShared>,
 }
 
+/// Renderer and model dependencies shared by visible Develop and read-only
+/// saved-recipe consumers. This deliberately contains no session state or
+/// save-worker lifecycle.
+struct DevelopRenderResources {
+    renderer: Arc<Renderer>,
+    backend: String,
+    cfa_denoiser: Mutex<Option<Arc<image_core::MlCfaDenoise>>>,
+    depth_provider: Arc<image_core::depth::DepthProvider>,
+    model_registry: Arc<ml_runtime::ModelRegistry>,
+    automatic_cfa: Mutex<Option<(engine_api::id::ModelRef, Arc<image_core::MlCfaDenoise>)>>,
+    rgb_denoiser: Arc<image_core::MlPostDemosaicDenoise>,
+    masks: Arc<masks::MaskShared>,
+}
+
+impl DevelopRenderResources {
+    fn renderer_snapshot(&self, settings: &DevelopSettings) -> Renderer {
+        renderer_snapshot(
+            &self.renderer,
+            &self.depth_provider,
+            &self.cfa_denoiser,
+            &self.automatic_cfa,
+            &self.model_registry,
+            &self.rgb_denoiser,
+            settings,
+        )
+    }
+
+    fn depth_input(
+        &self,
+        image: &RawImage,
+        settings: DevelopSettings,
+        process_version: ProcessVersion,
+    ) -> Result<pipeline_cpu::Image> {
+        render_depth_input(image, settings, process_version, |settings| {
+            self.renderer_snapshot(settings)
+        })
+    }
+}
+
 #[derive(uniffi::Object)]
 pub struct DevelopSession {
     shared: Arc<Shared>,
@@ -924,73 +963,63 @@ fn stage_name(stage: StageId) -> String {
 
 // ─────────────────────────────── engine ───────────────────────────────
 
+struct DevelopDiskSnapshot {
+    image_id: ImageId,
+    path: PathBuf,
+    recipe: Recipe,
+    owner_baseline: OwnerBaseline,
+}
+
 #[uniffi::export]
 impl Engine {
-    /// Opens a develop session on an indexed RAW or rendered RGB image.
-    /// Blocking decode: call off the main thread. One session per visible image.
-    /// Blocking depth histogram for an indexed image using its saved recipe.
+    /// Blocking depth histogram for an indexed image using its saved recipe,
+    /// without opening an editable Develop session.
     pub fn depth_histogram(self: Arc<Self>, image_id: String) -> Result<Vec<u64>> {
-        self.open_develop_session(image_id)?.depth_histogram()
-    }
-
-    pub fn open_develop_session(self: Arc<Self>, image_id: String) -> Result<Arc<DevelopSession>> {
-        let id = parse_id(&image_id)?;
-        let path = {
-            let c = self.lock()?;
-            Self::path(&c, &image_id)?
-        };
-        let path = PathBuf::from(path);
-        let (mut recipe, owner_baseline) = {
-            let gate = crate::recipe_write::gate_for(&path)?;
-            let _read = gate.begin_read()?;
-            let c = self.lock()?;
-            if Path::new(&Self::path(&c, &image_id)?) != path {
-                return Err(failure("image path changed before Develop open"));
-            }
-            let recipe = catalog::document(&path, id)?.recipe;
-            let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
-            (recipe, baseline)
-        };
-        let image = RawImage::open(id, &path)?;
+        let snapshot = self.develop_disk_snapshot(&image_id)?;
+        let image = RawImage::open(snapshot.image_id, &snapshot.path)?;
+        let mut recipe = snapshot.recipe;
         recipe.source_kind = if image.source_kind() == "rgb" {
             engine_api::recipe::SourceKind::Rgb
         } else {
             engine_api::recipe::SourceKind::Raw
         };
-        let (renderer, backend) = self.develop_renderer(&image);
-        let masks = masks::MaskShared::new(&image);
-        renderer
-            .mask_cache()
-            .set_hooks(Some(Arc::new(masks::Hooks(masks.clone()))));
+        let resources = self.develop_render_resources(&image)?;
+        let settings = session_renderable(&recipe.settings, true, false);
+        let input = resources.depth_input(&image, settings, recipe.process_version)?;
+        Ok(resources
+            .depth_provider
+            .estimate(&input)?
+            .histogram()
+            .to_vec())
+    }
+
+    /// Opens a develop session on an indexed RAW or rendered RGB image.
+    /// Blocking decode: call off the main thread. One session per visible image.
+    pub fn open_develop_session(self: Arc<Self>, image_id: String) -> Result<Arc<DevelopSession>> {
+        let snapshot = self.develop_disk_snapshot(&image_id)?;
+        let path = snapshot.path;
+        let mut recipe = snapshot.recipe;
+        let image = RawImage::open(snapshot.image_id, &path)?;
+        recipe.source_kind = if image.source_kind() == "rgb" {
+            engine_api::recipe::SourceKind::Rgb
+        } else {
+            engine_api::recipe::SourceKind::Raw
+        };
+        let resources = self.develop_render_resources(&image)?;
         let screen_level = default_level(&image);
-        let model_registry = Arc::new(
-            ml_runtime::ModelRegistry::from_support(
-                self.db
-                    .parent()
-                    .ok_or_else(|| failure("missing support directory"))?,
-            )
-            .map_err(failure)?,
-        );
         let shared = Arc::new(Shared {
             engine: Arc::downgrade(&self),
             image_id,
             path,
             image,
-            renderer,
-            cfa_denoiser: Mutex::new(None),
-            automatic_cfa: Mutex::new(None),
-            rgb_denoiser: Arc::new(image_core::MlPostDemosaicDenoise::new(
-                model_registry.clone(),
-                Default::default(),
-            )),
-            model_registry,
-            depth_provider: Arc::new(image_core::depth::DepthProvider::from_support(
-                self.db
-                    .parent()
-                    .ok_or_else(|| failure("missing support directory"))?,
-            )?),
-            backend,
-            owner_baseline: Mutex::new(owner_baseline),
+            renderer: resources.renderer,
+            cfa_denoiser: resources.cfa_denoiser,
+            automatic_cfa: resources.automatic_cfa,
+            rgb_denoiser: resources.rgb_denoiser,
+            model_registry: resources.model_registry,
+            depth_provider: resources.depth_provider,
+            backend: resources.backend,
+            owner_baseline: Mutex::new(snapshot.owner_baseline),
             state: Mutex::new(State {
                 live: recipe.settings.clone(),
                 cfa_configured: false,
@@ -1024,7 +1053,7 @@ impl Engine {
             save_cv: Condvar::new(),
             file_hash: OnceLock::new(),
             mask_source: Mutex::new(None),
-            masks,
+            masks: resources.masks,
         });
         let writer = {
             let shared = shared.clone();
@@ -1032,6 +1061,9 @@ impl Engine {
                 .name("develop-save".into())
                 .spawn(move || shared.writer_loop())?
         };
+        #[cfg(test)]
+        self.develop_writer_constructions
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let writer_thread = writer.thread().id();
         Ok(Arc::new(DevelopSession {
             shared,
@@ -1043,6 +1075,58 @@ impl Engine {
 }
 
 impl Engine {
+    fn develop_disk_snapshot(&self, image_id: &str) -> Result<DevelopDiskSnapshot> {
+        let id = parse_id(image_id)?;
+        let path = {
+            let c = self.lock()?;
+            PathBuf::from(Self::path(&c, image_id)?)
+        };
+        let (recipe, owner_baseline) = {
+            let gate = crate::recipe_write::gate_for(&path)?;
+            let _read = gate.begin_read()?;
+            let c = self.lock()?;
+            if Path::new(&Self::path(&c, image_id)?) != path {
+                return Err(failure("image path changed before Develop open"));
+            }
+            let recipe = catalog::document(&path, id)?.recipe;
+            let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
+            (recipe, baseline)
+        };
+        Ok(DevelopDiskSnapshot {
+            image_id: id,
+            path,
+            recipe,
+            owner_baseline,
+        })
+    }
+
+    fn develop_render_resources(&self, image: &RawImage) -> Result<DevelopRenderResources> {
+        let (renderer, backend) = self.develop_renderer(image);
+        let masks = masks::MaskShared::new(image);
+        renderer
+            .mask_cache()
+            .set_hooks(Some(Arc::new(masks::Hooks(masks.clone()))));
+        let support = self
+            .db
+            .parent()
+            .ok_or_else(|| failure("missing support directory"))?;
+        let model_registry =
+            Arc::new(ml_runtime::ModelRegistry::from_support(support).map_err(failure)?);
+        Ok(DevelopRenderResources {
+            renderer,
+            backend,
+            cfa_denoiser: Mutex::new(None),
+            depth_provider: Arc::new(image_core::depth::DepthProvider::from_support(support)?),
+            rgb_denoiser: Arc::new(image_core::MlPostDemosaicDenoise::new(
+                model_registry.clone(),
+                Default::default(),
+            )),
+            model_registry,
+            automatic_cfa: Mutex::new(None),
+            masks,
+        })
+    }
+
     /// Writes develop state into the image's recipe document without touching
     /// fields other writers own (selection, unknown members), then the XMP
     /// (crs: develop values + selection) and the index. Returns the new
@@ -1265,39 +1349,95 @@ fn default_level(image: &RawImage) -> u8 {
         .unwrap_or(MAX_LEVEL)
 }
 
+fn renderer_snapshot(
+    renderer: &Arc<Renderer>,
+    depth_provider: &Arc<image_core::depth::DepthProvider>,
+    cfa_denoiser: &Mutex<Option<Arc<image_core::MlCfaDenoise>>>,
+    automatic_cfa: &Mutex<Option<(engine_api::id::ModelRef, Arc<image_core::MlCfaDenoise>)>>,
+    model_registry: &Arc<ml_runtime::ModelRegistry>,
+    rgb_denoiser: &Arc<image_core::MlPostDemosaicDenoise>,
+    settings: &DevelopSettings,
+) -> Renderer {
+    let renderer = (**renderer).clone().with_depth(depth_provider.clone());
+    if let Some(adapter) = cfa_denoiser
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+    {
+        return renderer.with_cfa_denoise(adapter.clone());
+    }
+    if pipeline_cpu::cfa_denoise_selected(&settings.denoise)
+        && let engine_api::recipe::settings::DenoiseMethod::Neural { model, .. } =
+            &settings.denoise.method
+    {
+        let mut slot = automatic_cfa.lock().unwrap_or_else(|e| e.into_inner());
+        if slot.as_ref().is_none_or(|(key, _)| key != model) {
+            *slot = Some((
+                model.clone(),
+                Arc::new(image_core::MlCfaDenoise::automatic(
+                    model_registry.clone(),
+                    Default::default(),
+                    model.clone(),
+                )),
+            ));
+        }
+        return renderer.with_cfa_denoise(slot.as_ref().expect("installed above").1.clone());
+    }
+    renderer.with_post_demosaic_denoise(rgb_denoiser.clone())
+}
+
+fn render_depth_input(
+    image: &RawImage,
+    mut settings: DevelopSettings,
+    process_version: ProcessVersion,
+    snapshot: impl FnOnce(&DevelopSettings) -> Renderer,
+) -> Result<pipeline_cpu::Image> {
+    settings.effects = Default::default();
+    settings.geometry = Default::default();
+    settings.lens.distortion_scale = 0.0;
+    settings.lens.manual_distortion = 0.0;
+    let level = (0..=MAX_LEVEL)
+        .find(|&l| {
+            let e = image.level_extent(l);
+            e.width.max(e.height) <= 1024
+        })
+        .unwrap_or(MAX_LEVEL);
+    let e = image.level_extent(level);
+    let tiles = snapshot(&settings)
+        .for_process_version(process_version)
+        .render_region_as(
+            image,
+            &settings,
+            level,
+            PixelRect::full(e),
+            RenderOutput::SceneLinear,
+        )?;
+    let mut output =
+        pipeline_cpu::Image::new(e.width, e.height, vec![vec![0.; e.area() as usize]; 3])?;
+    for tile in tiles {
+        let coord = engine_api::tile::TileCoord::new(0, tile.coord().x, tile.coord().y);
+        output.put(&Tile::from_samples(
+            coord,
+            tile.layout(),
+            tile.samples::<f32>()?.to_vec(),
+        )?)?;
+    }
+    Ok(output)
+}
+
 // ─────────────────────────────── session ───────────────────────────────
 
 impl Shared {
     fn renderer_snapshot(&self, settings: &DevelopSettings) -> Renderer {
-        let renderer = (*self.renderer)
-            .clone()
-            .with_depth(self.depth_provider.clone());
-        if let Some(adapter) = self
-            .cfa_denoiser
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .as_ref()
-        {
-            return renderer.with_cfa_denoise(adapter.clone());
-        }
-        if pipeline_cpu::cfa_denoise_selected(&settings.denoise)
-            && let engine_api::recipe::settings::DenoiseMethod::Neural { model, .. } =
-                &settings.denoise.method
-        {
-            let mut slot = self.automatic_cfa.lock().unwrap_or_else(|e| e.into_inner());
-            if slot.as_ref().is_none_or(|(key, _)| key != model) {
-                *slot = Some((
-                    model.clone(),
-                    Arc::new(image_core::MlCfaDenoise::automatic(
-                        self.model_registry.clone(),
-                        Default::default(),
-                        model.clone(),
-                    )),
-                ));
-            }
-            return renderer.with_cfa_denoise(slot.as_ref().expect("installed above").1.clone());
-        }
-        renderer.with_post_demosaic_denoise(self.rgb_denoiser.clone())
+        renderer_snapshot(
+            &self.renderer,
+            &self.depth_provider,
+            &self.cfa_denoiser,
+            &self.automatic_cfa,
+            &self.model_registry,
+            &self.rgb_denoiser,
+            settings,
+        )
     }
 
     fn lock(&self) -> Result<MutexGuard<'_, State>> {
@@ -1315,42 +1455,13 @@ impl Shared {
     }
 
     fn depth_input(&self) -> Result<pipeline_cpu::Image> {
-        let (mut settings, process_version) = {
+        let (settings, process_version) = {
             let state = self.lock()?;
             (state.drawn(), state.recipe.process_version)
         };
-        settings.effects = Default::default();
-        settings.geometry = Default::default();
-        settings.lens.distortion_scale = 0.0;
-        settings.lens.manual_distortion = 0.0;
-        let level = (0..=MAX_LEVEL)
-            .find(|&l| {
-                let e = self.image.level_extent(l);
-                e.width.max(e.height) <= 1024
-            })
-            .unwrap_or(MAX_LEVEL);
-        let e = self.image.level_extent(level);
-        let tiles = self
-            .renderer_snapshot(&settings)
-            .for_process_version(process_version)
-            .render_region_as(
-                &self.image,
-                &settings,
-                level,
-                PixelRect::full(e),
-                RenderOutput::SceneLinear,
-            )?;
-        let mut image =
-            pipeline_cpu::Image::new(e.width, e.height, vec![vec![0.; e.area() as usize]; 3])?;
-        for t in tiles {
-            let coord = engine_api::tile::TileCoord::new(0, t.coord().x, t.coord().y);
-            image.put(&Tile::from_samples(
-                coord,
-                t.layout(),
-                t.samples::<f32>()?.to_vec(),
-            )?)?;
-        }
-        Ok(image)
+        render_depth_input(&self.image, settings, process_version, |settings| {
+            self.renderer_snapshot(settings)
+        })
     }
 
     fn listener(&self) -> Option<Arc<dyn DevelopListener>> {
@@ -5356,5 +5467,218 @@ mod m2_49_depth_histogram_freshness_tests {
             session.depth_histogram().is_err(),
             "cached histogram must not bypass the current recipe's process validation"
         );
+    }
+}
+
+#[cfg(test)]
+mod depth_histogram_read_only_contract_tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+
+    fn cache_depth_for_input(
+        support: &Path,
+        input: &pipeline_cpu::Image,
+        values: Vec<f32>,
+    ) -> Vec<u64> {
+        let rgb = image_core::depth::model_input(input).unwrap();
+        let key = image_core::ml_depth::cache_key(&rgb, image_core::ml_depth::MODEL_VERSION);
+        let depth =
+            image_core::ml_depth::DepthMap::from_prediction(rgb.width(), rgb.height(), values)
+                .unwrap();
+        let histogram = depth.histogram().to_vec();
+        let store =
+            image_core::ml_depth::DepthStore::new(support.join("previews/depth-cache"), 1 << 20)
+                .unwrap();
+        depth.store(&store, &key).unwrap();
+        histogram
+    }
+
+    fn optional_bytes(path: &Path) -> Option<Vec<u8>> {
+        std::fs::read(path).ok()
+    }
+
+    #[test]
+    fn engine_histogram_uses_saved_pixels_without_starting_a_writer_or_publishing() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("readonly.jpg");
+        image::RgbImage::from_pixel(32, 24, image::Rgb([55, 92, 131]))
+            .save(&photo)
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+
+        // Keep a legacy Raw source tag on an RGB file. Develop's in-memory
+        // normalization must still be used for the histogram input.
+        let mut legacy = catalog::document(&photo, parse_id(&row.id).unwrap()).unwrap();
+        legacy.recipe.source_kind = engine_api::recipe::SourceKind::Raw;
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        sidecar::Sidecar::write_recipe(&recipe_path, &legacy).unwrap();
+        let xmp_path = catalog::xmp_path(&photo);
+        let before_recipe = std::fs::read(&recipe_path).unwrap();
+        let before_xmp = optional_bytes(&xmp_path);
+        let before_change_head = engine.lock().unwrap().index.change_head().unwrap();
+        let saved_recipe = catalog::document(&photo, parse_id(&row.id).unwrap())
+            .unwrap()
+            .recipe;
+        let saved_exposure = saved_recipe.settings.tone.exposure;
+
+        let editor = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        let saved_input = editor.shared.depth_input().unwrap();
+        let pixel_count = (saved_input.width() * saved_input.height()) as usize;
+        let saved_histogram = cache_depth_for_input(
+            engine.db.parent().unwrap(),
+            &saved_input,
+            vec![0.0; pixel_count],
+        );
+
+        editor
+            .set_settings(
+                serde_json::json!({"tone":{"exposure": saved_exposure + 4.0}}).to_string(),
+                false,
+            )
+            .unwrap();
+        let live_input = editor.shared.depth_input().unwrap();
+        let saved_rgb = image_core::depth::model_input(&saved_input).unwrap();
+        let live_rgb = image_core::depth::model_input(&live_input).unwrap();
+        assert_ne!(
+            saved_rgb, live_rgb,
+            "fixture must distinguish live from saved pixels"
+        );
+        let mut live_depth = vec![0.0; pixel_count];
+        live_depth[0] = 1.0;
+        let live_histogram =
+            cache_depth_for_input(engine.db.parent().unwrap(), &live_input, live_depth);
+        assert_ne!(saved_histogram, live_histogram);
+
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
+        assert_eq!(
+            writer_count, 1,
+            "only the visible editor should own a writer"
+        );
+        let actual = engine.clone().depth_histogram(row.id.clone()).unwrap();
+        assert_eq!(
+            actual, saved_histogram,
+            "histogram must use saved recipe pixels"
+        );
+        assert_ne!(
+            actual, live_histogram,
+            "unsaved editor controls must not leak into histogram"
+        );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count,
+            "a read-only histogram must not construct a temporary writer session"
+        );
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), before_recipe);
+        assert_eq!(optional_bytes(&xmp_path), before_xmp);
+        assert_eq!(
+            engine.lock().unwrap().index.change_head().unwrap(),
+            before_change_head,
+            "histogram must not publish index changes"
+        );
+
+        // A close after a live edit is allowed to publish it; restore the
+        // original value first so this test isolates histogram side effects.
+        editor
+            .set_settings(
+                serde_json::json!({"tone":{"exposure": saved_exposure}}).to_string(),
+                false,
+            )
+            .unwrap();
+        editor.close().unwrap();
+    }
+
+    #[test]
+    fn engine_histogram_keeps_the_cached_model_miss_error_without_downloading() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([55, 92, 131]))
+            .save(photos.join("missing-depth.jpg"))
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+
+        let error = engine
+            .clone()
+            .depth_histogram(row.id)
+            .expect_err("cache miss without installed model must remain an error");
+        assert!(
+            error
+                .to_string()
+                .contains(image_core::ml_depth::MISSING_MODEL_MESSAGE),
+            "unexpected depth cache-miss error: {error}"
+        );
+    }
+
+    #[test]
+    fn engine_histogram_rejects_unsupported_saved_process_with_a_populated_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("unsupported-process.jpg");
+        image::RgbImage::from_pixel(32, 24, image::Rgb([55, 92, 131]))
+            .save(&photo)
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let editor = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        let valid_input = editor.shared.depth_input().unwrap();
+        let pixel_count = (valid_input.width() * valid_input.height()) as usize;
+        cache_depth_for_input(
+            engine.db.parent().unwrap(),
+            &valid_input,
+            vec![0.0; pixel_count],
+        );
+
+        let mut saved = catalog::document(&photo, parse_id(&row.id).unwrap()).unwrap();
+        saved.recipe.process_version = engine_api::recipe::ProcessVersion {
+            family: engine_api::recipe::ProcessFamily::Adobe,
+            revision: 99,
+        };
+        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&photo).recipe, &saved).unwrap();
+
+        let writer_count = engine.develop_writer_constructions.load(Ordering::Relaxed);
+        assert_eq!(
+            writer_count, 1,
+            "fixture has only its visible editor writer"
+        );
+        let error = engine
+            .clone()
+            .depth_histogram(row.id)
+            .expect_err("unsupported saved process must fail despite an input cache hit");
+        assert!(
+            error.to_string().contains("Adobe PV3–6 required"),
+            "the error must come from saved process validation, not depth cache miss: {error}"
+        );
+        assert_eq!(
+            engine.develop_writer_constructions.load(Ordering::Relaxed),
+            writer_count,
+            "process validation must not require a temporary writer session"
+        );
+        drop(editor);
     }
 }

@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Saved-recipe histogram accepted for integration — 2026-09-28 10:28 UTC
+
+Exact final sourcea31d2518 is integrated here: Engine depth histogram uses a read-only saved-recipe context and shared render helpers, without constructing an editing session/save worker. Both intended writer-count REDs are preserved/direct101. Focuseda04 passes3/direct0; a31 changes documentation only and passes7 adjacent tests, fmt, strict Clippy/direct0. Root checked all recorded source freezes, raw exits/summaries,59 original payload bytes against6be9d5d7, and1176 tracked Rust/Cargo files againsta31. Both integrated Rust files are byte-identical to finala31. Astra independently approved exact source and evidence. Portable manifest contains61 payloads including coordinator post-gate snapshot and verification note.
+
+Native lane is released; no compiler remains. BetterSSD cache and compatibility symlink are preserved; internal free space9.1GiB at verification. This completes the standalone histogram prerequisite, not Stage C leases, all-writer coordination, batch writes, GUI or performance acceptance. Normal preview is unchanged. HDR's original4pass/1fail remains unresolved after nine preserved diagnostic phases. B source request remains published but unreceived, with latest transport failure hostname resolution; no duplicate queue or peer-delivery claim.
+
 ## Second histogram RED and BetterSSD cache verified — 2026-09-28 10:17 UTC
 
 Saved unsupported-process testc2737914 first proves the specific Adobe PV3–6 validation error despite a populated native-process cache, then fails only at extra writer construction2vs1/direct101. Root read raw logs and verified3 frozen source hashes. Preflight b66 had the wrong expected diagnostic and was corrected before execution; it is not behavioral RED. Primary77eb RED and missing-model control remain separately preserved.

@@ -1,0 +1,9 @@
+# Coordinator verification — 2026-09-28 10:28 UTC
+
+Imported59 original evidence payloads from6be9d5d7 and compared every byte against the exact Git blobs. Both integrated Rust files exactly match finala31d2518. Root also checked1176 tracked Rust/Cargo files in the validation checkout againsta31d2518 after the adjacent gates; this post-gate snapshot is retained here and is not presented as a retroactive before-run freeze.
+
+Primary77eb68d0 and saved-processc2737914 each fail at the intended writer count2vs1/direct101. Root verified their three recorded source hashes against their respective commits. The standalone missing-model control passed1/direct0. Focused contracta04a4e71 passes3/direct0. Finala31d2518 differs only in documentation comments; six adjacent groups pass7 tests/direct0, formatting passes/direct0, and `cargo clippy -p tessera-ffi --lib --tests -- -D warnings` passes/direct0. Root checked raw summaries, exits, exact final source manifests, and the comment-only diff. There is no intervening Rust/Cargo change on main since the candidate base3dbd4a47.
+
+Astra independently reviewed exact production source and preserved results. No native check was repeated by root/reviewer. The first GREEN manifest records develop.rs only; prior test-seam manifests, committed source history, final expanded manifests and the coordinator post-gate snapshot provide additional provenance, without claiming an absent initial hash was captured.
+
+This accepts the bounded saved-recipe histogram implementation: no temporary editing session/save worker, saved-versus-live behavior and process/cache-miss errors preserved, recipe/XMP/index unchanged during the successful call. No writer lease, external-process exclusion, batch mutation, full Swift suite, refreshed app, performance or memory-bound claim. Original failed HDR gate remains unchanged.
