@@ -1,5 +1,14 @@
 # Editable Smart Preview status
 
+## Current implementation — 2026-09-28 19:04 UTC
+
+Smart Preview generation, explicit proxy editing, offline Library, local edit/save/reopen, reconnect synchronization and local proxy thumbnails are integrated on main `89b78881`. B supplied Swift controls/routing/retry; A integrated and qualified the native/desktop bridge. Full Swift:689 XCTest cases,1 skipped,0 failures plus5 Swift Testing cases; strict optimized product and actual Sony offline workflows pass. Native thumbnail:187 FFI tests and28 previews tests pass (3 existing ignored). Evidence `62e4ee5b`, `cae2004d` records source/artifact hashes and retained failures.
+
+Current Compact proxy is1640×1092 and7,319,246 bytes for the16,646,144-byte Sony RAW (56.03% smaller); it retains camera-linear editing data rather than a finished JPEG. Legacy Detail/v1 assets remain readable. Edits are stored as a recipe and full-quality export uses the original; proxy/source ownership and conflict guards remain enforced.
+
+Original remains the default. CPU proxy rendering has not established a speed advantage over the existing Original Metal renderer. The opt-in GPU candidate is applied only in the feature checkout for qualification: its first actual Metal suite passed8 and failed2 numerical-parity checks. It is unaccepted and not merged. No accelerated, physical input-to-display, cross-camera or packaged-app GUI claim is made. Separate-process desktop restart, visual GUI and performance acceptance remain open.
+
+## Historical implementation checkpoints
 ## Current implementation — 2026-09-28 17:04 UTC
 
 Camera-linear proxy generation, bounded persistence, original-identity journal, native offline Develop save/reopen and conservative synchronization are integrated. Final native candidate e1eca7ba passed171 unit tests plus real Sony build/edit/clean-and-dirty offline restart/reconnect/conflict/full-resolution export workflow. Original photos stay unchanged during proxy generation/local editing. Source/evidence are published on main ff0459fc.
