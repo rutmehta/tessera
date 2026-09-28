@@ -166,7 +166,9 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
         let subfolders = try fm.contentsOfDirectory(at: canonical, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true && $0.lastPathComponent != ".edits" }
             .sorted { $0.path < $1.path }
-        return EngineLibrary(title: folder.lastPathComponent, folder: folder, subfolders: subfolders,
+        // Retain the native index identity while online. Offline lookup must not
+        // re-resolve a caller alias after its volume or symlink disappears.
+        return EngineLibrary(title: folder.lastPathComponent, folder: canonical, subfolders: subfolders,
                              scanDuration: Date().timeIntervalSince(start), engine: engine, session: session,
                              previewEvents: previewEvents, rows: rows, layout: layout,
                              statuses: Dictionary(statuses.map { ($0.imageId, ItemStatus($0)) }, uniquingKeysWith: { a, _ in a }),

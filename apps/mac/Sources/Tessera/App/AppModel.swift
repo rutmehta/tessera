@@ -645,7 +645,6 @@ final class AppModel {
         let target = basketTarget
         isLoading = true
         statusMessage = "Reading \(url.lastPathComponent)…"
-        rememberFolder(url)
         Task.detached(priority: .userInitiated) {
             let result = Result<(any PhotoLibrary, CullController.InitialSnapshot), Error> {
                 let library: any PhotoLibrary = useStub
@@ -662,6 +661,7 @@ final class AppModel {
                 self.isLoading = false
                 switch result {
                 case .success(let (lib, snapshot)):
+                    self.rememberOpenedFolder(lib, replacing: url)
                     self.install(lib, snapshot: snapshot)
                     self.assist.libraryDidLoad(seedFaces: seedFaces)
                     self.openPeople()
@@ -692,14 +692,22 @@ final class AppModel {
         statusMessage = "Generated \(count.formatted()) stub items in \(lib.groups.count.formatted()) groups, \(Self.ms(lib.scanDuration))"
     }
 
-    private func rememberFolder(_ url: URL) {
+    /// Record only a successfully opened library's authoritative folder. EngineLibrary
+    /// captures index handle.path while online; cached opens already carry that identity.
+    /// `defaults` permits isolated persistence regression tests without personal history edits.
+    func rememberOpenedFolder(_ library: any PhotoLibrary, replacing requested: URL? = nil,
+                              defaults: UserDefaults = .standard) {
         // A background audit's copied fixture is not a new personal recent-folder preference.
-        guard !ProcessInfo.processInfo.arguments.contains("--nonactivating") else { return }
-        UserDefaults.standard.set(url.path, forKey: Self.lastFolderKey)
-        var recents = recentFolders.filter { $0.standardizedFileURL != url.standardizedFileURL }
-        recents.insert(url, at: 0)
+        guard !ProcessInfo.processInfo.arguments.contains("--nonactivating"),
+              let folder = library.folder else { return }
+        defaults.set(folder.path, forKey: Self.lastFolderKey)
+        // Lexical comparison only: never canonicalize a disconnected original or old recent.
+        var recents = (defaults.stringArray(forKey: Self.recentFoldersKey) ?? [])
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+            .filter { $0.path != folder.path && $0.path != requested?.path }
+        recents.insert(folder, at: 0)
         recentFolders = Array(recents.prefix(8))
-        UserDefaults.standard.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
+        defaults.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
     }
 
     func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
@@ -979,12 +987,21 @@ final class AppModel {
                         then: (@MainActor (AppModel, _ loaded: Bool) -> Void)?) {
         guard let folder = lib.folder else { return }
         statusMessage = "Updating \(folder.lastPathComponent)…"
+        let target = basketTarget
         Task.detached(priority: .userInitiated) {
             let result = Result<(FolderHandle?, EngineLibrary?), Error> {
                 if try !LibraryOpenRouter.originalFolderAvailable(folder) {
                     return (nil, try EngineLibrary.cachedPreviews(folder: folder))
                 }
-                return (try lib.engine.indexFolder(path: folder.path), nil)
+                let handle = try lib.engine.indexFolder(path: folder.path)
+                if handle.path != folder.path {
+                    // An online path may have been replaced by a symlink. The old
+                    // CullSession belongs to its old identity; reopen against the new
+                    // index path rather than mutating that live session's folder.
+                    let canonical = URL(fileURLWithPath: handle.path, isDirectory: true)
+                    return (nil, try EngineLibrary.scan(folder: canonical, basketTarget: target))
+                }
+                return (handle, nil)
             }
             await MainActor.run {
                 guard self.engineLibrary === lib,
@@ -993,15 +1010,19 @@ final class AppModel {
                     return
                 }
                 switch result {
-                case .success(let (handle, cached)):
-                    if let cached {
-                        self.install(cached)
+                case .success(let (handle, replacement)):
+                    if let replacement {
+                        self.rememberOpenedFolder(replacement, replacing: folder)
+                        self.install(replacement)
                         self.assist.libraryDidLoad(seedFaces: false)
-                        self.statusMessage = "Original folder unavailable; showing cached Smart Preview declarations. Catalog read-only."
+                        self.statusMessage = replacement.isReadOnly
+                            ? "Original folder unavailable; showing cached Smart Preview declarations. Catalog read-only."
+                            : "Opened \(replacement.title): \(replacement.items.count.formatted()) images"
                         then?(self, true)
                         return
                     }
                     guard let handle else { then?(self, false); return }
+                    self.rememberOpenedFolder(lib, replacing: folder)
                     self.syncLibrary {
                         guard requestID == nil || self.currentFolderRequestID == requestID else {
                             then?(self, false)
@@ -1135,6 +1156,7 @@ final class AppModel {
             await MainActor.run {
                 guard generation == self.loadGeneration, case .success(let lib) = result else { return }
                 let source = self.source
+                self.rememberOpenedFolder(lib, replacing: folder)
                 self.install(lib)
                 if !lib.isReadOnly, source != .all { self.setSource(source) }
             }
