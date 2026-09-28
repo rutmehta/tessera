@@ -1,6 +1,6 @@
 # Machine A recovery status
 
-## Current coordinator checkpoint — 2026-09-28 02:53 UTC
+## Current coordinator checkpoint — 2026-09-28 03:09 UTC
 
 - **DONE native save retry** main `d4274a68`, tested `85de2860`: 21 Develop
   plus two adjacent tests, strict/fmt passed; repair reads current disk recipe.
@@ -15,21 +15,18 @@
   under `tools/orchestrate/wp/UX-03/evidence/mask-retention-2026-09-28/`.
   No full-suite or GUI gate was run for this change. B result `737e0d32`
   has a completed receipt; initial source-review failure remains recorded.
-- **Core close behavioral RED confirmed** at `7cc7d39d` against `8ab43f64`:
-  two tests, ten expected state/persistence assertion failures, direct exit 1.
-  Failed host/native close marks the controller closed, drops listeners and cannot
-  retry. Initial `e96781ac` harness compile failure is separately preserved.
-- **Resource Sol owns compiler** for candidate `dbb740bb`: typed shared close
-  outcome, error-aware settings/mask drain, admission guards, deferred task
-  cancellation and 13 deterministic close tests. Root and independent review
-  found/fixed unencodable-patch false success and missing returns before this gate.
-  First runtime candidate252 passed 12 tests then aborted in the NaN test.
-  Bounded diagnostic proved Foundation raises NSInvalidArgumentException, outside
-  Swift try?. Candidate dbb validates normalized JSON before serialization; crash
-  report, raw failure and finite diagnostic control are preserved. Source review
-  accepted repair; focused/adjacent gates pending, no main product merge.
-  Callback-descendant tasks retain their originating attempt outcome; independent
-  user Retry may create a new attempt. No AppModel recovery implementation yet.
+- **DONE Core result-bearing close** main `435307e3`, exact tested `dbb740bb`,
+  unchanged native archive `8ab43f64`. Focused13/0, adjacent50/0 including RAW,
+  full Release540XCTest/1existing skip/0failures plus5SwiftTesting; direct exits0.
+  Root verified seven input hashes, 55 portable evidence hashes and exact merged
+  product tree equality. Failed host/native close retains pending edits/listeners
+  and permits independent retry; all mutating entry points reject during close.
+  Callback descendants keep their original attempt result to prevent auto retry.
+  Evidence: `tools/orchestrate/wp/UX-03/evidence/develop-close-core-2026-09-28/`.
+  Earlier harness compile failure, behavioral RED, NaN Foundation exception/crash,
+  finite diagnostic control and missing-fixture failure are all preserved. JSON
+  validity preflight fixes the exception path without discarding invalid pending
+  edits. This is Core acceptance, not AppModel recovery or new GUI acceptance.
 - **B recovery plan accepted**: revised `d4793913` integrated as main `26884965`.
   Shared save outcome is separate from caller cancellation; Quit late veto restores
   the prior editor, folder callbacks settle exactly once, and output admission
@@ -37,14 +34,18 @@
   a failed receipt; revised result `3aa90667` has a completed source-plan receipt.
   Requests `3efd98f3` and `58434c0c` reached B through existing-chat SSH queues
   and received peer acknowledgements/results. No product/runtime claim follows.
-- **Luna source-only:** prepares AppModel recovery RED tests in
-  `codex/develop-recovery-red-tests`; minimal injected opener seam authorized to
-  deterministically create failed stale-open cleanup. No AppModel registry or
-  competing build yet.
-- **Next:** finish the Core gate, then implement the accepted AppModel recovery
-  registry and navigation/Review/Layers/Agent/output/termination barriers. Discard
-  and Stage C lease/CAS remain blocked. B keeps Document ownership and its workload
-  hold; no builds/tests/apps/benchmarks or heartbeat restart. A alone merges main.
+- **Luna owns next compiler slot** for AppModel admission behavioral RED tests
+  in `codex/develop-recovery-red-tests`; opener seam `58e1b39f` independently
+  source-reviewed. Merge Core main before gate; tests not yet frozen or run.
+  Scope: failed active close and failed stale-open cleanup must block reopening
+  the same owner/image. Direct strong-retention proof awaits registry API.
+- **Resource Sol owns AppModel product implementation next** in safely reused
+  resource worktree; source-only concrete contract review while Luna prepares RED.
+  Follow accepted registry/navigation/consumer plan; no ignored-result shim may
+  count as safe migration. A alone merges. Discard and Stage C lease remain blocked.
+- **B status** `5ddb6abe` published through Git only, no new SSH wake/peer receipt
+  claimed. B owns Document adapters after A API freeze; workload hold and paused
+  heartbeat stay. Existing request/revision deliveries and peer results verified.
 - Normal user preview PID57591 remains untouched on older65fa build; merging
   main does not update that package. No new performance acceptance claimed.
 
