@@ -553,3 +553,13 @@ Library thumbnail labels disclose last synchronized image. No compression/speed
 claim. 13 test methods UNRUN; native binding/compiler/GUI gates still A-owned.
 Source snapshots only guide routing; native open must validate source/journal and
 refuse unsafe dirty Original open. No B workloads/heartbeat/writer changes.
+
+### Product decision bd498fd4 — Original default
+
+Published codex/smart-preview-ui54502c3d, test87bd828c/productd5a59393. Absent
+UseSmartPreviews now FALSE; explicit saved values preserved. Valid offline preview
+has explicit Use Smart Preview menu action and matching route guidance; missing
+preview asks reconnect. No failed-open fallback. Retains status-cost/thumbnail
+follow-up. Combined15 tests UNRUN; A native/compiler/GUI/main gates remain. No B
+workloads, writer/heartbeat changes. A measurement motivates default; B made no
+benchmark or generalized speed/compression claim. SaveAs3ca3e9c9 preserved.
