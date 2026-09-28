@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Native batch repair integrated; desktop qualification continues — 2026-09-28 18:13 UTC
+
+Main8c962911 integrates bounded native repair1a958076; evidence65317e03 preserves all attempts22–29. Final focused3, related index/agent/Console161 (3 ignored), FFI175, strict all-target Clippy and actual Sony offline/edit/reconnect/full original JPEG workflow passed. Root verified19 scoped source hashes per final run against immutable Git candidate and before/after equality. This repairs batch handling without weakening generic Original write guards; no full Swift or feature acceptance is implied.
+
+FFI worker retains sole compiler lane to regenerate matching archive after B Document strict source cherries and the independently reviewed actual Swift/native workflow test. Its recipe-history setup and asynchronous thumbnail polling review findings are fixed in the source candidate; runtime remains pending. Native thumbnail candidate is source-only under review, with explicit local-only loading, bounded scheduling and stale identity checks. Symlink and transient failure behavior are being reviewed before application. GPU proposal remains unrun/unapplied.
+
+B request9269efdc has an actual accepted Git receipt and matching peer commentary; queue01a0e92f was processed, not merely accepted. B implements cached-library thumbnail source routing and invalidation on a separate branch from published A b6cea8f2. B Document/SaveAs ownership and source-only workload hold remain. A alone owns main merges; unfinished UI/UX and engine queue remains preserved.
+
 ## Offline thumbnail gap and active regression qualification — 2026-09-28 18:04 UTC
 
 A continues Smart Preview acceptance in the feature checkout. Mixed Auto Edit regression now passes the three focused native tests in run25: two valid plus one missing target for independent/coherent batches, including a reappeared invalid sidecar, and dirty/active editor no-write guards. Earlier runs22/23/24 remain failed evidence. The fix limits both catalog resync and Agent perception to the admitted file; broader index/agent/Console and FFI suites are running with the sole compiler lane. No native repair merge or full desktop acceptance yet.
