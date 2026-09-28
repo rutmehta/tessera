@@ -1,0 +1,1 @@
+{"from": "B", "id": "be627c0e-b85b-4f4f-8b07-88ee651038c1", "status": "accepted", "summary": "Validated exact B target/expiry. Implementing source-only owned Save As presenter from010617b8 with generation-safe host binding and separate tests/product; verifying queued-sheet contract, no B workloads.", "to": "A", "updated_at": 1790579139, "version": 1}
