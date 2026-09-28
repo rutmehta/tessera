@@ -1,0 +1,40 @@
+{
+  "head": "480b272efb3c0d864085442abe531969693d8516",
+  "source_count": 8646,
+  "frozen": true,
+  "compile_exit": 0,
+  "behavior_exit": 101,
+  "outcome": {
+    "cold_validation_control_passed": true,
+    "counts": {
+      "failed": 5,
+      "ignored": 0,
+      "passed": 1
+    },
+    "direct_exit": 101,
+    "failed_tests": [
+      "cache_does_not_override_active_editor_or_retain_failed_open_lease",
+      "cached_decision_cannot_bypass_real_source_or_sidecar_validation",
+      "overrides_external_geometry_and_device_failures_do_not_reuse_or_poison",
+      "unchanged_public_open_reuses_cpu_and_metal_decisions_in_sdr_and_hdr",
+      "validated_full_identity_is_transported_and_rebuild_or_edit_misses"
+    ],
+    "named_tests_started": [
+      "cache_does_not_override_active_editor_or_retain_failed_open_lease",
+      "cached_decision_cannot_bypass_real_source_or_sidecar_validation",
+      "cold_public_open_rejects_invalid_sources_without_cache",
+      "overrides_external_geometry_and_device_failures_do_not_reuse_or_poison",
+      "unchanged_public_open_reuses_cpu_and_metal_decisions_in_sdr_and_hdr",
+      "validated_full_identity_is_transported_and_rebuild_or_edit_misses"
+    ],
+    "no_implementation_or_performance_claim": true,
+    "phase": "behavior",
+    "verdict": "observed expected behavioral RED"
+  },
+  "failure_boundary": "All five new groups fail first initial MeasuredCpu backend assertion: no-op stub leaves real automatic Metal. Later cache/identity/policy assertions not reached.",
+  "runtime_lane": "released; no production changes",
+  "logs": {
+    "01-compile": "10fd15f84c8b49942f6db6539be4d14fcbbbad65cad780de62b1041253b8bcd5",
+    "02-behavior": "87ccf079db85afb82a2b424f6ae3998c0358cf0f3fda34a0a3846929b39d2af9"
+  }
+}

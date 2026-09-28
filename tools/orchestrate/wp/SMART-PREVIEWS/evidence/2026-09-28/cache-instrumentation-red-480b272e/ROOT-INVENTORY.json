@@ -1,0 +1,94 @@
+{
+  "01-red/before.json": {
+    "bytes": 1398872,
+    "sha256": "b983722ff010e631d4f731555b6424198d4bfb3a2add4a1a4536706e96d03623"
+  },
+  "01-red/after.json": {
+    "bytes": 1398872,
+    "sha256": "b983722ff010e631d4f731555b6424198d4bfb3a2add4a1a4536706e96d03623"
+  },
+  "01-red/RED-OBSERVATION.json": {
+    "bytes": 1755,
+    "sha256": "a887a92bc75f23a340a09e1dc10bd0467154fb5bd697735bf874eac6095f96f7"
+  },
+  "01-red/status.json": {
+    "bytes": 1116,
+    "sha256": "0f04649dd5a04a46825fc41a897d50d9813951e4c1e1d727d590872ab80b2f4b"
+  },
+  "01-red/environment.json": {
+    "bytes": 336,
+    "sha256": "aebc8c960aa96e793e7cd7177f665910faa4333fcc3c24f49c08dfcaa0778610"
+  },
+  "01-red/RED-OBSERVATION.md": {
+    "bytes": 1538,
+    "sha256": "820d13f6aa93f9342ee1e312d7eee988af139a20a3985aba89e8ca8eb05a7ebf"
+  },
+  "01-red/01-compile/before.json": {
+    "bytes": 1398872,
+    "sha256": "b983722ff010e631d4f731555b6424198d4bfb3a2add4a1a4536706e96d03623"
+  },
+  "01-red/01-compile/run.log": {
+    "bytes": 103713,
+    "sha256": "10fd15f84c8b49942f6db6539be4d14fcbbbad65cad780de62b1041253b8bcd5"
+  },
+  "01-red/01-compile/after.json": {
+    "bytes": 1398872,
+    "sha256": "b983722ff010e631d4f731555b6424198d4bfb3a2add4a1a4536706e96d03623"
+  },
+  "01-red/01-compile/command.json": {
+    "bytes": 586,
+    "sha256": "902ed1585031baf8aad7605e5dbc492322556ab04ec13c78dee4c150af63f922"
+  },
+  "01-red/01-compile/exit": {
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "01-red/01-compile/freeze.json": {
+    "bytes": 80,
+    "sha256": "0cb22b47c62589e4f91974636dde45793ba2dca300504a9e95caea696c3844c4"
+  },
+  "01-red/02-behavior/before.json": {
+    "bytes": 1398872,
+    "sha256": "b983722ff010e631d4f731555b6424198d4bfb3a2add4a1a4536706e96d03623"
+  },
+  "01-red/02-behavior/run.log": {
+    "bytes": 107202,
+    "sha256": "87ccf079db85afb82a2b424f6ae3998c0358cf0f3fda34a0a3846929b39d2af9"
+  },
+  "01-red/02-behavior/after.json": {
+    "bytes": 1398872,
+    "sha256": "b983722ff010e631d4f731555b6424198d4bfb3a2add4a1a4536706e96d03623"
+  },
+  "01-red/02-behavior/command.json": {
+    "bytes": 640,
+    "sha256": "de2ef8510e879ca9c57c49419fd73f855c023598bfb6d610cd64b84b8d33a374"
+  },
+  "01-red/02-behavior/exit": {
+    "bytes": 4,
+    "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+  },
+  "01-red/02-behavior/freeze.json": {
+    "bytes": 83,
+    "sha256": "59e09d6c01a06b3c2c2f0917a9a2d4a66481ea8dc60764ee4b65e8d474f4ea57"
+  },
+  "run-red.py": {
+    "bytes": 7211,
+    "sha256": "552c094ae31375cf85e26b28eb3f6d5d1060227d9ca6e8bc26c49f1e29498cee"
+  },
+  "RUNNER-CONTRACT.md": {
+    "bytes": 2712,
+    "sha256": "28ae3c46e666ae0ff09d58426dec357f910271ce7e77500e63013d675f683a6e"
+  },
+  "RUNNER-SHA256.json": {
+    "bytes": 179,
+    "sha256": "28bffd697a2108840f21967dce949316bcd4f876122316c75186cd1668986769"
+  },
+  "tessera-proxy-decision-cache-task2-red-review.md": {
+    "bytes": 3247,
+    "sha256": "9cf6392cc742629e53c9e1b7eb6d7de0f19068039b083e9725ec6e5f60e8175f"
+  },
+  "tessera-proxy-decision-cache-task2-red-review.json": {
+    "bytes": 466,
+    "sha256": "6a0b96e57c7eaebe96f89e45b3a271ba20e163a90b5dda5561b682aff74f57a5"
+  }
+}

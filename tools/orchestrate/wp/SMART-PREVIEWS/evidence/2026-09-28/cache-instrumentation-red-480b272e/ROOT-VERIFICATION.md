@@ -1,0 +1,3 @@
+# Cache scaffold instrumentation failure
+
+Independent review verified 8,646 immutable Git inputs at 480b272e and all source/fixture freezes. Root preserved 23 evidence files with hashes. Compilation passed. All six opt-in tests executed: one existing cold-validation control passed; five groups failed at their initial actual-backend assertion because selection controls were no-op and real automatic Metal was returned. Cache assertions were not reached. The runner outer zero means its expected failure count was observed, not a test pass or meaningful missing-cache demonstration. Raw logs/status are preserved unchanged. Next step is bounded instrumentation with cache absent, followed by actual missing-reuse RED.

@@ -1,0 +1,12 @@
+{
+  "head": "480b272efb3c0d864085442abe531969693d8516",
+  "source_count": 8646,
+  "freezes_match_git": true,
+  "compile_exit": 0,
+  "behavior_exit": 101,
+  "failed": 5,
+  "passed": 1,
+  "failure_boundary": "Cycle.assert_backend during initial MeasuredCpu prime; actual auto Metal",
+  "cache_assertions_reached": false,
+  "recommendation": "Authorize bounded selection instrumentation/refactor only, cache absent, then re-run targeted RED under separate lane grant"
+}
