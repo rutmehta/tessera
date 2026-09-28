@@ -1,0 +1,11 @@
+{
+  "candidate": "4cf91289cf7a3167dd4275b9880611e7bff8e914",
+  "verified_git_files": 7016,
+  "final_manifest_sha256": "eb60155711fa15abb84f728df7e81adf402348dcda38bc610f46c3f631e3bfc0",
+  "frozen_final_runs": [
+    "07",
+    "08",
+    "09",
+    "10"
+  ]
+}

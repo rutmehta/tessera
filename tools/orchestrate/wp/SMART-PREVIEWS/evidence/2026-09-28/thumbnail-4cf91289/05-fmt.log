@@ -1,0 +1,15 @@
+Diff in /Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/tessera-ffi/src/lib.rs:27:
+ mod recipe_write_tests;
+ mod session;
+ mod smart_preview;
+-mod smart_preview_thumbnail;
+ #[allow(
+     dead_code,
+     reason = "journal storage awaits Smart Preview caller integration"
+Diff in /Users/rutmehta/.codex/worktrees/export-integration/tessera/crates/tessera-ffi/src/lib.rs:34:
+ )]
+ mod smart_preview_store;
++mod smart_preview_thumbnail;
+ pub use smart_preview::{SmartPreviewInfo, SmartPreviewState};
+ #[doc(hidden)]
+ pub mod surface;
