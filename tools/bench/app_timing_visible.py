@@ -114,7 +114,6 @@ def validate_qualified_interval(trace, ready, permit, samples, identity, expecte
             raise ValueError("duplicate in-interval input identity")
         inputs[input_id] = event
 
-    final_input = markers.get("input_sequence_complete")
     sequence_marker = next(event for event in events if event.get("name") == "input_sequence_complete")
     final_input = sequence_marker.get("input")
     if not isinstance(final_input, int) or isinstance(final_input, bool) or final_input not in inputs:
@@ -629,7 +628,7 @@ def main():
         if ready_record is None or start_permit is None:
             raise ValueError("visible ready/start handshake did not complete")
         identity = {"pid": test_pid, "bundle_id": args.expected_bundle_id,
-                    "bundle_url": str(app), "launch_date": pinned_identity["launch_date"],
+                    "bundle_url": ready_record["bundle_url"], "launch_date": ready_record["launch_date"],
                     "window_number": ready_record["window_number"], "session": ready_record["session"]}
         summary = validate_qualified_interval(trace, ready_record, start_permit, visible_samples,
                                              identity, run_nonce)
