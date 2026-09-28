@@ -1,3 +1,9 @@
+## Actual inspector keyboard failure dispatched to B
+
+Automated `858147a3` evidence is published on main `e5a5fd0a`; GUI found that Tab from a focused Properties LUT button hides panels rather than traversing. Source review `1db6dea2` identifies a missing ordinary-control ownership guard, while the actual SwiftUI AppKit responder class remains unmeasured. B request `7d3c60f6-230d-431b-ad51-7d3becf93d4f` asks for a bounded hosted-focus regression and narrow correction, preserving viewport and tool shortcuts. SSH queue `01a0ea2d-2df5-7790-9154-4435487c8264` accepted the message; peer receipt is pending. No duplicate dispatch or main product merge.
+
+Actual GUI has observed saved modern Neutralize on reopen, LUT reset/undo/redo, History AX actions and upper/lower/reset limits. Keyboard acceptance failed; small-window/persistence checks continue before a bounded checkpoint and runtime handoff. No full GUI acceptance is claimed. Cache corrected contracts are source-approved and its RED runner is prepared but unrun; GUI still owns runtime.
+
 ## Inspector automated qualification verified; actual GUI lane granted
 
 Candidate `858147a3` passed focused 67, layout four, full 720 XCTest cases with one existing skip and zero failures, five Swift Testing cases, and strict Release. Independent review verified all 8,383 immutable Git inputs, four FFI artifacts, fixture preservation and 105 mandatory full-suite pass lines. The strict executable is `f0f676ce47483531916923684b7c2ab817596d29b9c15c91c7e51363ec9d1171`. The inspector worker now owns the sole runtime lane for isolated actual GUI checks; no main merge or GUI pass is yet claimed.
