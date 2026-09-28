@@ -149,4 +149,40 @@ final class DocumentSavePresenterTests: XCTestCase {
         XCTAssertEqual(failures, 1); XCTAssertFalse(p.isBusy)
         withExtendedLifetime(window) {}
     }
+    func testDuplicateCompletionBeforeDetachPreservesFirstResponse() {
+        let d = FakeDocumentSaveSession(); let (p, window, _) = configured(d)
+        var responses: [Int] = []
+        _ = start(p) { if case .drained(_, let response) = $0 { responses.append(response) } }
+        d.complete(42); d.complete(99)
+        XCTAssertTrue(p.isBusy)
+        d.detach(); XCTAssertEqual(responses, [42])
+        withExtendedLifetime(window) {}
+    }
+    func testNewBindingMayWaitForOldDrainButOldCloseCannotRemoveNewHost() {
+        let oldDriver = FakeDocumentSaveSession(); let (p, window, _) = configured(oldDriver)
+        _ = start(p)
+        let oldClose = oldDriver.parentClosed
+        let nextBinding = UUID(), nextDriver = FakeDocumentSaveSession()
+        p.registerBinding(nextBinding)
+        p.updateBinding(nextBinding, windowID: ObjectIdentifier(window)) { _, _, _ in nextDriver }
+        oldClose?()
+        XCTAssertEqual(p.host?.bindingID, nextBinding)
+        oldDriver.complete(); oldDriver.detach()
+        let next = start(p)
+        oldClose?()
+        XCTAssertEqual(nextDriver.endCount, 0)
+        XCTAssertEqual(p.host?.bindingID, nextBinding)
+        p.end(next); nextDriver.complete(); nextDriver.detach()
+    }
+    func testCancelThenWholeNativeLifetimeBeforeBeginReturnsStillDrains() {
+        let d = FakeDocumentSaveSession(); let (p, window, _) = configured(d)
+        let token = DocumentSavePresentationToken(requestID: UUID())
+        var drained = 0
+        d.onBegin = { p.end(token); d.complete(); d.detach(); XCTAssertTrue(p.isBusy) }
+        p.present(token, content: .test, actions: .inert) { if case .drained = $0 { drained += 1 } }
+        XCTAssertFalse(p.isBusy); XCTAssertEqual(drained, 1)
+        XCTAssertEqual(d.endCount, 0, "The native invocation already ended; do not end it twice")
+        d.onBegin = nil; withExtendedLifetime(window) {}
+    }
+
 }

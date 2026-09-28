@@ -165,4 +165,36 @@ final class DocumentSaveSettlementTests: XCTestCase {
         XCTAssertTrue(w.savePresenter.isBusy)
         f.drain(0); XCTAssertEqual(f.sessions.count, 1)
     }
+    func testHostLossWhileWriterRunsReportsActualOutcomeWithCancelledContinuation() throws {
+        let f = try Fixture(), w = f.workspace
+        var finish: (@MainActor (Result<Void, Error>) -> Void)?
+        w.saveWriter = { _, _, done in finish = done }
+        var outcomes: [DocumentSaveOutcome] = []
+        w.saveForPreparation(f.document, saveAs: true) { outcomes.append($0) }
+        let request = try XCTUnwrap(w.saveAsRequest)
+        w.finishSaveAs(request); f.drain(0)
+        let binding = try XCTUnwrap(w.savePresenter.host?.bindingID)
+        w.savePresenter.removeBinding(binding)
+        XCTAssertTrue(outcomes.isEmpty)
+        finish?(.success(())); finish = nil; w.saveWriter = nil
+        XCTAssertEqual(outcomes, [.saved(request.url, continuationCancelled: true)])
+    }
+    func testReentrantCancelledCallerSupersedesIntermediateQueuedRequest() throws {
+        let f = try Fixture(), w = f.workspace
+        var newest: UUID?
+        w.saveForPreparation(f.document, saveAs: true) { outcome in
+            if outcome == .cancelled {
+                newest = w.saveForPreparation(f.document, saveAs: true) { _ in }
+            }
+        }
+        var intermediate: [DocumentSaveOutcome] = []
+        w.saveForPreparation(f.document, saveAs: true) { intermediate.append($0) }
+        XCTAssertEqual(intermediate, [.cancelled])
+        f.drain(0)
+        XCTAssertEqual(w.saveAsRequest?.id, newest)
+        XCTAssertEqual(f.sessions.count, 2)
+        if let newest { w.cancelDocumentSave(newest) }
+        f.drain(1)
+    }
+
 }
