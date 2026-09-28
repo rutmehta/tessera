@@ -1,0 +1,161 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (0.52s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.10.0 (1.11s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.10.0
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache (0.42s)
+Building for production...
+[0/12] /Volumes/betterSSD/tessera-cache/swift/mask-retention-red-validation/scratch/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[11/15] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:728:21: warning: 'where' only applies to the second pattern match in this 'case'
+726 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+727 |         switch e.keyCode {
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:730:22: warning: 'where' only applies to the second pattern match in this 'case'
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+731 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+732 |             return false
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[11/15] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[12/15] Linking Tessera
+[14/16] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[15/17] Compiling TesseraPackageTests runner.swift
+[15/17] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[16/17] Linking TesseraPackageTests
+Build complete! (197.42s)
+Test Suite 'Selected tests' started at 2026-09-27 22:28:16.171.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 22:28:16.171.
+Test Suite 'DevelopMaskPendingRetentionTests' started at 2026-09-27 22:28:16.171.
+Test Case '-[TesseraCoreTests.DevelopMaskPendingRetentionTests testRejectedComponentAndUnattemptedGroupsParamsSurvive]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DevelopMaskPendingRetentionTests.swift:26: error: -[TesseraCoreTests.DevelopMaskPendingRetentionTests testRejectedComponentAndUnattemptedGroupsParamsSurvive] : XCTAssertEqual failed: ("nil") is not equal to ("Optional("old")")
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/DevelopMaskPendingRetentionTests.swift:31: error: -[TesseraCoreTests.DevelopMaskPendingRetentionTests testRejectedComponentAndUnattemptedGroupsParamsSurvive] : XCTAssertEqual failed: ("["component:1", "group:2", "param:3:exposure"]") is not equal to ("["component:1", "component:1", "group:2", "param:3:exposure"]")
+Test Case '-[TesseraCoreTests.DevelopMaskPendingRetentionTests testRejectedComponentAndUnattemptedGroupsParamsSurvive]' failed (0.863 seconds).
+Test Suite 'DevelopMaskPendingRetentionTests' failed at 2026-09-27 22:28:17.034.
+	 Executed 1 test, with 2 failures (0 unexpected) in 0.863 (0.863) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 22:28:17.034.
+	 Executed 1 test, with 2 failures (0 unexpected) in 0.863 (0.863) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 22:28:17.035.
+	 Executed 1 test, with 2 failures (0 unexpected) in 0.863 (0.864) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
