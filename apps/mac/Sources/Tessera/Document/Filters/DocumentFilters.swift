@@ -177,8 +177,7 @@ final class DocumentFilters {
             doc.report?("\(mode.title): select a pixel layer (use an Auto adjustment layer for other layers)")
             return
         }
-        let model = doc.analyzed(.auto(AutoAdjustmentModel(mode: mode, black: [0, 0, 0], white: [1, 1, 1], gamma: [1, 1, 1])),
-                                 samples: doc.layerSamples(p.id))
+        let model = doc.analyzed(.auto(.fresh(mode)), samples: doc.layerSamples(p.id))
         applyAdjustment(model, layer: p.id, doc, title: mode.title)
     }
 
