@@ -1,5 +1,13 @@
 # Machine A recovery status
 
+## Second histogram RED and BetterSSD cache verified — 2026-09-28 10:17 UTC
+
+Saved unsupported-process testc2737914 first proves the specific Adobe PV3–6 validation error despite a populated native-process cache, then fails only at extra writer construction2vs1/direct101. Root read raw logs and verified3 frozen source hashes. Preflight b66 had the wrong expected diagnostic and was corrected before execution; it is not behavioral RED. Primary77eb RED and missing-model control remain separately preserved.
+
+Inactive cache relocation is complete. A checksum comparison and25,351-file inventories were recorded; root confirmed the worktree target symlink to /Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated and internal free space9.1GiB. An independent external copy is retained. Future commands explicitly use this BetterSSD target. No source/evidence bytes were removed.
+
+Luna owns sole native lane and bounded production implementation, using shared renderer/depth helpers, saved recipe/process snapshot and unchanged gate/catalog path semantics. Astra reviews exact source before GREEN. No editing-session/save apparatus in read-only path, no lease activation, no Swift/UI or generated ABI change.
+
 ## Histogram RED confirmed; cache relocation before further builds — 2026-09-28 10:08 UTC
 
 Tests-only77eb68d0 compiled and failed the intended no-temporary-writer assertion: actual2 workers versus expected1, Cargo direct101. The saved-state histogram assertions preceding it passed; publication assertions after the failing line were not reached. Separate cold-cache/missing-model control passed1/direct0. Root verified raw logs and all3 frozen source hashes against exact Git blobs. Existing tiny backend calibration ran; no benchmark acceptance is inferred.
