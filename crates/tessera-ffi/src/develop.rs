@@ -549,7 +549,7 @@ enum SaveWork {
 struct SaveFailure {
     error: BridgeError,
     retry: SaveWork,
-    published: Option<Recipe>,
+    published: Option<Box<Recipe>>,
 }
 
 impl SaveFailure {
@@ -573,7 +573,7 @@ impl SaveFailure {
         Self {
             error: error.into(),
             retry: SaveWork::Repair,
-            published: Some(published.clone()),
+            published: Some(Box::new(published.clone())),
         }
     }
 }
@@ -583,7 +583,7 @@ struct SaveState {
     due: Option<Instant>,
     due_work: SaveWork,
     retry: Option<SaveWork>,
-    retry_recipe: Option<Recipe>,
+    retry_recipe: Option<Box<Recipe>>,
     flush: bool,
     busy: bool,
     shutdown: bool,
@@ -1384,7 +1384,7 @@ impl Shared {
     fn save_now(
         &self,
         work: SaveWork,
-        retry_recipe: Option<Recipe>,
+        retry_recipe: Option<Box<Recipe>>,
     ) -> std::result::Result<(), SaveFailure> {
         let engine = self
             .engine
