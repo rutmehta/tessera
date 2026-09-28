@@ -1,6 +1,6 @@
 # Machine A recovery status
 
-## Public HDR option ruled out; engine RED gate next — 2026-09-28 10:03 UTC
+## Public HDR option ruled out; engine RED gate next — 2026-09-28 10:00 UTC
 
 Phase8 geometry evidence is main7bcf77ad (163 verified portable payloads). Phase9 sourceeebc6325 contributes97 payloads independently verified against exact Git blobs and imported here. Documented compute-HDR-stats enabled only for HDR changes no provider, rendered-float, ICC or ordinary property bytes on three original80×16 fixtures. Root checked36 payload hashes/pair equality; Astra independently scanned all12 float outputs and confirmed defaults exactly match phase8. All six direct exits0. Original gain-map core4pass/1fail remains unresolved; prototype stays unmerged. No further HDR runtime experiment selected or product fix inferred.
 
