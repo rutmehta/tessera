@@ -169,9 +169,13 @@ struct SaveAsRequest: Identifiable {
 
 /// Captures the actual window hosting this Save As content, not an arbitrary
 /// attached sheet discovered later from the application's current main window.
-private struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
+struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
     let workspace: DocumentWorkspace
     let requestID: UUID
+    // Internal reporting seam for a reused, already-attached view regression.
+    var reportWindow: @MainActor (DocumentWorkspace, UUID, NSWindow) -> Void = { owner, id, window in
+        owner.captureSaveAsSheetWindow(id, window: window)
+    }
     final class ProbeView: NSView {
         var capture: ((NSWindow) -> Void)?
         override func viewDidMoveToWindow() {
@@ -181,12 +185,22 @@ private struct DocumentSaveSheetWindowProbe: NSViewRepresentable {
     }
     func makeNSView(context: Context) -> ProbeView {
         let view = ProbeView()
-        view.capture = { [weak workspace] window in
-            workspace?.captureSaveAsSheetWindow(requestID, window: window)
-        }
+        refreshCapture(on: view)
         return view
     }
-    func updateNSView(_ view: ProbeView, context: Context) {}
+    func updateNSView(_ view: ProbeView, context: Context) {
+        refreshCapture(on: view)
+    }
+    func refreshCapture(on view: ProbeView) {
+        let id = requestID
+        let report = reportWindow
+        view.capture = { [weak workspace] window in
+            guard let workspace else { return }
+            report(workspace, id, window)
+        }
+        // Reuse may not produce another viewDidMoveToWindow callback.
+        if let window = view.window { view.capture?(window) }
+    }
 }
 
 /// Non-observable identity latch: capturing sheet content must not rely on an
