@@ -1,0 +1,53 @@
+{
+  "candidate_head": "e51ef7fd9e1b6d82b69e32728d7986e481420ea7",
+  "worktree": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera",
+  "status_porcelain": "",
+  "trace_product_enabled": false,
+  "expected_test_counts": {
+    "DocumentSaveSettlementTests": 30,
+    "DocumentSaveSheetProbeTests": 3
+  },
+  "files": {
+    "apps/mac/Package.swift": {
+      "bytes": 2079,
+      "sha256": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86"
+    },
+    "apps/mac/Package.resolved": {
+      "bytes": 388,
+      "sha256": "864591e727a84baf306a284db39a5952b23de2e426b4ff4bbfa652446aa77844"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentSheets.swift": {
+      "bytes": 16729,
+      "sha256": "7b89fd502f8d8c8f17f6bc7cc49ef7bf3de8161656af905d97e7ab198b9fa5c0"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": {
+      "bytes": 45396,
+      "sha256": "5554db1ef901771b02111f98fc77da96ad8ef4beb53a6f28ba903eca4aeaea9e"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift": {
+      "bytes": 24755,
+      "sha256": "420e0ecc7f61f3f10cc98616fd0e46bc9fa405c7f020a02839f5f338d8b8be42"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSheetProbeTests.swift": {
+      "bytes": 2812,
+      "sha256": "18bef2041688fd78754171ba71e4a4a8f4528d8218321712ae7f913ae1ffab1c"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSheetAttachmentTests.swift": {
+      "bytes": 1959,
+      "sha256": "53f5ac72b497d5ffd728fc65a85ac305154087ab2d039584372689bab356f55f"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift": {
+      "bytes": 3115,
+      "sha256": "16747ff20139ca40ec5f66a35839036ec18d21966b06b20e5fe7c67b9d836232"
+    },
+    "apps/mac/build/ffi/libtessera_ffi.a": {
+      "bytes": 298484480,
+      "sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentSaveLifecycleTrace.swift": {
+      "bytes": 1320,
+      "sha256": "1a306c4052102ebcafd9f5843232f3bef563286a98795dc54a07f03593688270"
+    }
+  },
+  "diagnostic_trace_env": "TESSERA_TRACE_SAVE_AS=1 only during isolated GUI; focused test run off by default"
+}
