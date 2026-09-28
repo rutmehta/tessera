@@ -248,6 +248,10 @@ final class DevelopCloseResultTests: XCTestCase {
         XCTAssertEqual(session.settingsAttempts, 1)
         XCTAssertEqual(session.closeCount, 0)
         XCTAssertFalse(controller.closed)
+        controller.onFailure = nil // Break the test callback's retained controller cycle.
+        session.releaseClose()
+        let cleanup = await controller.close()
+        if case .failure(let error) = cleanup { XCTFail("cleanup retry failed: \(error)") }
     }
 
     func testPatchCallbackCloseJoinsPublishedAttempt() async throws {

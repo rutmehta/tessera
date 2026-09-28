@@ -449,7 +449,11 @@ public final class DevelopController {
     /// `0.59999999999999998`), as sent to the engine and stored in presets.
     nonisolated public static func encode(_ obj: [String: Any], pretty: Bool = false) -> String? {
         let options: JSONSerialization.WritingOptions = pretty ? [.sortedKeys, .prettyPrinted] : [.sortedKeys]
-        guard let data = try? JSONSerialization.data(withJSONObject: decimalized(obj), options: options) else { return nil }
+        let value = decimalized(obj)
+        // Foundation raises an Objective-C exception for NaN/Infinity on macOS;
+        // `try?` cannot catch it. Validate before entering the writer.
+        guard JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value, options: options) else { return nil }
         return String(decoding: data, as: UTF8.self)
     }
 
