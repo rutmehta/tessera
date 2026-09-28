@@ -1,0 +1,2 @@
+Timestamp               Ty Process[PID:TID]
+2026-09-28 08:51:31.524 E  kernel[0:611eeb0] (Sandbox) System Policy: xpcproxy(65044) deny(1) file-read-data /Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11-precreated-stdio/app-stdout.log
