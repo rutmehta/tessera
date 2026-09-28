@@ -64,7 +64,7 @@
 //! thread: recipe JSON + XMP through `sidecar`, index refresh, and edited
 //! previews keyed by the new recipe hash.
 
-use crate::{Engine, Result, catalog, failure, now_ms, parse_id, surface::Surface};
+use crate::{BridgeError, Engine, Result, catalog, failure, now_ms, parse_id, surface::Surface};
 
 #[path = "masks.rs"]
 mod masks;
@@ -103,6 +103,20 @@ use std::{
 #[cfg(test)]
 static FAIL_AFTER_DEVELOP_RECIPE: Mutex<std::collections::BTreeMap<PathBuf, usize>> =
     Mutex::new(std::collections::BTreeMap::new());
+
+#[cfg(test)]
+fn injected_post_recipe_failure(path: &Path) -> Result<()> {
+    let mut fault = FAIL_AFTER_DEVELOP_RECIPE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if let Some(remaining) = fault.get_mut(path)
+        && *remaining > 0
+    {
+        *remaining -= 1;
+        return Err(failure("injected post-recipe failure"));
+    }
+    Ok(())
+}
 
 /// Interactive drags on screen levels larger than this render one level
 /// coarser until the drag is committed.
@@ -506,9 +520,39 @@ fn pin_new_denoise_edit(
 
 type SurfaceDestination = Arc<Mutex<Option<Arc<Surface>>>>;
 
+#[derive(Clone, Copy, Default)]
+enum SaveWork {
+    #[default]
+    Full,
+    Repair,
+}
+
+struct SaveFailure {
+    error: BridgeError,
+    retry: SaveWork,
+}
+
+impl SaveFailure {
+    fn full(error: impl std::fmt::Display) -> Self {
+        Self {
+            error: failure(error),
+            retry: SaveWork::Full,
+        }
+    }
+
+    fn repair(error: impl std::fmt::Display) -> Self {
+        Self {
+            error: failure(error),
+            retry: SaveWork::Repair,
+        }
+    }
+}
+
 #[derive(Default)]
 struct SaveState {
     due: Option<Instant>,
+    due_work: SaveWork,
+    retry: Option<SaveWork>,
     flush: bool,
     busy: bool,
     shutdown: bool,
@@ -923,10 +967,15 @@ impl Engine {
     /// fields other writers own (selection, unknown members), then the XMP
     /// (crs: develop values + selection) and the index. Returns the new
     /// recipe hash.
-    fn save_develop(&self, image_id: &str, path: &Path, recipe: &Recipe) -> Result<String> {
-        let id = parse_id(image_id)?;
-        let mut c = self.lock()?;
-        let mut doc = catalog::document(path, id)?;
+    fn save_develop(
+        &self,
+        image_id: &str,
+        path: &Path,
+        recipe: &Recipe,
+    ) -> std::result::Result<String, SaveFailure> {
+        let id = parse_id(image_id).map_err(SaveFailure::full)?;
+        let mut c = self.lock().map_err(SaveFailure::full)?;
+        let mut doc = catalog::document(path, id).map_err(SaveFailure::full)?;
         doc.recipe.process_version = recipe.process_version;
         doc.recipe.settings = recipe.settings.clone();
         doc.recipe.history = recipe.history.clone();
@@ -939,21 +988,37 @@ impl Engine {
         };
         doc.recipe.ids.next_mask = doc.recipe.ids.next_mask.max(recipe.ids.next_mask);
         doc.recipe.ids.next_retouch = doc.recipe.ids.next_retouch.max(recipe.ids.next_retouch);
-        doc.record_write("tessera-mac", now_ms())?;
-        let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
-        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(path).recipe, &doc)?;
+        doc.record_write("tessera-mac", now_ms())
+            .map_err(SaveFailure::full)?;
+        let packet = catalog::selection_packet(path, &doc)
+            .and_then(|packet| packet.with_recipe(&doc.recipe))
+            .map_err(SaveFailure::full)?;
+        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(path).recipe, &doc)
+            .map_err(SaveFailure::full)?;
         #[cfg(test)]
-        {
-            let mut fault = FAIL_AFTER_DEVELOP_RECIPE
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            if let Some(remaining) = fault.get_mut(path)
-                && *remaining > 0
-            {
-                *remaining -= 1;
-                return Err(failure("injected post-recipe failure"));
-            }
-        }
+        injected_post_recipe_failure(path).map_err(SaveFailure::repair)?;
+        sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)
+            .map_err(SaveFailure::repair)?;
+        c.index
+            .scan(
+                path.parent()
+                    .ok_or_else(|| SaveFailure::repair("image has no folder"))?,
+                &catalog::Sidecars,
+                &catalog::EmbeddedMetadata,
+            )
+            .map_err(SaveFailure::repair)?;
+        Ok(doc.recipe.recipe_hash().to_string())
+    }
+
+    /// Complete auxiliary outputs after a recipe was already published. Read
+    /// the current document so a retry never republishes stale session state.
+    fn repair_develop(&self, image_id: &str, path: &Path) -> Result<()> {
+        let id = parse_id(image_id)?;
+        let mut c = self.lock()?;
+        let doc = catalog::document(path, id)?;
+        let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
+        #[cfg(test)]
+        injected_post_recipe_failure(path)?;
         sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)?;
         c.index.scan(
             path.parent()
@@ -961,7 +1026,7 @@ impl Engine {
             &catalog::Sidecars,
             &catalog::EmbeddedMetadata,
         )?;
-        Ok(doc.recipe.recipe_hash().to_string())
+        Ok(())
     }
 }
 
@@ -1212,6 +1277,7 @@ impl Shared {
     fn schedule_save(&self) {
         let mut s = self.save.lock().unwrap_or_else(|e| e.into_inner());
         s.due = Some(Instant::now() + SAVE_DEBOUNCE);
+        s.due_work = SaveWork::Full;
         self.save_cv.notify_all();
     }
 
@@ -1235,27 +1301,44 @@ impl Shared {
                     }
                 }
             }
+            let work = s.due_work;
             s.due = None;
+            s.due_work = SaveWork::Full;
             s.flush = false;
             s.busy = true;
             drop(s);
-            let result = self.save_now();
+            let result = self.save_now(work);
             let mut s = self.save.lock().unwrap_or_else(|e| e.into_inner());
             s.busy = false;
-            s.error = result.err().map(|e| e.to_string());
+            match result {
+                Ok(()) => s.retry = None,
+                Err(failed) => {
+                    s.retry = Some(failed.retry);
+                    // A newer queued edit may succeed, but callers still need
+                    // to observe the first failed attempt.
+                    if s.error.is_none() {
+                        s.error = Some(failed.error.to_string());
+                    }
+                }
+            }
             self.save_cv.notify_all();
         }
     }
 
-    fn save_now(&self) -> Result<()> {
-        let (recipe, frame) = {
-            let st = self.lock()?;
-            (st.recipe.clone(), st.frame.clone())
-        };
+    fn save_now(&self, work: SaveWork) -> std::result::Result<(), SaveFailure> {
         let engine = self
             .engine
             .upgrade()
-            .ok_or_else(|| failure("engine closed"))?;
+            .ok_or_else(|| SaveFailure::full("engine closed"))?;
+        if matches!(work, SaveWork::Repair) {
+            return engine
+                .repair_develop(&self.image_id, &self.path)
+                .map_err(SaveFailure::repair);
+        }
+        let (recipe, frame) = {
+            let st = self.lock().map_err(SaveFailure::full)?;
+            (st.recipe.clone(), st.frame.clone())
+        };
         let hash = engine.save_develop(&self.image_id, &self.path, &recipe)?;
         if let Some(frame) =
             frame.filter(|f| f.settings == session_renderable(&recipe.settings, true, false))
@@ -2422,6 +2505,13 @@ impl DevelopSession {
             }
         }
         let mut s = self.shared.save.lock().map_err(failure)?;
+        if s.due.is_none()
+            && !s.busy
+            && let Some(retry) = s.retry
+        {
+            s.due = Some(Instant::now());
+            s.due_work = retry;
+        }
         if s.due.is_some() {
             s.flush = true;
             self.shared.save_cv.notify_all();
@@ -3091,8 +3181,8 @@ mod tests {
             .unwrap();
         let first = session.flush().unwrap_err();
         assert!(first.to_string().contains("injected post-recipe failure"));
-        let recipe: Recipe = serde_json::from_str(&engine.get_recipe(row.id.clone()).unwrap())
-            .unwrap();
+        let recipe: Recipe =
+            serde_json::from_str(&engine.get_recipe(row.id.clone()).unwrap()).unwrap();
         assert_eq!(recipe.settings.tone.exposure, 0.7);
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let committed_bytes = std::fs::read(&recipe_path).unwrap();
