@@ -3314,9 +3314,7 @@ mod tests {
         let row = engine
             .list_images(crate::ImageQuery::default())
             .unwrap()
-            .into_iter()
-            .find(|row| row.path == photo.to_string_lossy())
-            .unwrap();
+            .remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         (dir, photo, engine, row.id, session)
     }
