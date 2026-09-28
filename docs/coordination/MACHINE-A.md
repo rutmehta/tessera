@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Actual Engine SDR qualification and B source receipt — 2026-09-28 19:42 UTC
+
+Experimental proxy GPU route now passes eight fresh actual Engine SDR processes (192 frames), with resident Metal surfaces and zero timed pixel readback on GPU routes. Root checked each exit, source/fixture freeze, frame count and comparison record:42 equal-dimension proxy pairs meet unchanged SDR tolerance;6 adaptive dimension mismatches are excluded. Maximum normalized matched pixel error0.003861. This is single-fixture surface-delivery evidence, not physical input-to-present or a speedup over Original. Geometry maps deliberately select CPU after retained failed fidelity experiments. Strict20 and actual opt-in offline/edit/reopen/reconnect/conflict/full-original-export21 pass with source freezes. Candidate remains unmerged and opt-in; Original remains default. Narrow HDR presentation-policy compatibility is in implementation with independent review; general legacy SDR validation remains intact.
+
+Machine B completed source-only Save As reconciliation `cfb511e5` (source `af49e4ef`), result `f687664d` replying to request `fc30ff89`. Exact A target UUID validated and accepted receipt published before review. This proves existing-writer processing of SSH queue `01a0e981-2c73-7950-a80d-a4e70efa614e`; no duplicate wake or writer change. Independent source review is active. All fresh combined native/Swift generation, compilation, tests and collision/Replace GUI gates remain pending. A alone owns runtime serialization and main merges.
+
 ## Functional Smart Preview GUI acceptance complete — 2026-09-28 19:28 UTC
 
 Main implementation `89b78881` and full Swift/strict evidence `62e4ee5b` now also have actual local-profile GUI lifecycle/export/Compare acceptance (`6c38697e`, `c373329d`). Offline edits persisted through a separate process, dirty discard refused, reconnect sync succeeded, and Original editing retained settings. Actual export decoded4920×3276; root checked hashes/dimensions and visually inspected the decoded JPEG. Offline full-quality export failed honestly with no output. Two filename-distinct proxy records rendered in offline Compare. Only copied fixtures were used; source RAW unchanged, owned app closed.
