@@ -1,0 +1,14 @@
+{
+  "head": "e96781ac53c989f5194797727c02bbd90dc96da4",
+  "archive_previous_symlink": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a",
+  "archive_previous_sha256": "19f9f5487752e2588c6febe99d126905cad7d9986285d2aebf633dfaeba2b427",
+  "archive_current_source": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a",
+  "files": {
+    "apps/mac/Sources/TesseraCore/DevelopController.swift": "c0a3e95eaa32c2624b429a472ec46c75f50ea49e29b91933faa8988c07be44f5",
+    "apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift": "e4a4c0f126412e6af0f92ebb435f2dc1956a533d319ef72cf692fe583e4a772f",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": "b78ca980fa0ed7997ad3f65c17a7ea3b509758ebf466679f130702d83f25bca4",
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "e188c20e48663ce3c722a3ae9ee25f66b8412ddff711e55cd897063fef65e703",
+    "apps/mac/Sources/CTesseraFFI/module.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/libtessera_ffi.a": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03"
+  }
+}

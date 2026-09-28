@@ -1,0 +1,72 @@
+[0/1] Planning build
+Building for production...
+[0/5] Write sources
+[1/5] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[4/6] Compiling TesseraPackageTests runner.swift
+[4/6] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[5/6] Linking TesseraPackageTests
+Build complete! (33.96s)
+Test Suite 'Selected tests' started at 2026-09-27 22:42:44.679.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 22:42:44.680.
+Test Suite 'DevelopCloseResultTests' started at 2026-09-27 22:42:44.680.
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.977625, 0.274042, 0.267875]; GPU [6.999834, 4.0205, 0.870709]
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:106: error: -[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry] : XCTAssertFalse failed - a rejected native close must leave Core retryable
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:107: error: -[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:109: error: -[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry] : XCTAssertEqual failed: ("0") is not equal to ("1")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:113: error: -[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry] : XCTAssertEqual failed: ("1") is not equal to ("2")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:117: error: -[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry] : XCTAssertEqual failed: ("0.0") is not equal to ("1.25")
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testConcurrentCloseCallersShareFailureAndSessionCanRetry]' failed (1.084 seconds).
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.9355, 0.388625, 0.671417]; GPU [4.905542, 2.580416, 2.039625]
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:64: error: -[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable] : XCTAssertEqual failed: ("1") is not equal to ("0") - a rejected host patch must stop native close
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:65: error: -[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable] : XCTAssertFalse failed - the pending patch must remain retryable
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:66: error: -[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:72: error: -[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable] : XCTAssertEqual failed: ("1") is not equal to ("2") - the failed patch must be retained
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DevelopCloseResultTests.swift:77: error: -[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable] : XCTAssertEqual failed: ("0.0") is not equal to ("1.25")
+Test Case '-[TesseraCoreTests.DevelopCloseResultTests testSettingsFlushFailurePreventsNativeCloseAndRemainsRetryable]' failed (0.067 seconds).
+Test Suite 'DevelopCloseResultTests' failed at 2026-09-27 22:42:45.831.
+	 Executed 2 tests, with 10 failures (0 unexpected) in 1.151 (1.151) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 22:42:45.831.
+	 Executed 2 tests, with 10 failures (0 unexpected) in 1.151 (1.151) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 22:42:45.831.
+	 Executed 2 tests, with 10 failures (0 unexpected) in 1.151 (1.152) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,1 @@
+Worktree fixtures/raw was absent for first adjacent run. Added ignored symlink fixtures/raw -> /Users/rutmehta/Developer/tessera/fixtures/raw; source corpus is read-only, tests copy to scratch.

@@ -1,0 +1,68 @@
+valid=false
+*** Terminating app due to uncaught exception 'NSInvalidArgumentException', reason: 'Invalid number value (NaN) in JSON write'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x000000018e9ef1f0 __exceptionPreprocess + 176
+	1   libobjc.A.dylib                     0x000000018e46a91c objc_exception_throw + 88
+	2   Foundation                          0x0000000190212fbc -[_NSJSONWriter resizeTemporaryBuffer:] + 0
+	3   Foundation                          0x00000001902125c8 ___writeJSONObject_block_invoke + 412
+	4   libswiftCore.dylib                  0x00000001a2042774 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTf4dnn_n + 520
+	5   libswiftCore.dylib                  0x00000001a2042544 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTo + 48
+	6   Foundation                          0x0000000190211e98 _writeJSONObject + 500
+	7   Foundation                          0x00000001902125c8 ___writeJSONObject_block_invoke + 412
+	8   libswiftCore.dylib                  0x00000001a2042774 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTf4dnn_n + 520
+	9   libswiftCore.dylib                  0x00000001a2042544 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTo + 48
+	10  Foundation                          0x0000000190211e98 _writeJSONObject + 500
+	11  Foundation                          0x0000000190cdea10 -[_NSJSONWriter dataWithRootObject:options:] + 104
+	12  Foundation                          0x000000019021183c +[NSJSONSerialization dataWithJSONObject:options:error:] + 112
+	13  ???                                 0x0000000114320384 0x0 + 4633789316
+	14  swift-frontend                      0x0000000100b14c48 _ZN4llvm3orc9runAsMainEPFiiPPcENS_8ArrayRefINSt3__112basic_stringIcNS6_11char_traitsIcEENS6_9allocatorIcEEEEEENS6_8optionalINS_9StringRefEEE + 908
+	15  swift-frontend                      0x0000000100a11f94 _ZN5swift8SwiftJIT7runMainEN4llvm8ArrayRefINSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEEEE + 636
+	16  swift-frontend                      0x0000000100a1e23c _ZN5swift14RunImmediatelyERNS_16CompilerInstanceERKNSt3__16vectorINS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEENS7_IS9_EEEERKNS_12IRGenOptionsERKNS_10SILOptionsEONS2_10unique_ptrI	17  swift-frontend                      0x00000001009920d0 _ZL35processCommandLineAndRunImmediatelyRN5swift16CompilerInstanceEONSt3__110unique_ptrINS_9SILModuleENS2_14default_deleteIS4_EEEEN4llvm12PointerUnionIJPNS_10ModuleDeclEPNS_10SourceFileEEEEPNS_16	18  swift-frontend                      0x000000010098b89c _ZL29performCompileStepsPostSILGenRN5swift16CompilerInstanceENSt3__110unique_ptrINS_9SILModuleENS2_14default_deleteIS4_EEEEN4llvm12PointerUnionIJPNS_10ModuleDeclEPNS_10SourceFileEEEERKNS_20Primar	19  swift-frontend                      0x000000010098aecc _ZN5swift27performCompileStepsPostSemaERNS_16CompilerInstanceERiPNS_16FrontendObserverEN4llvm8ArrayRefIPKcEE + 4560
+	20  swift-frontend                      0x00000001009903a0 _ZL14performCompileRN5swift16CompilerInstanceERiPNS_16FrontendObserverEN4llvm8ArrayRefIPKcEE + 4028
+	21  swift-frontend                      0x000000010098c818 _ZN5swift15performFrontendEN4llvm8ArrayRefIPKcEES3_PvPNS_16FrontendObserverE + 3308
+	22  swift-frontend                      0x000000010090c424 _ZN5swift9mainEntryEiPPKc + 5224
+	23  dyld                                0x000000018e4f84e4 start + 6992
+)
+libc++abi: terminating due to uncaught exception of type NSException
+Stack dump:
+0.	Program arguments: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -interpret /Volumes/betterSSD/tessera-validation/develop-close-core/252-candidate1/diagnostic/nonfinite-throw.swift -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk -no-color-diagnostics -Xcc -fno-color-diagnostics -new-driver-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-driver -empty-abi-descriptor -no-auto-bridging-header-chaining -module-name main -disable-clang-spi -target-sdk-version 26.5 -target-sdk-name macosx26.5 -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/local/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins
+1.	Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)
+2.	Compiling with effective version 5.10
+3.	While running user code "/Volumes/betterSSD/tessera-validation/develop-close-core/252-candidate1/diagnostic/nonfinite-throw.swift"
+Stack dump without symbol names (ensure you have llvm-symbolizer in your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point to it):
+0  swift-frontend           0x0000000106e2108c llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) + 56
+1  swift-frontend           0x0000000106e1e52c llvm::sys::RunSignalHandlers() + 172
+2  swift-frontend           0x0000000106e2167c SignalHandler(int, __siginfo*, void*) + 356
+3  libsystem_platform.dylib 0x000000018e8cd744 _sigtramp + 56
+4  libsystem_pthread.dylib  0x000000018e8c38d8 pthread_kill + 296
+5  libsystem_c.dylib        0x000000018e7c9978 abort + 148
+6  libc++abi.dylib          0x000000018e87a72c __cxxabiv1::__shim_type_info::~__shim_type_info() + 0
+7  libc++abi.dylib          0x000000018e867588 std::set_unexpected(void (*)()) + 0
+8  libobjc.A.dylib          0x000000018e474894 _objc_terminate() + 156
+9  libc++abi.dylib          0x000000018e87775c std::__terminate(void (*)()) + 16
+10 libc++abi.dylib          0x000000018e879be4 __cxa_get_exception_ptr + 0
+11 libc++abi.dylib          0x000000018e86609c __cxa_get_globals + 0
+12 libobjc.A.dylib          0x000000018e46aa84 objc_exception_throw + 448
+13 Foundation               0x0000000190212fbc -[_NSJSONWriter resizeTemporaryBuffer:] + 0
+14 Foundation               0x00000001902125c8 ___writeJSONObject_block_invoke + 412
+15 libswiftCore.dylib       0x00000001a2042774 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTf4dnn_n + 520
+16 libswiftCore.dylib       0x00000001a2042544 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTo + 48
+17 Foundation               0x0000000190211e98 _writeJSONObject + 500
+18 Foundation               0x00000001902125c8 ___writeJSONObject_block_invoke + 412
+19 libswiftCore.dylib       0x00000001a2042774 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTf4dnn_n + 520
+20 libswiftCore.dylib       0x00000001a2042544 $ss26_SwiftDeferredNSDictionaryC23enumerateKeysAndObjects7options5usingySi_ys9UnmanagedVyyXlG_AHSpys5UInt8VGtXBtFTo + 48
+21 Foundation               0x0000000190211e98 _writeJSONObject + 500
+22 Foundation               0x0000000190cdea10 -[_NSJSONWriter dataWithRootObject:options:] + 104
+23 Foundation               0x000000019021183c +[NSJSONSerialization dataWithJSONObject:options:error:] + 112
+24 (error)                  0x0000000114320384
+25 swift-frontend           0x0000000100b14c48 llvm::orc::runAsMain(int (*)(int, char**), llvm::ArrayRef<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>, std::__1::optional<llvm::StringRef>) + 908
+26 swift-frontend           0x0000000100a11f94 swift::SwiftJIT::runMain(llvm::ArrayRef<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>) + 636
+27 swift-frontend           0x0000000100a1e23c swift::RunImmediately(swift::CompilerInstance&, std::__1::vector<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>> const&, swift::IRGenOptions const&, swift::SILOptions const&, std::__1::unique_ptr<swift::SILModule, std::__1::default_delete<swift::SILModule>>&&) + 964
+28 swift-frontend           0x00000001009920d0 processCommandLineAndRunImmediately(swift::CompilerInstance&, std::__1::unique_ptr<swift::SILModule, std::__1::default_delete<swift::SILModule>>&&, llvm::PointerUnion<swift::ModuleDecl*, swift::SourceFile*>, swift::FrontendObserver*, int&) + 484
+29 swift-frontend           0x000000010098b89c performCompileStepsPostSILGen(swift::CompilerInstance&, std::__1::unique_ptr<swift::SILModule, std::__1::default_delete<swift::SILModule>>, llvm::PointerUnion<swift::ModuleDecl*, swift::SourceFile*>, swift::PrimarySpecificPaths const&, int&, swift::FrontendObserver*, llvm::ArrayRef<char const*>) + 2068
+30 swift-frontend           0x000000010098aecc swift::performCompileStepsPostSema(swift::CompilerInstance&, int&, swift::FrontendObserver*, llvm::ArrayRef<char const*>) + 4560
+31 swift-frontend           0x00000001009903a0 performCompile(swift::CompilerInstance&, int&, swift::FrontendObserver*, llvm::ArrayRef<char const*>) + 4028
+32 swift-frontend           0x000000010098c818 swift::performFrontend(llvm::ArrayRef<char const*>, char const*, void*, swift::FrontendObserver*) + 3308
+33 swift-frontend           0x000000010090c424 swift::mainEntry(int, char const**) + 5224
+34 dyld                     0x000000018e4f84e4 start + 6992
