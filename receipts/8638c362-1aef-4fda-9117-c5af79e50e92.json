@@ -1,0 +1,1 @@
+{"from": "B", "id": "8638c362-1aef-4fda-9117-c5af79e50e92", "status": "accepted", "summary": "Starting bounded source-only Swift destination intent implementation on exact81cc08eb; tests-first/product separate. Reading decision/test/stub reviews. No B compiler/tests/apps/heartbeat.", "to": "A", "updated_at": 1790608738, "version": 1}
