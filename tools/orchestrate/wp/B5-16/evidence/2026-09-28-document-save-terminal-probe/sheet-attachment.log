@@ -1,0 +1,22 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.10s)
+Test Suite 'Selected tests' started at 2026-09-28 01:53:28.521.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 01:53:28.522.
+Test Suite 'DocumentSaveSheetAttachmentTests' started at 2026-09-28 01:53:28.522.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testNewSheetIsNotModifiedWhenOldSheetHasDetached]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testNewSheetIsNotModifiedWhenOldSheetHasDetached]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testParentNoLongerAttachesOldSheetDespiteStaleChildParentMetadata]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetAttachmentTests testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSheetAttachmentTests' passed at 2026-09-28 01:53:28.523.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 01:53:28.523.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 01:53:28.523.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

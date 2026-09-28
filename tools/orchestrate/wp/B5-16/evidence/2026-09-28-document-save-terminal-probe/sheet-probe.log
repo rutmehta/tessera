@@ -1,0 +1,22 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.11s)
+Test Suite 'Selected tests' started at 2026-09-28 01:53:27.952.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 01:53:27.953.
+Test Suite 'DocumentSaveSheetProbeTests' started at 2026-09-28 01:53:27.953.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testCaptureDoesNotKeepFormerWorkspaceAlive]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testCaptureDoesNotKeepFormerWorkspaceAlive]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testDismantleEndsViewOwnershipOnceAndClearsCallbacks]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testDismantleEndsViewOwnershipOnceAndClearsCallbacks]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testReusedAttachedViewImmediatelyReportsUpdatedOwnerAndRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testReusedAttachedViewImmediatelyReportsUpdatedOwnerAndRequest]' passed (0.048 seconds).
+Test Suite 'DocumentSaveSheetProbeTests' passed at 2026-09-28 01:53:28.004.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.051 (0.051) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 01:53:28.004.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.051 (0.051) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 01:53:28.004.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.051 (0.052) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

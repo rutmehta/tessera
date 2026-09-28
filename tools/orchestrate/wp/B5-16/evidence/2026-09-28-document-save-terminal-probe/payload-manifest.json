@@ -1,0 +1,82 @@
+{
+  "source-manifest.json": {
+    "bytes": 1984,
+    "sha256": "cdc3dd983e1f79360ebf64f11ea14c0dd41ffc658b1d30957e1bf6f1f3605171"
+  },
+  "sheet-attachment.log": {
+    "bytes": 1773,
+    "sha256": "cfb0dac2feb63a39226a815bf70e89d0546254df85755fc0569d9fb3389008a0"
+  },
+  "sheet-attachment.json": {
+    "bytes": 781,
+    "sha256": "87881cd31d06d9177f4421dacac4ca5deeca61839eb50a0be5ea3191a20c5239"
+  },
+  "run-gates.py": {
+    "bytes": 3538,
+    "sha256": "b5f87305079077426c03c7b7877850a1594a43b5ef9b95556f1980dc038d6b1d"
+  },
+  "save-adjacent.log": {
+    "bytes": 1984,
+    "sha256": "b6529b6e0e623fed20fb87e727045d44200320da75394e21da4d58574f68f132"
+  },
+  "sheet-probe.log": {
+    "bytes": 1701,
+    "sha256": "9a8c23fccecd55b54ecc8c3d3709bc8e4c202534af3bff6880240d56c179582c"
+  },
+  "save-settlement.log": {
+    "bytes": 16126,
+    "sha256": "89620d76337603f47944f5e8177a55632ad13303f4f85c3812bf1eafc2c4d881"
+  },
+  "initial-source-manifest.json": {
+    "bytes": 1984,
+    "sha256": "d1941e3131f3b8e685e7c82f5b0c9b941792a90f32c453770505cd2c99882cda"
+  },
+  "package-hashes.txt": {
+    "bytes": 756,
+    "sha256": "dfead8e1bbf493015ee6e75e79d798ca347319f514c41e132d25630d6996b61e"
+  },
+  "sheet-probe.json": {
+    "bytes": 771,
+    "sha256": "11c114ea551b28854dc26099f476d9a4c4840c172bbf29b747fea6160badd667"
+  },
+  "README.md": {
+    "bytes": 2686,
+    "sha256": "cdecdc1f61cce3f786f86c29e8d12766a99b9a21cc7d891f4a04063ada980a9f"
+  },
+  "initial-save-settlement.json": {
+    "bytes": 752,
+    "sha256": "b596459132038f1032c23fd4cd44c8550d2c670c8e4cc18a0d27321116c504ec"
+  },
+  "GUI-RESULTS.md": {
+    "bytes": 2686,
+    "sha256": "cdecdc1f61cce3f786f86c29e8d12766a99b9a21cc7d891f4a04063ada980a9f"
+  },
+  "save-adjacent.json": {
+    "bytes": 831,
+    "sha256": "d973f8875aad28b2ce80c30a1dea8533532cdf4d49498d91cd566ecaaa5e0a41"
+  },
+  "COMPILE-REPAIR.md": {
+    "bytes": 566,
+    "sha256": "d38cea9ef92a337162e4b4c2ba26ce89eb8a1109653026c394366dc00a95364d"
+  },
+  "load-settlement.json": {
+    "bytes": 774,
+    "sha256": "ae58516d8fc2c6c4008b8f00673c48c48e252b3fa5d7767ee4d74cc2351fe6eb"
+  },
+  "initial-save-settlement.log": {
+    "bytes": 3993,
+    "sha256": "7241a5b83870ee6963d99b9a0e2f96525153fbbd416a2eededa2ed6709117340"
+  },
+  "package-exact.sh": {
+    "bytes": 2077,
+    "sha256": "8c9d73ef5250ebeb3e13ea7a3f43fc32d78ac93c5543b8c28b965ef02f69465c"
+  },
+  "load-settlement.log": {
+    "bytes": 1912,
+    "sha256": "3f60779868b900c915a2ad1944f9bf05b57be0fa2be31f75fda464454c223c12"
+  },
+  "save-settlement.json": {
+    "bytes": 776,
+    "sha256": "a1a0fcfc684233e3e9bf180d7a725e47f901889701ace057621a05cb21f44ade"
+  }
+}

@@ -1,0 +1,164 @@
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:728:21: warning: 'where' only applies to the second pattern match in this 'case'
+726 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+727 |         switch e.keyCode {
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:730:22: warning: 'where' only applies to the second pattern match in this 'case'
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+731 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+732 |             return false
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[3/6] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/6] Linking Tessera
+[6/7] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[7/9] Compiling TesseraPackageTests runner.swift
+[7/9] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[8/9] Linking TesseraPackageTests
+Build complete! (88.84s)
+Test Suite 'Selected tests' started at 2026-09-28 01:53:27.315.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 01:53:27.315.
+Test Suite 'DocumentSaveSettlementTests' started at 2026-09-28 01:53:27.315.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAdmittedWriteSurvivesCancelAndSettlesActualOutcomeOnce]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAdmittedWriteSurvivesCancelAndSettlesActualOutcomeOnce]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAllProbeLeasesMustEndAndStaleTeardownCannotReleaseSuccessor]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAllProbeLeasesMustEndAndStaleTeardownCannotReleaseSuccessor]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAppearingCancelledClaimDoesNotInferDetachFromMissingWindow]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testAppearingCancelledClaimDoesNotInferDetachFromMissingWindow]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testBeginCancelBeginWithoutAppearanceDoesNotQueueForever]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testBeginCancelBeginWithoutAppearanceDoesNotQueueForever]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelAndDismissSettleOnlyOnce]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelAndDismissSettleOnlyOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringDismissGapCannotStartReplacementOrWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelDuringDismissGapCannotStartReplacementOrWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelWhileNativeSheetAttachedNeverAdvancesReplacement]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testCancelWhileNativeSheetAttachedNeverAdvancesReplacement]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testChoosingCancelRetainsDrainThroughParentLoss]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testChoosingCancelRetainsDrainThroughParentLoss]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testChoosingNativeDetachStillWaitsForSwiftDismissal]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testChoosingNativeDetachStillWaitsForSwiftDismissal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testChoosingSupersessionWaitsForActualDetachAfterSwiftDismissal]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testChoosingSupersessionWaitsForActualDetachAfterSwiftDismissal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testClaimBeforeOnAppearRetainsNativeDismissalBarrier]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testClaimBeforeOnAppearRetainsNativeDismissalBarrier]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testClaimWithoutMaterializedProbeCanCompleteAtDismissalOnClearParent]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testClaimWithoutMaterializedProbeCanCompleteAtDismissalOnClearParent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLateClaimOfCancelledRequestSerializesNewRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLateClaimOfCancelledRequestSerializesNewRequest]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLostWindowWhileReplacingSettlesFailureAndIgnoresLateApproval]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testLostWindowWhileReplacingSettlesFailureAndIgnoresLateApproval]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testMissingWindowFailsClosed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCompletionPreservesNewSheetAndBlocksSameDocumentWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testOldWriteCompletionPreservesNewSheetAndBlocksSameDocumentWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentEndBeforeProbeTeardownStillRecoversWithoutSecondEvent]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentEndBeforeProbeTeardownStillRecoversWithoutSecondEvent]' passed (0.056 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentLossFailsQueuedChoosingRequestBeforePublishingIt]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testParentLossFailsQueuedChoosingRequestBeforePublishingIt]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testPreattachmentCancelRecoversAfterProbeTeardownAndDismissal]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testPreattachmentCancelRecoversAfterProbeTeardownAndDismissal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndDuplicateAcceptanceCannotWrite]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplaceCancelAndDuplicateAcceptanceCannotWrite]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplacementWaitsForNativeDismissNotViewDisappearance]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testReplacementWaitsForNativeDismissNotViewDisappearance]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersededPromptCannotAffectReplacement]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersededPromptCannotAffectReplacement]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersedeUnclaimedRequestNeedsNoNativeDismissal]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersedeUnclaimedRequestNeedsNoNativeDismissal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersessionInDismissGapIgnoresStaleDismissal]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSupersessionInDismissGapIgnoresStaleDismissal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSwiftDismissWaitsForNativeDetachmentAndIgnoresDuplicates]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testSwiftDismissWaitsForNativeDetachmentAndIgnoresDuplicates]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testTerminalProbeWaitsForAttachedParentThenEndNotification]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testTerminalProbeWaitsForAttachedParentThenEndNotification]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossInDismissGapBlocksReplacement]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossInDismissGapBlocksReplacement]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossRemovesNativeObserverAndStaleNotificationIsInert]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWindowLossRemovesNativeObserverAndStaleNotificationIsInert]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailureDoesNotChangeLastFolderOrReportSuccess]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWriteFailureDoesNotChangeLastFolderOrReportSuccess]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndIdentitylessDismissCannotCancelReplacement]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSettlementTests testWrongControllerAndIdentitylessDismissCannotCancelReplacement]' passed (0.000 seconds).
+Test Suite 'DocumentSaveSettlementTests' passed at 2026-09-28 01:53:27.382.
+	 Executed 30 tests, with 0 failures (0 unexpected) in 0.066 (0.067) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 01:53:27.382.
+	 Executed 30 tests, with 0 failures (0 unexpected) in 0.066 (0.067) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 01:53:27.382.
+	 Executed 30 tests, with 0 failures (0 unexpected) in 0.066 (0.068) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,50 @@
+Building for production...
+[0/5] Write sources
+[2/5] Write swift-version--58304C5D6DBC2206.txt
+[4/6] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:520:78: error: type 'NSWindow' has no member 'didBeginSheetNotification'
+518 |         // capture the appearing sheet, or explicit window loss releases the claim.
+519 |         guard let parent = state.parent else { return }
+520 |         let began = NotificationCenter.default.addObserver(forName: NSWindow.didBeginSheetNotification,
+    |                                                                              `- error: type 'NSWindow' has no member 'didBeginSheetNotification'
+521 |                                                            object: parent, queue: .main) { [weak self, weak state] _ in
+522 |             MainActor.assumeIsolated {
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:728:21: warning: 'where' only applies to the second pattern match in this 'case'
+726 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+727 |         switch e.keyCode {
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:730:22: warning: 'where' only applies to the second pattern match in this 'case'
+728 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+729 |         case 53 where mods.isEmpty: cancel(); return true
+730 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+731 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+732 |             return false
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+error: fatalError

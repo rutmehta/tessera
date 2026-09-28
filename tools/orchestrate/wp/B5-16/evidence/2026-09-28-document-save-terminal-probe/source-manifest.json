@@ -1,0 +1,51 @@
+{
+  "candidate_head": "e8ddabfa71fd6f4243b6bcaac0f529a15a1cf379",
+  "worktree": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera",
+  "status_porcelain": "",
+  "trace_product_enabled": false,
+  "expected_test_counts": {
+    "DocumentSaveSettlementTests": 30,
+    "DocumentSaveSheetProbeTests": 3,
+    "DocumentSaveSheetAttachmentTests": 3,
+    "DocumentLoadSettlementTests": 4,
+    "adjacent": 3
+  },
+  "files": {
+    "apps/mac/Package.swift": {
+      "bytes": 2079,
+      "sha256": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86"
+    },
+    "apps/mac/Package.resolved": {
+      "bytes": 388,
+      "sha256": "864591e727a84baf306a284db39a5952b23de2e426b4ff4bbfa652446aa77844"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentSheets.swift": {
+      "bytes": 15121,
+      "sha256": "435bf802ff3f0bbfe658da065368947ac27601c30ec90c293bee38fc667a352c"
+    },
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": {
+      "bytes": 42110,
+      "sha256": "f6bbb90653fb81ef076e22d955ea74c8dc04b5546857b46f8546b66c915cbbf6"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSettlementTests.swift": {
+      "bytes": 24755,
+      "sha256": "420e0ecc7f61f3f10cc98616fd0e46bc9fa405c7f020a02839f5f338d8b8be42"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSheetProbeTests.swift": {
+      "bytes": 2812,
+      "sha256": "18bef2041688fd78754171ba71e4a4a8f4528d8218321712ae7f913ae1ffab1c"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentSaveSheetAttachmentTests.swift": {
+      "bytes": 1959,
+      "sha256": "53f5ac72b497d5ffd728fc65a85ac305154087ab2d039584372689bab356f55f"
+    },
+    "apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift": {
+      "bytes": 3115,
+      "sha256": "16747ff20139ca40ec5f66a35839036ec18d21966b06b20e5fe7c67b9d836232"
+    },
+    "apps/mac/build/ffi/libtessera_ffi.a": {
+      "bytes": 298484480,
+      "sha256": "8ab43f64cf8bd510ee17c4cb19c5fff58e6e488015905c0b84b2ddfa0dce3a03"
+    }
+  }
+}
