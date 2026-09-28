@@ -626,15 +626,18 @@ mod tests {
 #[cfg(test)]
 mod preflight_tests {
     use super::*;
-    use compositor::{Depth, DocState, Raster, SmartFilter, SmartObject};
     use compositor::geom::Affine;
+    use compositor::{Depth, DocState, Raster, SmartFilter, SmartObject};
     use engine_api::tile::Extent;
 
     fn tiny() -> DocState {
         let extent = Extent::new(2, 2);
         let mut snapshot = DocState::new(extent, Depth::U8);
         let mut smart = SmartObject::new(DocState::new(extent, Depth::U8), Affine::IDENTITY);
-        smart.filters.push(SmartFilter { enabled: true, ..Default::default() });
+        smart.filters.push(SmartFilter {
+            enabled: true,
+            ..Default::default()
+        });
         let mut layer = Layer::new("enabled", LayerKind::SmartObject(smart));
         layer.id = LayerId(1);
         snapshot.root.push(Arc::new(layer));
@@ -669,7 +672,9 @@ mod preflight_tests {
                 Err(failure("evaluator must not run").into())
             });
             assert_eq!(calls, 0);
-            let Err(CopyError::Failed(error)) = result else { panic!("expected format failure") };
+            let Err(CopyError::Failed(error)) = result else {
+                panic!("expected format failure")
+            };
             assert!(!error.to_string().contains("evaluator must not run"));
         }
     }
@@ -678,27 +683,44 @@ mod preflight_tests {
     fn recursive_snapshot_counts_match_emitted_leaves_and_enabled_stacks() {
         let mut snapshot = tiny();
         let mut disabled = SmartObject::new(tiny(), Affine::IDENTITY);
-        disabled.filters.push(SmartFilter { enabled: false, ..Default::default() });
+        disabled.filters.push(SmartFilter {
+            enabled: false,
+            ..Default::default()
+        });
         let mut children = snapshot.root.clone();
         for kind in [
             LayerKind::SmartObject(disabled),
             LayerKind::Pixel(Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.0)),
-            LayerKind::Text { model: Default::default(), transform: Affine::IDENTITY },
-            LayerKind::Shape { model: Default::default(), transform: Affine::IDENTITY },
+            LayerKind::Text {
+                model: Default::default(),
+                transform: Affine::IDENTITY,
+            },
+            LayerKind::Shape {
+                model: Default::default(),
+                transform: Affine::IDENTITY,
+            },
             LayerKind::Fill(compositor::Fill::Solid { color: [0.0; 3] }),
         ] {
             children.push(Arc::new(Layer::new("leaf", kind)));
         }
-        snapshot.root = vec![Arc::new(Layer::new("group", LayerKind::Group {
-            mode: Default::default(), children,
-        }))];
-        let actual = preflight_snapshot(&snapshot, &|| Ok(())).unwrap();
-        let expected = compositor::psd::estimate_rasterized_psd_copy(
-            compositor::psd::PsdCopyEstimateInput {
-                canvas: snapshot.canvas, depth: snapshot.depth, saved_channels: 0,
-                retained_merged_alpha: true, rasterized_stacks: 1, emitted_raster_layers: 5,
+        snapshot.root = vec![Arc::new(Layer::new(
+            "group",
+            LayerKind::Group {
+                mode: Default::default(),
+                children,
             },
-        ).unwrap();
+        ))];
+        let actual = preflight_snapshot(&snapshot, &|| Ok(())).unwrap();
+        let expected =
+            compositor::psd::estimate_rasterized_psd_copy(compositor::psd::PsdCopyEstimateInput {
+                canvas: snapshot.canvas,
+                depth: snapshot.depth,
+                saved_channels: 0,
+                retained_merged_alpha: true,
+                rasterized_stacks: 1,
+                emitted_raster_layers: 5,
+            })
+            .unwrap();
         assert_eq!(actual, expected); // embedded smart-object children are not separate output leaves
     }
 
@@ -710,7 +732,8 @@ mod preflight_tests {
         let copy = rasterize_copy(&snapshot, &state, |_| {
             calls += 1;
             Ok(Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.0))
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(calls, 1);
         assert!(matches!(copy.root[0].kind, LayerKind::Pixel(_)));
         assert!(matches!(snapshot.root[0].kind, LayerKind::SmartObject(_)));
@@ -722,27 +745,41 @@ mod preflight_tests {
     #[test]
     fn rejected_operation_preserves_destination_and_drains_then_valid_copy_saves() {
         let dir = tempfile::tempdir().unwrap();
-        let engine = crate::Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
         let mut invalid = tiny();
         add_saved_planes(&mut invalid);
         let session = engine.adopt_document(Document::new(invalid), "invalid tiny".into());
         let destination = dir.path().join("copy.psd");
         std::fs::write(&destination, b"sentinel").unwrap();
         let operation = session.prepare_rasterized_psd_copy().unwrap();
-        let error = operation.run(destination.to_string_lossy().into_owned()).unwrap_err();
+        let error = operation
+            .run(destination.to_string_lossy().into_owned())
+            .unwrap_err();
         assert!(error.to_string().contains("at most 56 composite channels"));
         assert_eq!(std::fs::read(&destination).unwrap(), b"sentinel");
         assert!(!operation.state.holds_admission());
         assert!(session.prepare_rasterized_psd_copy().unwrap().cancel());
         let mut valid = DocState::new(Extent::new(2, 2), Depth::U8);
-        valid.root.push(Arc::new(Layer::new("pixel", LayerKind::Pixel(
-            Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.5),
-        ))));
+        valid.root.push(Arc::new(Layer::new(
+            "pixel",
+            LayerKind::Pixel(Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.5)),
+        )));
         let valid_session = engine.adopt_document(Document::new(valid), "valid tiny".into());
         let operation = valid_session.prepare_rasterized_psd_copy().unwrap();
-        assert_eq!(operation.run(destination.to_string_lossy().into_owned()).unwrap(), RasterizedPsdCopyOutcome::Saved);
+        assert_eq!(
+            operation
+                .run(destination.to_string_lossy().into_owned())
+                .unwrap(),
+            RasterizedPsdCopyOutcome::Saved
+        );
         assert!(!operation.state.holds_admission());
         assert!(std::fs::read(&destination).unwrap().starts_with(b"8BPS"));
-        assert!(valid_session.prepare_rasterized_psd_copy().unwrap().cancel());
+        assert!(
+            valid_session
+                .prepare_rasterized_psd_copy()
+                .unwrap()
+                .cancel()
+        );
     }
 }
