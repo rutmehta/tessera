@@ -277,11 +277,9 @@ fn default_settings_object_and_non_object_controls() {
         x["process_version"].as_object_mut().unwrap().remove(remove);
         assert!(PinnedRawDescriptor::new(input(serde_json::to_vec(&x).unwrap())).is_err());
     }
-    for owner in [serde_json::Value::Null] {
-        let mut x: serde_json::Value = serde_json::from_slice(&bytes()).unwrap();
-        x["image_id"] = owner;
-        assert!(PinnedRawDescriptor::new(input(serde_json::to_vec(&x).unwrap())).is_err());
-    }
+    let mut x: serde_json::Value = serde_json::from_slice(&bytes()).unwrap();
+    x["image_id"] = serde_json::Value::Null;
+    assert!(PinnedRawDescriptor::new(input(serde_json::to_vec(&x).unwrap())).is_err());
 }
 #[test]
 fn declarations_length_and_canonical_suffix_participate_in_identity() {
