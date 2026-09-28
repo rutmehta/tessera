@@ -1,3 +1,5 @@
+> Updated decoder-entry and admission plan: [LIVE-RAW-CPU-ADMISSION-PLAN.md](LIVE-RAW-CPU-ADMISSION-PLAN.md). The accepted capture/closed-decoder components now exist; rendering remains unimplemented pending the explicit normalization, memory, ICC and environment prerequisites. Historical profile scope below remains preserved.
+
 # UX-05 decoder and CPU render identity — bounded proposed profile
 
 ## Partial synthetic validation — 2026-09-28 14:43 UTC
