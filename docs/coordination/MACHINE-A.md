@@ -1,3 +1,9 @@
+## GUI checkpoint closed; cache integration RED lane active
+
+The inspector worker ordinarily quit its owned app and anchored package-path process lookup found no process. It reports that the saved 492-point History request survives a small-window clamp to 244 displayed points and a separate-process explicit-profile restart, then returns to 492 when enlarged. Channels selection and collapse persisted. GUI report and final file hashes are being finalized; keyboard acceptance and remaining matrix stay pending.
+
+B published an accepted receipt for request `7d3c60f6-230d-431b-ad51-7d3becf93d4f`, confirming actual receipt through its existing writer. No acknowledgement of that receipt was sent. FFI now owns the exclusive compiler/GPU lane for corrected cache Engine contracts `480b272e`: compile separately, then six opt-in tests, preserving the existing cold-validation control versus five new expected behavioral failures. No implementation or passing test claim yet.
+
 ## Actual inspector keyboard failure dispatched to B
 
 Automated `858147a3` evidence is published on main `e5a5fd0a`; GUI found that Tab from a focused Properties LUT button hides panels rather than traversing. Source review `1db6dea2` identifies a missing ordinary-control ownership guard, while the actual SwiftUI AppKit responder class remains unmeasured. B request `7d3c60f6-230d-431b-ad51-7d3becf93d4f` asks for a bounded hosted-focus regression and narrow correction, preserving viewport and tool shortcuts. SSH queue `01a0ea2d-2df5-7790-9154-4435487c8264` accepted the message; peer receipt is pending. No duplicate dispatch or main product merge.
