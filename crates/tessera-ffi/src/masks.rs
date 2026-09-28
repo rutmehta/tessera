@@ -805,6 +805,51 @@ struct AiMaskJob {
 }
 
 impl AiMaskJob {
+    fn finish(&self, shared: &Arc<Shared>, result: anyhow::Result<AlphaPlane>) {
+        // AI jobs are fire-and-forget. Ignore a completion that observes a
+        // closing/closed session. A callback already in flight may still
+        // finish after close; the recheck below prevents a late re-render.
+        if !matches!(shared.state.lock(), Ok(st) if !st.closing && !st.closed) {
+            return;
+        }
+        let masks = &shared.masks;
+        let error = match result {
+            Ok(plane) => {
+                masks.set_ai(&self.key, AiEntry::Ready(Arc::new(plane)));
+                None
+            }
+            Err(e) => {
+                let message = format!("{e:#}");
+                masks.set_ai(&self.key, AiEntry::Failed(message.clone()));
+                Some(message)
+            }
+        };
+        if let Some(l) = masks.listener() {
+            l.ai_progress(MaskJobUpdate {
+                key: self.key.clone(),
+                title: component_title(&self.kind),
+                fraction: 1.0,
+                message: if error.is_some() { "Failed" } else { "Ready" }.into(),
+                done: true,
+                error,
+            });
+        }
+        if let Ok(mut st) = shared.state.lock() {
+            let uses = st
+                .live
+                .locals
+                .adjustments
+                .iter()
+                .flat_map(|g| &g.components)
+                .any(|c| ai_key(&c.kind).as_deref() == Some(&self.key));
+            if uses && !st.closing && !st.closed {
+                // Rasters are part of the mask cache key: re-render.
+                st.rendered = None;
+                shared.render(&mut st, false);
+            }
+        }
+    }
+
     fn progress(&self, masks: &MaskShared, fraction: f32, message: &str) {
         masks.set_ai(
             &self.key,
@@ -926,42 +971,7 @@ impl Job for AiMaskJob {
             return Ok(());
         };
         let result = self.compute(&shared, ctx);
-        let masks = &shared.masks;
-        let error = match result {
-            Ok(plane) => {
-                masks.set_ai(&self.key, AiEntry::Ready(Arc::new(plane)));
-                None
-            }
-            Err(e) => {
-                let message = format!("{e:#}");
-                masks.set_ai(&self.key, AiEntry::Failed(message.clone()));
-                Some(message)
-            }
-        };
-        if let Some(l) = masks.listener() {
-            l.ai_progress(MaskJobUpdate {
-                key: self.key.clone(),
-                title: component_title(&self.kind),
-                fraction: 1.0,
-                message: if error.is_some() { "Failed" } else { "Ready" }.into(),
-                done: true,
-                error,
-            });
-        }
-        if let Ok(mut st) = shared.state.lock() {
-            let uses = st
-                .live
-                .locals
-                .adjustments
-                .iter()
-                .flat_map(|g| &g.components)
-                .any(|c| ai_key(&c.kind).as_deref() == Some(&self.key));
-            if uses {
-                // Rasters are part of the mask cache key: re-render.
-                st.rendered = None;
-                shared.render(&mut st, false);
-            }
-        }
+        self.finish(&shared, result);
         Ok(())
     }
 }
@@ -1310,7 +1320,7 @@ impl DevelopSession {
     pub fn add_mask(&self, definition_json: String, interactive: bool) -> Result<u32> {
         let mut kind = parse_kind(&definition_json)?;
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = self
             .shared
             .new_group(&mut st, vec![MaskComponent::new(kind)]);
@@ -1328,7 +1338,7 @@ impl DevelopSession {
     ) -> Result<u32> {
         let mut kind = parse_kind(&definition_json)?;
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         g.components.push(MaskComponent {
             kind,
@@ -1350,7 +1360,7 @@ impl DevelopSession {
     ) -> Result<()> {
         let mut kind = parse_kind(&definition_json)?;
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         component_at(g, index)?.kind = kind;
         self.shared.masks_changed(&mut st, interactive);
@@ -1364,7 +1374,7 @@ impl DevelopSession {
         combine: MaskCombineMode,
         invert: bool,
     ) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         let c = component_at(g, index)?;
         c.combine = combine.into();
@@ -1375,7 +1385,7 @@ impl DevelopSession {
 
     /// Removes a component; removing the last one deletes the group.
     pub fn remove_mask_component(&self, group_id: u32, index: u32) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         component_at(g, index)?;
         g.components.remove(index as usize);
@@ -1392,7 +1402,7 @@ impl DevelopSession {
         patch: MaskGroupPatch,
         interactive: bool,
     ) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         if let Some(name) = patch.name {
             g.name = name;
@@ -1421,7 +1431,7 @@ impl DevelopSession {
         if !LOCAL_PARAMS.contains(&name.as_str()) || !value.is_finite() {
             return Err(failure(format!("unknown local parameter {name}")));
         }
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         let mut params = serde_json::to_value(&g.params).map_err(failure)?;
         params[name.as_str()] = serde_json::json!(value);
@@ -1432,14 +1442,14 @@ impl DevelopSession {
 
     /// Every local slider of a group back to neutral.
     pub fn reset_mask_params(&self, group_id: u32) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         find_group(&mut st.live.locals.adjustments, group_id)?.params = LocalParams::default();
         self.shared.masks_changed(&mut st, false);
         Ok(())
     }
 
     pub fn delete_mask(&self, group_id: u32) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         find_group(&mut st.live.locals.adjustments, group_id)?;
         st.live.locals.adjustments.retain(|g| g.id.0 != group_id);
         self.shared.masks_changed(&mut st, false);
@@ -1448,7 +1458,7 @@ impl DevelopSession {
 
     /// Copies a group (components and sliders) under a new id; returns it.
     pub fn duplicate_mask(&self, group_id: u32) -> Result<u32> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let mut copy = find_group(&mut st.live.locals.adjustments, group_id)?.clone();
         copy.id = self.shared.next_mask_id(&mut st);
         copy.name = format!("{} Copy", copy.name);
@@ -1477,7 +1487,7 @@ impl DevelopSession {
             flow: unit(brush.flow, 100.0),
             erase: brush.erase,
         };
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = match group_id {
             Some(id) => {
                 find_group(&mut st.live.locals.adjustments, id)?;
@@ -1514,7 +1524,7 @@ impl DevelopSession {
 
     /// Appends samples to the stroke in progress and renders interactively.
     pub fn add_brush_points(&self, points: Vec<BrushPoint>) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let (id, index) = st
             .masks
             .stroke
@@ -1546,7 +1556,7 @@ impl DevelopSession {
 
     /// Ends the stroke: refines the viewport (commit makes it an undo step).
     pub fn end_brush_stroke(&self) -> Result<()> {
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         if let Some((id, index)) = st.masks.stroke.take()
             && let Ok(g) = find_group(&mut st.live.locals.adjustments, id)
         {
@@ -1594,7 +1604,7 @@ impl DevelopSession {
                 }
             }
         };
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = match group_id {
             Some(id) => {
                 find_group(&mut st.live.locals.adjustments, id)?
@@ -1617,7 +1627,7 @@ impl DevelopSession {
     /// Adds another sampled colour to a colour range component. Blocking.
     pub fn add_color_range_sample(&self, group_id: u32, index: u32, x: f32, y: f32) -> Result<()> {
         let lab = oklab(self.sample_prelocal(x, y)?);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         match &mut component_at(g, index)?.kind {
             MaskKind::ColorRange { samples, .. } if samples.len() < 8 => samples.push(lab),
@@ -1710,7 +1720,7 @@ impl DevelopSession {
             }
         };
         default_model(&mut kind);
-        let mut st = self.shared.lock()?;
+        let mut st = self.shared.edit_lock()?;
         let id = match group_id {
             Some(id) => {
                 find_group(&mut st.live.locals.adjustments, id)?
@@ -1734,8 +1744,9 @@ impl DevelopSession {
 
     /// Re-runs segmentation for a failed (or stale) AI component.
     pub fn retry_ai_mask(&self, key: String) -> Result<()> {
+        let st = self.shared.edit_lock()?;
         self.shared.masks.ai.lock().map_err(failure)?.remove(&key);
-        let live = self.shared.lock()?.live.clone();
+        let live = st.live.clone();
         ensure_ai_jobs(&self.shared, &live);
         Ok(())
     }
@@ -1750,6 +1761,7 @@ impl DevelopSession {
         height: u32,
     ) -> Result<()> {
         let surface = Arc::new(Surface::lookup_r8(iosurface_id, width, height).map_err(failure)?);
+        let _st = self.shared.edit_lock()?;
         let mut o = self.shared.masks.overlay.lock().map_err(failure)?;
         if o.surfaces
             .first()
@@ -1774,14 +1786,14 @@ impl DevelopSession {
     /// Shows `group_id`'s mask in the overlay surfaces after every frame
     /// (`None`: off). Writes the current frame's overlay at once.
     pub fn set_mask_overlay(&self, group_id: Option<u32>) -> Result<()> {
+        let st = self.shared.edit_lock()?;
         self.shared.masks.overlay.lock().map_err(failure)?.group = group_id;
-        if group_id.is_some() {
-            let st = self.shared.lock()?;
-            if let (Some(frame), Some(level)) = (&st.frame, st.rendered_level) {
-                let (settings, generation) = (frame.settings.clone(), st.generation);
-                drop(st);
-                publish_overlay(&self.shared, &settings, level, generation);
-            }
+        if group_id.is_some()
+            && let (Some(frame), Some(level)) = (&st.frame, st.rendered_level)
+        {
+            let (settings, generation) = (frame.settings.clone(), st.generation);
+            drop(st);
+            publish_overlay(&self.shared, &settings, level, generation);
         }
         Ok(())
     }
@@ -1898,6 +1910,65 @@ pub(crate) struct MaskState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Default)]
+    struct LateMaskUpdates(Mutex<Vec<MaskJobUpdate>>);
+
+    impl MaskListener for LateMaskUpdates {
+        fn overlay_ready(&self, _: MaskOverlayFrame) {}
+        fn ai_progress(&self, update: MaskJobUpdate) {
+            self.0.lock().unwrap().push(update);
+        }
+    }
+
+    #[test]
+    fn completed_ai_mask_job_does_not_revive_closed_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let photo = photos.join("late-mask.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(&photo)
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let mut rows = engine.list_images(crate::ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 1);
+        let session = engine
+            .clone()
+            .open_develop_session(rows.remove(0).id)
+            .unwrap();
+        let kind = MaskKind::Subject { model: None };
+        let key = ai_key(&kind).unwrap();
+        {
+            let mut st = session.shared.edit_lock().unwrap();
+            st.live.locals.adjustments.push(LocalAdjustment {
+                components: vec![MaskComponent::new(kind.clone())],
+                ..Default::default()
+            });
+            let drawn = st.drawn();
+            st.rendered = Some(drawn);
+        }
+        let listener = Arc::new(LateMaskUpdates::default());
+        session.set_mask_listener(Some(listener.clone()));
+        let job = AiMaskJob {
+            shared: Arc::downgrade(&session.shared),
+            key: key.clone(),
+            kind,
+        };
+        session.close().unwrap();
+        let generation = session.shared.generation.load(Ordering::SeqCst);
+        let rendered = session.shared.lock().unwrap().rendered.clone();
+        assert!(rendered.is_some());
+
+        job.finish(&session.shared, Err(anyhow::anyhow!("late completion")));
+        assert_eq!(session.shared.generation.load(Ordering::SeqCst), generation);
+        assert_eq!(session.shared.lock().unwrap().rendered, rendered);
+        assert!(!session.shared.masks.ai.lock().unwrap().contains_key(&key));
+        assert!(listener.0.lock().unwrap().is_empty());
+    }
 
     #[test]
     fn ai_thumbnail_uses_its_own_scale_instead_of_the_observed_level() {
