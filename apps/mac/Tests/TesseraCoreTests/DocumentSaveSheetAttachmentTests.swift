@@ -16,7 +16,7 @@ final class DocumentSaveSheetAttachmentTests: XCTestCase {
         XCTAssertTrue(oldSheet.sheetParent === parent)
         XCTAssertTrue(DocumentSaveSheetAttachment.hasDetached(
             capturedSheet: ObjectIdentifier(oldSheet),
-            parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }))
+            parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }, parentSheets: []))
     }
 
     func testUnrelatedEventWhileOldSheetStillAttachedDoesNotComplete() {
@@ -25,7 +25,7 @@ final class DocumentSaveSheetAttachmentTests: XCTestCase {
         oldSheet.sheetParent = parent
         XCTAssertFalse(DocumentSaveSheetAttachment.hasDetached(
             capturedSheet: ObjectIdentifier(oldSheet),
-            parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }))
+            parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }, parentSheets: []))
     }
 
     func testNewSheetIsNotModifiedWhenOldSheetHasDetached() {
@@ -34,8 +34,17 @@ final class DocumentSaveSheetAttachmentTests: XCTestCase {
         oldSheet.sheetParent = parent // Stale metadata must not control another sheet.
         XCTAssertTrue(DocumentSaveSheetAttachment.hasDetached(
             capturedSheet: ObjectIdentifier(oldSheet),
-            parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }))
+            parentAttachedSheet: parent.attachedSheet.map { ObjectIdentifier($0) }, parentSheets: []))
         XCTAssertTrue(parent.attachedSheet === newerSheet)
         // The production Replace admission separately requires attachedSheet == nil.
     }
+    func testQueuedCapturedSheetStillBelongsToParentUnderUnrelatedAttachedSheet() {
+        let owned = WindowIdentity(), unrelated = WindowIdentity()
+        XCTAssertFalse(DocumentSaveSheetAttachment.hasDetached(capturedSheet: ObjectIdentifier(owned),
+            parentAttachedSheet: ObjectIdentifier(unrelated),
+            parentSheets: [ObjectIdentifier(unrelated), ObjectIdentifier(owned)]))
+        XCTAssertTrue(DocumentSaveSheetAttachment.hasDetached(capturedSheet: ObjectIdentifier(owned),
+            parentAttachedSheet: ObjectIdentifier(unrelated), parentSheets: [ObjectIdentifier(unrelated)]))
+    }
+
 }
