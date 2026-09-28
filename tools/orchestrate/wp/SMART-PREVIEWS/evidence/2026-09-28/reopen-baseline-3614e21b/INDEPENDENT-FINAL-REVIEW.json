@@ -1,0 +1,180 @@
+{
+  "gates": {
+    "01-compile": {
+      "head": "c77e05430058a328e88bebdf25d6c41724d05bf2",
+      "count": 8640,
+      "exit": 0,
+      "frozen": true,
+      "git_mismatch": []
+    },
+    "02-fmt": {
+      "head": "c77e05430058a328e88bebdf25d6c41724d05bf2",
+      "count": 8640,
+      "exit": 1,
+      "frozen": true,
+      "git_mismatch": []
+    },
+    "03-fmt": {
+      "head": "3614e21bee508563432a9d235964b76e3c43a02f",
+      "count": 8640,
+      "exit": 0,
+      "frozen": true,
+      "git_mismatch": []
+    },
+    "04-strict": {
+      "head": "3614e21bee508563432a9d235964b76e3c43a02f",
+      "count": 8640,
+      "exit": 0,
+      "frozen": true,
+      "git_mismatch": []
+    },
+    "05-four-processes": {
+      "head": "3614e21bee508563432a9d235964b76e3c43a02f",
+      "count": 8640,
+      "exit": 0,
+      "frozen": true,
+      "git_mismatch": []
+    }
+  },
+  "cohorts": {
+    "proxy-auto-sdr": {
+      "exit": 0,
+      "samples": [
+        596.689958,
+        673.495625,
+        604.753166,
+        645.563,
+        675.619833
+      ],
+      "median_ms": 645.563,
+      "cv": 0.0520582822547723,
+      "max_release_ms": 27.625583,
+      "rows": 6
+    },
+    "proxy-cpu-sdr": {
+      "exit": 0,
+      "samples": [
+        165.437,
+        165.90949999999998,
+        167.071208,
+        168.135292,
+        170.64933299999998
+      ],
+      "median_ms": 167.071208,
+      "cv": 0.011100618962727814,
+      "max_release_ms": 25.4655,
+      "rows": 6
+    },
+    "proxy-auto-edr": {
+      "exit": 0,
+      "samples": [
+        589.148375,
+        589.430667,
+        587.736417,
+        591.043125,
+        608.408167
+      ],
+      "median_ms": 589.430667,
+      "cv": 0.012980455383921861,
+      "max_release_ms": 25.53925,
+      "rows": 6
+    },
+    "proxy-cpu-edr": {
+      "exit": 0,
+      "samples": [
+        168.69283299999998,
+        202.232417,
+        165.954083,
+        164.227,
+        162.68099999999998
+      ],
+      "median_ms": 165.954083,
+      "cv": 0.08608608578199978,
+      "max_release_ms": 28.846667,
+      "rows": 6
+    }
+  },
+  "pixels": [
+    {
+      "format": "sdr",
+      "cycle": 0,
+      "max_error": 0.003921568393707275,
+      "violations": 0
+    },
+    {
+      "format": "sdr",
+      "cycle": 1,
+      "max_error": 0.003921568393707275,
+      "violations": 0
+    },
+    {
+      "format": "sdr",
+      "cycle": 2,
+      "max_error": 0.003921568393707275,
+      "violations": 0
+    },
+    {
+      "format": "sdr",
+      "cycle": 3,
+      "max_error": 0.003921568393707275,
+      "violations": 0
+    },
+    {
+      "format": "sdr",
+      "cycle": 4,
+      "max_error": 0.003921568393707275,
+      "violations": 0
+    },
+    {
+      "format": "sdr",
+      "cycle": 5,
+      "max_error": 0.003921568393707275,
+      "violations": 0
+    },
+    {
+      "format": "edr",
+      "cycle": 0,
+      "max_error": 0.0009765625,
+      "violations": 0
+    },
+    {
+      "format": "edr",
+      "cycle": 1,
+      "max_error": 0.0009765625,
+      "violations": 0
+    },
+    {
+      "format": "edr",
+      "cycle": 2,
+      "max_error": 0.0009765625,
+      "violations": 0
+    },
+    {
+      "format": "edr",
+      "cycle": 3,
+      "max_error": 0.0009765625,
+      "violations": 0
+    },
+    {
+      "format": "edr",
+      "cycle": 4,
+      "max_error": 0.0009765625,
+      "violations": 0
+    },
+    {
+      "format": "edr",
+      "cycle": 5,
+      "max_error": 0.0009765625,
+      "violations": 0
+    }
+  ],
+  "freezes": {
+    "head": "3614e21bee508563432a9d235964b76e3c43a02f",
+    "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+    "runner_sha256": "c7d618ce7dbf340cbb597213cd57532ab4a6e90f33cd076983382f86bc70a624",
+    "thresholds_sha256": "f3710ab14dbdb11f02e50c7b21a5c9fb9b35657fc144f9147d4c18d627b975b7"
+  },
+  "verdict": "approved baseline evidence; no cache or speedup claim",
+  "matched_contracts_verified": true,
+  "checks": "Read-only Git blob/source/fixture hashing, JSON recomputation and existing float-buffer comparison; no app/build/GPU workload."
+}

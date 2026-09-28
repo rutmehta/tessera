@@ -1,0 +1,9 @@
+{
+  "head": "c77e05430058a328e88bebdf25d6c41724d05bf2",
+  "status": "",
+  "base": "03651eaef1610907b1e495c8f92581d3d6e60c3f",
+  "review": "root correction review clear; independent storage rereview pending",
+  "runtime": "UNRUN; no compile/fmt/app/GPU/benchmark",
+  "source_manifest": "source-manifest.json",
+  "prior_checkpoint": "d04c1ef859f9b494c2a18a26e7dbe34c4e571ec1"
+}

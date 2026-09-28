@@ -1,4 +1,4 @@
-## 2026-09-28 22:04 UTC — baseline measured; inspector rerun active
+## 2026-09-28 22:03 UTC — baseline measured; inspector rerun active
 
 Baseline3614e21b reports24completed/released opens acrossauto/CPU SDR/EDR,4stablecohorts and12passingpixelpairs at820x546 L1. Unchanged reopen callback mediansauto645.563msSDR/589.431msEDR vsCPU167.071/165.954. This is no proxy-versus-Original/editing-speed/cachebenefit claim. Independent finalprovenance review active; firstfmtfailure preserved before corrected03fmt/04strict/05runtime passes.
 

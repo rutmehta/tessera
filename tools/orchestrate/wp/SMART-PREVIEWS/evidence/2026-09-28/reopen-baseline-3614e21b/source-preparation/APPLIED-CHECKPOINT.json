@@ -1,0 +1,11 @@
+{
+  "head": "d04c1ef859f9b494c2a18a26e7dbe34c4e571ec1",
+  "status": "",
+  "base": "03651eaef1610907b1e495c8f92581d3d6e60c3f",
+  "review": "pending independent source review",
+  "runtime": "UNRUN; no compile, formatter, app, GPU or benchmark workload",
+  "files": {
+    "crates/tessera-ffi/src/develop/preview_qualification.rs": "9778e06e35726c25f0a4c6b3dbad8403ae1af968b8b16ec3ebbe4ebeb456217b",
+    "crates/tessera-ffi/src/surface.rs": "c76d8eeb1f15a176eb9080decaaf2dfac662a26ac806d3a56b6be93bb6fb194e"
+  }
+}

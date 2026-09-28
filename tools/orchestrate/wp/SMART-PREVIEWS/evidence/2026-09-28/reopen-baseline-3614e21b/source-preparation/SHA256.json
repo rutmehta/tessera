@@ -1,0 +1,11 @@
+{
+  "source-manifest.json": "e9c3caf5e74db6f75dbd564665eca5b94e19275483f4eb629128b3d93613b291",
+  "APPLIED-CHECKPOINT.json": "c2eabd1f481862b87e3c3d60c55ad4a054e4182802982c4d2666ce5672f87b7f",
+  "run.py": "9835ea07beb31aa65d59a9d8438c626b694bc59765e6e823aff31734287211f1",
+  "IMPLEMENTATION-PLAN.md": "8e71e9a92a09e73e23ab68277b908bdb12a1ca3cbf9b82a80dcc7e03c9f81cbd",
+  "thresholds.json": "f3710ab14dbdb11f02e50c7b21a5c9fb9b35657fc144f9147d4c18d627b975b7",
+  "reopen-baseline.patch": "cbe82426d002f70d3b8b0239e48a50335cc7d0a4536fecc9b682a027f0c8179e",
+  "NOTES.md": "63c86ad8d325282b0247e6d659fd91f64c02b6ab61e374608b681aa69253b3ad",
+  "candidate/crates/tessera-ffi/src/surface.rs": "c76d8eeb1f15a176eb9080decaaf2dfac662a26ac806d3a56b6be93bb6fb194e",
+  "candidate/crates/tessera-ffi/src/develop/preview_qualification.rs": "9778e06e35726c25f0a4c6b3dbad8403ae1af968b8b16ec3ebbe4ebeb456217b"
+}

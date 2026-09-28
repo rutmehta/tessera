@@ -1,0 +1,11 @@
+{
+  "source-manifest.json": "10b12e6b042cbf38f8b605fbe8bc8b25589fbf0b5e0536bc0bd376ca8291d460",
+  "APPLIED-CHECKPOINT.json": "b78665b78f1bf54eb4d84448704f448f42c81520bde19d0482164c5cf914cfe4",
+  "run.py": "c7d618ce7dbf340cbb597213cd57532ab4a6e90f33cd076983382f86bc70a624",
+  "IMPLEMENTATION-PLAN.md": "8e71e9a92a09e73e23ab68277b908bdb12a1ca3cbf9b82a80dcc7e03c9f81cbd",
+  "thresholds.json": "f3710ab14dbdb11f02e50c7b21a5c9fb9b35657fc144f9147d4c18d627b975b7",
+  "reopen-baseline.patch": "0375bdf935a9def23daf9d72de5a0b38e2e0fb437ef820f30ec5c2136ad13edd",
+  "NOTES.md": "403af138ad9613e0852ea6e092edd9d289eeb47df7ab9ce7f3474cd6655dff31",
+  "candidate/crates/tessera-ffi/src/surface.rs": "c76d8eeb1f15a176eb9080decaaf2dfac662a26ac806d3a56b6be93bb6fb194e",
+  "candidate/crates/tessera-ffi/src/develop/preview_qualification.rs": "56c1ceb38816f569b2d37f5571fdfb632419867f79ad6ab97269399083fa8ff9"
+}

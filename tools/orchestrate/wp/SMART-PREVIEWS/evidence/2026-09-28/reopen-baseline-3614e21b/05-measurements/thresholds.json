@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "status": "preregistered source-only; runtime unrun; performance thresholds accepted as experiment",
+  "baseline_source_head": "03651eaef1610907b1e495c8f92581d3d6e60c3f",
+  "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+  "fidelity": {
+    "sdr_max_absolute_per_channel": 0.01568627450980392,
+    "edr_max_absolute_per_channel_formula": "0.002 + 0.002 * abs(cpu_reference)",
+    "edr_absolute": 0.002,
+    "edr_relative": 0.002,
+    "only_equal_settings_dimensions_and_levels": true,
+    "above_white_edr_required": true,
+    "source": "accepted /tmp/tessera-preview-qualification/compare.py; preserves qualified numeric gates, not broad perceptual equivalence"
+  },
+  "performance": {
+    "reopen_min_relative_improvement": 0.2,
+    "reopen_min_absolute_improvement_ms": 20,
+    "initial_regression_max_formula": "max(10ms, 0.05 * baseline_median)",
+    "warm_edit_regression_max_formula": "max(2ms, 0.10 * baseline_median)",
+    "baseline_cv_max": 0.2,
+    "reopen_samples_per_process": 5,
+    "release_deadline_ms": 5000
+  },
+  "scope": "Baseline-only four processes; initial plus five unchanged reopens each. Candidate paired ordering and warm edits belong later reviewed extension; no candidate evaluation by this runner."
+}

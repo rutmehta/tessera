@@ -1,0 +1,63 @@
+{
+  "review": "source-only, runtime unrun",
+  "disposition": "Three bounded evidence/measurement fixes before qualification",
+  "candidate_hashes": {
+    "source-manifest.json": {
+      "expected": "e9c3caf5e74db6f75dbd564665eca5b94e19275483f4eb629128b3d93613b291",
+      "actual": "e9c3caf5e74db6f75dbd564665eca5b94e19275483f4eb629128b3d93613b291"
+    },
+    "run.py": {
+      "expected": "9835ea07beb31aa65d59a9d8438c626b694bc59765e6e823aff31734287211f1",
+      "actual": "9835ea07beb31aa65d59a9d8438c626b694bc59765e6e823aff31734287211f1"
+    },
+    "IMPLEMENTATION-PLAN.md": {
+      "expected": "8e71e9a92a09e73e23ab68277b908bdb12a1ca3cbf9b82a80dcc7e03c9f81cbd",
+      "actual": "8e71e9a92a09e73e23ab68277b908bdb12a1ca3cbf9b82a80dcc7e03c9f81cbd"
+    },
+    "thresholds.json": {
+      "expected": "f3710ab14dbdb11f02e50c7b21a5c9fb9b35657fc144f9147d4c18d627b975b7",
+      "actual": "f3710ab14dbdb11f02e50c7b21a5c9fb9b35657fc144f9147d4c18d627b975b7"
+    },
+    "reopen-baseline.patch": {
+      "expected": "cbe82426d002f70d3b8b0239e48a50335cc7d0a4536fecc9b682a027f0c8179e",
+      "actual": "cbe82426d002f70d3b8b0239e48a50335cc7d0a4536fecc9b682a027f0c8179e"
+    },
+    "NOTES.md": {
+      "expected": "63c86ad8d325282b0247e6d659fd91f64c02b6ab61e374608b681aa69253b3ad",
+      "actual": "63c86ad8d325282b0247e6d659fd91f64c02b6ab61e374608b681aa69253b3ad"
+    },
+    "candidate/crates/tessera-ffi/src/surface.rs": {
+      "expected": "c76d8eeb1f15a176eb9080decaaf2dfac662a26ac806d3a56b6be93bb6fb194e",
+      "actual": "c76d8eeb1f15a176eb9080decaaf2dfac662a26ac806d3a56b6be93bb6fb194e"
+    },
+    "candidate/crates/tessera-ffi/src/develop/preview_qualification.rs": {
+      "expected": "9778e06e35726c25f0a4c6b3dbad8403ae1af968b8b16ec3ebbe4ebeb456217b",
+      "actual": "9778e06e35726c25f0a4c6b3dbad8403ae1af968b8b16ec3ebbe4ebeb456217b"
+    }
+  },
+  "findings": [
+    {
+      "priority": 2,
+      "file": "reopen-baseline.patch / preview_qualification.rs appended test",
+      "issue": "Current failing cycle timing/frame evidence is written only after lifecycle and preservation assertions; persist pending row on callback and update completion state."
+    },
+    {
+      "priority": 2,
+      "file": "run.py samples/CV",
+      "issue": "CV mixes potentially distinct backend/level/dimension contracts; require stable reopen cohort or mark timing baseline unqualified."
+    },
+    {
+      "priority": 2,
+      "file": "run.py environment preparation",
+      "issue": "Inherited TESSERA flags retained, notably TESSERA_GPU_PROFILE; scrub inherited experiment flags and explicitly record whitelist."
+    }
+  ],
+  "rereview": {
+    "patch_sha256": "0375bdf935a9def23daf9d72de5a0b38e2e0fb437ef820f30ec5c2136ad13edd",
+    "runner_sha256": "c7d618ce7dbf340cbb597213cd57532ab4a6e90f33cd076983382f86bc70a624",
+    "disposition": "Three reported issues resolved; source-approved for qualification; unrun",
+    "verified_all_manifest_hashes": true,
+    "applied_clean_head": "c77e05430058a328e88bebdf25d6c41724d05bf2",
+    "durable_package": "/Volumes/betterSSD/tessera-validation/smart-preview-reopen-baseline/source-preparation-v2"
+  }
+}

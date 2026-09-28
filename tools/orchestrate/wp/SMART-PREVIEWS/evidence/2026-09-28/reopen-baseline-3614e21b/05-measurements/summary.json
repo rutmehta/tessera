@@ -1,0 +1,246 @@
+[
+  {
+    "route": "proxy-auto",
+    "format": "sdr",
+    "reopen_median_ms": 645.563,
+    "initial_ms": 661.140334,
+    "reopen_cv": 0.0520582822547723,
+    "contract_stable": true,
+    "baseline_stable": true,
+    "selected_backends": [
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)"
+    ],
+    "geometry": [
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ]
+    ]
+  },
+  {
+    "route": "proxy-cpu",
+    "format": "sdr",
+    "reopen_median_ms": 167.071208,
+    "initial_ms": 191.35387500000002,
+    "reopen_cv": 0.011100618962727814,
+    "contract_stable": true,
+    "baseline_stable": true,
+    "selected_backends": [
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview"
+    ],
+    "geometry": [
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ]
+    ]
+  },
+  {
+    "route": "proxy-auto",
+    "format": "edr",
+    "reopen_median_ms": 589.430667,
+    "initial_ms": 628.199917,
+    "reopen_cv": 0.012980455383921861,
+    "contract_stable": true,
+    "baseline_stable": true,
+    "selected_backends": [
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)",
+      "Metal (Apple M4) Smart Preview (GPU with CPU fallback)"
+    ],
+    "geometry": [
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ]
+    ]
+  },
+  {
+    "route": "proxy-cpu",
+    "format": "edr",
+    "reopen_median_ms": 165.954083,
+    "initial_ms": 194.368708,
+    "reopen_cv": 0.08608608578199978,
+    "contract_stable": true,
+    "baseline_stable": true,
+    "selected_backends": [
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview",
+      "CPU \u00d710 Smart Preview"
+    ],
+    "geometry": [
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ],
+      [
+        1,
+        [
+          820,
+          546
+        ]
+      ]
+    ]
+  }
+]

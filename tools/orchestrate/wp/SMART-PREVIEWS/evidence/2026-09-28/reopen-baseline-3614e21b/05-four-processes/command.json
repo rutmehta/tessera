@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "python3",
+    "/Volumes/betterSSD/tessera-validation/smart-preview-reopen-baseline/source-preparation-v2/run.py",
+    "--execute",
+    "--checkout",
+    "/Users/rutmehta/.codex/worktrees/proxy-reopen-baseline/tessera",
+    "--fixture",
+    "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "--out",
+    "/Volumes/betterSSD/tessera-validation/smart-preview-reopen-baseline/05-measurements"
+  ],
+  "env": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+    "CARGO_BUILD_JOBS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  }
+}

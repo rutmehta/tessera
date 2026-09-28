@@ -1,0 +1,13 @@
+{
+  "head": "3a395c69b6946660daf2d30a595149d5ef26e144",
+  "files": {
+    "crates/tessera-ffi/src/develop/preview_qualification.rs": {
+      "base_sha256": "42e7795ec723457fed06a2a73174095ad3e25265f9d8fc732d8cd3080ca820a2",
+      "candidate_sha256": "9778e06e35726c25f0a4c6b3dbad8403ae1af968b8b16ec3ebbe4ebeb456217b"
+    },
+    "crates/tessera-ffi/src/surface.rs": {
+      "base_sha256": "36ba36e462897c96df7ef4c51729937ca3f6f41dfe02cf102f4aaa0e994b4893",
+      "candidate_sha256": "c76d8eeb1f15a176eb9080decaaf2dfac662a26ac806d3a56b6be93bb6fb194e"
+    }
+  }
+}

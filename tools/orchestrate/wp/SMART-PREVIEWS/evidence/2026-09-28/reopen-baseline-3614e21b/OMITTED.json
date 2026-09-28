@@ -1,0 +1,155 @@
+{
+  "items": [
+    {
+      "path": "05-measurements/proxy-cpu-edr/cycle-3.rgb32f",
+      "bytes": 5372640,
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-edr/cycle-1.rgb32f",
+      "bytes": 5372640,
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-edr/cycle-5.rgb32f",
+      "bytes": 5372640,
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-edr/cycle-2.rgb32f",
+      "bytes": 5372640,
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-edr/cycle-0.rgb32f",
+      "bytes": 5372640,
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-edr/cycle-4.rgb32f",
+      "bytes": 5372640,
+      "sha256": "6d34b10dfb32a25aac0eab32af1536c6c1158762cccb8190336343c78ab970bb",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-sdr/cycle-3.rgb32f",
+      "bytes": 5372640,
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-sdr/cycle-1.rgb32f",
+      "bytes": 5372640,
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-sdr/cycle-5.rgb32f",
+      "bytes": 5372640,
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-sdr/cycle-2.rgb32f",
+      "bytes": 5372640,
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-sdr/cycle-0.rgb32f",
+      "bytes": 5372640,
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-cpu-sdr/cycle-4.rgb32f",
+      "bytes": 5372640,
+      "sha256": "870633079540be209949c383b1fb607b6143482c7397f78f6a3d4a94853e74f2",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-sdr/cycle-3.rgb32f",
+      "bytes": 5372640,
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-sdr/cycle-1.rgb32f",
+      "bytes": 5372640,
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-sdr/cycle-5.rgb32f",
+      "bytes": 5372640,
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-sdr/cycle-2.rgb32f",
+      "bytes": 5372640,
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-sdr/cycle-0.rgb32f",
+      "bytes": 5372640,
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-sdr/cycle-4.rgb32f",
+      "bytes": 5372640,
+      "sha256": "454382666d801fbe8d0c0fa7d41086cb6accca166a64253d8f8763dad23ebf40",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-edr/cycle-3.rgb32f",
+      "bytes": 5372640,
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-edr/cycle-1.rgb32f",
+      "bytes": 5372640,
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-edr/cycle-5.rgb32f",
+      "bytes": 5372640,
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-edr/cycle-2.rgb32f",
+      "bytes": 5372640,
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-edr/cycle-0.rgb32f",
+      "bytes": 5372640,
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    },
+    {
+      "path": "05-measurements/proxy-auto-edr/cycle-4.rgb32f",
+      "bytes": 5372640,
+      "sha256": "e1796146cbe14d5e98e819261352fc875008a63fcbfad27eb2bbbd0d42cb2156",
+      "class": "post-timing decoded RGB pixel payload (host-local)"
+    }
+  ],
+  "omitted_classes": [
+    "original RAW fixtures",
+    "post-timing RGB pixels",
+    "Cargo targets/build outputs",
+    "native archives/binaries"
+  ],
+  "host_local_evidence_root": "/Volumes/betterSSD/tessera-validation/smart-preview-reopen-baseline"
+}
