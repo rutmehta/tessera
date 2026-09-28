@@ -70,7 +70,10 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    retained. Rawrevision APIs are tested but not yet consumed by production CAS.
    Only set_selection/set_recipe_json diskRMW serialized, not otherwriters,
    staleJSONprotection or multi-filetransactions. BatchApply remains blocked.
-   Resource Sol now audits Develop session lease/write lifecycle source-only.
+   Resource Sol revises Develop failure/lifecycle contract source-only: close
+   currently drops saveerrors; retained sessions can mutate afterclose; histogram
+   helper opens temporarysession; retry afterpartialcommit needs explicit state.
+   No exclusivelease activation until failure-safeclose/read-onlypaths covered.
    DirectJSON diagnostic headless372f/context2457 both caught normalhistory
    BridgeError; originalphase/deinit remains unreproduced/unresolved, evidence
    main60a310ac. Diagnostic test code is not merged.
@@ -78,8 +81,10 @@ peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor
    untouched. Draft true liveRAW graph/persistence boundary and minimum next
    dependency without editing B-owned Document implementation. B review18cfb1c8
    accepted as design evidence; draftmain219bd62c picks pinned snapshot first.
-   Luna owns compiler for futureformat version-preflight RED then narrowfix;
-   test/plancheckpoint1ed91805, no RAWnode/schema/UI. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
+   Format preflight DONE main372dbbcc, exactfinal26845eed production/testbytes:
+   expectedfutureDecode RED preserved, v1control and final4roundtrip/strictfmt/
+   clippy pass. Rootverifiedhashes/rawlogs and independentreview accepted.
+   Nativeformat v1 remains, no RAWnode/schema/UI; compiler/desktop nowfree. PSD fixture/report durable under tools/orchestrate/wp/UX-05-PSD-copy/
    evidence/2026-09-27. CUA screenshots inline only, no local export available.
 4. **B — resource hold:** completed PSD receipts b7294f0e/ccb9e8f1 published.
    Result628f798f and SSHqueue01a0e571-f1e2-79d3-816b-b5871032994c published

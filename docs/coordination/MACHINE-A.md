@@ -4,6 +4,21 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Native format preflight integrated; Develop safety contract under review
+
+Main372dbbcc integrates finalformat source12d0b505/test5f1c391f. Futureversion
+unknownkind behavioralRED, currentversioncontrol and final4roundtrip tests,fmt,
+strictClippy verified; originalfmtfailure preserved. Independentreview accepted;
+rootverifiedmergedcompositor/engine-api bytes andportablelogs. No newformatwriter,
+RAWnode or decompression/resourcebound claim. Compiler anddesktop are free.
+
+Developlease proposal9b07f35b is notimplementationapproved: review found initial
+RGBbaseline normalization, read-onlyhistogramtemporarysessions, postclosemutation
+and flushhang risks, swallowedSwiftcloseerrors, and partialcommit retry gap.
+Sourceplan now stages failure-safeclose/recoverableedits/read-onlypaths first.
+Do not activatemerge exclusiveleases while close can silentlydiscard conflict.
+B resourcehold remains; sourcecoordination through Git/verifiedSSHcontinues.
+
 ## Two-writer gate integrated; format preflight next — 2026-09-28 00:58 UTC
 
 Maina920c46c integrates exactcombinedcf161acb crates/Cargo; evidence05522ce
