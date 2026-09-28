@@ -17,3 +17,15 @@ Searches across crates/apps/docs and fetched Git history found Smart Preview spe
 Before implementation, define a proxy representation that retains an honest supported Develop contract; avoid reapplying RAW operations to an already fully developed JPEG. Required gates include build/discard lifecycle and storage budget, original/proxy identity and stale detection, recipe ownership, original-missing editing, original reconnect, export resolution/quality behavior, and visible Original/Smart Preview/Unavailable state. Full-fidelity equivalence for every RAW-only/AI/detail control is not assumed.
 
 Follow-on Astra feasibility audit and Luna private-capture slice audit were dispatched but both terminated with a Codex usage-limit error; neither produced its requested report. They are failed/incomplete, not running. No new proxy implementation, decoder, benchmark or UI run occurred. The completed descriptor acceptance remains valid and separately documented.
+
+## Coordinator source follow-up
+
+Source-only inspection after the follow-on agent limit found a concrete reuse constraint:
+
+- `crates/export/src/lib.rs` DNG branch calls `render_full_float(image, recipe)` or the AI-mask render path before writing. `crates/export/src/dng.rs` explicitly describes finalized **developed** float32 LinearRaw DNGs. This is not a demonstrated pre-edit proxy-generation boundary.
+- `crates/image-core/src/source.rs::RawImage::open` recognizes LinearRaw DNG and returns `RgbSource::from_linear_dng`. `crates/tessera-ffi/src/develop.rs::open_develop_session` then assigns recipe.source_kind from the decoded route. Therefore merely redirecting an original RAW's editor path to the existing developed-DNG export would select RGB semantics and risk reapplying already baked edits. This is a source-grounded risk, not an executed failure experiment.
+- The accepted pinned descriptor freezes an immutable recipe snapshot for future Layers use. An editable proxy instead needs the original asset/recipe owner to remain authoritative while current edits evolve, plus an independent proxy-generation identity and original/proxy render-route distinction. Do not reuse immutable-snapshot semantics as the whole Smart Preview contract.
+
+Next design gate: define a pre-edit proxy-generation boundary and supported control matrix, then tiny original-versus-proxy tests before storage/UI work. Cover white balance/calibration, demosaic, geometry coordinate scaling, masks and AI/detail controls explicitly; refuse or require the original for unsupported operations rather than claiming universal equivalence. Source selection must not silently overwrite the original recipe's source/process identity. A full-quality export must resolve the original or give an explicit unavailable/limited-resolution outcome. The existing intended2560px lossy-DNG format is not proven by the developed-DNG writer.
+
+No implementation, codec experiment or proxy fidelity test was run. Independent feasibility review remains blocked by the observed agent usage limit.

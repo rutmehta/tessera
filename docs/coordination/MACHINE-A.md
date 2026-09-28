@@ -1,5 +1,12 @@
 # Machine A recovery status
 
+## Peer interruption reconciled and proxy source boundary checked — 2026-09-28 15:30 UTC
+
+Fetch/takeover unchangedcd8445349; mailboxBcbad4852 still has accepted request8638c362, with no result/new incoming or in-progress A work. Native compact snapshot now exposes B's actual latest turn01a0e898-9700-7622-b781-08019f6c758d: failed with usage-limit error after source work. This conclusion comes from the turn error and saved commands, not its separate notLoaded host status. A single recent-turn read confirms B created codex/save-destination-swift at81cc08eb and committed tests-only7b7a5dcb in /Users/rutmehta/Developer/lightroom/.worktrees/B5-16. Three test files,257 insertions/13 deletions; explicitly UNRUN. No completed product or published handoff is claimed. Preserve B's branch/reservation and accepted receipt; do not ACK, resend or launch a duplicate writer.
+
+Root advanced Smart Preview source analysis without unavailable agents: existing DNG export renders the recipe, LinearRaw reopening selects RGB, and Develop updates recipe.source_kind from that route. This is not a safe automatic replacement for an original RAW editing source. SMART-PREVIEW-STATUS.md now records the pre-edit generation, original recipe identity, route/control fidelity and export gating requirements. No proxy implementation or runtime. A's next independent reviews remain blocked by observed usage limits; completed descriptor source/evidence unchanged. Heavy lane idle; no app/process changes.
+
+
 ## Follow-on agents limited; B accepted destination work — 2026-09-28 15:25 UTC
 
 Descriptor implementation is complete and pushed mainbed7ff3f, with98 passing engine-api tests/strict/fmt and independent reviews. Completed-status Git message2c518614-f222-4e20-84ca-fdcb58ef25f1 is published; no receipt of that status is claimed.
