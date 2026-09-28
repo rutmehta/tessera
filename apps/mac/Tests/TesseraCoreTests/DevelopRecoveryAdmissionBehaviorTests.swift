@@ -105,9 +105,14 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         guard await waitUntil({ model.statusMessage == "Finish saving the photo before leaving this workspace"
             && !model.developRecovery.hasActiveReservations }) else { return }
 
+        let entered = expectation(description: "explicit retry close is held")
+        let hold = fixture.closePlan.holdNext(entered: entered)
+        defer { hold.release() }
+        model.retryDevelopRecovery(sessionID)
+        await fulfillment(of: [entered], timeout: 5)
         let newerStatus = "A newer import completed"
         model.statusMessage = newerStatus
-        model.retryDevelopRecovery(sessionID)
+        hold.release()
         guard await waitUntil({ model.viewMode == .grid && !model.photoEditing
             && model.develop == nil && model.developRecoveries.isEmpty }) else { return }
         XCTAssertEqual(model.statusMessage, newerStatus,
