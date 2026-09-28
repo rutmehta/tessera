@@ -1,0 +1,11 @@
+{
+  "source": "fixtures/base.ppm",
+  "source_sha256": "63695e637ee121732e1c3cb21c4d988488d76747ba08f178ab0433297bca2e40",
+  "output": "bright-white/base-bright255.ppm",
+  "output_sha256": "3ac4503ac03416072c3d8ac4990c6e70f354a2d16b542396c33b2c7f0e6e175e",
+  "bytes": 3853,
+  "changed_sample_bytes": 1296,
+  "changed_pixel_count": 432,
+  "changed_region": "x=53..79 inclusive, y=0..15, all RGB channels 240->255",
+  "all_other_bytes_identical": true
+}

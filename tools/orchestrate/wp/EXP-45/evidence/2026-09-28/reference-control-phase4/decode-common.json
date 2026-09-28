@@ -1,0 +1,27 @@
+{
+  "command": [
+    "./build/ultrahdr_app",
+    "-m",
+    "1",
+    "-j",
+    "bright-white/reference-16-bright255-common.jpg",
+    "-o",
+    "0",
+    "-O",
+    "4",
+    "-f",
+    "bright-white/decoded-bright255-common.cfg",
+    "-z",
+    "bright-white/decoded-bright255-common.raw"
+  ],
+  "exit": 0,
+  "output_sha256": "f8ed048c2b04f259ff1a65d77a3e35c17556d355c0322dd279a9d59d3240a19e",
+  "bytes": 10240,
+  "bright_center_rgba": [
+    16.0,
+    16.0,
+    16.0,
+    1.0
+  ],
+  "metadata": "--maxContentBoost 16\n--minContentBoost 1\n--gamma 1\n--offsetSdr 0\n--offsetHdr 0\n--hdrCapacityMin 1\n--hdrCapacityMax 16\n--useBaseColorSpace 1\n"
+}
