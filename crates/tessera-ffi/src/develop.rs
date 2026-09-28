@@ -3715,7 +3715,7 @@ mod tests {
     }
 
     #[test]
-    fn open_develop_editor_does_not_overwrite_newer_engine_settings() {
+    fn open_develop_editor_does_not_overwrite_foreign_disk_settings() {
         let (_dir, photo, engine, id, session) = tiny_develop_session("owner-conflict.jpg");
         let mut newer: Recipe =
             serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
@@ -3724,13 +3724,15 @@ mod tests {
                 settings.tone.exposure = 1.2;
             })
             .unwrap();
-        engine
-            .set_recipe_json(
-                id.clone(),
-                String::from_utf8(newer.to_json().unwrap()).unwrap(),
-            )
-            .unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let mut foreign = catalog::document(&photo, parse_id(&id).unwrap()).unwrap();
+        foreign.recipe = newer;
+        sidecar::Sidecar::write_recipe(&recipe_path, &foreign).unwrap();
+        let packet = catalog::selection_packet(&photo, &foreign)
+            .unwrap()
+            .with_recipe(&foreign.recipe)
+            .unwrap();
+        sidecar::Sidecar::write_xmp(catalog::xmp_path(&photo), &packet).unwrap();
         let published_bytes = std::fs::read(&recipe_path).unwrap();
         let xmp_path = catalog::xmp_path(&photo);
         let published_xmp = std::fs::read(&xmp_path).unwrap();
@@ -3857,21 +3859,35 @@ mod tests {
         let (dir, photo, first_engine, id, first) = tiny_develop_session("two-editors.jpg");
         let second_engine =
             Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
-        let second = second_engine.clone().open_develop_session(id).unwrap();
+        let writer_count = second_engine
+            .develop_writer_constructions
+            .load(Ordering::Relaxed);
+        let second = match second_engine.clone().open_develop_session(id.clone()) {
+            Ok(session) => {
+                session.close().unwrap();
+                panic!("same-destination editor admission must conflict");
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            second.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
+        assert_eq!(
+            second_engine
+                .develop_writer_constructions
+                .load(Ordering::Relaxed),
+            writer_count,
+            "rejected admission must not construct a writer"
+        );
         first
             .set_settings(r#"{"tone":{"exposure":0.8}}"#.into(), false)
             .unwrap();
         first.flush().unwrap();
         let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
         let first_bytes = std::fs::read(&recipe_path).unwrap();
-        second
-            .set_settings(r#"{"tone":{"exposure":1.1}}"#.into(), false)
-            .unwrap();
-        let error = second
-            .flush()
-            .expect_err("second stale editor must conflict");
-        assert!(error.to_string().contains("conflict"), "{error}");
-        assert_eq!(std::fs::read(&recipe_path).unwrap(), first_bytes);
+        first.close().unwrap();
+        let reopened = second_engine.clone().open_develop_session(id).unwrap();
         assert_eq!(
             serde_json::from_str::<Recipe>(
                 &first_engine
@@ -3884,6 +3900,67 @@ mod tests {
             .exposure,
             0.8
         );
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), first_bytes);
+        reopened.close().unwrap();
+    }
+
+    fn optional_file_bytes(path: &Path) -> Option<Vec<u8>> {
+        match std::fs::read(path) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => panic!("failed to read {}: {error}", path.display()),
+        }
+    }
+
+    #[test]
+    fn direct_recipe_replacement_conflicts_without_publishing_during_develop() {
+        let (_dir, photo, engine, id, session) = tiny_develop_session("setter-conflict.jpg");
+        let mut replacement: Recipe =
+            serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+        replacement
+            .edit(EditMeta::user("External edit", now_ms()), |settings| {
+                settings.tone.exposure = 1.1;
+            })
+            .unwrap();
+        let recipe_path = sidecar::Sidecar::paths(&photo).recipe;
+        let xmp_path = catalog::xmp_path(&photo);
+        let recipe_before = optional_file_bytes(&recipe_path);
+        let xmp_before = optional_file_bytes(&xmp_path);
+        let indexed_hash_before = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .into_iter()
+            .find(|row| row.id == id)
+            .unwrap()
+            .recipe_hash;
+
+        let result = engine.set_recipe_json(
+            id.clone(),
+            String::from_utf8(replacement.to_json().unwrap()).unwrap(),
+        );
+        assert!(
+            result.is_err(),
+            "active Develop must reject direct recipe replacement"
+        );
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "conflict: Develop destination already has an active editor"
+        );
+        assert_eq!(optional_file_bytes(&recipe_path), recipe_before);
+        assert_eq!(optional_file_bytes(&xmp_path), xmp_before);
+        assert_eq!(
+            engine
+                .list_images(crate::ImageQuery::default())
+                .unwrap()
+                .into_iter()
+                .find(|row| row.id == id)
+                .unwrap()
+                .recipe_hash,
+            indexed_hash_before,
+            "rejected setter must not publish index state"
+        );
+        session.close().unwrap();
     }
 
     #[test]
