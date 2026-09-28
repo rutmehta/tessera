@@ -1,5 +1,28 @@
 # Tessera task board — Machine A coordinator
 
+
+## Active recovery implementation — 2026-09-28 03:31 UTC
+
+- A main `f53c6092` adds B's reviewed Document preparation design `42ccdab8`;
+  result `cf601ac9` has a completed source-plan receipt. No runtime acceptance.
+- Resource Sol implements AppModel ownership and caller barriers in
+  `codex/develop-app-recovery`. Coordinator checkpoints through `aca02792`
+  repair unknown-ID false success and open-ticket ownership loss; review is
+  ongoing. Caller migration is uncommitted and uncompiled. Root flagged Retry
+  source identity, reentrant folder callbacks, reservation-before-close ordering,
+  and Layers capture lifetime for correction before freeze.
+- Luna owns eight dedicated component tests in `DevelopRecoveryStateTests.swift`;
+  source review pending, all UNRUN. Earlier two AppModel admission tests remain
+  behavioral RED. Reviewer Sol independently reviews coordinator and test source.
+  A compiler is free until the reviewed source gate is allocated; no GUI lane.
+- B receives source-only typed Document prompt/save settlement task
+  `3b2a6fa3-81d3-4a25-8d4d-75e323afedce`, existing-chat SSH queue
+  `01a0e610-36e8-73c1-a590-0ae110a6756d`. Queue acceptance recorded;
+  peer receipt is not yet verified. No global Quit/draft adapter authorization.
+  B workload hold and paused heartbeat remain unchanged.
+- Normal preview PID57591 remains untouched. Main merges remain A-only.
+
+
 ## Current coordinator checkpoint — 2026-09-28 03:18 UTC
 
 - **DONE native save retry** main `d4274a68`, tested `85de2860`: 21 Develop
