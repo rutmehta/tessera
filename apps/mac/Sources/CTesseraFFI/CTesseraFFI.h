@@ -1601,6 +1601,11 @@ void uniffi_tessera_ffi_fn_method_documentsession_save(uint64_t ptr, RustCallSta
 void uniffi_tessera_ffi_fn_method_documentsession_save_as(uint64_t ptr, RustBuffer path, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_save_as_checked(uint64_t ptr, RustBuffer path, RustBuffer intent, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SET_ADJUSTMENT_JSON
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SET_ADJUSTMENT_JSON
 RustBuffer uniffi_tessera_ffi_fn_method_documentsession_set_adjustment_json(uint64_t ptr, uint64_t id, RustBuffer json, int8_t interactive, RustCallStatus *_Nonnull out_status
@@ -4487,6 +4492,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_save(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SAVE_AS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SAVE_AS
 uint16_t uniffi_tessera_ffi_checksum_method_documentsession_save_as(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SAVE_AS_CHECKED
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_save_as_checked(void
     
 );
 #endif

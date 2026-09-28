@@ -183,7 +183,8 @@ final class DocumentSaveDestinationCommitTests: XCTestCase {
         let dir = try directory(), url = dir.appendingPathComponent("out.tessera-doc")
         let hooks = DocumentSaveDestinationCommit.Hooks(afterCommit: { stage in try Data("unowned".utf8).write(to: stage) })
         XCTAssertEqual(try DocumentSaveDestinationCommit.write(Data("owned".utf8), to: url, intent: .replaceConfirmed, hooks: hooks), .saved)
-        let other = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil).filter { $0 != url }
+        let other = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil).filter { $0.lastPathComponent != url.lastPathComponent }
+        XCTAssertEqual(try Data(contentsOf: url), Data("owned".utf8))
         XCTAssertEqual(other.count, 1)
         XCTAssertEqual(try Data(contentsOf: XCTUnwrap(other.first)), Data("unowned".utf8))
     }
@@ -199,7 +200,8 @@ final class DocumentSaveDestinationCommitTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
         let entries = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
         XCTAssertEqual(entries.count, 2)
-        let foreign = try XCTUnwrap(entries.first { $0 != retained })
+        XCTAssertEqual(try Data(contentsOf: retained), Data("ours".utf8))
+        let foreign = try XCTUnwrap(entries.first { $0.lastPathComponent != retained.lastPathComponent })
         XCTAssertEqual(try Data(contentsOf: foreign), Data("foreign".utf8))
     }
     func testConfirmedReplaceStillReplacesPathChangedAfterConfirmation() throws {
