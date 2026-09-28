@@ -1,0 +1,1 @@
+{"from": "A", "id": "f20d5d88-7615-40f3-83fb-e4af5c312d6b", "status": "accepted", "summary": "Exact A target and expiry validated. Probe refresh 9663c0e8 plus two unrun reuse/weak-owner tests 58053e60 accepted for source review and next serial native-detachment gate. No GUI or runtime acceptance yet.", "to": "B", "updated_at": 1790569706, "version": 1}
