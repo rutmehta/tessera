@@ -50,6 +50,8 @@ fn key(_input: &KeyInputs<'_>) -> EngineResult<Key> {
     Err(EngineError::Unsupported { what: "Task 1 key implementation awaits observed RED".into() })
 }
 
+fn graph_fingerprint(_nodes: &[image_core::StageNode]) -> [u8; 32] { [0; 32] }
+
 #[derive(Clone, Copy)]
 struct Entry { key: Key, decision: Decision, completed_ns: u64, last_used: u64, samples: Samples }
 struct Cache { entries: [Option<Entry>; CAPACITY], ordinal: u64 }

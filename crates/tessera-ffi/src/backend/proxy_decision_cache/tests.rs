@@ -93,12 +93,14 @@ fn invalid_measurements_and_errors_never_insert_or_replace_success() {
         for index in 0..6 {
             let mut samples = Samples { cpu: [10.; 3], gpu: [1.; 3] };
             if index < 3 { samples.cpu[index] = bad; } else { samples.gpu[index-3] = bad; }
-            assert!(!cache.insert(k(2), SelectionOutcome::Measured(samples), AUTO, 3));
+            assert!(!cache.insert(k(1), SelectionOutcome::Measured(samples), AUTO, TTL_NS - 1));
+            assert!(!cache.insert(k(2), SelectionOutcome::Measured(samples), AUTO, TTL_NS - 1));
         }
     }
     assert_eq!(cache.len(), 1);
     assert_eq!(cache.lookup(k(1), AUTO, 4), Some(Decision::Metal));
     assert_eq!(cache.lookup(k(2), AUTO, 4), None);
+    assert_eq!(cache.lookup(k(1), AUTO, TTL_NS + 1), None, "failed replacement extended original expiry");
 }
 
 #[test]
@@ -258,4 +260,22 @@ fn complete_vector_payload_and_full_container_digest_affect_key() {
     // Same first128bits/renderId must not collide after container tail changes.
     i.asset.container_digest[31] ^= 1;
     assert_ne!(key(&i).unwrap(), b);
+}
+
+#[test]
+fn graph_fingerprint_includes_stage_frame_order_count_and_flags() {
+    let original = PipelineGraph::m2().nodes().to_vec();
+    let baseline = graph_fingerprint(&original);
+    for field in 0..6 {
+        let mut nodes = original.clone();
+        match field {
+            0 => nodes[0].stage = StageId::Output,
+            1 => nodes[0].frame = image_core::graph::Frame::Output,
+            2 => nodes.swap(0, 1),
+            3 => { nodes.pop(); },
+            4 => nodes[0].cacheable = !nodes[0].cacheable,
+            _ => nodes[0].implemented = !nodes[0].implemented,
+        }
+        assert_ne!(graph_fingerprint(&nodes), baseline, "graph field {field}");
+    }
 }
