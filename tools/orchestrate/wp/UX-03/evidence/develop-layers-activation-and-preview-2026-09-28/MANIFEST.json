@@ -1,0 +1,180 @@
+{
+  "files": {
+    "5a82058d-focused58/command.txt": {
+      "bytes": 424,
+      "sha256": "dd6529966a34a6bf5ee1e1a16dc427173b518958afc9227ff6edff64493c4307"
+    },
+    "5a82058d-focused58/direct-exit.txt": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "5a82058d-focused58/ffi-archive-after.txt": {
+      "bytes": 102,
+      "sha256": "161b0265be789bf37d2fba5931e8fee4be7370557a3633e6ee24088fe7cee882"
+    },
+    "5a82058d-focused58/ffi-archive-before.txt": {
+      "bytes": 102,
+      "sha256": "161b0265be789bf37d2fba5931e8fee4be7370557a3633e6ee24088fe7cee882"
+    },
+    "5a82058d-focused58/head-after.txt": {
+      "bytes": 41,
+      "sha256": "f571901812a83cc2ea2119d3c67db5c04b24c0550e3168e3d9b9fa37a5715e40"
+    },
+    "5a82058d-focused58/head-before.txt": {
+      "bytes": 41,
+      "sha256": "f571901812a83cc2ea2119d3c67db5c04b24c0550e3168e3d9b9fa37a5715e40"
+    },
+    "5a82058d-focused58/source-hashes-after.txt": {
+      "bytes": 1171,
+      "sha256": "c57414c1578425c007596c4017937b561a092dea9f90e43a6fb2d36df39019fa"
+    },
+    "5a82058d-focused58/source-hashes-before.txt": {
+      "bytes": 1171,
+      "sha256": "c57414c1578425c007596c4017937b561a092dea9f90e43a6fb2d36df39019fa"
+    },
+    "5a82058d-focused58/status-after.txt": {
+      "bytes": 46,
+      "sha256": "95cbdbba414ba622191ba004d9f3b06348d69bc2472ae18066367b520940c92a"
+    },
+    "5a82058d-focused58/status-before.txt": {
+      "bytes": 46,
+      "sha256": "95cbdbba414ba622191ba004d9f3b06348d69bc2472ae18066367b520940c92a"
+    },
+    "5a82058d-focused58/swift-test-release.log": {
+      "bytes": 30456,
+      "sha256": "2d8b9902191fcf7e0cac9ee6db81d039a43c2b9900fc25c986535bc1b8383cd6"
+    },
+    "5a82058d-full597-failed/command.txt": {
+      "bytes": 182,
+      "sha256": "1097779ab601011f7281e107869aa782d541a567400bb72e9d3ecf6a64ab963b"
+    },
+    "5a82058d-full597-failed/direct-exit.txt": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "5a82058d-full597-failed/ffi-archive-after.txt": {
+      "bytes": 102,
+      "sha256": "161b0265be789bf37d2fba5931e8fee4be7370557a3633e6ee24088fe7cee882"
+    },
+    "5a82058d-full597-failed/ffi-archive-before.txt": {
+      "bytes": 102,
+      "sha256": "161b0265be789bf37d2fba5931e8fee4be7370557a3633e6ee24088fe7cee882"
+    },
+    "5a82058d-full597-failed/head-after.txt": {
+      "bytes": 41,
+      "sha256": "f571901812a83cc2ea2119d3c67db5c04b24c0550e3168e3d9b9fa37a5715e40"
+    },
+    "5a82058d-full597-failed/head-before.txt": {
+      "bytes": 41,
+      "sha256": "f571901812a83cc2ea2119d3c67db5c04b24c0550e3168e3d9b9fa37a5715e40"
+    },
+    "5a82058d-full597-failed/status-after.txt": {
+      "bytes": 46,
+      "sha256": "95cbdbba414ba622191ba004d9f3b06348d69bc2472ae18066367b520940c92a"
+    },
+    "5a82058d-full597-failed/status-before.txt": {
+      "bytes": 46,
+      "sha256": "95cbdbba414ba622191ba004d9f3b06348d69bc2472ae18066367b520940c92a"
+    },
+    "5a82058d-full597-failed/swift-test-release.log": {
+      "bytes": 178737,
+      "sha256": "63c95908b51dbb490e3e6bf7c519401ad031f467acdbf7fc1820915860318af8"
+    },
+    "5a82058d-full597-failed/tracked-swift-hashes-after.txt": {
+      "bytes": 37420,
+      "sha256": "4c9ede985e5f7076ab3fd732535f41def8a00ff34e43b0303002fd889a3e9af2"
+    },
+    "5a82058d-full597-failed/tracked-swift-hashes-before.txt": {
+      "bytes": 37420,
+      "sha256": "4c9ede985e5f7076ab3fd732535f41def8a00ff34e43b0303002fd889a3e9af2"
+    },
+    "5a82058d-prior7/command.txt": {
+      "bytes": 571,
+      "sha256": "3825617c17405a4310e3a5c10093fb65282215a2a4baacc71c88a85680b22b45"
+    },
+    "5a82058d-prior7/direct-exit.txt": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "5a82058d-prior7/ffi-archive-after.txt": {
+      "bytes": 102,
+      "sha256": "161b0265be789bf37d2fba5931e8fee4be7370557a3633e6ee24088fe7cee882"
+    },
+    "5a82058d-prior7/ffi-archive-before.txt": {
+      "bytes": 102,
+      "sha256": "161b0265be789bf37d2fba5931e8fee4be7370557a3633e6ee24088fe7cee882"
+    },
+    "5a82058d-prior7/head-after.txt": {
+      "bytes": 41,
+      "sha256": "f571901812a83cc2ea2119d3c67db5c04b24c0550e3168e3d9b9fa37a5715e40"
+    },
+    "5a82058d-prior7/head-before.txt": {
+      "bytes": 41,
+      "sha256": "f571901812a83cc2ea2119d3c67db5c04b24c0550e3168e3d9b9fa37a5715e40"
+    },
+    "5a82058d-prior7/source-hashes-after.txt": {
+      "bytes": 1171,
+      "sha256": "c57414c1578425c007596c4017937b561a092dea9f90e43a6fb2d36df39019fa"
+    },
+    "5a82058d-prior7/source-hashes-before.txt": {
+      "bytes": 1171,
+      "sha256": "c57414c1578425c007596c4017937b561a092dea9f90e43a6fb2d36df39019fa"
+    },
+    "5a82058d-prior7/status-after.txt": {
+      "bytes": 46,
+      "sha256": "95cbdbba414ba622191ba004d9f3b06348d69bc2472ae18066367b520940c92a"
+    },
+    "5a82058d-prior7/status-before.txt": {
+      "bytes": 46,
+      "sha256": "95cbdbba414ba622191ba004d9f3b06348d69bc2472ae18066367b520940c92a"
+    },
+    "5a82058d-prior7/swift-test-release.log": {
+      "bytes": 4222,
+      "sha256": "901f51b55360e56a45aee7dec7e5dd9bcce77f129cb4868a9857b8825e5ef70c"
+    },
+    "README.md": {
+      "bytes": 2527,
+      "sha256": "3875901f9f1aaac6a2fd3ac9c09191332e8dc52f182d1c71fb23f7af1fcee4bd"
+    },
+    "c4ba2ea6-layers-red/command.txt": {
+      "bytes": 489,
+      "sha256": "688d5c2c17aa7b454413f8a2030b438bac73d3c4c8042ff897d351584edb5fbd"
+    },
+    "c4ba2ea6-layers-red/direct-exit.txt": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "c4ba2ea6-layers-red/freeze-before.txt": {
+      "bytes": 105,
+      "sha256": "970d30a8051d459b0a07cfc7b78065a21640f8d14c29fb26dcfc0d0d1e92d25f"
+    },
+    "c4ba2ea6-layers-red/head-after.txt": {
+      "bytes": 41,
+      "sha256": "9a1a2ac6da31b88bccc4d8db0d8b27431c0f58955d3b0591e58452498dbdabab"
+    },
+    "c4ba2ea6-layers-red/head-before.txt": {
+      "bytes": 41,
+      "sha256": "9a1a2ac6da31b88bccc4d8db0d8b27431c0f58955d3b0591e58452498dbdabab"
+    },
+    "c4ba2ea6-layers-red/source-hashes-after.txt": {
+      "bytes": 737,
+      "sha256": "30f8b95fa079091c7b80b0194e0f17349048a5f081ade9d88512cc76775bb177"
+    },
+    "c4ba2ea6-layers-red/source-hashes-before.txt": {
+      "bytes": 737,
+      "sha256": "30f8b95fa079091c7b80b0194e0f17349048a5f081ade9d88512cc76775bb177"
+    },
+    "c4ba2ea6-layers-red/status-after.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "c4ba2ea6-layers-red/status-before.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "c4ba2ea6-layers-red/swift-test-release.log": {
+      "bytes": 11026,
+      "sha256": "0147e4e6795d7978acbcbc4d396c0ee66671500c4a3bf4500076b0ad0eaaf133"
+    }
+  }
+}
