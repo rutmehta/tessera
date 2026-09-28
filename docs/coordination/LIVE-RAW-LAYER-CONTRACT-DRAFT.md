@@ -1,5 +1,9 @@
 # UX-05 draft: live RAW source and layer continuity
 
+## Descriptor/capture proposal — 2026-09-28 14:20 UTC
+
+The concrete next proposal is LIVE-RAW-PINNED-SOURCE-PROPOSAL.md, independently reviewed against LIVE-RAW-CAPTURE-POLICY.md. It is descriptor/capture design only. Native process2 plus pinned bytes does not alone qualify rendering: renderer/dependency admission remains unresolved. No compositor node, decoder wrapper, FFI or UI implementation follows from publishing this proposal.
+
 ## Current precedence and completed prerequisite — 2026-09-28
 
 The later coordinator review below supersedes the initial automatic-follow proposal: the first source-backed contract pins an immutable recipe payload. Later edits to the original photo do not automatically change that snapshot. Automatic follow and shared undo require a separate explicit policy. `ImageId` can denote a virtual copy; physical asset identity/content digest remains distinct. A recipe hash cannot recover the pinned settings.

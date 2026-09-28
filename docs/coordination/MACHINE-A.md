@@ -1,5 +1,14 @@
 # Machine A recovery status
 
+## Pinned RAW descriptor and capture proposal — 2026-09-28 14:20 UTC
+
+The heartbeat fetched origin and read B's unchanged takeover note. Mailbox has no new messages, invalid/expired entries or in-progress receipts; native B snapshot is unavailable and SSH still cannot resolve its hostname. No duplicate request or queue delivery was attempted. Latest status a27b5fd4-c4ca-473a-b209-dbb3338223b2 is publication only.
+
+Two agents advanced the next UX-05 contract decision. A privately owned bounded staged file is proposed so every probe/decode reads the same captured bytes that define the asset digest. Original source replacement after capture cannot redirect those reads; this does not prove a point-in-time external source snapshot or an atomic RAW+recipe transaction. Raw recipe schema must be inspected before parser normalization; recipe owner and stored decoder route must be explicit. Existing original/copy UI remains unchanged.
+
+Render admission is still unresolved: Native2 and exact recipe/source bytes alone do not bind external profiles/models, decoder/renderer revision or backend fidelity. Descriptor/capture availability must not claim renderable or reproducible pixels. The completed proposal LIVE-RAW-PINNED-SOURCE-PROPOSAL.md and independent LIVE-RAW-CAPTURE-POLICY.md preserve these limits; no implementation, source staging, tests, decoder, build, GUI or B-owned edits were performed. The next implementation decision must settle that admission profile and its tests before adding a compositor node or B adapter.
+
+
 ## Live RAW source review completed — 2026-09-28 14:07 UTC
 
 Luna mapped the actual Photo Edit→Layers ownership/save barrier and flattened-pixel persistence; Astra independently audited compositor/format/recipe/render contracts. Root checked the critical source paths. The initial automatic-follow portions of the draft are explicitly superseded by the previously chosen immutable pinned-recipe direction. Format preflight is already complete on main372dbbcc with final26845eed; no duplicate implementation is needed. No current graph or persisted manifest contains a RAW source node.
