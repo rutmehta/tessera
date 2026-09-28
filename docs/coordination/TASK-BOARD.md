@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-## Current execution queue — 2026-09-28 08:31 UTC
+## Current execution queue — 2026-09-28 08:44 UTC
 
 | Task | Owner | Verified state | Next action |
 | --- | --- | --- | --- |
@@ -11,7 +11,8 @@
 | Develop stale-writer protection | A / Resource Sol | DONE mainf4bc0c0b, Rust/Cargo exactly915c7f7b;25 tests +fmt/strict | Newer/unsupported owner fields fail closed;185 payloads and40 source hashes verified. No lease, all-writer CAS or conflict-resolution UI. |
 | Recipe setter XMP parity | A / reviewer Sol | DONE main4ad017ab, exact Rust/Cargo3bd2e341. Genuine RED then19 combined tests +fmt/strict/direct0;15 frozen inputs verified. | Evidence535950bb/FFI737dcd09 published; current arm64 archive4a45, generated bindings unchanged. Earlier compile failure retained; normal preview unchanged. |
 | Save As native ownership | B source; A integration/GUI | DONE main `11b31be6`. Product d695 passed 90 focused, full 642 XCTest/1 skip/0 failures +5 Swift Testing; actual isolated create/Replace/cancel/repeat/reopen passed. Test-only a927 passed actual parent close during native folder chooser. | Evidence cc9eb6f4, ede27821 and integration parent-modal manifest; historical RED and failed probes retained. Result d9b94a94 completed. No full 643 rerun, leak-proof or preview-refresh claim. |
-| Save As destination safety | A Resource Sol native; B later Swift; Luna review | Design f426 reviewed/decision f093e3c8. Native bcbf6dde source-reviewed; Resource now owns exclusive compiler lane after merging accepted presenter baseline. | Run native collision/concurrency/reopen/adjacent and strict gates, preserve failures; generated API checkpoint then B source integration. Luna independently reviews Swift test matrix without builds. No product acceptance yet. |
+| Save As destination safety | A native; B Swift source reserved | Native 75a1b9a6 passed 11 selected tests + fmt/strict; test-only 2a22145b pins actual directory conflict and passes focused/fmt/strict. Generated checkpoint 81cc08eb built arm64 archive f451870f, input hashes verified. | B request 8638c362 published; SSH delivery failed “Host is down”, no queue ID or receipt. Preserve B ownership, retry existing request when reachable. No full product/UI acceptance. |
+| ISO gain-map interoperability control | A / reviewer Sol | Existing ImageIO core failure retained; independent known-good ISO control remains missing. | Source/primary-reference research active; compare same-host reference versus prototype before any encoder fix. No new runtime pass. |
 
 Only A merges main. One heavy compiler/GPU/desktop lane on A; B remains source-only with its heartbeat paused. User preview57591 stays unchanged. No source-only result or failed fixture is a passing gate. Earlier sections below are retained history; this table supersedes their active-state wording.
 

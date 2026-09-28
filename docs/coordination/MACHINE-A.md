@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Native destination gate passed; B transport unavailable — 2026-09-28 08:44 UTC
+
+Native candidate 75a1b9a6 passed 11 selected tests (4 commit, 5 session, native roundtrip, PSD/PSB roundtrip), formatting and strict Clippy. Root verified seven frozen input hashes against Git. Diagnostic observed actual macOS directory `DestinationExists`; test-only 2a22145b tightened that assertion and passed focused/fmt/strict. FFI generation direct0 produced checkpoint 81cc08eb and arm64 archive `f451870f53a740c17f179ecc81477f7c09b16aa0008bc32ef4754016691ddf80`; root verified source-before/after and generated names/hashes. Accepted archive 4a45 remains separate. Portable evidence packaging is in progress; this is not Swift/UI product acceptance.
+
+B source request `8638c362-1aef-4fda-9117-c5af79e50e92` is published through Git. The single SSH existing-chat queue attempt failed before delivery with `Host is down` (exit255); no queue ID or peer receipt exists. User was asked to wake/reconnect B; its ownership stays reserved. Retry delivery of this same request when reachable, never blindly create a duplicate request. Independent A reviewer researches an ISO gain-map known-good reference for the existing EXP-45 failure. No encoder/tolerance change or diagnostic runtime claimed.
+
 ## Owned Save As accepted; destination race gate active — 2026-09-28 08:31 UTC
 
 Main `11b31be6` integrates the exact accepted owned presenter. Product d695 passed 90 focused tests and full 642 XCTest/1 skip/0 failures plus 5 Swift Testing with archive 4a45. Isolated GUI exercised Cancel/repeat, chooser cancellation, create, same/different destination Replace cancel/confirm and actual reopen; evidence ede27821. Test-only a927 then passed real parent close during NSOpenPanel modal operation, suppressing folder completion and draining the actual captured sheet. No full 643 rerun, deallocation proof or normal-preview refresh is claimed. Historical genuine RED 375e2caa, failed native close probes 379ae615 and initial candidate compile failure cc9eb6f4 remain preserved. B result d9b94a94 completed through Git mailbox; publication alone is not a new peer acknowledgement.
