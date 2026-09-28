@@ -33,6 +33,18 @@
   errors and remain preserved separately from valid behavioral RED `6222f410`.
 - Normal user preview PID57591 remains untouched. A alone merges main.
 
+Latest gate outcomes (2026-09-28 02:06 UTC): native Stage B `96aa223a`
+passed six lifecycle controls, then late-mask test failed fixture Engine Arc
+lifetime; `f5a6b31e` fixes that fixture, UNRUN. Full Develop/adjacent/strict gates
+remain pending. Swift product hash72b64733 is unchanged; the first final gate
+hung on missing test semaphore releases, corrected run exited1/SIGSEGV because
+its noHandle wrapper omitted getHistogram forwarding. Both logs, process sample
+and crash report preserved. Test-only forwarding correction is running next on
+Luna's compiler slot; neither Swift nor native Stage B is accepted yet.
+B initial mask candidate986512b6 is source-review blocked by unsent successful
+reentrant edits. Result48f8e3c2 failed acceptance; revision request13fb8907 and
+SSH queue01a0e5c1-7602-7e12-a2d4-968944a95998 published, peer receipt pending.
+
 This checkpoint supersedes older in-progress ownership entries below.
 
 
