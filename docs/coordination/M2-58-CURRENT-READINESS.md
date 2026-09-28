@@ -1,6 +1,6 @@
 # M2-58 acceptance readiness — source-only audit (2026-09-28)
 
-## Reconciled candidate checkpoint — 2026-09-28 13:10 UTC
+## Reconciled candidate checkpoint — 2026-09-28 13:08 UTC
 
 The audit below is retained historical evidence. Reconciliation is now complete on `codex/m258-current-reconciliation`: native source c1c3b6cc, regenerated bindings abe317c0, visible diagnostics d53a969e, tests-only wrapper corrections f1d13c11, and launcher-only stdio relay9423956c. M2 product source remains unmerged into main. Native Release gates recorded579 named passes/29 ignored and strict/fmt/workspace direct0; full corrected Swift recorded660 XCTest passes/1skip plus5 Swift Testing passes/direct0. Main evidence packages preserve both the original Swift crash and corrected result.
 
