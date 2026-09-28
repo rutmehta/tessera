@@ -1,0 +1,25 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tools/orchestrate/wp/M2-58/tests/test_p11_capture_launcher.py"
+  ],
+  "cwd": "/Users/rutmehta/.codex/worktrees/export-integration/tessera",
+  "direct_exit": 0,
+  "duration_seconds": 0.7572147846221924,
+  "git_head": "32a05bd251e978f79445f600c632679d1e87ed9f",
+  "scope": "Python unit tests with temporary fixture app bundles and harmless stand-in helpers only; compiled capture helper not executed",
+  "source_hashes_after": {
+    "tools/orchestrate/wp/M2-58/P11-CAPTURE-LAUNCHER.md": "94edf6a87f8e3099a8bd426e83be5d65f4dda8be81144aeef9e42ee65b32abcd",
+    "tools/orchestrate/wp/M2-58/p11_capture_launcher.py": "9dc4930868f39d68a0237a4d814b649fe78116335541befd4d591b960f951f5a",
+    "tools/orchestrate/wp/M2-58/tests/test_p11_capture_launcher.py": "0ca03947787af3e4f6a46e875f0fce6bc64864e71b0ccffb3fae8c49b2898926"
+  },
+  "source_hashes_before": {
+    "tools/orchestrate/wp/M2-58/P11-CAPTURE-LAUNCHER.md": "94edf6a87f8e3099a8bd426e83be5d65f4dda8be81144aeef9e42ee65b32abcd",
+    "tools/orchestrate/wp/M2-58/p11_capture_launcher.py": "9dc4930868f39d68a0237a4d814b649fe78116335541befd4d591b960f951f5a",
+    "tools/orchestrate/wp/M2-58/tests/test_p11_capture_launcher.py": "0ca03947787af3e4f6a46e875f0fce6bc64864e71b0ccffb3fae8c49b2898926"
+  },
+  "sources_unchanged": true
+}
