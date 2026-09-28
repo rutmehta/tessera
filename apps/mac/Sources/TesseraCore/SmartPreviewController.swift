@@ -117,8 +117,9 @@ public struct SmartPreviewOutcome: Identifiable {
 /// Never used by routing or native admission; original availability is historical.
 private struct SmartPreviewLocalSavePresentation {
     let originalLastCheckedOffline: Bool
-    var badge: String {
-        "Smart Preview · Local edits saved · Status needs refresh · Thumbnail: last synchronized image"
+    func badge(source: EnginePreviewSource) -> String {
+        "Smart Preview · Local edits saved · Status needs refresh"
+            + (source == .smartPreview ? " · Thumbnail source: Smart Preview" : " · Thumbnail: last synchronized image")
             + (originalLastCheckedOffline ? " · Original last checked offline" : "")
     }
 }
@@ -132,10 +133,14 @@ public final class SmartPreviewController {
     public var selectedInfo: SmartPreviewSnapshot? { selectedImageID.flatMap { snapshots[$0] } }
     public var selectedPresentationWarning: String? {
         guard let id = selectedImageID, snapshots[id] == nil else { return nil }
-        return localSavePresentations[id]?.badge
+        return localSavePresentations[id]?.badge(source: thumbnailSource)
     }
     public func libraryBadge(imageID: String) -> String? {
-        guard let info = snapshots[imageID] else { return localSavePresentations[imageID]?.badge }
+        guard let info = snapshots[imageID] else { return localSavePresentations[imageID]?.badge(source: thumbnailSource) }
+        if thumbnailSource == .smartPreview {
+            // Identify the renderer, not an assertion that a pending/failed image is current.
+            return info.badge + " · Thumbnail source: Smart Preview"
+        }
         // A failed/stale/conflicting recheck cannot establish thumbnail freshness.
         let needsSavedWarning = localSavePresentations[imageID] != nil
             && !info.hasPendingEdits && info.originalAvailable
@@ -175,7 +180,16 @@ public final class SmartPreviewController {
     @ObservationIgnored private var revisions: [String: UUID] = [:]
     @ObservationIgnored public var onChange: ((String) -> Void)?
 
-    public init(api: SmartPreviewAPI? = nil) { self.api = api }
+    @ObservationIgnored public var onThumbnailInvalidation: ((String) -> Void)?
+    public let thumbnailSource: EnginePreviewSource
+    public var libraryThumbnailNotice: String {
+        thumbnailSource == .smartPreview
+            ? "Cached Library thumbnails render validated Smart Previews with local saved edits. Invalid or missing previews may have no thumbnail."
+            : SmartPreviewSnapshot.libraryThumbnailNotice
+    }
+    public init(api: SmartPreviewAPI? = nil, thumbnailSource: EnginePreviewSource = .original) {
+        self.api = api; self.thumbnailSource = thumbnailSource
+    }
     public var progressLabel: String {
         if isRunning {
             if cancelRequested { return "Stopping after current photo · \(results.count)/\(total)" }
@@ -289,6 +303,7 @@ public final class SmartPreviewController {
             }
             activeName = target.name
             revisions[target.id] = UUID() // invalidate older selection reads
+            onThumbnailInvalidation?(target.id)
             do {
                 let info: SmartPreviewSnapshot
                 switch action {
@@ -320,6 +335,8 @@ public final class SmartPreviewController {
                 results.append(.init(id: target.id, name: target.name, succeeded: false, message: error.localizedDescription))
             }
             revisions[target.id] = UUID() // suppress reads started during the native operation
+            // Also retire work started during the mutation, including partial native failure.
+            onThumbnailInvalidation?(target.id)
             onChange?(target.id)
         }
     }

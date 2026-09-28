@@ -72,6 +72,8 @@ final class ThumbnailCell: NSCollectionViewItem {
     func refreshThumbnail(loader: ThumbnailLoader) {
         guard let item = representedItem else { return }
         request?.cancel()
+        // A discarded/invalid proxy must not leave its old bitmap presented forever.
+        if item.engineImage?.previewSource == .smartPreview { cellView.setImage(nil) }
         request = loader.request(item, tier: .thumbnail, priority: .high) { [weak self] image in
             guard let self, self.representedItem == item else { return }
             self.cellView.setImage(image)
