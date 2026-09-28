@@ -1,3 +1,9 @@
+## Final instrumentation stage under review; actual focus trace implementation requested
+
+FFI reports exact `e4f573d2`: compile, uncached CPU/Metal control, strict and formatting pass. The unchanged six original contracts execute with one existing cold-validation control pass and five failures at missing initial decision publication (entries 0 versus 1), after backend and measurement assertions. Cache is still absent and later reuse assertions remain latent. Earlier instrumentation and formatting failures are preserved. Runtime is released; independent immutable-source review is active before cache implementation.
+
+B proposal `83172f16` passed root source/hash review on main `c83207a1`; proposal result `774107e9` has a completed receipt scoped only to that review. Trace implementation request `7bd5595f-cd4b-4cf9-ac56-83e04e7d214f` is published; SSH queue `01a0ea40-8727-7d10-a873-a885a6e5854c` accepted, peer receipt pending. Source-only diagnostic implementation is explicitly authorized, not a routing fix. The failed hosted diagnostic stays preserved separately rather than being mislabeled a passing regression.
+
 ## Instrumentation qualification active; B diagnostic refinement requested
 
 Source-only instrumentation `245c9095` passed independent review. FFI now owns exclusive compile/GPU runtime for uncached CPU/Metal controls, unchanged original cache contracts and strict/format checks. Cache remains absent; the next expected failure is missing initial publication, not yet a demonstrated reuse failure. Real validation and backend materialization remain required.
