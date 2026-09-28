@@ -1,5 +1,16 @@
 # Machine A recovery status
 
+## Visible capability blocked; independent source work continues — 2026-09-28 13:05 UTC
+
+Exact-tested f1d13c11 app passed package provenance and signature checks. Three bounded visible attempts all failed with runner direct exit1 and no trace/receipt. First external-volume stdio creation was denied to xpcproxy; precreating those files then encountered a read denial. Runner-only9423956c adds fresh stdio relay support and records runner hashes; its eight Python checks passed. The third attempt launched exact owned PID67652 through /tmp stdio, but no regular visible app window appeared during startup. A saved process sample places the main thread in isolated app-support directory creation. UserNotificationCenter is foreground; the dialog wording is unverified because the desktop tool explicitly denied access to that protected app.
+
+The runner requested identity-checked graceful termination, but67652 remained alive. Preserve that process and failed run pending the user’s answer about the possible removable-volume prompt. No force termination, alternate protected-UI access, settings change, or further app launch is authorized by this checkpoint. Normal preview57591 is unchanged. This is an environment/visibility blocker, not a P01/P11 success; no acceptance threshold is waived.
+
+Luna continues the reviewed nonce-bound qualified P01 interval implementation and deterministic source tests in the existing candidate checkout, without desktop/runtime work. Astra independently packages all three failures with explicitly privacy-minimized window observations and original local-file hashes; foreign window titles stay local. A second Luna reviews the filename-alias admission design. The earlier native579-pass and full Swift660-pass/1skip plus5 results remain the verified gates; M2 product is not merged.
+
+Fetch and Git mailbox poll found no new B messages or in-progress receipts. Native B snapshot is unavailable and says nothing about peer execution. Existing destination request8638c362 remains reserved, with no duplicate dispatch or claimed receipt/wakeup. B remains source-only; A alone integrates main.
+
+
 ## Current Swift gates pass; isolated capability next — 2026-09-28 12:42 UTC
 
 Tests-only correctionf1d13c11 changes eight stale noHandle forwarding adapters, preserving fault injection/interactive counters and forwarding inputID to their real wrapped sessions. Root/Astra reviewed exact source. Focused94 passed/direct0. Full Release completed661 XCTest cases (660 named passes,1skip,0fail) plus5 Swift Testing tests/direct0. The94 focused tests are a subset, not additional distinct coverage. The d53 crash remains preserved as a genuine failed attempt; no assertions or product behavior were weakened.
