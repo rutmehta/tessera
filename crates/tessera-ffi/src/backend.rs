@@ -237,9 +237,13 @@ fn select_at(
         None => preference,
     };
     let clear_decisions = || {
-        if let Some(reuse) = reuse { reuse.store.clear(); }
+        if let Some(reuse) = reuse {
+            reuse.store.clear();
+        }
         #[cfg(all(test, target_os = "macos"))]
-        if let Some(observer) = observer { observer.lock().unwrap().probe.entries = 0; }
+        if let Some(observer) = observer {
+            observer.lock().unwrap().probe.entries = 0;
+        }
     };
     if preference.eq_ignore_ascii_case("cpu") {
         return cpu;
@@ -290,7 +294,11 @@ fn select_at(
     }
     // Recheck the actual GPU candidate even for a previously measured CPU
     // winner. The temporary renderer owns no cache state retained by Store.
-    let supported = reuse.is_some() && gpu.renderer().can_render_resident(image, settings).unwrap_or(false);
+    let supported = reuse.is_some()
+        && gpu
+            .renderer()
+            .can_render_resident(image, settings)
+            .unwrap_or(false);
     #[cfg(all(test, target_os = "macos"))]
     if let Some(state) = observer {
         let mut state = state.lock().unwrap();
@@ -299,21 +307,31 @@ fn select_at(
         state.probe.capability_headroom = settings.output.hdr_headroom_stops;
         state.probe.capability_supported = supported;
     }
-    let eligible = reuse.is_some_and(|r| supported && proxy_decision_cache::self_contained(r.settings, r.process));
+    let eligible = reuse
+        .is_some_and(|r| supported && proxy_decision_cache::self_contained(r.settings, r.process));
     #[cfg(all(test, target_os = "macos"))]
-    let eligible = eligible && observer.is_none_or(|s| !s.lock().unwrap().cache_disabled)
+    let eligible = eligible
+        && observer.is_none_or(|s| !s.lock().unwrap().cache_disabled)
         && !matches!(control, Some(SelectionControl::UnversionedExternal));
     let cache_key = if eligible {
         reuse.and_then(|r| {
             let extent = Renderer::output_extent(image, settings, level).ok()?;
             proxy_decision_cache::key(&proxy_decision_cache::KeyInputs {
-                asset: r.asset, settings: r.settings, recipe_process: r.process,
-                config: &config, device: device_identity?,
-                calibration_level: level, calibration_extent: [extent.width, extent.height],
-                sink_policy_version: 1, selector_policy_version: 1,
-            }).ok()
+                asset: r.asset,
+                settings: r.settings,
+                recipe_process: r.process,
+                config: &config,
+                device: device_identity?,
+                calibration_level: level,
+                calibration_extent: [extent.width, extent.height],
+                sink_policy_version: 1,
+                selector_policy_version: 1,
+            })
+            .ok()
         })
-    } else { None };
+    } else {
+        None
+    };
     if let (Some(r), Some(key)) = (reuse, cache_key) {
         let decision = r.store.lookup(key);
         #[cfg(all(test, target_os = "macos"))]
@@ -326,7 +344,13 @@ fn select_at(
         }
         if let Some(decision) = decision {
             // Device loss may arrive while operators/key are being prepared.
-            if health.as_ref().is_some_and(|d| d.device_failure().is_some()) { clear_decisions(); return cpu; }
+            if health
+                .as_ref()
+                .is_some_and(|d| d.device_failure().is_some())
+            {
+                clear_decisions();
+                return cpu;
+            }
             return match decision {
                 proxy_decision_cache::Decision::Cpu => cpu,
                 proxy_decision_cache::Decision::Metal => gpu,
@@ -334,7 +358,9 @@ fn select_at(
         }
     }
     #[cfg(all(test, target_os = "macos"))]
-    if let Some(observer) = observer { observer.lock().unwrap().probe.measurements += 1; }
+    if let Some(observer) = observer {
+        observer.lock().unwrap().probe.measurements += 1;
+    }
     let measured = || {
         (
             measure_at(&cpu.renderer(), image, settings, level),
@@ -357,12 +383,18 @@ fn select_at(
     let samples = measured();
     match samples {
         (Ok(c), Ok(g)) => {
-            if reuse.is_some() && health.as_ref().is_some_and(|d| d.device_failure().is_some()) {
+            if reuse.is_some()
+                && health
+                    .as_ref()
+                    .is_some_and(|d| d.device_failure().is_some())
+            {
                 clear_decisions();
                 return cpu;
             }
             if let (Some(r), Some(key)) = (reuse, cache_key) {
-                let published = r.store.publish(key, proxy_decision_cache::Samples { cpu: c, gpu: g });
+                let published = r
+                    .store
+                    .publish(key, proxy_decision_cache::Samples { cpu: c, gpu: g });
                 #[cfg(all(test, target_os = "macos"))]
                 if let Some(observer) = observer {
                     let entries = r.store.len();
@@ -388,7 +420,12 @@ fn select_at(
         (_, Err(e)) => eprintln!("develop: GPU calibration failed, using CPU: {e}"),
         (Err(e), _) => eprintln!("develop: CPU calibration failed, retaining CPU: {e}"),
     }
-    if health.as_ref().is_some_and(|d| d.device_failure().is_some()) { clear_decisions(); }
+    if health
+        .as_ref()
+        .is_some_and(|d| d.device_failure().is_some())
+    {
+        clear_decisions();
+    }
     cpu
 }
 
@@ -397,24 +434,39 @@ fn device_identity(device: &gpu_core::GpuDevice) -> proxy_decision_cache::Device
     h.update(b"tessera proxy adapter v1\0");
     let a = &device.adapter_info;
     for value in [&a.name, &a.driver, &a.driver_info] {
-        h.update(&(value.len() as u64).to_le_bytes()); h.update(value.as_bytes());
+        h.update(&(value.len() as u64).to_le_bytes());
+        h.update(value.as_bytes());
     }
-    h.update(&a.vendor.to_le_bytes()); h.update(&a.device.to_le_bytes());
+    h.update(&a.vendor.to_le_bytes());
+    h.update(&a.device.to_le_bytes());
     // wgpu's numeric backend/device-type discriminants are not persistent API;
     // use explicit tags within this versioned in-process key domain.
-    let backend = match a.backend { wgpu::Backend::Noop => 0, wgpu::Backend::Vulkan => 1,
-        wgpu::Backend::Metal => 2, wgpu::Backend::Dx12 => 3, wgpu::Backend::Gl => 4,
-        wgpu::Backend::BrowserWebGpu => 5 };
-    let kind = match a.device_type { wgpu::DeviceType::Other => 0, wgpu::DeviceType::IntegratedGpu => 1,
-        wgpu::DeviceType::DiscreteGpu => 2, wgpu::DeviceType::VirtualGpu => 3, wgpu::DeviceType::Cpu => 4 };
+    let backend = match a.backend {
+        wgpu::Backend::Noop => 0,
+        wgpu::Backend::Vulkan => 1,
+        wgpu::Backend::Metal => 2,
+        wgpu::Backend::Dx12 => 3,
+        wgpu::Backend::Gl => 4,
+        wgpu::Backend::BrowserWebGpu => 5,
+    };
+    let kind = match a.device_type {
+        wgpu::DeviceType::Other => 0,
+        wgpu::DeviceType::IntegratedGpu => 1,
+        wgpu::DeviceType::DiscreteGpu => 2,
+        wgpu::DeviceType::VirtualGpu => 3,
+        wgpu::DeviceType::Cpu => 4,
+    };
     h.update(&[backend, kind]);
     let c = device.capabilities;
     proxy_decision_cache::DeviceIdentity {
         // Engine's OnceLock device cannot be replaced. A future reset API must
         // allocate a new generation (and clear Store) before this may change.
-        generation: 1, adapter_fingerprint: *h.finalize().as_bytes(),
-        capability_flags: u8::from(c.timestamp_query) | u8::from(c.shader_f16) << 1
-            | u8::from(c.rgba16float_storage) << 2 | u8::from(c.passthrough_shaders) << 3,
+        generation: 1,
+        adapter_fingerprint: *h.finalize().as_bytes(),
+        capability_flags: u8::from(c.timestamp_query)
+            | u8::from(c.shader_f16) << 1
+            | u8::from(c.rgba16float_storage) << 2
+            | u8::from(c.passthrough_shaders) << 3,
     }
 }
 

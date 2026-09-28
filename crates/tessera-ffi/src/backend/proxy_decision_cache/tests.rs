@@ -443,11 +443,12 @@ fn graph_fingerprint_includes_stage_frame_order_count_and_flags() {
     }
 }
 
-
 #[test]
 fn encoding_tag_changes_key_and_store_wrapper_is_bounded() {
-    let settings = DevelopSettings::default(); let config = RendererConfig::default();
-    let a = input(&settings, &config); let mut b = input(&settings, &config);
+    let settings = DevelopSettings::default();
+    let config = RendererConfig::default();
+    let a = input(&settings, &config);
+    let mut b = input(&settings, &config);
     b.asset.encoding ^= 1;
     assert_ne!(key(&a).unwrap(), key(&b).unwrap());
     assert!(std::mem::size_of::<Store>() <= 8192);
@@ -456,31 +457,51 @@ fn encoding_tag_changes_key_and_store_wrapper_is_bounded() {
 #[test]
 fn poisoned_advisory_store_clears_and_bypasses_without_repairing_poison() {
     let store = Store::default();
-    assert!(store.publish(k(1), Samples { cpu: [2.; 3], gpu: [1.; 3] }));
+    assert!(store.publish(
+        k(1),
+        Samples {
+            cpu: [2.; 3],
+            gpu: [1.; 3]
+        }
+    ));
     let result = std::panic::catch_unwind(|| {
         let _held = store.cache.lock().unwrap();
         panic!("controlled poisoned advisory mutex");
     });
     assert!(result.is_err());
     assert_eq!(store.lookup(k(1)), None);
-    assert!(!store.publish(k(2), Samples { cpu: [2.; 3], gpu: [1.; 3] }));
+    assert!(!store.publish(
+        k(2),
+        Samples {
+            cpu: [2.; 3],
+            gpu: [1.; 3]
+        }
+    ));
     assert_eq!(store.cache.lock().err().unwrap().into_inner().len(), 0);
 }
 
 #[test]
 fn real_external_dependency_fields_deny_reuse_even_when_disabled() {
-    let base = DevelopSettings::default(); let process = ProcessVersion::NATIVE_CURRENT;
+    let base = DevelopSettings::default();
+    let process = ProcessVersion::NATIVE_CURRENT;
     assert!(self_contained(&base, process));
-    let mut profile = base.clone(); profile.camera_profile.profile.name = "mutable-profile.dcp".into();
+    let mut profile = base.clone();
+    profile.camera_profile.profile.name = "mutable-profile.dcp".into();
     assert!(!self_contained(&profile, process));
-    let mut lut = base.clone(); lut.color.lut = Some(Default::default());
+    let mut lut = base.clone();
+    lut.color.lut = Some(Default::default());
     assert!(!self_contained(&lut, process));
-    let mut proof = base.clone(); proof.output.proof_profile = Some(engine_api::color::IccProfileHandle::from_profile_bytes(b"mutable-proof"));
+    let mut proof = base.clone();
+    proof.output.proof_profile = Some(engine_api::color::IccProfileHandle::from_profile_bytes(
+        b"mutable-proof",
+    ));
     assert!(!self_contained(&proof, process));
-    let mut local = base.clone(); local.locals.adjustments.push(Default::default());
+    let mut local = base.clone();
+    local.locals.adjustments.push(Default::default());
     local.locals.adjustments[0].enabled = false;
     assert!(!self_contained(&local, process));
-    let mut blur = base.clone(); blur.effects.lens_blur = Some(Default::default());
+    let mut blur = base.clone();
+    blur.effects.lens_blur = Some(Default::default());
     blur.effects.lens_blur.as_mut().unwrap().amount = 0.;
     assert!(!self_contained(&blur, process));
     assert!(!self_contained(&base, ProcessVersion::adobe(6)));

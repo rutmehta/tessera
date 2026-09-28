@@ -235,7 +235,13 @@ impl Cache {
         self.ordinal
     }
     /// now_ns is measurement completion, not start. Cache hits never change it.
-    pub(crate) fn insert(&mut self, key: Key, outcome: SelectionOutcome, policy: Policy, now_ns: u64) -> bool {
+    pub(crate) fn insert(
+        &mut self,
+        key: Key,
+        outcome: SelectionOutcome,
+        policy: Policy,
+        now_ns: u64,
+    ) -> bool {
         if !self.allowed(policy) {
             return false;
         }
@@ -330,29 +336,46 @@ pub(crate) struct Store {
 }
 impl Default for Store {
     fn default() -> Self {
-        Self { cache: std::sync::Mutex::new(Cache::new()), started: std::time::Instant::now() }
+        Self {
+            cache: std::sync::Mutex::new(Cache::new()),
+            started: std::time::Instant::now(),
+        }
     }
 }
 impl Store {
-    fn now(&self) -> u64 { self.started.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64 }
+    fn now(&self) -> u64 {
+        self.started.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64
+    }
     pub(crate) fn lookup(&self, key: Key) -> Option<Decision> {
         // Poison is advisory failure, never a new image-open error. Clear retained
         // records but leave poison set, so this Engine permanently bypasses reuse.
         match self.cache.lock() {
             Ok(mut cache) => cache.lookup(key, AUTO, self.now()),
-            Err(e) => { e.into_inner().clear(); None }
+            Err(e) => {
+                e.into_inner().clear();
+                None
+            }
         }
     }
     pub(crate) fn publish(&self, key: Key, samples: Samples) -> bool {
         let completed_ns = self.now();
         match self.cache.lock() {
-            Ok(mut cache) => cache.insert(key, SelectionOutcome::Measured(samples), AUTO, completed_ns),
-            Err(e) => { e.into_inner().clear(); false }
+            Ok(mut cache) => {
+                cache.insert(key, SelectionOutcome::Measured(samples), AUTO, completed_ns)
+            }
+            Err(e) => {
+                e.into_inner().clear();
+                false
+            }
         }
     }
-    pub(crate) fn clear(&self) { self.cache.lock().unwrap_or_else(|e| e.into_inner()).clear(); }
+    pub(crate) fn clear(&self) {
+        self.cache.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    }
     #[cfg(all(test, target_os = "macos"))]
-    pub(crate) fn len(&self) -> usize { self.cache.lock().unwrap_or_else(|e| e.into_inner()).len() }
+    pub(crate) fn len(&self) -> usize {
+        self.cache.lock().unwrap_or_else(|e| e.into_inner()).len()
+    }
 }
 const _: () = assert!(std::mem::size_of::<Store>() <= 8192);
 

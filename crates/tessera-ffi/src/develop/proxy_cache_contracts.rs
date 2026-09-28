@@ -63,7 +63,10 @@ impl Engine {
         let old = &state.probe;
         state.probe = Probe {
             validations: old.validations + 1,
-            lookups: old.lookups, hits: old.hits, publications: old.publications, entries: old.entries,
+            lookups: old.lookups,
+            hits: old.hits,
+            publications: old.publications,
+            entries: old.entries,
             measurements: old.measurements,
             capability_checks: old.capability_checks,
             key_hdr: settings.output.hdr,
@@ -533,17 +536,20 @@ fn uncached_selection_controls_materialize_real_backends_without_cache() {
     }
 }
 
-
 #[test]
 #[ignore = "copied RAW; actual named profile/LUT settings bypass, no resolver-content claim"]
 fn persisted_external_settings_bypass_lookup_and_publication() {
-    for patch in [json!({"camera_profile":{"profile":"mutable-profile.dcp"}}),
-        json!({"color":{"lut":{"style":"mutable-lut","amount":0.0}}})] {
+    for patch in [
+        json!({"camera_profile":{"profile":"mutable-profile.dcp"}}),
+        json!({"color":{"lut":{"style":"mutable-lut","amount":0.0}}}),
+    ] {
         let f = Fixture::new(false);
         f.prime(SelectionControl::MeasuredCpu);
         let session = f.open();
         session.set_settings(patch.to_string(), false).unwrap();
-        session.flush().unwrap(); session.close().unwrap(); drop(session);
+        session.flush().unwrap();
+        session.close().unwrap();
+        drop(session);
         let before = f.engine.cache_probe_for_test();
         f.cycle();
         let after = f.engine.cache_probe_for_test();

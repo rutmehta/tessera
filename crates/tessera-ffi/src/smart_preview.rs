@@ -206,7 +206,13 @@ impl Engine {
         #[cfg(all(test, target_os = "macos"))] observation: Option<
             &mut crate::develop::proxy_cache_contracts::Probe,
         >,
-    ) -> Result<(SmartPreviewJournal, JournalSnapshot, RawImage, PathBuf, crate::backend::proxy_decision_cache::AssetIdentity)> {
+    ) -> Result<(
+        SmartPreviewJournal,
+        JournalSnapshot,
+        RawImage,
+        PathBuf,
+        crate::backend::proxy_decision_cache::AssetIdentity,
+    )> {
         let (journal, snapshot) = self
             .local_smart_preview(id)?
             .ok_or_else(|| failure("Smart Preview missing"))?;
@@ -232,14 +238,25 @@ impl Engine {
             render_id.0 ^= 1;
         }
         let identity = crate::backend::proxy_decision_cache::AssetIdentity {
-            owner: id.0.to_le_bytes(), container_digest: decoded.container_digest,
+            owner: id.0.to_le_bytes(),
+            container_digest: decoded.container_digest,
             original_digest: decoded.proxy.original_content_digest(),
             original_length: decoded.original_byte_length,
-            incarnation: journal.incarnation(), journal_generation: snapshot.generation,
+            incarnation: journal.incarnation(),
+            journal_generation: snapshot.generation,
             recipe_digest: snapshot.recipe_digest,
-            dimensions: [decoded.proxy.pixels().width(), decoded.proxy.pixels().height()],
-            tier: match decoded.proxy.tier() { pipeline_cpu::SmartPreviewTier::Detail2560 => 1, pipeline_cpu::SmartPreviewTier::Compact2048 => 2 },
-            encoding: match decoded.encoding { pipeline_cpu::SmartPreviewEncoding::F32 => 1, pipeline_cpu::SmartPreviewEncoding::F16 => 2 },
+            dimensions: [
+                decoded.proxy.pixels().width(),
+                decoded.proxy.pixels().height(),
+            ],
+            tier: match decoded.proxy.tier() {
+                pipeline_cpu::SmartPreviewTier::Detail2560 => 1,
+                pipeline_cpu::SmartPreviewTier::Compact2048 => 2,
+            },
+            encoding: match decoded.encoding {
+                pipeline_cpu::SmartPreviewEncoding::F32 => 1,
+                pipeline_cpu::SmartPreviewEncoding::F16 => 2,
+            },
             format_version,
         };
         #[cfg(all(test, target_os = "macos"))]

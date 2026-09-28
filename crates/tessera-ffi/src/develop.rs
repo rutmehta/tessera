@@ -1221,7 +1221,12 @@ impl Engine {
         recipe: &Recipe,
         calibration_identity: Option<crate::backend::proxy_decision_cache::AssetIdentity>,
     ) -> Result<DevelopRenderResources> {
-        let (renderer, backend) = self.develop_renderer(image, &recipe.settings, calibration_identity, recipe.process_version);
+        let (renderer, backend) = self.develop_renderer(
+            image,
+            &recipe.settings,
+            calibration_identity,
+            recipe.process_version,
+        );
         let masks = masks::MaskShared::new(image);
         renderer
             .mask_cache()

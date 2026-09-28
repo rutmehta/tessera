@@ -274,7 +274,12 @@ impl Engine {
                 image,
                 settings,
                 || self.shared_gpu(),
-                identity.map(|asset| backend::ProxyReuse { asset, store: &self.proxy_decisions, settings, process }),
+                identity.map(|asset| backend::ProxyReuse {
+                    asset,
+                    store: &self.proxy_decisions,
+                    settings,
+                    process,
+                }),
                 #[cfg(all(test, target_os = "macos"))]
                 observer,
             );
