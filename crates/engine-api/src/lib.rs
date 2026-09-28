@@ -28,6 +28,7 @@ pub mod error;
 pub mod id;
 pub mod jobs;
 pub mod people;
+pub mod pinned_raw;
 pub mod recipe;
 pub mod stage;
 pub mod tile;
