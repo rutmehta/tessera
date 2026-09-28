@@ -90,12 +90,14 @@ final class DevelopRecoveryCoordinator {
         let token: UUID
         let task: Task<Void, Never>
         var produced: DevelopController?
+        var transferred = false
     }
 
     private(set) var presentations: [Presentation] = []
     @ObservationIgnored private var records: [SessionID: Record] = [:]
     @ObservationIgnored private var gates: [UUID: GateRecord] = [:]
     @ObservationIgnored private var opens: [UUID: OpenTicket] = [:]
+    @ObservationIgnored private var closedSessions: [SessionID] = []
     @ObservationIgnored private var generation: UInt64 = 0
 
     func register(owner: EngineLibrary?, controller: DevelopController, displayName: String) -> SessionID {
@@ -119,19 +121,41 @@ final class DevelopRecoveryCoordinator {
         }
     }
 
+    func canMutate(owner: EngineLibrary, imageID: String) -> Bool {
+        !gates.values.contains { $0.owner === owner && $0.imageIDs.contains(imageID) }
+    }
+
     func beginOpen(owner: EngineLibrary, imageID: String, token: UUID, task: Task<Void, Never>) {
         opens[token] = OpenTicket(owner: owner, key: Key(owner: owner, imageID: imageID),
                                   token: token, task: task, produced: nil)
         changed()
     }
 
-    func producedOpen(_ controller: DevelopController, token: UUID) {
+    @discardableResult
+    func producedOpen(_ controller: DevelopController, owner: EngineLibrary, token: UUID) -> Bool {
+        guard opens[token] != nil else {
+            // A late backend result is still a live native session. Retain it and
+            // attempt cleanup; any failure remains visible by session ID.
+            let id = register(owner: owner, controller: controller, displayName: controller.imageID)
+            _ = requestClose(id)
+            return false
+        }
         opens[token]?.produced = controller
+        changed()
+        return true
+    }
+
+    func transferOpen(token: UUID) {
+        opens[token]?.transferred = true
         changed()
     }
 
     func finishOpen(token: UUID) {
-        opens.removeValue(forKey: token)
+        guard let ticket = opens.removeValue(forKey: token) else { return }
+        if let controller = ticket.produced, !ticket.transferred {
+            let id = register(owner: ticket.owner, controller: controller, displayName: controller.imageID)
+            _ = requestClose(id)
+        }
         changed()
     }
 
@@ -141,7 +165,10 @@ final class DevelopRecoveryCoordinator {
     }
 
     func requestClose(_ id: SessionID) -> Task<Outcome, Never> {
-        guard let record = records[id] else { return Task { .saved } }
+        guard let record = records[id] else {
+            if closedSessions.contains(id) { return Task { .saved } }
+            return Task { .failed(sessionID: id, message: "Develop session is no longer available") }
+        }
         if let task = record.task { return task }
         let attemptID = UUID()
         record.attemptID = attemptID
@@ -169,6 +196,8 @@ final class DevelopRecoveryCoordinator {
         switch outcome {
         case .saved:
             records.removeValue(forKey: id)
+            closedSessions.append(id)
+            if closedSessions.count > 128 { closedSessions.removeFirst(closedSessions.count - 128) }
         case .failed(_, let message):
             record.phase = .failed(message)
         }
