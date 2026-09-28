@@ -1,0 +1,21 @@
+# Develop admission error controls
+
+Status: tests-only, UNRUN. Base `f627c4a071b7e4a35c2a114917cb726ab793d458`, branch `codex/develop-admission-error-tests`. No native lease implementation or Swift product changes are included. These controls are expected to pass if current AppModel behavior is correct; no artificial RED or production mutation is proposed.
+
+Independent current-source audit is `/tmp/tessera-stagec-ui-readiness-20260928.md`. Accepted recovery (`2760ebeb`) and retry-status (`291857e1`) already cover failed close, retained owner/controller, Retry/Keep Editing, navigation and window blocking, and successful reopen. These new cases cover the distinct native open rejection that exclusive editor leases will make an expected outcome.
+
+## Tests and discrimination
+
+Both additions are in `apps/mac/Tests/TesseraCoreTests/DevelopRecoveryCoordinatorTests.swift`, using the existing AppModel opener injection, generated 64×48 JPEG fixture, real EngineLibrary, real recovery coordinator, and real successful DevelopController/native session.
+
+1. `testThrownAdmissionErrorIsVisibleAndFreshOpenSucceedsAfterReentry`: hold the opener with a checked continuation; throw a test LocalizedError; drain its ordinary observing barrier. Require visible unavailable text, no controller or unresolved recovery/reservation, and unchanged owner/selection/focus. Use actual return-to-Library and enter-Photo-Edit methods, then invoke the normal Loupe selection-triggered open explicitly (no view is mounted in this test). The next opener calls the real DevelopController.open, must install ready, then close successfully. This catches lost error publication, an orphan pending ticket, or a failed fresh admission. The injected message is a transport sentinel, not a promised native lease error string.
+
+2. `testSupersededAdmissionErrorPreservesReplacementLoadingAndReadyState`: independently exercise the old failure arriving while the replacement is held loading and after it is ready. The original pending opener ignores cancellation until its continuation throws; the replacement belongs to another real EngineLibrary/source. Require old failure settlement to preserve the new owner/focus/state, install or retain the exact new controller, and leave only that editor's recovery record. Successful close must drain all ownership. This catches stale failure publication or an old deferred settlement clearing a new pending token.
+
+The only helper change adds a throwing-resume method to the existing checked-continuation opener; teardown already cancels unconsumed continuations. No sleeps, timing-based race assumption, native fault seam, product hook, or private token assertion is introduced. Existing observing save barriers await the actual pending task and do not cancel or auto-close the successful editor. XCTest entry expectations have the existing bounded five-second deadline.
+
+## Validation boundary
+
+No compiler/runtime has been invoked for this checkpoint. Root must review the exact test fixture and checkpoint before granting a serial runtime lane. Future Swift validation must use an external BetterSSD scratch path and a known compatible archive with generated Swift/C binding and source/archive hashes recorded before/after; do not populate internal build caches. Run the two new methods and adjacent recovery coordinator/admission/state controls under that grant. A passing control is valid. Preserve any harness/compile failure or genuine behavioral failure before changing anything, and request review before any product fix.
+
+These tests exercise the UI response to an injected native-open failure; they do not prove native lease acquisition/release, the native conflict message, actual second-Engine rejection, failed-open RAII cleanup, or close-drain lease release. Those remain Stage C native tests and exact-checkpoint integration checks. They do not extend global Quit, all-writer durability, B Document/Save As, or performance acceptance.
