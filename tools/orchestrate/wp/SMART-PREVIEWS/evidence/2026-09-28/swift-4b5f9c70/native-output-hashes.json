@@ -1,0 +1,14 @@
+{
+  "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/libtessera_ffi.a": {
+    "bytes": 300204568,
+    "sha256": "016aaf3a5d7bd6fb60ec9df68b1d2862915c3b0cc85335c15f5e8621b13f4da6"
+  },
+  "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/libtessera_ffi.dylib": {
+    "bytes": 85040720,
+    "sha256": "934a6ba9a31671dc121d87ed3995e5f9004793459ad9d869d85d64dcc636f2dc"
+  },
+  "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/uniffi-bindgen": {
+    "bytes": 7988896,
+    "sha256": "918883f5d637b7a5f2b04f154115ee2c95a0ccba6567de37abdf65debaa64bbe"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "13-actual-offline-swift-relative-hashes": {
+    "exit": 0,
+    "git_inputs": 7014,
+    "generated_and_archive": {
+      "apps/mac/build/ffi/CTesseraFFI.h": "8af3a36e804fd7337c1026be55dc68aa4e610e65fc8a0bbb05c95305f6db2dc6",
+      "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "apps/mac/build/ffi/TesseraFFI.swift": "d6e706bda66a3c675254bfbf230c78852780351aa67dbe445fdd12d0593ccecc",
+      "apps/mac/build/ffi/libtessera_ffi.a": "2d2ab32b5cdc73338eb3e58088f261622c23d5c46cbb8ea1a4eaf29867ed15e5"
+    },
+    "source_freeze": true
+  },
+  "15-document-transform": {
+    "exit": 0,
+    "git_inputs": 7014,
+    "generated_and_archive": {
+      "apps/mac/build/ffi/CTesseraFFI.h": "8af3a36e804fd7337c1026be55dc68aa4e610e65fc8a0bbb05c95305f6db2dc6",
+      "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "apps/mac/build/ffi/TesseraFFI.swift": "d6e706bda66a3c675254bfbf230c78852780351aa67dbe445fdd12d0593ccecc",
+      "apps/mac/build/ffi/libtessera_ffi.a": "2d2ab32b5cdc73338eb3e58088f261622c23d5c46cbb8ea1a4eaf29867ed15e5"
+    },
+    "source_freeze": true
+  },
+  "16-strict-swift-product": {
+    "exit": 0,
+    "git_inputs": 7014,
+    "generated_and_archive": {
+      "apps/mac/build/ffi/CTesseraFFI.h": "8af3a36e804fd7337c1026be55dc68aa4e610e65fc8a0bbb05c95305f6db2dc6",
+      "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "apps/mac/build/ffi/TesseraFFI.swift": "d6e706bda66a3c675254bfbf230c78852780351aa67dbe445fdd12d0593ccecc",
+      "apps/mac/build/ffi/libtessera_ffi.a": "2d2ab32b5cdc73338eb3e58088f261622c23d5c46cbb8ea1a4eaf29867ed15e5"
+    },
+    "source_freeze": true
+  }
+}

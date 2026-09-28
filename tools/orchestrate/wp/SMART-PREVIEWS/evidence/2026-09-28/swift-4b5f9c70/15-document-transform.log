@@ -1,0 +1,55 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.21s)
+Test Suite 'Selected tests' started at 2026-09-28 14:30:04.050.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 14:30:04.052.
+Test Suite 'DocumentTransformTests' started at 2026-09-28 14:30:04.052.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testContentAwareBoxHandlesProportionsAndLimits]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testContentAwareBoxHandlesProportionsAndLimits]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEnginePuppetMeshAndProtectionChannels]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEnginePuppetMeshAndProtectionChannels]' passed (0.195 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode]' passed (0.016 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSplitAddsLinesWithoutMovingTheSurface]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSplitAddsLinesWithoutMovingTheSurface]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testOperationJSONCarriesKernelAndNeverAProtectMask]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testOperationJSONCarriesKernelAndNeverAProtectMask]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveQuadsArePerimeterOrderedAndRoundTrip]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveQuadsArePerimeterOrderedAndRoundTrip]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveSplitKeepsTheWarpedImageInPlace]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveSplitKeepsTheWarpedImageInPlace]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPresetsBendZeroIsIdentityAndInvalidBendFails]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPresetsBendZeroIsIdentityAndInvalidBendFails]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetModelRoundTripsAndPinsNeverJump]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetModelRoundTripsAndPinsNeverJump]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetRebaseKeepsPinsOnTheNearestNewVertex]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetRebaseKeepsPinsOnTheNearestNewVertex]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformDeleteVariantsAndEscapeRequireUnmodifiedKeys]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformKeyRoutingIgnoresOnlyIncidentalFlags]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformKeyRoutingIgnoresOnlyIncidentalFlags]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformReturnAndEnterUseTheSameModifierGuard]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testTransformReturnAndEnterUseTheSameModifierGuard]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpAnchorDragCarriesItsHandles]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpAnchorDragCarriesItsHandles]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpMeshJSONMatchesTheEngineSchema]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpMeshJSONMatchesTheEngineSchema]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity]' passed (0.000 seconds).
+Test Suite 'DocumentTransformTests' passed at 2026-09-28 14:30:04.267.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.214 (0.215) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-28 14:30:04.267.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.214 (0.215) seconds
+Test Suite 'Selected tests' passed at 2026-09-28 14:30:04.267.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.214 (0.217) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

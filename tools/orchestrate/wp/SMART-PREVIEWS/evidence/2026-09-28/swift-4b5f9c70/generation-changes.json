@@ -1,0 +1,7 @@
+[
+  "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h",
+  "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+  "apps/mac/build/ffi/CTesseraFFI.h",
+  "apps/mac/build/ffi/TesseraFFI.swift",
+  "apps/mac/build/ffi/libtessera_ffi.a"
+]

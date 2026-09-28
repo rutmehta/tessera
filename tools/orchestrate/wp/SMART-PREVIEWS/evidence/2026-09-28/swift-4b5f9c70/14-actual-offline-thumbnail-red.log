@@ -1,0 +1,20 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.11s)
+Test Suite 'Selected tests' started at 2026-09-28 14:28:30.566.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 14:28:30.566.
+Test Suite 'SmartPreviewNativeWorkflowTests' started at 2026-09-28 14:28:30.566.
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [445.565916, 188.211875, 216.744875]; GPU [269.602667, 1.797542, 7.0399579999999995]
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/SmartPreviewNativeWorkflowTests.swift:153: error: -[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect] : XCTAssertTrue failed - An offline Smart Preview thumbnail must become available within 60 seconds
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' failed (65.411 seconds).
+Test Suite 'SmartPreviewNativeWorkflowTests' failed at 2026-09-28 14:29:35.978.
+	 Executed 1 test, with 1 failure (0 unexpected) in 65.411 (65.411) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-28 14:29:35.978.
+	 Executed 1 test, with 1 failure (0 unexpected) in 65.411 (65.411) seconds
+Test Suite 'Selected tests' failed at 2026-09-28 14:29:35.978.
+	 Executed 1 test, with 1 failure (0 unexpected) in 65.411 (65.412) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

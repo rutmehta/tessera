@@ -1,0 +1,22 @@
+# Swift/native workflow and thumbnail design review
+
+Source-only; no edits/builds. Test candidate `/tmp/tessera-smart-preview-swift-native-workflow.patch` and `/tmp/tessera-smart-preview-offline-thumbnail-design.md` inspected against current feature source.
+
+## Required corrections
+
+1. Workflow prepareOnline mutates settings/exposure (and denoise) in recipe JSON without updating history. Engine.set_recipe_json validates Recipe and requires settings == history.state_at(head), so setup fails before build. Seed settings using actual Original Develop/session set + commit + flush/close (or append a correct history entry); do not rewrite history base because append-only native guards reject that. Keep explicit supported process verification.
+2. Thumbnail assertion after disconnect calls ThumbnailLoader.render only once. New explicit proxy route schedules asynchronous generation with a cold distinct key, so pending legitimately returns nil. Poll real API readiness with a deadline, distinguish terminal error where exposed, then assert valid decoded image through ThumbnailLoader. Keep this separate from main Develop workflow and do not weaken it to accepting nil. Parent independently flagged this.
+3. Thumbnail design cannot reuse current load_smart_preview unchanged while claiming zero original I/O. Current loader looks up original, calls try_exists and hashes it when available; smart_dir may create local directories. Extract a read-only local asset/journal validation path, leaving original freshness validation for existing Develop callers. No original stat/read, original sidecar access, or directory creation should occur in thumbnail lookup.
+4. Publication/cache-hit freshness needs journal incarnation/revision plus exact asset/recipe identity, not generation alone. Discard/rebuild resets generation and can otherwise revive an old job. Apply check to queued completion and cached delivery; prevent publication after discard/rebuild, and notify only after establishing current identity. Use existing journal token/CAS semantics rather than inventing a second epoch where feasible.
+
+## Accepted scope and simplifications
+
+Explicit cached-library image source role and a separate native API are appropriate. CPU proxy rendering with original calibration/captured optics and validated recipe avoids fabricated original cache keys. Include role/revision in Swift image-cache identity or explicitly invalidate every existing cache tier when role/library/journal changes; otherwise a new native key can still be hidden behind an old ThumbnailLoader result. Existing cached-image warning must accurately distinguish rendered current proxy thumbnail from last-synchronized original thumbnail.
+
+Avoid decoding the full asset on every UI polling request: a request can coalesce on a bounded local token while one scheduler job performs validation/render, then checks freshness before publication. Keep full pixel validation in worker, not MainActor. Use the existing scheduler and journal lock/token facilities rather than new independent job lifecycle machinery. Source-only design approval is conditional on these invariants; native implementation needs review.
+
+Workflow controller API signatures inspected match current source. Explicit close in success/catch paths keeps render workers drained before deleting copied fixtures. MainActor polling yields so callbacks can update lastFrame/histogram. Disposable photo copy and isolated support plus source/hidden-file hashes are sound. Hardcoded Sony dimensions/hash make this a fixture-specific opt-in qualification, not a generic RAW test. New Engine objects exercise reopen, though old library objects remain retained; do not describe this as a process restart. Neither proposed test qualifies app GUI or interactive latency.
+
+## Revised Swift test rereview
+
+The revised prepareOnline uses actual Original Develop apply/commit/close, resolving settings/history inconsistency. Thumbnail test now polls bounded60 seconds and requires eventual valid image, resolving cold asynchronous pending false failure. No remaining actionable test-source defect identified. It no longer explicitly pins process version; current default Native2 is assumed and native build rejects unsupported changes. Consider recording/asserting that default in fixture setup for clearer failure diagnostics. Source-approved pending compile/runtime. Revised patch SHA-256: `ffc31898b7c58416db5fcec3ee4c53f451f5f19205239e9342c0713bf59ac271`. Native thumbnail design requirements above still apply.

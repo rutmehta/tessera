@@ -1,0 +1,23 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.66s)
+Test Suite 'Selected tests' started at 2026-09-28 14:24:31.605.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 14:24:31.606.
+Test Suite 'SmartPreviewNativeWorkflowTests' started at 2026-09-28 14:24:31.606.
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [493.935, 197.42016700000002, 239.41825]; GPU [349.573708, 2.6935409999999997, 7.606792]
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/SmartPreviewNativeWorkflowTests.swift:193: error: -[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect] : XCTAssertEqual failed: ("["ed-copy/.edits/sony-arw.json": "cb78c70158a55b04c8703f0f150b1fcd96df65eae674b26e3d1f266ed7a9ad3c", "ed-copy/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8", "ed-copy/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2"]") is not equal to ("["/photos/.edits/sony-arw.json": "cb78c70158a55b04c8703f0f150b1fcd96df65eae674b26e3d1f266ed7a9ad3c", "/photos/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2", "/photos/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"]") - Offline edits must not alter hidden source/sidecars
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/SmartPreviewNativeWorkflowTests.swift:215: error: -[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect] : XCTAssertEqual failed: ("["ed-copy/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8", "ed-copy/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2", "ed-copy/.edits/sony-arw.json": "cb78c70158a55b04c8703f0f150b1fcd96df65eae674b26e3d1f266ed7a9ad3c"]") is not equal to ("["/photos/.edits/sony-arw.json": "cb78c70158a55b04c8703f0f150b1fcd96df65eae674b26e3d1f266ed7a9ad3c", "/photos/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2", "/photos/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"]")
+develop L2 calibration [first, tone, WB] ms: CPU [476.88525, 256.59637499999997, 293.269208]; GPU [303.271916, 1.551042, 7.042833]
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' failed (5.425 seconds).
+Test Suite 'SmartPreviewNativeWorkflowTests' failed at 2026-09-28 14:24:37.031.
+	 Executed 1 test, with 2 failures (0 unexpected) in 5.425 (5.425) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-28 14:24:37.031.
+	 Executed 1 test, with 2 failures (0 unexpected) in 5.425 (5.425) seconds
+Test Suite 'Selected tests' failed at 2026-09-28 14:24:37.031.
+	 Executed 1 test, with 2 failures (0 unexpected) in 5.425 (5.426) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

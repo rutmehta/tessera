@@ -1,0 +1,10 @@
+{
+  "direct_setter": {
+    "exit": 134,
+    "command": "xcrun swiftc -target arm64-apple-macosx15.0 -swift-version 6 -O -warnings-as-errors -emit-ir /tmp/tessera-checkbox-ir-repro.swift -o /tmp/tessera-checkbox-ir-repro-macos15.ll"
+  },
+  "synchronous_wrapper": {
+    "exit": 0,
+    "command": "xcrun swiftc -target arm64-apple-macosx15.0 -swift-version 6 -O -warnings-as-errors -emit-ir /tmp/tessera-checkbox-ir-wrapped.swift -o /tmp/tessera-checkbox-ir-wrapped.ll"
+  }
+}

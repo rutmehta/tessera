@@ -1,0 +1,70 @@
+Building for production...
+[0/5] Write sources
+[2/5] Write swift-version--58304C5D6DBC2206.txt
+[4/6] Compiling Tessera AISettingsView.swift
+[4/7] Write Objects.LinkFileList
+[5/7] Linking Tessera
+[7/8] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[7/9] Write Objects.LinkFileList
+[8/9] Linking TesseraPackageTests
+Build complete! (89.68s)
+Test Suite 'Selected tests' started at 2026-09-28 14:26:55.692.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-28 14:26:55.693.
+Test Suite 'SmartPreviewNativeWorkflowTests' started at 2026-09-28 14:26:55.693.
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [456.71554100000003, 192.44762500000002, 225.472083]; GPU [276.927333, 1.5302499999999999, 7.2416670000000005]
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/SmartPreviewNativeWorkflowTests.swift:194: error: -[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect] : XCTAssertEqual failed: ("["ed-copy/.edits/sony-arw.json": "7fc03f7090b788fb3f885a527cbde060b177dfaf3ec5a8d7944d5c4bf328fd94", "ed-copy/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8", "ed-copy/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2"]") is not equal to ("["/photos/.edits/sony-arw.json": "7fc03f7090b788fb3f885a527cbde060b177dfaf3ec5a8d7944d5c4bf328fd94", "/photos/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2", "/photos/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"]") - Offline edits must not alter hidden source/sidecars
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Tests/TesseraCoreTests/SmartPreviewNativeWorkflowTests.swift:216: error: -[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect] : XCTAssertEqual failed: ("["ed-copy/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8", "ed-copy/.edits/sony-arw.json": "7fc03f7090b788fb3f885a527cbde060b177dfaf3ec5a8d7944d5c4bf328fd94", "ed-copy/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2"]") is not equal to ("["/photos/.edits/sony-arw.json": "7fc03f7090b788fb3f885a527cbde060b177dfaf3ec5a8d7944d5c4bf328fd94", "/photos/sony-arw.ARW.xmp": "83527f870cbfa252458f7df577ebe09e77708d5464ec07ef700ea1b2696ad6a2", "/photos/sony-arw.ARW": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"]")
+develop L2 calibration [first, tone, WB] ms: CPU [461.67516600000005, 190.451042, 220.107417]; GPU [265.9535, 1.8206660000000001, 7.1718329999999995]
+Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' failed (5.252 seconds).
+Test Suite 'SmartPreviewNativeWorkflowTests' failed at 2026-09-28 14:27:00.945.
+	 Executed 1 test, with 2 failures (0 unexpected) in 5.252 (5.252) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-28 14:27:00.945.
+	 Executed 1 test, with 2 failures (0 unexpected) in 5.252 (5.252) seconds
+Test Suite 'Selected tests' failed at 2026-09-28 14:27:00.945.
+	 Executed 1 test, with 2 failures (0 unexpected) in 5.252 (5.253) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
