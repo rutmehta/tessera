@@ -726,3 +726,19 @@ unchanged. Exact hashes and actual AX/keyboard plan in HISTORY-ACCESSIBILITY-
 HANDOFF.md and HISTORY-ACCESSIBILITY-SOURCE.sha256 on new branch. A compiler/CUA/
 main only; no new acceptance from previous pointer or runner gates. No B workloads,
 Python tests/apps/GPU, settings changes, heartbeat or writer changes.
+
+## History focused failure source correction — 2026-09-28
+
+Accepted f8417c10-0861-4a6a-946b-87020147df30, preserved A1d361fa3
+65-test/22-assertion failed evidence on main3a395c69. Separate
+codex/b5-16-history-test-isolation b7687116 from e2c3cd03; test12e9f1ff.
+Production unchanged. New fixture hosts actual DocumentInspector without full
+DocumentView singleton attachments. Captures/restores previous five owners,
+three preferences and activation policy after window/controller teardown; adds
+non-nil prior-owner restoration regression. Direct native press oracle checks
+callback/state, not Bool; value oracle uses observed native display pt, removes
+four downcast warnings, retains label/action/keyboard/clamp/persistence coverage.
+Six tests UNRUN; combined leakage mechanism source-supported, not proved by B.
+Exact hashes and pending original-filter/AX/CUA gates in HISTORY-ISOLATION-HANDOFF.md
+and HISTORY-ISOLATION-SOURCE.sha256. No compiler/tests/apps/Python workload/GPU,
+heartbeat or writer changes; A sole gates/main. Existing candidates preserved.
