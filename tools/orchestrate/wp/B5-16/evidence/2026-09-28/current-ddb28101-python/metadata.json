@@ -1,0 +1,18 @@
+{
+  "candidate": "ddb2810196d5492c9258840af9a431e706d9318f",
+  "sha256": {
+    "selftest_runner.py": "ab3631f61d0f50bb59b4143c0398fcf5096facc545087d629c97f11b36d373e6",
+    "test_selftest_runner.py": "1350bb5cf070687cedaae0fcc56c18cd2c04a94962e829e305f2349117d321b6"
+  },
+  "exit": 0,
+  "elapsed_seconds": 1.1298716659657657,
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "test_selftest_runner.py"
+  ],
+  "source_unchanged": true,
+  "scope": "Seven Python runner regressions with owned stub subprocesses; no app/compiler/GPU/GUI selftests."
+}

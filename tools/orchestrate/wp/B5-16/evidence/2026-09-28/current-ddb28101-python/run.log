@@ -1,0 +1,12 @@
+test_default_suite_and_failure_exit_from_another_checkout (test_selftest_runner.SelfTestRunnerTests.test_default_suite_and_failure_exit_from_another_checkout) ... ok
+test_exact_success (test_selftest_runner.SelfTestRunnerTests.test_exact_success) ... ok
+test_failures_cannot_hide_behind_zero_summary (test_selftest_runner.SelfTestRunnerTests.test_failures_cannot_hide_behind_zero_summary) ... ok
+test_missing_duplicate_nonzero_and_wrong_prefix (test_selftest_runner.SelfTestRunnerTests.test_missing_duplicate_nonzero_and_wrong_prefix) ... ok
+test_process_failure_or_timeout_cannot_pass (test_selftest_runner.SelfTestRunnerTests.test_process_failure_or_timeout_cannot_pass) ... ok
+test_real_child_success_crash_and_timeout_preserve_other_process (test_selftest_runner.SelfTestRunnerTests.test_real_child_success_crash_and_timeout_preserve_other_process) ... ok
+test_transform_is_in_default_suite (test_selftest_runner.SelfTestRunnerTests.test_transform_is_in_default_suite) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.966s
+
+OK
