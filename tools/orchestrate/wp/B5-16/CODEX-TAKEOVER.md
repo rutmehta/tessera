@@ -606,3 +606,13 @@ move -> cached closure receives canonical path regression added, UNRUN. 27 total
 SmartPreview/offline tests UNRUN on B. No disconnected canonicalization or alias
 guessing; historical disconnected aliases need one online reopen. A gates/main.
 No Document edits/workloads/heartbeat/writer changes; SaveAs3ca3e9c9 preserved.
+
+### Document strict warnings a4ac739c — separate source branch
+
+codex/document-strict-warnings186559ce from preserved SmartPreview775f39b0.
+Tests17354fb9/beda8605 UNRUN; productd6332c5a/d7c86b65. Freeze final stub
+sampling stride, same optional self-test guard, explicit paired-key modifier
+routing with three regressions, MainActor Sendable checkbox setter (A supplement
+corrects original slider report). No DocSlider/AppModel/generated/SaveAs edits.
+A owns compiler/main and SmartPreview alias fixture oracle repair. Handoff:
+DOCUMENT-STRICT-WARNINGS-HANDOFF.md on source branch. No B workloads/heartbeat.
