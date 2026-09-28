@@ -1,5 +1,27 @@
 # Tessera task board — Machine A coordinator
 
+## Active validation board — 2026-09-28 04:16 UTC
+
+| Work | Owner | State and next action |
+| --- | --- | --- |
+| Document Save As lifecycle | A reviewer Sol; B source author | Exact `358d19d3`: 17 save + 4 load + 3 adjacent tests passed, direct exit 0 each; source/FFI freeze reverified. Reviewer owns isolated GUI lane now. Repeat Replace/Cancel and confirmed overwrite; no product merge yet. |
+| Develop navigation recovery | Luna + Resource Sol | Source `74df41a2` preserves latest destination during shared close and settles superseded folder callbacks. Dedicated behavioral tests being written, UNRUN. |
+| Preview read lifetime | Resource Sol; independent reviewer Sol | Source `6e2e27b8` separates subscriber cancellation from actual flight drain. Six controlled-worker tests UNRUN; source review found no blocker. |
+| Window close protection | Resource Sol + Luna | Registry cleanup `c6a8c96d` respects exact guard identity. Real AppKit close tests and live SwiftUI acceptance still pending. |
+| Export settings UX | Resource Sol | Approved bounded removal of no-read sheet-opening reservation. Actual export/watermark reads remain gated; Print stays gated. Separate source/test checkpoint pending. |
+
+- Prior recovery 13-case evidence `0d5c05ee` is published on main `9cc2a0ea`;
+  root verified all seven repository-relative evidence hashes and exact frozen
+  source hashes. A first verification command used the wrong path base; corrected
+  verification passed without changing evidence.
+- B result `0802848a` failed source acceptance. Correction request `ca97f793`
+  has verified peer acceptance/completion; revised result `0d9f2b07` is accepted
+  for A validation. Original missing-Replace GUI failure remains in evidence.
+- Only one desktop/GPU lane is active. Luna/Resource are source-only during GUI.
+  Normal preview PID57591 is untouched; B workload hold/paused heartbeat persists.
+  A alone owns main merges. No full AppModel, full Quit or large-library acceptance.
+
+
 ## Recovery tests passed; Document replacement remains blocked — 2026-09-28 04:06 UTC
 
 - **Verified focused recovery gate:** exact `338e2878`, product `c4a86c05`,
