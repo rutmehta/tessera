@@ -31,3 +31,25 @@ This is a contract proposal, not a request to implement all five points in the U
 - **Copy-path regression:** Existing Library Open in Layers still says and behaves as a rendered snapshot; later RAW recipe changes do not silently turn that already-open flattened document into a live layer. Existing Save Rasterized PSD Copy leaves the source document and RAW recipe unchanged.
 
 No performance, cancellation, arbitrary-camera or full-suite acceptance is implied by these functional scenarios. Those need their own source-size, render-resource and format policies once the persistence API is reviewed.
+
+## Coordinator review of B feedback — 2026-09-28 UTC
+
+B source review18cfb1c8 at tools/orchestrate/wp/B5-16/LIVE-RAW-LAYER-CONTRACT-REVIEW.md
+is accepted as design evidence, not implementation acceptance. Root confirmed
+native from_bytes parses the complete Manifest/MKind before checking version.
+
+The next internal slice should use an immutable pinned recipe snapshot, distinct
+physical asset identity/content digest and recipe ImageId (which may identify a
+virtual copy). A recipe hash alone cannot recover past settings. Existing
+rendered-copy APIs and disclosures stay unchanged. Automatic committed-follow
+remains a later capability requiring accepted dirty/undo/geometry policy; the
+initial source-backed slice must not be presented as automatic live editing.
+Save/reopen preserves document state, not document undo history. Missing/replaced
+sources and future schemas fail closed, retaining the original graph/file. Define
+fixed color, extent/orientation and sample semantics before introducing a node.
+
+A owns engine identity/resolver/render/admission, compositor and native-format
+coverage; B owns Document/FFI adapter and eventual UI. No new graph implementation
+is authorized by this note alone. Minimum ready preparatory work is a version
+preflight contract/regression, since current old readers cannot retroactively
+produce a clean unsupported-version response for unknown layer variants.
