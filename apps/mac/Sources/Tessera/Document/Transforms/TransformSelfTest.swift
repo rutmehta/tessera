@@ -457,7 +457,7 @@ final class TransformSelfTest {
         check("389 CAS applied", (try? r389?.get()) != nil, "\(String(describing: r389))")
 
         // 395: position lock rejects geometry.
-        if let id = doc?.primary?.id {
+        if doc?.primary?.id != nil {
             doc?.toggleLock(.position)
             await settle()
             t.begin(.warp)
