@@ -1,5 +1,12 @@
 # Tessera task board — Machine A coordinator
 
+## Native Smart Preview editing integrated — 2026-09-28 17:04 UTC
+
+Native candidate e1eca7ba (including81a6cc53) is merged after independent review and exact fifteen-file Git hash verification for final runs18–21. Final171 FFI unit tests passed, real Sony workflow passed, strict all-target Clippy and formatting passed. Workflow verifies clean and dirty offline restarts, exact captured recipe/history/unknown fields, local save, reconnect synchronization, conflict retention, byte-identical Original copy and4920×3276 edited JPEG export. Source fixture unchanged. Portable evidence: tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-28/ffi-e1eca7ba. Earlier64 related integration passes belong to the earlier source checkpoint; all failed attempts remain preserved.
+
+This accepts the native Engine path, not the full app. Offline Library patch now has clean source review after fixing fresh-session people filtering; codec agent owns the sole A compiler lane for its native tests. B accepted request889b3f34 and is implementing the cached Library Swift path in its existing writer. B UI2ba1d95c refresh/autosave corrections have clean source review;20 tests remain UNRUN at that head. A native bindings, current Swift tests and GUI acceptance remain outstanding. GPU and Compact patches remain source-only. Original stays default: measured CPU proxy edits are slower than original Metal. Other engine/UI tasks and protected GUI blocker remain preserved.
+
+
 ## Public offline engine workflow verified; app reopening remains open — 2026-09-28 16:46 UTC
 
 Feature worktree only, NOT main integrated: focused native22/22 passed, realSony public Engine build/render/offline two-restart save/reconnect/sync/conflict test passed. Positive rendered JPEG after sync is4920x3276 and brighter/changed versus baseline; separate Original copy is byte-identical. Source fixture unchanged. Per-run input hashes and direct exits retained in /Volumes/betterSSD/tessera-validation/smart-previews/ffi. Initial compile/harness failures preserved. FullFFI unit run07 is165pass/6fail from existing expected Original-conflict wording; compatibility wording restored and08retry underway. No fullgate acceptance yet; scoped applied-source review active.
