@@ -1,5 +1,11 @@
 # Machine A recovery status
 
+## Presenter candidate frozen — 2026-09-28 07:58 UTC
+
+Historical010617b8 test executed and failed the intended nil-successor assertion (1 test/1failure/direct1/no timeout); root verified raw hash and all305 before/after freeze entries. Portable20-payload receipt main375e2caa. Candidate62d546dc merges reviewed93244f8f with currentmain without conflicts, preserves exact Rust/Cargo3bd, adds headless legacy Save As and real NSWindow bridge stale-dismantle regressions. Luna owns sole compiler lane for focused Release with fresh scratch/current4a45 archive; generated bindings unchanged and historical8ab preserved. Full/current GUI still pending.
+
+B destination designf426 accepted with mandatory review corrections mainf093e3c8: portable persist_noclobber instead of hardlink-only, honest post-publication cleanup, stub gate before path read, confirmed path Replace retained. Resource Sol implements native source only separately, without builds or changes to frozen presenter/FFI inputs. A alone main merges; B workloads/heartbeat remain held; preview57591 untouched.
+
 ## Native contract measured; Swift gate next — 2026-09-28 07:47 UTC
 
 Strict standalone Swift6 probe5ebeb17a compiled0. Eight native runs retired/exited with unchanged source: queued-only cancellation raw/orderOut and both explicit parent shutdown variants passed6/direct0. Unassisted parent-close raw/orderOut failed2/direct1 at watchdog, still-member/no completion before cleanup. Root verified raw result/join/retirement/exit records. These failures establish close-alone is insufficient, not an adapter verdict; actual adapter explicitly ends captured sheet. No SwiftUI/chooser/full-product claim.
