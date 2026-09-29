@@ -63,6 +63,6 @@ func runTimingSelfTest(model: AppModel) {
         } catch {
             FileHandle.standardError.write(Data("Timing trace write failed: \(error)\n".utf8))
         }
-        NSApp.terminate(nil)
+        model.quitAfterSelfTest()
     }
 }
