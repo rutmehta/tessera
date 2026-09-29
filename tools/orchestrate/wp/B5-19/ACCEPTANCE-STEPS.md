@@ -13,13 +13,18 @@ Import the folder so the crops are library photos as well as files.
      Areas, Vignette Removal and Geometric Distortion Correction (disabled, with the lens-calibration note).
 442. **Sources.** Add Files… offers JPEG / PNG / TIFF only and adds a file (duplicates are dropped), the minus
      button removes one; with one source OK is disabled and the sheet says "Choose two or more photos to merge".
-     Photos totalling more than 200 megapixels are refused before anything is read: the status bar says
-     "Photomerge: … limited to 200 megapixels in total; these have N megapixels…".
+     Photos over the stack budget are refused before anything is read: the status bar says "Photomerge: …
+     limited to L megapixels in total on this computer; these have N megapixels…", where L is half of this
+     Mac's RAM at ~50 bytes per pixel, at most 200 (B5-19b: 16 GB ⇒ 171, 8 GB ⇒ 85, 20 GB or more ⇒ 200).
 443. **Busy / Cancel.** OK (Layout Auto): the busy sheet shows an indeterminate spinner, "Photomerge…", the note
-     that reading can be cancelled but aligning / blending cannot, and a Cancel button (`stack-busy-cancel`). The
-     status bar reads "Photomerge…". With several large photos, Cancel while reading: the button reads
-     "Cancelling…", the sheet closes, the status bar reads "Photomerge was cancelled", and no tab / history row is
-     added. Auto-Align / Auto-Blend busy sheets have no Cancel.
+     that reading can be cancelled at once but aligning / blending only when they finish, and a Cancel button
+     (`stack-busy-cancel`). The status bar reads "Photomerge…". With several large photos, Cancel while reading:
+     the button reads "Cancelling…", the sheet closes, the status bar reads "Photomerge cancelled; nothing
+     changed", and no tab / history row is added. Cancel during aligning / blending (B5-19b): the sheet stays until
+     the engine returns, then the status bar reads "Photomerge cancelled; the engine completed before it could
+     stop, so the new document was discarded" (no tab) or, into the current document, "… so the change was
+     undone" (Photomerge row undone, redoable). Auto-Align / Auto-Blend busy sheets also have Cancel, with the
+     same undo-on-return behaviour; never "… finished" after a Cancel.
 443a. **Colour.** Photomerge two Display P3 photos (e.g. iPhone JPEGs) into a new document: the document's colour
      profile is Display P3 (not sRGB) and colours match the originals. Into an open sRGB document the
      photos are converted (no oversaturated / washed-out layers).
@@ -69,8 +74,8 @@ Import the folder so the crops are library photos as well as files.
 
 ## Verdict (B5-19 stack)
 
-PASS when steps 440–459 meet their expectations. Known limitations: alignment and blending cannot be cancelled and
-report no progress (engine ask); lens corrections need explicit per-layer calibrations (library lens profiles are not
+PASS when steps 440–459 meet their expectations. Known limitations: alignment and blending cannot be interrupted
+(Cancel undoes their result when they return) and report no progress (engine ask); lens corrections need explicit per-layer calibrations (library lens profiles are not
 mapped), so both toggles are disabled; Photomerge always blends (no "Blend Images Together" off); Reposition is
 withheld because the engine mis-registers it (see HANDOFF.md); source transparency is dropped.
 
@@ -81,4 +86,4 @@ withheld because the engine mis-registers it (see HANDOFF.md); source transparen
 | `stack-align-sheet` · `stack-align-layout` · `stack-align-reference` · `stack-lens` | Auto-Align Layers sheet |
 | `stack-blend-sheet` · `stack-blend-method` · `stack-blend-tones` · `stack-blend-fill` | Auto-Blend Layers sheet |
 | `photomerge-sheet` · `photomerge-layout` · `photomerge-sources` · `photomerge-fill` · `photomerge-into-current` | Photomerge sheet |
-| `stack-busy` · `stack-busy-cancel` | Busy sheet (Cancel only for Photomerge) |
+| `stack-busy` · `stack-busy-cancel` | Busy sheet (Cancel for all three since B5-19b) |

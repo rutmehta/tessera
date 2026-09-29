@@ -117,7 +117,7 @@ mod stack;
 pub use stack::{
     MAX_STACK_MEGAPIXELS, PHOTOMERGE_CANCELLED, StackAlignMode, StackAlignOptions, StackBlendMode,
     StackBlendOptions, StackEligibility, StackLensCorrection, default_stack_align_options,
-    default_stack_blend_options, stack_max_megapixels,
+    default_stack_blend_options, stack_max_megapixels, stack_megapixels_for_memory,
 };
 // B5-19 end
 
