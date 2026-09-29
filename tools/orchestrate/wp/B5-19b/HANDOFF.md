@@ -78,6 +78,14 @@ Workarounds: import HEIC into the library and merge the library photos, or expor
 first. Library HEIC / linear DNG have no header size either; they are counted right after their decode and
 refused before the next one (unchanged from B5-19).
 
+## Release note
+
+**Photomerge, Auto-Align Layers and Auto-Blend Layers: stack size now depends on your Mac's memory.** A stack may
+use up to half of the Mac's physical memory (about 50 bytes per source pixel), capped at 200 megapixels in total:
+about 85 MP on an 8 GB Mac, 171 MP on 16 GB, and 200 MP on 20 GB or more. On 8 GB Macs some stacks that were
+accepted before are now refused with a message naming the limit; use fewer or smaller images.
+(Added by B5-23; no RELEASE-NOTES / CHANGELOG file or user-facing Photomerge doc page exists in the repo.)
+
 ## Gates (on 3dc50dee..HEAD, base dd2cf300)
 
 - `cargo test -p tessera-ffi --no-fail-fast`: exit 0, 45 test binaries ok. An earlier plain run failed two
