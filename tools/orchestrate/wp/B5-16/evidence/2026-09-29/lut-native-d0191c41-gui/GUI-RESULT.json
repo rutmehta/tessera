@@ -1,0 +1,59 @@
+{
+  "original_disabled_pid": 57471,
+  "original_enabled_pid": 63036,
+  "ordinary_quit_verified": true,
+  "no_CUA_after_quit": true,
+  "actual_app_dir": "/tmp/tessera-inspector-lut-d0191c41/profile",
+  "fixture_root": "/tmp/tessera-inspector-lut-d0191c41",
+  "fixture_before": {
+    "fixtures/warm-gradient.png": "19368177c8efae46512730f86ec03dc069782330843678e8b6aa82cc01009f63",
+    "fixtures/owned-warm.cube": "97c1492280596e6d75dac8ddb4df5802b32a885b25b08280068e55138c63f3ce",
+    "outputs/warm-gradient.tessera-doc": "473076631db502fff7c2b9bfc19f51769c336f5d7c14630677434e6bbf9eb29f"
+  },
+  "fixture_after": {
+    "fixtures/warm-gradient.png": "19368177c8efae46512730f86ec03dc069782330843678e8b6aa82cc01009f63",
+    "fixtures/owned-warm.cube": "97c1492280596e6d75dac8ddb4df5802b32a885b25b08280068e55138c63f3ce",
+    "outputs/warm-gradient.tessera-doc": "473076631db502fff7c2b9bfc19f51769c336f5d7c14630677434e6bbf9eb29f"
+  },
+  "package_files_equal": true,
+  "source_executable_sha256": "ed910972bcaa6b18c323c7fc5e03e4ec36969634f786073271ffd1821a4fa390",
+  "trace_sha256": "f94d632a9a5153d6356717078c8efd0c5757db4d7bc60d73b806b6321f698b9a",
+  "trace_events": 17,
+  "runtime_released": true,
+  "disposition": "Observed bounded LUT GUI acceptance passed; broader inspector acceptance remains pending",
+  "passes": [
+    "Trace disabled: Name\u2192Load\u2192Reset and Reset\u2192Shift-Tab\u2192Load; inspector remains visible",
+    "Trace enabled: native adapter owns second Tab; router handled=false, matched focused AXButton",
+    "Space, Return, keypad Enter: one additional visible Color Lookup history entry per activation; one Undo each restores loaded LUT and clean document",
+    "Identity-disabled Reset skipped from Load to Dither",
+    "Load Return opens chooser; Escape Cancel preserves LUT and clean document",
+    "Viewport Tab hides and restores panels; trace native DocumentViewportView handled=true",
+    "Light/dark appearance and compact layout; visible Load focus ring"
+  ],
+  "unrun": [
+    "Held-key repeat callback count in actual GUI (unit tests provide separate callback-count evidence)",
+    "Hover and transient pressed-state visual capture",
+    "Full VoiceOver navigation",
+    "Whole inspector/History/document matrix",
+    "Dither-origin keyboard traversal beyond receiving focus"
+  ],
+  "windows": {
+    "initial_screenshot_pixels": [
+      1440,
+      900
+    ],
+    "compact_screenshot_pixels": [
+      1120,
+      760
+    ]
+  },
+  "trace_decisive": {
+    "sequence": 2,
+    "nativeType": "Tessera.DocumentInspectorNativeActionButton",
+    "status": "focused",
+    "primaryMembership": "matched",
+    "role": "AXButton",
+    "handled": false
+  },
+  "profile_note": "manifest.json profile is unused packaging directory; authoritative launch app-dir is actual_app_dir, and fixture paths resolve against fixture_root."
+}

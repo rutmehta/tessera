@@ -1,3 +1,9 @@
+## Bounded native LUT GUI accepted; whole inspector still pending
+
+`d0191c41` actual disabled/enabled traversal passed Name→Load→Reset and reverse; native/matched AXButton lets Tab pass. Space/Return/keypad Reset each produced one visible edit/Undo; disabled Reset skipped, Load chooser Cancel and viewportTab hide/restore passed. Light/dark/compact controls and focusring observed. Root independently verified68payloads, bundle/fixture/source hashes and raw17events; two saved compact screenshots visually reviewed. App closed ordinarily, no replacement. Full inspector/History/VoiceOver/docmatrix remains pending; no heldrepeat/hover/pressedframe claim.
+
+FFI now owns WB pure19 qualification, no actualframes. Worker prepares inspector fullsuite/remainingGUIplan source-only. RAW opaque owner243eacfe has approved narrow scaffold/API review, REDrunnerready but unrun. Main55a241ee normalization remains qualified/integrated.
+
 ## Status publication and inspector provenance
 
 A status `6dd5ef73-92f0-4c87-84b3-cd383c5996c1` published to B through Git after main55a241ee; no new peer receipt claimed. Portable automated evidence for inspector `d0191c41` now preserved under B5-16/evidence/2026-09-29/lut-native-d0191c41. Actual GUI owns runtime. WB pure lifecycle `6c55a1b0` independently source-approved, qualification runner preparing only; no live calls or performance remedy.
