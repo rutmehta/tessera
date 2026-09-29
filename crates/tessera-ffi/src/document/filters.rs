@@ -3321,7 +3321,7 @@ impl DocumentSession {
             i.generation += 1;
             i.preview_job = None;
             if let Some(c) = &i.running {
-                c.store(true, Ordering::Relaxed);
+                c.cancel();
             }
             let generation = i.generation;
             i.preview = Some((generation, PreviewShown::Replace(layer, Arc::new(raster))));
@@ -3349,7 +3349,7 @@ impl DocumentSession {
         if stage > nodes.len() {
             return Err(failure(format!("no smart filter {stage}")));
         }
-        let img = native_filtered(base, l, &nodes[..stage], true)?;
+        let img = native_filtered(base, l, &nodes[..stage], true, None)?;
         Ok((
             Extent::new(img.rect.width() as u32, img.rect.height() as u32),
             img.px,

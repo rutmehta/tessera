@@ -519,6 +519,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -4330,6 +4346,34 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float) throws  -> DocumentUpdate
     
     /**
+     * Starts a Content-Aware Move on `layer` with the current selection,
+     * frozen now. Closes this document's previous one. No history node.
+     */
+    func beginContentAwareMove(layer: UInt64, mode: ContentAwareMode) throws  -> ContentAwareMoveInfo
+    
+    /**
+     * Stops a running preview, ends the preview and closes the move.
+     * Layer, selection and history are unchanged.
+     */
+    func cancelContentAwareMove(token: UInt64) 
+    
+    /**
+     * Installs the last preview as one history node (computing it first
+     * when none finished). Fails, changing nothing, when the layer changed
+     * since `begin_content_aware_move` or the move was cancelled.
+     */
+    func commitContentAwareMove(token: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Computes the move by the integer level-0 offset (`dx`, `dy`) with the
+     * adapter's `fill` options (`{}`: defaults; `seed` makes it repeatable)
+     * and `seam` adaptation, and shows it in the viewport. Blocking (full
+     * resolution): call off the main thread. A newer preview or a cancel
+     * stops this one, which then returns an error and shows nothing.
+     */
+    func previewContentAwareMove(token: UInt64, dx: Int32, dy: Int32, fillJson: String, seam: ContentAwareSeam) throws  -> ContentAwarePreviewResult
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -4428,6 +4472,67 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      * The smart filters of a smart object, first applied first.
      */
     func smartFilters(layer: UInt64) throws  -> [SmartFilterRecord]
+    
+    /**
+     * Opens the Liquify workspace on `layer` (a pixel layer, or a smart
+     * object: a new Liquify smart filter, or with `stage_index` the existing
+     * Liquify smart filter to re-edit). Closes this document's previous
+     * workspace. No history node.
+     */
+    func beginLiquify(layer: UInt64, stageIndex: UInt32?) throws  -> LiquifySessionInfo
+    
+    /**
+     * Closes the workspace without changing the document; a commit still
+     * rendering stops before it writes.
+     */
+    func cancelLiquify(token: UInt64) 
+    
+    /**
+     * Renders the mesh at full resolution (`Mesh::render`) and installs it
+     * as one history node at `destination`. Blocking: call off the main
+     * thread; `cancel_liquify` stops it (nothing is written). The workspace
+     * closes on success; on an error it stays open.
+     */
+    func commitLiquify(token: UInt64, destination: LiquifyDestination) throws  -> DocumentUpdate
+    
+    /**
+     * Applies `tool` along `points` (continuing the open stroke, see
+     * `liquify_end_stroke`): dabs every ~size/10 pixels; tools that act in
+     * place also dab on a repeated point. Edits only the workspace mesh.
+     */
+    func liquifyBrushPoints(token: UInt64, tool: LiquifyTool, brush: LiquifyBrush, points: [LiquifyPoint]) throws  -> LiquifyStrokeResult
+    
+    /**
+     * Ends the open stroke (the next point starts a new one).
+     */
+    func liquifyEndStroke(token: UInt64) throws 
+    
+    /**
+     * Freeze everything (`true`) or thaw everything (`false`).
+     */
+    func liquifyFreezeAll(token: UInt64, frozen: Bool) throws 
+    
+    /**
+     * The workspace mesh (overlay data).
+     */
+    func liquifyMesh(token: UInt64) throws  -> LiquifyMeshRecord
+    
+    /**
+     * Reconstruct (whole mesh): every unfrozen displacement scaled by
+     * `1 − amount·(1 − freeze)`; amount 1 restores unfrozen areas.
+     */
+    func liquifyReconstructAll(token: UInt64, amount: Float) throws 
+    
+    /**
+     * Restore All: no displacement. `keep_freeze` keeps the freeze plane.
+     */
+    func liquifyReset(token: UInt64, keepFreeze: Bool) throws 
+    
+    /**
+     * Renders the workspace (or with `original` the untouched source) at
+     * proxy resolution into an IOSurface. Never touches the document.
+     */
+    func previewLiquify(token: UInt64, original: Bool) throws  -> LiquifyPreview
     
     /**
      * Cheap handle preparation: no snapshot, evaluation or IO. One live copy
@@ -5995,6 +6100,70 @@ open func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float)throws  
 }
     
     /**
+     * Starts a Content-Aware Move on `layer` with the current selection,
+     * frozen now. Closes this document's previous one. No history node.
+     */
+open func beginContentAwareMove(layer: UInt64, mode: ContentAwareMode)throws  -> ContentAwareMoveInfo  {
+    return try  FfiConverterTypeContentAwareMoveInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_begin_content_aware_move(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterTypeContentAwareMode_lower(mode),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Stops a running preview, ends the preview and closes the move.
+     * Layer, selection and history are unchanged.
+     */
+open func cancelContentAwareMove(token: UInt64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_content_aware_move(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Installs the last preview as one history node (computing it first
+     * when none finished). Fails, changing nothing, when the layer changed
+     * since `begin_content_aware_move` or the move was cancelled.
+     */
+open func commitContentAwareMove(token: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_commit_content_aware_move(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Computes the move by the integer level-0 offset (`dx`, `dy`) with the
+     * adapter's `fill` options (`{}`: defaults; `seed` makes it repeatable)
+     * and `seam` adaptation, and shows it in the viewport. Blocking (full
+     * resolution): call off the main thread. A newer preview or a cancel
+     * stops this one, which then returns an error and shows nothing.
+     */
+open func previewContentAwareMove(token: UInt64, dx: Int32, dy: Int32, fillJson: String, seam: ContentAwareSeam)throws  -> ContentAwarePreviewResult  {
+    return try  FfiConverterTypeContentAwarePreviewResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_content_aware_move(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterInt32.lower(dx),
+        FfiConverterInt32.lower(dy),
+        FfiConverterString.lower(fillJson),
+        FfiConverterTypeContentAwareSeam_lower(seam),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -6230,6 +6399,151 @@ open func smartFilters(layer: UInt64)throws  -> [SmartFilterRecord]  {
     uniffi_tessera_ffi_fn_method_documentsession_smart_filters(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Opens the Liquify workspace on `layer` (a pixel layer, or a smart
+     * object: a new Liquify smart filter, or with `stage_index` the existing
+     * Liquify smart filter to re-edit). Closes this document's previous
+     * workspace. No history node.
+     */
+open func beginLiquify(layer: UInt64, stageIndex: UInt32?)throws  -> LiquifySessionInfo  {
+    return try  FfiConverterTypeLiquifySessionInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_begin_liquify(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterOptionUInt32.lower(stageIndex),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Closes the workspace without changing the document; a commit still
+     * rendering stops before it writes.
+     */
+open func cancelLiquify(token: UInt64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_liquify(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Renders the mesh at full resolution (`Mesh::render`) and installs it
+     * as one history node at `destination`. Blocking: call off the main
+     * thread; `cancel_liquify` stops it (nothing is written). The workspace
+     * closes on success; on an error it stays open.
+     */
+open func commitLiquify(token: UInt64, destination: LiquifyDestination)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_commit_liquify(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterTypeLiquifyDestination_lower(destination),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Applies `tool` along `points` (continuing the open stroke, see
+     * `liquify_end_stroke`): dabs every ~size/10 pixels; tools that act in
+     * place also dab on a repeated point. Edits only the workspace mesh.
+     */
+open func liquifyBrushPoints(token: UInt64, tool: LiquifyTool, brush: LiquifyBrush, points: [LiquifyPoint])throws  -> LiquifyStrokeResult  {
+    return try  FfiConverterTypeLiquifyStrokeResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_liquify_brush_points(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterTypeLiquifyTool_lower(tool),
+        FfiConverterTypeLiquifyBrush_lower(brush),
+        FfiConverterSequenceTypeLiquifyPoint.lower(points),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Ends the open stroke (the next point starts a new one).
+     */
+open func liquifyEndStroke(token: UInt64)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_liquify_end_stroke(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Freeze everything (`true`) or thaw everything (`false`).
+     */
+open func liquifyFreezeAll(token: UInt64, frozen: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_liquify_freeze_all(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterBool.lower(frozen),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * The workspace mesh (overlay data).
+     */
+open func liquifyMesh(token: UInt64)throws  -> LiquifyMeshRecord  {
+    return try  FfiConverterTypeLiquifyMeshRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_liquify_mesh(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Reconstruct (whole mesh): every unfrozen displacement scaled by
+     * `1 − amount·(1 − freeze)`; amount 1 restores unfrozen areas.
+     */
+open func liquifyReconstructAll(token: UInt64, amount: Float)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_liquify_reconstruct_all(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterFloat.lower(amount),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Restore All: no displacement. `keep_freeze` keeps the freeze plane.
+     */
+open func liquifyReset(token: UInt64, keepFreeze: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_liquify_reset(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterBool.lower(keepFreeze),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Renders the workspace (or with `original` the untouched source) at
+     * proxy resolution into an IOSurface. Never touches the document.
+     */
+open func previewLiquify(token: UInt64, original: Bool)throws  -> LiquifyPreview  {
+    return try  FfiConverterTypeLiquifyPreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_liquify(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterBool.lower(original),uniffiCallStatus
     )
 })
 }
@@ -13378,6 +13692,160 @@ public func FfiConverterTypeChannelUpdate_lower(_ value: ChannelUpdate) -> RustB
 
 
 /**
+ * An open Content-Aware Move.
+ */
+public struct ContentAwareMoveInfo: Equatable, Hashable {
+    public var token: UInt64
+    public var layer: UInt64
+    public var mode: ContentAwareMode
+    public var smartObject: Bool
+    /**
+     * Bounds of the frozen selection, level-0 canvas pixels.
+     */
+    public var selectionBounds: DocRect
+    public var width: UInt32
+    public var height: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(token: UInt64, layer: UInt64, mode: ContentAwareMode, smartObject: Bool, 
+        /**
+         * Bounds of the frozen selection, level-0 canvas pixels.
+         */selectionBounds: DocRect, width: UInt32, height: UInt32) {
+        self.token = token
+        self.layer = layer
+        self.mode = mode
+        self.smartObject = smartObject
+        self.selectionBounds = selectionBounds
+        self.width = width
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ContentAwareMoveInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContentAwareMoveInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContentAwareMoveInfo {
+        return
+            try ContentAwareMoveInfo(
+                token: FfiConverterUInt64.read(from: &buf), 
+                layer: FfiConverterUInt64.read(from: &buf), 
+                mode: FfiConverterTypeContentAwareMode.read(from: &buf), 
+                smartObject: FfiConverterBool.read(from: &buf), 
+                selectionBounds: FfiConverterTypeDocRect.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ContentAwareMoveInfo, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.token, into: &buf)
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterTypeContentAwareMode.write(value.mode, into: &buf)
+        FfiConverterBool.write(value.smartObject, into: &buf)
+        FfiConverterTypeDocRect.write(value.selectionBounds, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwareMoveInfo_lift(_ buf: RustBuffer) throws -> ContentAwareMoveInfo {
+    return try FfiConverterTypeContentAwareMoveInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwareMoveInfo_lower(_ value: ContentAwareMoveInfo) -> RustBuffer {
+    return FfiConverterTypeContentAwareMoveInfo.lower(value)
+}
+
+
+/**
+ * A computed preview (shown in the viewport).
+ */
+public struct ContentAwarePreviewResult: Equatable, Hashable {
+    public var dx: Int32
+    public var dy: Int32
+    /**
+     * Source ∪ destination bounds the result changes.
+     */
+    public var affected: DocRect?
+    public var millis: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(dx: Int32, dy: Int32, 
+        /**
+         * Source ∪ destination bounds the result changes.
+         */affected: DocRect?, millis: Double) {
+        self.dx = dx
+        self.dy = dy
+        self.affected = affected
+        self.millis = millis
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ContentAwarePreviewResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContentAwarePreviewResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContentAwarePreviewResult {
+        return
+            try ContentAwarePreviewResult(
+                dx: FfiConverterInt32.read(from: &buf), 
+                dy: FfiConverterInt32.read(from: &buf), 
+                affected: FfiConverterOptionTypeDocRect.read(from: &buf), 
+                millis: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ContentAwarePreviewResult, into buf: inout [UInt8]) {
+        FfiConverterInt32.write(value.dx, into: &buf)
+        FfiConverterInt32.write(value.dy, into: &buf)
+        FfiConverterOptionTypeDocRect.write(value.affected, into: &buf)
+        FfiConverterDouble.write(value.millis, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwarePreviewResult_lift(_ buf: RustBuffer) throws -> ContentAwarePreviewResult {
+    return try FfiConverterTypeContentAwarePreviewResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwarePreviewResult_lower(_ value: ContentAwarePreviewResult) -> RustBuffer {
+    return FfiConverterTypeContentAwarePreviewResult.lower(value)
+}
+
+
+/**
  * Burst / near-duplicate group. Members follow queue order.
  */
 public struct CullGroup: Equatable, Hashable {
@@ -17934,6 +18402,508 @@ public func FfiConverterTypeLibraryNode_lift(_ buf: RustBuffer) throws -> Librar
 #endif
 public func FfiConverterTypeLibraryNode_lower(_ value: LibraryNode) -> RustBuffer {
     return FfiConverterTypeLibraryNode.lower(value)
+}
+
+
+/**
+ * Brush controls: diameter in canvas pixels; density (hard core), pressure
+ * and rate in 0…1. Rate applies to the tools that act in place (Twirl,
+ * Pucker, Bloat, Reconstruct, Smooth, Freeze, Thaw); the drag tools
+ * (Forward Warp, Push Left) use pressure only, as in Photoshop.
+ */
+public struct LiquifyBrush: Equatable, Hashable {
+    public var size: Float
+    public var density: Float
+    public var pressure: Float
+    public var rate: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(size: Float, density: Float, pressure: Float, rate: Float) {
+        self.size = size
+        self.density = density
+        self.pressure = pressure
+        self.rate = rate
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LiquifyBrush: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifyBrush: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifyBrush {
+        return
+            try LiquifyBrush(
+                size: FfiConverterFloat.read(from: &buf), 
+                density: FfiConverterFloat.read(from: &buf), 
+                pressure: FfiConverterFloat.read(from: &buf), 
+                rate: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LiquifyBrush, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.size, into: &buf)
+        FfiConverterFloat.write(value.density, into: &buf)
+        FfiConverterFloat.write(value.pressure, into: &buf)
+        FfiConverterFloat.write(value.rate, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyBrush_lift(_ buf: RustBuffer) throws -> LiquifyBrush {
+    return try FfiConverterTypeLiquifyBrush.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyBrush_lower(_ value: LiquifyBrush) -> RustBuffer {
+    return FfiConverterTypeLiquifyBrush.lower(value)
+}
+
+
+/**
+ * The mesh for the overlay: node (x, y) sits at (x·cell, y·cell) and holds
+ * the inverse displacement (dx, dy) and its freeze weight.
+ */
+public struct LiquifyMeshRecord: Equatable, Hashable {
+    public var columns: UInt32
+    public var rows: UInt32
+    public var cellSize: UInt32
+    /**
+     * Row-major interleaved (dx, dy) per node, source pixels.
+     */
+    public var displacement: [Float]
+    /**
+     * Row-major freeze weight per node, 0…1.
+     */
+    public var freeze: [Float]
+    public var maxDisplacement: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(columns: UInt32, rows: UInt32, cellSize: UInt32, 
+        /**
+         * Row-major interleaved (dx, dy) per node, source pixels.
+         */displacement: [Float], 
+        /**
+         * Row-major freeze weight per node, 0…1.
+         */freeze: [Float], maxDisplacement: Float) {
+        self.columns = columns
+        self.rows = rows
+        self.cellSize = cellSize
+        self.displacement = displacement
+        self.freeze = freeze
+        self.maxDisplacement = maxDisplacement
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LiquifyMeshRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifyMeshRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifyMeshRecord {
+        return
+            try LiquifyMeshRecord(
+                columns: FfiConverterUInt32.read(from: &buf), 
+                rows: FfiConverterUInt32.read(from: &buf), 
+                cellSize: FfiConverterUInt32.read(from: &buf), 
+                displacement: FfiConverterSequenceFloat.read(from: &buf), 
+                freeze: FfiConverterSequenceFloat.read(from: &buf), 
+                maxDisplacement: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LiquifyMeshRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.columns, into: &buf)
+        FfiConverterUInt32.write(value.rows, into: &buf)
+        FfiConverterUInt32.write(value.cellSize, into: &buf)
+        FfiConverterSequenceFloat.write(value.displacement, into: &buf)
+        FfiConverterSequenceFloat.write(value.freeze, into: &buf)
+        FfiConverterFloat.write(value.maxDisplacement, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyMeshRecord_lift(_ buf: RustBuffer) throws -> LiquifyMeshRecord {
+    return try FfiConverterTypeLiquifyMeshRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyMeshRecord_lower(_ value: LiquifyMeshRecord) -> RustBuffer {
+    return FfiConverterTypeLiquifyMeshRecord.lower(value)
+}
+
+
+/**
+ * One pointer sample in level-0 canvas pixels (of the Liquify source:
+ * the document canvas for pixel layers, the smart object's own canvas).
+ * `pressure` (0…1, 1 for a mouse) scales the brush pressure.
+ */
+public struct LiquifyPoint: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var pressure: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, pressure: Float) {
+        self.x = x
+        self.y = y
+        self.pressure = pressure
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LiquifyPoint: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifyPoint: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifyPoint {
+        return
+            try LiquifyPoint(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                pressure: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LiquifyPoint, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.pressure, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyPoint_lift(_ buf: RustBuffer) throws -> LiquifyPoint {
+    return try FfiConverterTypeLiquifyPoint.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyPoint_lower(_ value: LiquifyPoint) -> RustBuffer {
+    return FfiConverterTypeLiquifyPoint.lower(value)
+}
+
+
+/**
+ * A rendered preview (or the untouched source for Before).
+ */
+public struct LiquifyPreview: Equatable, Hashable {
+    /**
+     * RGBA8 IOSurface, straight alpha, layer samples; retained until the
+     * next preview of this workspace (two alternate).
+     */
+    public var surfaceId: UInt32
+    public var width: UInt32
+    public var height: UInt32
+    public var original: Bool
+    public var millis: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * RGBA8 IOSurface, straight alpha, layer samples; retained until the
+         * next preview of this workspace (two alternate).
+         */surfaceId: UInt32, width: UInt32, height: UInt32, original: Bool, millis: Double) {
+        self.surfaceId = surfaceId
+        self.width = width
+        self.height = height
+        self.original = original
+        self.millis = millis
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LiquifyPreview: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifyPreview: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifyPreview {
+        return
+            try LiquifyPreview(
+                surfaceId: FfiConverterUInt32.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                original: FfiConverterBool.read(from: &buf), 
+                millis: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LiquifyPreview, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.surfaceId, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterBool.write(value.original, into: &buf)
+        FfiConverterDouble.write(value.millis, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyPreview_lift(_ buf: RustBuffer) throws -> LiquifyPreview {
+    return try FfiConverterTypeLiquifyPreview.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyPreview_lower(_ value: LiquifyPreview) -> RustBuffer {
+    return FfiConverterTypeLiquifyPreview.lower(value)
+}
+
+
+/**
+ * An open Liquify workspace.
+ */
+public struct LiquifySessionInfo: Equatable, Hashable {
+    public var token: UInt64
+    public var layer: UInt64
+    /**
+     * The smart filter being re-edited (`None`: a new Liquify).
+     */
+    public var stageIndex: UInt32?
+    public var smartObject: Bool
+    /**
+     * Source (= mesh) size in pixels.
+     */
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * Mesh node spacing in source pixels.
+     */
+    public var cellSize: UInt32
+    public var columns: UInt32
+    public var rows: UInt32
+    /**
+     * Preview proxy size and its source pixels per proxy pixel (1, 2, …).
+     */
+    public var previewWidth: UInt32
+    public var previewHeight: UInt32
+    public var previewFactor: UInt32
+    /**
+     * Areas outside the selection start frozen (pixel layers).
+     */
+    public var selectionFrozen: Bool
+    /**
+     * Whether the loaded mesh already deforms (smart filter re-edit).
+     */
+    public var edited: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(token: UInt64, layer: UInt64, 
+        /**
+         * The smart filter being re-edited (`None`: a new Liquify).
+         */stageIndex: UInt32?, smartObject: Bool, 
+        /**
+         * Source (= mesh) size in pixels.
+         */width: UInt32, height: UInt32, 
+        /**
+         * Mesh node spacing in source pixels.
+         */cellSize: UInt32, columns: UInt32, rows: UInt32, 
+        /**
+         * Preview proxy size and its source pixels per proxy pixel (1, 2, …).
+         */previewWidth: UInt32, previewHeight: UInt32, previewFactor: UInt32, 
+        /**
+         * Areas outside the selection start frozen (pixel layers).
+         */selectionFrozen: Bool, 
+        /**
+         * Whether the loaded mesh already deforms (smart filter re-edit).
+         */edited: Bool) {
+        self.token = token
+        self.layer = layer
+        self.stageIndex = stageIndex
+        self.smartObject = smartObject
+        self.width = width
+        self.height = height
+        self.cellSize = cellSize
+        self.columns = columns
+        self.rows = rows
+        self.previewWidth = previewWidth
+        self.previewHeight = previewHeight
+        self.previewFactor = previewFactor
+        self.selectionFrozen = selectionFrozen
+        self.edited = edited
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LiquifySessionInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifySessionInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifySessionInfo {
+        return
+            try LiquifySessionInfo(
+                token: FfiConverterUInt64.read(from: &buf), 
+                layer: FfiConverterUInt64.read(from: &buf), 
+                stageIndex: FfiConverterOptionUInt32.read(from: &buf), 
+                smartObject: FfiConverterBool.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                cellSize: FfiConverterUInt32.read(from: &buf), 
+                columns: FfiConverterUInt32.read(from: &buf), 
+                rows: FfiConverterUInt32.read(from: &buf), 
+                previewWidth: FfiConverterUInt32.read(from: &buf), 
+                previewHeight: FfiConverterUInt32.read(from: &buf), 
+                previewFactor: FfiConverterUInt32.read(from: &buf), 
+                selectionFrozen: FfiConverterBool.read(from: &buf), 
+                edited: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LiquifySessionInfo, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.token, into: &buf)
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterOptionUInt32.write(value.stageIndex, into: &buf)
+        FfiConverterBool.write(value.smartObject, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt32.write(value.cellSize, into: &buf)
+        FfiConverterUInt32.write(value.columns, into: &buf)
+        FfiConverterUInt32.write(value.rows, into: &buf)
+        FfiConverterUInt32.write(value.previewWidth, into: &buf)
+        FfiConverterUInt32.write(value.previewHeight, into: &buf)
+        FfiConverterUInt32.write(value.previewFactor, into: &buf)
+        FfiConverterBool.write(value.selectionFrozen, into: &buf)
+        FfiConverterBool.write(value.edited, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifySessionInfo_lift(_ buf: RustBuffer) throws -> LiquifySessionInfo {
+    return try FfiConverterTypeLiquifySessionInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifySessionInfo_lower(_ value: LiquifySessionInfo) -> RustBuffer {
+    return FfiConverterTypeLiquifySessionInfo.lower(value)
+}
+
+
+/**
+ * What one `liquify_brush_points` call did.
+ */
+public struct LiquifyStrokeResult: Equatable, Hashable {
+    public var dabs: UInt32
+    /**
+     * Source pixels the dabs can have changed.
+     */
+    public var dirty: DocRect?
+    public var millis: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(dabs: UInt32, 
+        /**
+         * Source pixels the dabs can have changed.
+         */dirty: DocRect?, millis: Double) {
+        self.dabs = dabs
+        self.dirty = dirty
+        self.millis = millis
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LiquifyStrokeResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifyStrokeResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifyStrokeResult {
+        return
+            try LiquifyStrokeResult(
+                dabs: FfiConverterUInt32.read(from: &buf), 
+                dirty: FfiConverterOptionTypeDocRect.read(from: &buf), 
+                millis: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LiquifyStrokeResult, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.dabs, into: &buf)
+        FfiConverterOptionTypeDocRect.write(value.dirty, into: &buf)
+        FfiConverterDouble.write(value.millis, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyStrokeResult_lift(_ buf: RustBuffer) throws -> LiquifyStrokeResult {
+    return try FfiConverterTypeLiquifyStrokeResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyStrokeResult_lower(_ value: LiquifyStrokeResult) -> RustBuffer {
+    return FfiConverterTypeLiquifyStrokeResult.lower(value)
 }
 
 
@@ -25978,6 +26948,158 @@ public func FfiConverterTypeBridgeError_lower(_ value: BridgeError) -> RustBuffe
 }
 
 
+/**
+ * Move cuts the selection and heals the hole; Extend keeps the original.
+ */
+
+public enum ContentAwareMode: Equatable, Hashable {
+    
+    case move
+    case extend
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ContentAwareMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContentAwareMode: FfiConverterRustBuffer {
+    typealias SwiftType = ContentAwareMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContentAwareMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .move
+        
+        case 2: return .extend
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ContentAwareMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .move:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .extend:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwareMode_lift(_ buf: RustBuffer) throws -> ContentAwareMode {
+    return try FfiConverterTypeContentAwareMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwareMode_lower(_ value: ContentAwareMode) -> RustBuffer {
+    return FfiConverterTypeContentAwareMode.lower(value)
+}
+
+
+
+/**
+ * How the pasted subject's colours adapt at the seam (`caf::ColourAdaptation`).
+ */
+
+public enum ContentAwareSeam: Equatable, Hashable {
+    
+    case none
+    case `default`
+    case high
+    case veryHigh
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ContentAwareSeam: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContentAwareSeam: FfiConverterRustBuffer {
+    typealias SwiftType = ContentAwareSeam
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContentAwareSeam {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .none
+        
+        case 2: return .`default`
+        
+        case 3: return .high
+        
+        case 4: return .veryHigh
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ContentAwareSeam, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .none:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .`default`:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .high:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .veryHigh:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwareSeam_lift(_ buf: RustBuffer) throws -> ContentAwareSeam {
+    return try FfiConverterTypeContentAwareSeam.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContentAwareSeam_lower(_ value: ContentAwareSeam) -> RustBuffer {
+    return FfiConverterTypeContentAwareSeam.lower(value)
+}
+
+
+
 
 public enum Decision: Equatable, Hashable {
     
@@ -27286,6 +28408,224 @@ public func FfiConverterTypeLibraryNodeKind_lift(_ buf: RustBuffer) throws -> Li
 #endif
 public func FfiConverterTypeLibraryNodeKind_lower(_ value: LibraryNodeKind) -> RustBuffer {
     return FfiConverterTypeLibraryNodeKind.lower(value)
+}
+
+
+
+/**
+ * Where `commit_liquify` puts the result.
+ */
+
+public enum LiquifyDestination: Equatable, Hashable {
+    
+    /**
+     * The pixel layer's own pixels (inside the selection, if any). On a
+     * smart object: the smart filter (as `SmartFilter`).
+     */
+    case currentLayer
+    /**
+     * A liquified copy of a pixel layer, added above it.
+     */
+    case newLayer
+    /**
+     * A Liquify smart filter: appended, the re-edited one replaced in place,
+     * or on a pixel layer the layer converted to a smart object with it.
+     */
+    case smartFilter
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LiquifyDestination: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifyDestination: FfiConverterRustBuffer {
+    typealias SwiftType = LiquifyDestination
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifyDestination {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .currentLayer
+        
+        case 2: return .newLayer
+        
+        case 3: return .smartFilter
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LiquifyDestination, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .currentLayer:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .newLayer:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .smartFilter:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyDestination_lift(_ buf: RustBuffer) throws -> LiquifyDestination {
+    return try FfiConverterTypeLiquifyDestination.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyDestination_lower(_ value: LiquifyDestination) -> RustBuffer {
+    return FfiConverterTypeLiquifyDestination.lower(value)
+}
+
+
+
+/**
+ * The ten Liquify brush tools (`filters::liquify::BrushTool`).
+ */
+
+public enum LiquifyTool: Equatable, Hashable {
+    
+    case forwardWarp
+    case reconstruct
+    case smooth
+    /**
+     * Clockwise in image coordinates.
+     */
+    case twirlClockwise
+    case twirlCounterClockwise
+    case pucker
+    case bloat
+    /**
+     * Pushes to the left of the drag direction.
+     */
+    case pushLeft
+    case freeze
+    case thaw
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LiquifyTool: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiquifyTool: FfiConverterRustBuffer {
+    typealias SwiftType = LiquifyTool
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiquifyTool {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .forwardWarp
+        
+        case 2: return .reconstruct
+        
+        case 3: return .smooth
+        
+        case 4: return .twirlClockwise
+        
+        case 5: return .twirlCounterClockwise
+        
+        case 6: return .pucker
+        
+        case 7: return .bloat
+        
+        case 8: return .pushLeft
+        
+        case 9: return .freeze
+        
+        case 10: return .thaw
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LiquifyTool, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .forwardWarp:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .reconstruct:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .smooth:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .twirlClockwise:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .twirlCounterClockwise:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .pucker:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .bloat:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .pushLeft:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .freeze:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .thaw:
+            writeInt(&buf, Int32(10))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyTool_lift(_ buf: RustBuffer) throws -> LiquifyTool {
+    return try FfiConverterTypeLiquifyTool.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiquifyTool_lower(_ value: LiquifyTool) -> RustBuffer {
+    return FfiConverterTypeLiquifyTool.lower(value)
 }
 
 
@@ -32486,6 +33826,31 @@ fileprivate struct FfiConverterSequenceTypeLibraryNode: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeLiquifyPoint: FfiConverterRustBuffer {
+    typealias SwiftType = [LiquifyPoint]
+
+    public static func write(_ value: [LiquifyPoint], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLiquifyPoint.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LiquifyPoint] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LiquifyPoint]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLiquifyPoint.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeLocalParamValue: FfiConverterRustBuffer {
     typealias SwiftType = [LocalParamValue]
 
@@ -34592,6 +35957,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_set_spot_channel() != 59239) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_content_aware_move() != 6467) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_content_aware_move() != 20037) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_commit_content_aware_move() != 2168) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_content_aware_move() != 55851) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_apply_adjustment() != 62065) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34638,6 +36015,36 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filters() != 21975) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_liquify() != 51475) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_liquify() != 19279) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_commit_liquify() != 26783) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_liquify_brush_points() != 31668) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_liquify_end_stroke() != 11656) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_liquify_freeze_all() != 37658) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_liquify_mesh() != 22917) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_liquify_reconstruct_all() != 55061) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_liquify_reset() != 52161) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_liquify() != 47059) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_prepare_rasterized_psd_copy() != 23495) {
