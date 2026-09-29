@@ -308,4 +308,44 @@ final class DocumentTransformFollowupsTests: XCTestCase {
         await finish { tools.select(.brush) }
         XCTAssertEqual(status, DocumentTool.brush.idleHint)
     }
+
+    // MARK: A review — non-finite input never reaches the session
+
+    /// "nan" in W / H trapped in `UInt32(Double.nan)`; NaN / infinity also reached Rotate and Bend.
+    func testNonFiniteTextIsNotANumber() {
+        let f = field(value: 12) { _ in XCTFail("no commit") }
+        f.fractionDigits = 1
+        for s in ["nan", "NaN", "-nan", "inf", "-inf", "infinity", "-Infinity", "1e999", "-1e999"] {
+            f.stringValue = s
+            XCTAssertNil(f.parsed(), "\(s) is not a value")
+        }
+        f.stringValue = "12,5"
+        XCTAssertEqual(f.parsed(), 12.5)
+        f.stringValue = " 40 "
+        XCTAssertEqual(f.parsed(), 40)
+    }
+
+    func testTypedNaNInWidthOrBendCommitsNothingAndRestoresTheValue() async throws {
+        try await begin(.contentAwareScale)
+        var commits: [Double] = []
+        let w = field(value: 600) { commits.append($0); DocumentTransforms.shared.setScale(width: UInt32(min(max($0, 1), 2400))) }
+        w.onReturn = nil   // the commit itself, not the Apply that follows Return
+        try type("nan", then: 36, "\r", into: w)
+        await settle()
+        XCTAssertEqual(commits, [], "NaN is refused before it reaches the session")
+        XCTAssertEqual(w.stringValue, "600", "the field shows the accepted value again")
+        await finish { t.cancel() }
+
+        try await begin(.warp)
+        let bend = t.warpBend
+        let b = field(value: bend) { commits.append($0); DocumentTransforms.shared.setWarpBend($0) }
+        b.onReturn = nil
+        for s in ["inf", "-infinity", "NaN"] {
+            try type(s, then: 36, "\r", into: b)
+            await settle()
+        }
+        XCTAssertEqual(commits, [])
+        XCTAssertEqual(t.warpBend, bend)
+        XCTAssertTrue(t.warpBend.isFinite)
+    }
 }

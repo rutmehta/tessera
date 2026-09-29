@@ -287,11 +287,14 @@ final class TransformNumberField: NSTextField, NSTextFieldDelegate {
 
     func formatted(_ v: Double) -> String { numberFormat.string(from: NSNumber(value: v)) ?? "\(v)" }
 
-    /// The typed number (no range: the session or the engine decides and says why it refuses).
+    /// The typed number (no range: the session or the engine decides and says why it refuses). Never NaN
+    /// or infinite ("nan", "inf", "1e999"): those are not values, and would trap in `UInt32(_:)` (W / H)
+    /// or poison Rotate / Bend.
     func parsed() -> Double? {
         let s = text.trimmingCharacters(in: .whitespaces)
-        if let n = numberFormat.number(from: s) { return n.doubleValue }
-        return Double(s.replacingOccurrences(of: ",", with: "."))
+        let v = numberFormat.number(from: s)?.doubleValue ?? Double(s.replacingOccurrences(of: ",", with: "."))
+        guard let v, v.isFinite else { return nil }
+        return v
     }
 
     private func show() { stringValue = formatted(value) }
