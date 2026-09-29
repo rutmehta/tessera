@@ -1,0 +1,24 @@
+{
+  "head": "114273ea6935d7a4faa5de0de740d9a88f732812",
+  "direct_exit": 1,
+  "tests_executed": 47,
+  "test_cases_passed": 46,
+  "test_cases_failed": 1,
+  "assertion_failures": 2,
+  "failures": [
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/InspectorFocusAXBridgeTests.swift:107: error: -[TesseraCoreTests.InspectorFocusAXBridgeTests testNativeHeterogeneousChildrenKeepSnapshotUnknownAndReleaseObjects] : XCTAssertNil failed: \"<NSAccessibilityElement: 0xa69bfaee0>\"",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/InspectorFocusAXBridgeTests.swift:108: error: -[TesseraCoreTests.InspectorFocusAXBridgeTests testNativeHeterogeneousChildrenKeepSnapshotUnknownAndReleaseObjects] : XCTAssertNil failed: \"<NSAccessibilityElement: 0xa69bfaed0>\" - value-only snapshot must not retain native semantic elements"
+  ],
+  "freeze": {
+    "head_equal": true,
+    "source_equal": true,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true,
+    "runner_equal": true,
+    "qualification_inputs_equal": true,
+    "elapsed_seconds": 169.46468270896003
+  },
+  "strict": "NOT RUN",
+  "gui": "NOT RUN",
+  "diagnosis": "Immediate weak references remain nonnil. AppKit autorelease lifetime was noted source-review risk, but root cause not proven; no correction or retry."
+}

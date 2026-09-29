@@ -1,0 +1,9 @@
+{
+  "head_equal": true,
+  "source_equal": true,
+  "ignored_ffi_equal": true,
+  "fixture_equal": true,
+  "runner_equal": true,
+  "qualification_inputs_equal": true,
+  "elapsed_seconds": 169.46468270896003
+}

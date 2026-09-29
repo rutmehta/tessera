@@ -1,3 +1,9 @@
+## Inspector native-object lifetime assertions failed; cache timing active
+
+Inspector `114273ea` ran 47 focused cases: 46 passed, one failed two weak-reference assertions for native root/child objects. Source/artifact/fixture/runner snapshots stayed equal. Strict and GUI were not run. The failure does not yet prove a product leak or a harmless autorelease issue; source diagnosis is active and the original test/log are preserved.
+
+Cache Task3 functional evidence is independently approved: exact baseline/candidate compositions, retained binaries, 36 opens, 24 edit/fallback frames, 40 independently recomputed pixel comparisons and owned-resource drainage. FFI now has the sole runtime grant for the fixed 22-process performance stage; no timing outcome is yet claimed.
+
 ## 2026-09-29 00:06 UTC — real cache frames pass; inspector repair gates active
 
 Task3 baseline `5f31f148` and candidate `7a3ec9bf` compiled, and all six functional processes exited successfully. The verdict records 40 CPU-reference comparisons across SDR/EDR CPU references and controlled CPU/Metal cases, with actual route and resource checks. FFI released runtime and prepares the frozen evidence for independent review; no performance process or speedup acceptance.
