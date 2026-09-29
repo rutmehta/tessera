@@ -362,6 +362,7 @@ impl DocumentSession {
             }
             j.result = Some((params, out.composite.clone(), affected));
         }
+        super::liquify::apply_checkpoint(&self.shared, "content-aware:show");
         self.show_layer_preview(layer, out.composite)?;
         Ok(ContentAwarePreviewResult {
             dx,

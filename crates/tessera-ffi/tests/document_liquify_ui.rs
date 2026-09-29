@@ -10,7 +10,8 @@ use compositor::{geom::Rect, raster::Depth, raster::Raster};
 use engine_api::tile::Extent;
 use filters::liquify::{Interpolation, Mesh};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tessera_ffi::*;
 
@@ -809,6 +810,127 @@ fn cancel_stale_deleted_and_locked_targets_never_commit() {
     );
 }
 
+/// Installs an apply checkpoint hook on `s` that records every site and, the
+/// first time `site` is reached, runs `cancel` (on the committing thread, at
+/// exactly that point). Returns the recorded sites.
+fn cancel_at(
+    s: &Arc<DocumentSession>,
+    site: &'static str,
+    cancel: impl Fn(&DocumentSession) + Send + Sync + 'static,
+) -> Arc<Mutex<Vec<String>>> {
+    let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+    let (log, weak, fired) = (seen.clone(), Arc::downgrade(s), AtomicBool::new(false));
+    s.set_apply_checkpoint_hook(Some(Arc::new(move |at: &str| {
+        log.lock().unwrap().push(at.to_owned());
+        if at == site
+            && !fired.swap(true, Ordering::SeqCst)
+            && let Some(s) = weak.upgrade()
+        {
+            cancel(&s);
+        }
+    })));
+    seen
+}
+
+fn deform(s: &DocumentSession, t: u64) {
+    s.liquify_brush_points(
+        t,
+        LiquifyTool::ForwardWarp,
+        brush(30.0),
+        path([20.0, 32.0], [40.0, 34.0], 12),
+    )
+    .unwrap();
+    s.liquify_end_stroke(t).unwrap();
+}
+
+/// A cancel that lands after every earlier check, at the last moment before
+/// the history write (under the document lock), still commits nothing, at
+/// every destination of a pixel layer. Without a cancel the same apply
+/// reaches the same checkpoint and commits one node.
+#[test]
+fn a_cancel_just_before_the_write_never_reaches_history_on_a_pixel_layer() {
+    let (dir, engine) = engine();
+    let s = open(&engine, &checker(dir.path(), "cw.png", 64, 64));
+    let layer = s.layers().unwrap()[0].id;
+    let before = pixels(&s);
+    let rows = s.layers().unwrap();
+    for dest in [
+        LiquifyDestination::CurrentLayer,
+        LiquifyDestination::NewLayer,
+        LiquifyDestination::SmartFilter,
+    ] {
+        let n = history(&s);
+        let t = s.begin_liquify(layer, None).unwrap().token;
+        deform(&s, t);
+        let seen = cancel_at(&s, "write", move |s| s.cancel_liquify(t));
+        let e = s
+            .commit_liquify(t, dest)
+            .expect_err("a cancelled apply must not commit");
+        s.set_apply_checkpoint_hook(None);
+        assert!(e.to_string().contains("cancelled"), "{dest:?}: {e}");
+        assert!(
+            seen.lock().unwrap().iter().any(|x| x == "write"),
+            "{dest:?}: the cancel landed at the write checkpoint"
+        );
+        assert_eq!(history(&s), n, "{dest:?}: no history node");
+        assert_eq!(s.layers().unwrap(), rows, "{dest:?}: layers unchanged");
+        assert_eq!(pixels(&s), before, "{dest:?}: pixels unchanged");
+        assert!(s.liquify_mesh(t).is_err(), "{dest:?}: workspace closed");
+
+        // Control: the same apply without the cancel commits one node.
+        let t = s.begin_liquify(layer, None).unwrap().token;
+        deform(&s, t);
+        let seen = cancel_at(&s, "never", |_| {});
+        s.commit_liquify(t, dest).unwrap();
+        s.set_apply_checkpoint_hook(None);
+        assert!(seen.lock().unwrap().iter().any(|x| x == "write"));
+        assert_eq!(history(&s), n + 1, "{dest:?}");
+        s.undo().unwrap();
+        assert_eq!(pixels(&s), before);
+    }
+}
+
+/// Smart objects commit through the smart-filter path, which validates the
+/// whole stack by rendering it under the document lock: a cancel there (a
+/// new Liquify filter or a re-edit) must also commit nothing.
+#[test]
+fn a_cancel_just_before_the_write_never_reaches_history_on_a_smart_object() {
+    let (dir, engine) = engine();
+    let s = open(&engine, &checker(dir.path(), "cs.png", 64, 64));
+    let layer = s.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(layer).unwrap();
+    let shown = presented(&s);
+    for stage in [None, Some(0)] {
+        if stage.is_some() {
+            // Something to re-edit.
+            let t = s.begin_liquify(layer, None).unwrap().token;
+            deform(&s, t);
+            s.commit_liquify(t, LiquifyDestination::SmartFilter)
+                .unwrap();
+        }
+        let n = history(&s);
+        let list = s.smart_filters(layer).unwrap();
+        let shown_now = presented(&s);
+        let t = s.begin_liquify(layer, stage).unwrap().token;
+        deform(&s, t);
+        let seen = cancel_at(&s, "write", move |s| s.cancel_liquify(t));
+        let e = s
+            .commit_liquify(t, LiquifyDestination::SmartFilter)
+            .expect_err("a cancelled apply must not commit");
+        s.set_apply_checkpoint_hook(None);
+        assert!(e.to_string().contains("cancelled"), "{stage:?}: {e}");
+        assert!(seen.lock().unwrap().iter().any(|x| x == "write"));
+        assert_eq!(history(&s), n, "{stage:?}: no history node");
+        assert_eq!(s.smart_filters(layer).unwrap(), list, "{stage:?}");
+        assert_eq!(presented(&s), shown_now, "{stage:?}");
+        assert!(s.liquify_mesh(t).is_err());
+    }
+    s.undo().unwrap();
+    assert!(max_diff(&presented(&s), &shown) <= 1e-6);
+}
+
+/// A cancel during the full-resolution render (deterministically: issued at
+/// the render checkpoint) stops the render and commits nothing.
 #[test]
 fn cancel_during_a_full_resolution_apply_leaves_no_late_result() {
     let (_dir, engine) = engine();
@@ -844,31 +966,29 @@ fn cancel_during_a_full_resolution_apply_leaves_no_late_result() {
         s.liquify_end_stroke(t).unwrap();
     }
     let n = history(&s);
-    let worker = {
-        let s = s.clone();
-        std::thread::spawn(move || {
-            let started = Instant::now();
-            let r = s.commit_liquify(t, LiquifyDestination::CurrentLayer);
-            (r, started.elapsed())
-        })
-    };
-    std::thread::sleep(std::time::Duration::from_millis(5));
-    let cancelled_at = Instant::now();
-    s.cancel_liquify(t);
-    let (r, took) = worker.join().unwrap();
-    let stop = cancelled_at.elapsed();
+    let at = Arc::new(Mutex::new(None::<Instant>));
+    let mark = at.clone();
+    let seen = cancel_at(&s, "liquify:render", move |s| {
+        *mark.lock().unwrap() = Some(Instant::now());
+        s.cancel_liquify(t);
+    });
+    let r = s.commit_liquify(t, LiquifyDestination::CurrentLayer);
+    s.set_apply_checkpoint_hook(None);
+    let stop = at
+        .lock()
+        .unwrap()
+        .expect("cancelled at the render")
+        .elapsed();
     println!(
-        "liquify apply cancel: result {:?}, commit call {:.1} ms, returned {:.1} ms after cancel",
-        r.as_ref().map(|_| "committed").map_err(|e| e.to_string()),
-        took.as_secs_f64() * 1e3,
+        "liquify apply cancel: returned {:.1} ms after the cancel",
         stop.as_secs_f64() * 1e3
     );
-    match r {
-        // Cancelled mid-render (the expected case): no history change.
-        Err(_) => assert_eq!(history(&s), n),
-        // Finished before the cancel landed: exactly one node, workspace closed.
-        Ok(_) => assert_eq!(history(&s), n + 1),
-    }
+    assert!(r.is_err(), "a cancelled render never commits");
+    assert!(
+        !seen.lock().unwrap().iter().any(|x| x == "write"),
+        "never reached the write"
+    );
+    assert_eq!(history(&s), n);
     assert!(s.liquify_mesh(t).is_err());
 }
 

@@ -102,8 +102,8 @@ pub use vector_shapes::{
 #[path = "document/liquify.rs"]
 mod liquify;
 pub use liquify::{
-    LiquifyBrush, LiquifyDestination, LiquifyMeshRecord, LiquifyPoint, LiquifyPreview,
-    LiquifySessionInfo, LiquifyStrokeResult, LiquifyTool,
+    ApplyCheckpointHook, LiquifyBrush, LiquifyDestination, LiquifyMeshRecord, LiquifyPoint,
+    LiquifyPreview, LiquifySessionInfo, LiquifyStrokeResult, LiquifyTool,
 };
 #[path = "document/content_aware.rs"]
 mod content_aware;

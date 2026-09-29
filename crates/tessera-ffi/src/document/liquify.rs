@@ -853,6 +853,7 @@ impl DocumentSession {
                     "Smart filter output works without a selection (the selection only froze the mesh); deselect first or apply to the layer",
                 ));
             }
+            apply_checkpoint(&self.shared, "liquify:render");
             mesh.render(&source, interpolation, &cancel)?;
             still_open()?;
             let op = Self::smart_from_pixels_op(
@@ -873,6 +874,7 @@ impl DocumentSession {
             let LayerKind::Pixel(raster) = &l.kind else {
                 return Err(failure("not a pixel layer"));
             };
+            apply_checkpoint(&self.shared, "liquify:render");
             let rendered = mesh.render(&source, interpolation, &cancel)?;
             still_open()?;
             if destination == LiquifyDestination::CurrentLayer {
@@ -975,5 +977,56 @@ impl DocumentSession {
             out
         })
         .ok()
+    }
+}
+
+// ───────────────────────── apply checkpoints (tests) ─────────────────────────
+
+/// A test hook run at named points of an apply (see `apply_checkpoint`).
+pub type ApplyCheckpointHook = Arc<dyn Fn(&str) + Send + Sync>;
+
+static ANY_HOOK: AtomicBool = AtomicBool::new(false);
+type HookList = Vec<(Weak<Shared>, ApplyCheckpointHook)>;
+static HOOKS: LazyLock<Mutex<HookList>> = LazyLock::new(Default::default);
+
+/// Runs this document's checkpoint hook, if a test installed one. Sites:
+/// - `"liquify:render"`: `commit_liquify`, just before the full-resolution
+///   render of a pixel layer;
+/// - `"content-aware:show"`: `preview_content_aware_move`, after the result
+///   is stored, just before it is shown;
+/// - `"write"`: a checked history write (`edit_checked`, `set_nodes_checked`),
+///   under the document lock, after any validation render, just before the
+///   node is applied. A hook here must not take the document lock.
+pub(crate) fn apply_checkpoint(shared: &Arc<Shared>, site: &str) {
+    if !ANY_HOOK.load(Ordering::Relaxed) {
+        return;
+    }
+    let hook = {
+        let mut h = HOOKS.lock().unwrap_or_else(|e| e.into_inner());
+        h.retain(|(w, _)| w.strong_count() > 0);
+        h.iter()
+            .find(|(w, _)| std::ptr::eq(w.as_ptr(), Arc::as_ptr(shared)))
+            .map(|(_, f)| f.clone())
+    };
+    if let Some(f) = hook {
+        f(site);
+    }
+}
+
+/// Test support (not exported over UniFFI).
+impl DocumentSession {
+    /// Installs (`Some`) or removes (`None`) this document's apply
+    /// checkpoint hook, called with the site name at each checkpoint of
+    /// `apply_checkpoint`. Lets tests cancel at a known point.
+    #[doc(hidden)]
+    pub fn set_apply_checkpoint_hook(&self, hook: Option<ApplyCheckpointHook>) {
+        let mut h = HOOKS.lock().unwrap_or_else(|e| e.into_inner());
+        h.retain(|(w, _)| {
+            w.strong_count() > 0 && !std::ptr::eq(w.as_ptr(), Arc::as_ptr(&self.shared))
+        });
+        if let Some(f) = hook {
+            h.push((Arc::downgrade(&self.shared), f));
+            ANY_HOOK.store(true, Ordering::Relaxed);
+        }
     }
 }

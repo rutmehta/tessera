@@ -10,8 +10,8 @@ use compositor::{geom::Rect, raster::Depth, raster::Raster};
 use engine_api::tile::Extent;
 use filters::caf::{ColourAdaptation, FillParams, MoveMode};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tessera_ffi::*;
 
@@ -662,6 +662,111 @@ fn cancelling_a_running_preview_discards_its_result() {
     );
     assert!(r.is_err(), "a cancelled preview never shows");
     assert_eq!(presented(&s), shown_before);
+    assert_eq!(history(&s), n);
+}
+
+/// Installs an apply checkpoint hook on `s` that records every site and, the
+/// first time `site` is reached, runs `cancel` at exactly that point.
+fn cancel_at(
+    s: &Arc<DocumentSession>,
+    site: &'static str,
+    cancel: impl Fn(&DocumentSession) + Send + Sync + 'static,
+) -> Arc<Mutex<Vec<String>>> {
+    let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+    let (log, weak, fired) = (seen.clone(), Arc::downgrade(s), AtomicBool::new(false));
+    s.set_apply_checkpoint_hook(Some(Arc::new(move |at: &str| {
+        log.lock().unwrap().push(at.to_owned());
+        if at == site
+            && !fired.swap(true, Ordering::SeqCst)
+            && let Some(s) = weak.upgrade()
+        {
+            cancel(&s);
+        }
+    })));
+    seen
+}
+
+/// A cancel that lands after every earlier check, at the last moment before
+/// the history write (under the document lock), commits nothing: on a pixel
+/// layer and on a smart object (whose smart-filter path validates the stack
+/// by rendering it under the lock first). Without it, the same apply commits.
+#[test]
+fn a_cancel_just_before_the_write_never_reaches_history() {
+    let (dir, engine) = engine();
+    for smart in [false, true] {
+        let s = open(
+            &engine,
+            &scene(dir.path(), &format!("cw{smart}.png"), 64, 40),
+        );
+        let layer = s.layers().unwrap()[0].id;
+        if smart {
+            s.convert_for_smart_filters(layer).unwrap();
+        }
+        s.set_selection_rect(8, 8, 12, 12, 0.0).unwrap();
+        let before = pixels(&s);
+        let n = history(&s);
+        let t = s
+            .begin_content_aware_move(layer, ContentAwareMode::Move)
+            .unwrap()
+            .token;
+        s.preview_content_aware_move(t, 30, 6, FILL.into(), ContentAwareSeam::None)
+            .unwrap();
+        let seen = cancel_at(&s, "write", move |s| s.cancel_content_aware_move(t));
+        let e = s
+            .commit_content_aware_move(t)
+            .expect_err("a cancelled apply must not commit");
+        s.set_apply_checkpoint_hook(None);
+        assert!(e.to_string().contains("cancelled"), "smart {smart}: {e}");
+        assert!(seen.lock().unwrap().iter().any(|x| x == "write"));
+        assert_eq!(history(&s), n, "smart {smart}: no history node");
+        assert_eq!(pixels(&s), before, "smart {smart}");
+        if smart {
+            assert!(s.smart_filters(layer).unwrap().is_empty());
+        }
+        assert!(s.commit_content_aware_move(t).is_err(), "closed");
+
+        // Control: the same apply without the cancel commits one node.
+        let t = s
+            .begin_content_aware_move(layer, ContentAwareMode::Move)
+            .unwrap()
+            .token;
+        s.preview_content_aware_move(t, 30, 6, FILL.into(), ContentAwareSeam::None)
+            .unwrap();
+        let seen = cancel_at(&s, "never", |_| {});
+        s.commit_content_aware_move(t).unwrap();
+        s.set_apply_checkpoint_hook(None);
+        assert!(seen.lock().unwrap().iter().any(|x| x == "write"));
+        assert_eq!(history(&s), n + 1, "smart {smart}");
+    }
+}
+
+/// A cancel that lands after the preview finished computing but before it
+/// is shown leaves the viewport as it was (the preview is never displayed).
+#[test]
+fn a_cancel_just_before_the_preview_shows_never_displays_it() {
+    let (dir, engine) = engine();
+    let s = open(&engine, &scene(dir.path(), "cp.png", 64, 40));
+    let layer = s.layers().unwrap()[0].id;
+    s.set_selection_rect(8, 8, 12, 12, 0.0).unwrap();
+    let shown_before = presented(&s);
+    let n = history(&s);
+    let t = s
+        .begin_content_aware_move(layer, ContentAwareMode::Move)
+        .unwrap()
+        .token;
+    let seen = cancel_at(&s, "content-aware:show", move |s| {
+        s.cancel_content_aware_move(t)
+    });
+    let r = s.preview_content_aware_move(t, 30, 6, FILL.into(), ContentAwareSeam::None);
+    s.set_apply_checkpoint_hook(None);
+    assert!(
+        seen.lock()
+            .unwrap()
+            .iter()
+            .any(|x| x == "content-aware:show")
+    );
+    assert!(r.is_err(), "a cancelled preview reports cancelled");
+    assert_eq!(presented(&s), shown_before, "and is never shown");
     assert_eq!(history(&s), n);
 }
 

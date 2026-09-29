@@ -2563,6 +2563,7 @@ impl DocumentSession {
                 "the layer changed while the filter ran; apply it again",
             ));
         }
+        super::liquify::apply_checkpoint(&self.shared, "write"); // B5-13
         let applied = st.doc.apply(op)?;
         st.labels.insert(applied.node, label.to_owned());
         Ok(self.update(&mut st, &before, Some(&applied), true))
@@ -2644,6 +2645,7 @@ impl DocumentSession {
         let (parent, index) = s
             .locate(LayerId(layer))
             .ok_or_else(|| failure("layer not found"))?;
+        super::liquify::apply_checkpoint(&self.shared, "write"); // B5-13
         let applied = st.doc.apply(DocOp::Batch(vec![
             DocOp::RemoveLayer { id: LayerId(layer) },
             DocOp::AddLayer {
