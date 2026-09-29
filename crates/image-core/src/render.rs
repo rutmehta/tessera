@@ -352,6 +352,12 @@ impl Renderer {
         }
     }
 
+    /// WB diagnostic operator tag (0 = unknown).
+    #[cfg(feature = "wb-diagnostic")]
+    pub fn diagnostic_operator(&self) -> u64 {
+        self.diag_operator
+    }
+
     /// WB diagnostic: tag this renderer (and its clones) with an operator.
     #[cfg(feature = "wb-diagnostic")]
     pub fn with_diagnostic_operator(mut self, operator: u64) -> Self {

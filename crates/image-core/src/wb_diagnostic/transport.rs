@@ -115,6 +115,9 @@ pub struct Counts {
     pub disabled_sticky: bool,
     /// `live::begin` refused a nonfinite WB matrix for a live token.
     pub attribution_rejected: u64,
+    /// Calibration iterations deliberately not observed (CPU arm), counted
+    /// only while a phase is armed (rev7 4.2, erratum E2).
+    pub cpu_iterations_unobserved: u64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SlotState {
@@ -404,6 +407,7 @@ impl Arena {
                 disabled: 0,
                 disabled_sticky: false,
                 attribution_rejected: 0,
+                cpu_iterations_unobserved: 0,
             },
             state: State::Idle,
             epoch: 0,
@@ -564,6 +568,16 @@ impl Arena {
         });
         if accepted {
             bump(&mut s.counts.attribution_rejected);
+        }
+    }
+    /// Counts one unobserved calibration iteration, only while armed and Open.
+    pub fn count_cpu_iteration_unobserved(&self) {
+        if !self.armed.load(Ordering::Relaxed) {
+            return;
+        }
+        let mut s = lock(&self.storage);
+        if s.state == State::Open && s.armed_phase.is_some() {
+            bump(&mut s.counts.cpu_iterations_unobserved);
         }
     }
     /// 0 = exhausted/unknown.

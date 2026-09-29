@@ -145,3 +145,41 @@ fn actual_candidate_sdr_phase_capture() {
 fn actual_candidate_edr_phase_capture() {
     actual(true, true);
 }
+
+/// C6 (rev7 R4), baseline composition: must-pass non-regression guard. The
+/// baseline (`5f31f148`) has no calibration controls (`SelectionControl`
+/// exists only on the candidate), so its only in-test calibration bypass is
+/// the unavailable-device path: under an armed epoch it returns CPU without
+/// `measure_at`, making no reservation and leaving the CPU-iteration counter
+/// unchanged. C2' (same C run) is the positive control for reservation
+/// detection.
+#[test]
+fn calibration_controls_make_no_reservation() {
+    use image_core::wb_diagnostic::{ARENA, State, harness::EpochGuard};
+    let g = EpochGuard::open().expect(
+        "EpochGuard: requires --test-threads=1 and an Idle ARENA (an earlier test may have leaked a live lease)",
+    );
+    g.epoch().arm(1).unwrap();
+    use crate::backend::common;
+    let image = common::synthetic(606, 64, 48, common::RGGB, [0, 0, 64, 48]);
+    let before = ARENA.counts().expect("arena counts");
+    assert_eq!(ARENA.state().unwrap(), State::Open);
+    let backend = crate::backend::select_proxy(
+        &image,
+        &engine_api::recipe::DevelopSettings::default(),
+        || None,
+    );
+    assert!(!backend.name.starts_with("Metal"), "DeviceUnavailable");
+    let after = ARENA.counts().expect("arena counts");
+    assert_eq!(ARENA.state().unwrap(), State::Open);
+    assert_eq!(
+        (after.reserved, after.active, after.completed),
+        (0, 0, 0),
+        "DeviceUnavailable"
+    );
+    assert_eq!(
+        after.cpu_iterations_unobserved, before.cpu_iterations_unobserved,
+        "DeviceUnavailable"
+    );
+    assert_eq!(after.loss, 0);
+}

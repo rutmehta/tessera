@@ -1715,6 +1715,8 @@ impl Shared {
             },
             shared: Arc::downgrade(self),
             generation,
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            diag: None,
         };
         st.interactive_in_flight = interactive.then_some(generation);
         if let Some(engine) = self.engine.upgrade() {
@@ -2293,6 +2295,45 @@ struct DevelopJob {
     inner: ProgressiveRenderJob,
     shared: std::sync::Weak<Shared>,
     generation: u64,
+    /// WB diagnostic reservation (rev7 4.2); `None` unless a phase is armed.
+    #[cfg(all(test, feature = "wb-diagnostic"))]
+    diag: Option<image_core::wb_diagnostic::Reservation>,
+}
+
+/// Direct surface presentation of a develop job.
+#[cfg(not(all(test, feature = "wb-diagnostic")))]
+fn job_surface(
+    job: &ProgressiveRenderJob,
+    surface: u32,
+    cancel: &engine_api::jobs::CancellationToken,
+) -> engine_api::EngineResult<Option<Hist>> {
+    job.renderer.render_surface_as(
+        &job.image,
+        &job.settings,
+        job.viewport.finest_level,
+        surface,
+        job.output,
+        cancel,
+    )
+}
+
+/// WB diagnostic: the same presentation carrying an attribution token.
+#[cfg(all(test, feature = "wb-diagnostic"))]
+fn job_surface(
+    job: &ProgressiveRenderJob,
+    surface: u32,
+    cancel: &engine_api::jobs::CancellationToken,
+    diag: Option<image_core::wb_diagnostic::Token>,
+) -> engine_api::EngineResult<Option<Hist>> {
+    job.renderer.render_surface_as_observed(
+        &job.image,
+        &job.settings,
+        job.viewport.finest_level,
+        surface,
+        job.output,
+        cancel,
+        diag,
+    )
 }
 
 impl Job for DevelopJob {
@@ -2329,16 +2370,21 @@ impl Job for DevelopJob {
             }) {
                 return Err(engine_api::EngineError::Cancelled);
             }
+            // C0: signature only; the reservation is always `None`.
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            let diag = self
+                .diag
+                .as_ref()
+                .map(image_core::wb_diagnostic::Reservation::token);
             *self.surface.lock().unwrap_or_else(|e| e.into_inner()) = destination.clone();
             if let Some(surface) = &destination
                 && self.inner.viewport.finest_level == self.inner.viewport.coarsest_level
-                && let Some(hist) = self.inner.renderer.render_surface_as(
-                    &self.inner.image,
-                    &self.inner.settings,
-                    self.inner.viewport.finest_level,
+                && let Some(hist) = job_surface(
+                    &self.inner,
                     surface.id(),
-                    self.inner.output,
                     &ctx.cancellation,
+                    #[cfg(all(test, feature = "wb-diagnostic"))]
+                    diag,
                 )?
             {
                 ctx.cancellation.check()?;

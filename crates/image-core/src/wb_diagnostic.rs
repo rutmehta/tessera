@@ -683,9 +683,11 @@ mod tests {
 }
 
 // Explicit-token transport; the whole module is feature-gated (lib.rs).
+mod fingerprint;
 pub mod harness;
-pub mod live;
+pub(crate) mod live;
 mod transport;
+pub use fingerprint::{output_tag, process_identity, recipe_fingerprint, settings_fingerprint};
 pub use transport::{
     ARENA, Arena, BeginContext, Counts, Drain, DrainView, Epoch, Lease, PhaseKind, RequestContext,
     Reservation, Route, RouteState, SlotMeta, State, Token,

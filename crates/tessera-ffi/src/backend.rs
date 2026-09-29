@@ -76,13 +76,55 @@ fn gpu_is_faster(cpu: [f64; 3], gpu: [f64; 3]) -> bool {
 }
 #[cfg(test)]
 fn measure(renderer: &Renderer, image: &RawImage) -> EngineResult<[f64; 3]> {
-    measure_at(renderer, image, &DevelopSettings::default(), 2)
+    measure_at(
+        renderer,
+        image,
+        &DevelopSettings::default(),
+        2,
+        #[cfg(feature = "wb-diagnostic")]
+        false,
+    )
+}
+/// Calibration presentation: `render_surface`, spelled out as its own
+/// `render_surface_as(…, Display, …)` delegation.
+#[cfg(not(all(test, feature = "wb-diagnostic")))]
+fn surface_render(
+    renderer: &Renderer,
+    image: &RawImage,
+    settings: &DevelopSettings,
+    level: u8,
+    surface: u32,
+    cancel: &engine_api::jobs::CancellationToken,
+) -> EngineResult<Option<image_core::resident::DisplayHistogram>> {
+    renderer.render_surface(image, settings, level, surface, cancel)
+}
+/// WB diagnostic: the same presentation carrying an attribution token.
+#[cfg(all(test, feature = "wb-diagnostic"))]
+fn surface_render(
+    renderer: &Renderer,
+    image: &RawImage,
+    settings: &DevelopSettings,
+    level: u8,
+    surface: u32,
+    cancel: &engine_api::jobs::CancellationToken,
+    diag: Option<image_core::wb_diagnostic::Token>,
+) -> EngineResult<Option<image_core::resident::DisplayHistogram>> {
+    renderer.render_surface_as_observed(
+        image,
+        settings,
+        level,
+        surface,
+        image_core::RenderOutput::Display,
+        cancel,
+        diag,
+    )
 }
 fn measure_at(
     renderer: &Renderer,
     image: &RawImage,
     settings: &DevelopSettings,
     level: u8,
+    #[cfg(all(test, feature = "wb-diagnostic"))] observe: bool,
 ) -> EngineResult<[f64; 3]> {
     let mut s = settings.clone();
     let extent = Renderer::output_extent(image, &s, level)?;
@@ -105,8 +147,20 @@ fn measure_at(
                 WhiteBalanceMode::Daylight
             };
         }
+        // C0: signature only; no reservation is made yet.
+        #[cfg(all(test, feature = "wb-diagnostic"))]
+        let _ = (observe, i);
         let start = Instant::now();
-        let histogram = match renderer.render_surface(image, &s, level, surface.id(), &cancel)? {
+        let histogram = match surface_render(
+            renderer,
+            image,
+            &s,
+            level,
+            surface.id(),
+            &cancel,
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            None,
+        )? {
             Some(histogram) => histogram,
             None => {
                 let tiles = renderer.render_region(image, &s, level, rect)?;
@@ -128,6 +182,9 @@ pub(crate) struct Backend {
     cache: Arc<TileCache>,
     config: RendererConfig,
     pub(crate) name: String,
+    /// WB diagnostic operator tag, copied into every renderer (rev7 2).
+    #[cfg(all(test, feature = "wb-diagnostic"))]
+    diag_operator: u64,
 }
 
 impl Backend {
@@ -137,12 +194,23 @@ impl Backend {
             cache: Arc::new(TileCache::new(config.cache_budget_bytes)),
             config,
             name,
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            diag_operator: 0,
         }
     }
 
     /// A renderer over the shared operators and memo cache.
+    #[cfg(not(all(test, feature = "wb-diagnostic")))]
     pub(crate) fn renderer(&self) -> Renderer {
         Renderer::with_ops(self.ops.clone(), self.cache.clone(), self.config.clone())
+    }
+
+    /// A renderer over the shared operators and memo cache, carrying this
+    /// backend's WB diagnostic operator tag.
+    #[cfg(all(test, feature = "wb-diagnostic"))]
+    pub(crate) fn renderer(&self) -> Renderer {
+        Renderer::with_ops(self.ops.clone(), self.cache.clone(), self.config.clone())
+            .with_diagnostic_operator(self.diag_operator)
     }
 }
 
@@ -222,8 +290,22 @@ fn select_at(
         return gpu;
     }
     match (
-        measure_at(&cpu.renderer(), image, settings, level),
-        measure_at(&gpu.renderer(), image, settings, level),
+        measure_at(
+            &cpu.renderer(),
+            image,
+            settings,
+            level,
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            false,
+        ),
+        measure_at(
+            &gpu.renderer(),
+            image,
+            settings,
+            level,
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            true,
+        ),
     ) {
         (Ok(c), Ok(g)) => {
             eprintln!(
@@ -246,7 +328,7 @@ fn select_at(
 
 #[cfg(test)]
 #[path = "../../image-core/tests/common/mod.rs"]
-mod common;
+pub(crate) mod common;
 
 #[cfg(test)]
 mod tests {
