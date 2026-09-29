@@ -1,3 +1,9 @@
+## Inspector automated verification complete; bounded GUI retry active
+
+Inspector `4685efd5` passed 48 focused tests and strict; independent verification matched 8,392 immutable Git inputs and preserved executable. Portable evidence is in `B5-16/evidence/2026-09-29/ax-lifetime-4685efd5`. Worker exclusively owns GUI runtime, with shell PID/path/arguments checks after each Tab before CUA observations. No keyboard acceptance yet.
+
+Normalization `0434ff8d` Task1 source is reviewed with all 17 tests unchanged; GREEN runner preparation only until the runtime lane releases. Narrow WB exact-key diagnostic plan is approved for source-only tests/scaffold, preserving frozen failed performance candidates and thresholds. Mailbox poll found no new messages; accepted inspector chains remain pending actual outcomes.
+
 ## Normalization RED independently verified; narrow WB diagnostic plan recorded
 
 Normalization `bf75fe66` compiled and its exact test binary produced 17 Unsupported failures. Independent review verified 9,140 immutable Git inputs, all freezes and the executable digest. Later table rows remain unexecuted. Portable RED evidence is preserved; author is authorized only to implement the private helper, keeping all 17 tests and legacy/public behavior unchanged until review and GREEN.

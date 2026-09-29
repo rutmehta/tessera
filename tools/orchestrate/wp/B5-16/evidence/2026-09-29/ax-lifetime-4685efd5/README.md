@@ -1,0 +1,1 @@
+Inspector 4685efd5: 48 focused passes, strict Release pass, independent 8,392-source-input verification. Automated scope only; GUI pending. Portable text logs/manifests/runner included. Preserved executables remain at /Volumes/betterSSD/tessera-validation/b5-16-ax-lifetime-4685efd5/final-binaries and are identified in final-artifacts.json. Previous failures remain retained.
