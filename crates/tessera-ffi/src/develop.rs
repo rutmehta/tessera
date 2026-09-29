@@ -1699,6 +1699,26 @@ impl Shared {
             adapt: interactive.then_some(class),
         }));
         let cpu_sink = sink.clone();
+        // WB diagnostic (rev7 4.2): `None` unless the harness armed a phase.
+        // The arena mutex is a leaf lock, so taking it under `st` is safe.
+        #[cfg(all(test, feature = "wb-diagnostic"))]
+        let diag = {
+            use image_core::wb_diagnostic::{
+                ARENA, PhaseKind, RequestContext, output_tag, process_identity, recipe_fingerprint,
+                settings_fingerprint,
+            };
+            let (tag, headroom) = output_tag(output);
+            ARENA.reserve_armed(RequestContext::new(
+                recipe_fingerprint(self.image.id(), &settings),
+                settings_fingerprint(&settings),
+                process_identity(st.recipe.process_version),
+                tag,
+                headroom,
+                finest,
+                PhaseKind::Develop { generation },
+                renderer.diagnostic_operator(),
+            ))
+        };
         let job = DevelopJob {
             sink,
             surface,
@@ -1716,7 +1736,7 @@ impl Shared {
             shared: Arc::downgrade(self),
             generation,
             #[cfg(all(test, feature = "wb-diagnostic"))]
-            diag: None,
+            diag,
         };
         st.interactive_in_flight = interactive.then_some(generation);
         if let Some(engine) = self.engine.upgrade() {
@@ -2370,12 +2390,12 @@ impl Job for DevelopJob {
             }) {
                 return Err(engine_api::EngineError::Cancelled);
             }
-            // C0: signature only; the reservation is always `None`.
+            // Bound after the render serial and the generation check; any
+            // early return from here on drops the lease, recording Abort.
             #[cfg(all(test, feature = "wb-diagnostic"))]
-            let diag = self
-                .diag
-                .as_ref()
-                .map(image_core::wb_diagnostic::Reservation::token);
+            let lease = self.diag.map(image_core::wb_diagnostic::Reservation::bind);
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            let diag = lease.as_ref().map(image_core::wb_diagnostic::Lease::token);
             *self.surface.lock().unwrap_or_else(|e| e.into_inner()) = destination.clone();
             if let Some(surface) = &destination
                 && self.inner.viewport.finest_level == self.inner.viewport.coarsest_level
@@ -2388,6 +2408,12 @@ impl Job for DevelopJob {
                 )?
             {
                 ctx.cancellation.check()?;
+                // N7: Delivered only after the cancellation check; a
+                // cancellation above drops the lease (Abort).
+                #[cfg(all(test, feature = "wb-diagnostic"))]
+                if let Some(lease) = lease {
+                    lease.finish(image_core::wb_diagnostic::Route::Delivered);
+                }
                 self.sink
                     .lock()
                     .unwrap_or_else(|e| e.into_inner())
@@ -2395,7 +2421,14 @@ impl Job for DevelopJob {
                 ctx.report_progress(1.0, None);
                 return Ok(());
             }
-            Box::new(self.inner).run(ctx)
+            // Progressive fallback: Declined once it completes; an error or
+            // cancellation drops the lease (Abort).
+            Box::new(self.inner).run(ctx)?;
+            #[cfg(all(test, feature = "wb-diagnostic"))]
+            if let Some(lease) = lease {
+                lease.finish(image_core::wb_diagnostic::Route::Declined);
+            }
+            Ok(())
         })();
         if let Err(e) = &result
             && !matches!(e, engine_api::EngineError::Cancelled)
