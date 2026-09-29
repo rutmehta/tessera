@@ -6,7 +6,7 @@ import XCTest
 /// Native control contract tests, NOT proof of reachability in the hosted inspector.
 @MainActor
 final class DocumentInspectorActionButtonTests: XCTestCase {
-    private func event(_ code: UInt16, repeat repeated: Bool = false,
+    private func event(_ code: UInt16, repeated: Bool = false,
                        modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
         try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
             timestamp: 0, windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "",
@@ -37,7 +37,7 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
             let before = actions
             button.keyDown(with: try event(code))
             XCTAssertEqual(actions, before + 1)
-            button.keyDown(with: try event(code, repeat: true))
+            button.keyDown(with: try event(code, repeated: true))
             XCTAssertEqual(actions, before + 1)
         }
     }
