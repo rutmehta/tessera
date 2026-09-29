@@ -1,3 +1,9 @@
+## B lifetime setup correction requested
+
+Result `87eed0a2` has a failed receipt scoped to the two weak-reference assertions in `114273ea`; the 46 passing cases remain preserved. Source diagnosis and a discriminating no-observer control proposal are on main `a4337abb`. New request `8102f329-cc08-49ee-a897-6d2400fed0a2` is published; SSH queue `01a0ea81-e07e-7e80-b372-1ab4bdd78ff9` accepted. Peer receipt is pending. No product leak/autorelease conclusion, assertion waiver or routing change.
+
+FFI retains sole runtime for cache performance. Heavy evidence archiving and further builds wait until measurements finish.
+
 ## Inspector native-object lifetime assertions failed; cache timing active
 
 Inspector `114273ea` ran 47 focused cases: 46 passed, one failed two weak-reference assertions for native root/child objects. Source/artifact/fixture/runner snapshots stayed equal. Strict and GUI were not run. The failure does not yet prove a product leak or a harmless autorelease issue; source diagnosis is active and the original test/log are preserved.
