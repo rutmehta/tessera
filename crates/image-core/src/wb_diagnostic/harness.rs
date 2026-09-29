@@ -18,12 +18,18 @@ pub enum GuardError {
 /// N-3: the shared static ARENA is correct only when one test runs at a time.
 fn single_threaded_test_run() -> bool {
     // Test-helper allocation, outside the storage ledger.
+    // libtest gives a `--test-threads` argument precedence over the
+    // environment (Stage B review NB-2): decide on the last one if present.
     let args: Vec<std::ffi::OsString> = std::env::args_os().collect();
-    std::env::var_os("RUST_TEST_THREADS").is_some_and(|v| v == "1")
-        || args.iter().any(|a| a == "--test-threads=1")
-        || args
-            .windows(2)
-            .any(|w| w[0] == "--test-threads" && w[1] == "1")
+    let mut cli = None;
+    for (i, a) in args.iter().enumerate() {
+        if let Some(v) = a.to_str().and_then(|a| a.strip_prefix("--test-threads=")) {
+            cli = Some(v == "1");
+        } else if a == "--test-threads" {
+            cli = Some(args.get(i + 1).is_some_and(|v| v == "1"));
+        }
+    }
+    cli.unwrap_or_else(|| std::env::var_os("RUST_TEST_THREADS").is_some_and(|v| v == "1"))
 }
 
 /// Opens one epoch of [`ARENA`] and, on drop (including unwind), closes it,

@@ -145,3 +145,61 @@ fn actual_candidate_sdr_phase_capture() {
 fn actual_candidate_edr_phase_capture() {
     actual(true, true);
 }
+
+/// C6 (rev7 R4): must-pass non-regression guard. Under an armed epoch the
+/// measured/failed calibration controls bypass `measure_at`, so they make no
+/// reservation and leave the CPU-iteration counter unchanged. C2' (same C run)
+/// is the positive control for reservation detection.
+#[test]
+#[cfg(target_os = "macos")]
+fn calibration_controls_make_no_reservation() {
+    use crate::develop::proxy_cache_contracts::{SelectionControl, SelectionState};
+    use image_core::wb_diagnostic::{ARENA, State, harness::EpochGuard};
+    let g = EpochGuard::open().expect(
+        "EpochGuard: requires --test-threads=1 and an Idle ARENA (an earlier test may have leaked a live lease)",
+    );
+    g.epoch().arm(1).unwrap();
+    use crate::backend::common;
+    let image = common::synthetic(606, 64, 48, common::RGGB, [0, 0, 64, 48]);
+    let device = gpu_core::GpuDevice::new().ok();
+    assert!(
+        device.is_some(),
+        "C6 needs a Metal device to reach the controls"
+    );
+    for (label, control, metal) in [
+        ("MeasuredCpu", SelectionControl::MeasuredCpu, false),
+        ("MeasuredMetal", SelectionControl::MeasuredMetal, true),
+        (
+            "CalibrationFailure",
+            SelectionControl::CalibrationFailure,
+            false,
+        ),
+    ] {
+        let before = ARENA.counts().expect("arena counts");
+        assert_eq!(ARENA.state().unwrap(), State::Open);
+        let observer = std::sync::Mutex::new(SelectionState {
+            control: Some(control),
+            ..Default::default()
+        });
+        let backend = crate::backend::select_proxy(
+            &image,
+            &engine_api::recipe::DevelopSettings::default(),
+            || device.clone(),
+            None,
+            Some(&observer),
+        );
+        assert_eq!(backend.name.starts_with("Metal"), metal, "{label}");
+        let after = ARENA.counts().expect("arena counts");
+        assert_eq!(ARENA.state().unwrap(), State::Open);
+        assert_eq!(
+            (after.reserved, after.active, after.completed),
+            (0, 0, 0),
+            "{label}"
+        );
+        assert_eq!(
+            after.cpu_iterations_unobserved, before.cpu_iterations_unobserved,
+            "{label}"
+        );
+        assert_eq!(after.loss, 0);
+    }
+}
