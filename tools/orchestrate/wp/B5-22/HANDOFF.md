@@ -74,3 +74,22 @@ frames, not different scheduling. Median latency is now half of the B5-11 figure
 Two failures appear in both runs and have nothing to do with this change: `11b-3 dash-offset slider found`
 and `11b-6 fill colour well found` (inspector control lookup in the background host). Before: 3 failures;
 after: 2.
+
+## Review nits from Machine A (commit on top of e373b993, no rebase)
+- `final_owner_gate…`: the post-acceptance call is `invalidate_frame()` again, so the test checks its
+  original intent: a cancel after acceptance cannot revoke the accepted callback.
+- New `ring_replacement_and_detach_cancel_the_in_flight_frame` (macOS) drives the real `DocumentSession`
+  paths. The test holds the render backend lock so a frame stays in flight, then calls `attach_surface`
+  with a different size (the ring is replaced) and, in a second round, `detach_surfaces`. Each time it
+  asserts that the in-flight token is cancelled right away. It also asserts that the cancelled frame never
+  reaches `on_frame`: frames publish only to the new ring, and nothing publishes after detach. The
+  generation gate alone would still drop those frames, so `document_viewport::frames_for_a_replaced_ring_are_dropped`
+  passes without the invalidation. This test does not. Checked locally by removing each call in turn
+  (not committed): without the `attach_surface` call it fails with
+  `attach_surface replacing the ring cancels the frame`, and without the `detach_surfaces` call it fails with
+  `detach_surfaces cancels the frame`. With both calls in place it passed in 15 of 15 repeat runs.
+- `drafts_faster_than_frame_time…`: the monotonic check uses `<=`, because a microsecond race can publish the
+  last draft twice. The last published frame must still show the final draft.
+- Gates: `cargo fmt --all --check` OK. `cargo clippy --release -p tessera-ffi --all-targets -D warnings` OK.
+  `cargo test --release -p tessera-ffi` (full) had 0 failures: lib 199 passed, 3 ignored, and the
+  `hdr_saved_offline_recipe…` flake did not trip in this run. Tests only, no Swift change.
