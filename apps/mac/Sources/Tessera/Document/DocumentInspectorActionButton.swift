@@ -132,6 +132,7 @@ final class DocumentInspectorNativeActionButton: NSButton, KeyOwningControl {
 
     override var focusRingMaskBounds: NSRect { bounds }
     override func drawFocusRingMask() {
+        Theme.Palette.textPrimary.setFill()
         NSBezierPath(roundedRect: bounds, xRadius: Theme.Radius.control, yRadius: Theme.Radius.control).fill()
     }
 }
