@@ -158,13 +158,20 @@ fn painting_white_outside_the_old_selection_grows_it_after_exit() {
     select_left(&s);
     let q = s.enter_quick_mask("Quick Mask".into()).unwrap().channel_id;
     stroke(&s, layer, q, WHITE, 250.0, 350.0);
-    assert_eq!(chan_px(&s, q, 300, 150), 1.0, "not clipped to the old selection");
+    assert_eq!(
+        chan_px(&s, q, 300, 150),
+        1.0,
+        "not clipped to the old selection"
+    );
     let n = labels(&s).len();
     s.exit_quick_mask(q).unwrap();
     let after = labels(&s);
     assert_eq!(after.len(), n + 1, "one node: {after:?}");
     assert_eq!(after.last().map(String::as_str), Some("Quick Mask"));
-    assert!(s.document_channels().unwrap().is_empty(), "the channel is gone");
+    assert!(
+        s.document_channels().unwrap().is_empty(),
+        "the channel is gone"
+    );
     assert_eq!(sel_px(&s, 100, 150), 1.0, "the old selection is kept");
     assert_eq!(sel_px(&s, 300, 150), 1.0, "the painted area is added");
     assert_eq!(sel_px(&s, 300, 20), 0.0, "the rest stays unselected");
