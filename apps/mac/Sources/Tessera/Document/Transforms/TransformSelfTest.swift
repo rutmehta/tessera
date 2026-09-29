@@ -139,6 +139,72 @@ final class TransformSelfTest {
     }
 
     private func history() -> Int { (try? doc?.backend.historyItems().count) ?? 0 }
+    private var statusLine: String { workspace.app?.statusMessage ?? "" }
+
+    // MARK: B5-12b helpers
+
+    /// An options-bar field (AppKit) by accessibility identifier.
+    private func optionField(_ id: String) -> TransformNumberField? {
+        func find(_ v: NSView) -> TransformNumberField? {
+            if let f = v as? TransformNumberField, f.accessibilityIdentifier() == id { return f }
+            for s in v.subviews { if let f = find(s) { return f } }
+            return nil
+        }
+        return viewport?.window?.contentView.flatMap(find)
+    }
+
+    /// Screen frame of the accessibility element `id` in this window (SwiftUI controls included).
+    private func axFrame(_ id: String) -> CGRect? {
+        if let f = optionField(id), let w = f.window { return w.convertToScreen(f.convert(f.bounds, to: nil)) }
+        // SwiftUI pop-ups carry a `TransformFrameProbe` behind them (an AppKit view with their frame).
+        func probe(_ v: NSView) -> NSView? {
+            if v is TransformProbeView, v.identifier?.rawValue == id { return v }
+            for s in v.subviews { if let p = probe(s) { return p } }
+            return nil
+        }
+        if let p = viewport?.window?.contentView.flatMap(probe), let w = p.window {
+            return w.convertToScreen(p.convert(p.bounds, to: nil))
+        }
+        var seen = 0
+        func walk(_ el: Any, _ depth: Int) -> CGRect? {
+            seen += 1
+            guard depth < 40, seen < 20_000, let e = el as? NSAccessibilityElementProtocol else { return nil }
+            if let o = el as? NSObject, o.responds(to: #selector(NSAccessibilityProtocol.accessibilityIdentifier)),
+               (o.perform(#selector(NSAccessibilityProtocol.accessibilityIdentifier))?.takeUnretainedValue() as? String) == id {
+                return e.accessibilityFrame()
+            }
+            let kids = (el as? NSObject)?.responds(to: #selector(NSAccessibilityProtocol.accessibilityChildren)) == true
+                ? ((el as? NSObject)?.perform(#selector(NSAccessibilityProtocol.accessibilityChildren))?.takeUnretainedValue() as? [Any]) ?? []
+                : []
+            for k in kids { if let r = walk(k, depth + 1) { return r } }
+            return nil
+        }
+        guard let w = viewport?.window else { return nil }
+        return walk(w, 0)
+    }
+
+    /// B5-12b item 7: the control sits inside the window's visible content (below the toolbar, not scrolled
+    /// or clipped off the right edge of the options bar).
+    private func checkVisible(_ step: String, _ id: String) {
+        guard let w = viewport?.window else { return }
+        let content = w.convertToScreen(w.contentLayoutRect).insetBy(dx: -0.5, dy: -0.5)
+        guard let r = axFrame(id) else { return check("\(step) \(id) found", false, "no accessibility element") }
+        check("\(step) \(id) inside the visible options bar at \(Int(w.frame.width)) pt", content.contains(r) && r.width > 1,
+              "control \(r.integral) visible content \(content.integral)")
+    }
+
+    /// Focuses the options-bar field `id`, types `text` (nil: as is) and sends `code` to its field editor.
+    private func typeInField(_ id: String, _ text: String?, key code: UInt16, _ chars: String) -> Bool {
+        guard let f = optionField(id), let w = f.window else { return false }
+        if f.currentEditor() == nil, !w.makeFirstResponder(f) { return false }
+        guard let editor = f.currentEditor() as? NSTextView,
+              let e = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                       windowNumber: w.windowNumber, context: nil, characters: chars,
+                                       charactersIgnoringModifiers: chars, isARepeat: false, keyCode: code) else { return false }
+        if let text { editor.string = text }
+        editor.keyDown(with: e)
+        return true
+    }
     private func kind(_ id: DocLayerID) -> LayerKindTag? { doc?.node(id)?.kind }
 
     private func began(_ tag: AdvancedTransformTag) async -> Bool {
@@ -239,11 +305,19 @@ final class TransformSelfTest {
         check("381 pixel target needs consent", t.session?.start.needsConversion == true)
         t.warpBend = 40
         t.applyWarpPreset("Arc")
-        await settle()
+        await settle(0.4)
+        // B5-12b item 5: the pending preview is not a committed smart object in the panels.
+        check("381 preview keeps the Pixel row", kind(photo) == .pixel && t.previewLabel == "Warp (preview)",
+              "\(String(describing: kind(photo))) \(t.previewLabel ?? "-")")
+        // B5-12b item 7: Warp preset and Bend inside the visible options bar at 1440 pt.
+        checkVisible("384", "document.transform.warpPreset")
+        checkVisible("384", "document.transform.bend")
         await shot("381-warp-preview-pixel")
         _ = await finished { t.cancel() }
         check("381 cancel keeps Pixel", kind(photo) == .pixel, "\(String(describing: kind(photo)))")
         check("381 cancel leaves history", history() == h0, "\(history()) vs \(h0)")
+        // B5-12b item 6: the tool's hint replaces the Warp instructions.
+        check("381 no stale Warp hint after Cancel", statusLine == DocumentTools.shared.hint(for: d), statusLine)
         guard await began(.warp) else { return finish() }
         t.warpBend = 40
         t.applyWarpPreset("Arc")
@@ -251,6 +325,11 @@ final class TransformSelfTest {
         t.apply()
         check("381 Apply asks before converting", t.consentPending)
         await shot("381-convert-alert")
+        // B5-12b item 5: Cancel of the alert keeps the original layer in the panels.
+        t.consentPending = false
+        await settle(0.3)
+        check("381 alert Cancel keeps the Pixel row", kind(photo) == .pixel && t.session != nil, "\(String(describing: kind(photo)))")
+        t.apply()
         let r381 = await finished { t.confirmConversion() }
         check("381 committed", (try? r381?.get()) != nil, "\(String(describing: r381))")
         check("381 smart object after consent", kind(photo) == .smartObject)
@@ -314,6 +393,36 @@ final class TransformSelfTest {
         await settle()
         check("392 redo restores the stage", (try? d.backend.info().historyHead) == applied && stagesNow() == appliedStage)
 
+        // B5-12b item 4: Esc / Return while the Bend field of the options bar is editing.
+        guard await began(.warp) else { return finish() }
+        t.warpBend = 20
+        t.applyWarpPreset("Arc")
+        await settle(0.3)
+        check("384 Esc typed in Bend", typeInField("document.transform.bend", "35", key: 53, "\u{1b}"))
+        await settle()
+        check("384 first Esc ends field editing", optionField("document.transform.bend")?.currentEditor() == nil
+              && t.session != nil && optionField("document.transform.bend")?.stringValue == "20",
+              "session \(t.session != nil) field \(optionField("document.transform.bend")?.stringValue ?? "-")")
+        _ = await finished { _ = key(code: 53, chars: "\u{1b}") }
+        check("384 second Esc cancels", t.session == nil)
+        guard await began(.warp) else { return finish() }
+        t.warpBend = 20
+        t.applyWarpPreset("Arc")
+        await settle(0.3)
+        _ = await finished { _ = typeInField("document.transform.bend", nil, key: 53, "\u{1b}") }
+        check("384 Esc with Bend unchanged cancels", t.session == nil)
+        guard await began(.warp) else { return finish() }
+        t.warpBend = 20
+        t.applyWarpPreset("Arc")
+        await settle(0.3)
+        let hReturn = history()
+        _ = await finished { _ = typeInField("document.transform.bend", "30", key: 36, "\r") }
+        check("384 Return in Bend commits then applies", t.session == nil && history() == hReturn + 1 && t.warpBend == 30,
+              "session \(t.session != nil) nodes \(history() - hReturn) bend \(t.warpBend)")
+        check("384 no stale Warp hint after Apply", !statusLine.contains("drag the net"), statusLine)
+        d.undo()
+        await settle()
+
         // 385–386: linked perspective planes on a second layer (duplicate the smart object).
         guard await began(.perspective) else { return finish() }
         t.splitPerspective(vertical: true)
@@ -331,14 +440,15 @@ final class TransformSelfTest {
             }
             await shot("385-perspective-linked")
             // 386: drag a corner across the plane: rejected, the previous shape stays.
-            let valid = t.session?.op
             let corner = p.destination[1][0]
             await drag(view(corner), view(CGPoint(x: p.destination[0][2].x + 300, y: p.destination[0][2].y - 200)), steps: 6)
             await settle()
             if case .perspective(let p3) = t.session?.op {
                 check("386 crossing quad rejected", p3.isValid && t.session?.op != nil, t.status ?? "")
             }
-            check("386 status explains", (t.status ?? "").contains("convex") || t.session?.op == valid, t.status ?? "-")
+            // B5-12b item 2: the status bar and the options bar say why.
+            check("386 status explains", statusLine.contains("convex") && (t.refusal ?? "").contains("convex"),
+                  "status \(statusLine) · bar \(t.refusal ?? "-")")
             await shot("386-perspective-rejected")
         }
         _ = await finished { t.apply() }
@@ -346,6 +456,8 @@ final class TransformSelfTest {
 
         // 387–388: puppet pins, drag, rotate, delete, density.
         guard await began(.puppet) else { return finish() }
+        checkVisible("388", "document.transform.puppetMode")
+        checkVisible("388", "document.transform.expansion")
         if case .puppet(let p) = t.session?.op {
             check("387 mesh", p.restVertices.count > 20, "\(p.restVertices.count) vertices")
             log("387 puppet note \(t.puppetNote ?? "-")")
@@ -378,6 +490,18 @@ final class TransformSelfTest {
         } else {
             check("388 expansion 65 rejected", true)
         }
+        // B5-12b item 3: Expansion 80 typed into the options bar: the engine refuses it, the field keeps it.
+        let accepted = t.puppetExpansion
+        check("388 typed Expansion 80", typeInField("document.transform.expansion", "80", key: 48, "\t"))
+        await settle(0.3)
+        check("388 expansion 80 refused visibly", t.expansionRejected == 80 && t.puppetExpansion == accepted
+              && optionField("document.transform.expansion")?.stringValue == "80" && statusLine.contains("64") && t.refusal != nil,
+              "rejected \(String(describing: t.expansionRejected)) field \(optionField("document.transform.expansion")?.stringValue ?? "-") status \(statusLine)")
+        await shot("388-expansion-refused")
+        check("388 typed Expansion 6", typeInField("document.transform.expansion", "6", key: 48, "\t"))
+        await settle(0.3)
+        check("388 corrected Expansion accepted", t.expansionRejected == nil && t.puppetExpansion == 6 && t.refusal == nil,
+              "\(t.puppetExpansion) \(String(describing: t.expansionRejected))")
         await shot("388-puppet-rigid-sparse")
         _ = await finished { t.apply() }
 

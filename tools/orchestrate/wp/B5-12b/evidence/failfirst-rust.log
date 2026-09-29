@@ -1,0 +1,30 @@
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-12b/crates/import-lrcat)
+   Compiling tessera-ffi v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-12b/crates/tessera-ffi)
+    Finished `release` profile [optimized] target(s) in 54.17s
+     Running tests/document_transform_followups.rs (/Users/rutmehta/.cache/tessera-target/B5-12b/release/deps/document_transform_followups-d0100895498acdf8)
+
+running 2 tests
+test b512b_previews_never_announce_rows_until_cancel_or_apply ... FAILED
+test b512b_multi_stage_stack_rasterizes_in_parallel_without_hanging ... ok
+
+failures:
+
+---- b512b_previews_never_announce_rows_until_cancel_or_apply stdout ----
+
+thread 'b512b_previews_never_announce_rows_until_cancel_or_apply' (23647157) panicked at crates/tessera-ffi/tests/document_transform_followups.rs:186:9:
+a preview is not a row change: [1]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    b512b_previews_never_announce_rows_until_cancel_or_apply
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.22s
+
+error: test failed, to rerun pass `-p tessera-ffi --test document_transform_followups`

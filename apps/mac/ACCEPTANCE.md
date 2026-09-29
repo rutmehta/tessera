@@ -2082,8 +2082,11 @@ every step below through `DocumentTransforms` and synthesized viewport events an
 380. **Menus.** Edit ▸ Transform lists Content-Aware Scale (⌥⇧⌘C), Puppet Warp, Perspective Warp and Warp under the
      rotate / flip items. They are enabled for pixel, text, shape, fill, group and smart object layers, disabled for
      adjustment layers.
-381. **Consent.** On a pixel layer choose Warp, pick Arc in the preset pop-up: the canvas shows the warp at once.
-     Esc: the layer is a Pixel layer again and History is unchanged. Warp again, Arc, Return: an alert "Convert to
+381. **Consent.** On a pixel layer choose Warp, pick Arc in the preset pop-up: the canvas shows the warp at once;
+     until Apply, Properties and the Layers panel still show the Pixel layer with no filter row (the options bar
+     says "Warp (preview)"), also after Cancel in the alert below. Esc: the layer is a Pixel layer again and History
+     is unchanged; the status bar returns to the current tool's hint (no Warp instructions after Apply, Cancel or a
+     tool change). Warp again, Arc, Return: an alert "Convert to
      Smart Object?" appears; Cancel keeps the session; Convert and Apply records one "Warp" node, the row becomes a
      smart object (same name, opacity, mask, style) with a "Warp" smart filter row. Undo restores the pixel layer.
 382. **Bézier net.** Double-click the Warp row: the net re-opens with its handles. Drag an anchor: its tangent
@@ -2092,16 +2095,22 @@ every step below through `DocumentTransforms` and synthesized viewport events an
 383. **Splits.** Choose the crosswise split segment and click inside the net: a row and a column of patches appear
      through the click and the image does not move.
 384. **Presets.** Each preset with Bend 0 % is the flat net; Arc at 40 % arcs the layer; negative bend reverses it.
+     At 1440 pt the preset pop-up, Bend (and Puppet Mode / Expansion) sit inside the visible options bar. In an
+     options-bar field (Bend, Amount, W / H, Expansion, Rotate): Return commits the value, then applies; Esc with an
+     edited value reverts it and ends editing (a second Esc cancels the session); Esc with the value unchanged
+     cancels at once.
 385. **Linked planes.** Perspective Warp: Layout mode shows one plane over the layer; Split Vertically makes two
      planes sharing an edge. Warp mode: dragging the shared top vertex moves both planes with no crack.
 386. **Rejected geometry.** Drag a corner across its plane: the drag stops at the last convex shape, the status bar
-     says the planes must stay convex, and the previous preview stays.
+     and the options bar say the planes must stay convex, and the previous preview stays.
 387. **Pins.** Puppet Warp: the mesh covers the layer's opaque pixels. Click three places: three pins; drag one: the
      mesh bends around the others; ⌥-drag beside a pin: a ring with an angle tick rotates the mesh around it;
      ⌥-click a pin removes it; select a pin and type an angle in Rotate.
 388. **Options.** Mode Rigid, Density Sparse / Normal / Dense and Expansion 0…64 px re-mesh with the pins kept. A
      large opaque layer shows a warning glyph: the mesh was built from a coarser level to stay within 16,384 vertices.
-     Expansion above 64 px is refused (engine error, not a clamp).
+     Expansion above 64 px is refused (engine error, not a clamp): the status bar and the options bar show the
+     engine's reason, the field keeps the rejected value (in the reject colour) until corrected, and the mesh and
+     pins are unchanged.
 389. **Content-Aware Scale.** Drag the right handle to 70 %: W / H fields and the chip show pixels and percent.
      Amount 0 % is a plain resize, 100 % seam carving (visibly different). The output is anchored at the top left
      inside the fixed canvas.

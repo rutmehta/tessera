@@ -1,0 +1,82 @@
+    536 Thread_23867796   DispatchQueue_1: com.apple.main-thread  (serial)
+    536 Thread_23868040: com.apple.NSEventThread
+    536 Thread_23868067: jobs-0
+    536 Thread_23868068: jobs-1
+    536 Thread_23868069: jobs-2
+    536 Thread_23868152: jobs-0
+    536 Thread_23868153: jobs-1
+    536 Thread_23868154: jobs-2
+    536 Thread_23868155: tessera-change-watch
+    536 Thread_23868190: document-render
+    536 Thread_23868210: jobs-0
+    536 Thread_23868211: jobs-1
+    536 Thread_23868212: jobs-2
+    536 Thread_23868213: jobs-3
+    536 Thread_23868214
+    +                                         536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                                                                 536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNt
+    +                                                                                                                                                               ! 532 _RNvMs_NtCs1avvRxHj8iA_9transf
+    536 Thread_23868215
+    +                                       536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                                                   536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Composito
+    +                                                                                                                                                   536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4
+    536 Thread_23868216
+    +                                   536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                       536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tess
+    +                                                                                                                       536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inver
+    536 Thread_23868217
+    +                               536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                               536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  
+    +                                                                                                                               536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWar
+    536 Thread_23868218
+    +                                                                                               536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  
+    +                                                                                                                               536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWar
+    536 Thread_23868219
+    +                               536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                             536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (i
+    +                                                                                                                           ! 461 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp1
+    536 Thread_23868220
+    +                                   536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                               536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  
+    +                                                                                                                               536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWar
+    536 Thread_23868221
+    +                                                                     536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x10
+    +                                                                                                     536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map  (in Tesser
+    536 Thread_23868222
+    +                               536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                                                       536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compo
+    +                                                                                                                                                       536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppet
+    536 Thread_23868223
+    +                                                                     536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x10
+    +                                                                                                     536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map  (in Tesser
+    536 Thread_23868224
+    +                               536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                                                       536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compo
+    +                                                                                                                                                       536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppet
+    536 Thread_23868225
+    +                                                                                 536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) +
+    +                                                                                                                 536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map
+    536 Thread_23868226
+    +                                                                                 536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) +
+    +                                                                                                                 536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map
+    536 Thread_23868227
+    +                                                             536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                             536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map  (in Tessera) + 236
+    536 Thread_23868228
+    +                                                       536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+    +                                                                                     ! 505 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map  (in Tessera) + 292,188,.
+    536 Thread_23868229
+    +                                                                                   536 _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera)
+    +                                                                                                                   536 _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_m
+    536 Thread_23874945: document-render
+    536 Thread_23875214: document-filters
+    536 Thread_23878044: document-filters
+    +               536 _RNvNtNtCs7gyMSvKULje_11tessera_ffi8document9filtering12native_stack  (in Tessera) + 1172  [0x101a4ae50]
+    536 Thread_23925470
+    536 Thread_23925887   DispatchQueue_15: com.apple.root.default-qos.cooperative  (concurrent)
+    +                                         536 _RNvNtNtCs7gyMSvKULje_11tessera_ffi8document9filtering21rasterize_smart_stack  (in Tessera) + 256  [0x101a4ee10]
+    +                                           536 _RNvNtNtCs7gyMSvKULje_11tessera_ffi8document9filtering12native_stack  (in Tessera) + 1172  [0x101a4ae50]
+    536 Thread_23925889
+        24       _RNvMs2_NtNtCscuGmq1y33AQ_10compositor6render13smart_filtersNtB7_10Compositor15filtered_source  (in Tessera) + 2696  [0x1042804cc]
+        16       _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map  (in Tessera) + 0  [0x10477fc98]
+        _RNvMs_NtCs1avvRxHj8iA_9transform6puppetNtB4_18PreparedPuppetWarp11inverse_map  (in Tessera)        8466
