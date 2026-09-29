@@ -83,7 +83,8 @@ public struct StackEligibilityInfo: Equatable, Sendable {
 
 public enum StackCommandRules {
     public static let maxLayers = 128
-    /// All layers or photos of one stack together (the engine's `stack_max_megapixels`).
+    /// All layers or photos of one stack together, on any Mac: the engine's `stack_max_megapixels()` is this
+    /// or less, scaled to the Mac's physical memory (the engine reports the actual limit in its errors).
     public static let maxMegapixels = 200
 
     /// Lens profiles are not mapped to calibrations yet, so the lens toggles stay off.
@@ -91,13 +92,40 @@ public enum StackCommandRules {
     public static let lensCorrectionNote =
         "Vignette removal and geometric distortion correction need a lens calibration for every photo; "
         + "library lens profiles are not available in document mode yet."
-    /// Alignment and blending run in the engine without a cancellation point yet.
-    public static let busyNote = "This can take a while for large photos and cannot be cancelled."
+    /// Alignment and blending run in the engine without a cancellation point yet: Cancel undoes the result
+    /// once the engine returns.
+    public static let busyNote =
+        "This can take a while for large photos. Cancel takes effect when the engine finishes; the result is then undone."
     /// Photomerge can stop while it reads the photos, before anything changes.
     public static let photomergeBusyNote =
-        "Reading the photos can be cancelled; aligning and blending cannot be interrupted once they start."
+        "Cancel stops Photomerge while it reads the photos; once aligning and blending start, it takes effect when they finish and the result is discarded."
     /// What the engine returns when a Photomerge was cancelled (nothing changed).
     public static let photomergeCancelled = "Photomerge was cancelled"
+
+    /// How a stack run ended, given whether Cancel was pressed (the engine's align / blend cannot stop midway).
+    public enum RunEnd: Equatable, Sendable {
+        case finished, failed, cancelled
+        /// Cancel came too late: the engine had already committed. The UI undoes the history node (or
+        /// discards the new document), as DocumentRetouch does for a discarded job that succeeded.
+        case cancelledAfterFinishing
+    }
+
+    public static func end(cancelRequested: Bool, succeeded: Bool) -> RunEnd {
+        switch (cancelRequested, succeeded) {
+        case (false, true): .finished
+        case (false, false): .failed
+        case (true, false): .cancelled
+        case (true, true): .cancelledAfterFinishing
+        }
+    }
+
+    /// Status text for a cancelled run.
+    public static func cancelledMessage(_ what: String, afterFinishing: Bool, newDocument: Bool) -> String {
+        guard afterFinishing else { return "\(what) cancelled; nothing changed" }
+        return newDocument
+            ? "\(what) cancelled; the engine completed before it could stop, so the new document was discarded"
+            : "\(what) cancelled; the engine completed before it could stop, so the change was undone"
+    }
 
     private enum Stage { case align, blend }
 

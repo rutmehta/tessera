@@ -36116,7 +36116,8 @@ public func defaultStackBlendOptions() -> StackBlendOptions  {
 })
 }
 /**
- * `MAX_STACK_MEGAPIXELS`, as a Swift-visible constant.
+ * This machine's stack budget in megapixels (all layers or photos of one
+ * stack): [`stack_megapixels_for_memory`] of its physical memory.
  */
 public func stackMaxMegapixels() -> UInt64  {
     return try!  FfiConverterUInt64.lift(try! rustCall() {
@@ -36317,7 +36318,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_default_stack_blend_options() != 61674) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_func_stack_max_megapixels() != 2212) {
+    if (uniffi_tessera_ffi_checksum_func_stack_max_megapixels() != 2109) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_style_effects_schema_json() != 46429) {
