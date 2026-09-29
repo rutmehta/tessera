@@ -15,7 +15,13 @@ extension CanvasPoint {
 }
 
 extension BrushStrokeTarget {
-    var ffi: StrokeTarget { self == .pixels ? .pixels : .mask }
+    var ffi: StrokeTarget {
+        switch self {
+        case .pixels: .pixels
+        case .mask: .mask
+        case .channel(let id): .channel(id: id)
+        }
+    }
 }
 
 extension BrushToolKind {

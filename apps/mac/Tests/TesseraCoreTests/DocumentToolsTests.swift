@@ -378,6 +378,63 @@ final class DocumentToolsTests: XCTestCase {
         doc.close()
     }
 
+    // MARK: B5-17c: painting into channels
+
+    func testStrokeTargetPrecedence() throws {
+        func r(_ q: UInt64?, _ c: UInt64?, _ k: LayerKindTag?, mask: Bool = false, paintMask: Bool = false) throws
+            -> BrushStrokeTarget {
+            try BrushStrokeTarget.resolve(quickMask: q, channel: c, layerKind: k, hasMask: mask, paintMask: paintMask)
+        }
+        // Quick Mask > targeted channel > layer mask > pixels.
+        XCTAssertEqual(try r(7, 9, .pixel, mask: true, paintMask: true), .channel(7))
+        XCTAssertEqual(try r(7, nil, nil), .channel(7), "no layer needed for the Quick Mask")
+        XCTAssertEqual(try r(nil, 9, .group), .channel(9), "nor for a channel")
+        XCTAssertEqual(try r(nil, nil, .pixel, mask: true, paintMask: true), .mask)
+        XCTAssertEqual(try r(nil, nil, .pixel, mask: false, paintMask: true), .pixels)
+        XCTAssertEqual(try r(nil, nil, .pixel, mask: true, paintMask: false), .pixels)
+        XCTAssertEqual(try r(nil, nil, .adjustment), .mask)
+        XCTAssertThrowsError(try r(nil, nil, .group))
+        XCTAssertThrowsError(try r(nil, nil, nil))
+        // FFI mapping.
+        XCTAssertEqual(BrushStrokeTarget.pixels.ffi, .pixels)
+        XCTAssertEqual(BrushStrokeTarget.mask.ffi, .mask)
+        XCTAssertEqual(BrushStrokeTarget.channel(42).ffi, .channel(id: 42))
+    }
+
+    func testEngineChannelStrokeThroughTheAdapter() throws {
+        let dir = try temp()
+        let e = try Engine.open(appSupportDir: dir.appendingPathComponent("support").path)
+        let doc = try EngineDocumentEngine.for(e).newDocument(width: 256, height: 128, depth: .u8, profile: nil)
+        let t = try XCTUnwrap(doc as? DocumentToolsBackend)
+        let ch = try XCTUnwrap(doc as? DocumentChannelsBackend)
+        let layer = try doc.layers()[0].id
+        let a = try ch.newAlphaChannel(name: "Alpha 1", selected: false).channelID
+        let rev = try XCTUnwrap(ch.documentChannels().first).revision
+        let before = try doc.historyItems().count
+        var brush = BrushOptions()
+        brush.size = 12
+        brush.hardness = 1
+        try t.beginStroke(layer: layer, target: .channel(a), tool: .brush, brush: brush, color: .white)
+        let f = try t.strokePoints((0...4).map { PenSample(x: 20 + Float($0) * 10, y: 64) })
+        XCTAssertNotNil(f.dirtyRect, "channel frames report the painted area")
+        _ = try t.endStroke()
+        XCTAssertEqual(try doc.historyItems().count, before + 1)
+        XCTAssertEqual(try doc.historyItems().last?.label, "Brush Tool")
+        XCTAssertNotEqual(try ch.documentChannels().first?.revision, rev)
+        // Load it: the painted line is the selection.
+        _ = try ch.loadSelectionChannel(id: a, op: .replace, invert: false)
+        let b = try XCTUnwrap(doc.info().selectionBounds)
+        XCTAssertLessThanOrEqual(b.x, 16)
+        XCTAssertGreaterThanOrEqual(b.x + b.width, 64)
+        XCTAssertLessThan(b.height, 20)
+        // Unknown channel: an error, no node; Clone Stamp refused.
+        let n = try doc.historyItems().count
+        XCTAssertThrowsError(try t.beginStroke(layer: layer, target: .channel(9_999), tool: .brush, brush: brush, color: .white))
+        XCTAssertThrowsError(try t.beginStroke(layer: layer, target: .channel(a), tool: .clone, brush: brush, color: .white))
+        XCTAssertEqual(try doc.historyItems().count, n)
+        doc.close()
+    }
+
     func testStubAdoptsTheGeometricSubset() throws {
         let doc = try StubDocumentEngine.shared.newDocument(width: 400, height: 300, depth: .u8, profile: nil)
         let t = try XCTUnwrap(doc as? DocumentToolsBackend)
@@ -387,6 +444,8 @@ final class DocumentToolsTests: XCTestCase {
         _ = try t.selectMarquee(.rect, rect: CGRect(x: 100, y: 10, width: 100, height: 50), feather: 0, antialias: true, op: .add)
         XCTAssertEqual(try doc.info().selectionBounds, CanvasRect(x: 10, y: 10, width: 190, height: 50))
         XCTAssertThrowsError(try t.beginStroke(layer: 1, target: .pixels, tool: .brush, brush: BrushOptions(), color: .black))
+        XCTAssertThrowsError(try t.beginStroke(layer: 1, target: .channel(1), tool: .brush, brush: BrushOptions(), color: .black),
+                             "the stub does not paint (B5-17c: channel strokes included)")
         XCTAssertEqual(try t.brushTipPreview(id: "round:0.5", maxPx: 8).pixels.count, 64)
         _ = try t.selectAll()
         XCTAssertEqual(try doc.info().selectionBounds, CanvasRect(x: 0, y: 0, width: 400, height: 300))

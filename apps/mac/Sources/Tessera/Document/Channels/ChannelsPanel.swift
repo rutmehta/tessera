@@ -182,6 +182,7 @@ private struct ChannelRowView: View {
     }
 
     private func click() {
+        if !NSEvent.modifierFlags.contains(.command) { DocumentTools.shared.targetChannel(row.channelID, in: document) } // B5-17c
         guard let id = row.channelID else { return }
         let mods = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
         channels.selectedChannel = id
