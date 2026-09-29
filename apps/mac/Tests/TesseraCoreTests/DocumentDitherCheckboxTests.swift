@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
+import TesseraCore
 @testable import Tessera
 
 /// Local native contracts and real editor installation; not proof of actual Tab reachability.
@@ -97,6 +98,7 @@ final class DocumentDitherCheckboxTests: XCTestCase {
         defer { _ = NSApplication.shared.setActivationPolicy(priorPolicy) }
         ShellHarness.prepare()
         let workspace = DocumentWorkspace()
+        workspace.engine = StubDocumentEngine()
         workspace.newDocument(workspace.newSettings)
         let document = try XCTUnwrap(workspace.current)
         document.addAdjustment(.colorLookup)
