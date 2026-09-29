@@ -681,3 +681,7 @@ mod tests {
         assert_eq!(reach(&hit, id, Bucket::TileWb).unwrap(), Reach::NotReached);
     }
 }
+
+// Guard/transport source-only contracts; no live renderer observation.
+#[cfg(test)]
+mod transport;
