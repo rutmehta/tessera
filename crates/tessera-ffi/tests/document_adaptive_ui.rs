@@ -608,6 +608,64 @@ fn layers_over_the_absolute_limit_are_refused_with_a_clear_error() {
     assert_eq!(history(&s), n);
 }
 
+/// B5-20c: the plain message for the compositor's CPU smart-filter pass limit
+/// (`FilterPassLimits::retained_bytes`, 1 GiB, ≈ 33.5 MP on a smart object).
+const SMART_OBJECT_LIMIT: &str = "Adaptive Wide Angle on a Smart Object is limited to about 33 MP. \
+Rasterize the layer, or apply to a pixel layer.";
+
+/// Opens the workspace on `layer` and applies begin's default recipe; the
+/// error, from whichever of the two refused.
+fn begin_and_apply(s: &DocumentSession, layer: u64) -> Result<(), String> {
+    let info = s
+        .begin_adaptive_wide_angle(layer, None)
+        .map_err(|e| e.to_string())?;
+    let r = s
+        .commit_adaptive_wide_angle(info.token, info.recipe_json.clone())
+        .map(|_| ())
+        .map_err(|e| e.to_string());
+    s.cancel_adaptive_wide_angle(info.token);
+    s.wait_idle();
+    r
+}
+
+/// B5-20c: a smart object over the compositor's smart-filter pass limit is
+/// refused with a plain message and no history; just under it applies; a
+/// pixel layer of the same size is unaffected. One test, sequential, so the
+/// three 33–36 MP documents never coexist.
+#[test]
+fn smart_objects_over_the_smart_filter_pass_limit_are_refused_plainly() {
+    let (_dir, engine) = engine();
+    for (w, h, smart, refused) in [
+        (6000u32, 6000u32, true, true),
+        (6000, 5500, true, false),
+        (6000, 6000, false, false),
+    ] {
+        let s = engine
+            .clone()
+            .new_document(w, h, DocDepth::U8, None)
+            .unwrap();
+        let layer = s.layers().unwrap()[0].id;
+        if smart {
+            s.convert_for_smart_filters(layer).unwrap();
+            s.wait_idle();
+        }
+        let n = history(&s);
+        let r = begin_and_apply(&s, layer);
+        let what = format!(
+            "{w} × {h} {}",
+            if smart { "smart object" } else { "pixel layer" }
+        );
+        if refused {
+            assert_eq!(r, Err(SMART_OBJECT_LIMIT.to_string()), "{what}");
+            assert_eq!(history(&s), n, "{what}: no history on refusal");
+        } else {
+            assert_eq!(r, Ok(()), "{what}");
+            assert_eq!(history(&s), n + 1, "{what}: one node");
+        }
+        s.close();
+    }
+}
+
 #[test]
 fn cancel_stale_locked_and_other_targets_never_commit() {
     let (dir, engine) = engine();

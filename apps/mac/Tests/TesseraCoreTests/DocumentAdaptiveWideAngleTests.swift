@@ -270,6 +270,33 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         XCTAssertNil(DocumentAdaptiveWideAngle.shared.workspace)
     }
 
+    /// B5-20c: OK on a smart object over the compositor's smart-filter pass limit (6000 × 6000) keeps the sheet open
+    /// with the engine's plain message and records no history.
+    @MainActor func testSheetShowsTheSmartObjectSizeLimit() async throws {
+        let engine = try Engine.open(appSupportDir: try temp().appendingPathComponent("support").path)
+        let backend = EngineDocumentBackend(session: try engine.newDocument(width: 6000, height: 6000, depth: .u8, profile: nil))
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        let b = try XCTUnwrap(backend as (any DocumentBackend) as? any DocumentAdaptiveWideAngleBackend)
+        let filters = try XCTUnwrap(backend as (any DocumentBackend) as? any DocumentFiltersBackend)
+        let layer = try XCTUnwrap(doc.layers.first).id
+        _ = try filters.convertForSmartFilters(layer: layer)
+        let info = try b.beginAdaptiveWideAngle(layer: layer, stageIndex: nil)
+        XCTAssertTrue(info.smartObject)
+        let m = AdaptiveWideAngleWorkspaceModel(doc: doc, backend: b, info: info,
+                                                draft: try AdaptiveWideAngleDraft(recipeJson: info.recipeJson), layerName: "Layer 1")
+        let rows = try backend.historyItems().count
+        var ended: Result<DocumentChange, Error>?
+        m.onApplied = { ended = $0 }
+        m.ok()
+        await waitFor("the refusal") { ended != nil }
+        guard case .failure = ended else { return XCTFail("a 36 MP smart object applied") }
+        XCTAssertEqual(m.error, "Adaptive Wide Angle on a Smart Object is limited to about 33 MP. "
+                       + "Rasterize the layer, or apply to a pixel layer.")
+        XCTAssertEqual(try backend.historyItems().count, rows, "no history on refusal")
+        m.cancel()
+    }
+
     func testTheStubNeedsTheEngine() throws {
         let doc = try StubDocumentEngine.shared.newDocument(width: 32, height: 32, depth: .u8, profile: nil)
         defer { doc.close() }
