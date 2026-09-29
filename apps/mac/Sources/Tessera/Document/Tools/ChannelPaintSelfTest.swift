@@ -45,7 +45,12 @@ final class ChannelPaintSelfTest {
     private let tools = DocumentTools.shared
     private let channels = DocumentChannels.shared
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("channel-paint-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("channel-paint-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }

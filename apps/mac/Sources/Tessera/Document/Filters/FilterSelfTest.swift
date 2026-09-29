@@ -19,9 +19,13 @@ final class FilterSelfTest {
     private var failures = 0
     private var step = 0
 
+    private static var started = false
+
     static func startIfRequested() {
+        guard !started else { return }
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--filter-selftest"), i + 1 < args.count else { return }
+        started = true
         let dir = URL(fileURLWithPath: (args[i + 1] as NSString).expandingTildeInPath)
         let hold = args.firstIndex(of: "--filter-selftest-hold").flatMap { $0 + 1 < args.count ? Double(args[$0 + 1]) : nil } ?? 2.5
         DispatchQueue.main.async {
@@ -38,7 +42,12 @@ final class FilterSelfTest {
         self.hold = hold
     }
 
-    fileprivate func log(_ s: String) { FileHandle.standardError.write(Data("filter-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    fileprivate func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("filter-selftest: \(s)\n".utf8))
+    }
 
     fileprivate func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
@@ -63,8 +72,7 @@ final class FilterSelfTest {
         // A dialog is a sheet: report its parent window (the canvas preview shows around it).
         if let key = model.mainWindow, let screen = NSScreen.screens.first {
             let w = key.sheetParent ?? key
-            w.level = .floating
-            w.orderFrontRegardless()
+            SelfTestHost.raiseForCapture(w)
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)

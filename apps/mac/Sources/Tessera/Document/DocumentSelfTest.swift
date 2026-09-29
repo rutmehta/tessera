@@ -24,7 +24,12 @@ final class DocumentSelfTest {
         self.hold = hold
     }
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("document-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("document-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
@@ -51,8 +56,7 @@ final class DocumentSelfTest {
         var frame = ""
         if !perfMode, let w = model.mainWindow, let screen = NSScreen.screens.first {
             // Above other apps' windows while the test runs, so `screencapture -R` sees only Tessera.
-            w.level = .floating
-            w.orderFrontRegardless()
+            SelfTestHost.raiseForCapture(w)
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
@@ -99,7 +103,7 @@ final class DocumentSelfTest {
         if perfMode { await perf(doc, item: item); return finish() }   // B5-14
         await mark("edit-in-layers")
 
-        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { return finish() }
+        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { log("FAIL no pixel layer"); return finish() }
 
         // 2. Adjustment layer: Exposure, dragged 0 → +1 EV.
         doc.addAdjustment(.exposure)

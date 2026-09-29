@@ -23,7 +23,12 @@ final class ToolsSelfTest {
         self.hold = hold
     }
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("tools-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("tools-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
@@ -46,8 +51,7 @@ final class ToolsSelfTest {
         await pause(0.8)
         var frame = ""
         if let w = model.mainWindow, let screen = NSScreen.screens.first {
-            w.level = .floating
-            w.orderFrontRegardless()
+            SelfTestHost.raiseForCapture(w)
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
@@ -123,7 +127,7 @@ final class ToolsSelfTest {
         tools.attach(ws)
         let (w, h) = (Double(doc.info.width), Double(doc.info.height))
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.depth.title), \(doc.info.backend)")
-        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { return finish() }
+        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { log("FAIL no pixel layer"); return finish() }
         await mark("edit-in-layers")
 
         // 2. Brush stroke (red, 60 px), through the viewport's mouse path.
