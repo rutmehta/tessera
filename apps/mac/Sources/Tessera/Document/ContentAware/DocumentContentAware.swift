@@ -202,22 +202,29 @@ final class DocumentContentAware {
         let refused = jobs.start("Applying \(s.mode.historyLabel)…", operation: s.mode.historyLabel, {
             try q.sync { try b.commitContentAwareMove(token: s.token) }
         }) { [weak self] end in
-            guard let self else { return }
-            switch end {
-            case .finished(.success(let c)):
-                doc.run(s.mode.historyLabel) { c }
-                self.reset()
-                self.say("\(s.mode.historyLabel) applied")
-                self.onApplied?(.success(c))
-            case .finished(.failure(let e)):
-                self.error = e.localizedDescription
-                self.onApplied?(.failure(e))
-            case .discarded:
-                self.onApplied?(.failure(DocumentError.invalid("discarded")))
-            }
-            self.redraw()
+            self?.applyEnded(end, label: s.mode.historyLabel, doc: doc)
         }
         if let refused { error = refused }
+    }
+
+    /// How an Apply ended. A discarded (cancelled) apply keeps nothing: the engine refuses to write once it sees
+    /// the cancel, and when the cancel arrived after its last check the committed step is undone (as B5-09 Remove
+    /// does), so engine history and the panels agree.
+    func applyEnded(_ end: RetouchJobs.End<DocumentChange>, label: String, doc: DocumentController) {
+        switch end {
+        case .finished(.success(let c)):
+            doc.run(label) { c }
+            reset()
+            say("\(label) applied")
+            onApplied?(.success(c))
+        case .finished(.failure(let e)):
+            error = e.localizedDescription
+            onApplied?(.failure(e))
+        case .discarded(let r):
+            if case .success = r { _ = doc.run("Undo cancelled \(label)") { try doc.backend.undo() } }
+            onApplied?(.failure(DocumentError.invalid("discarded")))
+        }
+        redraw()
     }
 
     /// Esc / Cancel: stops a computing preview or apply at once, ends the preview; nothing changes.

@@ -370,7 +370,10 @@ final class LiquifyWorkspaceModel: Identifiable {
                 self.error = e.localizedDescription
                 self.onApplied?(.failure(e))
             case .discarded(let r):
-                // Cancelled while rendering: the engine refused to write; nothing reaches history.
+                // Cancelled from the workspace: nothing of it is kept. The engine refuses to write once it sees the
+                // cancel; when the cancel arrived after its last check the step was committed, so it is undone
+                // (as B5-09 Remove does) and engine history and the panels agree.
+                if case .success = r { _ = doc.run("Undo cancelled Liquify") { try doc.backend.undo() } }
                 self.onApplied?(r.flatMap { _ in .failure(DocumentError.invalid("discarded")) })
             }
         }

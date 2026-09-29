@@ -145,6 +145,37 @@ final class DocumentContentAwareTests: XCTestCase {
         XCTAssertEqual(try doc.historyItems().count, n)
     }
 
+    /// B5-09 parity: an Apply cancelled from the tool whose engine job committed anyway (the cancel arrived after
+    /// the engine's last check) is undone when it returns as discarded, so engine history and the panels agree;
+    /// a discarded failure changes nothing.
+    @MainActor func testADiscardedApplyTheEngineCommittedIsUndone() throws {
+        let (backend, layer, _) = try engineDoc()
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        let c = try XCTUnwrap(backend as? any DocumentContentAwareBackend)
+        let m = DocumentContentAware.shared
+        var ended: [Result<DocumentChange, Error>] = []
+        m.onApplied = { ended.append($0) }
+        defer { m.onApplied = nil }
+        let head = doc.info.historyHead
+        let engineHead = try backend.historyItems().first { $0.isCurrent }?.id
+        let s = try c.beginContentAwareMove(layer: layer, mode: .move)
+        _ = try c.previewContentAwareMove(token: s.token, dx: 30, dy: 4, fillJson: "{}", seam: .none)
+        // The engine committed before it saw the cancel.
+        let late = try c.commitContentAwareMove(token: s.token)
+        XCTAssertNotEqual(try backend.historyItems().first { $0.isCurrent }?.id, engineHead)
+        m.applyEnded(.discarded(.success(late)), label: "Content-Aware Move", doc: doc)
+        XCTAssertEqual(try backend.historyItems().first { $0.isCurrent }?.id, engineHead, "the late step is undone")
+        XCTAssertEqual(doc.info.historyHead, head, "the panels show the same history as the engine")
+        if case .success = ended.last { XCTFail("a discarded apply never reports success") }
+        // A discarded failure (the engine refused to write) undoes nothing.
+        let before = try backend.historyItems()
+        m.applyEnded(.discarded(.failure(DocumentError.invalid("cancelled"))), label: "Content-Aware Move", doc: doc)
+        XCTAssertEqual(try backend.historyItems().map(\.id), before.map(\.id))
+        XCTAssertEqual(try backend.historyItems().first { $0.isCurrent }?.id, engineHead)
+        XCTAssertEqual(ended.count, 2)
+    }
+
     func testTheStubNeedsTheEngine() throws {
         let doc = try StubDocumentEngine.shared.newDocument(width: 32, height: 32, depth: .u8, profile: nil)
         defer { doc.close() }
