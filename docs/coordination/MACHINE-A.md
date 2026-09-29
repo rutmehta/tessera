@@ -1,3 +1,7 @@
+## Actual Tab interception captured; routing correction pending
+
+Same-source disabled/enabled `4685efd5` both reproduce Name → Tab to externally focused Load LUT → second Tab hides panels. Observer survives; raw second event has SwiftUI.KeyViewProxy, same owned document window, handled=true, semantic ownership unknown/incomplete. Root verified package/fixture/report hashes. Owned app ordinarily quit. Normalization `0434ff8d` passed 17 GREEN, full 88/two ignored, strict/format; independent review active. B receives bounded source correction request, no private-class exemption or routing acceptance.
+
 ## Inspector automated verification complete; bounded GUI retry active
 
 Inspector `4685efd5` passed 48 focused tests and strict; independent verification matched 8,392 immutable Git inputs and preserved executable. Portable evidence is in `B5-16/evidence/2026-09-29/ax-lifetime-4685efd5`. Worker exclusively owns GUI runtime, with shell PID/path/arguments checks after each Tab before CUA observations. No keyboard acceptance yet.

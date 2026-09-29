@@ -1,0 +1,25 @@
+{
+  "head": "4685efd5f61c94e9a49c340d27bb7e9f5edfeebd",
+  "disabled_pid": 90280,
+  "enabled_pid": 94492,
+  "disabled_reproduced": true,
+  "enabled_reproduced": true,
+  "post_Tab_original_PID_path_args_checks": 4,
+  "crash_or_replacement_observed": false,
+  "same_source_behavior_preserved_for_this_sequence": true,
+  "semantic_second_event": "unknown/incomplete; primary membership unproven",
+  "native_second_event": "SwiftUI.KeyViewProxy",
+  "handled_second_event": true,
+  "source_executable_sha256": "3a74be76ebe92126e11326e88a615f4593d5a36a346c4dae0e7a79b5a0eff2d6",
+  "package_files_equal": true,
+  "fixture_after": {
+    "fixtures/warm-gradient.png": "19368177c8efae46512730f86ec03dc069782330843678e8b6aa82cc01009f63",
+    "fixtures/owned-warm.cube": "97c1492280596e6d75dac8ddb4df5802b32a885b25b08280068e55138c63f3ce",
+    "outputs/warm-gradient.tessera-doc": "473076631db502fff7c2b9bfc19f51769c336f5d7c14630677434e6bbf9eb29f"
+  },
+  "fixture_bytes_equal": true,
+  "trace_sha256": "e5e7b63f9ae2e8178333374524d9d79566e41cce0192173db6e59a259f457743",
+  "ordinary_quit_verified_absent": true,
+  "routing_fix": "NOT IMPLEMENTED / NOT ACCEPTED",
+  "scope": "two forward Tab events per run; no full keyboard/accessibility matrix"
+}

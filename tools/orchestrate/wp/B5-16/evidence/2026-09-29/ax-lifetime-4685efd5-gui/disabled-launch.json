@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "open",
+    "-n",
+    "/Volumes/betterSSD/tessera-validation/b5-16-ax-lifetime-4685efd5/gui-4685efd5/Tessera Inspector 4685efd5.app",
+    "--args",
+    "--app-dir",
+    "/tmp/tessera-inspector-focus-4685efd5/profile"
+  ],
+  "exit": 0,
+  "stdout": "",
+  "stderr": ""
+}
