@@ -122,6 +122,31 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         XCTAssertThrowsError(try AdaptiveWideAngleDraft(recipeJson: "{}"))
     }
 
+    /// B5-20b (A's review): re-editing keeps the stored camera and output focal lengths exactly, even outside the
+    /// slider's 4–400 mm range and when they differ, until the focal length is actually edited.
+    func testReEditKeepsStoredFocalLengthsUntilEdited() throws {
+        var stored = try object(engineDefault)
+        let tiny = 2.0 / 36 * 400 // 2 mm equivalent, below the slider's range
+        stored["camera"] = ["Manual": ["focal_px": tiny, "center": [200.0, 150.0], "projection": "Equidistant"]]
+        stored["output_focal_px"] = 123.456
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: stored), as: UTF8.self)
+        var d = try AdaptiveWideAngleDraft(recipeJson: json)
+        XCTAssertEqual(d.focal35, AdaptiveWideAngleFilter.focalRange.lowerBound, "the slider shows the clamped value")
+        var r = try object(d.recipeJson)
+        var cam = try XCTUnwrap((r["camera"] as? [String: Any])?["Manual"] as? [String: Any])
+        XCTAssertEqual(cam["focal_px"] as? Double, tiny, "stored camera focal kept exactly")
+        XCTAssertEqual(r["output_focal_px"] as? Double, 123.456, "stored output focal kept exactly")
+        d.setScalePercent(90)
+        d.projection = .rectilinear
+        r = try object(d.recipeJson)
+        XCTAssertEqual(r["output_focal_px"] as? Double, 123.456, "other edits keep it too")
+        d.setFocal35(24)
+        r = try object(d.recipeJson)
+        cam = try XCTUnwrap((r["camera"] as? [String: Any])?["Manual"] as? [String: Any])
+        XCTAssertEqual(try XCTUnwrap(cam["focal_px"] as? Double), 24.0 / 36 * 400, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(r["output_focal_px"] as? Double), 24.0 / 36 * 400, accuracy: 1e-9)
+    }
+
     func testNamesAndRefusals() {
         XCTAssertEqual(AdaptiveWideAngleFilter.displayName("adaptive_wide_angle"), "Adaptive Wide Angle")
         XCTAssertEqual(AdaptiveWideAngleFilter.displayName("Gaussian Blur"), "Gaussian Blur")
