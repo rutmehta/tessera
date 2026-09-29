@@ -664,6 +664,22 @@ final class VectorSelfTest {
         await pause(0.5)
         let router = KeyRouter(model: model)
         let text = DocumentText.shared
+        // B5-24: since the tabbed inspector (B5-16) the Properties controls exist only while the Properties tab is
+        // shown (the default tab is Stack), and the Layers rows only while Stack is. Switch tabs for each lookup and
+        // put the user's stored tab back afterwards (the tab persists in UserDefaults).
+        let tabKey = DocumentWorkspace.inspectorTabKey
+        let storedTab = UserDefaults.standard.object(forKey: tabKey)
+        let tabBefore = ws.inspectorTab
+        defer {
+            ws.inspectorTab = tabBefore
+            if let storedTab { UserDefaults.standard.set(storedTab, forKey: tabKey) } else { UserDefaults.standard.removeObject(forKey: tabKey) }
+        }
+        func show(_ tab: DocumentInspectorTab) async {
+            guard ws.inspectorTab != tab else { return }
+            ws.inspectorTab = tab
+            await pause(0.3)
+            w.contentView?.layoutSubtreeIfNeeded()
+        }
 
         // 1. A twice: Path → Direct Selection (and back).
         tools.select(.move)
@@ -690,6 +706,7 @@ final class VectorSelfTest {
         await mark("11b-02-stroke-visible", doc)
 
         // 3 + 7. Keyboard steps on the real dash-offset slider: one node; U / ⇧U while it has the keyboard.
+        await show(.properties)
         _ = await wait(5) { self.find(ValueSlider.self, "document.shape.stroke.dashOffset", in: w.contentView) != nil }
         if let slider = find(ValueSlider.self, "document.shape.stroke.dashOffset", in: w.contentView) {
             let n = doc.history.count
@@ -719,6 +736,7 @@ final class VectorSelfTest {
         } else {
             check("11b-3 dash-offset slider found", false)
         }
+        await show(.stack)
         if let outline = w.contentView.flatMap({ find(LayersOutlineView.self, "document.layers.outline", in: $0) }) {
             _ = w.makeFirstResponder(outline)
             let z = keyEvent(6, "z", in: w).map { router.handle($0) } ?? false
@@ -770,6 +788,7 @@ final class VectorSelfTest {
 
         // 6. Locked recolour: the colour well returns to the model colour.
         doc.toggleLock(.pixels)
+        await show(.properties)
         await pause(0.3)
         if let well = find(NSColorWell.self, "document.shape.fill.color", in: w.contentView) {
             let before = vector.rejections
