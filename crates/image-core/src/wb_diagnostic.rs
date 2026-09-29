@@ -144,6 +144,36 @@ pub fn reach(snapshot: &Snapshot, identity: Identity, bucket: Bucket) -> Result<
     {
         return Ok(Reach::Inconclusive);
     }
+    // Validate actual sequence, including request-only activity. A successful
+    // enclosing hit skips all nested calls, not merely nested lookups. A child
+    // record also requires its parent miss to have appeared earlier.
+    let mut detail_missed = false;
+    let mut padded_missed = false;
+    for record in body.iter().flatten() {
+        match record.bucket {
+            Bucket::Detail => {
+                if record.outcome == Outcome::Request && !detail_missed {
+                    return Ok(Reach::Inconclusive);
+                }
+                if record.outcome == Outcome::None {
+                    detail_missed = true;
+                }
+            }
+            Bucket::PaddedWb => {
+                if !detail_missed {
+                    return Ok(Reach::Inconclusive);
+                }
+                if record.outcome == Outcome::None {
+                    padded_missed = true;
+                }
+            }
+            Bucket::TileWb => {
+                if !detail_missed || !padded_missed {
+                    return Ok(Reach::Inconclusive);
+                }
+            }
+        }
+    }
     // Any render lookup error prevents attribution of skipped downstream work.
     if body.iter().flatten().any(|r| r.outcome == Outcome::Error) {
         return Ok(
@@ -170,6 +200,7 @@ pub fn reach(snapshot: &Snapshot, identity: Identity, bucket: Bucket) -> Result<
         }
         (hits, misses)
     };
+    let activity = |target| body.iter().flatten().any(|r| r.bucket == target);
     let detail = outcomes(Bucket::Detail);
     let padded = outcomes(Bucket::PaddedWb);
     let tile = outcomes(Bucket::TileWb);
@@ -177,8 +208,8 @@ pub fn reach(snapshot: &Snapshot, identity: Identity, bucket: Bucket) -> Result<
     // after an enclosing hit is untrustworthy, not evidence for either branch.
     if detail.0 + detail.1 > 1
         || padded.0 + padded.1 > 1
-        || (detail.0 != 0 && (padded.0 + padded.1 + tile.0 + tile.1 != 0))
-        || (padded.0 != 0 && tile.0 + tile.1 != 0)
+        || (detail.0 != 0 && (activity(Bucket::PaddedWb) || activity(Bucket::TileWb)))
+        || (padded.0 != 0 && activity(Bucket::TileWb))
     {
         return Ok(Reach::Inconclusive);
     }
@@ -477,5 +508,57 @@ mod tests {
             .unwrap(),
             Reach::Inconclusive
         );
+    }
+    #[test]
+    fn any_request_under_detail_hit_is_contradictory_not_not_reached() {
+        let id = rec(Bucket::Detail, Outcome::Begin).identity;
+        for child in [Bucket::PaddedWb, Bucket::TileWb] {
+            let s = snapshot(&[
+                rec(Bucket::Detail, Outcome::Begin),
+                rec(Bucket::Detail, Outcome::Some),
+                rec(child, Outcome::Request),
+                rec(Bucket::Detail, Outcome::End),
+            ]);
+            for target in [Bucket::Detail, Bucket::PaddedWb, Bucket::TileWb] {
+                assert_eq!(reach(&s, id, target).unwrap(), Reach::Inconclusive);
+            }
+        }
+    }
+    #[test]
+    fn tile_request_under_padded_hit_is_contradictory_not_not_reached() {
+        let id = rec(Bucket::Detail, Outcome::Begin).identity;
+        let s = snapshot(&[
+            rec(Bucket::Detail, Outcome::Begin),
+            rec(Bucket::Detail, Outcome::None),
+            rec(Bucket::PaddedWb, Outcome::Some),
+            rec(Bucket::TileWb, Outcome::Request),
+            rec(Bucket::Detail, Outcome::End),
+        ]);
+        for target in [Bucket::Detail, Bucket::PaddedWb, Bucket::TileWb] {
+            assert_eq!(reach(&s, id, target).unwrap(), Reach::Inconclusive);
+        }
+    }
+    #[test]
+    fn child_lookup_before_enclosing_miss_is_inconclusive() {
+        let id = rec(Bucket::Detail, Outcome::Begin).identity;
+        for body in [
+            vec![
+                rec(Bucket::PaddedWb, Outcome::Some),
+                rec(Bucket::Detail, Outcome::None),
+            ],
+            vec![
+                rec(Bucket::Detail, Outcome::None),
+                rec(Bucket::TileWb, Outcome::Some),
+                rec(Bucket::PaddedWb, Outcome::None),
+            ],
+        ] {
+            let mut records = vec![rec(Bucket::Detail, Outcome::Begin)];
+            records.extend(body);
+            records.push(rec(Bucket::Detail, Outcome::End));
+            let s = snapshot(&records);
+            for target in [Bucket::Detail, Bucket::PaddedWb, Bucket::TileWb] {
+                assert_eq!(reach(&s, id, target).unwrap(), Reach::Inconclusive);
+            }
+        }
     }
 }
