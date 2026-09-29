@@ -144,31 +144,54 @@ pub fn reach(snapshot: &Snapshot, identity: Identity, bucket: Bucket) -> Result<
     {
         return Ok(Reach::Inconclusive);
     }
-    // Validate actual sequence, including request-only activity. A successful
-    // enclosing hit skips all nested calls, not merely nested lookups. A child
-    // record also requires its parent miss to have appeared earlier.
-    let mut detail_missed = false;
-    let mut padded_missed = false;
-    for record in body.iter().flatten() {
+    // Each exact key has one lookup followed by at most one request, and a
+    // request is legal only after its miss. Parent requests close descendants.
+    // This is request order, not any assertion about cache admission.
+    fn step(previous: Option<(MemoKey, Outcome)>, record: &Record) -> Option<(MemoKey, Outcome)> {
+        match (previous, record.outcome) {
+            (None, Outcome::Some | Outcome::None | Outcome::Error) => {
+                Some((record.key, record.outcome))
+            }
+            (Some((key, Outcome::None)), Outcome::Request) if key == record.key => {
+                Some((key, Outcome::Request))
+            }
+            _ => None,
+        }
+    }
+    let mut detail_state = None;
+    let mut padded_state = None;
+    for (index, record) in body.iter().flatten().enumerate() {
         match record.bucket {
             Bucket::Detail => {
-                if record.outcome == Outcome::Request && !detail_missed {
+                let Some(next) = step(detail_state, record) else {
                     return Ok(Reach::Inconclusive);
-                }
-                if record.outcome == Outcome::None {
-                    detail_missed = true;
-                }
+                };
+                detail_state = Some(next);
             }
             Bucket::PaddedWb => {
-                if !detail_missed {
+                if !matches!(detail_state, Some((_, Outcome::None))) {
                     return Ok(Reach::Inconclusive);
                 }
-                if record.outcome == Outcome::None {
-                    padded_missed = true;
-                }
+                let Some(next) = step(padded_state, record) else {
+                    return Ok(Reach::Inconclusive);
+                };
+                padded_state = Some(next);
             }
             Bucket::TileWb => {
-                if !detail_missed || !padded_missed {
+                if !matches!(detail_state, Some((_, Outcome::None)))
+                    || !matches!(padded_state, Some((_, Outcome::None)))
+                {
+                    return Ok(Reach::Inconclusive);
+                }
+                // Fixed bounded prefix scan, no map/allocation. Each tile key
+                // has its own lifecycle, so another tile's miss is no proof.
+                let previous = body[..index]
+                    .iter()
+                    .flatten()
+                    .rev()
+                    .find(|r| r.bucket == Bucket::TileWb && r.key == record.key)
+                    .map(|r| (r.key, r.outcome));
+                if step(previous, record).is_none() {
                     return Ok(Reach::Inconclusive);
                 }
             }
@@ -560,5 +583,101 @@ mod tests {
                 assert_eq!(reach(&s, id, target).unwrap(), Reach::Inconclusive);
             }
         }
+    }
+    #[test]
+    fn request_after_same_key_hit_and_child_after_parent_request_are_inconclusive() {
+        let id = rec(Bucket::Detail, Outcome::Begin).identity;
+        for body in [
+            vec![
+                rec(Bucket::Detail, Outcome::None),
+                rec(Bucket::PaddedWb, Outcome::Some),
+                rec(Bucket::PaddedWb, Outcome::Request),
+            ],
+            vec![
+                rec(Bucket::Detail, Outcome::None),
+                rec(Bucket::Detail, Outcome::Request),
+                rec(Bucket::PaddedWb, Outcome::Some),
+            ],
+            vec![
+                rec(Bucket::Detail, Outcome::None),
+                rec(Bucket::PaddedWb, Outcome::None),
+                rec(Bucket::PaddedWb, Outcome::Request),
+                rec(Bucket::TileWb, Outcome::Some),
+            ],
+            vec![
+                rec(Bucket::Detail, Outcome::None),
+                rec(Bucket::PaddedWb, Outcome::None),
+                rec(Bucket::TileWb, Outcome::Some),
+                rec(Bucket::TileWb, Outcome::Request),
+            ],
+        ] {
+            let mut records = vec![rec(Bucket::Detail, Outcome::Begin)];
+            records.extend(body);
+            records.push(rec(Bucket::Detail, Outcome::End));
+            for target in [Bucket::Detail, Bucket::PaddedWb, Bucket::TileWb] {
+                assert_eq!(
+                    reach(&snapshot(&records), id, target).unwrap(),
+                    Reach::Inconclusive
+                );
+            }
+        }
+    }
+    #[test]
+    fn duplicate_and_unknown_key_requests_cannot_borrow_other_miss() {
+        let id = rec(Bucket::Detail, Outcome::Begin).identity;
+        let mut unknown = rec(Bucket::TileWb, Outcome::Request);
+        unknown.key.tile.x += 1;
+        for requests in [
+            vec![unknown],
+            vec![rec(Bucket::TileWb, Outcome::Request); 2],
+        ] {
+            let mut records = vec![
+                rec(Bucket::Detail, Outcome::Begin),
+                rec(Bucket::Detail, Outcome::None),
+                rec(Bucket::PaddedWb, Outcome::None),
+                rec(Bucket::TileWb, Outcome::None),
+            ];
+            records.extend(requests);
+            records.push(rec(Bucket::Detail, Outcome::End));
+            for target in [Bucket::Detail, Bucket::PaddedWb, Bucket::TileWb] {
+                assert_eq!(
+                    reach(&snapshot(&records), id, target).unwrap(),
+                    Reach::Inconclusive
+                );
+            }
+        }
+    }
+    #[test]
+    fn cold_requests_close_children_in_order_and_padded_hit_stays_valid() {
+        let id = rec(Bucket::Detail, Outcome::Begin).identity;
+        let mut second = rec(Bucket::TileWb, Outcome::None);
+        second.key.tile.x += 1;
+        let mut second_request = second;
+        second_request.outcome = Outcome::Request;
+        let cold = snapshot(&[
+            rec(Bucket::Detail, Outcome::Begin),
+            rec(Bucket::Detail, Outcome::None),
+            rec(Bucket::PaddedWb, Outcome::None),
+            rec(Bucket::TileWb, Outcome::None),
+            rec(Bucket::TileWb, Outcome::Request),
+            second,
+            second_request,
+            rec(Bucket::PaddedWb, Outcome::Request),
+            rec(Bucket::Detail, Outcome::Request),
+            rec(Bucket::Detail, Outcome::End),
+        ]);
+        for target in [Bucket::Detail, Bucket::PaddedWb, Bucket::TileWb] {
+            assert_eq!(reach(&cold, id, target).unwrap(), Reach::Miss);
+        }
+        let hit = snapshot(&[
+            rec(Bucket::Detail, Outcome::Begin),
+            rec(Bucket::Detail, Outcome::None),
+            rec(Bucket::PaddedWb, Outcome::Some),
+            rec(Bucket::Detail, Outcome::Request),
+            rec(Bucket::Detail, Outcome::End),
+        ]);
+        assert_eq!(reach(&hit, id, Bucket::Detail).unwrap(), Reach::Miss);
+        assert_eq!(reach(&hit, id, Bucket::PaddedWb).unwrap(), Reach::Hit);
+        assert_eq!(reach(&hit, id, Bucket::TileWb).unwrap(), Reach::NotReached);
     }
 }
