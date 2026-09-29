@@ -68,3 +68,7 @@ pub fn resident_export_lens_supported(lens: &engine_api::recipe::settings::LensS
 extern crate self as image_core;
 #[cfg(test)]
 mod resident_model;
+
+#[cfg(feature = "wb-diagnostic")]
+#[doc(hidden)]
+pub mod wb_diagnostic;
