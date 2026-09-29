@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import TesseraCore
 
 /// `--filter-selftest <dir>` (test aid, WP B5-05): ACCEPTANCE §U part 3 through the same controller
@@ -12,8 +13,8 @@ import TesseraCore
 /// Started by `DocumentFilters` when the argument is present (no hook in TesseraApp).
 @MainActor
 final class FilterSelfTest {
-    private let model: AppModel
-    private let dir: URL
+    fileprivate let model: AppModel
+    fileprivate let dir: URL
     private let hold: Double
     private var failures = 0
     private var step = 0
@@ -37,16 +38,16 @@ final class FilterSelfTest {
         self.hold = hold
     }
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("filter-selftest: \(s)\n".utf8)) }
+    fileprivate func log(_ s: String) { FileHandle.standardError.write(Data("filter-selftest: \(s)\n".utf8)) }
 
-    private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
+    fileprivate func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
         log("check \(name) " + (ok ? "ok" : "FAIL \(detail())"))
     }
 
-    private func pause(_ s: Double) async { try? await Task.sleep(for: .milliseconds(Int(s * 1000))) }
+    fileprivate func pause(_ s: Double) async { try? await Task.sleep(for: .milliseconds(Int(s * 1000))) }
 
-    private func wait(_ timeout: Double, _ condition: () -> Bool) async -> Bool {
+    fileprivate func wait(_ timeout: Double, _ condition: () -> Bool) async -> Bool {
         let end = Date().addingTimeInterval(timeout)
         while !condition() {
             if Date() > end { return false }
@@ -80,7 +81,7 @@ final class FilterSelfTest {
     }
 
     /// Waits for the listener's next frame after `action`; milliseconds, or nil on timeout.
-    private func frameAfter(_ doc: DocumentController, _ action: () -> Void) async -> Double? {
+    fileprivate func frameAfter(_ doc: DocumentController, _ action: () -> Void) async -> Double? {
         var got: Date?
         let start = Date()
         doc.frameObserver = { _ in if got == nil { got = Date() } }
@@ -90,18 +91,18 @@ final class FilterSelfTest {
         return ok ? got.map { $0.timeIntervalSince(start) * 1000 } : nil
     }
 
-    private func idle(_ filters: DocumentFilters) async -> Bool { await wait(120) { filters.busy == nil } }
+    fileprivate func idle(_ filters: DocumentFilters) async -> Bool { await wait(120) { filters.busy == nil } }
 
     func run() async {
         let ws = model.documents
         let filters = ws.filters
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         guard await wait(60, { !model.isLoading && !model.library.items.isEmpty }) else {
-            log("FAIL the library did not load"); return finish()
+            check("library loaded", false); return finish()
         }
         let items = model.library.items
         guard let item = items.first(where: { $0.name == "sample.dng" }) ?? items.first(where: { $0.kind == .raw }) else {
-            log("FAIL no RAW in the library"); return finish()
+            check("RAW fixture available", false); return finish()
         }
         model.select(id: item.id)
         let restore = model.showRenderReadout
@@ -110,16 +111,17 @@ final class FilterSelfTest {
 
         ws.editInLayers(model.focusedItem)
         guard await wait(120, { ws.current != nil && ws.opening == nil }), let doc = ws.current else {
-            log("FAIL Edit in Layers opened nothing: \(model.statusMessage ?? "")"); return finish()
+            check("Edit in Layers opened document", false, model.statusMessage ?? ""); return finish()
         }
         _ = await wait(10) { doc.lastFrame != nil }
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.depth.title), \(doc.info.backend)")
-        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { return finish() }
+        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { check("pixel layer available", false); return finish() }
         doc.select(photo)
         let catalogue = filters.catalogue(doc)
         check("filter menu", FilterCatalogEntry.grouped(catalogue).map(\.group) == FilterCatalogEntry.groupOrder,
               "\(catalogue.map(\.group))")
-        guard let gaussian = catalogue.first(where: { $0.id == "gaussian_blur" }) else { return finish() }
+        guard let gaussian = catalogue.first(where: { $0.id == "gaussian_blur" }) else { check("Gaussian Blur available", false); return finish() }
+        if perfMode { await perf(doc, photo: photo, gaussian: gaussian); return finish() }   // B5-15
 
         // 1. Gaussian Blur dialog: preview latency over a radius drag.
         filters.open(gaussian, doc)
@@ -205,8 +207,237 @@ final class FilterSelfTest {
         finish()
     }
 
-    private func finish() {
+    fileprivate func finish() {
         log("done, \(failures) failure(s)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
+    }
+}
+
+// MARK: - B5-15 perf scenarios (P16, P19, memory)
+
+/// `TESSERA_FILTER_PERF=1` with `--filter-selftest <dir>` (WP B5-15): instead of the acceptance steps,
+/// (1) converts the developed photo for smart filters, applies Gaussian Blur 8 px as a smart filter and drags its
+/// radius in the smart-filter dialog (value → the listener's next frame, 30 display-rate ticks) at fit and at 100 %
+/// in a 3840 × 2160 device-pixel viewport, with the process footprint around each drag; (2) adds a text layer with
+/// a drop shadow and an outer glow and runs Export Flat (PNG, sRGB) while a run-loop observer records every
+/// main-thread busy span; (3) cancels an export at 30 % and checks the destination. Lines start with
+/// `filter-perf:`. The window is never raised, made key or floated.
+extension FilterSelfTest {
+    var perfMode: Bool { ProcessInfo.processInfo.environment["TESSERA_FILTER_PERF"] != nil }
+
+    private func plog(_ s: String) { FileHandle.standardError.write(Data("filter-perf: \(s)\n".utf8)) }
+
+    private static func pct(_ v: [Double], _ p: Double) -> Double {
+        guard !v.isEmpty else { return .nan }
+        let s = v.sorted()
+        return s[min(s.count - 1, Int((Double(s.count - 1) * p).rounded()))]
+    }
+
+    private func report(_ name: String, _ v: [Double]) {
+        plog(String(format: "RESULT %@: n %d p50 %.2f ms p95 %.2f ms max %.2f ms", name, v.count, Self.pct(v, 0.5),
+                    Self.pct(v, 0.95), v.max() ?? .nan))
+    }
+
+    /// Physical footprint of this process (MiB).
+    private func footprintMiB() -> Double {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let kr = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+        }
+        return kr == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : .nan
+    }
+
+    func perf(_ doc: DocumentController, photo: DocLayerID, gaussian: FilterCatalogEntry) async {
+        let ws = model.documents
+        let filters = ws.filters
+        plog("start: document \(doc.info.width) × \(doc.info.height) \(doc.info.depth.title), backend \(doc.info.backend), footprint \(String(format: "%.0f", footprintMiB())) MiB")
+
+        // P19: Gaussian Blur smart filter on the converted photo.
+        filters.convertForSmartFilters(doc)
+        filters.open(gaussian, doc)
+        guard let add = filters.filterSheet else { check("filter dialog available", false); return }
+        add.set(gaussian.params[0], .number(8))
+        add.ok()
+        _ = await idle(filters)
+        await pause(3)
+        guard let row = filters.smartFilters(doc, layer: photo).first else { check("smart filter available", false); return }
+        plog(String(format: "smart filter applied, footprint %.0f MiB", footprintMiB()))
+        // Isolate export lifetime checks from viewport resizing and filter-drag acceptance.
+        let exportOnly = ProcessInfo.processInfo.environment["TESSERA_FILTER_PERF_EXPORT_ONLY"] == "1"
+        for (label, actual) in (exportOnly ? [] : [("fit", false), ("100% 4K", true)]) {
+            if actual, let w = model.mainWindow, let v = doc.viewport {
+                // A 3840 × 2160 device-pixel viewport (the window stays where it is, in the back).
+                let scale = w.backingScaleFactor
+                let extraW = w.frame.width - v.bounds.width, extraH = w.frame.height - v.bounds.height
+                w.setFrame(NSRect(origin: w.frame.origin, size: NSSize(width: 3840 / scale + extraW, height: 2160 / scale + extraH)),
+                           display: true)
+                await pause(1)
+                plog(String(format: "viewport %.0f × %.0f pt @%.0fx", v.bounds.width, v.bounds.height, scale))
+            }
+            if let view = doc.viewport { if actual { view.zoomActual() } else { view.zoomToFit() } }
+            _ = await wait(20) { (doc.lastFrame?.level == 0) == actual }
+            await pause(3)
+            let level = doc.lastFrame?.level ?? 255
+            filters.editSmartFilter(doc, layer: photo, row: row)
+            guard let sheet = filters.filterSheet else { check("smart filter dialog available", false); return }
+            await pause(1)
+            let before = footprintMiB()
+            var peak = before
+            var ticks: [Double] = []
+            for i in 0..<32 {
+                let r = 6.0 + Double(i % 9)
+                if let ms = await frameAfter(doc, { sheet.set(gaussian.params[0], .number(r), final: false) }), i >= 2 {
+                    ticks.append(ms)
+                }
+                peak = max(peak, footprintMiB())
+                await pause(1.0 / 60)
+            }
+            sheet.cancel()
+            await pause(2)
+            report("p19 \(label) (L\(level)) smart filter drag value→frame", ticks)
+            plog(String(format: "RESULT p19 %@ footprint before %.0f MiB, peak %.0f MiB, 2 s after %.0f MiB", label, before, peak,
+                        footprintMiB()))
+        }
+        if let view = doc.viewport { view.zoomToFit() }
+        await pause(2)
+
+        // P16 (a): Export Flat of this document (18 MP, the smart filter baked at full resolution).
+        let settings = ExportFlatSettings(format: .png, quality: 90, color: .srgb)
+        await measureExports(ws, doc, settings, "18 MP smart filter")
+        // P16 (b): a styled document. The engine refuses layer styles on canvases above 16.7 MP including the
+        // style margin (compositor styles.rs MAX_PIXELS), so it is 4608 × 3072 (14 MP): a gradient fill and a
+        // text layer with a drop shadow and an outer glow.
+        ws.newDocument(NewDocumentSettings(width: 4608, height: 3072, depth: .u8, profile: "sRGB IEC61966-2.1"))
+        guard let styled = ws.current, styled !== doc else { check("styled document created", false); return }
+        _ = await wait(20) { styled.lastFrame != nil }
+        _ = try? styled.backend.addLayer(kind: .fill(json: #"{"kind":"linear_gradient","stops":[{"position":0,"color":[1,0.5,0],"opacity":1},{"position":1,"color":[0,0.3,1],"opacity":1}],"angle":30}"#),
+                                         name: "gradient", parent: nil, index: nil)
+        if let text = styled.backend as? DocumentTextBackend,
+           let styles = styled.backend as? DocumentStylesBackend,
+           let textModel = try? JSONDecoder().decode(TextSourceModel.self,
+                                                     from: Data(#"{"runs":[{"text":"Tessera export","family":"Helvetica","size":220}]}"#.utf8)),
+           let c = try? text.addTextLayer(name: "caption", parent: nil, index: nil, model: textModel,
+                                          transform: .translation(600, 2400), interactive: false),
+           let id = c.created.first,
+           (try? styles.setLayerStylesJson(layer: id, json: #"{"effects":[{"kind":"drop_shadow","settings":{"distance":30,"size":40}},{"kind":"outer_glow","settings":{"size":30}}],"scale":1}"#,
+                                           interactive: false)) != nil {
+            styled.reloadModel()
+            plog("styled document \(styled.info.width) × \(styled.info.height), layers \(styled.layers.map(\.name))")
+        } else {
+            check("styled layer created", false)
+        }
+        _ = await wait(120) { styled.lastFrame != nil }
+        await pause(3)
+        await measureExports(ws, styled, settings, "styled 14 MP")
+        await cancelUnderTest(ws, styled, settings)
+        plog(String(format: "done, footprint %.0f MiB", footprintMiB()))
+    }
+}
+
+extension FilterSelfTest {
+    /// Two Export Flats of `doc` with every main-thread busy span recorded.
+    fileprivate func measureExports(_ ws: DocumentWorkspace, _ doc: DocumentController, _ settings: ExportFlatSettings,
+                                    _ label: String) async {
+        let spans = MainThreadSpans()
+        for i in 0..<2 {
+            let url = dir.appendingPathComponent("perf-flat-\(i).png")
+            try? FileManager.default.removeItem(at: url)
+            spans.start()
+            let t = Date()
+            let ok = await exportUnderTest(ws, doc, settings, url)
+            let secs = Date().timeIntervalSince(t)
+            let v = spans.stop()
+            FileHandle.standardError.write(Data(String(format: "filter-perf: %@ export %d: %@ in %.2f s, %d main-thread spans (%@)\n",
+                                                       label, i, ok ? "ok" : "FAILED", secs, v.count,
+                                                       model.statusMessage ?? "").utf8))
+            let s = v.sorted()
+            let q = { (p: Double) in s.isEmpty ? .nan : s[min(s.count - 1, Int((Double(s.count - 1) * p).rounded()))] }
+            FileHandle.standardError.write(Data(String(format: "filter-perf: RESULT p16 %@ main-thread spans during Export Flat %d: n %d p50 %.2f ms p95 %.2f ms max %.2f ms; export %.2f s\n",
+                                                       label, i, s.count, q(0.5), q(0.95), s.last ?? .nan, secs).utf8))
+            check("\(label) export \(i)", ok && FileManager.default.fileExists(atPath: url.path))
+        }
+    }
+}
+
+// B5-15 VARIANT begin (the baseline build calls `ws.exportFlat(doc, s, to: url)` synchronously here)
+extension FilterSelfTest {
+    /// Export Flat as the menu command runs it.
+    fileprivate func exportUnderTest(_ ws: DocumentWorkspace, _ doc: DocumentController, _ s: ExportFlatSettings,
+                                     _ url: URL) async -> Bool {
+        var outcome: FlatExportTask.Outcome?
+        guard let task = ws.startExportFlat(doc, s, to: url, then: { outcome = $0 }) else { return false }
+        var suppressed = false
+        var activitySamples = 0
+        let finished = await wait(900) {
+            if outcome != nil { return true }
+            // Exercise the actual covered-window export. Ordinary XCTest processes do not undergo
+            // App Nap, so unit tests alone cannot catch this background-export regression.
+            var info = proc_bsdinfo()
+            let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+            if task.phase != "Preparing", proc_pidinfo(getpid(), PROC_PIDTBSDINFO, 0, &info, size) == size {
+                activitySamples += 1
+                suppressed = suppressed || info.pbi_flags & UInt32(PROC_FLAG_SUPPRESSED) != 0
+            }
+            return false
+        }
+        check("Export Flat avoids App Nap", activitySamples > 0 && !suppressed)
+        if !finished {
+            // Attempt to stop a timed-out export before further measurements.
+            ws.cancelExportFlat(task)
+            let stopped = await wait(60) { outcome != nil }
+            check("timed-out export stopped", stopped)
+        }
+        return finished && outcome == .exported
+    }
+
+    /// Cancel at 30 %: the file already at the destination is kept byte for byte, no temporary file is left.
+    fileprivate func cancelUnderTest(_ ws: DocumentWorkspace, _ doc: DocumentController, _ s: ExportFlatSettings) async {
+        let folder = dir.appendingPathComponent("cancel")
+        try? FileManager.default.removeItem(at: folder)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appendingPathComponent("kept.png")
+        let original = Data("previous contents".utf8)
+        try? original.write(to: url)
+        var outcome: FlatExportTask.Outcome?
+        guard let task = ws.startExportFlat(doc, s, to: url, then: { outcome = $0 }) else { check("cancel starts", false); return }
+        _ = await wait(300) { task.fraction >= 0.3 || outcome != nil }
+        let t = Date()
+        ws.cancelExportFlat(task)
+        _ = await wait(60) { outcome != nil }
+        log(String(format: "cancel at %.0f %% → finished in %.0f ms", task.fraction * 100, Date().timeIntervalSince(t) * 1000))
+        check("cancelled", outcome == .cancelled, "\(String(describing: outcome)) \(model.statusMessage ?? "")")
+        check("destination kept", (try? Data(contentsOf: url)) == original)
+        let left = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        check("no temporary file", left == ["kept.png"], "\(left)")
+    }
+}
+// B5-15 VARIANT end
+
+/// Main-thread busy spans (run-loop wake → sleep), recorded by a common-modes observer.
+final class MainThreadSpans: @unchecked Sendable {
+    private var observer: CFRunLoopObserver?
+    private var began = CFAbsoluteTimeGetCurrent()
+    private var spans: [Double] = []
+
+    func start() {
+        spans = []
+        began = CFAbsoluteTimeGetCurrent()
+        let o = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.afterWaiting.rawValue | CFRunLoopActivity.beforeWaiting.rawValue,
+                                                   true, 0) { [weak self] _, activity in
+            guard let self else { return }
+            let now = CFAbsoluteTimeGetCurrent()
+            if activity == .afterWaiting { self.began = now } else { self.spans.append((now - self.began) * 1000) }
+        }
+        observer = o
+        CFRunLoopAddObserver(CFRunLoopGetMain(), o, .commonModes)
+    }
+
+    /// Stops recording; the spans (ms), including the one in progress.
+    func stop() -> [Double] {
+        if let o = observer { CFRunLoopRemoveObserver(CFRunLoopGetMain(), o, .commonModes) }
+        observer = nil
+        spans.append((CFAbsoluteTimeGetCurrent() - began) * 1000)
+        return spans
     }
 }

@@ -113,6 +113,9 @@ pub struct DocRenderRecord {
     pub total_ms: f64,
 }
 
+/// B5-15: stage-cache bytes kept after a filter interaction ends.
+const FILTER_CACHE_KEEP: u64 = 512 << 20;
+
 /// Smart objects with filters (the compositor never evaluates them).
 fn has_smart_filters(state: &DocState) -> bool {
     fn go(v: &[Arc<Layer>]) -> bool {
@@ -556,6 +559,9 @@ pub(crate) struct Renderer {
     /// Composite thumbnails of the committed document (cache kept).
     thumb_comp: OnceLock<Compositor>,
     // B5-14 end
+    /// B5-15: drop the resident smart-filter stage cache at the next frame
+    /// (set when a filter interaction ends; its per-tick results are dead).
+    trim_filters: AtomicBool,
 }
 
 impl Renderer {
@@ -565,6 +571,7 @@ impl Renderer {
                 // B5-10 begin: the shared font snapshot (Type tool layout = rendering).
                 {
                     super::fonts::install(&mut resident); // B5-10b
+                    super::filtering::install_resident(&mut resident); // B5-15 (P19)
                     gpu.name.clone()
                 },
                 // B5-10 end
@@ -604,6 +611,7 @@ impl Renderer {
             last_resources: Mutex::new(None),
             thumb_comp: OnceLock::new(),
             // B5-14 end
+            trim_filters: AtomicBool::new(false), // B5-15
         }
     }
 
@@ -629,9 +637,12 @@ impl Renderer {
                     let st = g.resident.stats();
                     let cpu = g.cpu.as_ref().map(|c| c.stats());
                     format!(
-                        "GPU {} live pages, {:.1} MiB resident; CPU fallback {}",
+                        "GPU {} live pages, {:.1} MiB resident; smart filters {} GPU stages, {} CPU fallbacks, {:.1} MiB stage cache; CPU fallback {}",
                         st.live_pages,
                         st.resident_bytes as f64 / (1 << 20) as f64,
+                        g.resident.filter_evaluations(), // B5-15 (P19)
+                        g.resident.filter_fallbacks(),
+                        g.resident.filter_cache_bytes() as f64 / (1 << 20) as f64,
                         cpu.map_or("unused".into(), |c| format!(
                             "{} cache hits / {} misses",
                             c.cache_hits, c.cache_misses
@@ -775,6 +786,28 @@ impl Renderer {
             Err(EngineError::Unsupported { .. }) => Ok(None),
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// B5-15 (P19): the resident renderer's smart-filter trace: GPU stages
+    /// executed, layer-local CPU fallbacks and stage-cache bytes (`None`
+    /// without Metal).
+    pub(crate) fn smart_filter_stats(&self) -> Option<(u64, u64, u64)> {
+        match &*self.backend.lock().ok()? {
+            Backend::Gpu(g) => Some((
+                g.resident.filter_evaluations(),
+                g.resident.filter_fallbacks(),
+                g.resident.filter_cache_bytes(),
+            )),
+            _ => None,
+        }
+    }
+
+    /// B5-15: asks the render thread to release the resident smart-filter
+    /// stage cache before its next frame when it holds more than
+    /// [`FILTER_CACHE_KEEP`] (a filter drag leaves one full-resolution result
+    /// per tick, up to the renderer's 2 GiB budget).
+    pub(crate) fn trim_smart_filter_cache(&self) {
+        self.trim_filters.store(true, Ordering::Relaxed);
     }
 
     pub(crate) fn thumbnail_renders(&self) -> u64 {
@@ -985,6 +1018,12 @@ fn present_frame(
             match &mut *backend {
                 Backend::Gpu(g) => {
                     g.targets.retain(|id, _| attached.contains(id));
+                    // B5-15: stage results of a finished filter interaction.
+                    if r.trim_filters.swap(false, Ordering::Relaxed)
+                        && g.resident.filter_cache_bytes() > FILTER_CACHE_KEEP
+                    {
+                        super::filtering::install_resident(&mut g.resident);
+                    }
                     let viewport = r.viewport_rendering.load(Ordering::Relaxed)
                         && !needs_full_halo(doc.state());
                     rec.path = if viewport {

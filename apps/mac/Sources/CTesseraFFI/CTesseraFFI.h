@@ -292,6 +292,13 @@ typedef void (*UniffiCallbackInterfaceMaskListenerMethod1)(uint64_t, RustBuffer,
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DOC_EXPORT_LISTENER_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DOC_EXPORT_LISTENER_METHOD0
+typedef void (*UniffiCallbackInterfaceDocExportListenerMethod0)(uint64_t, float, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DOCUMENT_LISTENER_METHOD0
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DOCUMENT_LISTENER_METHOD0
 typedef void (*UniffiCallbackInterfaceDocumentListenerMethod0)(uint64_t, RustBuffer, void* _Nonnull, 
@@ -392,6 +399,15 @@ typedef struct UniffiVTableCallbackInterfaceMaskListener {
     UniffiCallbackInterfaceMaskListenerMethod0 _Nonnull overlayReady;
     UniffiCallbackInterfaceMaskListenerMethod1 _Nonnull aiProgress;
 } UniffiVTableCallbackInterfaceMaskListener;
+
+#endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DOC_EXPORT_LISTENER
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DOC_EXPORT_LISTENER
+typedef struct UniffiVTableCallbackInterfaceDocExportListener {
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+    UniffiCallbackInterfaceClone _Nonnull uniffiClone;
+    UniffiCallbackInterfaceDocExportListenerMethod0 _Nonnull onProgress;
+} UniffiVTableCallbackInterfaceDocExportListener;
 
 #endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DOCUMENT_LISTENER
@@ -1386,6 +1402,51 @@ void uniffi_tessera_ffi_fn_method_masklistener_overlay_ready(uint64_t ptr, RustB
 void uniffi_tessera_ffi_fn_method_masklistener_ai_progress(uint64_t ptr, RustBuffer update, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DOCEXPORTLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DOCEXPORTLISTENER
+uint64_t uniffi_tessera_ffi_fn_clone_docexportlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DOCEXPORTLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DOCEXPORTLISTENER
+void uniffi_tessera_ffi_fn_free_docexportlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_DOCEXPORTLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_DOCEXPORTLISTENER
+void uniffi_tessera_ffi_fn_init_callback_vtable_docexportlistener(const UniffiVTableCallbackInterfaceDocExportListener* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCEXPORTLISTENER_ON_PROGRESS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCEXPORTLISTENER_ON_PROGRESS
+void uniffi_tessera_ffi_fn_method_docexportlistener_on_progress(uint64_t ptr, float fraction, RustBuffer phase, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DOCFLATEXPORT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DOCFLATEXPORT
+uint64_t uniffi_tessera_ffi_fn_clone_docflatexport(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DOCFLATEXPORT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DOCFLATEXPORT
+void uniffi_tessera_ffi_fn_free_docflatexport(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCFLATEXPORT_CANCEL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCFLATEXPORT_CANCEL
+void uniffi_tessera_ffi_fn_method_docflatexport_cancel(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCFLATEXPORT_IS_CANCELLED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCFLATEXPORT_IS_CANCELLED
+int8_t uniffi_tessera_ffi_fn_method_docflatexport_is_cancelled(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCFLATEXPORT_RUN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCFLATEXPORT_RUN
+void uniffi_tessera_ffi_fn_method_docflatexport_run(uint64_t ptr, RustBuffer listener, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DOCUMENTLISTENER
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DOCUMENTLISTENER
 uint64_t uniffi_tessera_ffi_fn_clone_documentlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
@@ -1444,6 +1505,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_documentsession_add_mask(uint64_t ptr, u
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_ATTACH_SURFACE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_ATTACH_SURFACE
 void uniffi_tessera_ffi_fn_method_documentsession_attach_surface(uint64_t ptr, uint32_t iosurface_id, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_BEGIN_EXPORT_FLAT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_BEGIN_EXPORT_FLAT
+uint64_t uniffi_tessera_ffi_fn_method_documentsession_begin_export_flat(uint64_t ptr, RustBuffer path, RustBuffer format, uint8_t quality, RustBuffer color, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_CANCEL_SOURCE_PREVIEW
@@ -4272,6 +4338,30 @@ uint16_t uniffi_tessera_ffi_checksum_method_masklistener_ai_progress(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCEXPORTLISTENER_ON_PROGRESS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCEXPORTLISTENER_ON_PROGRESS
+uint16_t uniffi_tessera_ffi_checksum_method_docexportlistener_on_progress(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCFLATEXPORT_CANCEL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCFLATEXPORT_CANCEL
+uint16_t uniffi_tessera_ffi_checksum_method_docflatexport_cancel(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCFLATEXPORT_IS_CANCELLED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCFLATEXPORT_IS_CANCELLED
+uint16_t uniffi_tessera_ffi_checksum_method_docflatexport_is_cancelled(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCFLATEXPORT_RUN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCFLATEXPORT_RUN
+uint16_t uniffi_tessera_ffi_checksum_method_docflatexport_run(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTLISTENER_ON_FRAME
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTLISTENER_ON_FRAME
 uint16_t uniffi_tessera_ffi_checksum_method_documentlistener_on_frame(void
@@ -4311,6 +4401,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_add_mask(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_ATTACH_SURFACE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_ATTACH_SURFACE
 uint16_t uniffi_tessera_ffi_checksum_method_documentsession_attach_surface(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_BEGIN_EXPORT_FLAT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_BEGIN_EXPORT_FLAT
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_begin_export_flat(void
     
 );
 #endif

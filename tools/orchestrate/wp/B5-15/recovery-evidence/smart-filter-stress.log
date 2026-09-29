@@ -1,0 +1,145 @@
+Executable: /Users/rutmehta/.cache/tessera-target/B5-15/release/deps/document_filters-03113a7d4cc447b9
+mtime: Sun Sep 27 11:11:14 2026
+RUN 1/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.19s
+
+RUN 2/20; Swift compiler PIDs: 60461
+60697
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 3/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.10s
+
+RUN 4/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.10s
+
+RUN 5/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 6/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 7/20; Swift compiler PIDs: 60461
+60734
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.12s
+
+RUN 8/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 9/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 10/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 11/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.12s
+
+RUN 12/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.10s
+
+RUN 13/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.15s
+
+RUN 14/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 15/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 16/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.10s
+
+RUN 17/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 18/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+RUN 19/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.12s
+
+RUN 20/20; Swift compiler PIDs: 60461
+
+running 1 test
+test smart_filters_render_edit_and_round_trip_through_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.11s
+
+PASS: 20/20 under compiler load

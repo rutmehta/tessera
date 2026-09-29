@@ -586,7 +586,8 @@ final class DocumentWorkspace {
         }
     }
 
-    /// Export Flat of `doc` to `url` with `s`.
+    /// Export Flat of `doc` to `url` with `s`, synchronously (self-tests and scripts). The menu command runs
+    /// `startExportFlat` instead, which keeps the main thread free.
     @discardableResult
     func exportFlat(_ doc: DocumentController, _ s: ExportFlatSettings, to url: URL) -> Bool {
         do {
@@ -610,12 +611,143 @@ final class DocumentWorkspace {
         panel.nameFieldStringValue = (doc.title as NSString).deletingPathExtension + "." + s.format.fileExtension
         let handle: @MainActor (NSApplication.ModalResponse) -> Void = { [weak self] r in
             guard r == .OK, let url = panel.url else { return }
-            self?.exportFlat(doc, s, to: url)
+            self?.startExportFlat(doc, s, to: url)   // B5-15: in the background
         }
         if let window = self.window {
             panel.beginSheetModal(for: window) { r in MainActor.assumeIsolated { handle(r) } }
         } else {
             handle(panel.runModal())
+        }
+    }
+
+    // MARK: Background Export Flat (B5-15, perf audit P16)
+
+    /// Exports running in the background, oldest first (shown in the document window with Cancel).
+    private(set) var flatExports: [FlatExportTask] = []
+    @ObservationIgnored private let flatExportGroup = DispatchGroup()
+    @ObservationIgnored private var terminationObserver: NSObjectProtocol?
+    @ObservationIgnored private var exportAccessory: NSTitlebarAccessoryViewController?
+
+    /// Export Flat of `doc` to `url` with `s` without blocking the main thread: the document is snapshotted
+    /// now (later edits are not exported), then composited, converted, encoded and written on a background
+    /// task with progress and Cancel in the window. Cancelling leaves the destination untouched (the file is
+    /// renamed into place only when complete). Closing the document does not stop the export; quitting
+    /// cancels it. `then` runs on the main actor with the outcome.
+    @discardableResult
+    func startExportFlat(_ doc: DocumentController, _ s: ExportFlatSettings, to url: URL,
+                         then: (@MainActor (FlatExportTask.Outcome) -> Void)? = nil) -> FlatExportTask? {
+        let backend = doc.backend
+        let (format, quality, color) = (s.format.documentFormat, UInt8(s.quality), s.color.documentColor)
+        let path = url.path
+        let run: @Sendable (@escaping @Sendable (Double, String) -> Void) throws -> Void
+        let cancel: @Sendable () -> Void
+        if let exporter = backend as? DocumentFlatExporting {
+            let job: DocumentFlatExport
+            do {
+                job = try exporter.beginExportFlat(path: path, format: format, quality: quality, color: color)
+            } catch {
+                say("Export Flat: \(error.localizedDescription)")
+                then?(.failed(error.localizedDescription))
+                return nil
+            }
+            run = { progress in try job.run(progress: progress) }
+            cancel = { job.cancel() }
+        } else {
+            // Backends without a background exporter (the stub): their synchronous export, off the main thread.
+            let flag = CancelBox()
+            run = { _ in
+                // The only checkpoint is before the write; once it has started the file is exported.
+                if flag.isSet { throw CancellationError() }
+                try backend.exportFlat(path: path, format: format, quality: quality, color: color)
+            }
+            cancel = { flag.set() }
+        }
+        let task = FlatExportTask(fileName: url.lastPathComponent, documentTitle: doc.title, cancel: cancel)
+        flatExports.append(task)
+        observeTermination()
+        updateExportAccessory()
+        let summary = "\(url.lastPathComponent) (\(s.format.title), \(s.color.title))"
+        let group = flatExportGroup
+        let onProgress: @MainActor @Sendable (Double, String) -> Void = { [weak task] f, phase in
+            task?.update(f, phase)
+        }
+        let onDone: @MainActor @Sendable (Result<Void, any Error>) -> Void = { [weak self, weak task] result in
+            guard let task else { return }
+            let outcome: FlatExportTask.Outcome
+            switch result {
+            // A Cancel that arrived after the last checkpoint could not stop the write: the file is in place,
+            // so report it as exported rather than cancelled.
+            case .success: outcome = .exported
+            case .failure(let e): outcome = task.cancelling ? .cancelled : .failed(e.localizedDescription)
+            }
+            self?.finishExportFlat(task, outcome, summary: summary)
+            then?(outcome)
+        }
+        group.enter()
+        Task.detached(priority: .userInitiated) {
+            let result = Result {
+                // Task priority alone does not prevent App Nap when the document window is covered.
+                // Keep this user-requested export active only until the worker finishes (including
+                // cancellation/errors), without preventing the Mac from sleeping.
+                let activity = ProcessInfo.processInfo.beginActivity(
+                    options: .userInitiatedAllowingIdleSystemSleep, reason: "Exporting document")
+                defer { ProcessInfo.processInfo.endActivity(activity) }
+                try run { f, phase in Task { @MainActor in onProgress(f, phase) } }
+            }
+            group.leave()
+            await onDone(result)
+        }
+        return task
+    }
+
+    /// Cancels `task` (the Cancel button); the destination is left as it was, unless the export had already
+    /// passed its last checkpoint, in which case it completes and is reported as exported.
+    func cancelExportFlat(_ task: FlatExportTask) {
+        task.cancelNow()
+        say("Cancelling export of \(task.fileName)…")
+    }
+
+    private func finishExportFlat(_ task: FlatExportTask, _ outcome: FlatExportTask.Outcome, summary: String) {
+        flatExports.removeAll { $0 === task }
+        updateExportAccessory()
+        switch outcome {
+        case .exported: say("Exported \(summary)")
+        case .cancelled: say("Export of \(task.fileName) cancelled")
+        case .failed(let message): say("Export Flat: \(message)")
+        }
+    }
+
+    /// Quitting cancels running exports and waits (bounded) for them to stop, so no temporary file is left
+    /// half-written next to a destination.
+    private func observeTermination() {
+        guard terminationObserver == nil else { return }
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                for t in self.flatExports { t.cancelNow() }
+                _ = self.flatExportGroup.wait(timeout: .now() + 5)
+            }
+        }
+    }
+
+    /// The progress bar under the toolbar while exports run.
+    private func updateExportAccessory() {
+        guard let window else { return }
+        if flatExports.isEmpty {
+            if let a = exportAccessory, let i = window.titlebarAccessoryViewControllers.firstIndex(of: a) {
+                window.removeTitlebarAccessoryViewController(at: i)
+            }
+            exportAccessory = nil
+        } else if exportAccessory == nil {
+            let host = NSHostingView(rootView: FlatExportBar(workspace: self))
+            host.frame = NSRect(x: 0, y: 0, width: 400, height: 30)
+            let a = NSTitlebarAccessoryViewController()
+            a.view = host
+            a.layoutAttribute = .bottom
+            window.addTitlebarAccessoryViewController(a)
+            exportAccessory = a
         }
     }
 
@@ -757,4 +889,78 @@ extension ExportSettings.FileFormat {
 
 extension ExportSettings.ColorSpace {
     var documentColor: DocExportColor { DocExportColor(rawValue: rawValue) ?? .srgb }
+}
+
+// MARK: - B5-15 background Export Flat state and bar
+
+/// One background Export Flat (DocumentWorkspace.startExportFlat).
+@MainActor @Observable
+final class FlatExportTask: Identifiable {
+    enum Outcome: Equatable { case exported, cancelled, failed(String) }
+
+    let id = UUID()
+    let fileName: String
+    let documentTitle: String
+    private(set) var fraction: Double = 0
+    private(set) var phase = "Preparing"
+    private(set) var cancelling = false
+    @ObservationIgnored private let cancelAction: @Sendable () -> Void
+
+    init(fileName: String, documentTitle: String, cancel: @escaping @Sendable () -> Void) {
+        self.fileName = fileName
+        self.documentTitle = documentTitle
+        cancelAction = cancel
+    }
+
+    func update(_ fraction: Double, _ phase: String) {
+        guard !cancelling else { return }
+        self.fraction = max(self.fraction, fraction)
+        self.phase = phase
+    }
+
+    func cancelNow() {
+        guard !cancelling else { return }
+        cancelling = true
+        phase = "Cancelling"
+        cancelAction()
+    }
+}
+
+/// A thread-safe flag (the stub backend's cancel).
+private final class CancelBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    var isSet: Bool { lock.withLock { value } }
+    func set() { lock.withLock { value = true } }
+}
+
+/// Export progress and Cancel, under the document window's toolbar.
+private struct FlatExportBar: View {
+    let workspace: DocumentWorkspace
+
+    var body: some View {
+        VStack(spacing: Theme.Space.xxs) {
+            ForEach(workspace.flatExports) { t in
+                HStack(spacing: Theme.Space.s) {
+                    Text("Exporting \(t.fileName)")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    ProgressView(value: t.fraction)
+                        .progressViewStyle(.linear)
+                        .frame(minWidth: 120, maxWidth: 260)
+                    Text("\(t.phase) \(Int((t.fraction * 100).rounded())) %")
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textSecondary)
+                        .frame(minWidth: 150, alignment: .leading)
+                    Button("Cancel") { workspace.cancelExportFlat(t) }
+                        .controlSize(.small)
+                        .disabled(t.cancelling)
+                }
+                .font(.callout)
+            }
+        }
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, Theme.Space.xs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 }

@@ -614,3 +614,48 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
         session.close()
     }
 }
+
+// MARK: - B5-15 (P16): Export Flat off the main actor
+
+/// A backend whose Export Flat can run in the background: `beginExportFlat` validates the settings and
+/// snapshots the document on the calling (main) thread without copying pixels; the returned export renders
+/// and writes the file on a background thread. The engine backend adopts it; others (the stub) are run
+/// with their synchronous `exportFlat` on a detached task.
+public protocol DocumentFlatExporting: AnyObject, Sendable {
+    func beginExportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
+        -> DocumentFlatExport
+}
+
+/// One Export Flat of a document snapshot. Independent of the document: closing it does not stop the export.
+public final class DocumentFlatExport: @unchecked Sendable {
+    private let job: DocFlatExport
+
+    init(_ job: DocFlatExport) { self.job = job }
+
+    /// Renders, encodes and writes the file (atomically). Blocks: call it off the main thread, once.
+    /// `progress` runs on the exporting thread with a monotonic fraction 0…1 and the phase name.
+    /// A `cancel()` seen at a checkpoint makes it throw and leaves the destination as it was; one that arrives
+    /// after the last checkpoint cannot stop the write, and `run` returns normally with the file in place.
+    public func run(progress: @escaping @Sendable (Double, String) -> Void) throws {
+        try bridged { try job.run(listener: ProgressRelay(progress)) }
+    }
+
+    /// Stops the export at its next checkpoint (a 256² tile or a phase boundary).
+    public func cancel() { job.cancel() }
+    public var isCancelled: Bool { job.isCancelled() }
+
+    private final class ProgressRelay: DocExportListener, @unchecked Sendable {
+        let body: @Sendable (Double, String) -> Void
+        init(_ body: @escaping @Sendable (Double, String) -> Void) { self.body = body }
+        func onProgress(fraction: Float, phase: String) { body(Double(fraction), phase) }
+    }
+}
+
+extension EngineDocumentBackend: DocumentFlatExporting {
+    public func beginExportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
+        -> DocumentFlatExport {
+        DocumentFlatExport(try bridged {
+            try session.beginExportFlat(path: path, format: format.ffi, quality: quality, color: color.ffi)
+        })
+    }
+}

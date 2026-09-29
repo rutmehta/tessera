@@ -1,0 +1,33 @@
+2026-09-27 11:32:09.460 Tessera[72453:25289654] Sparkle updates not configured for this build
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2606, y1: 1734 })
+document-resources: GPU 371 live pages, 300.5 MiB resident; smart filters 0 GPU stages, 0 CPU fallbacks, 0.0 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 0 full-level 0 cpu 0 dropped 1
+filter-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+filter-selftest: check filter menu ok
+filter-perf: start: document 5212 × 3468 16-bit, backend Metal (Apple M4 Max), footprint 3260 MiB
+filter-perf: smart filter applied, footprint 4529 MiB
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: 18 MP smart filter export 0: ok in 2.06 s, 168 main-thread spans (Exported perf-flat-0.png (PNG, sRGB))
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 0: n 168 p50 0.02 ms p95 0.96 ms max 44.18 ms; export 2.06 s
+filter-selftest: check 18 MP smart filter export 0 ok
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: 18 MP smart filter export 1: ok in 1.83 s, 168 main-thread spans (Exported perf-flat-1.png (PNG, sRGB))
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 1: n 168 p50 0.02 ms p95 0.86 ms max 21.81 ms; export 1.83 s
+filter-selftest: check 18 MP smart filter export 1 ok
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2304, y1: 1536 })
+document-resources: GPU 0 live pages, 54.0 MiB resident; smart filters 0 GPU stages, 0 CPU fallbacks, 0.0 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 0 full-level 0 cpu 0 dropped 1
+filter-perf: styled document 4608 × 3072, layers ["caption", "Layer 1"]
+document: frames composited on the CPU (styles in the resident document program require CPU composition)
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: styled 14 MP export 0: ok in 81.94 s, 4127 main-thread spans (Exported perf-flat-0.png (PNG, sRGB))
+filter-perf: RESULT p16 styled 14 MP main-thread spans during Export Flat 0: n 4127 p50 0.02 ms p95 0.06 ms max 35.93 ms; export 81.94 s
+filter-selftest: check styled 14 MP export 0 ok
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: styled 14 MP export 1: ok in 78.40 s, 3954 main-thread spans (Exported perf-flat-1.png (PNG, sRGB))
+filter-perf: RESULT p16 styled 14 MP main-thread spans during Export Flat 1: n 3954 p50 0.02 ms p95 0.07 ms max 58.00 ms; export 78.40 s
+filter-selftest: check styled 14 MP export 1 ok
+filter-selftest: cancel at 31 % → finished in 4293 ms
+filter-selftest: check cancelled ok
+filter-selftest: check destination kept ok
+filter-selftest: check no temporary file ok
+filter-perf: done, footprint 14824 MiB
+filter-selftest: done, 0 failure(s)
