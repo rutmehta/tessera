@@ -375,10 +375,9 @@ struct ExtendedAdjustmentEditor: View {
             .disabled(identity)
             Spacer()
         }
-        checkbox("Dither", dither, "colorLookup.dither") { on in
+        DocumentDitherCheckbox(isOn: Binding(get: { dither }, set: { on in
             set(.colorLookup(size: size, data: data, sourceFilename: file, dither: on), true)
-        }
-        .help("Add fine noise so smooth gradients do not band")
+        }))
         Hint("Unit-domain 3D .cube and uniform-grid .3dl files, up to 256 knots per axis.")
     }
 
