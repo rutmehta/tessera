@@ -17,9 +17,10 @@ final class DocumentStackTests: XCTestCase {
 
     func testAlignSettingsMapToFFI() {
         XCTAssertEqual(StackAlignLayout.allCases.map(\.title),
-                       ["Auto", "Perspective", "Cylindrical", "Spherical", "Collage", "Reposition"])
+                       ["Auto", "Perspective", "Cylindrical", "Spherical", "Collage"],
+                       "Reposition is withheld while the engine mis-registers it")
         let pairs: [(StackAlignLayout, StackAlignMode)] = [(.auto, .auto), (.perspective, .perspective),
-            (.cylindrical, .cylindrical), (.spherical, .spherical), (.collage, .collage), (.reposition, .reposition)]
+            (.cylindrical, .cylindrical), (.spherical, .spherical), (.collage, .collage)]
         for (layout, mode) in pairs {
             XCTAssertEqual(StackAlignSettings(layout: layout).ffi.mode, mode)
             XCTAssertEqual(StackAlignLayout(mode), layout)
@@ -125,6 +126,7 @@ final class DocumentStackTests: XCTestCase {
 
     func testLensTogglesNeedCalibration() {
         XCTAssertFalse(StackCommandRules.lensCorrectionAvailable)
+        XCTAssertEqual(UInt64(StackCommandRules.maxMegapixels), stackMaxMegapixels())
         XCTAssertTrue(StackCommandRules.lensCorrectionNote.contains("calibration"))
     }
 
@@ -148,7 +150,7 @@ final class DocumentStackTests: XCTestCase {
         }
         XCTAssertThrowsError(try b.autoBlendLayers(ids: [landscape, extra], options: StackBlendSettings()))
         XCTAssertThrowsError(try b.photomergeIntoLayers(sources: ["a", "b"], align: StackAlignSettings(),
-                                                        blend: StackBlendSettings()))
+                                                        blend: StackBlendSettings(), cancel: CancelFlag()))
         XCTAssertEqual(try b.layers().count, layers.count + 1)
         XCTAssertNotEqual(try b.info().historyHead, head, "only the added layer is a history node")
     }
@@ -170,5 +172,20 @@ final class DocumentStackTests: XCTestCase {
         let el = try b.stackEligibility(ids: [id])
         XCTAssertFalse(el.canAlign)
         XCTAssertNotNil(el.reason)
+    }
+
+    func testCancelledPhotomergeThrowsTheCancelMessageAndOpensNothing() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stack-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let engine = try Engine.open(appSupportDir: dir.path)
+        let docs = engine.documentIds().count
+        let cancel = CancelFlag()
+        cancel.cancel()
+        let files = ["a.png", "b.png"].map { dir.appendingPathComponent($0).path }
+        XCTAssertThrowsError(try EngineDocumentEngine.for(engine).photomergeDocument(
+            sources: files, align: StackAlignSettings(), blend: StackBlendSettings(), cancel: cancel)) { e in
+            XCTAssertTrue("\(e)".contains(StackCommandRules.photomergeCancelled), "\(e)")
+        }
+        XCTAssertEqual(engine.documentIds().count, docs)
     }
 }

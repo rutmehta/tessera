@@ -456,6 +456,7 @@ fn photomerge_into_layers_is_one_history_node_with_named_layers() {
             files,
             align(StackAlignMode::Collage),
             blend(StackBlendMode::Panorama, false),
+            CancelFlag::new(),
         )
         .unwrap();
     assert_eq!(history_len(&s), n + 1);
@@ -489,12 +490,17 @@ fn photomerge_rejects_bad_sources_without_a_history_node() {
         files.clone(),
         vec![files[0].clone(), missing],
         vec![files[0].clone(), "0123456789abcdef0123456789abcdef".into()],
+        vec![
+            files[0].clone(),
+            d.path().join("x.psd").to_string_lossy().into(),
+        ],
     ] {
         assert!(
             s.photomerge_into_layers(
                 sources.clone(),
                 align(StackAlignMode::Auto),
-                blend(StackBlendMode::Panorama, false)
+                blend(StackBlendMode::Panorama, false),
+                CancelFlag::new(),
             )
             .is_err(),
             "{sources:?}"
@@ -513,6 +519,7 @@ fn photomerge_document_is_untitled_with_n_layers_and_masks_survive_save_and_psd(
             files,
             align(StackAlignMode::Collage),
             blend(StackBlendMode::Panorama, false),
+            CancelFlag::new(),
         )
         .unwrap();
     let info = s.info().unwrap();
@@ -552,7 +559,10 @@ fn photomerge_document_is_untitled_with_n_layers_and_masks_survive_save_and_psd(
             .all(|(a, b)| (a - b).abs() < 1e-3)
     );
 
-    // The layered PSD copy rasterizes the transforms and keeps the masks.
+    // Photomerge layers are smart objects (the alignment transform stays
+    // editable). The rasterized PSD copy rasterizes smart-filter stacks only,
+    // so the layers come back as PSD smart objects, each with its mask.
+    assert!(reopened.iter().all(|l| l.kind == DocLayerKind::SmartObject));
     let psd = d.path().join("pano.psd");
     let op = r.prepare_rasterized_psd_copy().unwrap();
     assert_eq!(
@@ -565,7 +575,12 @@ fn photomerge_document_is_untitled_with_n_layers_and_masks_survive_save_and_psd(
         .unwrap();
     let layers = p.layers().unwrap();
     assert_eq!(layers.len(), 2);
-    assert!(layers.iter().all(|l| l.has_mask), "{layers:#?}");
+    assert!(
+        layers
+            .iter()
+            .all(|l| l.has_mask && l.kind == DocLayerKind::SmartObject),
+        "{layers:#?}"
+    );
     let flat = p.read_level(0).unwrap();
     assert_eq!((flat.0, flat.1), (after.0, after.1));
     let worst = after
@@ -585,4 +600,324 @@ fn stack_options_default_like_photoshop() {
     let b = default_stack_blend_options();
     assert_eq!(b.mode, StackBlendMode::Panorama);
     assert!(b.seamless_tones && !b.content_aware_fill);
+}
+
+// ─────────────── A's B5-19 review: budget, cancel, profiles, Reposition ───────────────
+
+/// CRC-32 (PNG chunks).
+fn crc32(bytes: &[u8]) -> u32 {
+    let mut c = !0u32;
+    for b in bytes {
+        c ^= u32::from(*b);
+        for _ in 0..8 {
+            c = if c & 1 != 0 {
+                0xEDB8_8320 ^ (c >> 1)
+            } else {
+                c >> 1
+            };
+        }
+    }
+    !c
+}
+
+/// A PNG whose header claims `w × h` but holds one pixel: only its header
+/// can be read, so a decode attempt would fail differently (or allocate).
+fn huge_png(path: &Path, w: u32, h: u32) {
+    image::RgbImage::new(1, 1).save(path).unwrap();
+    let mut b = std::fs::read(path).unwrap();
+    assert_eq!(&b[12..16], b"IHDR");
+    b[16..20].copy_from_slice(&w.to_be_bytes());
+    b[20..24].copy_from_slice(&h.to_be_bytes());
+    let crc = crc32(&b[12..29]);
+    b[29..33].copy_from_slice(&crc.to_be_bytes());
+    std::fs::write(path, b).unwrap();
+}
+
+#[test]
+fn photomerge_refuses_over_the_pixel_budget_from_headers_before_decoding() {
+    let (d, e) = engine();
+    let s = e.clone().new_document(W, H, DocDepth::U16, None).unwrap();
+    let n = history_len(&s);
+    let docs = e.document_ids().len();
+    // 3 × 10000 × 8000 = 240 MP > 200 MP; each file is really 1 × 1.
+    let files: Vec<String> = (0..3)
+        .map(|i| {
+            let p = d.path().join(format!("huge-{i}.png"));
+            huge_png(&p, 10_000, 8_000);
+            p.to_string_lossy().into_owned()
+        })
+        .collect();
+    let limit = stack_max_megapixels();
+    assert_eq!(limit, 200);
+    for err in [
+        s.photomerge_into_layers(
+            files.clone(),
+            align(StackAlignMode::Auto),
+            blend(StackBlendMode::Panorama, false),
+            CancelFlag::new(),
+        )
+        .unwrap_err(),
+        e.clone()
+            .photomerge_document(
+                files.clone(),
+                align(StackAlignMode::Auto),
+                blend(StackBlendMode::Panorama, false),
+                CancelFlag::new(),
+            )
+            .err()
+            .unwrap(),
+    ] {
+        let msg = err.to_string();
+        assert!(msg.contains("limited to 200 megapixels"), "{msg}");
+        assert!(msg.contains("240 megapixels"), "{msg}");
+    }
+    assert_eq!(history_len(&s), n);
+    assert_eq!(e.document_ids().len(), docs);
+}
+
+#[test]
+fn stack_eligibility_refuses_layers_over_the_pixel_budget() {
+    let (_d, e) = engine();
+    let mut d = Document::new(DocState::new(Extent::new(W, H), Depth::F32));
+    let mut ids = Vec::new();
+    for name in ["a", "b"] {
+        // Sparse (untouched) rasters: 2 × 12000 × 9000 = 216 MP, no memory.
+        let r = Raster::new(Extent::new(12_000, 9_000), 4, Depth::F32, 0.);
+        let id = d
+            .apply(DocOp::AddLayer {
+                parent: None,
+                index: usize::MAX,
+                layer: Layer::new(name, LayerKind::Pixel(r)),
+            })
+            .unwrap()
+            .created[0];
+        ids.push(id.0);
+    }
+    let s = e.adopt_document(d, "Huge".into());
+    let el = s.stack_eligibility(ids.clone()).unwrap();
+    assert!(!el.can_align && !el.can_blend);
+    assert!(el.reason.unwrap().contains("200 megapixels"));
+    let n = history_len(&s);
+    let err = s
+        .auto_align_layers(ids.clone(), align(StackAlignMode::Auto))
+        .unwrap_err();
+    assert!(err.to_string().contains("216 megapixels"), "{err}");
+    assert!(
+        s.auto_blend_layers(ids, blend(StackBlendMode::Panorama, false))
+            .is_err()
+    );
+    assert_eq!(history_len(&s), n);
+}
+
+#[test]
+fn cancelled_photomerge_changes_nothing() {
+    let (d, e) = engine();
+    let files = paths(d.path(), &[("c-a", crop(0., 0.)), ("c-b", crop(DX, 0.))]);
+    let s = e.clone().new_document(W, H, DocDepth::U16, None).unwrap();
+    let n = history_len(&s);
+    let docs = e.document_ids().len();
+    let cancel = CancelFlag::new();
+    cancel.cancel();
+    let err = s
+        .photomerge_into_layers(
+            files.clone(),
+            align(StackAlignMode::Collage),
+            blend(StackBlendMode::Panorama, false),
+            cancel.clone(),
+        )
+        .unwrap_err();
+    assert_eq!(err.to_string(), "Photomerge was cancelled");
+    let err = e
+        .clone()
+        .photomerge_document(
+            files,
+            align(StackAlignMode::Collage),
+            blend(StackBlendMode::Panorama, false),
+            cancel,
+        )
+        .err()
+        .unwrap();
+    assert_eq!(err.to_string(), "Photomerge was cancelled");
+    assert_eq!(history_len(&s), n);
+    assert_eq!(s.layers().unwrap().len(), 1);
+    assert_eq!(e.document_ids().len(), docs);
+}
+
+fn p3_icc() -> Vec<u8> {
+    color_mgmt::Registry::new()
+        .builtin(color_mgmt::Builtin::DisplayP3)
+        .unwrap()
+        .icc_bytes()
+        .to_vec()
+}
+
+/// A 16-bit PNG of `pixels` with an embedded Display P3 profile.
+fn write_p3_png(path: &Path, pixels: &[[f32; 3]]) {
+    use image::ImageEncoder;
+    let bytes: Vec<u8> = pixels
+        .iter()
+        .flat_map(|p| p.map(|v| (v.clamp(0., 1.) * 65535. + 0.5) as u16))
+        .flat_map(u16::to_ne_bytes)
+        .collect();
+    let mut enc = image::codecs::png::PngEncoder::new(std::fs::File::create(path).unwrap());
+    enc.set_icc_profile(p3_icc()).unwrap();
+    enc.write_image(&bytes, W, H, image::ExtendedColorType::Rgb16)
+        .unwrap();
+}
+
+fn srgb_icc() -> Vec<u8> {
+    color_mgmt::Registry::new()
+        .builtin(color_mgmt::Builtin::Srgb)
+        .unwrap()
+        .icc_bytes()
+        .to_vec()
+}
+
+/// Converts RGB between two ICC profiles as the bridge does.
+fn transform(from: &[u8], to: &[u8], px: &mut [[f32; 3]]) {
+    let t: lcms2::Transform<[f32; 3], [f32; 3]> = lcms2::Transform::new_flags(
+        &lcms2::Profile::new_icc(from).unwrap(),
+        lcms2::PixelFormat::RGB_FLT,
+        &lcms2::Profile::new_icc(to).unwrap(),
+        lcms2::PixelFormat::RGB_FLT,
+        lcms2::Intent::RelativeColorimetric,
+        lcms2::Flags::BLACKPOINT_COMPENSATION,
+    )
+    .unwrap();
+    t.transform_in_place(px);
+}
+
+fn q16(v: f32) -> f32 {
+    ((v.clamp(0., 1.) * 65535. + 0.5) as u16) as f32 / 65535.
+}
+
+/// Composite RGB at (x, y).
+fn rgb_at(s: &DocumentSession, x: u32, y: u32) -> [f32; 3] {
+    let (w, _, px) = s.read_level(0).unwrap();
+    let i = ((y * w + x) * 4) as usize;
+    [px[i], px[i + 1], px[i + 2]]
+}
+
+/// Pixel (20, 90) lies only in the left (reference) crop.
+const PROBE: (u32, u32) = (20, 90);
+
+#[test]
+fn photomerge_document_takes_the_first_photos_profile_and_converts_the_rest() {
+    let (d, e) = engine();
+    let left = crop(0., 0.);
+    let (pa, pb) = (
+        d.path().join("p3-left.png"),
+        d.path().join("srgb-right.png"),
+    );
+    write_p3_png(&pa, &left);
+    // The same scene, stored as untagged (sRGB) values.
+    let mut right = crop(DX, 0.);
+    transform(&p3_icc(), &srgb_icc(), &mut right);
+    write_png(&pb, &right);
+    let s = e
+        .clone()
+        .photomerge_document(
+            vec![
+                pa.to_string_lossy().into_owned(),
+                pb.to_string_lossy().into_owned(),
+            ],
+            align(StackAlignMode::Collage),
+            blend(StackBlendMode::Panorama, false),
+            CancelFlag::new(),
+        )
+        .unwrap();
+    let st = s.document_state().unwrap();
+    let icc = st
+        .profile
+        .as_ref()
+        .and_then(|p| p.icc.clone())
+        .expect("an ICC profile");
+    // The new document is in the first photo's Display P3, not sRGB: P3
+    // red maps to itself (in sRGB it would fall outside [0, 1]).
+    let mut red = [[1.0f32, 0., 0.]];
+    transform(&icc, &p3_icc(), &mut red);
+    assert!(
+        (red[0][0] - 1.).abs() < 0.01 && red[0][1].abs() < 0.01,
+        "{red:?}"
+    );
+    // The P3 reference comes through unconverted.
+    let got = rgb_at(&s, PROBE.0, PROBE.1);
+    let want = left[(PROBE.1 * W + PROBE.0) as usize].map(q16);
+    for c in 0..3 {
+        assert!((got[c] - want[c]).abs() < 0.01, "{got:?} vs {want:?}");
+    }
+}
+
+#[test]
+fn photomerge_into_an_srgb_document_converts_display_p3_photos() {
+    let (d, e) = engine();
+    let left = crop(0., 0.);
+    let (pa, pb) = (d.path().join("p3-a.png"), d.path().join("p3-b.png"));
+    write_p3_png(&pa, &left);
+    write_p3_png(&pb, &crop(DX, 0.));
+    let s = e.clone().new_document(W, H, DocDepth::U16, None).unwrap();
+    s.set_visible(s.layers().unwrap()[0].id, false).unwrap();
+    s.photomerge_into_layers(
+        vec![
+            pa.to_string_lossy().into_owned(),
+            pb.to_string_lossy().into_owned(),
+        ],
+        align(StackAlignMode::Collage),
+        blend(StackBlendMode::Panorama, false),
+        CancelFlag::new(),
+    )
+    .unwrap();
+    let raw = left[(PROBE.1 * W + PROBE.0) as usize].map(q16);
+    let mut want = [raw];
+    transform(&p3_icc(), &srgb_icc(), &mut want);
+    let got = rgb_at(&s, PROBE.0, PROBE.1);
+    for c in 0..3 {
+        assert!(
+            (got[c] - want[0][c]).abs() < 0.01,
+            "{got:?} vs converted {:?} (raw {raw:?})",
+            want[0]
+        );
+    }
+    assert!(
+        (got[0] - raw[0]).abs() > 0.012,
+        "P3 values were ingested unconverted: {got:?} vs {raw:?}"
+    );
+}
+
+/// Pins the engine bug that keeps Reposition out of `StackAlignMode`:
+/// `merge::layers` registers two crops 140 px apart at about 1 px with
+/// Reposition (Collage gets it right). When this fails, the engine is fixed:
+/// restore `StackAlignMode::Reposition` (FFI, Swift layout list) and delete
+/// this test.
+#[test]
+fn reposition_is_withheld_while_the_engine_misregisters_it() {
+    use merge::layers::{AlignMode, AlignOptions, align_layers};
+    let image = |pixels: Vec<[f32; 3]>| merge::LinearImage {
+        width: W as usize,
+        height: H as usize,
+        pixels,
+        color_matrix: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+        as_shot_neutral: [1.; 3],
+    };
+    let images = [image(crop(0., 0.)), image(crop(DX, 0.))];
+    let width = |mode| {
+        align_layers(
+            &images,
+            &AlignOptions {
+                mode,
+                reference: 0,
+                seed: 1,
+                ..AlignOptions::default()
+            },
+        )
+        .unwrap()
+        .width
+    };
+    let expected = (W as f64 + DX) as usize;
+    assert!(width(AlignMode::Collage).abs_diff(expected) <= 2);
+    let reposition = width(AlignMode::Reposition);
+    assert!(
+        reposition + 40 < expected,
+        "Reposition now spans {reposition} px (expected {expected}): the engine is fixed, re-enable it"
+    );
 }
