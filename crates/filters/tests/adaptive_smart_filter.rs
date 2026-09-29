@@ -140,7 +140,10 @@ fn stage_output_equals_direct_solve_and_apply_and_is_deterministic() {
         .zip(&want)
         .flat_map(|(g, w)| (0..4).map(move |c| (g[c] - w[c]).abs()))
         .fold(0.0f32, f32::max);
-    assert!(worst <= 1e-6, "stage differs from direct solve+apply by {worst}");
+    assert!(
+        worst <= 1e-6,
+        "stage differs from direct solve+apply by {worst}"
+    );
     assert_ne!(got, pixels(&input), "the fisheye recipe must change pixels");
     let second = CompositorFilters
         .evaluate(&input, &node(params), &context(W, H))
@@ -273,8 +276,8 @@ fn native_round_trip_keeps_params_exactly_without_a_format_bump() {
     a.crop = [1.5, -0.3];
     let params = serde_json::to_value(&a).unwrap();
     let state = smart_doc(node(params.clone()));
-    let back = compositor::format::from_bytes(&compositor::format::to_bytes(&state).unwrap())
-        .unwrap();
+    let back =
+        compositor::format::from_bytes(&compositor::format::to_bytes(&state).unwrap()).unwrap();
     let stored = filters_of(&back);
     assert_eq!(stored.len(), 1);
     assert_eq!(stored[0].name, "adaptive_wide_angle");
@@ -310,7 +313,7 @@ fn unknown_filter_ids_degrade_the_same_way() {
     ));
     // Loading keeps an unknown stage verbatim (no data loss).
     let state = smart_doc(future.clone());
-    let back = compositor::format::from_bytes(&compositor::format::to_bytes(&state).unwrap())
-        .unwrap();
+    let back =
+        compositor::format::from_bytes(&compositor::format::to_bytes(&state).unwrap()).unwrap();
     assert_eq!(filters_of(&back), vec![future]);
 }
