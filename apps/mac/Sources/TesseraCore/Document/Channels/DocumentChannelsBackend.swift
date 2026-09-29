@@ -129,13 +129,14 @@ public struct ChannelRow: Equatable, Sendable, Identifiable {
 
 /// What a Channels panel row click does (`ChannelsPanelModel.click`).
 public struct ChannelRowClick: Equatable, Sendable {
-    /// The row to highlight (`selectedChannel`); nil clears it.
+    /// The row to highlight (`selectedChannel`; nil clears it). Applied only when `retarget`.
     public var highlight: UInt64?
-    /// Painting is redirected to `paintTarget` (a channel, or nil = the layer).
+    /// The highlight moves to `highlight` and painting is redirected to `paintTarget` (a channel, or nil =
+    /// the layer). False for ⌘-click, which leaves both alone.
     public var retarget: Bool
-    /// Load `highlight` as the selection (⌘-click; ⇧ / ⌥ pick the combine op).
-    public var load: Bool
-    public init(highlight: UInt64?, retarget: Bool, load: Bool) {
+    /// The channel to load as the selection (⌘-click; ⇧ / ⌥ pick the combine op), or nil.
+    public var load: UInt64?
+    public init(highlight: UInt64?, retarget: Bool, load: UInt64?) {
         self.highlight = highlight; self.retarget = retarget; self.load = load
     }
     /// The channel painting goes to after the click (nil = the layer), when `retarget`.
@@ -163,13 +164,13 @@ public enum ChannelsPanelModel {
 
     /// A click on `row` (B5-17d): a plain click highlights a saved channel and paints into it, or, on RGB /
     /// a colour row, clears the highlight and returns painting to the layer, so the highlight always shows
-    /// the paint target. ⌘-click on a saved channel highlights it and loads it as the selection without
-    /// redirecting paint; on RGB / a colour row it does nothing (nil).
+    /// the paint target. ⌘-click on a saved channel only loads it as the selection, as in Photoshop: the
+    /// highlight and the paint target are unchanged (B5-23). ⌘ on RGB / a colour row does nothing (nil).
     public static func click(_ row: ChannelRow, command: Bool) -> ChannelRowClick? {
         if command {
-            return row.channelID.map { ChannelRowClick(highlight: $0, retarget: false, load: true) }
+            return row.channelID.map { ChannelRowClick(highlight: nil, retarget: false, load: $0) }
         }
-        return ChannelRowClick(highlight: row.channelID, retarget: true, load: false)
+        return ChannelRowClick(highlight: row.channelID, retarget: true, load: nil)
     }
 
     /// A name not yet used: "Alpha 1", "Alpha 2", … (or "Spot Color 1", …).
