@@ -1,0 +1,377 @@
+{
+  "scope": "Immutable completed pure gate payload. Exclude retained binaries from portable archive; hashes remain listed. Host-local paths in source snapshots are provenance, not portable inputs.",
+  "files": [
+    {
+      "path": "01-compile-image/after.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "01-compile-image/before.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "01-compile-image/command.json",
+      "bytes": 581,
+      "sha256": "834bfb8b7e89bd399c9e7c80f3fc24ea0528cc3c4324d8db1905abd2bd0dc84b",
+      "portable": true
+    },
+    {
+      "path": "01-compile-image/exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "portable": true
+    },
+    {
+      "path": "01-compile-image/freeze.json",
+      "bytes": 81,
+      "sha256": "330560d0dd46d5ad5dd39874f3ca77749afd6f59471f422d4136cc6d5f2619e9",
+      "portable": true
+    },
+    {
+      "path": "01-compile-image/run.log",
+      "bytes": 338713,
+      "sha256": "0aa90e06910ee584d5f076aca502d34a0994b4b9f3b903446c6f46b13a68c523",
+      "portable": true
+    },
+    {
+      "path": "02-compile-ffi/after.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "02-compile-ffi/before.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "02-compile-ffi/command.json",
+      "bytes": 582,
+      "sha256": "1670d9aebcbb577bbec6b24086c359cf9c28c2c0ba8cba6a5af08f478140dd36",
+      "portable": true
+    },
+    {
+      "path": "02-compile-ffi/exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "portable": true
+    },
+    {
+      "path": "02-compile-ffi/freeze.json",
+      "bytes": 80,
+      "sha256": "4ab6cb714e1fc52b1f55ea30ec53e8c82fcdce4b195e7a36ec6ff33da0294fad",
+      "portable": true
+    },
+    {
+      "path": "02-compile-ffi/run.log",
+      "bytes": 668277,
+      "sha256": "6b35dd8498457ec9a41dfd667efafd185d9ab2ea1f8ae1ba175a379c2b87b8ae",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/after.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/artifact-after.json",
+      "bytes": 316,
+      "sha256": "8aec42d4b43b58b04ae9f2c055a5a03cb3181dd02c90bff673a6e3eeb72e4fe3",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/artifact-before.json",
+      "bytes": 316,
+      "sha256": "8aec42d4b43b58b04ae9f2c055a5a03cb3181dd02c90bff673a6e3eeb72e4fe3",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/before.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/command.json",
+      "bytes": 561,
+      "sha256": "e12e1d883d0cca7b86b794fd463d900df58bfb59889c3e1f3af9c155d602cb40",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/freeze.json",
+      "bytes": 81,
+      "sha256": "a417826c6fdd0d390ac6b6dd6536f74c4f072710b35a22df1c25b7815b7f8eed",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/observed.json",
+      "bytes": 1570,
+      "sha256": "468e07ede7f10c8e7fd7b217b31d23a75094b35d91b47beec825c9f2e76c2c6f",
+      "portable": true
+    },
+    {
+      "path": "03-green-image/run.log",
+      "bytes": 1602,
+      "sha256": "f4e8452c9997c959a230b23c229a4a74b0245e84d0216fa410796c719e9bd072",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/after.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/artifact-after.json",
+      "bytes": 315,
+      "sha256": "12de6309f477f9b00013872f52ea1c36fa9a26b37a01ad2833d9da56b3d97cde",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/artifact-before.json",
+      "bytes": 315,
+      "sha256": "12de6309f477f9b00013872f52ea1c36fa9a26b37a01ad2833d9da56b3d97cde",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/before.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/command.json",
+      "bytes": 887,
+      "sha256": "24a6e193bc94a5e4f4e86391c28bddc88e78238d3a97bba9be868c43735b0696",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/freeze.json",
+      "bytes": 81,
+      "sha256": "e18751b57d90fe22c68ee263b67e3d4dd16432ae9c8dc26059c47c39cf3b9860",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/observed.json",
+      "bytes": 443,
+      "sha256": "a0b345d1e411baa4df10c14f270168305189403e8d5748b12f2df9b161465aa7",
+      "portable": true
+    },
+    {
+      "path": "04-green-ffi/run.log",
+      "bytes": 409,
+      "sha256": "5b0df46d247fba65f74f3baffa83da18130a7d5a29a94adf84a5823674c32484",
+      "portable": true
+    },
+    {
+      "path": "05-strict/after.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "05-strict/before.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "05-strict/command.json",
+      "bytes": 629,
+      "sha256": "414b0f01919afead111946a55a8e1b9bb178bb11dc60533618e4d29495d4ed59",
+      "portable": true
+    },
+    {
+      "path": "05-strict/exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "portable": true
+    },
+    {
+      "path": "05-strict/freeze.json",
+      "bytes": 80,
+      "sha256": "e9d7870f56ebef20a1d3b047fac3a9f1038fb965e9410872e6b8e3d538be8143",
+      "portable": true
+    },
+    {
+      "path": "05-strict/run.log",
+      "bytes": 103551,
+      "sha256": "46eea670bd1fbfd1414e33df88eb0403f745b16808a3c90415596796cdddfd82",
+      "portable": true
+    },
+    {
+      "path": "06-fmt/after.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "06-fmt/before.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "06-fmt/command.json",
+      "bytes": 418,
+      "sha256": "a72d308e4fbccf4953da5c646e286a3bd588e751be7699603533c4146845ff37",
+      "portable": true
+    },
+    {
+      "path": "06-fmt/exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "portable": true
+    },
+    {
+      "path": "06-fmt/freeze.json",
+      "bytes": 81,
+      "sha256": "d52dededda6ae2d3de7ed99d2130d604e4b8d3394340a4cdf539072bd5aaa124",
+      "portable": true
+    },
+    {
+      "path": "06-fmt/run.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "portable": true
+    },
+    {
+      "path": "07-default-features/after.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "07-default-features/before.json",
+      "bytes": 1399455,
+      "sha256": "451c0a1d417df32bd3ac12828924ec40731aacafccd23e158c2d902acfa1d8bb",
+      "portable": true
+    },
+    {
+      "path": "07-default-features/command.json",
+      "bytes": 546,
+      "sha256": "f12e1afc21cdfdb67aaf4ee016be7fe8f13827cd3f8299d5bac8527531a6c12f",
+      "portable": true
+    },
+    {
+      "path": "07-default-features/exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "portable": true
+    },
+    {
+      "path": "07-default-features/freeze.json",
+      "bytes": 81,
+      "sha256": "e81adcf0e94054c11326727d7589ce38fc883d8c21302218bb279508ae521b7b",
+      "portable": true
+    },
+    {
+      "path": "07-default-features/run.log",
+      "bytes": 92495,
+      "sha256": "56765509cec0aee1334fcb2a161687416ad28e57124e4d99879a65694420e0ee",
+      "portable": true
+    },
+    {
+      "path": "FINAL-CHECKPOINT.json",
+      "bytes": 3173,
+      "sha256": "3f94d0a1f5dd11525d9c363545b0abd8110f612a61f39d61ca68fceb5149208c",
+      "portable": true
+    },
+    {
+      "path": "PREPARATION-SHA256.json",
+      "bytes": 610,
+      "sha256": "d4a4d6950fc1bbb04ee1ed0fc807077eec6d85deabfde29d29b50e5c87494ccc",
+      "portable": true
+    },
+    {
+      "path": "PREPARATION.md",
+      "bytes": 1335,
+      "sha256": "1f618112b797bcbb8e9a7201f7ea3562fd1ace0412ab7bbcdf3e330b2d01ca02",
+      "portable": true
+    },
+    {
+      "path": "PRESTART-PROCESSES.json",
+      "bytes": 538,
+      "sha256": "545626dc375aa4fb6b0f3abfe4780c597898e41b7e0d4457839e97247c60855b",
+      "portable": true
+    },
+    {
+      "path": "VALIDATION.md",
+      "bytes": 1401,
+      "sha256": "0a5a5ecfb16d1473f95895f86d812c31021e2e5e100f750ee31d765bdc4502a4",
+      "portable": true
+    },
+    {
+      "path": "image-core-artifact.json",
+      "bytes": 316,
+      "sha256": "8aec42d4b43b58b04ae9f2c055a5a03cb3181dd02c90bff673a6e3eeb72e4fe3",
+      "portable": true
+    },
+    {
+      "path": "required-tests.json",
+      "bytes": 2026,
+      "sha256": "2e9cb8758559f40f58e6c605955712f282f4280ed94d2b099d4201290a4ce678",
+      "portable": true
+    },
+    {
+      "path": "retained-binaries/image-core-test",
+      "bytes": 30890064,
+      "sha256": "afcc3d8f2dc63582cd4ec5f82b26ea922384aff9a77271b074682332cb080189",
+      "portable": false
+    },
+    {
+      "path": "retained-binaries/tessera-ffi-test",
+      "bytes": 72123808,
+      "sha256": "3eb0efacebe05db3644bf4270079ae670dd81b369fe3c429dd4cd506a2604a0b",
+      "portable": false
+    },
+    {
+      "path": "run.py",
+      "bytes": 5346,
+      "sha256": "4014513c2d24c2be5b773a9fd507a449ae73284afe2772f3747d1c145bad9178",
+      "portable": true
+    },
+    {
+      "path": "tessera-ffi-artifact.json",
+      "bytes": 315,
+      "sha256": "12de6309f477f9b00013872f52ea1c36fa9a26b37a01ad2833d9da56b3d97cde",
+      "portable": true
+    },
+    {
+      "path": "tessera-wb-frameoutput-refactor-manifest.json",
+      "bytes": 399,
+      "sha256": "9690013b1b19a392d42f60a2b7c2d94e0a976ef0b67f7ced091b87035021577a",
+      "portable": true
+    },
+    {
+      "path": "tessera-wb-frameoutput-refactor-proof.json",
+      "bytes": 1150,
+      "sha256": "d5e2d359d49401dbba02c775d80b6a4ddeb03fd4b4d480b61ef5a5092a93c79f",
+      "portable": true
+    },
+    {
+      "path": "tessera-wb-frameoutput-root-review.md",
+      "bytes": 517,
+      "sha256": "db823348d99294b8c25d6be7a538156e6940458f3ba55a3f9368ec73211f46ef",
+      "portable": true
+    }
+  ]
+}

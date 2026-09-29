@@ -1,0 +1,63 @@
+{
+  "head": "a9b9075071b9267e442899798770800fbf082db0",
+  "immutable_git_sources": 8651,
+  "all_fourteen_freezes_equal": true,
+  "gates": {
+    "01-compile-image": {
+      "exit": 0,
+      "log_sha256": "0aa90e06910ee584d5f076aca502d34a0994b4b9f3b903446c6f46b13a68c523"
+    },
+    "02-compile-ffi": {
+      "exit": 0,
+      "log_sha256": "6b35dd8498457ec9a41dfd667efafd185d9ab2ea1f8ae1ba175a379c2b87b8ae"
+    },
+    "03-green-image": {
+      "exit": 0,
+      "log_sha256": "f4e8452c9997c959a230b23c229a4a74b0245e84d0216fa410796c719e9bd072"
+    },
+    "04-green-ffi": {
+      "exit": 0,
+      "log_sha256": "5b0df46d247fba65f74f3baffa83da18130a7d5a29a94adf84a5823674c32484"
+    },
+    "05-strict": {
+      "exit": 0,
+      "log_sha256": "46eea670bd1fbfd1414e33df88eb0403f745b16808a3c90415596796cdddfd82"
+    },
+    "06-fmt": {
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "07-default-features": {
+      "exit": 0,
+      "log_sha256": "56765509cec0aee1334fcb2a161687416ad28e57124e4d99879a65694420e0ee"
+    }
+  },
+  "runner_sha256": "4014513c2d24c2be5b773a9fd507a449ae73284afe2772f3747d1c145bad9178",
+  "oracle_sha256": "2e9cb8758559f40f58e6c605955712f282f4280ed94d2b099d4201290a4ce678",
+  "pure_passes": 19,
+  "actual_placeholders": {
+    "count": 4,
+    "state": "explicitly skipped, unrun"
+  },
+  "default_feature_fields_inspected": 1402,
+  "stage": "final",
+  "artifacts": {
+    "image-core": {
+      "compile_attempt": "01-compile-image",
+      "head": "a9b9075071b9267e442899798770800fbf082db0",
+      "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/image_core-74c89ed446e2d2bf",
+      "sha256": "afcc3d8f2dc63582cd4ec5f82b26ea922384aff9a77271b074682332cb080189",
+      "preserved": "/Volumes/betterSSD/tessera-validation/proxy-wb-diagnostic/a9b90750/retained-binaries/image-core-test"
+    },
+    "tessera-ffi": {
+      "compile_attempt": "02-compile-ffi",
+      "head": "a9b9075071b9267e442899798770800fbf082db0",
+      "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/tessera_ffi-77a8e73842087cf8",
+      "sha256": "3eb0efacebe05db3644bf4270079ae670dd81b369fe3c429dd4cd506a2604a0b",
+      "preserved": "/Volumes/betterSSD/tessera-validation/proxy-wb-diagnostic/a9b90750/retained-binaries/tessera-ffi-test"
+    }
+  },
+  "verdict": "APPROVED pure19 recorder/interpreter/admission qualification; live observation and performance unqualified",
+  "final_manifest_sha256": "3f94d0a1f5dd11525d9c363545b0abd8110f612a61f39d61ca68fceb5149208c",
+  "prior_6c55_contracts_byte_unchanged": true
+}

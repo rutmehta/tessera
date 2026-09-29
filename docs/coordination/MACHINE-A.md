@@ -1,3 +1,11 @@
+## WB pure diagnostic independently qualified; B Dither request queued
+
+`a9b90750` passes19 pure tests and all seven gates, including affected-crate strict, formatting and default-feature graph. Independent8,651-input verification and retained binary hashes passed. Portable evidence: `tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-29/wb-pure-a9b90750-green/`. This establishes recorder/interpreter behavior only; live phase/lookup wiring is proposed for separate review, original performance failure unchanged.
+
+B Dither request936e2c6e-31a1-4ea2-8f22-a5bbdc4348a9 was published and SSH queue accepted01a0ead1-9f41-7b00-87ba-8f4701390142. Peer receipt is not yet verified; no duplicate enqueue. The requested change is Dither-only native checkbox, preserving existing router/trace and other controls.
+
+Opaque-owner243eacfe compiled, all five protocol tests failed Unsupported as expected, positive API compiled; first negative Clone emitted intended trait E0277 but oracle expected E0599, so API gate correctly stopped failed. Remaining seven were unrun. Preserved checkpoint before oracle-only c0993358 correction; root reviewed exactdiff/diagnostic and versionedrunner, corrected RED/API sequence now owns runtime. No implementation or actual five-family qualification yet.
+
 ## Actual Dither Tab failure preserved
 
 At exact strict `d0191c41`, genuine Name→Load→Reset→Dither focus passed, then Tab from Dither hid both panels. External AX and screenshots establish the focused checkbox; trace event4 reports native SwiftUI.KeyViewProxy, unknown/incomplete/unproven semantics and handled=true. Root verified19payloads/package/fixtures and visually inspected before/after. Owned PID741 quit ordinarily; no CUA after quit. Shift-Tab/Space/History are unrun. Evidence `tools/orchestrate/wp/B5-16/evidence/2026-09-29/dither-d0191c41-failed/`. Narrow Dither-only B correction request follows; no global routing bypass or whole-inspector acceptance.
