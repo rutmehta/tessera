@@ -63,6 +63,9 @@ impl SmartFilterEvaluator for CompositorFilters {
                 .mesh
                 .render(input, p.interpolation, &AtomicBool::new(false));
         }
+        if node.name == "adaptive_wide_angle" {
+            return adaptive_wide_angle(input, &node.params);
+        }
         #[cfg(feature = "camera-raw-filter")]
         if node.name == "camera_raw" {
             return crate::camera_raw::evaluate(input, &node.params, context);
@@ -71,6 +74,82 @@ impl SmartFilterEvaluator for CompositorFilters {
         effect.apply_tiled(input, &params, &AtomicBool::new(false))
     }
 }
+
+// B5-20 begin: Adaptive Wide Angle smart filter.
+/// Maximum output lattice of `transform::adaptive` / `Displacement`.
+const AWA_MAX_VERTICES: usize = 16_777_216;
+
+/// First key of `value` that `reference` (its typed re-serialization) lacks:
+/// strict params at every depth without changing the transform crate.
+fn unknown_key(value: &serde_json::Value, reference: &serde_json::Value) -> Option<String> {
+    use serde_json::Value::{Array, Object};
+    match (value, reference) {
+        (Object(v), Object(r)) => v.iter().find_map(|(k, x)| match r.get(k) {
+            None => Some(k.clone()),
+            Some(y) => unknown_key(x, y),
+        }),
+        (Array(v), Array(r)) => v.iter().zip(r).find_map(|(x, y)| unknown_key(x, y)),
+        _ => None,
+    }
+}
+
+/// `adaptive_wide_angle`: params are a `transform::adaptive::Adaptive` recipe
+/// whose source and output match the stage input. Solved per evaluation (the
+/// compositor caches stage results) and rendered with the shared CPU
+/// displacement renderer on premultiplied planes, like `transform` stages.
+fn adaptive_wide_angle(input: &Raster, params: &serde_json::Value) -> EngineResult<Raster> {
+    use compositor::{geom::Rect, raster::Depth};
+    let bad = |m: String| EngineError::invalid("adaptive_wide_angle", m);
+    let recipe: transform::adaptive::Adaptive =
+        serde_json::from_value(params.clone()).map_err(|e| bad(e.to_string()))?;
+    let typed = serde_json::to_value(&recipe).map_err(|e| bad(e.to_string()))?;
+    if let Some(k) = unknown_key(params, &typed) {
+        return Err(bad(format!("unknown field `{k}`")));
+    }
+    let e = input.extent();
+    let (w, h) = (e.width as usize, e.height as usize);
+    if (w + 1) * (h + 1) > AWA_MAX_VERTICES {
+        return Err(bad(format!(
+            "Adaptive Wide Angle supports layers up to 4095 × 4095 pixels (16,777,216 mesh vertices); this layer is {w} × {h}"
+        )));
+    }
+    if [recipe.source_width, recipe.source_height] != [w, h]
+        || [recipe.output_width, recipe.output_height] != [w, h]
+    {
+        return Err(bad(format!(
+            "recipe size {}×{} → {}×{} does not match the {w}×{h} layer",
+            recipe.source_width, recipe.source_height, recipe.output_width, recipe.output_height
+        )));
+    }
+    let field = recipe.solve().map_err(|e| bad(e.to_string()))?;
+    let mut planes: [Vec<f32>; 4] = std::array::from_fn(|_| Vec::with_capacity(w * h));
+    for y in 0..e.height {
+        for x in 0..e.width {
+            let p = input.pixel(x, y);
+            for (c, plane) in planes.iter_mut().enumerate() {
+                plane.push(if c == 3 { p[3] } else { p[c] * p[3] });
+            }
+        }
+    }
+    let image = transform::Image::new(w, h, planes).map_err(|e| bad(e.to_string()))?;
+    let op = transform::TransformOp {
+        version: 1,
+        operation: transform::Operation::Displacement(field),
+        kernel: transform::Kernel::Automatic,
+    };
+    let out = op.apply(&image, w, h, 0).map_err(|e| bad(e.to_string()))?;
+    let mut raster = Raster::new(e, 4, Depth::F32, 0.0);
+    raster.edit_region(Rect::of_extent(e), 1, |x, y, p| {
+        let i = y as usize * w + x as usize;
+        let a = out.planes[3][i];
+        for (c, v) in p.iter_mut().enumerate().take(3) {
+            *v = if a > 0.0 { out.planes[c][i] / a } else { 0.0 };
+        }
+        p[3] = a;
+    })?;
+    Ok(raster)
+}
+// B5-20 end
 
 /// Metadata for the neural menu; this never loads models or accesses the network.
 pub fn neural_catalog() -> Vec<ml_filters::FilterInfo> {
