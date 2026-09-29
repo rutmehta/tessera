@@ -209,7 +209,7 @@ struct AppCommands: Commands {
         // M2-50 end
         CommandMenu("Develop") {
             Button("Auto Edit…") { model.agent.present() }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .shortcut(!docMode, "a", [.command, .shift])   // B5-18: ⇧⌘A is Camera Raw Filter… in documents
                 .disabled(model.agent.isRunning || model.isCachedPreviewLibrary)
             Button("Agent Review") { model.enterReview() }
                 .disabled(docMode)

@@ -28,17 +28,22 @@ final class DocumentCameraRawTests: XCTestCase {
         XCTAssertGreaterThan(all.count, 50, "Basic, Curve, HSL, Color Grading, Detail and Effects")
         XCTAssertEqual(Set(all.map(\.id)).count, all.count, "no control twice")
         // The sheet reuses the Develop panels' definitions, not a second table.
-        let shared = HueBand.allCases.flatMap { b in HSLProperty.allCases.map { $0.control(b) } }
-            + DetailControls.sharpening + DetailControls.luminanceNoise + DetailControls.colorNoise
-            + EffectsControls.vignette + EffectsControls.grain + ParametricRegion.allCases.map(\.control)
-            + GradeRange.allCases.flatMap { [$0.hue, $0.saturation, $0.luminance] } + [GradeRange.blending, GradeRange.balance]
+        var shared: [DevelopControl] = HueBand.allCases.flatMap { b in HSLProperty.allCases.map { $0.control(b) } }
+        shared += DetailControls.sharpening
+        shared += DetailControls.luminanceNoise
+        shared += DetailControls.colorNoise
+        shared += EffectsControls.vignette
+        shared += EffectsControls.grain
+        shared += ParametricRegion.allCases.map(\.control)
+        shared += GradeRange.allCases.flatMap { g -> [DevelopControl] in [g.hue, g.saturation, g.luminance] }
+        shared += [GradeRange.blending, GradeRange.balance]
         for c in shared { XCTAssertTrue(all.contains(c), "\(c.id) is in the sheet") }
         XCTAssertEqual(CameraRawControls.exposure.path, DevelopParameter.exposure.path)
         XCTAssertEqual(CameraRawControls.temperature.path, DevelopParameter.temperature.path)
 
         for c in all {
             var d = CameraRawDraft()
-            let v = c.clamp(c.range.lowerBound + (c.range.upperBound - c.range.lowerBound) * 0.3)
+            let v = c.clamp(c.defaultValue + (c.range.upperBound - c.range.lowerBound) * 0.1)
             d.set(c, v)
             XCTAssertEqual(d.value(c), v, accuracy: 1e-9, c.id)
             let p = try params(d)
@@ -169,6 +174,8 @@ final class DocumentCameraRawTests: XCTestCase {
 
     // MARK: Engine
 
+    private var documents: EngineDocumentEngine?
+
     private func temp() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("doc-cr-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -176,19 +183,21 @@ final class DocumentCameraRawTests: XCTestCase {
         return dir
     }
 
-    /// A grey pixel document (white background, exposure −2).
+    /// A grey pixel document (the layer filled with 40 % grey).
     @MainActor private func greyDocument() throws -> (DocumentController, any DocumentFiltersBackend) {
         let engine = try Engine.open(appSupportDir: try temp().appendingPathComponent("support").path)
-        let backend = try EngineDocumentEngine.for(engine).newDocument(width: 48, height: 32, depth: .u8, profile: nil)
+        documents = EngineDocumentEngine.for(engine)
+        let backend = try documents!.newDocument(width: 48, height: 32, depth: .u8, profile: nil)
         let filters = try XCTUnwrap(backend as? any DocumentFiltersBackend)
         let layer = try backend.layers()[0].id
-        _ = try filters.applyAdjustment(layer: layer, adjustmentJson: #"{"kind":"exposure","exposure":-2,"offset":0,"gamma":1}"#)
+        let tools = try XCTUnwrap(backend as? any DocumentToolsBackend)
+        _ = try tools.fillSelection(layer: layer, fill: .color(ToolColor(r: 0.4, g: 0.4, b: 0.4)), opacity: 1)
         let doc = try DocumentController(backend: backend)
         doc.selection = [layer]
         return (doc, filters)
     }
 
-    /// Mean red of the layer through `filterJson` (the detail pane's pixels, 0…255).
+    /// Mean red of the layer through `filterJson` (the detail pane's linear samples, 0…255).
     private func mean(_ f: any DocumentFiltersBackend, _ layer: DocLayerID, _ json: String) throws -> Double {
         let d = try f.filterDetail(layer: layer, filterJson: json, x: 0, y: 0, width: 16, height: 16)
         let s = try XCTUnwrap(IOSurfaceLookup(d.surfaceId))
@@ -199,11 +208,6 @@ final class DocumentCameraRawTests: XCTestCase {
         var sum = 0.0
         for y in 0..<16 { for x in 0..<16 { sum += Double(base[y * stride + x * 4]) } }
         return sum / 256
-    }
-
-    private static func linear(_ v: Double) -> Double {
-        let c = v / 255
-        return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
     }
 
     @MainActor func testNeutralIsIdentityAndExposureDoublesLinear() throws {
@@ -217,7 +221,8 @@ final class DocumentCameraRawTests: XCTestCase {
         var plus = CameraRawDraft()
         plus.set(CameraRawControls.exposure, 1)
         let after = try mean(f, layer, plus.filterJson)
-        XCTAssertEqual(Self.linear(after) / Self.linear(before), 2, accuracy: 0.12, "exposure +1 doubles linear light")
+        // `filter_detail` writes the document's linear samples (0.4 grey → 102), so +1 EV is ×2 in the surface.
+        XCTAssertEqual(after / before, 2, accuracy: 0.05, "exposure +1 doubles linear light")
     }
 
     @MainActor func testEngineRejectsOutOfDomainValuesWithoutHistory() throws {
@@ -262,8 +267,9 @@ final class DocumentCameraRawTests: XCTestCase {
         zero.amountPercent = 0
         let grey = try mean(f, layer, zero.filterJson)
         sheet.ok()
-        XCTAssertNil(cr.sheet)
+        XCTAssertNotNil(cr.busy, "the sheet stays up with progress and Cancel while applying")
         settle(cr)
+        XCTAssertNil(cr.sheet)
         XCTAssertEqual(doc.history.count, history + 1, "one history node")
         XCTAssertGreaterThan(try mean(f, layer, zero.filterJson), grey + 20, "the pixels got brighter")
         doc.undo()
@@ -322,6 +328,17 @@ final class DocumentCameraRawTests: XCTestCase {
         XCTAssertEqual(CameraRawDraft(filterJson: rows[0].filterJson)?.value(CameraRawControls.contrast), -40)
         XCTAssertEqual(doc.history.count, nodes + 1)
         XCTAssertEqual(doc.history.last?.label, "Edit Smart Filter")
+
+        // Native save / reopen keeps the smart filter and its settings.
+        let path = try temp().appendingPathComponent("CameraRaw.tessera-doc").path
+        try doc.backend.saveAs(path: path)
+        let saved = rows[0].filterJson
+        doc.close()
+        let reopened = try XCTUnwrap(try XCTUnwrap(documents).openDocument(path: path) as? any DocumentFiltersBackend)
+        let back = try reopened.smartFilters(layer: layer)
+        XCTAssertEqual(back.map(\.filterId), ["camera_raw"])
+        XCTAssertEqual(CameraRawDraft(filterJson: back[0].filterJson), CameraRawDraft(filterJson: saved))
+        (reopened as? any DocumentBackend)?.close()
     }
 
     @MainActor func testSmartObjectWithSelectionAndAIMasksAreRefusedWithAReason() throws {
