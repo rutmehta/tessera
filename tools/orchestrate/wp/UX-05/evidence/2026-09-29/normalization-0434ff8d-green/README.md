@@ -1,0 +1,1 @@
+Private normalization Task1 0434ff8d: compile, exact 17 GREEN, full raw-decode 88 passed/two ignored, strict and format pass. Independent 9,140-input verification. Exact test binary and five fixtures identified in evidence, not embedded. No production legacy delegation or public API. Earlier scaffold RED retained.

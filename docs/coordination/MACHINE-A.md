@@ -1,3 +1,9 @@
+## Normalization Task1 qualified; B routing request dispatched
+
+Independent review approved `0434ff8d`: 17 focused passes, full 88/two ignored, strict/format and all source/fixture/binary freezes. Portable evidence preserved; Task2 source-only delegation contracts authorized. No public/production decoder change yet.
+
+B diagnostic result `47307c56` completed only for observer repair. Routing request `5b27b9df-43bd-45d8-8ee4-5cf79bba101b` published through Git and SSH queue `01a0ea99-68c3-7c62-a412-ab9c4f66e6e7`; peer acknowledgement pending. Main d18369b3 contains actual Tab interception evidence. WB scaffold v2 independent source review active; no runtime.
+
 ## Actual Tab interception captured; routing correction pending
 
 Same-source disabled/enabled `4685efd5` both reproduce Name → Tab to externally focused Load LUT → second Tab hides panels. Observer survives; raw second event has SwiftUI.KeyViewProxy, same owned document window, handled=true, semantic ownership unknown/incomplete. Root verified package/fixture/report hashes. Owned app ordinarily quit. Normalization `0434ff8d` passed 17 GREEN, full 88/two ignored, strict/format; independent review active. B receives bounded source correction request, no private-class exemption or routing acceptance.

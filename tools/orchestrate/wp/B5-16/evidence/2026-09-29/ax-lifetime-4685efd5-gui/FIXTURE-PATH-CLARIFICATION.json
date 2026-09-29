@@ -1,0 +1,12 @@
+{
+  "fixture_base_authority": "fixture-before.json root",
+  "fixture_base": "/tmp/tessera-inspector-focus-4685efd5",
+  "actual_launch_app_dir": "/tmp/tessera-inspector-focus-4685efd5/profile",
+  "unused_package_manifest_profile": "/Volumes/betterSSD/tessera-validation/b5-16-ax-lifetime-4685efd5/gui-4685efd5/profile",
+  "absolute_fixture_after": {
+    "/tmp/tessera-inspector-focus-4685efd5/fixtures/warm-gradient.png": "19368177c8efae46512730f86ec03dc069782330843678e8b6aa82cc01009f63",
+    "/tmp/tessera-inspector-focus-4685efd5/fixtures/owned-warm.cube": "97c1492280596e6d75dac8ddb4df5802b32a885b25b08280068e55138c63f3ce",
+    "/tmp/tessera-inspector-focus-4685efd5/outputs/warm-gradient.tessera-doc": "473076631db502fff7c2b9bfc19f51769c336f5d7c14630677434e6bbf9eb29f"
+  },
+  "clarification": "GUI-RESULT fixture_after keys are relative to fixture-before root, not app-dir/profile; package manifest profile was created but not used by launch commands. Existing payloads unchanged."
+}
