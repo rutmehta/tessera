@@ -1,0 +1,21 @@
+# Native AX lifetime failure: source-only diagnosis and discriminating setup
+
+Observed exact114273ea focused gate:47cases,46passed, one case fails two weaknil assertions107/108. Snapshot unknown/incomplete assertions passed. Original failed gate preserved. No execution, edits, app or source correction during this diagnosis.
+
+## What source establishes
+
+Test90–108 uses a lexical do scope for actual NSAccessibilityElement root+child; lexical scope is not an Objective-C autorelease pool drain. It creates native property arrays, calls public getters through perform/takeUnretainedValue, traverses wrappers and then immediately asserts weak nil. Existing passing trace lifetime test uses a pure Swift Node mock; its lexical-scope behavior does not establish native autorelease behavior.
+
+Installed AppKit SDK NSAccessibilityProtocols.h:302 declares accessibilityParent weak,358 accessibilityWindow weak,386 accessibilityChildren copy. Root therefore owns a copied array that retains child; a lingering root or autoreleased children array can keep child alive. The test does not explicitly set a child parent or create a strong child→root edge. Its retained outer window has only a weak relation from child. NSAccessibilityElement.h:13 says vendors maintain semantic element ownership while UI exists; it does not specify immediate destruction at Swift lexical scope. Public declarations provide no proof of undocumented AppKit internals or autorelease timing.
+
+Collector source: AppKitFocusNode.object strongly retains its native object only while wrappers live. nativeChildren holds getter's +0 result in a local strong value/NSArray, checks elements, and returns local wrappers. snapshot's candidates/queue/locals retain wrappers during capture. Its returned Snapshot contains only strings, Bool and arrays of value Semantic (string fields), no AnyObject/native node. No collector instance/cache/global reference is written by this static call. The trace sink is not instantiated in this failing case. These visible ownership paths do not demonstrate a persistent observer retain, but cannot prove runtime release or dismiss observed failure.
+
+## Smallest discriminating correction proposal for B
+
+Keep both weaknil assertions and unknown/incomplete requirements; keep the returned snapshot alive outside the scope. Change only test lifetime boundary to an explicit synchronous autoreleasepool closure encompassing ALL native root/child/array construction and snapshot capture. Assert weak root and child nil AFTER the pool drains, while outer snapshot and window still live. Do not clear snapshot, manually clear root children/parent/window, add sleep/event loops, remove weak assertions, or mutate production getter to make the test pass.
+
+Add a matching no-observer setup control using the same NSAccessibilityElement/property graph inside its own autoreleasepool, with weak references checked after drain. This distinguishes native fixture ownership from observer retention. Ideally include immediate-before-drain weak observations as diagnostic values (not pass/fail requirements); nonnil within pool is allowed. A known owner-retention positive control can retain root in an outer variable across drain and assert it remains alive, then release owner in another pool and require nil, verifying the oracle observes ownership rather than merely returning empty data.
+
+Interpret results conservatively: both baseline and observed release only after drain supports pool-scoped native lifetime; baseline releases but observed remains indicates a capture-specific retain requiring investigation; both remain indicates native setup/AppKit ownership not isolated; no change must be called harmless or a product leak without actual comparison. If pool-adjusted case passes, source-only approval still does not prove the former failure's exact internal owner, only that no observer retention survives the declared drain boundary.
+
+Runtime recommendation after independent B source review: exact focused native bridge tests plus unchanged routing/trace controls, then strict only on pass. No GUI until root independent provenance review; subsequent actual Tab trace still mandatory because native test success does not qualify SwiftUI focus behavior. No product correction justified by current lifetime assertion alone.
