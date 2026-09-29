@@ -2552,6 +2552,19 @@ impl DocumentSession {
         op: DocOp,
         label: &str,
     ) -> Result<DocumentUpdate> {
+        self.edit_checked_until(layer, revision, op, label, &AtomicBool::new(false))
+    }
+
+    /// `edit_checked`, unless `cancel` is set by the time the node would be
+    /// applied (checked under the document lock, just before the write).
+    fn edit_checked_until(
+        &self,
+        layer: u64,
+        revision: u64,
+        op: DocOp,
+        label: &str,
+        cancel: &AtomicBool,
+    ) -> Result<DocumentUpdate> {
         self.clear_preview_state();
         let mut st = self.shared.lock()?;
         st.open()?;
@@ -2564,6 +2577,9 @@ impl DocumentSession {
             ));
         }
         super::liquify::apply_checkpoint(&self.shared, "write"); // B5-13
+        if cancel.load(Ordering::SeqCst) {
+            return Err(failure("cancelled"));
+        }
         let applied = st.doc.apply(op)?;
         st.labels.insert(applied.node, label.to_owned());
         Ok(self.update(&mut st, &before, Some(&applied), true))
@@ -2595,6 +2611,19 @@ impl DocumentSession {
         layer: u64,
         label: &str,
         expected_revision: Option<u64>,
+        f: impl FnOnce(&mut Vec<Node>) -> Result<()>,
+    ) -> Result<DocumentUpdate> {
+        self.set_nodes_checked_until(layer, label, expected_revision, &AtomicBool::new(false), f)
+    }
+
+    /// `set_nodes_checked`, with `cancel` stopping the validation render and
+    /// checked again under the document lock just before the write.
+    fn set_nodes_checked_until(
+        &self,
+        layer: u64,
+        label: &str,
+        expected_revision: Option<u64>,
+        cancel: &AtomicBool,
         f: impl FnOnce(&mut Vec<Node>) -> Result<()>,
     ) -> Result<DocumentUpdate> {
         self.clear_preview_state();
@@ -2635,7 +2664,7 @@ impl DocumentSession {
                 &nodes,
                 0,
                 Rect::of_extent(s.canvas),
-                &AtomicBool::new(false),
+                cancel,
             )?;
         }
         let mut nl = l.clone();
@@ -2646,6 +2675,9 @@ impl DocumentSession {
             .locate(LayerId(layer))
             .ok_or_else(|| failure("layer not found"))?;
         super::liquify::apply_checkpoint(&self.shared, "write"); // B5-13
+        if cancel.load(Ordering::SeqCst) {
+            return Err(failure("cancelled"));
+        }
         let applied = st.doc.apply(DocOp::Batch(vec![
             DocOp::RemoveLayer { id: LayerId(layer) },
             DocOp::AddLayer {
@@ -3316,10 +3348,20 @@ pub(crate) fn blended_tiles(
 impl DocumentSession {
     /// Shows `raster` (canvas-sized, level 0) in place of `layer`'s content
     /// in the viewport: the same preview slot `preview_filter` fills (a newer
-    /// preview or `clear_preview` replaces it). No history node.
-    pub(crate) fn show_layer_preview(&self, layer: u64, raster: Raster) -> Result<()> {
+    /// preview or `clear_preview` replaces it). No history node. `cancel` is
+    /// checked under the preview-slot lock, so a cancel that clears the slot
+    /// (`clear_preview`) after setting it is never followed by this preview.
+    pub(crate) fn show_layer_preview(
+        &self,
+        layer: u64,
+        raster: Raster,
+        cancel: &AtomicBool,
+    ) -> Result<()> {
         {
             let mut i = self.shared.filters.q.lock();
+            if cancel.load(Ordering::SeqCst) {
+                return Err(failure("cancelled"));
+            }
             i.generation += 1;
             i.preview_job = None;
             if let Some(c) = &i.running {
@@ -3361,6 +3403,9 @@ impl DocumentSession {
     /// Appends (`index` None) or re-edits smart filter `index` of adapter
     /// filter `id` with `params` (keeping its enable state and blending), as
     /// one checked history node. Re-editing never appends a duplicate.
+    /// `cancel` stops the validation render and is checked again under the
+    /// document lock just before the write.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn set_adapter_smart_filter(
         &self,
         layer: u64,
@@ -3369,40 +3414,50 @@ impl DocumentSession {
         index: Option<usize>,
         id: &str,
         params: serde_json::Value,
+        cancel: &AtomicBool,
     ) -> Result<DocumentUpdate> {
         if !adapter_id(id) {
             return Err(failure(format!("{id} is not an adapter filter")));
         }
         let spec = Spec::from_value(&serde_json::json!({"id": id, "params": params}))?;
-        self.set_nodes_checked(layer, label, Some(expected_revision), move |nodes| {
-            match index {
-                None => nodes.push(Node::new(spec)),
-                Some(i) => {
-                    let n = nodes
-                        .get_mut(i)
-                        .ok_or_else(|| failure(format!("no smart filter {i}")))?;
-                    if n.spec.id != spec.id {
-                        return Err(failure(format!(
-                            "smart filter {i} is {}, not {}",
-                            n.spec.id, spec.id
-                        )));
+        self.set_nodes_checked_until(
+            layer,
+            label,
+            Some(expected_revision),
+            cancel,
+            move |nodes| {
+                match index {
+                    None => nodes.push(Node::new(spec)),
+                    Some(i) => {
+                        let n = nodes
+                            .get_mut(i)
+                            .ok_or_else(|| failure(format!("no smart filter {i}")))?;
+                        if n.spec.id != spec.id {
+                            return Err(failure(format!(
+                                "smart filter {i} is {}, not {}",
+                                n.spec.id, spec.id
+                            )));
+                        }
+                        n.spec = spec;
                     }
-                    n.spec = spec;
                 }
-            }
-            Ok(())
-        })
+                Ok(())
+            },
+        )
     }
 
-    /// `op` as one history node, provided `layer`'s content is still `revision`.
+    /// `op` as one history node, provided `layer`'s content is still
+    /// `revision` and `cancel` is not set when the node would be applied
+    /// (checked under the document lock, just before the write).
     pub(crate) fn edit_layer_checked(
         &self,
         layer: u64,
         revision: u64,
         op: DocOp,
         label: &str,
+        cancel: &AtomicBool,
     ) -> Result<DocumentUpdate> {
-        self.edit_checked(layer, revision, op, label)
+        self.edit_checked_until(layer, revision, op, label, cancel)
     }
 }
 // B5-13 end

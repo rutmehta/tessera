@@ -22,7 +22,11 @@
 //! - `cancel_content_aware_move` leaves layer, selection and history as they
 //!   were. A running preview stops at the engine's next cancellation
 //!   checkpoint (per PatchMatch iteration / seam relaxation step); its late
-//!   result is discarded either way.
+//!   result is discarded either way (checked where the preview is installed,
+//!   under the preview-slot lock). A running commit sees the cancel in its
+//!   validation render (smart objects) and, under the document lock, just
+//!   before the history write; a cancel after that write finds the commit
+//!   succeeded (the app undoes it).
 
 use super::{DocRect, DocumentSession, DocumentUpdate, Shared, find, raster_from_rgba};
 use crate::{Result, failure};
@@ -363,7 +367,10 @@ impl DocumentSession {
             j.result = Some((params, out.composite.clone(), affected));
         }
         super::liquify::apply_checkpoint(&self.shared, "content-aware:show");
-        self.show_layer_preview(layer, out.composite)?;
+        // `cancel` (set by `cancel_content_aware_move` and by a newer
+        // preview) is checked again under the preview-slot lock: a cancel
+        // before that stops the preview; one after it clears the slot after.
+        self.show_layer_preview(layer, out.composite, &cancel)?;
         Ok(ContentAwarePreviewResult {
             dx,
             dy,
@@ -415,7 +422,7 @@ impl DocumentSession {
                 "fill": fill,
                 "seam": seam,
             });
-            self.set_adapter_smart_filter(layer, label, revision, None, id, p)?
+            self.set_adapter_smart_filter(layer, label, revision, None, id, p, &closed)?
         } else {
             let l = find(&base, layer)?;
             let LayerKind::Pixel(raster) = &l.kind else {
@@ -437,7 +444,7 @@ impl DocumentSession {
                 tiles,
                 dirty: affected,
             };
-            self.edit_layer_checked(layer, revision, op, label)?
+            self.edit_layer_checked(layer, revision, op, label, &closed)?
         };
         if let Ok(j) = job.lock() {
             j.closed.store(true, Ordering::Relaxed);

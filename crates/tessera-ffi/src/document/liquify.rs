@@ -21,6 +21,12 @@
 //!   changed layer (stale revision) or a cancel never commits.
 //! - `cancel_liquify` drops the workspace; a commit still rendering on
 //!   another thread sees the cancel before it writes and returns an error.
+//!   The cancel flag reaches every render of the apply (the smart-filter
+//!   path's validation render too) and is checked once more under the
+//!   document lock immediately before the history node is applied, so the
+//!   outcome is decided there: a cancel before that point commits nothing;
+//!   one after it finds the node written and the call returns success (the
+//!   app then undoes the step it discarded, as B5-09 Remove does).
 //!
 //! Face-aware Liquify is not wired: there is no landmark source here, and
 //! nothing downloads a model.
@@ -846,7 +852,9 @@ impl DocumentSession {
             }
             // Validated by rendering the whole stack before the node is added.
             still_open()?;
-            self.set_adapter_smart_filter(layer, "Liquify", revision, stage, "liquify", params)?
+            self.set_adapter_smart_filter(
+                layer, "Liquify", revision, stage, "liquify", params, &cancel,
+            )?
         } else if destination == LiquifyDestination::SmartFilter {
             if clip.is_some() {
                 return Err(failure(
@@ -866,7 +874,7 @@ impl DocumentSession {
                     params,
                 },
             )?;
-            let mut u = self.edit_layer_checked(layer, revision, op, "Liquify")?;
+            let mut u = self.edit_layer_checked(layer, revision, op, "Liquify", &cancel)?;
             u.created.clear();
             u
         } else {
@@ -893,7 +901,7 @@ impl DocumentSession {
                     tiles,
                     dirty: region,
                 };
-                self.edit_layer_checked(layer, revision, op, "Liquify")?
+                self.edit_layer_checked(layer, revision, op, "Liquify", &cancel)?
             } else {
                 let mut copy = raster.clone();
                 let tiles = super::filtering::blended_tiles(
@@ -924,6 +932,7 @@ impl DocumentSession {
                         layer: nl,
                     },
                     "Liquify",
+                    &cancel,
                 )?
             }
         };
