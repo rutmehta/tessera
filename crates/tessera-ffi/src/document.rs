@@ -120,6 +120,14 @@ pub use stack::{
     default_stack_blend_options, stack_max_megapixels, stack_megapixels_for_memory,
 };
 // B5-19 end
+// B5-20 begin: Filter ▸ Adaptive Wide Angle (the `adaptive_wide_angle` smart filter).
+#[path = "document/adaptive.rs"]
+mod adaptive;
+pub use adaptive::{
+    ADAPTIVE_WIDE_ANGLE_ID, AdaptiveWideAngleInfo, AdaptiveWideAnglePreview,
+    adaptive_wide_angle_curve,
+};
+// B5-20 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{

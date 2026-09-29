@@ -27,7 +27,7 @@ enum SelfTestHost {
     static let argumentFlags = [
         "--document-selftest", "--tools-selftest", "--filter-selftest", "--styles-selftest", "--retouch-selftest",
         "--vector-selftest", "--transform-selftest", "--liquify-selftest", "--channel-paint-selftest",
-        "--camera-raw-selftest",
+        "--camera-raw-selftest", "--adaptive-wide-angle-selftest",   // B5-20
     ]
     /// Environment variables that start a document self-test.
     static let environmentKeys = ["TESSERA_CHANNELS_SELFTEST", "TESSERA_TEXT_SELFTEST", "TESSERA_STACK_SELFTEST"]
@@ -90,6 +90,7 @@ enum SelfTestHost {
         VectorSelfTest.startIfRequested()
         ChannelPaintSelfTest.startIfRequested()
         CameraRawSelfTest.startIfRequested()
+        AdaptiveWideAngleSelfTest.startIfRequested()   // B5-20
         RetouchSelfTest.startIfRequested()
         LiquifySelfTest.startIfRequested()
         FilterSelfTest.startIfRequested()

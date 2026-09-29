@@ -13,7 +13,10 @@ extension FilterCatalogEntry {
 
 extension SmartFilterRow {
     init(_ r: SmartFilterRecord) {
-        self.init(index: r.index, filterId: r.filterId, name: r.name, enabled: r.enabled, filterJson: r.filterJson,
+        // B5-18b: the engine names Camera Raw smart filters itself; B5-20: Adaptive Wide Angle rows
+        // carry the filter id, shown by its title.
+        let name = AdaptiveWideAngleFilter.displayName(r.name)
+        self.init(index: r.index, filterId: r.filterId, name: name, enabled: r.enabled, filterJson: r.filterJson,
                   opacity: r.opacity, blendMode: r.blendMode, hasMask: r.hasMask)
     }
 }

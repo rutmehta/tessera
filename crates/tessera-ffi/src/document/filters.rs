@@ -216,6 +216,7 @@ fn adapter_id(id: &str) -> bool {
             | "content_aware_extend"
             | "liquify"
             | "camera_raw"
+            | "adaptive_wide_angle" // B5-20
             | "neural/skin_smoothing"
             | "neural/colorize"
             | "neural/jpeg_artifact_removal"

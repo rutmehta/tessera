@@ -2,6 +2,10 @@
 use crate::{Error, Point, Result};
 use serde::{Deserialize, Serialize};
 
+/// Largest displacement lattice, `(width + 1) * (height + 1)` vertices: the
+/// single source of this cap (Adaptive Wide Angle's solve lattice uses it too).
+pub const MAX_VERTICES: usize = 16_777_216;
+
 /// Source coordinates at integer destination lattice vertices, including the
 /// right/bottom canvas edge: `(width + 1) * (height + 1)` row-major entries.
 /// Coordinates use pixel centers (first pixel at 0.5), NOT texel indices or
@@ -22,7 +26,7 @@ impl Displacement {
             .and_then(|w| self.height.checked_add(1).and_then(|h| w.checked_mul(h)));
         if self.width == 0
             || self.height == 0
-            || n.is_none_or(|n| n > 16_777_216 || n != self.coordinates.len())
+            || n.is_none_or(|n| n > MAX_VERTICES || n != self.coordinates.len())
             || self
                 .coordinates
                 .iter()

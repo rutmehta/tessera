@@ -4610,6 +4610,35 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
     
     /**
+     * Opens the Adaptive Wide Angle workspace on `layer` (a pixel layer, or
+     * a smart object: a new smart filter, or with `stage_index` the existing
+     * Adaptive Wide Angle smart filter to re-edit). Closes this document's
+     * previous workspace. No history node.
+     */
+    func beginAdaptiveWideAngle(layer: UInt64, stageIndex: UInt32?) throws  -> AdaptiveWideAngleInfo
+    
+    /**
+     * Closes the workspace without changing the document; a commit still
+     * rendering stops before it writes.
+     */
+    func cancelAdaptiveWideAngle(token: UInt64) 
+    
+    /**
+     * Applies `recipe_json` at full resolution as one history node (see the
+     * module docs). Blocking: call off the main thread;
+     * `cancel_adaptive_wide_angle` stops it before it writes. The workspace
+     * closes on success; on an error it stays open and history is unchanged.
+     */
+    func commitAdaptiveWideAngle(token: UInt64, recipeJson: String) throws  -> DocumentUpdate
+    
+    /**
+     * Renders `recipe_json` (level-0 recipe; `None`: the untouched source)
+     * on the workspace proxy into an IOSurface. Blocking (a proxy solve):
+     * call off the main thread, latest wins. Never touches the document.
+     */
+    func previewAdaptiveWideAngle(token: UInt64, recipeJson: String?) throws  -> AdaptiveWideAnglePreview
+    
+    /**
      * Starts a Warp / Perspective / Puppet / Content-Aware Scale session on
      * `layer`: re-editing stage `index`, or (`None`) a new stage on top of
      * the stack. Commits another control's pending drag and ends an older
@@ -6267,6 +6296,69 @@ open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
     uniffi_tessera_ffi_fn_method_documentsession_ungroup_layer(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Opens the Adaptive Wide Angle workspace on `layer` (a pixel layer, or
+     * a smart object: a new smart filter, or with `stage_index` the existing
+     * Adaptive Wide Angle smart filter to re-edit). Closes this document's
+     * previous workspace. No history node.
+     */
+open func beginAdaptiveWideAngle(layer: UInt64, stageIndex: UInt32?)throws  -> AdaptiveWideAngleInfo  {
+    return try  FfiConverterTypeAdaptiveWideAngleInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_begin_adaptive_wide_angle(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterOptionUInt32.lower(stageIndex),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Closes the workspace without changing the document; a commit still
+     * rendering stops before it writes.
+     */
+open func cancelAdaptiveWideAngle(token: UInt64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_adaptive_wide_angle(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Applies `recipe_json` at full resolution as one history node (see the
+     * module docs). Blocking: call off the main thread;
+     * `cancel_adaptive_wide_angle` stops it before it writes. The workspace
+     * closes on success; on an error it stays open and history is unchanged.
+     */
+open func commitAdaptiveWideAngle(token: UInt64, recipeJson: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_commit_adaptive_wide_angle(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterString.lower(recipeJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Renders `recipe_json` (level-0 recipe; `None`: the untouched source)
+     * on the workspace proxy into an IOSurface. Blocking (a proxy solve):
+     * call off the main thread, latest wins. Never touches the document.
+     */
+open func previewAdaptiveWideAngle(token: UInt64, recipeJson: String?)throws  -> AdaptiveWideAnglePreview  {
+    return try  FfiConverterTypeAdaptiveWideAnglePreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_adaptive_wide_angle(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(token),
+        FfiConverterOptionString.lower(recipeJson),uniffiCallStatus
     )
 })
 }
@@ -12420,6 +12512,208 @@ public func FfiConverterTypeTetherEventListener_lower(_ value: TetherEventListen
 }
 
 
+
+
+/**
+ * An open Adaptive Wide Angle workspace.
+ */
+public struct AdaptiveWideAngleInfo: Equatable, Hashable {
+    public var token: UInt64
+    public var layer: UInt64
+    /**
+     * The smart filter being re-edited (`None`: a new filter).
+     */
+    public var stageIndex: UInt32?
+    public var smartObject: Bool
+    /**
+     * Source (= recipe source and output) size in pixels.
+     */
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * Preview proxy size and source pixels per proxy pixel.
+     */
+    public var previewWidth: UInt32
+    public var previewHeight: UInt32
+    public var previewFactor: UInt32
+    /**
+     * The recipe to edit (`transform::adaptive::Adaptive` JSON, level-0
+     * source pixels): the stored one when re-editing.
+     */
+    public var recipeJson: String
+    /**
+     * `FocalLengthIn35mmFilm` of the library image the document came from.
+     */
+    public var exifFocal35mm: Double?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(token: UInt64, layer: UInt64, 
+        /**
+         * The smart filter being re-edited (`None`: a new filter).
+         */stageIndex: UInt32?, smartObject: Bool, 
+        /**
+         * Source (= recipe source and output) size in pixels.
+         */width: UInt32, height: UInt32, 
+        /**
+         * Preview proxy size and source pixels per proxy pixel.
+         */previewWidth: UInt32, previewHeight: UInt32, previewFactor: UInt32, 
+        /**
+         * The recipe to edit (`transform::adaptive::Adaptive` JSON, level-0
+         * source pixels): the stored one when re-editing.
+         */recipeJson: String, 
+        /**
+         * `FocalLengthIn35mmFilm` of the library image the document came from.
+         */exifFocal35mm: Double?) {
+        self.token = token
+        self.layer = layer
+        self.stageIndex = stageIndex
+        self.smartObject = smartObject
+        self.width = width
+        self.height = height
+        self.previewWidth = previewWidth
+        self.previewHeight = previewHeight
+        self.previewFactor = previewFactor
+        self.recipeJson = recipeJson
+        self.exifFocal35mm = exifFocal35mm
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AdaptiveWideAngleInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAdaptiveWideAngleInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AdaptiveWideAngleInfo {
+        return
+            try AdaptiveWideAngleInfo(
+                token: FfiConverterUInt64.read(from: &buf), 
+                layer: FfiConverterUInt64.read(from: &buf), 
+                stageIndex: FfiConverterOptionUInt32.read(from: &buf), 
+                smartObject: FfiConverterBool.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                previewWidth: FfiConverterUInt32.read(from: &buf), 
+                previewHeight: FfiConverterUInt32.read(from: &buf), 
+                previewFactor: FfiConverterUInt32.read(from: &buf), 
+                recipeJson: FfiConverterString.read(from: &buf), 
+                exifFocal35mm: FfiConverterOptionDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AdaptiveWideAngleInfo, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.token, into: &buf)
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterOptionUInt32.write(value.stageIndex, into: &buf)
+        FfiConverterBool.write(value.smartObject, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt32.write(value.previewWidth, into: &buf)
+        FfiConverterUInt32.write(value.previewHeight, into: &buf)
+        FfiConverterUInt32.write(value.previewFactor, into: &buf)
+        FfiConverterString.write(value.recipeJson, into: &buf)
+        FfiConverterOptionDouble.write(value.exifFocal35mm, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAdaptiveWideAngleInfo_lift(_ buf: RustBuffer) throws -> AdaptiveWideAngleInfo {
+    return try FfiConverterTypeAdaptiveWideAngleInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAdaptiveWideAngleInfo_lower(_ value: AdaptiveWideAngleInfo) -> RustBuffer {
+    return FfiConverterTypeAdaptiveWideAngleInfo.lower(value)
+}
+
+
+/**
+ * A rendered preview (or the untouched source).
+ */
+public struct AdaptiveWideAnglePreview: Equatable, Hashable {
+    /**
+     * RGBA8 IOSurface, straight alpha, layer samples; retained until the
+     * next preview of this workspace (two alternate).
+     */
+    public var surfaceId: UInt32
+    public var width: UInt32
+    public var height: UInt32
+    public var original: Bool
+    public var millis: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * RGBA8 IOSurface, straight alpha, layer samples; retained until the
+         * next preview of this workspace (two alternate).
+         */surfaceId: UInt32, width: UInt32, height: UInt32, original: Bool, millis: Double) {
+        self.surfaceId = surfaceId
+        self.width = width
+        self.height = height
+        self.original = original
+        self.millis = millis
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AdaptiveWideAnglePreview: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAdaptiveWideAnglePreview: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AdaptiveWideAnglePreview {
+        return
+            try AdaptiveWideAnglePreview(
+                surfaceId: FfiConverterUInt32.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                original: FfiConverterBool.read(from: &buf), 
+                millis: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AdaptiveWideAnglePreview, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.surfaceId, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterBool.write(value.original, into: &buf)
+        FfiConverterDouble.write(value.millis, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAdaptiveWideAnglePreview_lift(_ buf: RustBuffer) throws -> AdaptiveWideAnglePreview {
+    return try FfiConverterTypeAdaptiveWideAnglePreview.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAdaptiveWideAnglePreview_lower(_ value: AdaptiveWideAnglePreview) -> RustBuffer {
+    return FfiConverterTypeAdaptiveWideAnglePreview.lower(value)
+}
 
 
 /**
@@ -36118,6 +36412,45 @@ public func blendModeNames() -> [String]  {
 })
 }
 /**
+ * The source-pixel image of the straight scene edge from `from` to `to`
+ * under `recipe_json`'s camera: the curve a constraint line follows, as
+ * interleaved x, y samples including both ends. Photoshop's Constraint
+ * tool bends lines the same way; the constraint then only has to absorb
+ * the camera model's error, not the lens curvature.
+ *
+ * Segment count: the solver joins samples with straight source segments,
+ * and a chord of length `L` on a curve of curvature `k` misses it by the
+ * sagitta `k L² / 8`. Curvature in pixels falls as 1 / image size for a
+ * given field of view, so a fixed count (the B5-20 cap of 64) grows the
+ * error linearly with the photo (≈ 0.46 px on a full-width 24 MP line,
+ * ≈ 1.9 px at 100 MP, against 0.25 px). The start is one segment per
+ * 24 source px (`clamp(ceil(chord / 24), 4, 256)`); the count then
+ * doubles, up to 1024, while any segment's measured output-space sagitta
+ * exceeds `CURVE_SAGITTA_PX`. Halving `L` quarters the sagitta, so one or
+ * two doublings cover 100 MP and strong fisheyes (a full-width 24 MP
+ * horizon at f = 0.4 w takes one: 470 segments).
+ */
+public func adaptiveWideAngleCurve(recipeJson: String, from: [Double], to: [Double])throws  -> [Double]  {
+    return try  FfiConverterSequenceDouble.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_adaptive_wide_angle_curve(
+        FfiConverterString.lower(recipeJson),
+        FfiConverterSequenceDouble.lower(from),
+        FfiConverterSequenceDouble.lower(to),uniffiCallStatus
+    )
+})
+}
+/**
+ * Largest layer (pixels) Adaptive Wide Angle renders, for the app's copy.
+ */
+public func adaptiveWideAngleMaxPixels() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_adaptive_wide_angle_max_pixels(uniffiCallStatus
+    )
+})
+}
+/**
  * A preset warp mesh (`transform::warp::WarpMesh` JSON) of a `width ×
  * height` child. Bend is signed [-1, 1]; zero is the identity mesh.
  */
@@ -36394,6 +36727,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_blend_mode_names() != 47688) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_curve() != 43935) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_max_pixels() != 55008) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_warp_preset() != 23938) {
@@ -37165,6 +37504,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_adaptive_wide_angle() != 25432) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_adaptive_wide_angle() != 42956) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_commit_adaptive_wide_angle() != 33320) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_adaptive_wide_angle() != 4174) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_begin_advanced_transform() != 47434) {

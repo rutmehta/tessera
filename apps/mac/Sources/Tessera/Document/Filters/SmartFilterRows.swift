@@ -90,6 +90,11 @@ final class SmartFilterOutline {
             DocumentCameraRaw.shared.edit(doc, layer: item.layer, row: item.row)
             return
         }
+        // B5-20: Adaptive Wide Angle smart filters re-open the Adaptive Wide Angle workspace.
+        if DocumentAdaptiveWideAngle.handles(filterId: item.row.filterId) {
+            DocumentAdaptiveWideAngle.shared.edit(doc, layer: item.layer, row: item.row)
+            return
+        }
         filters.editSmartFilter(doc, layer: item.layer, row: item.row)
     }
 

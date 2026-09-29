@@ -6,7 +6,7 @@
 #
 # usage: run-background-selftest.sh <name> [extra app args…]
 #   name: transform | vector | channel-paint | camera-raw | retouch | filter | styles | tools | document |
-#         liquify | channels | text | stack
+#         liquify | channels | text | stack | adaptive-wide-angle
 # env:   APP (default: this worktree's apps/mac/build/Tessera.app), SP (scratch dir), TIMEOUT (s, default 900),
 #        FOLDER (library folder; default: a copy of sample.dng for the tests that need a RAW)
 set -u
@@ -20,7 +20,7 @@ FIX=$ROOT/fixtures/raw/sample.dng
 ENV=(); ARGS=()
 case $NAME in
   transform|vector|channel-paint|liquify) ARGS=("--$NAME-selftest=$SP/test");;
-  camera-raw|retouch|filter|styles|tools|document)
+  camera-raw|retouch|filter|styles|tools|document|adaptive-wide-angle)
     ARGS=("--$NAME-selftest" "$SP/test")
     [ -z "${FOLDER:-}" ] && cp "$FIX" "$SP/folder/";;
   channels|text|stack) ENV=(--env "TESSERA_$(echo "$NAME" | tr a-z A-Z)_SELFTEST=$SP/test");;
