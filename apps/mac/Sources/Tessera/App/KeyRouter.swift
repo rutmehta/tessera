@@ -232,16 +232,29 @@ final class KeyRouter {
     /// B5-21: a view other than the canvas has the keyboard: a native control of the inspector, a panel or
     /// the toolbar (a Layers eye button, the sidebar toggle) or a SwiftUI control's focus proxy under Full
     /// Keyboard Access. Only something that accepted first responder gets here, so a click on empty panel
-    /// space leaves the canvas (or nothing) focused. Hidden or detached responders do not count.
+    /// space leaves the canvas (or nothing) focused. Hidden, invisible or detached responders do not count
+    /// (review B1: the Library grid stays attached at opacity 0 behind document mode).
     static func panelViewHasKeyboard(in window: NSWindow?) -> Bool {
         guard let window, let view = window.firstResponder as? NSView, view.window === window,
-              view !== window.contentView, !view.isHiddenOrHasHiddenAncestor else { return false }
+              view !== window.contentView, !isStrayResponder(view) else { return false }
         var ancestor: NSView? = view
         while let v = ancestor {
             if v is DocumentViewportView { return false }
             ancestor = v.superview
         }
         return true
+    }
+
+    /// A first responder nobody can see in document mode: hidden, under an alpha-0 ancestor, or the
+    /// Library grid / filmstrip (kept alive, invisible, behind the document view).
+    static func isStrayResponder(_ view: NSView) -> Bool {
+        if view.isHiddenOrHasHiddenAncestor { return true }
+        var ancestor: NSView? = view
+        while let v = ancestor {
+            if v is ThumbnailCollectionView || v.alphaValue <= 0 || (v.layer?.opacity ?? 1) <= 0 { return true }
+            ancestor = v.superview
+        }
+        return false
     }
 
     /// Document mode: only the document key map; culling, develop and mask keys never fire here.

@@ -229,6 +229,21 @@ final class DocumentViewportView: NSView {
         selectionDidChange()
         pushViewport()
         render()
+        claimKeyboardIfStray()
+    }
+
+    /// Review B1 (B5-21): entering document mode or changing the document hands the keyboard to the canvas
+    /// when nothing, or only something invisible (the Library grid kept alive at opacity 0), has it. A
+    /// focused panel, toolbar or text control keeps it. Only first responder within this window changes.
+    func claimKeyboardIfStray() {
+        guard controller != nil, let window, !isHiddenOrHasHiddenAncestor else { return }
+        let responder = window.firstResponder
+        if responder === self { return }
+        let stray: Bool
+        if responder == nil || responder === window { stray = true }
+        else if let view = responder as? NSView { stray = view.window !== window || KeyRouter.isStrayResponder(view) }
+        else { stray = false }
+        if stray { window.makeFirstResponder(self) }
     }
 
     /// Narrow lifecycle regression seam: retain a tiny surface without a window,
@@ -256,6 +271,7 @@ final class DocumentViewportView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         updateDrawable()
+        claimKeyboardIfStray()
     }
 
     override func viewDidChangeBackingProperties() {
