@@ -182,6 +182,24 @@ public struct CameraRawDraft: Equatable, @unchecked Sendable {
         DevelopController.encode(["id": CameraRawFilter.id, "params": ["settings": settings, "amount": amount]]) ?? "{}"
     }
 
+    // MARK: Zoomed-out preview (B5-18b)
+
+    /// Effects whose pixel radii are full-resolution (Sharpening, Noise Reduction, Texture, Clarity). Below 100 %
+    /// the engine previews a smaller pyramid level, where they would look too wide, so it leaves them out of the
+    /// canvas preview (like Camera Raw); the 1:1 pane and OK always include them.
+    public static let zoomedOutOmitted: [DevelopControl] = [DetailControls.amount, DetailControls.luminance,
+                                                             DetailControls.color, CameraRawControls.texture,
+                                                             CameraRawControls.clarity]
+    public static let detailPreviewNote = "Detail effects preview at 100 %"
+
+    /// One of `zoomedOutOmitted` is active (0 is off for each of them).
+    public var hasDetailEffects: Bool { Self.zoomedOutOmitted.contains { value($0) != 0 } }
+
+    /// The sheet's note at canvas `zoom` (1 = 100 %): nil unless zoomed out with a detail effect active.
+    public func detailPreviewNote(zoom: Double) -> String? {
+        zoom < 1 && hasDetailEffects ? Self.detailPreviewNote : nil
+    }
+
     // MARK: AI masks
 
     /// AI mask component kinds in the settings' local adjustments.

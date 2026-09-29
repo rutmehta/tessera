@@ -280,6 +280,42 @@ fn camera_raw_halo(spec: &Spec) -> Result<Option<i64>> {
         && s.camera_profile == d.camera_profile;
     Ok(local.then(|| i64::from(pipeline_cpu::detail_halo(&s.detail)) + PRESENCE_HALO))
 }
+
+/// A Camera Raw Filter without its radius-dependent detail effects
+/// (Sharpening, Noise Reduction, Texture, Clarity); other filters as they are.
+/// Their radii are level-0 pixels, so a preview below 100 % (a smaller
+/// pyramid level) would show them 2-4x too wide: like Camera Raw, the
+/// zoomed-out preview omits them and the sheet says so. The 1:1 pane and
+/// Apply always include them.
+fn without_detail_effects(spec: &Spec) -> Result<Spec> {
+    if spec.id != CAMERA_RAW {
+        return Ok(spec.clone());
+    }
+    let v: serde_json::Value = serde_json::from_str(&spec.json).map_err(failure)?;
+    let mut p = filters::camera_raw::parse(&v["params"])?;
+    let s = &mut p.settings;
+    s.detail.sharpening.amount = 0.0;
+    s.detail.noise_reduction.luminance = 0.0;
+    s.detail.noise_reduction.color = 0.0;
+    s.tone.texture = 0.0;
+    s.tone.clarity = 0.0;
+    let params = serde_json::to_value(&p).map_err(failure)?;
+    Spec::from_value(&serde_json::json!({"id": CAMERA_RAW, "params": params}))
+}
+
+impl StackEdit {
+    /// The edit a preview at pyramid `level` evaluates: below level 0 the
+    /// edited Camera Raw Filter omits its detail effects.
+    fn at_preview_level(self, level: u8) -> Result<Self> {
+        if level == 0 {
+            return Ok(self);
+        }
+        Ok(match self {
+            Self::Append(s) => Self::Append(without_detail_effects(&s)?),
+            Self::Replace(i, s) => Self::Replace(i, without_detail_effects(&s)?),
+        })
+    }
+}
 // B5-18b end
 
 /// Private evaluation errors remain typed until the native or legacy boundary.
@@ -2813,6 +2849,14 @@ impl DocumentSession {
                 preview_view(&st, region)
             };
             (s, level, r, nodes)
+        };
+        // B5-18b: below 100 % a Camera Raw preview omits its detail effects.
+        let (edit, nodes) = if level > 0 {
+            let edit = edit.at_preview_level(level)?;
+            let nodes = edited_stack(find(&base, layer)?, &edit)?;
+            (edit, nodes)
+        } else {
+            (edit, nodes)
         };
         let fs = &self.shared.filters;
         // B5-15 (P19): shown by the resident renderer, on the render thread's

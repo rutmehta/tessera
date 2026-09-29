@@ -137,6 +137,9 @@ final class CameraRawSheetModel: Identifiable {
 
     var amountPercent: Double { draft.amountPercent }
 
+    /// B5-18b: below 100 % the canvas preview leaves out Sharpening, Noise Reduction, Texture and Clarity.
+    var detailPreviewNote: String? { showBefore ? nil : draft.detailPreviewNote(zoom: doc.zoom) }
+
     func setAmount(_ percent: Double, final: Bool) {
         var d = draft
         d.amountPercent = percent
@@ -281,7 +284,8 @@ final class CameraRawSheetModel: Identifiable {
 // MARK: - Views
 
 /// The sheet: detail pane, Amount and Before/After on the left; tabbed Develop controls on the right.
-/// Identifiers: `document.cameraRaw.<panel>`, `.<control id>`, `.amount`, `.before`, `.reset`, `.cancel`, `.ok`, `.detail`.
+/// Identifiers: `document.cameraRaw.<panel>`, `.<control id>`, `.amount`, `.before`, `.reset`, `.cancel`, `.ok`, `.detail`,
+/// `.detailNote`.
 struct CameraRawSheet: View {
     @Bindable var model: CameraRawSheetModel
     private let ident = "document.cameraRaw"
@@ -305,6 +309,12 @@ struct CameraRawSheet: View {
                         .font(Theme.Fonts.caption)
                         .help("Shows the layer without the filter (canvas and detail pane)")
                         .accessibilityIdentifier("\(ident).before")
+                    if let note = model.detailPreviewNote {
+                        Text(note)
+                            .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                            .help("Sharpening, Noise Reduction, Texture and Clarity show on the canvas at 100 % and in the 1:1 pane; OK applies them at any zoom.")
+                            .accessibilityIdentifier("\(ident).detailNote")
+                    }
                     if model.applying {
                         HStack(spacing: Theme.Space.xs) {
                             ProgressView().controlSize(.small)
