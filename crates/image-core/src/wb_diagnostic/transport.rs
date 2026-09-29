@@ -3,7 +3,7 @@
 //! storage and no thread identity. All storage is one const-initialised arena
 //! whose epoch protocol lives under a single leaf mutex.
 #![allow(dead_code)]
-use super::{Bucket, CAPACITY, Context, Error, Record, Snapshot};
+use super::{Bucket, CAPACITY, Context, Error, Identity, Outcome, Record, Snapshot};
 use engine_api::{
     id::{Digest, ImageId},
     stage::{MemoKey, ParamHash, StageId},
@@ -11,7 +11,10 @@ use engine_api::{
 };
 use std::{
     mem::{ManuallyDrop, needs_drop},
-    sync::{Mutex, PoisonError, atomic::AtomicBool},
+    sync::{
+        Mutex, MutexGuard, PoisonError, TryLockError,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 pub const SLOTS: usize = 8;
@@ -202,8 +205,113 @@ impl Slot {
     };
 }
 
-fn unsupported<T>() -> Result<T, Error> {
-    Err(Error::Unsupported)
+/// Poison recovery (rev5 N11): the guard is recovered and capture disabled.
+/// Terminal paths still update scalar state on the recovered guard.
+fn lock(m: &Mutex<Storage>) -> MutexGuard<'_, Storage> {
+    m.lock().unwrap_or_else(|poisoned| {
+        let mut guard = poisoned.into_inner();
+        guard.disabled = true;
+        guard
+    })
+}
+fn bump(counter: &mut u64) {
+    *counter = counter.saturating_add(1);
+}
+fn stamp(meta: &SlotMeta, key: MemoKey, bucket: Bucket, outcome: Outcome) -> Record {
+    Record {
+        identity: Identity {
+            operator: meta.request.expected_operator,
+            phase: meta.token.phase,
+            transaction: meta.token.transaction,
+            generation: meta.request.generation,
+        },
+        key,
+        bucket,
+        outcome,
+    }
+}
+/// Bounded append. The last record is reserved for the terminal record, so
+/// End/Abort always fits; anything else past the bound counts as overflow.
+fn append(slot: &mut Slot, record: Record, terminal: bool) {
+    let limit = if terminal { CAPACITY } else { CAPACITY - 1 };
+    let payload = &mut slot.payload;
+    if payload.len >= limit {
+        payload.overflow = payload.overflow.saturating_add(1);
+        return;
+    }
+    if let Some(dst) = payload.records.get_mut(payload.len) {
+        *dst = Some(record);
+        payload.len += 1;
+    }
+}
+impl Storage {
+    /// Closing becomes Quiescent once no reservation or lease is outstanding.
+    fn settle(&mut self) {
+        if self.state == State::Closing && self.counts.reserved == 0 && self.counts.active == 0 {
+            self.state = State::Quiescent;
+        }
+    }
+    /// Applies `f` to the slot a live, bound token names. Refused while
+    /// disabled; a stale or unknown token is counted as loss.
+    fn with_active(&mut self, t: Token, f: impl FnOnce(&mut Slot) -> bool) {
+        if self.disabled {
+            bump(&mut self.counts.disabled);
+            return;
+        }
+        let epoch = self.epoch;
+        let accepted = match self.slots.get_mut(usize::from(t.slot)) {
+            Some(slot)
+                if slot.state == SlotState::Active && slot.meta.token == t && t.epoch == epoch =>
+            {
+                f(slot)
+            }
+            _ => false,
+        };
+        if !accepted {
+            bump(&mut self.counts.loss);
+        }
+    }
+    /// Terminal transition for a reservation (`from == Reserved`) or lease
+    /// (`from == Active`). Never panics; runs on a recovered guard too.
+    fn terminate(&mut self, t: Token, from: SlotState, route: Option<Route>) {
+        let epoch = self.epoch;
+        let disabled = self.disabled;
+        let loss = self.counts.loss;
+        let Some(slot) = self.slots.get_mut(usize::from(t.slot)) else {
+            bump(&mut self.counts.loss);
+            return;
+        };
+        if slot.state != from || slot.meta.token != t || t.epoch != epoch {
+            bump(&mut self.counts.loss);
+            return;
+        }
+        let outcome = if route.is_some() {
+            Outcome::End
+        } else {
+            Outcome::Abort
+        };
+        if disabled {
+            bump(&mut self.counts.disabled);
+        } else {
+            let record = stamp(&slot.meta, NO_KEY, Bucket::Detail, outcome);
+            append(slot, record, true);
+        }
+        slot.meta.route = match route {
+            None => RouteState::Aborted,
+            Some(_) if slot.meta.begin.is_none() => RouteState::Unobserved,
+            Some(Route::Delivered) => RouteState::Delivered,
+            Some(Route::Declined) => RouteState::Declined,
+        };
+        slot.meta.loss_at_finish = loss;
+        slot.state = SlotState::Completed;
+        if from == SlotState::Reserved {
+            self.counts.reserved = self.counts.reserved.saturating_sub(1);
+        } else {
+            self.counts.active = self.counts.active.saturating_sub(1);
+        }
+        self.counts.completed = self.counts.completed.saturating_add(1);
+        self.settle();
+    }
 }
 impl Arena {
     /// Const initialiser for a process `static` (rev5 section 3.1 spells this
@@ -234,82 +342,272 @@ impl Arena {
         }),
         armed: AtomicBool::new(false),
     };
+    /// Idle -> Open. Refused unless the previous epoch was acknowledged, and
+    /// on epoch-ordinal exhaustion (never wraps).
     pub fn open(&self) -> Result<Epoch<'_>, Error> {
-        unsupported()
+        let mut s = lock(&self.storage);
+        if s.state != State::Idle {
+            return Err(Error::Incomplete);
+        }
+        if s.next_epoch == u64::MAX {
+            return Err(Error::Overflow);
+        }
+        let epoch = s.next_epoch;
+        s.next_epoch += 1;
+        s.epoch = epoch;
+        s.state = State::Open;
+        s.armed_phase = None;
+        s.counts = Counts::default();
+        self.armed.store(false, Ordering::Relaxed);
+        Ok(Epoch { arena: self, epoch })
     }
     pub fn counts(&self) -> Result<Counts, Error> {
-        unsupported()
+        Ok(lock(&self.storage).counts)
     }
     pub fn state(&self) -> Result<State, Error> {
-        unsupported()
+        Ok(lock(&self.storage).state)
     }
-    pub fn acknowledge(&self, _epoch: u64) -> Result<(), Error> {
-        unsupported()
+    /// Quiescent -> Idle for `epoch`, discarding undrained slots. Requires the
+    /// scratch to be free.
+    pub fn acknowledge(&self, epoch: u64) -> Result<(), Error> {
+        let mut s = lock(&self.storage);
+        if s.epoch != epoch || s.state != State::Quiescent || s.counts.scratch {
+            return Err(Error::Incomplete);
+        }
+        for slot in &mut s.slots {
+            slot.state = SlotState::Free;
+        }
+        s.counts.completed = 0;
+        s.state = State::Idle;
+        Ok(())
     }
-    /// Product call site: infallible; `None` unless a phase is armed.
-    pub fn reserve_armed(&'static self, _ctx: RequestContext) -> Option<Reservation> {
-        None
+    /// Product call site: infallible; `None` unless a phase is armed. Refusals
+    /// while armed (capacity, closing, disabled, ordinal exhaustion) are
+    /// counted, never returned.
+    pub fn reserve_armed(&'static self, ctx: RequestContext) -> Option<Reservation> {
+        if !self.armed.load(Ordering::Relaxed) {
+            return None;
+        }
+        let mut guard = lock(&self.storage);
+        let s = &mut *guard;
+        let phase = s.armed_phase?;
+        if s.disabled {
+            bump(&mut s.counts.disabled);
+            return None;
+        }
+        if s.state != State::Open || s.counts.reserved + s.counts.active >= ACTIVE {
+            bump(&mut s.counts.loss);
+            return None;
+        }
+        let Some(index) = s.slots.iter().position(|x| x.state == SlotState::Free) else {
+            bump(&mut s.counts.loss);
+            return None;
+        };
+        if s.next_transaction == u64::MAX {
+            s.disabled = true;
+            bump(&mut s.counts.disabled);
+            return None;
+        }
+        let transaction = s.next_transaction;
+        s.next_transaction += 1;
+        let token = Token {
+            epoch: s.epoch,
+            phase,
+            transaction,
+            slot: index as u8,
+        };
+        let slot = s.slots.get_mut(index)?;
+        slot.state = SlotState::Reserved;
+        slot.meta = SlotMeta {
+            token,
+            request: ctx,
+            ..SlotMeta::EMPTY
+        };
+        slot.payload.context = EMPTY_CONTEXT;
+        slot.payload.len = 0;
+        slot.payload.overflow = 0;
+        s.counts.reserved += 1;
+        Some(Reservation { arena: self, token })
     }
     /// Runs `lookup` exactly once with no lock held and returns its result.
     pub fn observe<T, E>(
         &self,
-        _t: Token,
-        _rec: Record,
+        t: Token,
+        rec: Record,
         lookup: impl FnOnce() -> Result<Option<T>, E>,
     ) -> Result<Option<T>, E> {
-        lookup()
+        let result = lookup();
+        let outcome = match &result {
+            Ok(Some(_)) => Outcome::Some,
+            Ok(None) => Outcome::None,
+            Err(_) => Outcome::Error,
+        };
+        lock(&self.storage).with_active(t, |slot| {
+            let record = stamp(&slot.meta, rec.key, rec.bucket, outcome);
+            append(slot, record, false);
+            true
+        });
+        result
     }
-    pub fn request(&self, _t: Token, _key: MemoKey, _bucket: Bucket) {}
-    pub fn begin(&self, _t: Token, _ctx: BeginContext) {}
+    pub fn request(&self, t: Token, key: MemoKey, bucket: Bucket) {
+        lock(&self.storage).with_active(t, |slot| {
+            let record = stamp(&slot.meta, key, bucket, Outcome::Request);
+            append(slot, record, false);
+            true
+        });
+    }
+    /// Records Begin once per transaction; a repeated Begin counts as loss.
+    pub fn begin(&self, t: Token, ctx: BeginContext) {
+        lock(&self.storage).with_active(t, |slot| {
+            if slot.meta.begin.is_some() {
+                return false;
+            }
+            slot.meta.begin = Some(ctx);
+            let record = stamp(&slot.meta, NO_KEY, Bucket::Detail, Outcome::Begin);
+            append(slot, record, false);
+            true
+        });
+    }
     /// 0 = exhausted/unknown.
     pub fn next_operator(&self) -> u64 {
-        0
+        let mut s = lock(&self.storage);
+        if s.next_operator == u64::MAX {
+            return 0;
+        }
+        let operator = s.next_operator;
+        s.next_operator += 1;
+        operator
     }
     #[cfg(test)]
-    fn set_next_epoch_for_test(&self, _n: u64) -> Result<(), Error> {
-        unsupported()
+    fn set_next_epoch_for_test(&self, n: u64) -> Result<(), Error> {
+        lock(&self.storage).next_epoch = n;
+        Ok(())
     }
     #[cfg(test)]
-    fn set_next_transaction_for_test(&self, _n: u64) -> Result<(), Error> {
-        unsupported()
+    fn set_next_transaction_for_test(&self, n: u64) -> Result<(), Error> {
+        lock(&self.storage).next_transaction = n;
+        Ok(())
     }
     #[cfg(test)]
-    fn set_next_operator_for_test(&self, _n: u64) -> Result<(), Error> {
-        unsupported()
+    fn set_next_operator_for_test(&self, n: u64) -> Result<(), Error> {
+        lock(&self.storage).next_operator = n;
+        Ok(())
     }
 }
 impl<'a> Epoch<'a> {
-    pub fn arm(&self, _phase: u64) -> Result<(), Error> {
-        unsupported()
+    fn current(&self, s: &Storage) -> Result<(), Error> {
+        if s.epoch == self.epoch && s.state != State::Idle {
+            Ok(())
+        } else {
+            Err(Error::Incomplete)
+        }
+    }
+    pub fn arm(&self, phase: u64) -> Result<(), Error> {
+        let mut s = lock(&self.arena.storage);
+        self.current(&s)?;
+        if s.state != State::Open {
+            return Err(Error::Incomplete);
+        }
+        s.armed_phase = Some(phase);
+        self.arena.armed.store(true, Ordering::Relaxed);
+        Ok(())
     }
     pub fn disarm(&self) -> Result<(), Error> {
-        unsupported()
+        let mut s = lock(&self.arena.storage);
+        self.current(&s)?;
+        s.armed_phase = None;
+        self.arena.armed.store(false, Ordering::Relaxed);
+        Ok(())
     }
+    /// Open -> Closing (-> Quiescent once nothing is outstanding). Idempotent.
     pub fn close(&self) -> Result<(), Error> {
-        unsupported()
+        let mut s = lock(&self.arena.storage);
+        self.current(&s)?;
+        if s.state == State::Open {
+            s.state = State::Closing;
+            s.armed_phase = None;
+            self.arena.armed.store(false, Ordering::Relaxed);
+            s.settle();
+        }
+        Ok(())
     }
+    /// Copies the lowest completed slot into the scratch in place and frees
+    /// the slot. Refused while the scratch is owned by another `Drain`.
     pub fn drain(&self) -> Result<Drain<'a>, Error> {
-        unsupported()
+        let mut guard = lock(&self.arena.storage);
+        let s = &mut *guard;
+        self.current(s)?;
+        if s.counts.scratch {
+            return Err(Error::Incomplete);
+        }
+        let Some(slot) = s.slots.iter_mut().find(|x| x.state == SlotState::Completed) else {
+            return Err(Error::Incomplete);
+        };
+        // Never blocks: with `scratch == false` no `Drain` (hence no inspect)
+        // can hold this mutex, so the storage mutex stays a leaf.
+        let mut scratch = match self.arena.scratch.try_lock() {
+            Ok(g) => g,
+            Err(TryLockError::Poisoned(p)) => p.into_inner(),
+            Err(TryLockError::WouldBlock) => return Err(Error::Incomplete),
+        };
+        let len = slot.payload.len.min(CAPACITY);
+        let dst = &mut scratch.snapshot;
+        dst.records[..len].copy_from_slice(&slot.payload.records[..len]);
+        dst.records[len..].fill(None);
+        dst.len = len;
+        dst.overflow = slot.payload.overflow;
+        dst.context = match slot.meta.begin {
+            Some(b) => Context {
+                recipe_fingerprint: slot.meta.request.recipe_fingerprint,
+                resolved_wb: b.resolved_wb,
+                output_tag: b.output_tag,
+                headroom_bits: b.headroom_bits,
+                render_level: b.render_level,
+            },
+            None => EMPTY_CONTEXT,
+        };
+        scratch.meta = slot.meta;
+        slot.state = SlotState::Free;
+        s.counts.completed = s.counts.completed.saturating_sub(1);
+        s.counts.scratch = true;
+        Ok(Drain { arena: self.arena })
     }
 }
 impl Reservation {
     pub fn token(&self) -> Token {
         self.token
     }
+    /// Product call site: infallible. A stale reservation still yields a
+    /// lease whose records are counted as loss.
     pub fn bind(self) -> Lease {
         let this = ManuallyDrop::new(self);
-        Lease {
-            arena: this.arena,
-            token: this.token,
+        let (arena, token) = (this.arena, this.token);
+        let mut guard = lock(&arena.storage);
+        let s = &mut *guard;
+        let epoch = s.epoch;
+        match s.slots.get_mut(usize::from(token.slot)) {
+            Some(slot)
+                if slot.state == SlotState::Reserved
+                    && slot.meta.token == token
+                    && token.epoch == epoch =>
+            {
+                slot.state = SlotState::Active;
+                s.counts.reserved = s.counts.reserved.saturating_sub(1);
+                s.counts.active += 1;
+            }
+            _ => bump(&mut s.counts.loss),
         }
+        Lease { arena, token }
     }
 }
 impl Lease {
     pub fn token(&self) -> Token {
         self.token
     }
-    pub fn finish(self, _route: Route) {
-        let _this = ManuallyDrop::new(self);
+    /// Product call site: infallible.
+    pub fn finish(self, route: Route) {
+        let this = ManuallyDrop::new(self);
+        lock(&this.arena.storage).terminate(this.token, SlotState::Active, Some(route));
     }
 }
 impl Drain<'_> {
@@ -327,16 +625,30 @@ impl Drain<'_> {
     }
 }
 impl Drop for Epoch<'_> {
-    fn drop(&mut self) {}
+    fn drop(&mut self) {
+        let mut s = lock(&self.arena.storage);
+        if s.epoch == self.epoch && s.state == State::Open {
+            s.state = State::Closing;
+            s.armed_phase = None;
+            self.arena.armed.store(false, Ordering::Relaxed);
+            s.settle();
+        }
+    }
 }
 impl Drop for Reservation {
-    fn drop(&mut self) {}
+    fn drop(&mut self) {
+        lock(&self.arena.storage).terminate(self.token, SlotState::Reserved, None);
+    }
 }
 impl Drop for Lease {
-    fn drop(&mut self) {}
+    fn drop(&mut self) {
+        lock(&self.arena.storage).terminate(self.token, SlotState::Active, None);
+    }
 }
 impl Drop for Drain<'_> {
-    fn drop(&mut self) {}
+    fn drop(&mut self) {
+        lock(&self.arena.storage).counts.scratch = false;
+    }
 }
 
 const _: () = assert!(size_of::<Arena>() <= ARENA_BYTES);
