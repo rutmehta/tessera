@@ -46,17 +46,25 @@ fn validate_decisions(before: &DecisionCounts, after: &DecisionCounts, cycle: us
         }
     }
 }
+struct FrameOutput<'a> {
+    ring: &'a [Surface],
+    float: bool,
+    directory: &'a Path,
+}
 fn edit_frame(
     label: &str,
     session: &DevelopSession,
     receive: &mpsc::Receiver<(Instant, std::result::Result<FrameInfo, String>)>,
-    ring: &[Surface],
+    destination: FrameOutput<'_>,
     settings: &engine_api::recipe::DevelopSettings,
-    float: bool,
     expect_metal: bool,
-    output: &Path,
     edits: &mut Vec<serde_json::Value>,
 ) {
+    let FrameOutput {
+        ring,
+        float,
+        directory: output,
+    } = destination;
     let patch = serde_json::to_string(settings).unwrap();
     RESIDENT.lock().unwrap().clear();
     let before = stats();
@@ -332,18 +340,30 @@ fn engine_proxy_cache_frame_qualification() {
             let mut edited = recipe.settings.clone();
             edited.tone.exposure += 0.25;
             edit_frame(
-                "exposure", &session, &receive, &ring, &edited, float, metal, &output, &mut edits,
+                "exposure",
+                &session,
+                &receive,
+                FrameOutput {
+                    ring: &ring,
+                    float,
+                    directory: &output,
+                },
+                &edited,
+                metal,
+                &mut edits,
             );
             edited.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::Daylight;
             edit_frame(
                 "white_balance",
                 &session,
                 &receive,
-                &ring,
+                FrameOutput {
+                    ring: &ring,
+                    float,
+                    directory: &output,
+                },
                 &edited,
-                float,
                 metal,
-                &output,
                 &mut edits,
             );
             if phase == "functional" {
@@ -355,11 +375,13 @@ fn engine_proxy_cache_frame_qualification() {
                     "mapped_geometry",
                     &session,
                     &receive,
-                    &ring,
+                    FrameOutput {
+                        ring: &ring,
+                        float,
+                        directory: &output,
+                    },
                     &mapped,
-                    float,
                     false,
-                    &output,
                     &mut edits,
                 );
             }
@@ -369,11 +391,13 @@ fn engine_proxy_cache_frame_qualification() {
                 "restored",
                 &session,
                 &receive,
-                &ring,
+                FrameOutput {
+                    ring: &ring,
+                    float,
+                    directory: &output,
+                },
                 &recipe.settings,
-                float,
                 metal,
-                &output,
                 &mut edits,
             );
             assert_eq!(
