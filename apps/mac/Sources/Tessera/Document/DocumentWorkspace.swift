@@ -656,8 +656,9 @@ final class DocumentWorkspace {
             // Backends without a background exporter (the stub): their synchronous export, off the main thread.
             let flag = CancelBox()
             run = { _ in
-                try backend.exportFlat(path: path, format: format, quality: quality, color: color)
+                // The only checkpoint is before the write; once it has started the file is exported.
                 if flag.isSet { throw CancellationError() }
+                try backend.exportFlat(path: path, format: format, quality: quality, color: color)
             }
             cancel = { flag.set() }
         }
@@ -674,7 +675,9 @@ final class DocumentWorkspace {
             guard let task else { return }
             let outcome: FlatExportTask.Outcome
             switch result {
-            case .success: outcome = task.cancelling ? .cancelled : .exported
+            // A Cancel that arrived after the last checkpoint could not stop the write: the file is in place,
+            // so report it as exported rather than cancelled.
+            case .success: outcome = .exported
             case .failure(let e): outcome = task.cancelling ? .cancelled : .failed(e.localizedDescription)
             }
             self?.finishExportFlat(task, outcome, summary: summary)
@@ -697,7 +700,8 @@ final class DocumentWorkspace {
         return task
     }
 
-    /// Cancels `task` (the Cancel button); the destination is left as it was.
+    /// Cancels `task` (the Cancel button); the destination is left as it was, unless the export had already
+    /// passed its last checkpoint, in which case it completes and is reported as exported.
     func cancelExportFlat(_ task: FlatExportTask) {
         task.cancelNow()
         say("Cancelling export of \(task.fileName)…")

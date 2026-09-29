@@ -634,7 +634,8 @@ public final class DocumentFlatExport: @unchecked Sendable {
 
     /// Renders, encodes and writes the file (atomically). Blocks: call it off the main thread, once.
     /// `progress` runs on the exporting thread with a monotonic fraction 0…1 and the phase name.
-    /// After `cancel()` it throws and the destination is left as it was.
+    /// A `cancel()` seen at a checkpoint makes it throw and leaves the destination as it was; one that arrives
+    /// after the last checkpoint cannot stop the write, and `run` returns normally with the file in place.
     public func run(progress: @escaping @Sendable (Double, String) -> Void) throws {
         try bridged { try job.run(listener: ProgressRelay(progress)) }
     }
