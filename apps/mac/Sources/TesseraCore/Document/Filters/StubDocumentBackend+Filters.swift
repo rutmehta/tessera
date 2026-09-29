@@ -10,11 +10,14 @@ extension StubDocumentBackend: DocumentFiltersBackend {
     public func listFilters() -> [FilterCatalogEntry] { FilterCatalogEntry.engineCatalogue }
     public func previewFilter(layer: DocLayerID, filterJson: String, region: CanvasRect?) throws {}
     public func previewSmartFilter(layer: DocLayerID, index: UInt32, filterJson: String, region: CanvasRect?) throws {}
+    public func filterPreviewLevel(layer: DocLayerID, smartIndex: UInt32?, filterJson: String) throws -> UInt8 {
+        viewportLevel
+    }
     public func previewAdjustment(layer: DocLayerID, adjustmentJson: String) throws {}
     public func clearPreview() throws {}
     public func filterError() -> String? { nil }
     public func cancelFilter() {}
-    public func filterDetail(layer: DocLayerID, filterJson: String, x: Int64, y: Int64, width: UInt32,
+    public func filterDetail(layer: DocLayerID, smartIndex: UInt32?, filterJson: String, x: Int64, y: Int64, width: UInt32,
                              height: UInt32) throws -> FilterDetailSurface { throw Self.needsEngine }
     public func applyFilter(layer: DocLayerID, filterJson: String) throws -> DocumentChange { throw Self.needsEngine }
     public func applyAdjustment(layer: DocLayerID, adjustmentJson: String) throws -> DocumentChange { throw Self.needsEngine }

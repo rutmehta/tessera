@@ -137,18 +137,22 @@ final class DocumentChannelsTests: XCTestCase {
         let alpha = rows[4], rgb = rows[0], red = rows[1]
         // A plain click on an alpha row highlights it and paints into it.
         XCTAssertEqual(ChannelsPanelModel.click(alpha, command: false),
-                       ChannelRowClick(highlight: 7, retarget: true, load: false))
+                       ChannelRowClick(highlight: 7, retarget: true, load: nil))
         // RGB or a colour row: painting returns to the layer and the highlight is cleared.
         for row in [rgb, red] {
             let c = try XCTUnwrap(ChannelsPanelModel.click(row, command: false))
-            XCTAssertEqual(c, ChannelRowClick(highlight: nil, retarget: true, load: false), row.title)
+            XCTAssertEqual(c, ChannelRowClick(highlight: nil, retarget: true, load: nil), row.title)
             XCTAssertEqual(c.highlight, c.paintTarget, "the highlight matches the paint target")
         }
         XCTAssertEqual(ChannelsPanelModel.click(alpha, command: false)?.paintTarget, 7)
-        // ⌘-click loads the channel as the selection without redirecting paint; ⌘ on RGB does nothing.
-        XCTAssertEqual(ChannelsPanelModel.click(alpha, command: true),
-                       ChannelRowClick(highlight: 7, retarget: false, load: true))
+        // ⌘-click (Photoshop: ⌘-click a channel thumbnail) loads the channel as the selection and leaves
+        // the highlight and the paint target alone, so the highlight still shows where paint goes (B5-23).
+        let load = try XCTUnwrap(ChannelsPanelModel.click(alpha, command: true))
+        XCTAssertEqual(load, ChannelRowClick(highlight: nil, retarget: false, load: 7))
+        XCTAssertFalse(load.retarget, "⌘-click neither re-highlights nor redirects paint")
+        XCTAssertNil(load.paintTarget)
         XCTAssertNil(ChannelsPanelModel.click(rgb, command: true))
+        XCTAssertNil(ChannelsPanelModel.click(red, command: true))
     }
 
     func testStubChannelsSaveLoadAndEdit() throws {

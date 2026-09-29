@@ -310,13 +310,15 @@ final class FilterSheetModel: Identifiable {
         let gen = detailGeneration
         let (w, h) = (UInt32(detailPixels.width), UInt32(detailPixels.height))
         let x = Int64(detailCenter.x) - Int64(w / 2), y = Int64(detailCenter.y) - Int64(h / 2)
-        let json = settings.json, layer = layer.id
+        let json = settings.json, layer = layer.id, index = smartIndex
         detailTask = Task { @MainActor [weak self] in
             if debounce { try? await Task.sleep(for: .milliseconds(40)) }
             guard !Task.isCancelled else { return }
             let result = await Task.detached(priority: .userInitiated) { () -> Result<(CGImage?, UInt8), Error> in
                 Result {
-                    let d = try backend.filterDetail(layer: layer, filterJson: json, x: x, y: y, width: w, height: h)
+                    // B5-18b: re-editing replaces the saved filter in the pane (no double apply).
+                    let d = try backend.filterDetail(layer: layer, smartIndex: index, filterJson: json, x: x, y: y,
+                                                     width: w, height: h)
                     return (IOSurfaceLookup(d.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(d.width), height: Int(d.height)) }, d.level)
                 }
             }.value

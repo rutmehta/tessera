@@ -767,6 +767,12 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Level of the last `setViewport` (0 without one): the stub's filter preview level.
+    var viewportLevel: UInt8 {
+        lock.lock(); defer { lock.unlock() }
+        return viewport?.level ?? 0
+    }
+
     public func setViewport(level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double) throws {
         lock.lock()
         viewport = (level, x, y, width, height, zoom)

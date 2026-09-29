@@ -123,7 +123,7 @@ final class DocumentFiltersTests: XCTestCase {
         XCTAssertEqual(try doc.historyItems().last?.label, "Gaussian Blur")
         _ = try filters.applyAdjustment(layer: layer, adjustmentJson: #"{"kind":"invert"}"#)
         XCTAssertEqual(try doc.historyItems().last?.label, "Invert")
-        let d = try filters.filterDetail(layer: layer, filterJson: gaussian, x: 0, y: 0, width: 32, height: 16)
+        let d = try filters.filterDetail(layer: layer, smartIndex: nil, filterJson: gaussian, x: 0, y: 0, width: 32, height: 16)
         XCTAssertEqual([d.width, d.height], [32, 16])
         XCTAssertNotEqual(d.surfaceId, 0)
 

@@ -16,7 +16,13 @@ No document-format change (FORMAT_VERSION 1), no recipe field added, no new depe
     tolerance"; 3999 × 2999 coarse-vs-dense equivalence; smart-object branch of the > 100 MP refusal restored.
   - `d9d333d8` traced-curve segment count from the sagitta bound (below).
   - `029fd2d2` ignored counting-allocator measurement at 100 MP (`tests/document_adaptive_memory.rs`).
-  - merge of `origin/main` (B5-18b and later).
+  - merge of `origin/main` `00f8152f` (B5-18b and later). `SmartFilterRow.init` takes main's side (the engine
+    names `camera_raw` "Camera Raw Filter") plus `AdaptiveWideAngleFilter.displayName(r.name)`; test
+    `testSmartFilterRowsNameCameraRawAndAdaptiveWideAngle`.
+- Gates after the merge: `cargo test -p tessera-ffi -p filters -p transform --no-fail-fast` 739 passed, 0 failed,
+  36 ignored; clippy `--all-targets -D warnings` clean on the three crates; `cargo fmt --check` clean;
+  `build-ffi.sh` OK (bindings unchanged by the merge); `swift-gate.sh` **SWIFT GATE OK** (854 XCTest, 3 skipped,
+  0 failures, +5 swift-testing).
 
 ## Approach (`crates/filters/src/adaptive_lattice.rs`, one module)
 The 16,777,216-vertex cap stays, as a cap on the **solve lattice**. Layers whose `(w+1)(h+1)` fits keep the dense

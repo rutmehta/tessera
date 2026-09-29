@@ -302,8 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let model = AppModel.shared
-        guard !model.developRecovery.hasUnresolvedSessions,
-              !model.developRecovery.hasActiveReservations else {
+        guard model.developRecovery.allowsTermination else {
             model.statusMessage = "Finish the current photo save or operation before quitting"
             model.mainWindow?.makeKeyAndOrderFront(nil)
             return .terminateCancel
@@ -312,7 +311,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        let recovery = AppModel.shared.developRecovery
-        return !recovery.hasUnresolvedSessions && !recovery.hasActiveReservations
+        AppModel.shared.developRecovery.allowsTermination
     }
 }

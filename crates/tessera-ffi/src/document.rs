@@ -2040,12 +2040,17 @@ impl DocumentSession {
         if view.surfaces.len() >= 3 {
             view.surfaces.remove(0);
         }
-        if view.surfaces.len() < before {
+        let replaced = view.surfaces.len() < before;
+        if replaced {
             view.generation += 1; // B5-14: frames for the replaced ring are dropped
         }
         let first = view.surfaces.is_empty();
         view.surfaces.push(surface);
-        if first {
+        if replaced {
+            // B5-22: a real invalidation; the frame in flight cannot publish.
+            self.shared.render.invalidate_frame();
+        }
+        if first || replaced {
             let epoch = st.epoch;
             self.shared.render.request(Vec::new(), false, epoch);
         }
@@ -2119,6 +2124,7 @@ impl DocumentSession {
             st.view.surfaces.clear();
             st.view.next = 0;
             st.view.generation += 1; // B5-14
+            self.shared.render.invalidate_frame(); // B5-22
         }
     }
 

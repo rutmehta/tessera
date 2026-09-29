@@ -147,6 +147,19 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(r["output_focal_px"] as? Double), 24.0 / 36 * 400, accuracy: 1e-9)
     }
 
+    /// Smart filter rows after the B5-18b merge: the engine names Camera Raw itself ("Camera Raw Filter"),
+    /// Adaptive Wide Angle rows carry the id and show the title, other names pass through.
+    func testSmartFilterRowsNameCameraRawAndAdaptiveWideAngle() {
+        func row(_ id: String, _ name: String) -> SmartFilterRow {
+            SmartFilterRow(SmartFilterRecord(index: 0, filterId: id, name: name, enabled: true, filterJson: "{}",
+                                             opacity: 1, blendMode: "normal", hasMask: false))
+        }
+        XCTAssertEqual(row("camera_raw", "Camera Raw Filter").name, "Camera Raw Filter")
+        XCTAssertEqual(row("adaptive_wide_angle", "adaptive_wide_angle").name, "Adaptive Wide Angle")
+        XCTAssertEqual(row("gaussian_blur", "Gaussian Blur").name, "Gaussian Blur")
+        XCTAssertEqual(row("adaptive_wide_angle", "adaptive_wide_angle").filterId, "adaptive_wide_angle")
+    }
+
     func testNamesAndRefusals() {
         XCTAssertEqual(AdaptiveWideAngleFilter.displayName("adaptive_wide_angle"), "Adaptive Wide Angle")
         XCTAssertEqual(AdaptiveWideAngleFilter.displayName("Gaussian Blur"), "Gaussian Blur")
