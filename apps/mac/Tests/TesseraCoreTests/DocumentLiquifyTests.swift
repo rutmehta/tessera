@@ -224,6 +224,83 @@ final class DocumentLiquifyTests: XCTestCase {
         XCTAssertThrowsError(try l.beginLiquify(layer: layer, stageIndex: nil))
     }
 
+    /// The engine's Liquify, except that Apply waits on a gate before it reaches the engine and Cancel is only
+    /// recorded: the cancel lands after the engine's last check, so the engine commits the late apply.
+    private final class LateCommitLiquify: DocumentLiquifyBackend, @unchecked Sendable {
+        let real: any DocumentLiquifyBackend
+        private let gate = DispatchSemaphore(value: 0)
+        private let lock = NSLock()
+        private var _entered = false
+        private var _cancels = 0
+        var entered: Bool { lock.withLock { _entered } }
+        var cancels: Int { lock.withLock { _cancels } }
+        init(_ real: any DocumentLiquifyBackend) { self.real = real }
+        func release() { gate.signal() }
+
+        func beginLiquify(layer: DocLayerID, stageIndex: UInt32?) throws -> LiquifyWorkspaceInfo {
+            try real.beginLiquify(layer: layer, stageIndex: stageIndex)
+        }
+        func liquifyBrush(token: UInt64, tool: LiquifyToolKind, brush: LiquifyBrushSettings,
+                          points: [LiquifyInputPoint]) throws -> LiquifyStrokeInfo {
+            try real.liquifyBrush(token: token, tool: tool, brush: brush, points: points)
+        }
+        func liquifyEndStroke(token: UInt64) throws { try real.liquifyEndStroke(token: token) }
+        func liquifyMesh(token: UInt64) throws -> LiquifyMeshData { try real.liquifyMesh(token: token) }
+        func liquifyReconstructAll(token: UInt64, amount: Double) throws { try real.liquifyReconstructAll(token: token, amount: amount) }
+        func liquifyReset(token: UInt64, keepFreeze: Bool) throws { try real.liquifyReset(token: token, keepFreeze: keepFreeze) }
+        func liquifyFreezeAll(token: UInt64, frozen: Bool) throws { try real.liquifyFreezeAll(token: token, frozen: frozen) }
+        func previewLiquify(token: UInt64, original: Bool) throws -> LiquifyPreviewFrame {
+            try real.previewLiquify(token: token, original: original)
+        }
+        func commitLiquify(token: UInt64, output: LiquifyOutput) throws -> DocumentChange {
+            lock.withLock { _entered = true }
+            gate.wait()
+            return try real.commitLiquify(token: token, output: output)
+        }
+        func cancelLiquify(token: UInt64) { lock.withLock { _cancels += 1 } }
+    }
+
+    @MainActor private func waitFor(_ what: String, timeout: TimeInterval = 10, _ condition: () -> Bool) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() {
+            if Date() > deadline { XCTFail("timed out waiting for \(what)"); return }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    /// B5-09 parity: an Apply cancelled from the workspace whose engine job committed anyway (the cancel arrived
+    /// after the engine's last check) is undone when it returns, so engine history and the panels agree.
+    @MainActor func testACancelledApplyTheEngineCommittedIsUndone() async throws {
+        let dir = try temp()
+        let engine = try Engine.open(appSupportDir: dir.appendingPathComponent("support").path)
+        let backend = EngineDocumentBackend(session: try engine.newDocument(width: 64, height: 48, depth: .u8, profile: nil))
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        let real = try XCTUnwrap(backend as (any DocumentBackend) as? any DocumentLiquifyBackend)
+        let late = LateCommitLiquify(real)
+        let layer = try XCTUnwrap(doc.layers.first).id
+        let info = try real.beginLiquify(layer: layer, stageIndex: nil)
+        _ = try real.liquifyBrush(token: info.token, tool: .bloat, brush: LiquifyBrushSettings(size: 30),
+                                  points: Array(repeating: LiquifyInputPoint(x: 32, y: 24), count: 4))
+        let head = doc.info.historyHead
+        let engineHead = try backend.historyItems().first { $0.isCurrent }?.id
+        let m = LiquifyWorkspaceModel(doc: doc, backend: late, info: info, layerName: "Layer", layerKind: .pixel,
+                                      hasSelection: false)
+        var ended: Result<DocumentChange, Error>?
+        m.onApplied = { ended = $0 }
+        m.apply()
+        await waitFor("the apply reached the engine") { late.entered }
+        m.cancel()
+        await waitFor("the cancel was sent") { late.cancels == 1 }
+        late.release()
+        await waitFor("the late apply returned") { ended != nil }
+        if case .success = ended { XCTFail("a cancelled apply never reports success") }
+        XCTAssertEqual(try backend.historyItems().first { $0.isCurrent }?.id, engineHead,
+                       "the step the engine committed after the cancel is undone")
+        XCTAssertEqual(doc.info.historyHead, head, "the panels show the same history as the engine")
+        XCTAssertNil(m.jobs.abandoned)
+    }
+
     func testTheStubNeedsTheEngine() throws {
         let doc = try StubDocumentEngine.shared.newDocument(width: 32, height: 32, depth: .u8, profile: nil)
         defer { doc.close() }
