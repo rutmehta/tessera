@@ -34,7 +34,7 @@ struct ExtendedAdjustmentEditor: View {
         case .auto(let m): auto(m)
         case .matchColor(let m): matchColor(m)
         case .replaceColor(let c, let fz, let h, let s, let l): replaceColor(c, fz, h, s, l)
-        case .colorLookup(let size, let data, _, _): colorLookup(size, data)
+        case .colorLookup(let size, let data, let file, let dither): colorLookup(size, data, file, dither)
         case .shadowsHighlights(let m): shadowsHighlights(m)
         case .hdrToning(let m): hdrToning(m)
         default: EmptyView()
@@ -251,18 +251,26 @@ struct ExtendedAdjustmentEditor: View {
     }
 
     @ViewBuilder private func auto(_ m: AutoAdjustmentModel) -> some View {
-        let clip = state.autoClip[id] ?? AdjustmentEditorState.defaultAutoClip
         SegmentedPicker(selection: Binding(get: { m.mode }, set: { mode in
             var n = m
             n.mode = mode
-            set(document.analyzed(.auto(n), samples: samples(), clip: clip), true)
+            set(document.analyzed(.auto(n), samples: samples()), true)
         }), segments: AutoModeModel.allCases.map { .init(value: $0, title: $0.title.replacingOccurrences(of: "Auto ", with: "")) },
                         height: Theme.Height.small)
             .padding(.bottom, Theme.Space.xs)
             .accessibilityIdentifier("document.properties.auto.mode")
-        slider("Clip", clip * 100, 0...9.99, 0.1, "%.2f %%", 0.01, "auto.clip") { v, f in
-            state.autoClip[id] = v / 100
-            if f { set(document.analyzed(.auto(m), samples: samples(), clip: v / 100), true) }
+        // M5-32: the clips are persisted fields (`shadow_clip` / `highlight_clip`); a change re-analyses on release.
+        slider("Shadows Clip", m.shadowClip, 0...9.99, AutoAdjustmentModel.photoshopClip, "%.2f %%", 0.01, "auto.shadowClip") { v, f in
+            guard f else { return }
+            var n = m
+            n.shadowClip = v
+            set(document.analyzed(.auto(n), samples: samples()), true)
+        }
+        slider("Highlights Clip", m.highlightClip, 0...9.99, AutoAdjustmentModel.photoshopClip, "%.2f %%", 0.01, "auto.highlightClip") { v, f in
+            guard f else { return }
+            var n = m
+            n.highlightClip = v
+            set(document.analyzed(.auto(n), samples: samples()), true)
         }
         InfoRow(label: "Black", value: m.black.map { String(format: "%.0f", $0 * 255) }.joined(separator: " · "))
             .accessibilityIdentifier("document.properties.auto.black")
@@ -272,7 +280,7 @@ struct ExtendedAdjustmentEditor: View {
             .accessibilityIdentifier("document.properties.auto.gamma")
         HStack {
             button("Analyze Again", "auto.analyze", help: "Measure the image as it is now") {
-                set(document.analyzed(.auto(m), samples: samples(), clip: clip), true)
+                set(document.analyzed(.auto(m), samples: samples()), true)
             }
             Spacer()
         }
@@ -311,9 +319,12 @@ struct ExtendedAdjustmentEditor: View {
             set(.matchColor(n), f)
         }
         checkbox("Neutralize", m.neutralized, "matchColor.neutralize") { on in
-            if sources.contains(where: { $0.id == m.sourceLayer }) { rematch(m.sourceLayer, on) }
+            if let n = document.matchColorSettingNeutralize(m, to: on, target: samples()) {
+                set(.matchColor(n), true)
+            } else {
+                document.report?("Match Color: the source has no visible pixels; Neutralize is unchanged")
+            }
         }
-        .disabled(!sources.contains { $0.id == m.sourceLayer })
         .help("Remove the source's colour cast from the match")
     }
 
@@ -345,38 +356,40 @@ struct ExtendedAdjustmentEditor: View {
 
     // MARK: Color Lookup
 
-    @ViewBuilder private func colorLookup(_ size: Int, _ data: [Double]) -> some View {
-        let key = "\(document.id):\(id)"
+    /// M5-32: the file name and Dither are persisted fields (`source_filename`, `dither`).
+    @ViewBuilder private func colorLookup(_ size: Int, _ data: [Double], _ file: String?, _ dither: Bool) -> some View {
         let identity = size == 2 && data == ColorLookupFile.identity(size: 2)
-        InfoRow(label: "3D LUT", value: identity ? "None (identity)" : (state.lookupFile[key].map { ($0 as NSString).lastPathComponent }
-            ?? "Embedded \(size)³ table"))
-            .help(state.lookupFile[key] ?? "The table's samples are stored in the document")
+        InfoRow(label: "3D LUT", value: identity ? "None (identity)" : (file ?? "Embedded \(size)³ table"))
+            .help(file.map { "Loaded from \($0); the table's samples are stored in the document" }
+                  ?? "The table's samples are stored in the document")
             .accessibilityIdentifier("document.properties.colorLookup.file")
         HStack(spacing: Theme.Space.xs) {
-            button("Load 3D LUT…", "colorLookup.load", help: "Load a .cube or .3dl file; its samples are stored in the document") {
-                loadLookup(key)
+            DocumentInspectorActionButton(title: "Load 3D LUT…", identifier: "document.properties.colorLookup.load",
+                                          help: "Load a .cube or .3dl file; its samples are stored in the document") {
+                loadLookup(dither: dither)
             }
-            button("Reset", "colorLookup.reset", help: "Back to the identity") {
-                state.lookupFile[key] = nil
-                set(.colorLookup(size: 2, data: ColorLookupFile.identity(size: 2)), true)
+            DocumentInspectorActionButton(title: "Reset", identifier: "document.properties.colorLookup.reset",
+                                          help: "Back to the identity") {
+                set(.colorLookup(size: 2, data: ColorLookupFile.identity(size: 2), sourceFilename: nil, dither: dither), true)
             }
             .disabled(identity)
             Spacer()
         }
+        DocumentDitherCheckbox(isOn: Binding(get: { dither }, set: { on in
+            set(.colorLookup(size: size, data: data, sourceFilename: file, dither: on), true)
+        }))
         Hint("Unit-domain 3D .cube and uniform-grid .3dl files, up to 256 knots per axis.")
     }
 
-    private func loadLookup(_ key: String) {
+    private func loadLookup(dither: Bool) {
         let panel = NSOpenPanel()
         panel.title = "Load 3D LUT"
         panel.allowedContentTypes = ["cube", "3dl"].compactMap { UTType(filenameExtension: $0) }
         panel.allowsMultipleSelection = false
-        if let path = state.lookupFile[key] { panel.directoryURL = URL(fileURLWithPath: path).deletingLastPathComponent() }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let lut = try ColorLookupFile.load(url)
-            state.lookupFile[key] = url.path
-            set(.colorLookup(size: lut.size, data: lut.data), true)
+            set(.colorLookup(size: lut.size, data: lut.data, sourceFilename: url.lastPathComponent, dither: dither), true)
             document.report?("Color Lookup: loaded \(url.lastPathComponent) (\(lut.size)³)")
         } catch {
             document.report?("Color Lookup: \(url.lastPathComponent): \(error.localizedDescription)")

@@ -9,7 +9,22 @@ struct ToolsPalette: View {
     @Bindable var document: DocumentController
     @Bindable var tools: DocumentTools
 
+    /// B5-16 (H11): the column as is when the canvas is tall enough; otherwise it scrolls vertically
+    /// (indicators hidden) inside the canvas height, so progress strips or the tether panel never
+    /// push the swatches out of reach.
     var body: some View {
+        ViewThatFits(in: .vertical) {
+            column
+            ScrollView(.vertical) { column }
+                .scrollIndicators(.hidden)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .background(HUDBackground())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("document.tools")
+    }
+
+    private var column: some View {
         VStack(spacing: Theme.Space.xxs) {
             ForEach(DocumentTool.paletteSlots, id: \.self) { slot in
                 let shown = slot.group.contains(document.tool) ? document.tool : slot
@@ -32,9 +47,6 @@ struct ToolsPalette: View {
             ColorSwatches(tools: tools)
         }
         .padding(Theme.Space.xxs)
-        .background(HUDBackground())
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("document.tools")
     }
 }
 

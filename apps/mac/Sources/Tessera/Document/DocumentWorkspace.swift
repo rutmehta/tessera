@@ -143,6 +143,14 @@ final class DocumentWorkspace {
     var exportSettings = ExportFlatSettings()
     /// Filter menu, Image ▸ Adjustments and smart filters (WP B5-05).
     let filters = DocumentFilters()
+    /// B5-16: the inspector's sub-tab (Stack · Properties · Channels; ⌃1 / ⌃2 / ⌃3), remembered.
+    var inspectorTab: DocumentInspectorTab = DocumentWorkspace.storedInspectorTab {
+        didSet { UserDefaults.standard.set(inspectorTab.rawValue, forKey: Self.inspectorTabKey) }
+    }
+    static let inspectorTabKey = "DocumentInspector.tab"
+    private static var storedInspectorTab: DocumentInspectorTab {
+        UserDefaults.standard.string(forKey: inspectorTabKey).flatMap(DocumentInspectorTab.init(rawValue:)) ?? .stack
+    }
 
     static let documentTypes: [UTType] = [
         UTType(exportedAs: "dev.tessera.document", conformingTo: .data),

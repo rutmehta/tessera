@@ -30,8 +30,12 @@ import TesseraCore
 final class KeyRouter {
     private var monitor: Any?
     private let model: AppModel
+    private let focusTrace: InspectorFocusTrace?
 
-    init(model: AppModel) { self.model = model }
+    init(model: AppModel) {
+        self.model = model
+        focusTrace = InspectorFocusTrace.configured(arguments: CommandLine.arguments)
+    }
 
     func install() {
         guard monitor == nil else { return }
@@ -39,7 +43,11 @@ final class KeyRouter {
             // Local monitors run on the main thread.
             nonisolated(unsafe) let e = event
             let handled = MainActor.assumeIsolated {
-                e.type == .keyUp ? (self?.handleKeyUp(e) ?? false) : (self?.handle(e) ?? false)
+                InspectorFocusTrace.routeEvent(self?.focusTrace, event: e,
+                    document: self?.model.viewMode == .document,
+                    ownedWindow: self?.model.documents.current?.viewport?.window) {
+                    e.type == .keyUp ? (self?.handleKeyUp(e) ?? false) : (self?.handle(e) ?? false)
+                }
             }
             return handled ? nil : event
         }

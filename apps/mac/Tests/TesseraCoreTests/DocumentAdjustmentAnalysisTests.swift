@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import XCTest
 import TesseraFFI
 @testable import Tessera
@@ -192,6 +193,90 @@ final class DocumentAdjustmentAnalysisTests: XCTestCase {
         guard case .equalize(let maps) = try XCTUnwrap(doc.adjustment(of: try XCTUnwrap(doc.primary?.id))) else { return XCTFail("eq") }
         XCTAssertEqual(maps.map(\.count), [256, 256, 256], "measured from the composite")
         XCTAssertEqual(doc.primary?.name, "Equalize 1")
+    }
+
+    func testLegacyMatchColorNeutralizeReopenDisableUndoAndSave() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("legacy-match-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let png = dir.appendingPathComponent("warm.png")
+        let bytes: [UInt8] = (0..<16).flatMap { _ in [230, 128, 77, 255] }
+        let provider = try XCTUnwrap(CGDataProvider(data: Data(bytes) as CFData))
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let image = try XCTUnwrap(CGImage(width: 4, height: 4, bitsPerComponent: 8, bitsPerPixel: 32,
+            bytesPerRow: 16, space: colorSpace, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(png as CFURL, "public.png" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, nil)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let engine = try Engine.open(appSupportDir: dir.appendingPathComponent("support").path)
+        let documents = EngineDocumentEngine.for(engine)
+        let original = try DocumentController(backend: documents.openDocument(path: png.path))
+        let source = try XCTUnwrap(original.layers.first(where: { $0.kind == .pixel })?.id)
+        let sourcePixels = original.layerSamples(source)
+        XCTAssertFalse(sourcePixels.isEmpty)
+        var legacy = try XCTUnwrap(AdjustmentAnalysis.matchColor(sourceLayer: source, source: sourcePixels,
+            target: sourcePixels, neutralize: false))
+        legacy.sourceMean[1] = 0
+        legacy.sourceMean[2] = 0
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(AdjustmentModel.matchColor(legacy).json.utf8)) as? [String: Any])
+        object.removeValue(forKey: "neutralize")
+        let legacyJSON = String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+        original.addLayer(.adjustment(json: legacyJSON))
+        let adjustment = try XCTUnwrap(original.primary?.id)
+        let path = dir.appendingPathComponent("legacy.tessera-doc").path
+        try original.backend.saveAs(path: path)
+        original.close()
+        let reopened = try DocumentController(backend: documents.openDocument(path: path))
+        defer { reopened.close() }
+        func match(_ doc: DocumentController) throws -> MatchColorModel {
+            guard case .matchColor(let model) = try XCTUnwrap(doc.adjustment(of: adjustment)) else {
+                throw NSError(domain: "ExpectedMatchColor", code: 1)
+            }
+            return model
+        }
+        let before = try match(reopened)
+        XCTAssertTrue(before.neutralized, "legacy checkbox must reopen enabled")
+        XCTAssertFalse(before.neutralize, "loading must not rewrite frozen parameters")
+        XCTAssertEqual(before.sourceMean, legacy.sourceMean)
+        let off = try XCTUnwrap(reopened.matchColorSettingNeutralize(before, to: false,
+            target: reopened.compositeSamples(neutralizing: adjustment)))
+        XCTAssertFalse(off.neutralized)
+        XCTAssertGreaterThan(abs(off.sourceMean[1]) + abs(off.sourceMean[2]), 1, "disabling recovers warm source chroma")
+        reopened.setAdjustment(adjustment, .matchColor(off), final: true)
+        reopened.undo()
+        XCTAssertEqual(try match(reopened), before, "undo restores the frozen legacy model")
+        reopened.setAdjustment(adjustment, .matchColor(off), final: true)
+        try reopened.backend.save()
+        reopened.close()
+        let saved = try DocumentController(backend: documents.openDocument(path: path))
+        defer { saved.close() }
+        XCTAssertEqual(try match(saved), off)
+        XCTAssertFalse(try match(saved).neutralized)
+    }
+
+    func testLegacyMatchColorMissingSourceDoesNotPretendToDisable() throws {
+        let doc = try engineController()
+        var legacy = MatchColorModel()
+        legacy.sourceLayer = 9999
+        legacy.sourceMean = [45, 0, 0]
+        XCTAssertNil(doc.matchColorSettingNeutralize(legacy, to: false, target: [SIMD3(repeating: 0.5)]))
+        XCTAssertTrue(legacy.neutralized)
+    }
+
+    func testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels() throws {
+        let doc = try engineController()
+        var modern = MatchColorModel()
+        modern.sourceLayer = 9999
+        modern.sourceMean = [45, 12, 18]
+        modern.neutralize = true
+        func unexpectedRead() -> [SIMD3<Float>] { XCTFail("modern toggle must not reanalyze"); return [] }
+        let off = try XCTUnwrap(doc.matchColorSettingNeutralize(modern, to: false, target: unexpectedRead()))
+        XCTAssertFalse(off.neutralized)
+        XCTAssertEqual(off.sourceMean, modern.sourceMean)
+        XCTAssertEqual(off.targetMean, modern.targetMean)
+        let on = try XCTUnwrap(doc.matchColorSettingNeutralize(off, to: true, target: unexpectedRead()))
+        XCTAssertEqual(on, modern)
     }
 
     // MARK: Save As sheet

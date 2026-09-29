@@ -1,0 +1,3 @@
+1ab305cd0ed4e5edc6afa7153586043cb22571f104e6cffe31138029b1578ee3  apps/mac/Tests/TesseraCoreTests/InspectorFocusAXBridgeTests.swift
+26e02d26396d7ef3abb9af52fb08eec4aea986c213ad95cb08e15ca9bbf56e10  apps/mac/Sources/Tessera/App/InspectorFocusTrace.swift
+0359f7a4e7961ca22cf27fb88e2082df5c8e0b727fd1c19eb70f75643bde5047  apps/mac/Sources/Tessera/App/KeyRouter.swift
