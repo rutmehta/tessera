@@ -23,6 +23,8 @@ No document-format change (FORMAT_VERSION 1), no recipe field added, no new depe
   36 ignored; clippy `--all-targets -D warnings` clean on the three crates; `cargo fmt --check` clean;
   `build-ffi.sh` OK (bindings unchanged by the merge); `swift-gate.sh` **SWIFT GATE OK** (854 XCTest, 3 skipped,
   0 failures, +5 swift-testing).
+- Self-test after the merge (`make-app.sh release` at 259c4950, `run-background-selftest.sh adaptive-wide-angle`,
+  background, front app unchanged): **`done, 0 failure(s)`**; sample.dng workspace open 1.18 s, full apply 0.69 s.
 
 ## Approach (`crates/filters/src/adaptive_lattice.rs`, one module)
 The 16,777,216-vertex cap stays, as a cap on the **solve lattice**. Layers whose `(w+1)(h+1)` fits keep the dense
