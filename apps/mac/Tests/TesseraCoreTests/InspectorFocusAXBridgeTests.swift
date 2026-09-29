@@ -91,20 +91,44 @@ final class InspectorFocusAXBridgeTests: XCTestCase {
         let window = NSObject()
         weak var releasedRoot: NSAccessibilityElement?
         weak var releasedChild: NSAccessibilityElement?
-        var snapshot: InspectorFocusTrace.Snapshot?
-        do {
+        // All native graph/array/getter construction and capture occur inside
+        // an explicit drain boundary. A lexical do scope does not drain ObjC
+        // autoreleases. Keep the returned value and window alive after draining.
+        let snapshot = autoreleasepool {
             let root = NSAccessibilityElement(), child = element()
             releasedRoot = root; releasedChild = child
             root.setAccessibilityFocused(false)
             child.setAccessibilityWindow(window)
             child.setAccessibilityChildren([])
             root.setAccessibilityChildren([child, NSNull()])
-            snapshot = InspectorFocusTrace.snapshot(focused: nil, root: AppKitFocusNode(root),
+            return InspectorFocusTrace.snapshot(focused: nil, root: AppKitFocusNode(root),
                 window: ObjectIdentifier(window), nativeType: "Test", nativeIdentity: "test")
         }
-        XCTAssertEqual(snapshot?.status, "unknown")
-        XCTAssertEqual(snapshot?.incomplete, true)
-        XCTAssertNil(releasedRoot)
-        XCTAssertNil(releasedChild, "value-only snapshot must not retain native semantic elements")
+        withExtendedLifetime((window, snapshot)) {
+            XCTAssertEqual(snapshot.status, "unknown")
+            XCTAssertEqual(snapshot.incomplete, true)
+            XCTAssertNil(releasedRoot)
+            XCTAssertNil(releasedChild, "value-only snapshot must not retain native semantic elements after pool drain")
+        }
+    }
+
+    func testSameNativeGraphWithoutObserverReleasesAfterPoolDrain() {
+        let window = NSObject()
+        weak var releasedRoot: NSAccessibilityElement?
+        weak var releasedChild: NSAccessibilityElement?
+        autoreleasepool {
+            // Match the observed test's graph exactly, omitting only wrapping
+            // and snapshot capture. No manual clearing of native ownership.
+            let root = NSAccessibilityElement(), child = element()
+            releasedRoot = root; releasedChild = child
+            root.setAccessibilityFocused(false)
+            child.setAccessibilityWindow(window)
+            child.setAccessibilityChildren([])
+            root.setAccessibilityChildren([child, NSNull()])
+        }
+        withExtendedLifetime(window) {
+            XCTAssertNil(releasedRoot, "no-observer native graph must release after pool drain")
+            XCTAssertNil(releasedChild, "no-observer native child must release after pool drain")
+        }
     }
 }
