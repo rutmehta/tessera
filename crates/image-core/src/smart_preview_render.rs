@@ -265,7 +265,8 @@ impl Renderer {
 
 #[cfg(feature = "wb-diagnostic")]
 impl Renderer {
-    /// WB diagnostic binding (rev7 R3a, D1). B0: returns `r` unchanged.
+    /// WB diagnostic binding (rev7 R3a, D1): records Begin from the resolved
+    /// WB matrix and stores the token in `r`. The only token binding site.
     fn wb_bind<'a>(
         &self,
         r: Resolved<'a>,
@@ -273,7 +274,17 @@ impl Renderer {
         output: RenderOutput,
         level: u8,
     ) -> Resolved<'a> {
-        let _ = (diag, output, level);
+        if let Some(t) = diag {
+            let mut r = r;
+            let m = r.wb.0;
+            let bits = [
+                m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2],
+            ]
+            .map(f64::to_bits);
+            crate::wb_diagnostic::live::begin(t, bits, output, level, self.diag_operator);
+            r.diag = Some(t);
+            return r;
+        }
         r
     }
 
