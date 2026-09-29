@@ -32,7 +32,7 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
         let button = DocumentInspectorNativeActionButton(frame: .zero)
         var actions = 0
         button.configure(title: "Safe fixture", identifier: "fixture", help: "", enabled: true) { actions += 1 }
-        for code: UInt16 in [49, 36, 76] {
+        for code in [UInt16(49), 36, 76] {
             let before = actions
             button.keyDown(with: try event(code))
             XCTAssertEqual(actions, before + 1)
@@ -65,14 +65,14 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
     }
 
     func testOnlyUnmodifiedNativeActivationKeysAreOwnedLocally() {
-        for code: UInt16 in [49, 36, 76] {
+        for code in [UInt16(49), 36, 76] {
             XCTAssertTrue(DocumentInspectorNativeActionButton.isActivationKey(code, modifiers: []))
             XCTAssertTrue(DocumentInspectorNativeActionButton.isActivationKey(code, modifiers: .shift))
-            for modifier: NSEvent.ModifierFlags in [.command, .control, .option] {
+            for modifier in [NSEvent.ModifierFlags.command, .control, .option] {
                 XCTAssertFalse(DocumentInspectorNativeActionButton.isActivationKey(code, modifiers: modifier))
             }
         }
-        for code: UInt16 in [48, 53, 0, 9, 123, 124] {
+        for code in [UInt16(48), 53, 0, 9, 123, 124] {
             XCTAssertFalse(DocumentInspectorNativeActionButton.isActivationKey(code, modifiers: []),
                            "Tab/ShiftTab and other keys must remain native responder processing")
         }
