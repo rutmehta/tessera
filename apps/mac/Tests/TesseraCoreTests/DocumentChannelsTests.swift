@@ -8,27 +8,30 @@ import TesseraFFI
 /// adapter's record conversion and history.
 final class DocumentChannelsTests: XCTestCase {
     private func channel(_ id: UInt64, _ name: String, _ kind: SavedChannelKind = .alpha, index: UInt32,
-                         visible: Bool = false, color: ToolColor = ToolColor(r: 1, g: 0, b: 0)) -> SavedChannel {
-        SavedChannel(id: id, kind: kind, name: name, color: color, opacity: 0.5, visible: visible, index: index, revision: id * 10)
+                         visible: Bool = false, color: ToolColor = ToolColor(r: 1, g: 0, b: 0), opacity: Float = 0.5,
+                         selectedAreas: Bool = false) -> SavedChannel {
+        SavedChannel(id: id, kind: kind, name: name, color: color, opacity: opacity, selectedAreas: selectedAreas,
+                     visible: visible, index: index, revision: id * 10)
     }
 
     // MARK: Panel model
 
     func testPanelRowsFromRecords() {
         let ink = ToolColor(r: 0, g: 0.5, b: 1)
-        let records = [channel(7, "Spot", .spot, index: 1, visible: true, color: ink), channel(3, "Alpha 1", index: 0),
+        let styled = ChannelOverlayStyle(color: ToolColor(r: 0, g: 1, b: 0), opacity: 0.3, indicatesSelected: true)
+        let records = [channel(7, "Spot", .spot, index: 1, visible: true, color: ink),
+                       channel(3, "Alpha 1", index: 0, color: styled.color, opacity: 0.3, selectedAreas: true),
                        channel(9, "Quick Mask", index: 2, visible: true)]
         var comps = ComponentVisibility()
         comps.green = false
-        let styled = ChannelOverlayStyle(color: ToolColor(r: 0, g: 1, b: 0), opacity: 0.3, indicatesSelected: true)
-        let rows = ChannelsPanelModel.rows(records: records, components: comps, quickMask: 9, styles: [3: styled])
+        let rows = ChannelsPanelModel.rows(records: records, components: comps, quickMask: 9)
         XCTAssertEqual(rows.map(\.title), ["RGB", "Red", "Green", "Blue", "Alpha 1", "Spot", "Quick Mask"])
         XCTAssertEqual(rows.map(\.id), ["rgb", "component.0", "component.1", "component.2", "channel.3", "channel.7", "channel.9"])
         XCTAssertEqual(rows.map(\.kind), [.composite, .component(0), .component(1), .component(2), .alpha, .spot, .alpha])
         XCTAssertEqual(rows.map(\.visible), [false, true, false, true, false, true, true], "RGB is on only when every component is")
         XCTAssertEqual(rows.map(\.editable), [false, false, false, false, true, true, true])
         XCTAssertEqual(rows.map(\.isQuickMask), [false, false, false, false, false, false, true])
-        XCTAssertEqual(rows[4].color, styled.color, "alpha rows show the session overlay colour")
+        XCTAssertEqual(rows[4].color, styled.color, "alpha rows show the saved overlay colour")
         XCTAssertEqual(rows[5].color, ink, "spot rows show the ink")
         XCTAssertEqual(rows[6].color, ChannelOverlayStyle.alphaDefault.color)
         XCTAssertEqual(rows[5].revision, 70)
@@ -150,6 +153,111 @@ final class DocumentChannelsTests: XCTestCase {
         XCTAssertThrowsError(try b.loadSelectionChannel(id: a, op: .replace, invert: false), "stale id")
         XCTAssertEqual(try b.documentChannels().map(\.name), ["Copy"])
         XCTAssertEqual(try b.documentChannels().map(\.index), [0])
+    }
+
+    // MARK: Alpha display settings (B5-17b)
+
+    func testSavedChannelMapsSelectedAreasAndOverlayStyle() {
+        let r = ChannelRecord(id: 4, kind: .alpha, name: "Sky", color: PaintColor(r: 0, g: 1, b: 0.25), opacity: 0.3,
+                              selectedAreas: true, visible: true, index: 2, revision: 11)
+        let c = SavedChannel(r)
+        XCTAssertTrue(c.selectedAreas)
+        XCTAssertEqual(c.overlayStyle, ChannelOverlayStyle(color: ToolColor(r: 0, g: 1, b: 0.25), opacity: 0.3,
+                                                           indicatesSelected: true), "the overlay follows the record")
+        let legacy = SavedChannel(ChannelRecord(id: 5, kind: .alpha, name: "Old", color: PaintColor(r: 1, g: 0, b: 0),
+                                                opacity: 0.5, selectedAreas: false, visible: false, index: 0, revision: 1))
+        XCTAssertEqual(legacy.overlayStyle, .alphaDefault)
+        XCTAssertFalse(channel(6, "Ink", .spot, index: 0, selectedAreas: true).overlayStyle.indicatesSelected,
+                       "spot ink never inverts")
+    }
+
+    func testChannelOptionsFormPlansOneEdit() {
+        let alpha = channel(3, "Alpha 1", index: 0)
+        var f = ChannelOptionsForm(alpha)
+        XCTAssertEqual(f.indicates, .maskedAreas)
+        XCTAssertEqual(ChannelIndicates.allCases.map(\.title), ["Masked Areas", "Selected Areas", "Spot Color"])
+        XCTAssertNil(f.displayEdit(from: alpha), "unchanged: no call")
+        f.indicates = .selectedAreas
+        f.color = ToolColor(r: 0, g: 1, b: 0)
+        f.opacity = 0.3
+        XCTAssertEqual(f.displayEdit(from: alpha), .alpha(color: ToolColor(r: 0, g: 1, b: 0), opacity: 0.3, selectedAreas: true))
+        f.indicates = .spotColor
+        XCTAssertEqual(f.displayEdit(from: alpha), .spot(color: ToolColor(r: 0, g: 1, b: 0), solidity: 0.3))
+        let spot = channel(7, "Spot", .spot, index: 1, color: ToolColor(r: 0, g: 0.5, b: 1), opacity: 0.8)
+        var g = ChannelOptionsForm(spot)
+        XCTAssertEqual(g.indicates, .spotColor)
+        XCTAssertNil(g.displayEdit(from: spot))
+        g.indicates = .maskedAreas
+        XCTAssertEqual(g.displayEdit(from: spot), .alpha(color: ToolColor(r: 0, g: 0.5, b: 1), opacity: 0.8, selectedAreas: false),
+                       "a spot channel becomes an alpha channel")
+        var h = ChannelOptionsForm(alpha)
+        h.setColor(ToolColor(r: 0.99995, g: 0.00003, b: 0))
+        h.setOpacity(0.50001)
+        XCTAssertNil(h.displayEdit(from: alpha), "colour-well round-trip noise is not an edit")
+        h.setOpacity(0.49)
+        XCTAssertEqual(h.displayEdit(from: alpha), .alpha(color: alpha.color, opacity: 0.49, selectedAreas: false))
+        let selected = channel(8, "Sel", index: 2, selectedAreas: true)
+        XCTAssertEqual(ChannelOptionsForm(selected).indicates, .selectedAreas)
+    }
+
+    func testStubAlphaDisplayRoundTrip() throws {
+        let doc = try StubDocumentEngine.shared.newDocument(width: 400, height: 300, depth: .u8, profile: nil)
+        defer { doc.close() }
+        let b = try XCTUnwrap(doc as? DocumentChannelsBackend)
+        let a = try b.newAlphaChannel(name: "A", selected: false).channelID
+        XCTAssertEqual(try b.documentChannels().first?.overlayStyle, .alphaDefault)
+        XCTAssertThrowsError(try b.setAlphaChannelDisplay(id: a, color: ToolColor(r: 0, g: 1, b: 0), opacity: 1.5,
+                                                          selectedAreas: true))
+        _ = try b.setAlphaChannelDisplay(id: a, color: ToolColor(r: 0, g: 1, b: 0), opacity: 0.3, selectedAreas: true)
+        let r = try XCTUnwrap(try b.documentChannels().first)
+        XCTAssertEqual(r.kind, .alpha)
+        XCTAssertEqual(r.overlayStyle, ChannelOverlayStyle(color: ToolColor(r: 0, g: 1, b: 0), opacity: 0.3, indicatesSelected: true))
+        _ = try b.setSpotChannel(id: a, color: ToolColor(r: 0, g: 0, b: 1), solidity: 0.5)
+        XCTAssertFalse(try XCTUnwrap(try b.documentChannels().first).selectedAreas)
+        _ = try ChannelDisplayEdit.alpha(color: ToolColor(r: 1, g: 0, b: 0), opacity: 0.5, selectedAreas: false).apply(b, id: a)
+        XCTAssertEqual(try b.documentChannels().first?.kind, .alpha)
+        XCTAssertThrowsError(try b.setAlphaChannelDisplay(id: 999, color: ToolColor(r: 1, g: 0, b: 0), opacity: 0.5,
+                                                          selectedAreas: false))
+    }
+
+    func testEngineAlphaDisplayIsOneNodeAndSurvivesReopen() throws {
+        let dir = try temp()
+        let e = try Engine.open(appSupportDir: dir.appendingPathComponent("support").path)
+        let engine = EngineDocumentEngine.for(e)
+        for ext in ["tessera-doc", "psd"] {
+            let doc = try engine.newDocument(width: 128, height: 64, depth: .u8, profile: nil)
+            let b = try XCTUnwrap(doc as? DocumentChannelsBackend)
+            let a = try b.newAlphaChannel(name: "Sky", selected: false).channelID
+            let old = try XCTUnwrap(try b.documentChannels().first)
+            var f = ChannelOptionsForm(old)
+            f.indicates = .selectedAreas
+            f.color = ToolColor(r: 0, g: 1, b: 0)
+            f.opacity = 0.3
+            let n = try doc.historyItems().count
+            let edit = try XCTUnwrap(f.displayEdit(from: old))
+            let change = try edit.apply(b, id: a)
+            XCTAssertEqual(try doc.historyItems().count, n + 1, "one history node")
+            XCTAssertEqual(try doc.historyItems().last?.label, "Channel Options")
+            XCTAssertEqual(change.historyHead, try doc.info().historyHead)
+            let want = ChannelOverlayStyle(color: ToolColor(r: 0, g: 1, b: 0), opacity: 0.3, indicatesSelected: true)
+            XCTAssertEqual(try b.documentChannels().first?.overlayStyle, want)
+            _ = try doc.undo()
+            XCTAssertEqual(try b.documentChannels().first?.overlayStyle, .alphaDefault)
+            _ = try doc.redo()
+            XCTAssertEqual(try b.documentChannels().first?.overlayStyle, want)
+
+            let url = dir.appendingPathComponent("display.\(ext)")
+            try doc.saveAs(path: url.path)
+            doc.close()
+            let re = try engine.openDocument(path: url.path)
+            defer { re.close() }
+            let rb = try XCTUnwrap(re as? DocumentChannelsBackend)
+            let r = try XCTUnwrap(try rb.documentChannels().first)
+            XCTAssertEqual(r.name, "Sky", ext)
+            XCTAssertTrue(r.selectedAreas, ext)
+            XCTAssertEqual(r.color.g, 1, accuracy: 1e-3, ext)
+            XCTAssertEqual(r.opacity, 0.3, accuracy: 6e-3, ext)
+        }
     }
 
     // MARK: Engine adapter

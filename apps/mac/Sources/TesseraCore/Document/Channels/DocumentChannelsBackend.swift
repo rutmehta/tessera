@@ -16,19 +16,26 @@ public struct SavedChannel: Equatable, Sendable, Identifiable {
     public var id: UInt64
     public var kind: SavedChannelKind
     public var name: String
-    /// Spot: ink display colour. Alpha: PSD's default overlay colour (red).
+    /// Spot: ink display colour. Alpha: the overlay colour (red by default; saved with the document).
     public var color: ToolColor
-    /// Spot: solidity. Alpha: the default overlay opacity (0.5).
+    /// Spot: solidity. Alpha: the overlay opacity (0.5 by default; saved with the document).
     public var opacity: Float
+    /// Alpha: the colour marks selected areas instead of masked areas (saved). Spot: always false.
+    public var selectedAreas: Bool
     /// Shown by the preview overlay (session state).
     public var visible: Bool
     public var index: UInt32
     /// Changes when the channel's samples change (thumbnail cache key).
     public var revision: UInt64
-    public init(id: UInt64, kind: SavedChannelKind, name: String, color: ToolColor, opacity: Float, visible: Bool,
-                index: UInt32, revision: UInt64) {
+    public init(id: UInt64, kind: SavedChannelKind, name: String, color: ToolColor, opacity: Float,
+                selectedAreas: Bool = false, visible: Bool, index: UInt32, revision: UInt64) {
         self.id = id; self.kind = kind; self.name = name; self.color = color; self.opacity = opacity
-        self.visible = visible; self.index = index; self.revision = revision
+        self.selectedAreas = selectedAreas; self.visible = visible; self.index = index; self.revision = revision
+    }
+
+    /// How the preview overlay draws this channel (B5-17b: from the saved record, not a session map).
+    public var overlayStyle: ChannelOverlayStyle {
+        ChannelOverlayStyle(color: color, opacity: opacity, indicatesSelected: kind == .alpha && selectedAreas)
     }
 }
 
@@ -53,6 +60,9 @@ public protocol DocumentChannelsBackend: AnyObject, Sendable {
     func duplicateDocumentChannel(id: UInt64) throws -> SavedChannelChange
     /// Spot colour and solidity (preview metadata only; an alpha channel becomes a spot channel).
     func setSpotChannel(id: UInt64, color: ToolColor, solidity: Float) throws -> DocumentChange
+    /// Alpha overlay colour, opacity and masked / selected indicator (saved preview metadata; a spot channel
+    /// becomes an alpha channel). One "Channel Options" history node.
+    func setAlphaChannelDisplay(id: UInt64, color: ToolColor, opacity: Float, selectedAreas: Bool) throws -> DocumentChange
     func newSpotChannel(name: String, color: ToolColor, solidity: Float, fromSelection: Bool) throws -> SavedChannelChange
     /// A grey RGBA8 IOSurface id (white = selected / full ink).
     func channelThumbnail(id: UInt64, maxPx: UInt32) throws -> UInt32
@@ -61,7 +71,7 @@ public protocol DocumentChannelsBackend: AnyObject, Sendable {
 
 // MARK: - Panel model
 
-/// How an alpha channel's overlay is drawn (Channel Options; session preference, not saved).
+/// How a channel's overlay is drawn: derived from its `SavedChannel` record (Channel Options, saved).
 public struct ChannelOverlayStyle: Equatable, Sendable {
     public var color: ToolColor
     public var opacity: Float
@@ -116,8 +126,7 @@ public enum ChannelsPanelModel {
     public static let componentTitles = ["Red", "Green", "Blue"]
 
     /// RGB, Red, Green, Blue, then the saved channels in document order.
-    public static func rows(records: [SavedChannel], components: ComponentVisibility, quickMask: UInt64?,
-                            styles: [UInt64: ChannelOverlayStyle] = [:]) -> [ChannelRow] {
+    public static func rows(records: [SavedChannel], components: ComponentVisibility, quickMask: UInt64?) -> [ChannelRow] {
         var rows = [ChannelRow(id: "rgb", kind: .composite, title: "RGB", channelID: nil, visible: components.all,
                                color: nil, revision: 0, isQuickMask: false)]
         for (i, t) in componentTitles.enumerated() {
@@ -125,9 +134,8 @@ public enum ChannelsPanelModel {
                                    visible: components[i], color: nil, revision: 0, isQuickMask: false))
         }
         for r in records.sorted(by: { $0.index < $1.index }) {
-            let color = r.kind == .spot ? r.color : (styles[r.id] ?? .alphaDefault).color
             rows.append(ChannelRow(id: "channel.\(r.id)", kind: r.kind == .spot ? .spot : .alpha, title: r.name,
-                                   channelID: r.id, visible: r.visible, color: color, revision: r.revision,
+                                   channelID: r.id, visible: r.visible, color: r.color, revision: r.revision,
                                    isQuickMask: r.id == quickMask))
         }
         return rows
@@ -139,6 +147,71 @@ public enum ChannelsPanelModel {
         var n = 1
         while names.contains("\(base) \(n)") { n += 1 }
         return "\(base) \(n)"
+    }
+}
+
+// MARK: - Channel Options (B5-17b)
+
+/// Channel Options ▸ Color Indicates (Photoshop's three radio buttons).
+public enum ChannelIndicates: String, Sendable, CaseIterable {
+    case maskedAreas, selectedAreas, spotColor
+
+    public var title: String {
+        switch self {
+        case .maskedAreas: "Masked Areas"
+        case .selectedAreas: "Selected Areas"
+        case .spotColor: "Spot Color"
+        }
+    }
+
+    public init(_ r: SavedChannel) {
+        self = r.kind == .spot ? .spotColor : r.selectedAreas ? .selectedAreas : .maskedAreas
+    }
+}
+
+/// The one display call Channel Options issues.
+public enum ChannelDisplayEdit: Equatable, Sendable {
+    case alpha(color: ToolColor, opacity: Float, selectedAreas: Bool)
+    case spot(color: ToolColor, solidity: Float)
+
+    public func apply(_ b: any DocumentChannelsBackend, id: UInt64) throws -> DocumentChange {
+        switch self {
+        case .alpha(let c, let o, let s): try b.setAlphaChannelDisplay(id: id, color: c, opacity: o, selectedAreas: s)
+        case .spot(let c, let s): try b.setSpotChannel(id: id, color: c, solidity: s)
+        }
+    }
+}
+
+/// Channel Options sheet state, seeded from the channel's record (colour, opacity / solidity, indicator).
+public struct ChannelOptionsForm: Equatable, Sendable {
+    public var name: String
+    public var indicates: ChannelIndicates
+    public var color: ToolColor
+    /// Opacity (alpha) or solidity (spot), 0…1.
+    public var opacity: Float
+
+    public init(_ r: SavedChannel) {
+        name = r.name; indicates = ChannelIndicates(r); color = r.color; opacity = r.opacity
+    }
+
+    public var kind: SavedChannelKind { indicates == .spotColor ? .spot : .alpha }
+
+    /// Takes a colour-well value, ignoring colour-space round-trip noise (below 1/1024 per component) so
+    /// OK after a rename alone records no Channel Options node.
+    public mutating func setColor(_ c: ToolColor) {
+        if max(abs(c.r - color.r), abs(c.g - color.g), abs(c.b - color.b)) >= 1.0 / 1024 { color = c }
+    }
+
+    /// Takes a percent-field value (0…1), ignoring changes below 0.05 %.
+    public mutating func setOpacity(_ o: Float) {
+        if !o.isFinite || abs(o - opacity) >= 0.0005 { opacity = o }
+    }
+
+    /// The display edit that turns `old` into this form, or nil when nothing display-related changed.
+    public func displayEdit(from old: SavedChannel) -> ChannelDisplayEdit? {
+        guard ChannelIndicates(old) != indicates || old.color != color || old.opacity != opacity else { return nil }
+        return indicates == .spotColor ? .spot(color: color, solidity: opacity)
+            : .alpha(color: color, opacity: opacity, selectedAreas: indicates == .selectedAreas)
     }
 }
 

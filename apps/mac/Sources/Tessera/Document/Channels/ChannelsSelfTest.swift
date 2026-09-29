@@ -3,7 +3,8 @@ import TesseraCore
 
 /// Test aid (WP B5-08): with `TESSERA_CHANNELS_SELFTEST=<dir>` in the environment, once a document is
 /// open, runs ACCEPTANCE §Y through the Channels model the panel uses: save a selection as a channel,
-/// add a spot channel, open each sheet, preview the overlay, Quick Mask in and out, save as
+/// add a spot channel, open each sheet, set Sky's alpha display (B5-17b: one node, undo / redo, kept on
+/// reopen), preview the overlay, Quick Mask in and out, save as
 /// `<dir>/ChannelsSelfTest.tessera-doc` and `.psd`, close, reopen, and load the saved channel back.
 /// Each step prints `channels-selftest: step <n> <name> window <x> <y> <w> <h>` (for `screencapture -R`),
 /// checks print `check <name> ok|FAIL`, and the run ends with `done, <n> failure(s)`.
@@ -67,6 +68,17 @@ final class ChannelsSelfTest {
 
     private func names() -> [String] { channels.records.map(\.name) }
 
+    private static let skyColor = ToolColor(r: 0, g: 0.8, b: 0.2)
+    private static let skyStyle = ChannelOverlayStyle(color: skyColor, opacity: 0.3, indicatesSelected: true)
+
+    /// Equal within PSD's quantisation (16-bit colour, whole-percent opacity).
+    private static func close(_ a: ChannelOverlayStyle) -> (ChannelOverlayStyle) -> Bool {
+        { b in
+            a.indicatesSelected == b.indicatesSelected && abs(a.opacity - b.opacity) < 0.006
+                && max(abs(a.color.r - b.color.r), abs(a.color.g - b.color.g), abs(a.color.b - b.color.b)) < 0.001
+        }
+    }
+
     private func run() async {
         log("waiting for a document")
         guard await wait(60, { workspace.current != nil && workspace.current?.viewport != nil }), let doc = workspace.current else {
@@ -129,6 +141,36 @@ final class ChannelsSelfTest {
         channels.sheet = nil
         await pause(0.4)
 
+        // 3b. (B5-17b, ACCEPTANCE 485–487) Sky's Channel Options: green, 30 %, Selected Areas is one
+        //     history node that undo / redo restore; the overlay reads the saved record.
+        if let skyRecord = channels.records.first(where: { $0.name == "Sky" }) {
+            channels.sheet = .options(skyRecord.id)
+            await mark("alpha-options-sheet")
+            channels.sheet = nil
+            await pause(0.4)
+            let nodes = doc.history.count
+            var form = ChannelOptionsForm(skyRecord)
+            form.indicates = .selectedAreas
+            form.setColor(Self.skyColor)
+            form.setOpacity(0.3)
+            channels.applyOptions(skyRecord.id, form)
+            check("alpha options: one node", doc.history.count == nodes + 1 && doc.history.last?.label == "Channel Options",
+                  "\(doc.history.count - nodes) \(doc.history.last?.label ?? "-")")
+            check("alpha options: overlay from the record", channels.style(skyRecord.id) == Self.skyStyle,
+                  "\(channels.style(skyRecord.id))")
+            doc.undo()
+            channels.reload(doc, force: true)
+            check("alpha options: undo", channels.style(skyRecord.id) == .alphaDefault, "\(channels.style(skyRecord.id))")
+            doc.redo()
+            channels.reload(doc, force: true)
+            check("alpha options: redo", channels.style(skyRecord.id) == Self.skyStyle, "\(channels.style(skyRecord.id))")
+            if let row = channels.rows(doc).first(where: { $0.channelID == skyRecord.id }), !row.visible { channels.toggleVisible(row) }
+            await mark("alpha-options-overlay")
+            if let row = channels.rows(doc).first(where: { $0.channelID == skyRecord.id }), row.visible { channels.toggleVisible(row) }
+        } else {
+            check("alpha options: Sky channel", false, "\(names())")
+        }
+
         // 4. Only the alpha channel: components hidden (grey view).
         if let rgb = channels.rows(doc).first(where: { $0.kind == .composite }) { channels.toggleVisible(rgb) }
         if let spot, let row = channels.rows(doc).first(where: { $0.channelID == spot.id }) { channels.toggleVisible(row) }
@@ -160,6 +202,9 @@ final class ChannelsSelfTest {
             channels.reload(reopened, force: true)
             check("reopen \(ext) keeps channels", names().contains("Sky") && names().contains("Varnish"), "\(names())")
             check("reopen \(ext) keeps the spot ink", channels.records.first { $0.name == "Varnish" }?.kind == .spot)
+            let st = channels.records.first { $0.name == "Sky" }?.overlayStyle
+            check("reopen \(ext) keeps the alpha display (B5-17b)", st.map(Self.close(Self.skyStyle)) ?? false,
+                  "\(String(describing: st))")
             reopened.setMarquee(nil)
             if let id = channels.records.first(where: { $0.name == "Sky" })?.id { channels.load(id) }
             check("load \(ext) channel back", reopened.marquee == sky, "\(String(describing: reopened.marquee))")

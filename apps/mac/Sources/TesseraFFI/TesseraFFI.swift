@@ -4318,6 +4318,15 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp) throws  -> ChannelUpdate
     
     /**
+     * Channel Options for an alpha channel (a spot channel becomes one):
+     * overlay colour and opacity, each within 0…1, and whether the colour
+     * marks selected (`selected_areas`) or masked areas. One "Channel
+     * Options" history node; saved in `.tessera-doc` and PSD. Preview
+     * metadata only: the samples and the RGB composite are unchanged.
+     */
+    func setAlphaChannelDisplay(id: UInt64, color: PaintColor, opacity: Float, selectedAreas: Bool) throws  -> DocumentUpdate
+    
+    /**
      * Shows or hides channel `id` in the host's preview overlay (session
      * state: not saved, not a history node).
      */
@@ -5960,6 +5969,26 @@ open func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp)th
         FfiConverterString.lower(name),
         FfiConverterOptionUInt64.lower(target),
         FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Channel Options for an alpha channel (a spot channel becomes one):
+     * overlay colour and opacity, each within 0…1, and whether the colour
+     * marks selected (`selected_areas`) or masked areas. One "Channel
+     * Options" history node; saved in `.tessera-doc` and PSD. Preview
+     * metadata only: the samples and the RGB composite are unchanged.
+     */
+open func setAlphaChannelDisplay(id: UInt64, color: PaintColor, opacity: Float, selectedAreas: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_alpha_channel_display(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypePaintColor_lower(color),
+        FfiConverterFloat.lower(opacity),
+        FfiConverterBool.lower(selectedAreas),uniffiCallStatus
     )
 })
 }
@@ -13205,12 +13234,13 @@ public struct ChannelRecord: Equatable, Hashable {
      */
     public var name: String
     /**
-     * Spot: the ink's display colour. Alpha: the default overlay colour
-     * (red), which PSD also records for alpha channels.
+     * Spot: the ink's display colour. Alpha: the overlay colour (red by
+     * default; saved in `.tessera-doc` and PSD, set by
+     * `set_alpha_channel_display`).
      */
     public var color: PaintColor
     /**
-     * Spot: solidity. Alpha: the default overlay opacity (0.5).
+     * Spot: solidity. Alpha: the overlay opacity (0.5 by default).
      */
     public var opacity: Float
     public var selectedAreas: Bool
@@ -13237,11 +13267,12 @@ public struct ChannelRecord: Equatable, Hashable {
          * Display name; names may repeat (as in PSD).
          */name: String, 
         /**
-         * Spot: the ink's display colour. Alpha: the default overlay colour
-         * (red), which PSD also records for alpha channels.
+         * Spot: the ink's display colour. Alpha: the overlay colour (red by
+         * default; saved in `.tessera-doc` and PSD, set by
+         * `set_alpha_channel_display`).
          */color: PaintColor, 
         /**
-         * Spot: solidity. Alpha: the default overlay opacity (0.5).
+         * Spot: solidity. Alpha: the overlay opacity (0.5 by default).
          */opacity: Float, selectedAreas: Bool, 
         /**
          * Shown by the host's preview overlay (session state, not saved).
@@ -34595,6 +34626,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection_channel() != 16390) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_alpha_channel_display() != 35035) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_set_channel_visible() != 38870) {

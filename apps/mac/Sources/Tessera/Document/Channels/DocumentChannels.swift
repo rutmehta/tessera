@@ -5,7 +5,8 @@ import TesseraCore
 /// Persistent alpha and spot channels (WP B5-08): the Channels panel's model, its actions (each one
 /// history node through `DocumentController.run`), Quick Mask (Q), the Save / Load Selection sheets and
 /// the preview overlay. One instance serves the workspace's current document; per-document preview state
-/// (component eyes, alpha overlay styles, the Quick Mask channel) is kept by document id.
+/// (component eyes, the Quick Mask channel) is kept by document id. Alpha overlay colour / opacity /
+/// indicator live in the document's channel records (B5-17b) and are edited through history.
 @MainActor @Observable
 final class DocumentChannels {
     static let shared = DocumentChannels()
@@ -18,8 +19,6 @@ final class DocumentChannels {
     @ObservationIgnored private var recordsKey: (String, UInt64, DocHistoryID)?
     /// Component eyes per document.
     private(set) var components: [String: ComponentVisibility] = [:]
-    /// Alpha overlay colour / opacity / indicator per document and channel (session preference).
-    private(set) var styles: [String: [UInt64: ChannelOverlayStyle]] = [:]
     /// The temporary Quick Mask channel per document.
     private(set) var quickMask: [String: UInt64] = [:]
     /// Highlighted channel row (the panel's selection).
@@ -84,13 +83,14 @@ final class DocumentChannels {
 
     func rows(_ doc: DocumentController) -> [ChannelRow] {
         ChannelsPanelModel.rows(records: records, components: components[doc.id] ?? ComponentVisibility(),
-                                quickMask: quickMask[doc.id], styles: styles[doc.id] ?? [:])
+                                quickMask: quickMask[doc.id])
     }
 
     func componentVisibility(_ doc: DocumentController) -> ComponentVisibility { components[doc.id] ?? ComponentVisibility() }
 
-    func style(_ doc: DocumentController, _ id: UInt64) -> ChannelOverlayStyle {
-        styles[doc.id]?[id] ?? .alphaDefault
+    /// The overlay style saved in channel `id`'s record.
+    func style(_ id: UInt64) -> ChannelOverlayStyle {
+        records.first { $0.id == id }?.overlayStyle ?? .alphaDefault
     }
 
     func isQuickMask(_ doc: DocumentController?) -> Bool { doc.flatMap { quickMask[$0.id] } != nil }
@@ -223,20 +223,14 @@ final class DocumentChannels {
         edit(doc, "Rename Channel") { try $0.renameDocumentChannel(id: id, name: name) }
     }
 
-    /// Channel Options: name, then spot colour and solidity (history) or the alpha overlay style (session).
-    func applyOptions(_ id: UInt64, name: String, kind: SavedChannelKind, color: ToolColor, opacity: Float,
-                      indicatesSelected: Bool) {
+    /// Channel Options: the name (Rename Channel), then at most one display edit (Channel Options): spot
+    /// colour and solidity, or the alpha overlay colour / opacity / indicator. Both are history nodes saved
+    /// with the document (B5-17b); the overlay re-reads them from the records.
+    func applyOptions(_ id: UInt64, _ form: ChannelOptionsForm) {
         guard let doc = document, let old = records.first(where: { $0.id == id }) else { return }
-        rename(id, to: name)
-        switch kind {
-        case .spot:
-            if old.kind != .spot || old.color != color || old.opacity != opacity {
-                edit(doc, "Channel Options") { try $0.setSpotChannel(id: id, color: color, solidity: opacity) }
-            }
-        case .alpha:
-            styles[doc.id, default: [:]][id] = ChannelOverlayStyle(color: color, opacity: opacity,
-                                                                   indicatesSelected: indicatesSelected)
-            overlay.update(doc, channels: self)
+        rename(id, to: form.name)
+        if let e = form.displayEdit(from: old) {
+            edit(doc, "Channel Options") { try e.apply($0, id: id) }
         }
     }
 
@@ -293,7 +287,6 @@ final class DocumentChannels {
     /// A closed document forgets its preview state.
     func forget(_ id: String) {
         components[id] = nil
-        styles[id] = nil
         quickMask[id] = nil
     }
 }

@@ -7,7 +7,7 @@ import TesseraFFI
 extension SavedChannel {
     init(_ r: ChannelRecord) {
         self.init(id: r.id, kind: r.kind == .spot ? .spot : .alpha, name: r.name, color: ToolColor(r.color),
-                  opacity: r.opacity, visible: r.visible, index: r.index, revision: r.revision)
+                  opacity: r.opacity, selectedAreas: r.selectedAreas, visible: r.visible, index: r.index, revision: r.revision)
     }
 }
 
@@ -52,6 +52,13 @@ extension EngineDocumentBackend: DocumentChannelsBackend {
 
     public func setSpotChannel(id: UInt64, color: ToolColor, solidity: Float) throws -> DocumentChange {
         try change { try session.setSpotChannel(id: id, color: color.ffi, solidity: solidity) }
+    }
+
+    public func setAlphaChannelDisplay(id: UInt64, color: ToolColor, opacity: Float, selectedAreas: Bool) throws
+        -> DocumentChange {
+        try change {
+            try session.setAlphaChannelDisplay(id: id, color: color.ffi, opacity: opacity, selectedAreas: selectedAreas)
+        }
     }
 
     public func newSpotChannel(name: String, color: ToolColor, solidity: Float, fromSelection: Bool) throws
