@@ -206,9 +206,10 @@ fn strict_params_size_mismatch_and_conflicts_are_invalid() {
 }
 
 #[test]
-fn oversized_layer_reports_the_vertex_cap_before_any_work() {
-    // 4096 × 4096 has 4097² > 16,777,216 lattice vertices.
-    let big = Raster::new(Extent::new(4096, 4096), 4, Depth::F32, 0.0);
+fn a_layer_just_over_the_dense_lattice_renders_through_the_coarse_one() {
+    // 4096 × 4096 has 4097² > 16,777,216 lattice vertices: B5-20 refused it,
+    // B5-20b renders it (coarse solve lattice, full-resolution sampling).
+    let big = Raster::new(Extent::new(4096, 4096), 4, Depth::F32, 0.5);
     let a = Adaptive::new(
         4096,
         4096,
@@ -218,15 +219,19 @@ fn oversized_layer_reports_the_vertex_cap_before_any_work() {
             projection: Projection::Rectilinear,
         },
     );
-    let message = invalid(CompositorFilters.evaluate(
-        &big,
-        &node(serde_json::to_value(a).unwrap()),
-        &context(4096, 4096),
-    ));
-    assert!(
-        message.contains("4096 × 4096") && message.contains("16,777,216"),
-        "{message}"
-    );
+    let out = CompositorFilters
+        .evaluate(
+            &big,
+            &node(serde_json::to_value(a).unwrap()),
+            &context(4096, 4096),
+        )
+        .unwrap();
+    assert_eq!(out.extent(), big.extent());
+    // No constraints: the identity camera keeps the uniform layer.
+    for (x, y) in [(0, 0), (2048, 2048), (4095, 4095), (17, 4000)] {
+        let p = out.pixel(x, y);
+        assert!(p.iter().all(|v| (v - 0.5).abs() < 1e-5), "{x},{y}: {p:?}");
+    }
 }
 
 #[test]

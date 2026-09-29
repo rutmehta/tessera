@@ -727,11 +727,14 @@ mod tests {
     }
 
     #[test]
-    fn size_refusal_is_the_lattice_cap() {
-        assert!(size_refusal(4095, 4095).is_none());
-        assert!(size_refusal(4000, 3000).is_none());
-        let why = size_refusal(6000, 4000).unwrap();
-        assert!(why.contains("6000 × 4000") && why.contains("4095 × 4095"));
+    fn size_refusal_is_the_absolute_pixel_limit() {
+        // B5-20b: real photo sizes render through the coarse lattice.
+        for (w, h) in [(4095, 4095), (4096, 4096), (5212, 3468), (6000, 4000), (10000, 10000)] {
+            assert!(size_refusal(w, h).is_none(), "{w} × {h}");
+        }
+        let why = size_refusal(12000, 9000).unwrap();
+        assert!(why.contains("12000 × 9000") && why.contains("100 megapixels"), "{why}");
+        assert!(size_refusal(10001, 10000).is_some());
     }
 
     #[test]

@@ -4,7 +4,8 @@
 //! the engine's stage render, with exact undo; re-edit replaces in place and
 //! survives native save/reopen with params kept exactly; PSD stays
 //! native-only with a matching rasterized copy; conflicting / degenerate
-//! constraints and oversized layers error with history unchanged; unknown
+//! constraints and layers over 100 MP error with history unchanged; real-size
+//! layers (over the dense lattice) apply through the coarse lattice; unknown
 //! ids degrade as any unknown smart filter.
 #![cfg(target_os = "macos")]
 
@@ -399,12 +400,107 @@ fn conflicting_and_degenerate_constraints_error_with_history_unchanged() {
     assert_eq!(pixels(&s), before);
 }
 
+/// A fisheye recipe for a `w × h` layer from `begin`'s default, with one
+/// two-click vertical traced along the camera model's curve.
+fn real_size_recipe(recipe_json: &str, w: u32, h: u32) -> Adaptive {
+    let mut a: Adaptive = serde_json::from_str(recipe_json).unwrap();
+    let (wf, hf) = (f64::from(w), f64::from(h));
+    a.camera = CameraModel::Manual {
+        focal_px: 0.4 * wf,
+        center: [wf / 2., hf / 2.],
+        projection: Projection::Equidistant,
+    };
+    a.output_focal_px = 0.4 * wf;
+    let c = adaptive_wide_angle_curve(
+        json(&a),
+        vec![0.25 * wf, 0.2 * hf],
+        vec![0.26 * wf, 0.8 * hf],
+    )
+    .unwrap();
+    a.lines.push(LineConstraint {
+        points: c.chunks(2).map(|p| [p[0], p[1]]).collect(),
+        orientation: LineOrientation::Vertical,
+        weight: 1.,
+    });
+    a
+}
+
+/// B5-20b: a sample.dng-sized layer (5212 × 3468, over the dense lattice)
+/// opens, previews on the proxy and applies through the coarse lattice, on a
+/// pixel layer and as a smart filter (re-editable with the recipe unchanged).
 #[test]
-fn oversized_layers_are_refused_with_a_clear_error() {
+fn real_size_layers_preview_and_apply_through_the_coarse_lattice() {
+    let (w, h) = (5212u32, 3468u32);
     let (_dir, engine) = engine();
     let s = engine
         .clone()
-        .new_document(4096, 4096, DocDepth::U8, None)
+        .new_document(w, h, DocDepth::U8, None)
+        .unwrap();
+    let layer = s.layers().unwrap()[0].id;
+    // Content: a dark vertical bar on the background.
+    s.set_selection_rect(1200, 0, 400, i64::from(h), 0.0).unwrap();
+    s.fill_selection(
+        layer,
+        SelectionFill::Color {
+            color: PaintColor {
+                r: 0.1,
+                g: 0.2,
+                b: 0.3,
+            },
+        },
+        1.0,
+    )
+    .unwrap();
+    s.select_none().unwrap();
+    s.wait_idle();
+    let before = s.read_level(3).unwrap();
+
+    let n = history(&s);
+    let info = s.begin_adaptive_wide_angle(layer, None).unwrap();
+    assert_eq!((info.width, info.height), (w, h));
+    assert!(info.preview_width.max(info.preview_height) <= 768);
+    let a = real_size_recipe(&info.recipe_json, w, h);
+    let p = s
+        .preview_adaptive_wide_angle(info.token, Some(json(&a)))
+        .unwrap();
+    assert_eq!((p.width, p.height), (info.preview_width, info.preview_height));
+    assert!(!p.original);
+    assert_eq!(history(&s), n, "previews record no history");
+    s.commit_adaptive_wide_angle(info.token, json(&a)).unwrap();
+    assert_eq!(history(&s), n + 1);
+    assert_eq!(head_label(&s), "Adaptive Wide Angle");
+    s.wait_idle();
+    let after = s.read_level(3).unwrap();
+    assert_eq!((after.0, after.1), (before.0, before.1));
+    assert!(max_diff(&after.2, &before.2) > 0.1, "the bar moved");
+    s.undo().unwrap();
+    s.wait_idle();
+    assert_eq!(s.read_level(3).unwrap().2, before.2, "exact undo");
+
+    // Smart filter: apply, then re-edit returns the stored recipe verbatim.
+    s.convert_for_smart_filters(layer).unwrap();
+    let info = s.begin_adaptive_wide_angle(layer, None).unwrap();
+    let n = history(&s);
+    s.commit_adaptive_wide_angle(info.token, json(&a)).unwrap();
+    assert_eq!(history(&s), n + 1);
+    let list = s.smart_filters(layer).unwrap();
+    assert_eq!(list.len(), 1);
+    let stored: serde_json::Value = serde_json::from_str(&list[0].filter_json).unwrap();
+    assert_eq!(stored["params"], serde_json::to_value(&a).unwrap());
+    s.wait_idle();
+    assert!(max_diff(&s.read_presented_level(3).unwrap().2, &before.2) > 0.1);
+    let again = s.begin_adaptive_wide_angle(layer, Some(0)).unwrap();
+    let back: Adaptive = serde_json::from_str(&again.recipe_json).unwrap();
+    assert_eq!(back, a);
+    s.cancel_adaptive_wide_angle(again.token);
+}
+
+#[test]
+fn layers_over_the_absolute_limit_are_refused_with_a_clear_error() {
+    let (_dir, engine) = engine();
+    let s = engine
+        .clone()
+        .new_document(12000, 9000, DocDepth::U8, None)
         .unwrap();
     let layer = s.layers().unwrap()[0].id;
     let n = history(&s);
@@ -413,13 +509,9 @@ fn oversized_layers_are_refused_with_a_clear_error() {
         .unwrap_err()
         .to_string();
     assert!(
-        e.contains("4095 × 4095") && e.contains("4096 × 4096"),
+        e.contains("100 megapixels") && e.contains("12000 × 9000"),
         "{e}"
     );
-    assert_eq!(history(&s), n);
-    s.convert_for_smart_filters(layer).unwrap();
-    let n = history(&s);
-    assert!(s.begin_adaptive_wide_angle(layer, None).is_err());
     assert_eq!(history(&s), n);
 }
 
@@ -575,4 +667,34 @@ fn timing_on_a_12_megapixel_layer() {
     let t = std::time::Instant::now();
     s.commit_adaptive_wide_angle(info.token, json(&a)).unwrap();
     eprintln!("apply 4000×3000: {:.2} s", t.elapsed().as_secs_f64());
+}
+
+/// B5-20b timing on a 6000 × 4000 layer (coarse lattice). Run with
+/// `cargo test --release -p tessera-ffi --test document_adaptive_ui -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn timing_on_a_24_megapixel_layer() {
+    let (w, h) = (6000u32, 4000u32);
+    let (_dir, engine) = engine();
+    let s = engine
+        .clone()
+        .new_document(w, h, DocDepth::U8, None)
+        .unwrap();
+    let layer = s.layers().unwrap()[0].id;
+    let t = std::time::Instant::now();
+    let info = s.begin_adaptive_wide_angle(layer, None).unwrap();
+    eprintln!("begin 6000×4000: {:.2} s", t.elapsed().as_secs_f64());
+    let a = real_size_recipe(&info.recipe_json, w, h);
+    for _ in 0..2 {
+        let p = s
+            .preview_adaptive_wide_angle(info.token, Some(json(&a)))
+            .unwrap();
+        eprintln!(
+            "preview {}×{} (factor {}): {:.0} ms",
+            p.width, p.height, info.preview_factor, p.millis
+        );
+    }
+    let t = std::time::Instant::now();
+    s.commit_adaptive_wide_angle(info.token, json(&a)).unwrap();
+    eprintln!("apply 6000×4000: {:.2} s", t.elapsed().as_secs_f64());
 }
