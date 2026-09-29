@@ -695,9 +695,7 @@ fn preview_level_decides_whether_the_detail_effects_are_omitted() {
         for (level, zoom) in [(0u8, 0.75), (0, 0.51), (1, 0.5), (1, 0.3), (2, 0.25)] {
             let (lw, lh) = (w >> level, h >> level);
             s.set_viewport(level, 0, 0, lw, lh, zoom).unwrap();
-            let submitted = s
-                .filter_preview_level(id, index, local_json(0.5))
-                .unwrap();
+            let submitted = s.filter_preview_level(id, index, local_json(0.5)).unwrap();
             assert_eq!(
                 submitted, level,
                 "zoom {zoom} (smart {smart}): the preview renders level {level}"

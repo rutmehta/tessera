@@ -54,6 +54,9 @@ public protocol DocumentFiltersBackend: AnyObject, Sendable {
     func previewFilter(layer: DocLayerID, filterJson: String, region: CanvasRect?) throws
     /// Like `previewFilter`, re-editing smart filter `index`.
     func previewSmartFilter(layer: DocLayerID, index: UInt32, filterJson: String, region: CanvasRect?) throws
+    /// The pyramid level `previewFilter` (with `smartIndex`: `previewSmartFilter`) renders at with the current
+    /// viewport; above 0 a Camera Raw preview omits its detail effects (B5-18b).
+    func filterPreviewLevel(layer: DocLayerID, smartIndex: UInt32?, filterJson: String) throws -> UInt8
     /// Shows an Image ▸ Adjustments result (`Adjustment` JSON) live; no history.
     func previewAdjustment(layer: DocLayerID, adjustmentJson: String) throws
     func clearPreview() throws

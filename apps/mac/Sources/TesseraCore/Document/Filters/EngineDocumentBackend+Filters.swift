@@ -39,6 +39,10 @@ extension EngineDocumentBackend: DocumentFiltersBackend {
         try bridged { try session.previewSmartFilter(layer: layer, index: index, filterJson: filterJson, region: region?.ffi) }
     }
 
+    public func filterPreviewLevel(layer: DocLayerID, smartIndex: UInt32?, filterJson: String) throws -> UInt8 {
+        try bridged { try session.filterPreviewLevel(layer: layer, smartIndex: smartIndex, filterJson: filterJson) }
+    }
+
     public func previewAdjustment(layer: DocLayerID, adjustmentJson: String) throws {
         try bridged { try session.previewAdjustment(layer: layer, adjustmentJson: adjustmentJson) }
     }

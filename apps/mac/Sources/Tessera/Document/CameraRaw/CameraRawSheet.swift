@@ -137,8 +137,12 @@ final class CameraRawSheetModel: Identifiable {
 
     var amountPercent: Double { draft.amountPercent }
 
-    /// B5-18b: below 100 % the canvas preview leaves out Sharpening, Noise Reduction, Texture and Clarity.
-    var detailPreviewNote: String? { showBefore ? nil : draft.detailPreviewNote(zoom: doc.zoom) }
+    /// Pyramid level of the last submitted canvas preview (the engine's `filter_preview_level`).
+    private(set) var previewLevel = 0
+
+    /// B5-18b: when the submitted preview's level is above 0 (zoom at or below 50 %), the canvas preview leaves
+    /// out Sharpening, Noise Reduction, Texture and Clarity.
+    var detailPreviewNote: String? { showBefore ? nil : draft.detailPreviewNote(previewLevel: previewLevel) }
 
     func setAmount(_ percent: Double, final: Bool) {
         var d = draft
@@ -186,6 +190,11 @@ final class CameraRawSheetModel: Identifiable {
                 try backend.previewSmartFilter(layer: layer.id, index: i, filterJson: draft.filterJson, region: doc.lastFrame?.canvasRect)
             } else {
                 try backend.previewFilter(layer: layer.id, filterJson: draft.filterJson, region: doc.lastFrame?.canvasRect)
+            }
+            if !showBefore {
+                // Same viewport as the submit just above (both on the main thread): the level it renders at.
+                previewLevel = Int(try backend.filterPreviewLevel(layer: layer.id, smartIndex: smartIndex,
+                                                                  filterJson: draft.filterJson))
             }
             error = nil
         } catch {

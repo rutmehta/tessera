@@ -2823,6 +2823,18 @@ fn preview_view(st: &super::State, region: Option<DocRect>) -> (u8, Rect) {
     (level, if r.is_empty() { full } else { r })
 }
 
+/// The level and level region a preview of the edited stack `nodes` renders:
+/// the view's (`preview_view`), or the whole level-0 canvas when an adapter
+/// in the stack needs it. `submit_preview` and `filter_preview_level` both
+/// use it, so the sheet's note and the engine cannot disagree.
+fn preview_plan(st: &super::State, nodes: &[Node], region: Option<DocRect>) -> (u8, Rect) {
+    if full_resolution(nodes) {
+        (0, Rect::of_extent(st.live().state().canvas))
+    } else {
+        preview_view(st, region)
+    }
+}
+
 impl DocumentSession {
     fn filter_target(&self, layer: u64) -> Result<(Arc<DocState>, Option<Arc<Raster>>)> {
         let st = self.shared.lock()?;
@@ -2843,11 +2855,7 @@ impl DocumentSession {
             let s = st.live().state().clone();
             let l = find(&s, layer)?;
             let nodes = edited_stack(l, &edit)?;
-            let (level, r) = if full_resolution(&nodes) {
-                (0, Rect::of_extent(s.canvas))
-            } else {
-                preview_view(&st, region)
-            };
+            let (level, r) = preview_plan(&st, &nodes, region);
             (s, level, r, nodes)
         };
         // B5-18b: below 100 % a Camera Raw preview omits its detail effects.
@@ -3174,6 +3182,28 @@ impl DocumentSession {
     ) -> Result<()> {
         let spec = Spec::parse(&filter_json)?;
         self.submit_preview(layer, StackEdit::Replace(index as usize, spec), region)
+    }
+
+    /// The pyramid level a `preview_filter` (or, with `smart_index`,
+    /// `preview_smart_filter`) of `filter_json` on `layer` would render at
+    /// with the current viewport. B5-18b: above 0 a Camera Raw preview omits
+    /// its detail effects (the sheet says so).
+    pub fn filter_preview_level(
+        &self,
+        layer: u64,
+        smart_index: Option<u32>,
+        filter_json: String,
+    ) -> Result<u8> {
+        let spec = Spec::parse(&filter_json)?;
+        let edit = match smart_index {
+            Some(i) => StackEdit::Replace(i as usize, spec),
+            None => StackEdit::Append(spec),
+        };
+        let st = self.shared.lock()?;
+        st.open()?;
+        let s = st.live().state().clone();
+        let nodes = edited_stack(find(&s, layer)?, &edit)?;
+        Ok(preview_plan(&st, &nodes, None).0)
     }
 
     /// Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)

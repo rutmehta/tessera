@@ -4828,6 +4828,14 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func filterError()  -> String?
     
     /**
+     * The pyramid level a `preview_filter` (or, with `smart_index`,
+     * `preview_smart_filter`) of `filter_json` on `layer` would render at
+     * with the current viewport. B5-18b: above 0 a Camera Raw preview omits
+     * its detail effects (the sheet says so).
+     */
+    func filterPreviewLevel(layer: UInt64, smartIndex: UInt32?, filterJson: String) throws  -> UInt8
+    
+    /**
      * Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)
      * on a pixel layer, live on the GPU (the adjustment clipped to the
      * layer). No history node.
@@ -6758,6 +6766,24 @@ open func filterError() -> String?  {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_documentsession_filter_error(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The pyramid level a `preview_filter` (or, with `smart_index`,
+     * `preview_smart_filter`) of `filter_json` on `layer` would render at
+     * with the current viewport. B5-18b: above 0 a Camera Raw preview omits
+     * its detail effects (the sheet says so).
+     */
+open func filterPreviewLevel(layer: UInt64, smartIndex: UInt32?, filterJson: String)throws  -> UInt8  {
+    return try  FfiConverterUInt8.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_filter_preview_level(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterOptionUInt32.lower(smartIndex),
+        FfiConverterString.lower(filterJson),uniffiCallStatus
     )
 })
 }
@@ -37189,6 +37215,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_filter_error() != 38602) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_preview_level() != 13118) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_preview_adjustment() != 1682) {
