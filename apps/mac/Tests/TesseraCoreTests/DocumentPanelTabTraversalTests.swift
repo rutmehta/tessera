@@ -278,4 +278,166 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         XCTAssertTrue(window.firstResponder === control.decrease, "Tab from the Layers list reaches −; trail: \(trail)")
         XCTAssertFalse(model.documents.panelsHidden)
     }
+
+    // MARK: 5. Review blocker B1: a stray first responder behind document mode never swallows Tab
+
+    /// ContentView's arrangement: the Library grid stays in the window at opacity 0 (not hidden, still
+    /// attached) while document mode shows the document view; optionally the inspector beside it,
+    /// removed while the panels are hidden.
+    private struct ModeFixture: View {
+        let model: AppModel
+        var inspector = false
+
+        var body: some View {
+            HStack(spacing: 0) {
+                ZStack {
+                    ThumbnailBrowser(model: model, style: .grid)
+                        .opacity(model.viewMode == .grid ? 1 : 0)
+                        .allowsHitTesting(model.viewMode == .grid)
+                    if model.viewMode == .document {
+                        DocumentView(workspace: model.documents)
+                    }
+                }
+                if inspector, model.viewMode == .document, !model.documents.panelsHidden {
+                    DocumentInspector(workspace: model.documents)
+                        .frame(width: 288)
+                }
+            }
+        }
+    }
+
+    private func hostFixture(_ model: AppModel, inspector: Bool = false) -> (NSWindow, NSView) {
+        let size = NSSize(width: 1100, height: 848)
+        let controller = NSHostingController(rootView: ModeFixture(model: model, inspector: inspector))
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        windows.append(window)
+        window.contentViewController = controller
+        window.setContentSize(size)
+        controller.view.frame = NSRect(origin: .zero, size: size)
+        window.orderBack(nil)
+        settle(controller.view)
+        return (window, controller.view)
+    }
+
+    private func gridModel() -> AppModel {
+        let model = AppModel()
+        model.documents.engine = StubDocumentEngine()
+        model.documents.inspectorTab = .stack
+        model.documents.newDocument(model.documents.newSettings)
+        model.viewMode = .grid
+        return model
+    }
+
+    /// (1) A focused view inside an alpha-0 container (the grid behind document mode) does not hold Tab:
+    /// the router takes it as the panels key.
+    func testTabWithFocusedViewUnderAlphaZeroContainerTogglesPanels() throws {
+        let model = documentModel()
+        let router = KeyRouter(model: model)
+        let window = plainWindow()
+        let container = NSView(frame: window.contentView!.bounds)
+        let proxy = FocusProxyView(frame: NSRect(x: 10, y: 10, width: 40, height: 20))
+        container.addSubview(proxy)
+        window.contentView?.addSubview(container)
+        container.alphaValue = 0
+        XCTAssertTrue(window.makeFirstResponder(proxy))
+        XCTAssertFalse(KeyRouter.panelViewHasKeyboard(in: window), "an alpha-0 view is not a panel view")
+        XCTAssertTrue(router.handle(try key(48, "\t", window: window)), "Tab is not swallowed by an invisible view")
+        XCTAssertTrue(model.documents.panelsHidden)
+        XCTAssertTrue(router.handle(try key(48, "\t", window: window)))
+        XCTAssertFalse(model.documents.panelsHidden)
+    }
+
+    /// (1b) The real arrangement: the grid, forced back to first responder behind the document view,
+    /// still does not hold Tab.
+    func testTabWithGridFocusedBehindDocumentModeTogglesPanels() throws {
+        let model = gridModel()
+        let router = KeyRouter(model: model)
+        let (window, host) = hostFixture(model)
+        model.viewMode = .document
+        settle(host)
+        let grid = try XCTUnwrap(find(host, ThumbnailCollectionView.self).first)
+        XCTAssertTrue(window.makeFirstResponder(grid))
+        XCTAssertFalse(KeyRouter.panelViewHasKeyboard(in: window), "the grid behind document mode is not a panel view")
+        XCTAssertTrue(try tab(window, router: router), "Tab over the invisible grid toggles the panels")
+        XCTAssertTrue(model.documents.panelsHidden)
+    }
+
+    /// (2) Entering document mode with the grid as first responder (click a thumbnail, then ⌘E; or
+    /// --open-document) hands the keyboard to the viewport; so does a document change.
+    func testEnteringDocumentModeMovesKeyboardFromGridToViewport() throws {
+        let model = gridModel()
+        let router = KeyRouter(model: model)
+        let (window, host) = hostFixture(model)
+        let grid = try XCTUnwrap(find(host, ThumbnailCollectionView.self).first)
+        XCTAssertTrue(window.makeFirstResponder(grid), "fixture: the grid has the keyboard")
+        model.viewMode = .document
+        settle(host)
+        let viewport = try XCTUnwrap(find(host, DocumentViewportView.self).first)
+        XCTAssertTrue(window.firstResponder === viewport,
+                      "document mode gives the viewport the keyboard, got \(name(window.firstResponder))")
+        XCTAssertTrue(try tab(window, router: router), "Tab over the canvas hides the panels")
+        XCTAssertTrue(model.documents.panelsHidden)
+        XCTAssertTrue(try tab(window, router: router))
+        XCTAssertFalse(model.documents.panelsHidden)
+
+        // A new current document while the (invisible) grid holds the keyboard.
+        XCTAssertTrue(window.makeFirstResponder(grid))
+        model.documents.newDocument(model.documents.newSettings)
+        settle(host)
+        let now = try XCTUnwrap(find(host, DocumentViewportView.self).first)
+        XCTAssertTrue(window.firstResponder === now,
+                      "a document change gives the viewport the keyboard, got \(name(window.firstResponder))")
+    }
+
+    /// (2b) A panel control that has the keyboard keeps it across a document change.
+    func testDocumentChangeLeavesAFocusedPanelControlAlone() throws {
+        let model = gridModel()
+        model.viewMode = .document
+        let (window, host) = hostFixture(model, inspector: true)
+        let eye = try XCTUnwrap(eyeButtons(host).first)
+        XCTAssertTrue(window.makeFirstResponder(eye))
+        let viewport = try XCTUnwrap(find(host, DocumentViewportView.self).first)
+        viewport.attach(model.documents.current)
+        XCTAssertTrue(window.firstResponder === eye, "got \(name(window.firstResponder))")
+    }
+
+    /// (3) Realistic restore: a Layers eye button has the keyboard; View ▸ Hide Panels (or the F screen-mode
+    /// path) removes the inspector and AppKit drops the focus. Tab then brings the panels back and the
+    /// canvas can take the keyboard (and Tab over it hides the panels again).
+    func testHidingPanelsWithFocusedPanelControlThenTabRestoresThem() throws {
+        for path in ["menu", "F"] {
+            let model = gridModel()
+            model.viewMode = .document
+            let router = KeyRouter(model: model)
+            let (window, host) = hostFixture(model, inspector: true)
+            let eye = try XCTUnwrap(eyeButtons(host).first, path)
+            XCTAssertTrue(window.makeFirstResponder(eye), path)
+            XCTAssertTrue(KeyRouter.panelViewHasKeyboard(in: window), path)
+            if path == "menu" {
+                model.documents.togglePanels()
+            } else {
+                model.documents.cycleScreenMode()   // standard → full screen (no window here)
+                model.documents.cycleScreenMode()   // → full screen without panels
+            }
+            settle(host)
+            XCTAssertTrue(model.documents.panelsHidden, path)
+            XCTAssertTrue(eyeButtons(host).isEmpty, "\(path): the inspector left the window")
+            XCTAssertFalse(window.firstResponder === eye, "\(path): AppKit moved the focus off the removed button")
+            XCTAssertFalse(KeyRouter.panelViewHasKeyboard(in: window),
+                           "\(path): nothing that holds Tab is left focused, got \(name(window.firstResponder))")
+            XCTAssertTrue(try tab(window, router: router), "\(path): Tab brings the panels back")
+            XCTAssertFalse(model.documents.panelsHidden, path)
+            settle(host)
+            XCTAssertFalse(eyeButtons(host).isEmpty, "\(path): the inspector is back")
+            let viewport = try XCTUnwrap(find(host, DocumentViewportView.self).first, path)
+            XCTAssertTrue(window.makeFirstResponder(viewport), "\(path): the canvas can take the keyboard")
+            XCTAssertTrue(try tab(window, router: router), "\(path): Tab over the canvas hides the panels")
+            XCTAssertTrue(model.documents.panelsHidden, path)
+            XCTAssertTrue(window.firstResponder === viewport, path)
+            for w in windows { w.orderOut(nil); w.contentViewController = nil; w.close() }
+            windows = []
+        }
+    }
 }
