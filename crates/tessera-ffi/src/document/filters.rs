@@ -2846,6 +2846,19 @@ impl DocumentSession {
         op: DocOp,
         label: &str,
     ) -> Result<DocumentUpdate> {
+        self.edit_checked_until(layer, revision, op, label, &AtomicBool::new(false))
+    }
+
+    /// `edit_checked`, unless `cancel` is set by the time the node would be
+    /// applied (checked under the document lock, just before the write).
+    fn edit_checked_until(
+        &self,
+        layer: u64,
+        revision: u64,
+        op: DocOp,
+        label: &str,
+        cancel: &AtomicBool,
+    ) -> Result<DocumentUpdate> {
         self.clear_preview_state();
         let mut st = self.shared.lock()?;
         st.open()?;
@@ -2856,6 +2869,10 @@ impl DocumentSession {
             return Err(failure(
                 "the layer changed while the filter ran; apply it again",
             ));
+        }
+        super::liquify::apply_checkpoint(&self.shared, "write"); // B5-13
+        if cancel.load(Ordering::SeqCst) {
+            return Err(failure("cancelled"));
         }
         let applied = st.doc.apply(op)?;
         st.labels.insert(applied.node, label.to_owned());
@@ -2888,6 +2905,19 @@ impl DocumentSession {
         layer: u64,
         label: &str,
         expected_revision: Option<u64>,
+        f: impl FnOnce(&mut Vec<Node>) -> Result<()>,
+    ) -> Result<DocumentUpdate> {
+        self.set_nodes_checked_until(layer, label, expected_revision, &AtomicBool::new(false), f)
+    }
+
+    /// `set_nodes_checked`, with `cancel` stopping the validation render and
+    /// checked again under the document lock just before the write.
+    fn set_nodes_checked_until(
+        &self,
+        layer: u64,
+        label: &str,
+        expected_revision: Option<u64>,
+        cancel: &AtomicBool,
         f: impl FnOnce(&mut Vec<Node>) -> Result<()>,
     ) -> Result<DocumentUpdate> {
         self.clear_preview_state();
@@ -2928,7 +2958,7 @@ impl DocumentSession {
                 &nodes,
                 0,
                 Rect::of_extent(s.canvas),
-                &AtomicBool::new(false),
+                cancel,
             )?;
         }
         let mut nl = l.clone();
@@ -2938,6 +2968,10 @@ impl DocumentSession {
         let (parent, index) = s
             .locate(LayerId(layer))
             .ok_or_else(|| failure("layer not found"))?;
+        super::liquify::apply_checkpoint(&self.shared, "write"); // B5-13
+        if cancel.load(Ordering::SeqCst) {
+            return Err(failure("cancelled"));
+        }
         let applied = st.doc.apply(DocOp::Batch(vec![
             DocOp::RemoveLayer { id: LayerId(layer) },
             DocOp::AddLayer {
@@ -3519,6 +3553,212 @@ impl DocumentSession {
         Ok(u)
     }
 }
+
+// B5-13 begin: narrow adapter helpers for the Liquify workspace and
+// Content-Aware Move (document/liquify.rs, document/content_aware.rs). They
+// reuse this module's preview slot, checked writes and smart-filter lists;
+// no filter algorithm lives here.
+
+/// Tiles of `raster` over `region` replaced by `result` (both canvas-sized,
+/// level 0), blended by `clip` coverage when given (never otherwise), alpha
+/// kept when `keep_alpha`. Tiles outside `region` are not touched.
+pub(crate) fn blended_tiles(
+    raster: &Raster,
+    result: &Raster,
+    region: Rect,
+    clip: Option<&Raster>,
+    keep_alpha: bool,
+    depth: compositor::Depth,
+) -> Result<Vec<TileDelta>> {
+    if raster.extent() != result.extent() || clip.is_some_and(|c| c.extent() != raster.extent()) {
+        return Err(failure("result and layer sizes differ"));
+    }
+    let region = region.intersect(&Rect::of_extent(raster.extent()));
+    if region.is_empty() {
+        return Ok(Vec::new());
+    }
+    let ts = i64::from(TILE_SIZE);
+    let mut tiles = Vec::new();
+    let (mut a, mut b, mut k) = (Vec::new(), Vec::new(), Vec::new());
+    for ty in region.y0 / ts..=(region.y1 - 1) / ts {
+        for tx in region.x0 / ts..=(region.x1 - 1) / ts {
+            let (tx32, ty32) = (tx as u32, ty as u32);
+            let lay = raster.layout(tx32, ty32);
+            raster.read_tile(tx32, ty32, &mut a)?;
+            result.read_tile(tx32, ty32, &mut b)?;
+            if let Some(c) = clip {
+                c.read_tile(tx32, ty32, &mut k)?;
+            }
+            let n = lay.plane_len();
+            let rc = result.channels() as usize;
+            let mut any = false;
+            for y in 0..lay.extent.height as i64 {
+                let gy = ty * ts + y;
+                for x in 0..lay.extent.width as i64 {
+                    let gx = tx * ts + x;
+                    let i = y as usize * lay.stride() + x as usize;
+                    if gx >= region.x0 && gx < region.x1 && gy >= region.y0 && gy < region.y1 {
+                        let m = clip.map_or(1.0, |_| k[i].clamp(0.0, 1.0));
+                        for c in 0..4 {
+                            let src = a[c * n + i];
+                            let dst = if c < rc {
+                                b[c * n + i]
+                            } else if c == 3 {
+                                1.0
+                            } else {
+                                b[i]
+                            };
+                            if !dst.is_finite() {
+                                return Err(failure("nonfinite result"));
+                            }
+                            a[c * n + i] = if c == 3 && keep_alpha {
+                                src
+                            } else if m == 1.0 {
+                                dst
+                            } else {
+                                src + m * (dst - src)
+                            };
+                        }
+                    }
+                    any |= a[3 * n + i] != 0.0;
+                }
+            }
+            let tile = if any || raster.tile(tx32, ty32).is_some() {
+                Some(tile_from_f32(
+                    TileCoord::new(0, tx32, ty32),
+                    lay,
+                    depth,
+                    a.clone(),
+                )?)
+            } else {
+                None
+            };
+            tiles.push(TileDelta {
+                tx: tx32,
+                ty: ty32,
+                tile,
+            });
+        }
+    }
+    Ok(tiles)
+}
+
+impl DocumentSession {
+    /// Shows `raster` (canvas-sized, level 0) in place of `layer`'s content
+    /// in the viewport: the same preview slot `preview_filter` fills (a newer
+    /// preview or `clear_preview` replaces it). No history node. `cancel` is
+    /// checked under the preview-slot lock, so a cancel that clears the slot
+    /// (`clear_preview`) after setting it is never followed by this preview.
+    pub(crate) fn show_layer_preview(
+        &self,
+        layer: u64,
+        raster: Raster,
+        cancel: &AtomicBool,
+    ) -> Result<()> {
+        {
+            let mut i = self.shared.filters.q.lock();
+            if cancel.load(Ordering::SeqCst) {
+                return Err(failure("cancelled"));
+            }
+            i.generation += 1;
+            i.preview_job = None;
+            if let Some(c) = &i.running {
+                c.cancel();
+            }
+            let generation = i.generation;
+            i.preview = Some((generation, PreviewShown::Replace(layer, Arc::new(raster))));
+            i.last_error = None;
+        }
+        let epoch = self.shared.lock()?.epoch;
+        self.shared.render.request(Vec::new(), false, epoch);
+        Ok(())
+    }
+
+    /// What a smart filter at `stage` of smart object `layer` receives: the
+    /// child unplaced (its own canvas, identity transform) after smart
+    /// filters `..stage`, straight RGBA f32 — the space adapter masks and
+    /// Liquify meshes live in (as `remove_distractions`).
+    pub(crate) fn smart_stage_source(
+        base: &DocState,
+        layer: u64,
+        stage: usize,
+    ) -> Result<(Extent, Vec<f32>)> {
+        let l = find(base, layer)?;
+        let LayerKind::SmartObject(so) = &l.kind else {
+            return Err(failure(format!("layer {layer} is not a smart object")));
+        };
+        let nodes = nodes_of(so)?;
+        if stage > nodes.len() {
+            return Err(failure(format!("no smart filter {stage}")));
+        }
+        let img = native_filtered(base, l, &nodes[..stage], true, None)?;
+        Ok((
+            Extent::new(img.rect.width() as u32, img.rect.height() as u32),
+            img.px,
+        ))
+    }
+
+    /// Appends (`index` None) or re-edits smart filter `index` of adapter
+    /// filter `id` with `params` (keeping its enable state and blending), as
+    /// one checked history node. Re-editing never appends a duplicate.
+    /// `cancel` stops the validation render and is checked again under the
+    /// document lock just before the write.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn set_adapter_smart_filter(
+        &self,
+        layer: u64,
+        label: &str,
+        expected_revision: u64,
+        index: Option<usize>,
+        id: &str,
+        params: serde_json::Value,
+        cancel: &AtomicBool,
+    ) -> Result<DocumentUpdate> {
+        if !adapter_id(id) {
+            return Err(failure(format!("{id} is not an adapter filter")));
+        }
+        let spec = Spec::from_value(&serde_json::json!({"id": id, "params": params}))?;
+        self.set_nodes_checked_until(
+            layer,
+            label,
+            Some(expected_revision),
+            cancel,
+            move |nodes| {
+                match index {
+                    None => nodes.push(Node::new(spec)),
+                    Some(i) => {
+                        let n = nodes
+                            .get_mut(i)
+                            .ok_or_else(|| failure(format!("no smart filter {i}")))?;
+                        if n.spec.id != spec.id {
+                            return Err(failure(format!(
+                                "smart filter {i} is {}, not {}",
+                                n.spec.id, spec.id
+                            )));
+                        }
+                        n.spec = spec;
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
+    /// `op` as one history node, provided `layer`'s content is still
+    /// `revision` and `cancel` is not set when the node would be applied
+    /// (checked under the document lock, just before the write).
+    pub(crate) fn edit_layer_checked(
+        &self,
+        layer: u64,
+        revision: u64,
+        op: DocOp,
+        label: &str,
+        cancel: &AtomicBool,
+    ) -> Result<DocumentUpdate> {
+        self.edit_checked_until(layer, revision, op, label, cancel)
+    }
+}
+// B5-13 end
 
 fn max_id(l: &Layer) -> u64 {
     l.children()

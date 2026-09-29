@@ -98,6 +98,19 @@ pub use vector_shapes::{
     VectorMaskRecord, shape_primitive_path,
 };
 // B5-11 end
+// B5-13 begin: Liquify workspace and Content-Aware Move / Extend.
+#[path = "document/liquify.rs"]
+mod liquify;
+pub use liquify::{
+    ApplyCheckpointHook, LiquifyBrush, LiquifyDestination, LiquifyMeshRecord, LiquifyPoint,
+    LiquifyPreview, LiquifySessionInfo, LiquifyStrokeResult, LiquifyTool,
+};
+#[path = "document/content_aware.rs"]
+mod content_aware;
+pub use content_aware::{
+    ContentAwareMode, ContentAwareMoveInfo, ContentAwarePreviewResult, ContentAwareSeam,
+};
+// B5-13 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{

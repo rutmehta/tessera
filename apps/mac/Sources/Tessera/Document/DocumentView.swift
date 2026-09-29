@@ -51,6 +51,7 @@ struct DocumentView: View {
         .modifier(ChannelSheetsModifier(channels: DocumentChannels.shared))
         // B5-08 end
         .modifier(RetouchSheets(retouch: DocumentRetouch.shared))   // B5-09
+        .modifier(LiquifySheets(liquify: DocumentLiquify.shared))   // B5-13
         .onAppear { DocumentText.shared.attach(workspace) }   // B5-10: the Type tool
         // B5-12 begin: Warp / Perspective / Puppet / Content-Aware Scale (Document/Transforms).
         .onAppear { DocumentTransforms.shared.attach(workspace) }
@@ -243,7 +244,8 @@ struct DocumentStatusBar: View {
                     Text(DocumentViewportMath.percentText(doc.zoom)).fixedSize()
                         .accessibilityIdentifier("document.status.zoom")
                     separator
-                    Text(DocumentRetouch.shared.removeActive ? "Remove (⇧J)" : "\(doc.tool.title) (\(doc.tool.key))").fixedSize()   // B5-09
+                    Text(DocumentRetouch.shared.removeActive ? "Remove (⇧J)"
+                         : DocumentContentAware.shared.active ? "Content-Aware Move" : "\(doc.tool.title) (\(doc.tool.key))").fixedSize()   // B5-09, B5-13
                     if let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP B5-04
                         separator
                         Text(r).lineLimit(1).truncationMode(.tail).accessibilityIdentifier("document.status.stroke")

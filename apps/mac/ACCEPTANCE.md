@@ -2134,6 +2134,74 @@ every step below through `DocumentTransforms` and synthesized viewport events an
      at 1440 pt; B5-07 styles and B5-09 Remove still work (their self-tests).
 
 
+## B5-13. Liquify and Content-Aware Move
+
+Engine backend, a scratch image (never a fixture) opened with `--open-document`, a pixel layer selected. The self-test
+`Tessera.app --args --nonactivating --open-document <image> --liquify-selftest=<dir>` (launched with `open -g -n`,
+never activated) drives every step below through Filter ▸ Liquify…, synthesized events into the workspace canvas and the viewport, and
+the Content-Aware Move options; it prints `check <step> ok|FAIL` and, for screenshots, writes `<dir>/<name>.req` for
+a watcher that runs `screencapture -x -o -l <window>`. Brush feel on a real tablet needs on-screen verification. Evidence (JPEG copies of the shots and the log):
+`tools/orchestrate/wp/B5-13/evidence/`.
+
+400. **Open.** Filter ▸ Liquify… (⇧⌘X) opens a sheet on the selected layer: tools on the left, the canvas at the
+     layer's full canvas size (fit), Brush / Mesh and mask / Reconstruct / View / Output on the right, Cancel and
+     Apply. Disabled for adjustment layers and while a workspace is open. "Face-Aware Liquify is not available in
+     this build." is stated; no model is downloaded (📸 `400-liquify-open.png`).
+401. **Forward Warp.** W, drag left to right: the content moves along the drag (output samples upstream of the
+     brush), not against it (📸 `401-forward-warp.png`).
+402. **Other tools.** Twirl Clockwise (C), Twirl Counterclockwise (⌥C), Pucker (S), Bloat (B) and Push Left (O),
+     held in place or dragged, each deform differently; the two twirls turn opposite ways (📸 `402-tools.png`).
+403. **Reconstruct / reset.** Reconstruct at Amount 50 % halves the distortion against the original mesh; the
+     Reconstruct (R) and Smooth (E) brushes do it locally; Restore All removes all distortion and keeps the freeze
+     mask (📸 `403-restored.png`).
+404. **Freeze / thaw.** Freeze (F) paints a red mask (Show mask); warping across it leaves the frozen band
+     untouched. Zoom to 200 % and pan: the mask stays on the image (📸 `404-freeze-mask-zoomed.png`). Thaw (D) or
+     Thaw All makes it editable again.
+405. **Brush and mesh.** Size ([ ]), Density, Pressure and Rate change the stroke; Rate is disabled for tools that
+     do not act while the pointer rests. Show mesh with Small / Medium / Large grids
+     (📸 `405-mesh-small.png`, `405-mesh-large.png`).
+406. **Before / after.** Show original (P) shows the untouched layer; the document, its layer revision and History
+     do not change (📸 `406-before.png`).
+407. **Apply.** Output Current layer, Apply: the sheet closes, History gains exactly one "Liquify" node
+     (📸 `407-applied.png`); ⌘Z restores the exact pixels, ⇧⌘Z re-applies. Output New layer adds one node that
+     creates the liquified copy above the source.
+408. **Smart filter.** Convert the layer to a smart object and open Liquify: output is Smart filter; Apply adds one
+     "Liquify" smart filter row and the source is preserved. Double-click the row: the workspace reopens with the
+     stored mesh (📸 `408-re-edit.png`); edit and Apply: still one Liquify row, replaced in place
+     (📸 `408-smart-filter.png`).
+409. **Cancel while busy.** Apply a large distortion and press Esc / Cancel at once: the sheet closes immediately,
+     no result lands later and History is unchanged (📸 `409-cancelled.png`). (A cancel that reaches the engine
+     after its last check finds the step written; the app undoes it when the job returns, as B5-09 Remove does.)
+410. **Content-Aware Move.** Make a selection, click the Content-Aware Move slot after Remove in the Healing Brush
+     group (`square.on.square.dashed`): the options bar shows Move / Extend, Structure 1…7, Color, Seed and "Drag the
+     selection to where it should go". Without a selection, or on an unsupported layer, it says why instead.
+411. **Move outside the selection.** Drag the selection well outside itself: a dashed ghost and an offset chip
+     follow; after release the bar shows "Computing…" with Cancel, then the preview shows the subject at the
+     destination and the source healed, although the destination is outside the original selection
+     (📸 `411-move-preview.png`).
+412. **Extend.** Switch the mode to Extend: the original subject stays and the copy appears at the destination
+     (📸 `412-extend-preview.png`).
+413. **Feather.** With a feathered (e.g. 6 px ellipse) selection, the edge blends once; it is not clipped a second
+     time by the live selection (📸 `413-feathered.png`).
+414. **Settings / seed.** Changing Structure, Color or Seed re-computes the preview; the same seed and settings give
+     the same pixels.
+415. **Zoom / pan.** At 200 %, a drag of 10 × −6 document pixels changes the offset in the bar by exactly (10, −6);
+     the ghost sits where the result lands (📸 `415-zoomed.png`).
+416. **Cancel / apply.** Esc (or Cancel) leaves layer pixels, selection and History unchanged. Return (or Apply)
+     adds one "Content-Aware Move" / "Content-Aware Extend" node including the destination pixels
+     (📸 `416-applied.png`); ⌘Z undoes it in one step.
+417. **Refusals.** Lock the layer's pixels: the move and Liquify refuse with "locked" and nothing changes. Deselect:
+     nothing starts. A deleted or changed layer during a preview (stale revision) is refused at Apply with no partial
+     result.
+418. **Reopen.** Save the smart-filtered document as `.tessera-doc`, close and reopen: the Liquify row is there, the
+     image matches, and re-editing opens the stored mesh (📸 `418-reopened.png`, `418-reopened-re-edit.png`). Save As
+     `.psd` with an enabled Liquify smart filter fails with "smart filters and TransformOp stages are native-only;
+     rasterize explicitly for PSD" (no silent loss).
+419. **Regressions and evidence.** B5-09 Remove (PatchMatch) and Content-Aware Fill are still one node each; a neural
+     filter without weights names `filters/ddcolor`. The window at 1440 pt shows the full inspector
+     (📸 `419-inspector-1440.png`).
+
+
 ## Workspace redesign: Library / Photo Edit
 
 These are acceptance instructions, not evidence that the scenario has run.

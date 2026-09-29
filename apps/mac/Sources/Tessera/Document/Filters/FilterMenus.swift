@@ -20,6 +20,7 @@ struct FilterMenu: View {
         Divider()
         // B5-09 begin
         NeuralFiltersMenuItem(doc: doc)
+        LiquifyMenuItem(doc: doc)   // B5-13
         Divider()
         // B5-09 end
         ForEach(FilterCatalogEntry.grouped(catalogue), id: \.group) { section in
