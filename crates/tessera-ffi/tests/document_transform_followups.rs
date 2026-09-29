@@ -4,8 +4,8 @@
 //!   filter-cache lock), a multi-stage stack (warp, perspective, warp and a
 //!   menu filter) rasterizes through the parallel tile render without
 //!   hanging, also two copies at once. (The one-tile warm-up in
-//!   `document/filters.rs::native_stack` stays, as de-duplication: M5-35 lets
-//!   concurrent cold misses each evaluate the whole stack.)
+//!   `document/filters.rs::native_stack` is gone: RES-01 serializes the first
+//!   touch of a stack and retains it for the full-level pass.)
 //! * A transform preview is scratch-only: it must not announce the layer as
 //!   changed (the host would reload its rows and show the uncommitted smart
 //!   object and its filter row in Properties / Layers). Cancel and Apply do.
@@ -89,12 +89,12 @@ fn within<T: Send + 'static>(
         .unwrap_or_else(|_| panic!("{what} did not finish within {limit:?} (deadlock?)"))
 }
 
-#[test]
-fn b512b_multi_stage_stack_rasterizes_in_parallel_without_hanging() {
-    let (dir, engine) = engine();
-    // Several tiles per level so the parallel tile render has concurrent workers.
+/// A document whose layer carries a multi-stage stack (warp, perspective,
+/// warp and a menu filter). Several tiles per level so the parallel tile
+/// render has concurrent workers.
+fn stacked_document(engine: &Arc<Engine>) -> Arc<DocumentSession> {
     let (w, h) = (1100, 700);
-    let s = adopt(&engine, w, h, vec![pixel_layer("photo", w, h)]);
+    let s = adopt(engine, w, h, vec![pixel_layer("photo", w, h)]);
     commit(
         &s,
         AdvancedTransformKind::Warp,
@@ -129,13 +129,22 @@ fn b512b_multi_stage_stack_rasterizes_in_parallel_without_hanging() {
         .map(|f| f.name)
         .collect();
     assert_eq!(names, ["Warp", "Perspective Warp", "Warp", "Gaussian Blur"]);
+    s
+}
 
-    // Twice in parallel (two copies at once), then once more: every stack
-    // evaluation starts cold inside the rayon tile render (no pre-warmed cache).
+#[test]
+fn b512b_multi_stage_stack_rasterizes_in_parallel_without_hanging() {
+    let (dir, engine) = engine();
+    let s = stacked_document(&engine);
+    let other = stacked_document(&engine);
+
+    // Two documents in parallel (two copies at once; one session runs one copy
+    // at a time), then once more: every stack evaluation starts cold inside
+    // the rayon tile render (no pre-warmed cache).
     let copies: Vec<_> = (0..3)
         .map(|i| dir.path().join(format!("copy-{i}.psd")))
         .collect();
-    let (a, b) = (s.clone(), s.clone());
+    let (a, b) = (s.clone(), other);
     let (pa, pb) = (copies[0].clone(), copies[1].clone());
     let (ra, rb) = within(
         Duration::from_secs(240),
