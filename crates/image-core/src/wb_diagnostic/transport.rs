@@ -17,11 +17,14 @@ use std::{
     },
 };
 
-pub const SLOTS: usize = 8;
+pub(crate) const SLOTS: usize = 8;
 pub const ACTIVE: usize = 2;
 const ARENA_BYTES: usize = 296 * 1024;
 const METADATA_BYTES: usize = 8 * 1024;
 const FIXED_BYTES: usize = 328 * 1024;
+
+/// The process-wide diagnostic arena used by the live call sites (rev7 3.1a).
+pub static ARENA: Arena = Arena::EMPTY;
 
 /// Attribution for one render transaction. Copied by value into render state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,6 +49,14 @@ pub enum RouteState {
     Aborted,
     Unobserved,
 }
+/// Phase of a reservation (rev7 S3). Stored as `RequestContext.phase_kind`
+/// (1 calibration, 2 develop, 3 test) plus `generation`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhaseKind {
+    Calibration { iteration: u8 },
+    Develop { generation: u64 },
+    Test,
+}
 /// Copied at reservation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RequestContext {
@@ -59,10 +70,13 @@ pub struct RequestContext {
     pub expected_operator: u64,
     pub generation: u64,
 }
-/// Written only at binding (`begin`).
+/// Written only at binding (`begin`). `wb_bits` are the raw bits of the
+/// resolved WB matrix (row-major); `wb_digest` is their S1 digest, computed by
+/// the caller outside the arena lock.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BeginContext {
-    pub resolved_wb: [u8; 32],
+    pub wb_digest: [u8; 32],
+    pub wb_bits: [u64; 9],
     pub output_tag: u8,
     pub headroom_bits: u32,
     pub render_level: u8,
@@ -95,6 +109,12 @@ pub struct Counts {
     pub scratch: bool,
     pub loss: u64,
     pub disabled: u64,
+    /// Stage A review NB-1: set once capture has been disabled (poison or
+    /// ordinal exhaustion); survives `open`. Any epoch observing it is
+    /// inconclusive.
+    pub disabled_sticky: bool,
+    /// `live::begin` refused a nonfinite WB matrix for a live token.
+    pub attribution_rejected: u64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SlotState {
@@ -182,23 +202,60 @@ impl RequestContext {
         expected_operator: 0,
         generation: 0,
     };
+    /// FFI-facing constructor (rev7 S3); every parameter is a primitive, a
+    /// byte array or [`PhaseKind`].
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        recipe_fingerprint: [u8; 32],
+        settings_fingerprint: [u8; 32],
+        process_identity: u64,
+        output_tag: u8,
+        headroom_bits: u32,
+        requested_level: u8,
+        phase: PhaseKind,
+        expected_operator: u64,
+    ) -> RequestContext {
+        let (phase_kind, generation) = match phase {
+            PhaseKind::Calibration { iteration } => (1, iteration as u64),
+            PhaseKind::Develop { generation } => (2, generation),
+            PhaseKind::Test => (3, 0),
+        };
+        RequestContext {
+            recipe_fingerprint,
+            settings_fingerprint,
+            process_identity,
+            output_tag,
+            headroom_bits,
+            requested_level,
+            phase_kind,
+            expected_operator,
+            generation,
+        }
+    }
 }
 impl BeginContext {
     /// Constructor, so callers stay source-compatible when fields are added.
+    /// Arity is kept from Stage A (review NB-3); `wb_bits` default to zero and
+    /// are set with [`BeginContext::with_wb_bits`].
     pub const fn new(
-        resolved_wb: [u8; 32],
+        wb_digest: [u8; 32],
         output_tag: u8,
         headroom_bits: u32,
         render_level: u8,
         operator: u64,
     ) -> BeginContext {
         BeginContext {
-            resolved_wb,
+            wb_digest,
+            wb_bits: [0; 9],
             output_tag,
             headroom_bits,
             render_level,
             operator,
         }
+    }
+    pub const fn with_wb_bits(mut self, wb_bits: [u64; 9]) -> BeginContext {
+        self.wb_bits = wb_bits;
+        self
     }
 }
 impl SlotMeta {
@@ -345,6 +402,8 @@ impl Arena {
                 scratch: false,
                 loss: 0,
                 disabled: 0,
+                disabled_sticky: false,
+                attribution_rejected: 0,
             },
             state: State::Idle,
             epoch: 0,
@@ -375,12 +434,19 @@ impl Arena {
         s.epoch = epoch;
         s.state = State::Open;
         s.armed_phase = None;
-        s.counts = Counts::default();
+        s.counts = Counts {
+            disabled_sticky: s.disabled,
+            ..Counts::default()
+        };
         self.armed.store(false, Ordering::Relaxed);
         Ok(Epoch { arena: self, epoch })
     }
     pub fn counts(&self) -> Result<Counts, Error> {
-        Ok(lock(&self.storage).counts)
+        let s = lock(&self.storage);
+        Ok(Counts {
+            disabled_sticky: s.disabled,
+            ..s.counts
+        })
     }
     pub fn state(&self) -> Result<State, Error> {
         Ok(lock(&self.storage).state)
@@ -486,6 +552,20 @@ impl Arena {
             true
         });
     }
+    /// `live::begin` saw a nonfinite WB matrix: count it for a live token and
+    /// record nothing else, so the transaction stays without Begin.
+    pub fn reject_attribution(&self, t: Token) {
+        let mut guard = lock(&self.storage);
+        let s = &mut *guard;
+        let mut accepted = false;
+        s.with_active(t, |_| {
+            accepted = true;
+            true
+        });
+        if accepted {
+            bump(&mut s.counts.attribution_rejected);
+        }
+    }
     /// 0 = exhausted/unknown.
     pub fn next_operator(&self) -> u64 {
         let mut s = lock(&self.storage);
@@ -511,8 +591,33 @@ impl Arena {
         lock(&self.storage).next_operator = n;
         Ok(())
     }
+    /// Test accessor (B12): runs `f` while holding the storage lock.
+    #[cfg(test)]
+    pub(crate) fn hold_lock_for_test<R>(&self, f: impl FnOnce() -> R) -> R {
+        let _guard = lock(&self.storage);
+        f()
+    }
+    /// Test accessor (B5): the last record appended to a live token's slot.
+    #[cfg(test)]
+    pub(crate) fn last_record_for_test(&self, t: Token) -> Option<Record> {
+        let s = lock(&self.storage);
+        let slot = s.slots.get(usize::from(t.slot))?;
+        if slot.state != SlotState::Active || slot.meta.token != t {
+            return None;
+        }
+        let len = slot.payload.len;
+        slot.payload
+            .records
+            .get(len.checked_sub(1)?)
+            .copied()
+            .flatten()
+    }
 }
 impl<'a> Epoch<'a> {
+    /// Epoch number, for `Arena::acknowledge` outside this module (NB-2).
+    pub fn epoch(&self) -> u64 {
+        self.epoch
+    }
     fn current(&self, s: &Storage) -> Result<(), Error> {
         if s.epoch == self.epoch && s.state != State::Idle {
             Ok(())
@@ -577,7 +682,7 @@ impl<'a> Epoch<'a> {
         dst.context = match slot.meta.begin {
             Some(b) => Context {
                 recipe_fingerprint: slot.meta.request.recipe_fingerprint,
-                resolved_wb: b.resolved_wb,
+                resolved_wb: b.wb_digest,
                 output_tag: b.output_tag,
                 headroom_bits: b.headroom_bits,
                 render_level: b.render_level,
@@ -1231,5 +1336,85 @@ mod tests {
             });
         }
         A.acknowledge(e.epoch).unwrap();
+    }
+    // Stage A review NB-4: coverage for existing Stage A behaviour.
+    #[test]
+    fn acknowledge_discards_undrained_completed_slot() {
+        static A: Arena = Arena::EMPTY;
+        let e = A.open().unwrap();
+        e.arm(1).unwrap();
+        let w = lease(&A, 1);
+        emit(&A, w.token(), 1);
+        w.finish(Route::Delivered);
+        assert_eq!(A.counts().unwrap().completed, 1);
+        e.close().unwrap();
+        A.acknowledge(e.epoch()).unwrap();
+        let next = A.open().unwrap();
+        assert_eq!(A.counts().unwrap().completed, 0);
+        assert!(next.drain().is_err());
+    }
+    #[test]
+    fn reopening_disabled_arena_keeps_sticky_flag_and_refuses_reservations() {
+        static A: Arena = Arena::EMPTY;
+        let e = A.open().unwrap();
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            let _guard = A.storage.lock();
+            panic!("poison");
+        }));
+        e.close().unwrap();
+        A.acknowledge(e.epoch()).unwrap();
+        let next = A.open().unwrap();
+        let c = A.counts().unwrap();
+        assert!(c.disabled_sticky);
+        assert_eq!((c.disabled, c.loss), (0, 0));
+        next.arm(1).unwrap();
+        assert!(A.reserve_armed(ctx(1)).is_none());
+        let c = A.counts().unwrap();
+        assert_eq!((c.disabled, c.reserved), (1, 0));
+        assert!(c.disabled_sticky);
+    }
+    #[test]
+    fn repeated_begin_counts_loss_and_keeps_first_context() {
+        static A: Arena = Arena::EMPTY;
+        let e = A.open().unwrap();
+        e.arm(1).unwrap();
+        let w = lease(&A, 1);
+        let first = BeginContext::new([5; 32], 1, 0, 0, 1);
+        let second = BeginContext::new([6; 32], 2, 0, 1, 2);
+        A.begin(w.token(), first);
+        A.begin(w.token(), second);
+        assert_eq!(A.counts().unwrap().loss, 1);
+        w.finish(Route::Delivered);
+        let d = e.drain().unwrap();
+        d.inspect(|v| {
+            assert_eq!(v.meta.begin, Some(first));
+            let begins = v.snapshot.records[..v.snapshot.len]
+                .iter()
+                .flatten()
+                .filter(|r| r.outcome == Outcome::Begin)
+                .count();
+            assert_eq!(begins, 1);
+        });
+    }
+    #[test]
+    fn drain_while_open_with_other_lease_live() {
+        static A: Arena = Arena::EMPTY;
+        let e = A.open().unwrap();
+        e.arm(1).unwrap();
+        let done = lease(&A, 1);
+        let live = lease(&A, 2);
+        emit(&A, done.token(), 1);
+        done.finish(Route::Delivered);
+        {
+            let d = e.drain().unwrap();
+            assert_eq!(images(&d), [1]);
+        }
+        assert_eq!(A.state().unwrap(), State::Open);
+        assert_eq!(A.counts().unwrap().active, 1);
+        emit(&A, live.token(), 2);
+        live.finish(Route::Delivered);
+        let d = e.drain().unwrap();
+        assert_eq!(images(&d), [2]);
+        assert_eq!(A.counts().unwrap().loss, 0);
     }
 }

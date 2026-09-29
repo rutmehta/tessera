@@ -538,6 +538,8 @@ impl Renderer {
                         id: surface,
                         histogram: false,
                     }),
+                    #[cfg(feature = "wb-diagnostic")]
+                    None,
                 )
                 .map(|result| result.is_some());
         }
@@ -700,6 +702,46 @@ impl Renderer {
         output: RenderOutput,
         cancel: &CancellationToken,
     ) -> EngineResult<Option<DisplayHistogram>> {
+        self.render_surface_as_impl(
+            image,
+            settings,
+            level,
+            surface,
+            output,
+            cancel,
+            #[cfg(feature = "wb-diagnostic")]
+            None,
+        )
+    }
+
+    /// WB diagnostic: [`Renderer::render_surface_as`] carrying an attribution
+    /// token, which reaches only the camera-linear resident route.
+    #[cfg(feature = "wb-diagnostic")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_surface_as_observed(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        surface: u32,
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        diag: Option<crate::wb_diagnostic::Token>,
+    ) -> EngineResult<Option<DisplayHistogram>> {
+        self.render_surface_as_impl(image, settings, level, surface, output, cancel, diag)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn render_surface_as_impl(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        surface: u32,
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        #[cfg(feature = "wb-diagnostic")] diag: Option<crate::wb_diagnostic::Token>,
+    ) -> EngineResult<Option<DisplayHistogram>> {
         if image.camera_linear_proxy().is_some() {
             cancel.check()?;
             self.validate_camera_linear_proxy(image, settings)?;
@@ -719,6 +761,8 @@ impl Renderer {
                         id: surface,
                         histogram: true,
                     }),
+                    #[cfg(feature = "wb-diagnostic")]
+                    diag,
                 )?
                 .map(|result| {
                     result
@@ -802,26 +846,28 @@ impl Renderer {
                 if c.level != 0 {
                     return Err(EngineError::internal("camera-linear resident requires L0"));
                 }
-                let t = if let Some(t) = batch.cached(&key(StageId::WhiteBalance, c))? {
-                    t
-                } else {
-                    let source_key = key(StageId::Demosaic, c);
-                    let camera = if let Some(t) = batch.cached(&source_key)? {
+                let t =
+                    if let Some(t) = wb_lookup!(r, batch, key(StageId::WhiteBalance, c), TileWb)? {
                         t
                     } else {
-                        let uploaded = batch.upload(&proxy.pixels().tile(c, 0, 1)?)?;
-                        // upload_cached/cache would add an f16 conversion for this
-                        // stage, invalidating signed HDR / codec F32 fallback.
-                        batch.cache_exact(source_key, &uploaded)?
+                        let source_key = key(StageId::Demosaic, c);
+                        let camera = if let Some(t) = batch.cached(&source_key)? {
+                            t
+                        } else {
+                            let uploaded = batch.upload(&proxy.pixels().tile(c, 0, 1)?)?;
+                            // upload_cached/cache would add an f16 conversion for this
+                            // stage, invalidating signed HDR / codec F32 fallback.
+                            batch.cache_exact(source_key, &uploaded)?
+                        };
+                        let t = batch.run(&Op::Matrix(r.profile), &camera)?;
+                        let t = batch.run(&Op::Matrix(r.wb), &t)?;
+                        let t = match r.lens.and_then(|l| l.vignette.as_ref()) {
+                            Some(plan) => batch.lens_gain(&t, r.image.active_extent(), plan)?,
+                            None => t,
+                        };
+                        wb_request!(r, key(StageId::WhiteBalance, c), TileWb);
+                        batch.cache_exact(key(StageId::WhiteBalance, c), &t)?
                     };
-                    let t = batch.run(&Op::Matrix(r.profile), &camera)?;
-                    let t = batch.run(&Op::Matrix(r.wb), &t)?;
-                    let t = match r.lens.and_then(|l| l.vignette.as_ref()) {
-                        Some(plan) => batch.lens_gain(&t, r.image.active_extent(), plan)?,
-                        None => t,
-                    };
-                    batch.cache_exact(key(StageId::WhiteBalance, c), &t)?
-                };
                 balanced.insert(c, t);
                 continue;
             }
@@ -1000,17 +1046,18 @@ impl Renderer {
                 || r.lens
                     .is_none_or(|p| p.ca.is_none() && p.vignette.is_none()));
         let detail_key = level_key(StageId::Detail, 0);
-        let developed = if cache_detail && let Some(t) = batch.cached(&detail_key)? {
+        let developed = if cache_detail && let Some(t) = wb_lookup!(r, batch, detail_key, Detail)? {
             t
         } else {
             let wb_key = level_key(StageId::WhiteBalance, LEVEL_PAD);
-            let padded = if cache_wb && let Some(t) = batch.cached(&wb_key)? {
+            let padded = if cache_wb && let Some(t) = wb_lookup!(r, batch, wb_key, PaddedWb)? {
                 t
             } else {
                 let tiles = self.balanced_tiles(r, all.iter().copied(), batch, cancel)?;
                 cancel.check()?;
                 let t = batch.gather_level(frame, lc, LEVEL_PAD, &tiles)?;
                 if cache_wb {
+                    wb_request!(r, wb_key, PaddedWb);
                     batch.cache_exact(wb_key, &t)?
                 } else {
                     t
@@ -1019,6 +1066,7 @@ impl Renderer {
             // Detail consumes the padded neighbours and returns the interior.
             let t = batch.run(&Op::Detail(&r.settings.detail), &padded)?;
             if cache_detail {
+                wb_request!(r, detail_key, Detail);
                 batch.cache_exact(detail_key, &t)?
             } else {
                 t

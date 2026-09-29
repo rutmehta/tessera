@@ -682,5 +682,11 @@ mod tests {
     }
 }
 
-// Explicit-token transport (feature-only via the parent module); no renderer hooks yet.
+// Explicit-token transport; the whole module is feature-gated (lib.rs).
+pub mod harness;
+pub mod live;
 mod transport;
+pub use transport::{
+    ARENA, Arena, BeginContext, Counts, Drain, DrainView, Epoch, Lease, PhaseKind, RequestContext,
+    Reservation, Route, RouteState, SlotMeta, State, Token,
+};

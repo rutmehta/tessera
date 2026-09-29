@@ -23,10 +23,26 @@ struct Model {
     cache: Mutex<HashMap<MemoKey, Tile>>,
     matrix_pixels: std::sync::atomic::AtomicU64,
     detail_pixels: std::sync::atomic::AtomicU64,
+    // WB diagnostic level mode (rev7 6.2). Opt-in; the defaults leave the
+    // existing model behaviour unchanged (the counters are side effects only).
+    /// Advertise whole-level tiles; whole-level values are `ModelFrame`s.
+    level_mode: bool,
+    /// Committed whole-level frames, kept apart from the f16/f32 Tile cache.
+    frames: Mutex<HashMap<MemoKey, ResidentTile>>,
+    cached_calls: Mutex<[u32; StageId::COUNT]>,
+    gather_level_calls: std::sync::atomic::AtomicU32,
+    fail_cached: Option<StageId>,
+    cache_exact_log: Mutex<Vec<MemoKey>>,
+    /// B5 probe: at each `cache_exact`, the last arena record of this token.
+    #[cfg(feature = "wb-diagnostic")]
+    wb_probe: Mutex<Option<crate::wb_diagnostic::Token>>,
+    #[cfg(feature = "wb-diagnostic")]
+    wb_probe_log: Mutex<Vec<(MemoKey, Option<crate::wb_diagnostic::Record>)>>,
 }
 struct Batch<'a> {
     owner: &'a Model,
     pending: HashMap<MemoKey, Tile>,
+    pending_frames: HashMap<MemoKey, ResidentTile>,
 }
 struct ModelFrame {
     samples: Vec<f32>,
@@ -62,6 +78,7 @@ impl StageOp for Model {
         Some(Box::new(Batch {
             owner: self,
             pending: HashMap::new(),
+            pending_frames: HashMap::new(),
         }))
     }
 }
@@ -141,6 +158,16 @@ impl ResidentBatch for Batch<'_> {
     }
 
     fn cached(&mut self, key: &MemoKey) -> EngineResult<Option<ResidentTile>> {
+        self.owner.cached_calls.lock().unwrap()[key.stage.index()] += 1;
+        if self.owner.fail_cached == Some(key.stage) {
+            return Err(EngineError::internal("injected"));
+        }
+        if let Some(t) = self.pending_frames.get(key) {
+            return Ok(Some(t.clone()));
+        }
+        if let Some(t) = self.owner.frames.lock().unwrap().get(key) {
+            return Ok(Some(t.clone()));
+        }
         if let Some(t) = self.pending.get(key) {
             return to_f32(t).map(resident).map(Some);
         }
@@ -153,18 +180,122 @@ impl ResidentBatch for Batch<'_> {
             .transpose()
     }
     fn cache(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        if tile.storage.is::<ModelFrame>() {
+            return Err(EngineError::internal("model: f16 cache of level frame"));
+        }
         let t = to_f16(&cpu(tile))?;
         self.pending.insert(key, t.clone());
         Ok(resident(to_f32(&t)?))
     }
     fn cache_exact(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        self.owner.cache_exact_log.lock().unwrap().push(key);
+        #[cfg(feature = "wb-diagnostic")]
+        if let Some(t) = *self.owner.wb_probe.lock().unwrap() {
+            let last = crate::wb_diagnostic::ARENA.last_record_for_test(t);
+            self.owner.wb_probe_log.lock().unwrap().push((key, last));
+        }
+        if tile.storage.is::<ModelFrame>() {
+            self.pending_frames.insert(key, tile.clone());
+            return Ok(tile.clone());
+        }
         self.pending.insert(key, cpu(tile));
         Ok(tile.clone())
     }
     fn upload(&mut self, tile: &Tile) -> EngineResult<ResidentTile> {
         Ok(resident(tile.clone()))
     }
+    fn supports_level(&self, _frame: Extent, _halo: u16) -> bool {
+        self.owner.level_mode
+    }
+    /// Level mode only. Each source tile is converted once (rev7 N-6), then
+    /// every padded sample is an edge-replicated clamped read.
+    fn gather_level(
+        &mut self,
+        frame: Extent,
+        coord: TileCoord,
+        halo: u16,
+        tiles: &HashMap<TileCoord, ResidentTile>,
+    ) -> EngineResult<ResidentTile> {
+        if !self.owner.level_mode {
+            return Err(EngineError::Unsupported {
+                what: "resident whole-level tiles".into(),
+            });
+        }
+        self.owner
+            .gather_level_calls
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let src: HashMap<TileCoord, Tile> = tiles.iter().map(|(c, t)| (*c, cpu(t))).collect();
+        let mut slices = HashMap::with_capacity(src.len());
+        for (c, t) in &src {
+            slices.insert(*c, (t.layout(), t.samples::<f32>()?));
+        }
+        let layout = engine_api::tile::TileLayout {
+            extent: frame,
+            halo,
+            channels: 3,
+        };
+        let mut samples = vec![0_f32; layout.len()];
+        let h = i64::from(halo);
+        let (w, ht) = (i64::from(frame.width), i64::from(frame.height));
+        let missing = || EngineError::internal("model gather_level: source tile missing");
+        for c in 0..layout.channels {
+            for py in -h..ht + h {
+                let y = py.clamp(0, ht - 1) as u32;
+                for px in -h..w + h {
+                    let x = px.clamp(0, w - 1) as u32;
+                    let (source, data) = slices
+                        .get(&TileCoord::new(coord.level, x / 256, y / 256))
+                        .ok_or_else(missing)?;
+                    let from = source
+                        .index(c, (x % 256) as i32, (y % 256) as i32)
+                        .ok_or_else(missing)?;
+                    let to = layout.index(c, px as i32, py as i32).ok_or_else(missing)?;
+                    samples[to] = data[from];
+                }
+            }
+        }
+        Ok(ResidentTile {
+            coord,
+            layout,
+            storage: Arc::new(ModelFrame {
+                samples,
+                encoded: false,
+            }),
+        })
+    }
     fn run(&mut self, op: &Op<'_>, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        if self.owner.level_mode
+            && matches!(op, Op::Detail(_))
+            && tile.layout.halo > 0
+            && let Some(frame) = tile.storage.downcast_ref::<ModelFrame>()
+        {
+            // Identity Detail on a whole padded level: return the interior as a
+            // new halo-free frame, never an engine Tile (> 256 px).
+            let input = tile.layout;
+            let layout = engine_api::tile::TileLayout { halo: 0, ..input };
+            let mut samples = Vec::with_capacity(layout.len());
+            for c in 0..input.channels {
+                for y in 0..input.extent.height {
+                    for x in 0..input.extent.width {
+                        let i = input.index(c, x as i32, y as i32).ok_or_else(|| {
+                            EngineError::internal("model level Detail outside input")
+                        })?;
+                        samples.push(frame.samples[i]);
+                    }
+                }
+            }
+            self.owner
+                .detail_pixels
+                .fetch_add(input.extent.area(), std::sync::atomic::Ordering::Relaxed);
+            return Ok(ResidentTile {
+                coord: tile.coord,
+                layout,
+                storage: Arc::new(ModelFrame {
+                    samples,
+                    encoded: frame.encoded,
+                }),
+            });
+        }
         if tile.storage.is::<ModelFrame>() {
             // Resident bands can exceed the engine Tile limit. Execute each
             // CPU point operator on legal tiles and retain a separate band.
@@ -405,6 +536,11 @@ impl ResidentBatch for Batch<'_> {
             return Err(EngineError::internal("test model has no surface"));
         }
         self.owner.cache.lock().unwrap().extend(self.pending);
+        self.owner
+            .frames
+            .lock()
+            .unwrap()
+            .extend(self.pending_frames);
         Ok(ResidentOutput {
             tiles: tiles.iter().map(cpu).collect(),
             histogram: None,
@@ -580,6 +716,10 @@ fn disabled_detail_still_validates_controls() {
 #[cfg(feature = "ml-denoise")]
 #[path = "../tests/common/cfa.rs"]
 mod cfa_inference;
+
+#[cfg(feature = "wb-diagnostic")]
+#[path = "resident_model_wb.rs"]
+mod wb_live;
 
 #[test]
 #[cfg(feature = "ml-denoise")]

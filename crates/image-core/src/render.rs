@@ -280,6 +280,10 @@ pub struct Renderer {
     rgb_memo: Arc<Mutex<rgb_render::RgbMemo>>,
     mask_cache: Arc<crate::MaskRasterCache>,
     config: RendererConfig,
+    /// WB diagnostic operator tag (0 = unknown). Kept by `Clone` and the
+    /// recipe/process-version snapshots; reset by `for_backend`.
+    #[cfg(feature = "wb-diagnostic")]
+    diag_operator: u64,
 }
 
 /// Per-request parameters resolved once from the settings and metadata.
@@ -304,6 +308,9 @@ struct Resolved<'a> {
     /// Interactive plans are resolved from this image and recipe, so Lens-chain
     /// hashes safely identify their WB and Detail checkpoints.
     cache_lens: bool,
+    /// WB diagnostic attribution; set only by `Renderer::wb_bind`.
+    #[cfg(feature = "wb-diagnostic")]
+    diag: Option<crate::wb_diagnostic::Token>,
 }
 
 impl Renderer {
@@ -340,7 +347,16 @@ impl Renderer {
             rgb_memo: Arc::new(Mutex::new(Default::default())),
             mask_cache,
             config,
+            #[cfg(feature = "wb-diagnostic")]
+            diag_operator: 0,
         }
+    }
+
+    /// WB diagnostic: tag this renderer (and its clones) with an operator.
+    #[cfg(feature = "wb-diagnostic")]
+    pub fn with_diagnostic_operator(mut self, operator: u64) -> Self {
+        self.diag_operator = operator;
+        self
     }
 
     /// Immutable request snapshot: shares caches, never changes in-flight jobs.
@@ -370,6 +386,10 @@ impl Renderer {
         // CPU f32 checkpoints belong to the selected backend arithmetic.
         next.rgb_memo = Arc::new(Mutex::new(Default::default()));
         next.geometry_analysis = Arc::new(Mutex::new(None));
+        #[cfg(feature = "wb-diagnostic")]
+        {
+            next.diag_operator = 0;
+        }
         next.for_process_version(self.config.process_version)
     }
 
@@ -962,6 +982,8 @@ impl Renderer {
             wb,
             lens: None,
             cache_lens: false,
+            #[cfg(feature = "wb-diagnostic")]
+            diag: None,
         })
     }
 
