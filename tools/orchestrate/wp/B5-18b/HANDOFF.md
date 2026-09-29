@@ -28,6 +28,16 @@ filter sheet and the B5-18 name mapping (removed). Bindings regenerated (`smart_
 4. **Engine name (follow-up 2).** `Spec::name()` returns "Camera Raw Filter" for `camera_raw` (history labels and
    `SmartFilterRecord.name`); `CameraRawFilter.displayName` and its two call sites are removed.
 
+5. **Review change (Machine A on `117b44f8`): detail effects below 100 %.** A zoomed-out preview renders a smaller
+   pyramid level but Sharpening, Noise Reduction, Texture and Clarity take level-0 pixel radii, so at fit they
+   previewed ~2-4× wider than Apply. As in Camera Raw, `submit_preview` now zeroes them in the edited Camera Raw
+   Filter when the preview level is > 0 (`StackEdit::at_preview_level` → `without_detail_effects`: sharpening
+   amount, luminance / colour NR, texture, clarity), for new filters and smart filter re-edits. At 100 % and above
+   the preview includes them exactly; the 1:1 pane and Apply always include them. The sheet shows "Detail effects
+   preview at 100 %" (`document.cameraRaw.detailNote`) when zoom < 100 % and one of them is active
+   (`CameraRawDraft.detailPreviewNote(zoom:)`; a recipe without detail values counts the engine defaults).
+   Commits on top of `117b44f8` (no rebase): `d5e50758` tests (RED), `b87f9115` fix, then this handoff.
+
 ## Numbers (24 MP 6000 × 4000 pixel layer, release, `bench_camera_raw_24mp`; heap peak by counting allocator)
 | case | before | after |
 |---|---|---|
@@ -54,10 +64,25 @@ level-0-sized proxy raster the presentation needs (`upsampled`), shared by every
   single application, `filter_detail` stacks, bad index is an error.
 - `engine_names_the_camera_raw_filter_and_checks_smart_filters_on_a_small_level`.
 - `document_filters.rs::filter_detail_is_a_one_to_one_crop` updated to the sRGB encoding.
+- Review change (RED commit `d5e50758`, then fix `b87f9115`):
+  `zoomed_out_preview_omits_the_detail_effects` (levels 1 and 2, pixel layer and smart filter re-edit: the
+  preview equals the same settings with the detail effects zeroed, exactly; tone still previews). RED output:
+  `level 1 (smart false): preview includes detail effects, 0.109803915 from the preview without them`.
+  `preview_at_100_percent_and_the_detail_pane_keep_the_detail_effects` (100 % preview differs from the zeroed
+  settings by > 0.02 and matches Apply ≤ 2.5/255 in the visible region; the pane is level 0 and matches the 100 %
+  preview while zoomed out to L2; Apply includes the effects). Swift
+  `testDetailPreviewNoteShowsBelow100PercentWhenADetailEffectIsActive` (RED: no `detailPreviewNote` yet).
 Swift: `DocumentCameraRawTests` (mean helper decodes sRGB; neutral draft has lens off; new
 `testReEditDetailPaneShowsTheFilterOnce`; title test now passes with no Swift mapping).
 
-## Gates
+## Gates (review change, `b87f9115`)
+- `cargo test --locked --release -p tessera-ffi`: 46 test binaries, 502 passed, 0 failed, 23 ignored (no
+  load-sensitive failures). `--test document_camera_raw_preview`: 7 passed, 1 ignored (the bench).
+- `cargo clippy --locked --release -p tessera-ffi --all-targets -- -D warnings`: clean. `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: OK (no binding change). `tools/orchestrate/swift-gate.sh`: SWIFT GATE OK — 777 XCTest
+  tests, 3 skipped, 0 failures (+5 swift-testing).
+
+## Gates (`117b44f8`)
 - `cargo test --locked --release -p tessera-ffi`: 46 test binaries, 500 passed, 0 failed, 23 ignored (no load-sensitive
   failures this run). `--test document_camera_raw_preview`: 5 passed, 1 ignored (the bench).
 - `cargo clippy --locked --release -p tessera-ffi --all-targets -- -D warnings`: clean. `cargo fmt --all -- --check`: clean.
@@ -75,3 +100,8 @@ Swift: `DocumentCameraRawTests` (mean helper decodes sRGB; neutral draft has len
 - The preview proxy is a level-0-sized raster even for a level-2 preview (~100–200 MB on 24 MP, all filters); a
   level-native presentation would need a compositor change.
 - No on-screen check (no computer use); the pane colour fix is verified numerically against the canvas.
+- **Open: Machine A's P3 finding on the 1:1 detail pane colour.** The pane is an sRGB-encoded 8-bit image of the
+  document's linear samples; it can deviate from the canvas's colour-managed presentation. Not addressed in the
+  review change; left as a follow-up.
+- The zoomed-out omission applies to the Camera Raw Filter being edited; Camera Raw smart filters already in the
+  stack (and their canvas bakes) still render at the view level with level-0 radii.
