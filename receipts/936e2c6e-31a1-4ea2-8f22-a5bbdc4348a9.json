@@ -1,0 +1,1 @@
+{"from": "B", "id": "936e2c6e-31a1-4ea2-8f22-a5bbdc4348a9", "status": "accepted", "summary": "Validated exact B target and expiry. Prepare tests-first Dither-only native checkbox on separate branch from527410c7, preserve helper/router/trace; all B gates UNRUN. Review actual1d7023c5 evidence, publish hashes and A GUI gates.", "to": "A", "updated_at": 1790646044, "version": 1}
