@@ -13,25 +13,68 @@ final class DocumentDitherCheckboxTests: XCTestCase {
             isARepeat: repeated, keyCode: 49))
     }
 
-    func testNativeCheckboxMetadataValueAndNativeFocusPolicy() {
+    /// Single-cell NSControls are ignored in the AX hierarchy (NSAccessibility.h); the cell is
+    /// the element assistive clients see, so semantics are asserted on the unignored descendant.
+    private func exposed(_ button: NSButton, file: StaticString = #filePath,
+                         line: UInt = #line) throws -> NSAccessibilityProtocol {
+        let element = NSAccessibility.unignoredDescendant(of: button) as? NSAccessibilityProtocol
+        return try XCTUnwrap(element, "no exposed accessibility element", file: file, line: line)
+    }
+
+    private func assertExposedCheckbox(_ button: NSButton, value: Int, label: String,
+                                       file: StaticString = #filePath, line: UInt = #line) throws {
+        let element = try exposed(button, file: file, line: line)
+        XCTAssertFalse(element === button, "view itself must stay ignored like a stock checkbox",
+                       file: file, line: line)
+        XCTAssertEqual(element.accessibilityRole(), .checkBox, file: file, line: line)
+        XCTAssertEqual(element.accessibilityValue() as? NSNumber, NSNumber(value: value), file: file, line: line)
+        XCTAssertEqual(element.accessibilityLabel(), label, file: file, line: line)
+    }
+
+    func testNativeCheckboxMetadataValueAndNativeFocusPolicy() throws {
+        _ = NSApplication.shared
         let box = DocumentDitherNativeCheckbox(frame: .zero)
         box.configure(isOn: true, enabled: true) { _ in }
+        let native = NSButton(checkboxWithTitle: "Dither", target: nil, action: nil)
+        native.controlSize = .small
+        native.state = .on
         let responder: NSResponder = box
         XCTAssertTrue(responder is KeyOwningControl)
-        XCTAssertEqual(box.accessibilityRole(), .checkBox)
-        XCTAssertEqual(box.accessibilityLabel(), "Dither")
-        XCTAssertEqual(box.accessibilityIdentifier(), "document.properties.colorLookup.dither")
-        XCTAssertEqual(box.accessibilityValue() as? NSNumber, NSNumber(value: 1))
+
+        // Direct view accessors match the stock checkbox (both ignored); neither is the oracle.
+        XCTAssertEqual(box.accessibilityRole(), native.accessibilityRole())
+        XCTAssertEqual(box.isAccessibilityElement(), native.isAccessibilityElement())
+
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 240, height: 80),
+                              styleMask: [.titled], backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        for hosted in [false, true] {
+            if hosted {
+                window.contentView?.addSubview(native)
+                window.contentView?.addSubview(box)
+            }
+            try assertExposedCheckbox(native, value: 1, label: "Dither")
+            try assertExposedCheckbox(box, value: 1, label: "Dither")
+            let element = try exposed(box)
+            XCTAssertEqual(element.accessibilityIdentifier(), "document.properties.colorLookup.dither",
+                           "identifier must be on the exposed element, not only the ignored view")
+            XCTAssertEqual(element.accessibilityHelp(), "Add fine noise so smooth gradients do not band")
+        }
         XCTAssertEqual(box.toolTip, "Add fine noise so smooth gradients do not band")
         XCTAssertEqual(box.font, Theme.NSFonts.caption)
         XCTAssertEqual(box.keyEquivalent, "")
-        let native = NSButton(checkboxWithTitle: "Dither", target: nil, action: nil)
-        native.controlSize = .small
         XCTAssertEqual(box.acceptsFirstResponder, native.acceptsFirstResponder,
                        "retain native keyboard policy without setting global preferences")
+
         box.configure(isOn: false, enabled: false) { _ in }
+        native.state = .off
         XCTAssertFalse(box.acceptsFirstResponder)
-        XCTAssertEqual(box.accessibilityValue() as? NSNumber, NSNumber(value: 0))
+        try assertExposedCheckbox(native, value: 0, label: "Dither")
+        try assertExposedCheckbox(box, value: 0, label: "Dither")
+        XCTAssertEqual(try exposed(box).isAccessibilityEnabled(), false)
+        box.removeFromSuperview()
+        native.removeFromSuperview()
     }
 
     func testSpaceTogglesSynchronouslyOnceAndRepeatDoesNotToggle() throws {
