@@ -7,7 +7,8 @@
 //! `EditChannel`, or `SetSelection` for loading) and therefore one history
 //! node that undo and redo restore.
 //!
-//! Spot colour and solidity are **preview metadata only**: they never change
+//! Spot colour and solidity, and alpha overlay colour, opacity and
+//! masked / selected indicator (B5-17b), are saved **preview metadata only**: they never change
 //! the RGB composite or flat export. Channel visibility (the panel's eye) is
 //! session state for the host's preview overlay and is not saved.
 //!
@@ -47,10 +48,11 @@ pub struct ChannelRecord {
     pub kind: DocChannelKind,
     /// Display name; names may repeat (as in PSD).
     pub name: String,
-    /// Spot: the ink's display colour. Alpha: the default overlay colour
-    /// (red), which PSD also records for alpha channels.
+    /// Spot: the ink's display colour. Alpha: the overlay colour (red by
+    /// default; saved in `.tessera-doc` and PSD, set by
+    /// `set_alpha_channel_display`).
     pub color: PaintColor,
-    /// Spot: solidity. Alpha: the default overlay opacity (0.5).
+    /// Spot: solidity. Alpha: the overlay opacity (0.5 by default).
     pub opacity: f32,
     // M5-32: alpha overlay polarity; spot ink is identified by `kind`.
     pub selected_areas: bool,
@@ -153,6 +155,33 @@ fn check_spot(color: PaintColor, solidity: f32) -> Result<ChannelKind> {
         ));
     }
     Ok(ChannelKind::Spot { color, solidity })
+}
+
+/// Alpha display metadata (B5-17b): `Alpha` for the legacy red / 50 % /
+/// masked-areas default (so untouched and reset channels keep their legacy
+/// identity), otherwise `AlphaDisplay`.
+fn check_alpha_display(color: PaintColor, opacity: f32, selected: bool) -> Result<ChannelKind> {
+    let color = [color.r, color.g, color.b];
+    if color
+        .iter()
+        .chain(std::iter::once(&opacity))
+        .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+    {
+        return Err(failure(
+            "alpha overlay colour and opacity must be finite values within 0…1",
+        ));
+    }
+    Ok(
+        if color == ALPHA_COLOR && opacity == ALPHA_OPACITY && !selected {
+            ChannelKind::Alpha
+        } else {
+            ChannelKind::AlphaDisplay {
+                color,
+                opacity,
+                selected,
+            }
+        },
+    )
 }
 
 /// `r` as a selection: single-channel F32 (PSD channels arrive at the
@@ -416,6 +445,25 @@ impl DocumentSession {
         solidity: f32,
     ) -> Result<DocumentUpdate> {
         let kind = check_spot(color, solidity)?;
+        self.edit_channel(id, "Channel Options", |c| {
+            c.kind = kind;
+            Ok(())
+        })
+    }
+
+    /// Channel Options for an alpha channel (a spot channel becomes one):
+    /// overlay colour and opacity, each within 0…1, and whether the colour
+    /// marks selected (`selected_areas`) or masked areas. One "Channel
+    /// Options" history node; saved in `.tessera-doc` and PSD. Preview
+    /// metadata only: the samples and the RGB composite are unchanged.
+    pub fn set_alpha_channel_display(
+        &self,
+        id: u64,
+        color: PaintColor,
+        opacity: f32,
+        selected_areas: bool,
+    ) -> Result<DocumentUpdate> {
+        let kind = check_alpha_display(color, opacity, selected_areas)?;
         self.edit_channel(id, "Channel Options", |c| {
             c.kind = kind;
             Ok(())

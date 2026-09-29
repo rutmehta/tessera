@@ -201,10 +201,10 @@ struct ChannelOptionsSheet: View {
     let id: UInt64
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
-    @State private var kind: SavedChannelKind = .alpha
+    @State private var indicates: ChannelIndicates = .maskedAreas
     @State private var color = Color.clear
     @State private var opacity = 50.0
-    @State private var indicatesSelected = false
+    private var kind: SavedChannelKind { indicates == .spotColor ? .spot : .alpha }
 
     var body: some View {
         SheetScaffold(title: "Channel Options", subtitle: channels.records.first { $0.id == id }?.name) {
@@ -215,22 +215,12 @@ struct ChannelOptionsSheet: View {
                     TextField("Name", text: $name).textFieldStyle(.roundedBorder).controlSize(.small)
                         .accessibilityIdentifier("document.channels.options.name")
                 }
-                FormRow(label: "Kind") {
-                    SegmentedPicker(selection: $kind, segments: [
-                        .init(value: .alpha, title: "Alpha", help: "A saved selection or mask"),
-                        .init(value: .spot, title: "Spot Color", help: "A spot ink plane (preview only)"),
-                    ], height: Theme.Height.regular, fill: false)
-                    .accessibilityIdentifier("document.channels.options.kind")
-                }
-                if kind == .alpha {
-                    FormRow(label: "Indicates") {
-                        Picker("Color Indicates", selection: $indicatesSelected) {
-                            Text("Masked Areas").tag(false)
-                            Text("Selected Areas").tag(true)
-                        }
-                        .pickerStyle(.radioGroup).labelsHidden().font(Theme.Fonts.caption)
-                        .accessibilityIdentifier("document.channels.options.indicates")
+                FormRow(label: "Color Indicates") {
+                    Picker("Color Indicates", selection: $indicates) {
+                        ForEach(ChannelIndicates.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
+                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.Fonts.caption)
+                    .accessibilityIdentifier("document.channels.options.indicates")
                 }
                 FormRow(label: "Color") {
                     ColorPicker("", selection: $color, supportsOpacity: false).labelsHidden()
@@ -241,7 +231,7 @@ struct ChannelOptionsSheet: View {
                 if kind == .spot {
                     SpotNote()
                 } else {
-                    Hint("The overlay colour and opacity of alpha channels are a preview preference of this session.")
+                    Hint("The overlay colour, opacity and indicator are saved with the document; they never change the image.")
                 }
             }
             .padding(Theme.Space.l)
@@ -249,24 +239,22 @@ struct ChannelOptionsSheet: View {
             EmptyView()
         } actions: {
             footerButtons(disabled: name.trimmingCharacters(in: .whitespaces).isEmpty, dismiss: dismiss) {
-                channels.applyOptions(id, name: name, kind: kind, color: toolColor(color), opacity: Float(opacity / 100),
-                                      indicatesSelected: indicatesSelected)
+                guard var form = channels.records.first(where: { $0.id == id }).map(ChannelOptionsForm.init) else { return }
+                form.name = name
+                form.indicates = indicates
+                form.setColor(toolColor(color))
+                form.setOpacity(Float(opacity / 100))
+                channels.applyOptions(id, form)
             }
         }
         .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
         .onAppear {
-            guard let doc = channels.document, let r = channels.records.first(where: { $0.id == id }) else { return }
-            name = r.name
-            kind = r.kind
-            if r.kind == .spot {
-                color = swatch(r.color)
-                opacity = Double(r.opacity * 100)
-            } else {
-                let st = channels.style(doc, id)
-                color = swatch(st.color)
-                opacity = Double(st.opacity * 100)
-                indicatesSelected = st.indicatesSelected
-            }
+            guard let r = channels.records.first(where: { $0.id == id }) else { return }
+            let form = ChannelOptionsForm(r)
+            name = form.name
+            indicates = form.indicates
+            color = swatch(form.color)
+            opacity = Double(form.opacity * 100)
         }
     }
 }

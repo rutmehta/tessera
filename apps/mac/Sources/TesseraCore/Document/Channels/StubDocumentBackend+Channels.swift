@@ -53,6 +53,8 @@ struct StubChannel {
     var kind: SavedChannelKind
     var color: ToolColor
     var opacity: Float
+    /// Alpha overlay indicator (B5-17b).
+    var selectedAreas = false
     var visible: Bool
     var coverage: StubChannelCoverage
     var revision: UInt64
@@ -72,13 +74,19 @@ struct StubChannelState {
 final class StubChannelStore: @unchecked Sendable {
     static let shared = StubChannelStore()
     private let lock = NSLock()
-    private var states: [ObjectIdentifier: StubChannelState] = [:]
+    private struct Entry {
+        weak var owner: AnyObject?
+        var state: StubChannelState
+    }
+    private var states: [ObjectIdentifier: Entry] = [:]
 
+    /// A freed document's identifier can be reused by the next one: an entry whose owner is gone (or is
+    /// another object) starts fresh instead of leaking the old document's channels.
     func with<T>(_ owner: AnyObject, _ body: (inout StubChannelState) throws -> T) rethrows -> T {
         lock.lock(); defer { lock.unlock() }
         let key = ObjectIdentifier(owner)
-        var state = states[key] ?? StubChannelState()
-        defer { states[key] = state }
+        var state = states[key].flatMap { $0.owner === owner ? $0.state : nil } ?? StubChannelState()
+        defer { states[key] = Entry(owner: owner, state: state) }
         return try body(&state)
     }
 }
@@ -139,8 +147,8 @@ extension StubDocumentBackend: DocumentChannelsBackend {
     public func documentChannels() throws -> [SavedChannel] {
         store.with(self) { st in
             st.list.enumerated().map { i, c in
-                SavedChannel(id: c.id, kind: c.kind, name: c.name, color: c.color, opacity: c.opacity, visible: c.visible,
-                             index: UInt32(i), revision: c.revision)
+                SavedChannel(id: c.id, kind: c.kind, name: c.name, color: c.color, opacity: c.opacity,
+                             selectedAreas: c.selectedAreas, visible: c.visible, index: UInt32(i), revision: c.revision)
             }
         }
     }
@@ -203,7 +211,16 @@ extension StubDocumentBackend: DocumentChannelsBackend {
 
     public func setSpotChannel(id: UInt64, color: ToolColor, solidity: Float) throws -> DocumentChange {
         try Self.checkSpot(color, solidity)
-        try modify(id) { c in c.kind = .spot; c.color = color; c.opacity = solidity }
+        try modify(id) { c in c.kind = .spot; c.color = color; c.opacity = solidity; c.selectedAreas = false }
+        return try sessionChange()
+    }
+
+    public func setAlphaChannelDisplay(id: UInt64, color: ToolColor, opacity: Float, selectedAreas: Bool) throws
+        -> DocumentChange {
+        if [color.r, color.g, color.b, opacity].contains(where: { !$0.isFinite || $0 < 0 || $0 > 1 }) {
+            throw DocumentError.invalid("alpha overlay colour and opacity must be finite values within 0…1")
+        }
+        try modify(id) { c in c.kind = .alpha; c.color = color; c.opacity = opacity; c.selectedAreas = selectedAreas }
         return try sessionChange()
     }
 

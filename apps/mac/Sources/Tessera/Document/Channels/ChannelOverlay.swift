@@ -96,7 +96,7 @@ final class ChannelOverlayController {
                     items.append(.gray(g.image))
                     grayShown = true
                 } else {
-                    let st = channels.style(doc, r.id)
+                    let st = r.overlayStyle   // B5-17b: the saved record, not a session map
                     items.append(.tint(mask: st.indicatesSelected ? g.image : g.inverted, color: st.color, alpha: st.opacity))
                 }
             }

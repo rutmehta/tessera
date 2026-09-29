@@ -190,6 +190,12 @@ final class DocumentChannelsTests: XCTestCase {
         g.indicates = .maskedAreas
         XCTAssertEqual(g.displayEdit(from: spot), .alpha(color: ToolColor(r: 0, g: 0.5, b: 1), opacity: 0.8, selectedAreas: false),
                        "a spot channel becomes an alpha channel")
+        var h = ChannelOptionsForm(alpha)
+        h.setColor(ToolColor(r: 0.99995, g: 0.00003, b: 0))
+        h.setOpacity(0.50001)
+        XCTAssertNil(h.displayEdit(from: alpha), "colour-well round-trip noise is not an edit")
+        h.setOpacity(0.49)
+        XCTAssertEqual(h.displayEdit(from: alpha), .alpha(color: alpha.color, opacity: 0.49, selectedAreas: false))
         let selected = channel(8, "Sel", index: 2, selectedAreas: true)
         XCTAssertEqual(ChannelOptionsForm(selected).indicates, .selectedAreas)
     }

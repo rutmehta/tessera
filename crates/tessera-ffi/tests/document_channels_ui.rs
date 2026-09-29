@@ -709,7 +709,11 @@ fn alpha_display_is_one_undoable_node() {
         display(&s, a),
         (DocChannelKind::Alpha, [0.0, 1.0, 0.25], 0.3, true)
     );
-    assert_eq!(chan_row(&s, a), samples, "display metadata never changes samples");
+    assert_eq!(
+        chan_row(&s, a),
+        samples,
+        "display metadata never changes samples"
+    );
     s.undo().unwrap();
     assert_eq!(
         display(&s, a),
@@ -777,7 +781,10 @@ fn invalid_alpha_display_is_rejected_without_a_node() {
         ),
     ];
     for (color, opacity) in bad {
-        assert!(s.set_alpha_channel_display(a, color, opacity, true).is_err());
+        assert!(
+            s.set_alpha_channel_display(a, color, opacity, true)
+                .is_err()
+        );
     }
     assert!(
         s.set_alpha_channel_display(999, GREEN, 0.5, false).is_err(),
@@ -814,8 +821,14 @@ fn display_round_trip(ext: &str) {
     let (d, e) = engine();
     let (s, _) = doc(&e);
     let a = setup_a(&s);
-    let legacy = s.new_alpha_channel("Legacy".into(), false).unwrap().channel_id;
-    let masked = s.new_alpha_channel("Masked".into(), false).unwrap().channel_id;
+    let legacy = s
+        .new_alpha_channel("Legacy".into(), false)
+        .unwrap()
+        .channel_id;
+    let masked = s
+        .new_alpha_channel("Masked".into(), false)
+        .unwrap()
+        .channel_id;
     s.set_alpha_channel_display(a, GREEN, 0.3, true).unwrap();
     s.set_alpha_channel_display(
         masked,
@@ -851,7 +864,12 @@ fn display_round_trip(ext: &str) {
             assert!((got - want).abs() < 1e-3, "{ext} {} {:?}", c.name, c.color);
         }
         // PSD stores opacity in whole percent.
-        assert!((c.opacity - op).abs() < 6e-3, "{ext} {} {}", c.name, c.opacity);
+        assert!(
+            (c.opacity - op).abs() < 6e-3,
+            "{ext} {} {}",
+            c.name,
+            c.opacity
+        );
     };
     close(&rows[0], [0.0, 1.0, 0.25], 0.3, true);
     close(&rows[1], [1.0, 0.0, 0.0], 0.5, false);
