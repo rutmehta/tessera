@@ -8,8 +8,14 @@ extension DevelopRecoveryCoordinator {
 
 extension AppModel {
     /// Quit at the end of a hidden-flag self-test (`--export-selftest`, `--print-pdf-selftest`,
-    /// `--timing-selftest`).
+    /// `--timing-selftest`). Export/Print call their finish callback before the job's `defer`
+    /// releases its saved-read gate, and the timing run leaves the loupe's Develop session open;
+    /// `applicationShouldTerminate` refuses both. So quit on a later main-actor turn (after the
+    /// calling job, and its `defer`, has finished) and close any Develop session first.
     func quitAfterSelfTest(_ terminate: @escaping @MainActor () -> Void = { NSApp.terminate(nil) }) {
-        terminate()
+        Task { @MainActor in
+            if let close = closeDevelop() { _ = await close.value }
+            terminate()
+        }
     }
 }
