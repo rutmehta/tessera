@@ -3,7 +3,9 @@
 set -euo pipefail
 MAC="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$MAC/../.." && pwd)"
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tessera-target/mac-ffi}"
+# One target dir per checkout: worktrees building concurrently must not overwrite each
+# other's libtessera_ffi and generate bindings from the wrong source.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tessera-target/mac-ffi-$(basename "$ROOT")}"
 export MACOSX_DEPLOYMENT_TARGET=15.0
 case "$CARGO_TARGET_DIR" in "$ROOT"/*) printf 'CARGO_TARGET_DIR must be outside the checkout\n' >&2; exit 1;; esac
 cd "$ROOT"

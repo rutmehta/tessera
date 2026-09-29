@@ -10,7 +10,9 @@ CONFIG="${1:-release}"
 case "$CONFIG" in debug|release) ;; *) echo "Usage: $0 [debug|release]" >&2; exit 2;; esac
 ROOT="$(cd ../.. && pwd)"
 # Preserve caller isolation; build-ffi.sh uses the same default when unset.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tessera-target/mac-ffi}"
+# One target dir per checkout: worktrees building concurrently must not overwrite each
+# other's libtessera_ffi and generate bindings from the wrong source.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tessera-target/mac-ffi-$(basename "$ROOT")}"
 mkdir -p build
 # A new Swift scratch tree guarantees a fresh link of the just-built archive.
 # Keep it for provenance verification; everyday .build debug tooling is untouched.

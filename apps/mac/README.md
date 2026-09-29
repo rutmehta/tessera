@@ -16,7 +16,7 @@ Run from `apps/mac/`:
 
 ```sh
 # Required once on a clean checkout and after Rust API/implementation changes.
-# Preserves an existing CARGO_TARGET_DIR; otherwise uses ~/.cache/tessera-target/mac-ffi.
+# Preserves an existing CARGO_TARGET_DIR; otherwise uses ~/.cache/tessera-target/mac-ffi-<checkout dir name>, one per worktree.
 ./build-ffi.sh
 
 # Primary (CI) build: the brief's command, plus a macOS destination
