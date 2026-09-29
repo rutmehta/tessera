@@ -108,12 +108,13 @@ final class DocumentChannelsTests: XCTestCase {
         let rect = CanvasRect(x: 10, y: 20, width: 100, height: 50)
         _ = try doc.setSelectionRect(x: rect.x, y: rect.y, width: rect.width, height: rect.height, feather: 0)
 
-        let q = try QuickMask.enter(b, hasSelection: true)
+        // B5-17d: entering moves the selection into the mask and drops it.
+        let q = try QuickMask.enter(b)
         let rows = try b.documentChannels()
         XCTAssertEqual(rows.map(\.name), [QuickMask.channelName])
         XCTAssertEqual(rows.first?.id, q.channelID)
         XCTAssertEqual(rows.first?.visible, true, "the overlay shows the mask")
-        _ = try doc.clearSelection()
+        XCTAssertNil(try doc.info().selectionBounds, "entering drops the selection")
         XCTAssertNotNil(try QuickMask.exit(b, channel: q.channelID))
         XCTAssertEqual(try doc.info().selectionBounds, rect, "the mask became the selection")
         XCTAssertTrue(try b.documentChannels().isEmpty, "the temporary channel is gone")
@@ -121,9 +122,33 @@ final class DocumentChannelsTests: XCTestCase {
 
         // Without a selection Quick Mask starts all selected and returns the whole canvas.
         _ = try doc.clearSelection()
-        let all = try QuickMask.enter(b, hasSelection: false)
+        let all = try QuickMask.enter(b)
+        XCTAssertNil(try doc.info().selectionBounds)
         _ = try QuickMask.exit(b, channel: all.channelID)
         XCTAssertEqual(try doc.info().selectionBounds, CanvasRect(x: 0, y: 0, width: 400, height: 300))
+    }
+
+    // MARK: Row clicks (B5-17d)
+
+    func testRowClickHighlightMatchesThePaintTarget() throws {
+        let records = [SavedChannel(id: 7, kind: .alpha, name: "Alpha 1", color: ToolColor(r: 1, g: 0, b: 0),
+                                    opacity: 0.5, visible: false, index: 0, revision: 1)]
+        let rows = ChannelsPanelModel.rows(records: records, components: ComponentVisibility(), quickMask: nil)
+        let alpha = rows[4], rgb = rows[0], red = rows[1]
+        // A plain click on an alpha row highlights it and paints into it.
+        XCTAssertEqual(ChannelsPanelModel.click(alpha, command: false),
+                       ChannelRowClick(highlight: 7, retarget: true, load: false))
+        // RGB or a colour row: painting returns to the layer and the highlight is cleared.
+        for row in [rgb, red] {
+            let c = try XCTUnwrap(ChannelsPanelModel.click(row, command: false))
+            XCTAssertEqual(c, ChannelRowClick(highlight: nil, retarget: true, load: false), row.title)
+            XCTAssertEqual(c.highlight, c.paintTarget, "the highlight matches the paint target")
+        }
+        XCTAssertEqual(ChannelsPanelModel.click(alpha, command: false)?.paintTarget, 7)
+        // ⌘-click loads the channel as the selection without redirecting paint; ⌘ on RGB does nothing.
+        XCTAssertEqual(ChannelsPanelModel.click(alpha, command: true),
+                       ChannelRowClick(highlight: 7, retarget: false, load: true))
+        XCTAssertNil(ChannelsPanelModel.click(rgb, command: true))
     }
 
     func testStubChannelsSaveLoadAndEdit() throws {
@@ -288,11 +313,18 @@ final class DocumentChannelsTests: XCTestCase {
         XCTAssertEqual(rows.first?.id, a.channelID)
         XCTAssertNotEqual(try b.channelThumbnail(id: a.channelID, maxPx: 32), 0)
 
-        // Quick Mask round trip through the engine: three history nodes, the selection restored.
-        let q = try QuickMask.enter(b, hasSelection: true)
+        // Quick Mask round trip through the engine (B5-17d): one "Quick Mask" node in, one out; entering
+        // drops the selection, exiting restores it.
+        let n0 = try doc.historyItems().count
+        let q = try QuickMask.enter(b)
         XCTAssertEqual(try b.documentChannels().count, 2)
-        _ = try doc.clearSelection()
+        XCTAssertNil(try doc.info().selectionBounds, "entering drops the selection")
+        XCTAssertEqual(try doc.historyItems().count, n0 + 1)
+        XCTAssertEqual(try doc.historyItems().last?.label, "Quick Mask")
+        XCTAssertEqual(q.change.historyHead, try doc.info().historyHead)
         _ = try QuickMask.exit(b, channel: q.channelID)
+        XCTAssertEqual(try doc.historyItems().count, n0 + 2)
+        XCTAssertEqual(try doc.historyItems().last?.label, "Quick Mask")
         XCTAssertEqual(try doc.info().selectionBounds, rect)
         XCTAssertEqual(try b.documentChannels().map(\.id), [a.channelID])
 
