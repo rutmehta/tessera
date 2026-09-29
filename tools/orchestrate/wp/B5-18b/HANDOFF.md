@@ -37,6 +37,14 @@ filter sheet and the B5-18 name mapping (removed). Bindings regenerated (`smart_
    preview at 100 %" (`document.cameraRaw.detailNote`) when zoom < 100 % and one of them is active
    (`CameraRawDraft.detailPreviewNote(zoom:)`; a recipe without detail values counts the engine defaults).
    Commits on top of `117b44f8` (no rebase): `d5e50758` tests (RED), `b87f9115` fix, then this handoff.
+6. **Review change (Machine A on `de753f5f`): the note follows the submitted preview level.** The viewport renders
+   level `floor(log2(1 / zoom))`, so from 50 % to 100 % the preview is level 0 and includes the detail effects; the
+   note showed there anyway. `submit_preview`'s level choice is now `preview_plan` (the view's level, or 0 when a
+   whole-canvas adapter is in the stack), shared with new FFI `filter_preview_level(layer, smart_index,
+   filter_json)`. Swift `DocumentFiltersBackend.filterPreviewLevel` (stub: its viewport level); the sheet records
+   the level right after each submitted preview and shows the note via
+   `CameraRawDraft.detailPreviewNote(previewLevel:)` only when it is > 0 and a detail effect is active
+   (replaces `detailPreviewNote(zoom:)`). Commits: `848875c6` tests (RED), `fe4738cf` fix, then this handoff.
 
 ## Numbers (24 MP 6000 × 4000 pixel layer, release, `bench_camera_raw_24mp`; heap peak by counting allocator)
 | case | before | after |
@@ -72,8 +80,22 @@ level-0-sized proxy raster the presentation needs (`upsampled`), shared by every
   settings by > 0.02 and matches Apply ≤ 2.5/255 in the visible region; the pane is level 0 and matches the 100 %
   preview while zoomed out to L2; Apply includes the effects). Swift
   `testDetailPreviewNoteShowsBelow100PercentWhenADetailEffectIsActive` (RED: no `detailPreviewNote` yet).
+- Second review change (RED commit `848875c6`, then fix `fe4738cf`):
+  `preview_level_decides_whether_the_detail_effects_are_omitted` (pixel layer and smart filter re-edit at zooms
+  0.75 / 0.51 → level 0, 0.5 / 0.3 → 1, 0.25 → 2: `filter_preview_level` reports the level; at level 0 the
+  preview differs from the zeroed settings by > 0.02, above 0 it equals them). RED: no method named
+  `filter_preview_level`. Swift `testDetailPreviewNoteFollowsTheSubmittedPreviewLevel` (no note at level 0,
+  including every zoom in 50–100 % via `DocumentViewportMath.level(forZoom:)`; note at level ≥ 1) and
+  `testStubPreviewLevelIsTheViewportLevel` (RED: no `detailPreviewNote(previewLevel:)` / `filterPreviewLevel`).
 Swift: `DocumentCameraRawTests` (mean helper decodes sRGB; neutral draft has lens off; new
 `testReEditDetailPaneShowsTheFilterOnce`; title test now passes with no Swift mapping).
+
+## Gates (second review change, `fe4738cf`)
+- `cargo test --locked --release -p tessera-ffi`: 46 test binaries, 503 passed, 0 failed, 23 ignored.
+  `--test document_camera_raw_preview`: 8 passed, 1 ignored (the bench).
+- `cargo clippy --locked --release -p tessera-ffi --all-targets -- -D warnings`: clean. `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: OK (bindings: `filterPreviewLevel`). `tools/orchestrate/swift-gate.sh`: SWIFT GATE OK —
+  778 XCTest tests, 3 skipped, 0 failures.
 
 ## Gates (review change, `b87f9115`)
 - `cargo test --locked --release -p tessera-ffi`: 46 test binaries, 502 passed, 0 failed, 23 ignored (no
@@ -100,8 +122,10 @@ Swift: `DocumentCameraRawTests` (mean helper decodes sRGB; neutral draft has len
 - The preview proxy is a level-0-sized raster even for a level-2 preview (~100–200 MB on 24 MP, all filters); a
   level-native presentation would need a compositor change.
 - No on-screen check (no computer use); the pane colour fix is verified numerically against the canvas.
-- **Open: Machine A's P3 finding on the 1:1 detail pane colour.** The pane is an sRGB-encoded 8-bit image of the
-  document's linear samples; it can deviate from the canvas's colour-managed presentation. Not addressed in the
-  review change; left as a follow-up.
-- The zoomed-out omission applies to the Camera Raw Filter being edited; Camera Raw smart filters already in the
-  stack (and their canvas bakes) still render at the view level with level-0 radii.
+- **Known limitation (P3):** In documents with a non-sRGB working profile (e.g. Display P3), the 1:1 detail pane's
+  colours are slightly off, because the pane encodes to sRGB. This is still an improvement over the previous
+  behaviour. Follow-up: encode the detail pane in the document profile.
+- **Known limitation:** Lower Camera Raw smart filters in the stack keep full-resolution radii at zoomed-out levels.
+  (The zoomed-out omission applies only to the Camera Raw Filter being edited; not fixed.)
+- The note tracks the last submitted preview: zooming without an edit does not resubmit the preview, so the note
+  (like the preview) stays at the level it was submitted at until the next edit.
