@@ -41,8 +41,10 @@ final class DocumentDitherNativeCheckbox: NSButton, KeyOwningControl {
         keyEquivalent = ""
         target = self
         action = #selector(valueChanged)
-        setAccessibilityLabel("Dither")
+        // The view is ignored by AX (single-cell control); the cell is the exposed checkbox.
+        // Its label comes from the title: an explicit view label would blank the cell's.
         setAccessibilityIdentifier("document.properties.colorLookup.dither")
+        cell?.setAccessibilityIdentifier("document.properties.colorLookup.dither")
         toolTip = "Add fine noise so smooth gradients do not band"
         setContentHuggingPriority(.defaultHigh, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
