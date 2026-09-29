@@ -2,7 +2,7 @@
 
 Independent review approved `0434ff8d`: 17 focused passes, full 88/two ignored, strict/format and all source/fixture/binary freezes. Portable evidence preserved; Task2 source-only delegation contracts authorized. No public/production decoder change yet.
 
-B diagnostic result `47307c56` completed only for observer repair. Routing request `5b27b9df-43bd-45d8-8ee4-5cf79bba101b` published through Git and SSH queue `01a0ea99-68c3-7c62-a412-ab9c4f66e6e7`; peer acknowledgement pending. Main d18369b3 contains actual Tab interception evidence. WB scaffold v2 independent source review active; no runtime.
+B diagnostic result `47307c56` completed only for observer repair. Routing request `5b27b9df-43bd-45d8-8ee4-5cf79bba101b` published through Git and SSH queue `01a0ea99-68c3-7c62-a412-ab9c4f66e6e7`; B accepted receipt verified at 1790642355; compact native snapshot also contains its acknowledgement. Native notLoaded/interrupted status does not override that peer evidence. Main d18369b3 contains actual Tab interception evidence. WB scaffold v2 independent source review active; no runtime.
 
 ## Actual Tab interception captured; routing correction pending
 
