@@ -154,12 +154,6 @@ const EMPTY_CONTEXT: Context = Context {
     headroom_bits: 0,
     render_level: 0,
 };
-const EMPTY_SNAPSHOT: Snapshot = Snapshot {
-    context: EMPTY_CONTEXT,
-    records: [None; CAPACITY],
-    len: 0,
-    overflow: 0,
-};
 const EMPTY_TOKEN: Token = Token {
     epoch: 0,
     phase: 0,
@@ -199,7 +193,12 @@ impl Slot {
     const EMPTY: Slot = Slot {
         state: SlotState::Free,
         meta: SlotMeta::EMPTY,
-        payload: EMPTY_SNAPSHOT,
+        payload: Snapshot {
+            context: EMPTY_CONTEXT,
+            records: [None; CAPACITY],
+            len: 0,
+            overflow: 0,
+        },
     };
 }
 
@@ -207,7 +206,8 @@ fn unsupported<T>() -> Result<T, Error> {
     Err(Error::Unsupported)
 }
 impl Arena {
-    /// Const initialiser for a process `static`; never used as a value.
+    /// Const initialiser for a process `static` (rev5 section 3.1 spells this
+    /// `const EMPTY`); only ever used as `static A: Arena = Arena::EMPTY;`.
     #[allow(clippy::declare_interior_mutable_const)]
     pub const EMPTY: Arena = Arena {
         storage: Mutex::new(Storage {
@@ -229,7 +229,7 @@ impl Arena {
             disabled: false,
         }),
         scratch: Mutex::new(Scratch {
-            snapshot: EMPTY_SNAPSHOT,
+            snapshot: Slot::EMPTY.payload,
             meta: SlotMeta::EMPTY,
         }),
         armed: AtomicBool::new(false),
