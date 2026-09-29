@@ -1,3 +1,9 @@
+## Actual Dither Tab failure preserved
+
+At exact strict `d0191c41`, genuine Name→Load→Reset→Dither focus passed, then Tab from Dither hid both panels. External AX and screenshots establish the focused checkbox; trace event4 reports native SwiftUI.KeyViewProxy, unknown/incomplete/unproven semantics and handled=true. Root verified19payloads/package/fixtures and visually inspected before/after. Owned PID741 quit ordinarily; no CUA after quit. Shift-Tab/Space/History are unrun. Evidence `tools/orchestrate/wp/B5-16/evidence/2026-09-29/dither-d0191c41-failed/`. Narrow Dither-only B correction request follows; no global routing bypass or whole-inspector acceptance.
+
+WB `a9b90750` independently qualifies all19pure/sevengates with8,651sourceinputs; live wiring/actual frames remain absent and original performance failure unmerged. Codec now owns sole runtime for opaque-owner243eacfe protocol/API RED; actual five-family runs and implementation remain unrun.
+
 ## Inspector full suite passed; corrected WB diagnostic running
 
 Inspector `d0191c41` full suite direct exit0:741 XCTest passes, one existing opt-in skip, five Swift Testing passes; all155 mandatory checks passed. Independent review verified all8,396 source inputs,19 payload hashes,fourFFI artifacts,fixture and preserved full-relinked binaries. Portable evidence: `tools/orchestrate/wp/B5-16/evidence/2026-09-29/lut-native-d0191c41-full/`. Runtime released to FFI for `a9b90750` pure qualification; existing idle unowned Tessera apps are preserved and this is not a timing run. Dither-first GUI preparation stays source-only until release. No whole inspector/main or full VoiceOver acceptance is implied.

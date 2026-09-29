@@ -1,0 +1,54 @@
+{
+  "disposition": "FAIL: actual Dither-origin Tab hides panels; stopped first unexpected result",
+  "pid": 741,
+  "ordinary_quit_verified": true,
+  "no_CUA_after_quit": true,
+  "trace_sha256": "e429d84efe93662767ffb997b58b3cf4531c08fe0dfebfe5722b5529845ccd91",
+  "trace_events": 4,
+  "decisive_event": {
+    "before": {
+      "incomplete": true,
+      "nativeIdentity": "ObjectIdentifier(0x0000000a66548c00)",
+      "nativeType": "SwiftUI.KeyViewProxy",
+      "primary": {
+        "identity": "ObjectIdentifier(0x0000000a6784c380)"
+      },
+      "primaryMembership": "unproven",
+      "semantics": [],
+      "status": "unknown"
+    },
+    "handled": true,
+    "input": {
+      "blockedWindow": false,
+      "document": true,
+      "fullKeyboardAccess": true,
+      "keyCode": 48,
+      "keyDown": true,
+      "modifiers": 0,
+      "ownedKeyWindow": true,
+      "timestamp": 2699252.959005,
+      "windowIdentity": "ObjectIdentifier(0x000000010831ade0)"
+    },
+    "reentrantEventsSkipped": 0,
+    "sequence": 4,
+    "version": 1
+  },
+  "fixture_before": {
+    "/tmp/tessera-inspector-dither-d0191c41/fixtures/warm-gradient.png": "19368177c8efae46512730f86ec03dc069782330843678e8b6aa82cc01009f63",
+    "/tmp/tessera-inspector-dither-d0191c41/fixtures/owned-warm.cube": "97c1492280596e6d75dac8ddb4df5802b32a885b25b08280068e55138c63f3ce",
+    "/tmp/tessera-inspector-dither-d0191c41/outputs/warm-gradient.tessera-doc": "473076631db502fff7c2b9bfc19f51769c336f5d7c14630677434e6bbf9eb29f"
+  },
+  "fixture_after": {
+    "/tmp/tessera-inspector-dither-d0191c41/fixtures/warm-gradient.png": "19368177c8efae46512730f86ec03dc069782330843678e8b6aa82cc01009f63",
+    "/tmp/tessera-inspector-dither-d0191c41/fixtures/owned-warm.cube": "97c1492280596e6d75dac8ddb4df5802b32a885b25b08280068e55138c63f3ce",
+    "/tmp/tessera-inspector-dither-d0191c41/outputs/warm-gradient.tessera-doc": "473076631db502fff7c2b9bfc19f51769c336f5d7c14630677434e6bbf9eb29f"
+  },
+  "package_equal": true,
+  "strict_source_equal": true,
+  "unrun": [
+    "Dither Shift-Tab",
+    "Dither Space",
+    "History expansion"
+  ],
+  "runtime_released": true
+}

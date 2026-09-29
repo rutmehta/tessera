@@ -1,0 +1,21 @@
+{
+  "GUI-REPORT.md": "36646119580bf540b7c22afd1d6436d9ef722014da70b7fd965d96dee814dfb1",
+  "GUI-RESULT.json": "49844475ebf78a51cdb6cc1c4ea2d05bbc4c39f84fbe0464bc9c8b2bb15d81e2",
+  "PLAN.md": "68725051a5c9d0b54b840a6b388eb827c54606f6a3d2fafc57a3d6c025f3fa1b",
+  "PREPARATION-SHA256.json": "b46d0e16ac9f8e9631cb23f17bf060daa8c6b5005fb0ee443c8d4d5962d8c3c5",
+  "PREPARATION.json": "9018126bcf569f718fabc195d9c97ec05347d44e47b551943a6e082684a07779",
+  "dither-01.jsonl": "e429d84efe93662767ffb997b58b3cf4531c08fe0dfebfe5722b5529845ccd91",
+  "dither-focused.png": "6bc29c66aaef4803d90280e3a1ac715d18f6ee729629642f29300646f4a379c1",
+  "initial.txt": "fae8d58d1cb388cb9231332a6afecd5a59b064159f502e0b1afdc9e594fe934b",
+  "launch.json": "f36f98c7221c340359b9f5be89988b6e2806efc8649ff84c58df0c3f5992b498",
+  "quit.json": "13ed9407cedd6bc59d9affd60d6e9138a36c38d3fc549543d5aa0c2301a4dc6a",
+  "tab1-load.txt": "d865b43165c233ae5b6dc6a63e8597e9592382c72b0bc7b96264db33448a7c66",
+  "tab1-process.json": "176c1d17dba02cd3b562d056ee1801d6846d1ec215cbfedf3209f5e0ccd9531e",
+  "tab2-process.json": "d979e6af0b89e0a7b933191cb72b0b544182eaad4b1ed7f951edc6702659105d",
+  "tab2-reset.txt": "2032fb1e43bb47afd7683f04fe54e3621a637cb3cb11a84152fb46a582b06e53",
+  "tab3-dither-focused.txt": "601888a2b5fb5df4621ca3cd171f226b590f914c9e56dc7a7840f218705aa85d",
+  "tab3-process.json": "aef57acc0ced2dcc46fd8a56938779a18960c108aab0b2dc9b2285e26b1f08f4",
+  "tab4-dither-origin-process.json": "ae6225cfa86d070eb44bebcdefb5480fdb22fdc8a32a7c5d291962cad75b26cc",
+  "tab4-dither-origin.txt": "29c9cb7df03dbc808503900b0f5ee4b3af9fbcf564f923f46fa939799afbd65f",
+  "tab4-panels.png": "05834a2213622693f9620cc467ad4bce459ef8f022fd0495efb037fbaa696043"
+}
