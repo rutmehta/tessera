@@ -1,3 +1,9 @@
+## Native LUT candidate under automated gates; two RED checkpoints verified
+
+B result `81854c4d-8cee-440c-93b9-645ee5b7e2b8` validated/accepted. Source review approved exact five-file composition `d0191c41` over preserved `4685efd5`; router/trace unchanged. Inspector worker owns compiler for 54 focused, strict and separate ThemeLint/layout. GUI not authorized yet.
+
+RAW Task2 `2fa62cef`: compile pass, exact four tests three pass/one missing-delegation failure; independent 9,141-input and binary verification. Minimum source delegation now authorized, tests unchanged. WB `91cc6181`: both targets compiled; one scalar layout pass and twelve Unsupported failures across13pure tests; four actual stubs ignored. Root verified8,651 Git inputs/all gates/binaries. Earlier runner whole-path false positive retained. Minimum pure observer implementation source-only; no live calls/actual frame or timing rerun. Portable RED evidence published.
+
 ## Normalization Task1 qualified; B routing request dispatched
 
 Independent review approved `0434ff8d`: 17 focused passes, full 88/two ignored, strict/format and all source/fixture/binary freezes. Portable evidence preserved; Task2 source-only delegation contracts authorized. No public/production decoder change yet.

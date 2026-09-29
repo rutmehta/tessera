@@ -1,0 +1,22 @@
+{
+  "required-tests.json": "2838713ab9d6ccb77f2209bde02e24aec7ddf8f68c500e2c24ed6cc6dfad4634",
+  "run.py": "7ddb8a93ed8fe9a05a927ab54e92826ec4dc7b192c89e447e64dcca277ea5a8d",
+  "PREPARATION.md": "c627a05e0bb3aba0eee6699e56a889736577051422a38cb1c8edb48c6e340ab8",
+  "RED-OBSERVATION.json": "73cf28ab0c1d4dcaed4d69e1cc6e12957bc34b7d01e4ce419d2cec3c1e0279c8",
+  "PREPARATION-SHA256.json": "8ce85909c007af2a6fee2b94e902eb9457734d856c8d1fe2b8b718e60b4afeaf",
+  "RED-OBSERVATION.md": "c19df8007a6056599996886a34300772274243c09251bb174e8f6671ffa72994",
+  "artifact.json": "7c379f7b92e6560a2295204d10f7f54dcf6c9aa5852e94aec06a7b66818c3f62",
+  "02-red/before.json": "ca09c62faf5c28e3d9542837cce38eaa79677e6dc4b3f14d88f984b30e9a1b95",
+  "02-red/artifact-after.json": "7c379f7b92e6560a2295204d10f7f54dcf6c9aa5852e94aec06a7b66818c3f62",
+  "02-red/run.log": "f596d7ee79b4c9591c2bf38e76125f8a4ca43eb62bbc269298c8a2bd68e07de2",
+  "02-red/after.json": "ca09c62faf5c28e3d9542837cce38eaa79677e6dc4b3f14d88f984b30e9a1b95",
+  "02-red/artifact-before.json": "7c379f7b92e6560a2295204d10f7f54dcf6c9aa5852e94aec06a7b66818c3f62",
+  "02-red/command.json": "c3df8946fe5cb18acb36c35b2bb8914e0f12d3bfd0a49e14444bfed991c83faf",
+  "02-red/observed.json": "0516a998e4db8e53a254483e3cc50f5642435d199ac797294fa2ef32da9efd2f",
+  "02-red/freeze.json": "292ade546b216d2b44115a949d8d8eef57c42f0b471f3415ccedb144bf6fa878",
+  "01-compile/before.json": "ca09c62faf5c28e3d9542837cce38eaa79677e6dc4b3f14d88f984b30e9a1b95",
+  "01-compile/run.log": "6e0e1661ec3fb6c2b57be01c01224075c3622f91b2696f81a1fdccd764b00773",
+  "01-compile/after.json": "ca09c62faf5c28e3d9542837cce38eaa79677e6dc4b3f14d88f984b30e9a1b95",
+  "01-compile/command.json": "3811d87ff6831c981091d06dd241367a613388ae6e9cc661771e29cd17e4033c",
+  "01-compile/freeze.json": "2eb92ba10583c9598a6540f21b73cf23ec8639e3d2c4e6871140a329ba89e8ea"
+}

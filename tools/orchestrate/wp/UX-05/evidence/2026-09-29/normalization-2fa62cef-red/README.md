@@ -1,0 +1,1 @@
+Expected scaffold RED evidence only, not product acceptance. Exact binaries remain on Machine A BetterSSD and are identified by hashes. Source, runner, direct exits and independent reviews retained; no actual diagnostic frames or production delegation acceptance.

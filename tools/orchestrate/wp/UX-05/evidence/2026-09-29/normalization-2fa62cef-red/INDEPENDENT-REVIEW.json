@@ -1,0 +1,37 @@
+{
+  "verdict": "Approved meaningful missing-delegation RED; no GREEN/public integration claim",
+  "ref": "2fa62cef49d8c679d076cacf7b8ab288c8583617",
+  "gates": [
+    {
+      "gate": "01-compile",
+      "direct_exit": 0,
+      "all_git_inputs_exact": 9141,
+      "freeze_equal": true,
+      "log_sha256": "6e0e1661ec3fb6c2b57be01c01224075c3622f91b2696f81a1fdccd764b00773"
+    },
+    {
+      "gate": "02-red",
+      "direct_exit": 101,
+      "all_git_inputs_exact": 9141,
+      "freeze_equal": true,
+      "log_sha256": "f596d7ee79b4c9591c2bf38e76125f8a4ca43eb62bbc269298c8a2bd68e07de2"
+    }
+  ],
+  "artifact": {
+    "compile_attempt": "01-compile",
+    "head": "2fa62cef49d8c679d076cacf7b8ab288c8583617",
+    "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/raw_decode-be8e9abbe6c30d95",
+    "sha256": "84a59909fc462d668e4f6d148062b68408b2a1162b98be3f792ab2050595ee46"
+  },
+  "required_names_exact": [
+    "normalize::legacy_tests::legacy_bayer_xtrans_full_sensor_bits_are_preserved",
+    "normalize::legacy_tests::legacy_entry_delegates_once_with_owned_input_and_uncancelled_token",
+    "normalize::legacy_tests::legacy_invalid_input_keeps_raw_decode_error_category",
+    "normalize::legacy_tests::legacy_permissive_layout_and_negative_black_controls"
+  ],
+  "passed": 3,
+  "failed": 1,
+  "ignored": 0,
+  "failure_boundary": "Legacy numerical bit equality succeeded, then helper calls0!=1. Input pointer/capacity/token assertions follow and were not reached.",
+  "scope": "Synthetic tests only; no fixture decode. No reviewer runtime. Root decides helper delegation implementation grant."
+}
