@@ -8,13 +8,21 @@ Import the folder so the crops are library photos as well as files.
 440. **Menus.** In document mode with one layer selected, Edit ▸ Auto-Align Layers… and Auto-Blend Layers… are
      disabled. File ▸ Automate ▸ Photomerge… is enabled in the library and in document mode.
 441. **Photomerge from the library.** Select `left.png` and `right.png` in the grid, File ▸ Automate ▸ Photomerge…:
-     the sheet lists both under Source Files, Layout radio (Auto, Perspective, Cylindrical, Spherical, Collage,
-     Reposition), Blend Images Together (on, disabled), Seamless Tones and Colors, Content-Aware Fill Transparent
+     the sheet lists both under Source Files, Layout radio (Auto, Perspective, Cylindrical, Spherical, Collage;
+     no Reposition), Blend Images Together (on, disabled), Seamless Tones and Colors, Content-Aware Fill Transparent
      Areas, Vignette Removal and Geometric Distortion Correction (disabled, with the lens-calibration note).
-442. **Sources.** Add Files… adds a file (duplicates are dropped), the minus button removes one; with one source OK
-     is disabled and the sheet says "Choose two or more photos to merge".
-443. **Busy.** OK (Layout Auto): the busy sheet shows an indeterminate spinner, "Photomerge…" and the note that it
-     cannot be cancelled; there is no Cancel button. The status bar reads "Photomerge…".
+442. **Sources.** Add Files… offers JPEG / PNG / TIFF only and adds a file (duplicates are dropped), the minus
+     button removes one; with one source OK is disabled and the sheet says "Choose two or more photos to merge".
+     Photos totalling more than 200 megapixels are refused before anything is read: the status bar says
+     "Photomerge: … limited to 200 megapixels in total; these have N megapixels…".
+443. **Busy / Cancel.** OK (Layout Auto): the busy sheet shows an indeterminate spinner, "Photomerge…", the note
+     that reading can be cancelled but aligning / blending cannot, and a Cancel button (`stack-busy-cancel`). The
+     status bar reads "Photomerge…". With several large photos, Cancel while reading: the button reads
+     "Cancelling…", the sheet closes, the status bar reads "Photomerge was cancelled", and no tab / history row is
+     added. Auto-Align / Auto-Blend busy sheets have no Cancel.
+443a. **Colour.** Photomerge two Display P3 photos (e.g. iPhone JPEGs) into a new document: the document's colour
+     profile is Display P3 (not sRGB) and colours match the originals. Into an open sRGB document the
+     photos are converted (no oversaturated / washed-out layers).
 444. **Result.** A new tab `Untitled` opens with one layer per photo, named after each photo, each with a layer mask;
      the canvas is the panorama's size. History lists exactly one row, `Photomerge`, after the opened state.
 445. **Undo / redo.** ⌘Z returns to the empty opened state in one step; ⇧⌘Z restores the merged layers.
@@ -63,8 +71,8 @@ Import the folder so the crops are library photos as well as files.
 
 PASS when steps 440–459 meet their expectations. Known limitations: alignment and blending cannot be cancelled and
 report no progress (engine ask); lens corrections need explicit per-layer calibrations (library lens profiles are not
-mapped), so both toggles are disabled; Photomerge always blends (no "Blend Images Together" off); the Reposition
-layout mis-registers the synthetic crops in the engine (see HANDOFF.md).
+mapped), so both toggles are disabled; Photomerge always blends (no "Blend Images Together" off); Reposition is
+withheld because the engine mis-registers it (see HANDOFF.md); source transparency is dropped.
 
 ## Appendix: accessibility identifiers (B5-19)
 
@@ -73,4 +81,4 @@ layout mis-registers the synthetic crops in the engine (see HANDOFF.md).
 | `stack-align-sheet` · `stack-align-layout` · `stack-align-reference` · `stack-lens` | Auto-Align Layers sheet |
 | `stack-blend-sheet` · `stack-blend-method` · `stack-blend-tones` · `stack-blend-fill` | Auto-Blend Layers sheet |
 | `photomerge-sheet` · `photomerge-layout` · `photomerge-sources` · `photomerge-fill` · `photomerge-into-current` | Photomerge sheet |
-| `stack-busy` | Busy sheet |
+| `stack-busy` · `stack-busy-cancel` | Busy sheet (Cancel only for Photomerge) |
