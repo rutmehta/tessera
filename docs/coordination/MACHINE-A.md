@@ -1,3 +1,8 @@
+## B5-16 Dither/History integrated — 2026-09-29
+
+Main c9efa690 = dd2cf300 + wp/B5-16-dither-ax 619676d0. One real conflict: B5-16 status-bar refactor to row(compact:) vs B5-13 "Content-Aware Move" tool label; resolved by carrying B5-13's label into both full and compact row() text. Automated gates on exact tree: swift-gate 830/0 (3 skipped), focused 98/0, layout 3/0, strict release OK, bindings identical.
+On-screen (real input, isolated profile, FKA on): D8, D2 (decisive former failure: Tab from Dither handled=false, panels stay), D3, D4, D6 PASS; Dither exposed as AXCheckBox. History keyboard H1/H2 NOT VERIFIED on screen: focus could not be placed on History buttons (SwiftUI header/rows don't take first responder; Tab from Layers eye NSButton intercepted by pre-existing KeyRouter.swift:58 policy). Separate pre-existing finding: Tab from non-KeyOwningControl native controls toggles panels. Evidence tools/orchestrate/wp/B5-16/evidence/2026-09-29/merge-c9efa690/.
+
 ## B5 packages integrated (Claude coordinator) — 2026-09-29
 
 Integrated after independent Opus source review of each branch and of B's round-2 fix deltas (no force-pushes; fixes on top of reviewed hashes):
