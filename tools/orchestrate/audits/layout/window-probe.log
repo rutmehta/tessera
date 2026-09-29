@@ -1,0 +1,59 @@
+DATA library engine=true items=40 loading=false
+FIT status=(813.0, 25.0) loupe=(0.0, 0.0) grid=(0.0, 0.0)
+capture=0 window=26265 frame=(40.0, 40.0, 1280.0, 800.0)
+frontmostIsProbe=false
+library dark requested=1280x800 host=(0.0, 0.0, 1280.0, 748.0) fitting=(1240.0, 600.0)
+capture=0 window=26271 frame=(40.0, 40.0, 1440.0, 900.0)
+frontmostIsProbe=false
+library dark requested=1440x900 host=(0.0, 0.0, 1440.0, 848.0) fitting=(1240.0, 600.0)
+capture=0 window=26275 frame=(40.0, 40.0, 1728.0, 1117.0)
+frontmostIsProbe=false
+library dark requested=1728x1117 host=(0.0, 0.0, 1728.0, 1065.0) fitting=(1240.0, 600.0)
+capture=0 window=26279 frame=(40.0, 40.0, 1280.0, 800.0)
+frontmostIsProbe=false
+library light requested=1280x800 host=(0.0, 0.0, 1280.0, 748.0) fitting=(1240.0, 600.0)
+capture=0 window=26283 frame=(40.0, 40.0, 1440.0, 900.0)
+frontmostIsProbe=false
+library light requested=1440x900 host=(0.0, 0.0, 1440.0, 848.0) fitting=(1240.0, 600.0)
+capture=0 window=26285 frame=(40.0, 40.0, 1728.0, 1117.0)
+frontmostIsProbe=false
+library light requested=1728x1117 host=(0.0, 0.0, 1728.0, 1065.0) fitting=(1240.0, 600.0)
+DATA raw engine=true items=5 loading=false
+FIT status=(731.0, 25.0) loupe=(0.0, 0.0) grid=(0.0, 0.0)
+capture=0 window=26287 frame=(40.0, 40.0, 1280.0, 800.0)
+frontmostIsProbe=false
+raw dark requested=1280x800 host=(0.0, 0.0, 1280.0, 748.0) fitting=(1233.0, 600.0)
+capture=0 window=26291 frame=(40.0, 40.0, 1440.0, 900.0)
+frontmostIsProbe=false
+raw dark requested=1440x900 host=(0.0, 0.0, 1440.0, 848.0) fitting=(1233.0, 600.0)
+capture=0 window=26293 frame=(40.0, 40.0, 1728.0, 1117.0)
+frontmostIsProbe=false
+raw dark requested=1728x1117 host=(0.0, 0.0, 1728.0, 1065.0) fitting=(1233.0, 600.0)
+capture=0 window=26295 frame=(40.0, 40.0, 1280.0, 800.0)
+frontmostIsProbe=false
+raw light requested=1280x800 host=(0.0, 0.0, 1280.0, 748.0) fitting=(1233.0, 600.0)
+capture=0 window=26303 frame=(40.0, 40.0, 1440.0, 900.0)
+frontmostIsProbe=false
+raw light requested=1440x900 host=(0.0, 0.0, 1440.0, 848.0) fitting=(1233.0, 600.0)
+capture=0 window=26305 frame=(40.0, 40.0, 1728.0, 1117.0)
+frontmostIsProbe=false
+raw light requested=1728x1117 host=(0.0, 0.0, 1728.0, 1065.0) fitting=(1233.0, 600.0)
+FIT status=(496.0, 25.0) loupe=(0.0, 0.0) grid=(0.0, 0.0)
+capture=0 window=26307 frame=(40.0, 40.0, 1280.0, 800.0)
+frontmostIsProbe=false
+document dark requested=1280x800 host=(0.0, 0.0, 1280.0, 748.0) fitting=(1318.0, 817.0)
+capture=0 window=26308 frame=(40.0, 40.0, 1440.0, 900.0)
+frontmostIsProbe=false
+document dark requested=1440x900 host=(0.0, 0.0, 1440.0, 848.0) fitting=(1318.0, 817.0)
+capture=0 window=26311 frame=(40.0, 40.0, 1728.0, 1117.0)
+frontmostIsProbe=false
+document dark requested=1728x1117 host=(0.0, 0.0, 1728.0, 1065.0) fitting=(1318.0, 817.0)
+capture=0 window=26312 frame=(40.0, 40.0, 1280.0, 800.0)
+frontmostIsProbe=false
+document light requested=1280x800 host=(0.0, 0.0, 1280.0, 748.0) fitting=(1318.0, 817.0)
+capture=0 window=26315 frame=(40.0, 40.0, 1440.0, 900.0)
+frontmostIsProbe=false
+document light requested=1440x900 host=(0.0, 0.0, 1440.0, 848.0) fitting=(1318.0, 817.0)
+capture=0 window=26318 frame=(40.0, 40.0, 1728.0, 1117.0)
+frontmostIsProbe=false
+document light requested=1728x1117 host=(0.0, 0.0, 1728.0, 1065.0) fitting=(1318.0, 817.0)

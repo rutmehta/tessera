@@ -1,0 +1,146 @@
+[
+  {
+    "appearance" : "dark",
+    "gap" : 5.841796875,
+    "title" : "Shadows",
+    "titleWidth" : 47.158203125,
+    "valueWidth" : 27,
+    "width" : 80
+  },
+  {
+    "appearance" : "dark",
+    "gap" : 4.5205078125,
+    "title" : "Midtones",
+    "titleWidth" : 48.4794921875,
+    "valueWidth" : 27,
+    "width" : 80
+  },
+  {
+    "appearance" : "dark",
+    "gap" : -0.0234375,
+    "title" : "Highlights",
+    "titleWidth" : 53.0234375,
+    "valueWidth" : 27,
+    "width" : 80
+  },
+  {
+    "appearance" : "dark",
+    "gap" : 8.5084635749999933,
+    "title" : "Shadows",
+    "titleWidth" : 47.158203125,
+    "valueWidth" : 27,
+    "width" : 82.666666699999993
+  },
+  {
+    "appearance" : "dark",
+    "gap" : 7.1871745124999933,
+    "title" : "Midtones",
+    "titleWidth" : 48.4794921875,
+    "valueWidth" : 27,
+    "width" : 82.666666699999993
+  },
+  {
+    "appearance" : "dark",
+    "gap" : 2.6432291999999933,
+    "title" : "Highlights",
+    "titleWidth" : 53.0234375,
+    "valueWidth" : 27,
+    "width" : 82.666666699999993
+  },
+  {
+    "appearance" : "dark",
+    "gap" : 36.508463574999993,
+    "title" : "Shadows",
+    "titleWidth" : 47.158203125,
+    "valueWidth" : 27,
+    "width" : 110.66666669999999
+  },
+  {
+    "appearance" : "dark",
+    "gap" : 35.187174512499993,
+    "title" : "Midtones",
+    "titleWidth" : 48.4794921875,
+    "valueWidth" : 27,
+    "width" : 110.66666669999999
+  },
+  {
+    "appearance" : "dark",
+    "gap" : 30.643229199999993,
+    "title" : "Highlights",
+    "titleWidth" : 53.0234375,
+    "valueWidth" : 27,
+    "width" : 110.66666669999999
+  },
+  {
+    "appearance" : "light",
+    "gap" : 5.841796875,
+    "title" : "Shadows",
+    "titleWidth" : 47.158203125,
+    "valueWidth" : 27,
+    "width" : 80
+  },
+  {
+    "appearance" : "light",
+    "gap" : 4.5205078125,
+    "title" : "Midtones",
+    "titleWidth" : 48.4794921875,
+    "valueWidth" : 27,
+    "width" : 80
+  },
+  {
+    "appearance" : "light",
+    "gap" : -0.0234375,
+    "title" : "Highlights",
+    "titleWidth" : 53.0234375,
+    "valueWidth" : 27,
+    "width" : 80
+  },
+  {
+    "appearance" : "light",
+    "gap" : 8.5084635749999933,
+    "title" : "Shadows",
+    "titleWidth" : 47.158203125,
+    "valueWidth" : 27,
+    "width" : 82.666666699999993
+  },
+  {
+    "appearance" : "light",
+    "gap" : 7.1871745124999933,
+    "title" : "Midtones",
+    "titleWidth" : 48.4794921875,
+    "valueWidth" : 27,
+    "width" : 82.666666699999993
+  },
+  {
+    "appearance" : "light",
+    "gap" : 2.6432291999999933,
+    "title" : "Highlights",
+    "titleWidth" : 53.0234375,
+    "valueWidth" : 27,
+    "width" : 82.666666699999993
+  },
+  {
+    "appearance" : "light",
+    "gap" : 36.508463574999993,
+    "title" : "Shadows",
+    "titleWidth" : 47.158203125,
+    "valueWidth" : 27,
+    "width" : 110.66666669999999
+  },
+  {
+    "appearance" : "light",
+    "gap" : 35.187174512499993,
+    "title" : "Midtones",
+    "titleWidth" : 48.4794921875,
+    "valueWidth" : 27,
+    "width" : 110.66666669999999
+  },
+  {
+    "appearance" : "light",
+    "gap" : 30.643229199999993,
+    "title" : "Highlights",
+    "titleWidth" : 53.0234375,
+    "valueWidth" : 27,
+    "width" : 110.66666669999999
+  }
+]

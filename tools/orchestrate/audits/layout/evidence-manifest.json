@@ -1,0 +1,3219 @@
+{
+  "count": 440,
+  "records": [
+    {
+      "source": "tools/orchestrate/wp/B5-02/evidence/document-mode-stub.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-02/evidence/new-document-sheet.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-01-edit-in-layers.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-02-adjustment.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-03-opacity-drag.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-04-undo.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-05-saved.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-06-reopened.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-07-exported.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-03/evidence/engine-08-psd-open.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-1-edit-in-layers.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-2-brush-stroke.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-3-brush-undo.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-4-eraser.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-5-wand.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-6-subject.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-7-transform-preview.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-8-transform-commit.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-04/evidence/tools-9-psd-reopen.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-01-gaussian-dialog.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-02-gaussian-applied.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-03-gaussian-undone.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-04-levels-dialog.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-05-levels-applied.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-06-smart-filter-on.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-07-smart-filter-off.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-05/evidence/filters-08-smart-filter-on-again.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/adj-01-color-balance.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/adj-02-gradient-map.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/adj-03-black-white.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/adj-04-reopened.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/adj-05-more-layers.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/adj-06-equalize.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/v140-save-as-sheet.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-06/evidence/v144-cmd-e-after-new-document.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/01-shapes.png",
+      "size": [
+        2560,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/02-shadow-and-stroke-panel.png",
+      "size": [
+        1280,
+        1168
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/02-shadow-and-stroke.png",
+      "size": [
+        2560,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/03-fill-zero-panel.png",
+      "size": [
+        1280,
+        1168
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/03-fill-zero.png",
+      "size": [
+        2560,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/04-second-shadow-panel.png",
+      "size": [
+        1280,
+        1168
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/04-second-shadow.png",
+      "size": [
+        2560,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/05-global-light-30-panel.png",
+      "size": [
+        720,
+        466
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/05-global-light-30.png",
+      "size": [
+        2560,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/06-undo-global-light-panel.png",
+      "size": [
+        720,
+        466
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/06-undo-global-light.png",
+      "size": [
+        2560,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/07-redo-global-light.png",
+      "size": [
+        3208,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/08-reopened-psd-panel.png",
+      "size": [
+        1280,
+        1168
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-07/evidence/08-reopened-psd.png",
+      "size": [
+        2602,
+        1700
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-1-panel-overlay.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-2-save-sheet.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-3-load-sheet.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-4-spot-options-sheet.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-5-alpha-only.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-6-quick-mask.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-7-reopened-tessera-doc.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-08/evidence/channels-8-reopened-psd.png",
+      "size": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-01-remove-stroke.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-02-remove-applied.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-03-remove-undone.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-04-reopened.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-05-content-aware-fill.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-06-slow-job-running.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-07-slow-job-cancelled.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-08-distractions-review.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-09-neural-colorize.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-10-neural-jpegArtifactRemoval.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-11-neural-skin-no-faces.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09/evidence/retouch-12-neural-skin-new-layer.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-01.png",
+      "size": [
+        1456,
+        819
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-02.png",
+      "size": [
+        1456,
+        20
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-03.png",
+      "size": [
+        1456,
+        819
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-04.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-05.png",
+      "size": [
+        9,
+        1456
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-06.png",
+      "size": [
+        1456,
+        819
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-07.png",
+      "size": [
+        1456,
+        819
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-08.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-09.png",
+      "size": [
+        1456,
+        819
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-10.png",
+      "size": [
+        9,
+        1456
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-13.png",
+      "size": [
+        1456,
+        20
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-15.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-17.png",
+      "size": [
+        1456,
+        20
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-19.png",
+      "size": [
+        1290,
+        1456
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-09v/evidence/shot-20.png",
+      "size": [
+        9,
+        1456
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-01.png",
+      "size": [
+        460,
+        400
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-08.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-10.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-18.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/B5-v/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-02.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-06.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-08.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-09.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-13.png",
+      "size": [
+        3840,
+        2160
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-14.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-15.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-18.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M0-05/evidence/shot-20.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-03.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-04.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-07.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-13.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-14.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-15.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-17.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-09/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/develop-loupe-wb-bug.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-01.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-02.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-06.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-08.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-10.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-12.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-15.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-17.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-18.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-19.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M1-10/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-01.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-02.png",
+      "size": [
+        460,
+        343
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-04.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-08.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-10.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-11.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-12.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-13.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-14.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-16.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-17.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-18.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-19.png",
+      "size": [
+        820,
+        620
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13bv/evidence/shot-20.png",
+      "size": [
+        889,
+        448
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-11.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-17.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-18.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-02.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-13.png",
+      "size": [
+        278,
+        395
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-14.png",
+      "size": [
+        278,
+        395
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-13v2/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-01.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-02.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-04.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-11.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-14.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-16.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-17.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-19.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/shot-20.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-14v/evidence/subject-mask.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-02.png",
+      "size": [
+        900,
+        660
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-03.png",
+      "size": [
+        900,
+        660
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-06.png",
+      "size": [
+        900,
+        660
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-07.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-09.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-14.png",
+      "size": [
+        1455,
+        652
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-17.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-19.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-20v/evidence/shot-20.png",
+      "size": [
+        1456,
+        808
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v/evidence/shot-20.png",
+      "size": [
+        580,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-01.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-05.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-07.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-10.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-11.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-12.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-13.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-14.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-17.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-25v2/evidence/shot-20.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-28/evidence/01-frames-in-place.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-28/evidence/02-interval-2s-5frames-retained.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-28/evidence/03-undo-after-8-frames.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-28/evidence/04-token-menu-original.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-28/evidence/05-original-applied.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-01.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-02.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-03.png",
+      "size": [
+        889,
+        448
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-04.png",
+      "size": [
+        889,
+        448
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-06.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-08.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-09.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-11.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-12.png",
+      "size": [
+        1200,
+        904
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-15.png",
+      "size": [
+        1200,
+        904
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-16.png",
+      "size": [
+        889,
+        448
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-17.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-18.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-19.png",
+      "size": [
+        620,
+        720
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-29v/evidence/shot-20.png",
+      "size": [
+        889,
+        448
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-04.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-06.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-08.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-09.png",
+      "size": [
+        3840,
+        2160
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-11.png",
+      "size": [
+        1269,
+        1019
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-13.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-15.png",
+      "size": [
+        3840,
+        2160
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-19.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-04.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-10.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-40v2/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-02.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-04.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-05.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-06.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-07.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-10.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-15.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-44v/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-48/evidence/detail-ai-denoise.png",
+      "size": [
+        1200,
+        750
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-48/evidence/lens-blur-panel.png",
+      "size": [
+        1200,
+        750
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-48/evidence/transform-guided.png",
+      "size": [
+        1200,
+        750
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M2-48/evidence/transform-panel.png",
+      "size": [
+        1200,
+        750
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-01.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-03.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-04.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-05.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-06.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-09.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-10.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-11.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-12.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-13.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-15.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-17.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-18.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-19.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-11v/evidence/shot-20.png",
+      "size": [
+        580,
+        421
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-01.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-02.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-03.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-04.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-05.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-06.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-07.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-08.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-09.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-10.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-11.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-12.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-13.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-14.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-15.png",
+      "size": [
+        597,
+        385
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-16.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-17.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-18.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-19.png",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "source": "tools/orchestrate/wp/M3-15v/evidence/shot-20.png",
+      "size": [
+        1440,
+        900
+      ]
+    }
+  ],
+  "contact_selection": [
+    "tools/orchestrate/wp/B5-02/evidence/document-mode-stub.png",
+    "tools/orchestrate/wp/B5-02/evidence/new-document-sheet.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-01-edit-in-layers.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-02-adjustment.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-03-opacity-drag.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-04-undo.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-05-saved.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-06-reopened.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-07-exported.png",
+    "tools/orchestrate/wp/B5-03/evidence/engine-08-psd-open.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-1-edit-in-layers.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-2-brush-stroke.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-3-brush-undo.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-4-eraser.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-5-wand.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-6-subject.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-7-transform-preview.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-8-transform-commit.png",
+    "tools/orchestrate/wp/B5-04/evidence/tools-9-psd-reopen.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-01-gaussian-dialog.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-02-gaussian-applied.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-03-gaussian-undone.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-04-levels-dialog.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-05-levels-applied.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-06-smart-filter-on.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-07-smart-filter-off.png",
+    "tools/orchestrate/wp/B5-05/evidence/filters-08-smart-filter-on-again.png",
+    "tools/orchestrate/wp/B5-06/evidence/adj-01-color-balance.png",
+    "tools/orchestrate/wp/B5-06/evidence/adj-02-gradient-map.png",
+    "tools/orchestrate/wp/B5-06/evidence/adj-03-black-white.png",
+    "tools/orchestrate/wp/B5-06/evidence/adj-04-reopened.png",
+    "tools/orchestrate/wp/B5-06/evidence/adj-05-more-layers.png",
+    "tools/orchestrate/wp/B5-06/evidence/adj-06-equalize.png",
+    "tools/orchestrate/wp/B5-06/evidence/v140-save-as-sheet.png",
+    "tools/orchestrate/wp/B5-06/evidence/v144-cmd-e-after-new-document.png",
+    "tools/orchestrate/wp/B5-07/evidence/01-shapes.png",
+    "tools/orchestrate/wp/B5-07/evidence/02-shadow-and-stroke-panel.png",
+    "tools/orchestrate/wp/B5-07/evidence/02-shadow-and-stroke.png",
+    "tools/orchestrate/wp/B5-07/evidence/03-fill-zero-panel.png",
+    "tools/orchestrate/wp/B5-07/evidence/03-fill-zero.png",
+    "tools/orchestrate/wp/B5-07/evidence/04-second-shadow-panel.png",
+    "tools/orchestrate/wp/B5-07/evidence/04-second-shadow.png",
+    "tools/orchestrate/wp/B5-07/evidence/05-global-light-30-panel.png",
+    "tools/orchestrate/wp/B5-07/evidence/05-global-light-30.png",
+    "tools/orchestrate/wp/B5-07/evidence/06-undo-global-light-panel.png",
+    "tools/orchestrate/wp/B5-07/evidence/06-undo-global-light.png",
+    "tools/orchestrate/wp/B5-07/evidence/07-redo-global-light.png",
+    "tools/orchestrate/wp/B5-07/evidence/08-reopened-psd-panel.png",
+    "tools/orchestrate/wp/B5-07/evidence/08-reopened-psd.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-1-panel-overlay.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-2-save-sheet.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-3-load-sheet.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-4-spot-options-sheet.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-5-alpha-only.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-6-quick-mask.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-7-reopened-tessera-doc.png",
+    "tools/orchestrate/wp/B5-08/evidence/channels-8-reopened-psd.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-01-remove-stroke.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-02-remove-applied.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-03-remove-undone.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-04-reopened.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-05-content-aware-fill.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-06-slow-job-running.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-07-slow-job-cancelled.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-08-distractions-review.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-09-neural-colorize.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-10-neural-jpegArtifactRemoval.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-11-neural-skin-no-faces.png",
+    "tools/orchestrate/wp/B5-09/evidence/retouch-12-neural-skin-new-layer.png",
+    "tools/orchestrate/wp/B5-09v/evidence/shot-01.png",
+    "tools/orchestrate/wp/B5-09v/evidence/shot-11.png",
+    "tools/orchestrate/wp/B5-09v/evidence/shot-20.png",
+    "tools/orchestrate/wp/B5-v/evidence/shot-01.png",
+    "tools/orchestrate/wp/B5-v/evidence/shot-11.png",
+    "tools/orchestrate/wp/B5-v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M0-05/evidence/shot-01.png",
+    "tools/orchestrate/wp/M0-05/evidence/shot-11.png",
+    "tools/orchestrate/wp/M0-05/evidence/shot-20.png",
+    "tools/orchestrate/wp/M1-09/evidence/shot-01.png",
+    "tools/orchestrate/wp/M1-09/evidence/shot-11.png",
+    "tools/orchestrate/wp/M1-09/evidence/shot-20.png",
+    "tools/orchestrate/wp/M1-10/evidence/develop-loupe-wb-bug.png",
+    "tools/orchestrate/wp/M1-10/evidence/shot-10.png",
+    "tools/orchestrate/wp/M1-10/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-13bv/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-13bv/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-13bv/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-13v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-13v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-13v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-13v2/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-13v2/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-13v2/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-14v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-14v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-14v/evidence/subject-mask.png",
+    "tools/orchestrate/wp/M2-20v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-20v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-20v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-25v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-25v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-25v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-25v2/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-25v2/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-25v2/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-28/evidence/01-frames-in-place.png",
+    "tools/orchestrate/wp/M2-28/evidence/02-interval-2s-5frames-retained.png",
+    "tools/orchestrate/wp/M2-28/evidence/03-undo-after-8-frames.png",
+    "tools/orchestrate/wp/M2-28/evidence/04-token-menu-original.png",
+    "tools/orchestrate/wp/M2-28/evidence/05-original-applied.png",
+    "tools/orchestrate/wp/M2-29v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-29v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-29v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-40v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-40v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-40v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-40v2/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-40v2/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-40v2/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-44v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M2-44v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M2-44v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M2-48/evidence/detail-ai-denoise.png",
+    "tools/orchestrate/wp/M2-48/evidence/lens-blur-panel.png",
+    "tools/orchestrate/wp/M2-48/evidence/transform-guided.png",
+    "tools/orchestrate/wp/M2-48/evidence/transform-panel.png",
+    "tools/orchestrate/wp/M3-11v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M3-11v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M3-11v/evidence/shot-20.png",
+    "tools/orchestrate/wp/M3-15v/evidence/shot-01.png",
+    "tools/orchestrate/wp/M3-15v/evidence/shot-11.png",
+    "tools/orchestrate/wp/M3-15v/evidence/shot-20.png"
+  ]
+}

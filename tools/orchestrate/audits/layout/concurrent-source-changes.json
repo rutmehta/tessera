@@ -1,0 +1,23 @@
+{
+  "audited_commit": "84fc6f23abeea5365394bb1dff0449c2ac85f33b",
+  "final_observed_commit": "14eda8254e73117d58daeec18b889470f6d69054",
+  "changed_since_manifest": [
+    "apps/mac/Sources/Tessera/App/AppCommands.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentController.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentView.swift",
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift",
+    "apps/mac/Sources/Tessera/Document/PropertiesPanel.swift",
+    "apps/mac/Sources/Tessera/Document/Retouch/DocumentRetouch.swift",
+    "apps/mac/Sources/Tessera/Document/Retouch/RetouchSelfTest.swift",
+    "apps/mac/Sources/Tessera/Document/Retouch/RetouchViews.swift",
+    "apps/mac/Sources/Tessera/Document/Tools/DocumentTools.swift",
+    "apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift",
+    "apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift",
+    "apps/mac/Sources/Tessera/Shell/ContentView.swift",
+    "apps/mac/Sources/TesseraCore/Document/Retouch/DocumentRetouchBackend.swift",
+    "apps/mac/Sources/TesseraCore/Document/Retouch/EngineDocumentBackend+Retouch.swift",
+    "apps/mac/Sources/TesseraCore/Document/Tools/EditorTools.swift",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift"
+  ],
+  "archive_manifest_mismatches": []
+}

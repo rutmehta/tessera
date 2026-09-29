@@ -1,0 +1,717 @@
+[
+  {
+    "bounds" : "{{0, 0}, {1280, 748}}",
+    "class" : "NSHostingView<ModifiedContent<ModifiedContent<ContentView, _FlexFrameLayout>, _EnvironmentKeyWritingModifier<ColorScheme>>>",
+    "frameInHost" : "{{0, 0}, {1280, 748}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>>",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "NSSplitView",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "_NSSplitViewItemViewWrapper",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>>",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<NavigationSplitRepresentable>>",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "NSSplitView",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "_NSSplitViewItemViewWrapper",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {1318, 817}}",
+    "class" : "NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>>",
+    "frameInHost" : "{{-19, -34}, {1318, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {17, 792}}",
+    "class" : "NSScroller",
+    "frameInHost" : "{{986, -34}, {17, 792}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {718, 32}}",
+    "class" : "HostingScrollView",
+    "frameInHost" : "{{273, -22}, {718, 32}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 817}}",
+    "class" : "_NSSplitViewShadowView",
+    "frameInHost" : "{{209, -34}, {12, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {228, 817}}",
+    "class" : "_NSSplitViewItemViewWrapper",
+    "frameInHost" : "{{-19, -34}, {228, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {220, 801}}",
+    "class" : "NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>>",
+    "frameInHost" : "{{-11, -26}, {220, 801}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {220, 801}}",
+    "class" : "NSOutlineView",
+    "frameInHost" : "{{-11, -26}, {220, 801}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {43, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{2, -7}, {43, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 20}}",
+    "class" : "NSPopUpButton",
+    "frameInHost" : "{{185, -10}, {20, 20}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {61, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 16}, {61, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{86, 16}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{82, 17}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {18, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{169, 17}, {18, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {45, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{2, 58}, {45, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 20}}",
+    "class" : "NSPopUpButton",
+    "frameInHost" : "{{185, 55}, {20, 20}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {86, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 81}, {86, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{111, 81}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{107, 82}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{183, 82}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {25, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 105}, {25, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{90, 105}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {44, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{46, 106}, {44, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{183, 106}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {83, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 129}, {83, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{140, 129}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {36, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{104, 130}, {36, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{183, 130}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {46, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{2, 171}, {46, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 20}}",
+    "class" : "NSPopUpButton",
+    "frameInHost" : "{{185, 168}, {20, 20}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {43, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 194}, {43, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{68, 194}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{64, 195}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{176, 195}, {11, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {43, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{2, 236}, {43, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 20}}",
+    "class" : "NSPopUpButton",
+    "frameInHost" : "{{185, 233}, {20, 20}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {39, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 259}, {39, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{64, 259}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{60, 260}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{176, 260}, {11, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {66, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 283}, {66, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{91, 283}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{87, 284}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {18, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{169, 284}, {18, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {46, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 307}, {46, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{71, 307}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{67, 308}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{176, 308}, {11, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {91, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 331}, {91, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{116, 331}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{112, 332}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{183, 332}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {93, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 355}, {93, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{118, 355}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{114, 356}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{183, 356}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {31, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 379}, {31, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{56, 379}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{52, 380}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{183, 380}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {45, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{21, 403}, {45, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 16}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{70, 403}, {20, 16}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{66, 404}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {4, 14}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{183, 404}, {4, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {17, 0}}",
+    "class" : "NSScroller",
+    "frameInHost" : "{{-28, -26}, {17, 0}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {220, 801}}",
+    "class" : "_NSCoreHostingView<RootView>",
+    "frameInHost" : "{{-11, -26}, {220, 801}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {0, 817}}",
+    "class" : "NSSplitDividerView",
+    "frameInHost" : "{{209, -34}, {0, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 817}}",
+    "class" : "_NSSplitViewCollapsedInteractionsView",
+    "frameInHost" : "{{-19, -34}, {15, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 817}}",
+    "class" : "_NSSplitViewCollapsedInteractionsView",
+    "frameInHost" : "{{1284, -34}, {15, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {0, 817}}",
+    "class" : "NSSplitDividerView",
+    "frameInHost" : "{{1003, -34}, {0, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 817}}",
+    "class" : "_NSSplitViewShadowView",
+    "frameInHost" : "{{991, -34}, {12, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {296, 817}}",
+    "class" : "_NSSplitViewItemViewWrapper",
+    "frameInHost" : "{{1003, -34}, {296, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {296, 817}}",
+    "class" : "NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>>",
+    "frameInHost" : "{{1003, -34}, {296, 817}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {296, 192}}",
+    "class" : "HostingScrollView",
+    "frameInHost" : "{{1003, -34}, {296, 192}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {192, 21}}",
+    "class" : "AppKitTextField",
+    "frameInHost" : "{{1095, -2}, {192, 21}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {192, 21}}",
+    "class" : "_NSCoreHostingView<AppKitTextField>",
+    "frameInHost" : "{{1095, -2}, {192, 21}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {56, 24}}",
+    "class" : "NSColorWell",
+    "frameInHost" : "{{1095, 170}, {56, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {56, 24}}",
+    "class" : "_NSCoreHostingView<AppKitColorWell>",
+    "frameInHost" : "{{1095, 170}, {56, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {56, 24}}",
+    "class" : "NSColorWell",
+    "frameInHost" : "{{1095, 198}, {56, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {56, 24}}",
+    "class" : "_NSCoreHostingView<AppKitColorWell>",
+    "frameInHost" : "{{1095, 198}, {56, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {130, 32}}",
+    "class" : "ValueSlider",
+    "frameInHost" : "{{1015, 214}, {130, 32}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {130, 32}}",
+    "class" : "ValueSlider",
+    "frameInHost" : "{{1157, 214}, {130, 32}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {296, 192}}",
+    "class" : "LayersOutlineView",
+    "frameInHost" : "{{1003, 283}, {296, 192}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 24}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1021, 287}, {20, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 280}, {11, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {24, 29}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 280}, {24, 29}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 28}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1021, 279}, {20, 28}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {39, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{1075, 291}, {39, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 11}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 281}, {15, 11}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1116, 292}, {15, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 280}, {12, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 32}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1005, 283}, {12, 32}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 24}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1033, 319}, {20, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 312}, {11, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {24, 30}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1057, 316}, {24, 30}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 28}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1033, 311}, {20, 28}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {98, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{1083, 323}, {98, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 11}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 313}, {15, 11}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {0, 0}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 315}, {0, 0}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 312}, {12, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 24}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1033, 351}, {20, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 344}, {11, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {24, 31}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1057, 347}, {24, 31}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 28}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1033, 343}, {20, 28}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {53, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{1083, 355}, {53, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 11}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 345}, {15, 11}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {0, 0}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 347}, {0, 0}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1033, 344}, {12, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 24}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1021, 383}, {20, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1045, 388}, {11, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {24, 30}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 376}, {24, 30}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 28}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1021, 375}, {20, 28}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {52, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{1090, 387}, {52, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 11}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 377}, {15, 11}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {10, 14}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1144, 388}, {10, 14}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 376}, {12, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 24}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1021, 415}, {20, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 408}, {11, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {24, 30}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 408}, {24, 30}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 28}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1077, 413}, {20, 28}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {66, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{1131, 419}, {66, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 11}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 409}, {15, 11}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {0, 0}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 411}, {0, 0}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 408}, {12, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 24}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1021, 447}, {20, 24}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {11, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 440}, {11, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {24, 30}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 440}, {24, 30}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {20, 28}}",
+    "class" : "NSButton",
+    "frameInHost" : "{{1021, 439}, {20, 28}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {37, 15}}",
+    "class" : "NSTextField",
+    "frameInHost" : "{{1075, 451}, {37, 15}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {15, 11}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 441}, {15, 11}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {0, 0}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1021, 443}, {0, 0}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {12, 13}}",
+    "class" : "NSImageView",
+    "frameInHost" : "{{1114, 452}, {12, 13}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {17, 172}}",
+    "class" : "NSScroller",
+    "frameInHost" : "{{1282, 283}, {17, 172}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {272, 144}}",
+    "class" : "HostingScrollView",
+    "frameInHost" : "{{1015, 550}, {272, 144}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {0, 100}}",
+    "class" : "NSScroller",
+    "frameInHost" : "{{1015, 550}, {0, 100}}"
+  },
+  {
+    "bounds" : "{{0, 0}, {296, 817}}",
+    "class" : "_NSCoreHostingView<RootView>",
+    "frameInHost" : "{{1003, -34}, {296, 817}}"
+  }
+]

@@ -1,0 +1,10 @@
+Report written:
+ /Users/rutmehta/Developer/tessera/tools/orchestrate/audits/layout/REPORT.md
+
+The main problem is layout composition, not Swift versus React. I isolated two major causes: DocumentStatusBar forces excessive workspace width, while the document inspector demands excessive height. At 1280×800, the content extends outside the window, pushing Properties into the toolbar and clipping controls.
+
+The report includes 18 background captures, file:line causes, ranked findings, framework recommendations, and sized remediation packages. No application source was edited.
+
+Caveat: debug build and evidence validation passed, but release compilation failed because another worker changed source mid-build. The report preserves the audited revision and states that limitation explicitly.
+
+RESULT: DONE

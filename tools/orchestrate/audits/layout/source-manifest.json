@@ -1,0 +1,726 @@
+[
+  {
+    "file": "apps/mac/Sources/Tessera/Agent/AISettingsView.swift",
+    "sha256": "ad3252837ab790140f9956294581b07967dfd3a33f07789d8b242e70215ed86e"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Agent/AgentController.swift",
+    "sha256": "8c80ed1c3742112753218465de0a9732b6aec48d8ef89f2a102f784ba429b145"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Agent/AgentPanels.swift",
+    "sha256": "4ebc5bc2a7dadb6ce1ebd05f6604578f400c37a913dc33c78736e73e3bad63a8"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Agent/AgentReviewSheet.swift",
+    "sha256": "14dc352f3eb6c6fb27c60e8fab66ae3af5f05637ead415b3c33ced7203cf35bd"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Agent/AutoEditSheet.swift",
+    "sha256": "69a7be3b763a48f0e413420c319d3c81ae564b4aa712c25e5b4ceba386c4f7f6"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/AppCommands.swift",
+    "sha256": "d197e0ec617b81d96d3a38e0f80729021fbcd8887224ba36717201f91675200e"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/AppModel+Output.swift",
+    "sha256": "bba5eab62fed562fb29a7c37d08127c2448dbe6a9b156e0db7c13ac2faf8e73a"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/AppModel.swift",
+    "sha256": "747a40ed9e674e6873b29e3b7049fdf2fc31963ec804f6e6d760e42f0574df96"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/Components.swift",
+    "sha256": "4ca7508977f92bd9b0410f550f67ed0f536afdd4018fad7ba662ed05b101defb"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/DevelopTools.swift",
+    "sha256": "4f18f3ea59015d9b12d60b9847e5492de19c25afd603ace1b222ba20eb96d361"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/KeyRouter.swift",
+    "sha256": "83436c0dd5e42f95a4170335762196d3fe0264a1ad0643fe9a6573ca79ea633c"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/MaskTools.swift",
+    "sha256": "9d837b5941deab152fd6fc93d16db9151257e9d1bdbd76b7eda938e4b0c40207"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/TesseraApp.swift",
+    "sha256": "3e81ce319d34e6663aab6d0ea781203991f462c5ddb7386a1389f215be7f916a"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/App/Theme.swift",
+    "sha256": "ab31a43027ffd4b287ebcd02d2119a004fb7aa13f82c6749ac266737a267a788"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Compare/CompareView.swift",
+    "sha256": "a2e2be4f9c643eb710c1daa7ae1422157257d60e21ea7b5ca74bb12ba5c27835"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Cull/AssistController.swift",
+    "sha256": "c1d01355d205723c658a24bd1236d0218d7e0fc0cfe4a90fe70984542945b0b8"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Cull/AssistPanels.swift",
+    "sha256": "5fd68a9b5e22f8090a99349a803ace1811f79fb0edc54e2f00f190e43a91dcbb"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Cull/DefectSweepSheet.swift",
+    "sha256": "106d7f07716c8d4bae7921d405b4e9751fb6ae78960dc01e42adbf39f596f949"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Cull/FaceStripView.swift",
+    "sha256": "551d16d659e353cb86aa25ebd5d815ebbc276e11c14a2b42ab6c858766dd77e5"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift",
+    "sha256": "c8970e8b1801d042ebbf2b6068baafc49c4c90ae4aa4fea6c7e8f2152ffb0397"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Channels/ChannelOverlay.swift",
+    "sha256": "8b34d5c71f38e0b6dde1fc3bde392dee9bec15f9367e7e0cd5897c99f7320a47"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Channels/ChannelSheets.swift",
+    "sha256": "ad34475cf2332bcf10020f896c145ec6781fc8d8db48966bd8b297fbdf09cd6c"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift",
+    "sha256": "1b7a447ff184cc6328e3699454d921988f472ad2572e5a226fc710d60a6632fa"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Channels/ChannelsSelfTest.swift",
+    "sha256": "6bef139a79b06ecb78d1b11ba67ec0e0944f89bce699f4f744c0f0bbf7a91c23"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Channels/DocumentChannels.swift",
+    "sha256": "8d7a9148e0c6ebf3d35ce6642ad407403f10d81b65ac4a65a89daa459b80fe41"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift",
+    "sha256": "c3f637ef485bbbbd9f3bc0cd7bc0629fdac320aca3fc5fa9369a5241b96ee5ab"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentController.swift",
+    "sha256": "1b0f7b21c51764f280558d000aab83c9411c88673706c942c84fc6fd7afe4e2a"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentControls.swift",
+    "sha256": "a375b57fa542e5cfe4f5582aa29362a21ea4ca2aefbf755e6b026540f44d6a97"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift",
+    "sha256": "c0ceb623b54c7b65fd31ec73e589353ba03155df992f49eea483ec9cb5283913"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentSelfTest.swift",
+    "sha256": "48445d4bfa66bc236c0941f9fc33dd526eabd7142a626cd33f4c975414ba45d2"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentSheets.swift",
+    "sha256": "46ba358e28e41d77e95e37d75c23d3a68ce97d274d07b90bea2a2fedc35e8d9a"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentView.swift",
+    "sha256": "67222a6e5489de983c4e6854bb60f6cebf4459f908e3016e16a7dd71506d08d0"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentViewport.swift",
+    "sha256": "933213ab8755433741b00f6e6329c343eca63ab22eea7984bb7620d8bc8d62b2"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift",
+    "sha256": "dd49222846147c1142d5c7932ded055b62b58ed286e18bce46f111643ea0bd81"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift",
+    "sha256": "aba33a843ba7d39334f55078444f4693767aa1926807424a58a80fdbf833e6c5"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Filters/FilterMenus.swift",
+    "sha256": "7be3dbd47e7e57a8092b480abac169645ebadc2cfe8317b21d0352918e39011a"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Filters/FilterSelfTest.swift",
+    "sha256": "ad21d06cba7107b90a605a568e94629bac1b960e7384d7677fdc08187c0debe1"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Filters/FilterSheets.swift",
+    "sha256": "cfe4f6c3d299acb5bb6d09f928d26173cfb0c6c14ba2afa172b306d64b2f16d0"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Filters/SmartFilterRows.swift",
+    "sha256": "1500171d3e522140f2f7f2f99e5cb00e2b9ac04620493923ec0e2fb3e7c8e369"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/LayersOutline.swift",
+    "sha256": "82cfa16f46e290da8d012fc65ef45b931ac5d6f00a485a753288e5517ef76b77"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/LayersPanel.swift",
+    "sha256": "641bebd89cafc05ebbaca35980dc6ddd1f9c4f22c21a47dad17acee709e5c4eb"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/PropertiesPanel.swift",
+    "sha256": "5abb78870421cca7f90614f50dbf698728a910c30cc628ddc17eda28a1ce230b"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Retouch/DocumentRetouch.swift",
+    "sha256": "159ea765c331dba578b6fb57a336e20b71be04a9eec0789a4e6cbadf6a8cc31f"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Retouch/RemoveOverlayView.swift",
+    "sha256": "fec1e1e19621b80853bc3ddeed70a34530973e5e68c3bf4353f9f8886fb30517"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Retouch/RetouchSelfTest.swift",
+    "sha256": "c0e5dacfd5c4d0fabf246442df964accd5802935861951405844b70e9f993c55"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Retouch/RetouchViews.swift",
+    "sha256": "0d7f9dde1f9f4962371ab4b7a832706d1a6579c4c871a52e6337eae2d1eb7a7f"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Styles/DocumentStyles.swift",
+    "sha256": "a4b225ac899d9eca7eec7a999e1a8281301dbb09220b23620632f4e030d14541"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Styles/LayerStyleEditors.swift",
+    "sha256": "dbad8a6f513883595614497dbac109ca495eb8d2780b9bf4e61e62af246155b4"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Styles/LayerStyleInspector.swift",
+    "sha256": "d6c235e7ab066b6984ef27232f19918cc57ea6f0d0bde7ec29eb10b2ba629f9e"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Styles/LayerStyleMenus.swift",
+    "sha256": "26573eb41da741348bba4ed06673b9e5439f366c4a2efde3ea7a0b8e73c9513e"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Styles/LayerStyleOutline.swift",
+    "sha256": "cdeaa2fbe11da062d95c77ada6c048269b0682f17662dd56482beb986424e415"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Styles/StylesSelfTest.swift",
+    "sha256": "3ba6e7231e06659116367f499f76b1dab4710c02381717cbad440513cf4f91c3"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Tools/DocumentTools.swift",
+    "sha256": "ace05fefbf74c82e73834563aea2eee3e9107fa6cee31a65bb9975670f2588ff"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift",
+    "sha256": "f6f0d7894a5607c76bfb35aff2fa404d510a8bf0c8ce11730af3769574132941"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Tools/ToolsInspector.swift",
+    "sha256": "9685066f649cdf7ff3811ca19c84d04a766d842c6e5042262b39dc219387363a"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Tools/ToolsMenus.swift",
+    "sha256": "98caee304010dd86bb27346d5d8a9a9fded0bb6735a3cc40101cff5c0c7f852b"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift",
+    "sha256": "d56d5fb70199daf226abdde42204aa9a1b2473fe710b5ffb189bb021f8311502"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Tools/ToolsSelfTest.swift",
+    "sha256": "c9c6fec5034a5eb4fb1f9cf9906952f3879c16a26199f6ed3b846c2b6adbfede"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Document/Tools/ToolsSheets.swift",
+    "sha256": "72ce39ee82ec82346351f6ef4a9e52f2e889625414e69181b4b17f1e3913c065"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Export/ExportController.swift",
+    "sha256": "f9a43701ef2d9a4f503f2d840281ce9fd740f6b45b6cd8ea154e12382e909231"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Export/ExportSheet.swift",
+    "sha256": "48432738297a851c0181d1259413d116b3369540480ca92a4bb6b8098b0e4266"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Export/ExportWatermarkViews.swift",
+    "sha256": "ad73ed280f836781fcebce65b0a30daf3789c965cb0340ef1b7bd0bd9fc90913"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Grid/ThumbnailBrowser.swift",
+    "sha256": "66821992c6453fd01a4b19e27c23a27075f9def83596d65ef66bf9240107de2f"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Grid/ThumbnailCell.swift",
+    "sha256": "4538732a29ddbf9347c5e3891fd8496ed44a06cb8ffcac7a18344342c71e9838"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Grid/UniformGridLayout.swift",
+    "sha256": "b0c63ef2725c1cf448b5db51f3bd10dd19ffbfb5e8edc35cc726fea9c4c71775"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Import/LightroomImportController.swift",
+    "sha256": "e859c5a24800f4651c01f7abca81d541be16c4d3535765c960797898b715bbba"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Import/LightroomImportSheet.swift",
+    "sha256": "c2a7fe6b14fd78d07cc41363246dbaf56f079618126e07036499d7cbe13e2597"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/ColorWheelView.swift",
+    "sha256": "12449e44e716e4412ff5bc99c41e932704d0404bf87ce52a9c2d47782f9031f3"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/CurveEditorView.swift",
+    "sha256": "46b3d07e8367546b88df8089db4ca98f015d1dde88f8ed43400f79547a3829d1"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/DetailPreviewView.swift",
+    "sha256": "5e1dc73f720fa6d2b786fdf9997bad98dc1299ae8bb5417d4b61aa7f6205fec5"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/DevelopPanels.swift",
+    "sha256": "e8b44f63e46195faf35b571345cc2c52ea87064429671f45ef8753564ad0494d"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/HistogramView.swift",
+    "sha256": "33250da7b80caa7d9860d9075f8ab95a6fddb9ffc6acc42fbe934b9bacdfcd50"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/InspectorView.swift",
+    "sha256": "a732deeb9a6856928d66c28a94616b0e8252629b6ce74a0d556cabc61d86d73e"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/LensBlurPanel.swift",
+    "sha256": "11fed106938ced7b4f7d442fd8d3d2282e1a542808fd22e6bc05033c6d7857a4"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/LibraryPanels.swift",
+    "sha256": "ec6f1543bae4b407bffab94300d912f29515312f1cdc96085e5a2fd66acaaf2e"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/MasksPanel.swift",
+    "sha256": "ce06356806b60f6d578f199aef2df2188c5f0f10f180b9b21834a54ca01cb7e8"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/TransformPanel.swift",
+    "sha256": "1fb5d79589742ded9dc758b8288aaeb718140e3d8da32d3fc14c00b70ceeb93a"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/UnderstandingPanels.swift",
+    "sha256": "a4e57e6bf3557e8c52c2a0d24dd89e27f65548a594776e0eb8aed146ffabefa6"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Inspector/ValueSlider.swift",
+    "sha256": "586c23262d8348662e189f27c14c4c2d72e7c409ef2ce736f7c077bb2cfa3590"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Library/FilterBar.swift",
+    "sha256": "07ea72e9df2ffe3124ca54151098b231c8e50496ac26fc239011dacd7214121c"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Library/LibraryModel.swift",
+    "sha256": "4d1139c8d2bdad16d8b922d1beb39dc72340f064345ffb50c39e86fdb81cbec5"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Library/RuleTextField.swift",
+    "sha256": "2a3ca282afac5c24d7074660aa64906b2cefb2a2a3f1f22c38f38b25f314c5bb"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Library/SmartAlbumSheet.swift",
+    "sha256": "46383243c44c9efb596cc17e9ecf2285174642f594e228a4a227206b9e2d3c3f"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Library/UnderstandingController.swift",
+    "sha256": "68c82cd013b3dd178eb7e7fdbef2b3e92936aa38fb52cbd2f6c181c85092c166"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/LoupeFrame.swift",
+    "sha256": "ef3e070e71f0e5cc09ae802a284930da81f4fbfb36ce90b6a1a0e93fe90a3928"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/LoupeMaskTools.swift",
+    "sha256": "9bfdc6db1d9c52fa74400cdf07c2b986a0590cb958637c4bbb9c67d08273803d"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/LoupeRenderer.swift",
+    "sha256": "b301365d790754ca5671a54814a0e471cc331a47120af79c773121f4f6ab3bdc"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/LoupeToolOverlay.swift",
+    "sha256": "584e5e5bc9e8a64df82df9d1a4a4ccef5727366df4029dc26d6f486d98cba870"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/LoupeUprightGuides.swift",
+    "sha256": "d16654e6381091308eb1b7e74b2b6a281a02d6ee30393513a026c9078babe775"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/LoupeView.swift",
+    "sha256": "083b090146c8c322dd35e9373962e3828651c1e7b8b82444ba0b821389853315"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/MaskToolbar.swift",
+    "sha256": "43f0b6495021fbbbd6fa4e2900737de538022c8399d9946d8deea5caa2dabe77"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/MetalLoupeView.swift",
+    "sha256": "a94cc50920e1a0a18da811faf44a45e243392a801fa2a30cbc945173116055df"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Loupe/SoftProof.swift",
+    "sha256": "0032728a39d20846a808e5e8d7972a915acfa597e73ca559cc610b4899c638a9"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/People/LibrarySettingsView.swift",
+    "sha256": "971acb33daa01867a4d50e1d47c4eb2f6130ca0be29a52054eace01278026934"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/People/PeopleView.swift",
+    "sha256": "a371165c0250c76c7f7d518299099bd37d3995b07e64dc06793840739b12a2ce"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Photo/AppModel+Photo.swift",
+    "sha256": "42d295a302422a578307d42cbe35427643361f871e3c471283af8ee1a96526d7"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Photo/EnhanceSheet.swift",
+    "sha256": "bcef5f3bead888657fad9b465cd4dd420def5df87091e3056b957fb383e747e4"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Photo/PhotoMenu.swift",
+    "sha256": "4c3d666cdf81239d0161bff9f7437df17e85a417416ac7ae312fa79cf2f4a8d1"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Photo/PhotoMergeSheet.swift",
+    "sha256": "18ae4083bb0989815489bceec73a3b76ac0bf39e21af6f7ab5a1f013b5e8793b"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Print/PrintComposer.swift",
+    "sha256": "a7cd1b089cec85109a1d42f816c63be77710dd16ef13661671de321f95f1c1b6"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Print/PrintController.swift",
+    "sha256": "c193d9fae5d84103364340ea68caacf10b7291a3ca3854a64628a0b40647a468"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Print/PrintSheet.swift",
+    "sha256": "bdd90b4fcc3ae824fb90ca8cd902cbd17e24fb78886d05f3cea07f8f469e9083"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Settings/ModelDownloadsSettingsSection.swift",
+    "sha256": "127d33be351cdc2ccbcbcccf647668df10562548827512c90a03c3e1fa42b119"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Shell/ContentView.swift",
+    "sha256": "cf9054f96a87d07fdc2b017631310798c778b4f159d1deee0cb0aa5fb5d54264"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Sidebar/SidebarView.swift",
+    "sha256": "02ff6a65b34d746ac2be8833faa75a7635d3cae3ee3d376fecf8cfa1d138ba91"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Tether/TetherController.swift",
+    "sha256": "476d94eac1def93133c1888ada3f3de044339e2f5b90297eab20517bf1711591"
+  },
+  {
+    "file": "apps/mac/Sources/Tessera/Tether/TetherPanel.swift",
+    "sha256": "7f1b99dde7e72501f001b503c4d02e8797975ff14ea57b8b65f17dd8d1372285"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Assist/AISettings.swift",
+    "sha256": "0eb1b05b6d5154aed6f974a8bea367fc6c40ddc920f0a0717f4e1dc87a08b0d9"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Assist/AgentFade.swift",
+    "sha256": "34a7706feed996c35e9fc327f8abe4fa3663d098180bf08b109e9b1da70d6014"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Assist/AgentReview.swift",
+    "sha256": "05787f5c2e1b1f46b3bb60d85dfe06c98a4246c6e5570657196ef3951072bc54"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Assist/CullController+Assist.swift",
+    "sha256": "e7ceef105fbf720eb5ef172e9dfa32f601984f2ec942d11873feb6a7fac35fba"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Assist/People.swift",
+    "sha256": "1f5f744cb723db743dfb67731e7d2052f0351b4946f8c62099d65f73522c8aba"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/CullController.swift",
+    "sha256": "c405705fe305895d1bdfb993ccb5b819f3201a102f8720a9aaa65bcaf0d77fb7"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/CullState.swift",
+    "sha256": "f7a216e5a21343a87c0bbbd8c7bd71140343992eeb13de2dab89d17724aa1342"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/ColorMath.swift",
+    "sha256": "9053ba76fa1ce685bb9ffef81266eb9137f34310a6388d122afee740d3847d32"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/CropGeometry.swift",
+    "sha256": "d4db7b950901aa8740d792953fc9886e2ac4801194451b197a727e4bbee3a5bd"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/DevelopController+Masks.swift",
+    "sha256": "780aa50ec2aa5cac4875508a473a77ee0a9bf20263145d6832e7a4dec4741203"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/DevelopControls.swift",
+    "sha256": "4a60449c5d6cb141c6f90d36d5c908419f365b457853d8d6f7161b46e6b1b600"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/EDRPresentation.swift",
+    "sha256": "c863269b95fd060fd0bb5448cc3c5350402c7de570c8fe8a9028bd8de6c8cccc"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/LensBlurDenoiseControls.swift",
+    "sha256": "5394d5549676f908399986fbe98729b734e3d22b0688007ed42d04b0732736f4"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/LensBlurDepth.swift",
+    "sha256": "570141d3c2a941b19ea49dc59b48e80a48bdf5736b12ad5f71864c062e9ff0e2"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/Masking.swift",
+    "sha256": "b967813a3eaceb8c2e3580246568f7164104aab6bf0e4028a785249424b1b17a"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/PresetStore.swift",
+    "sha256": "fb8c8350f2ae97132f00af79b3a1f6599f7fed5e71535deedf34c2edde103b2b"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/ToneCurveModel.swift",
+    "sha256": "003e971485034012b2e2fe4abcbb246e58a3591d8218543183366cba3c60a8b6"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Develop/TransformControls.swift",
+    "sha256": "d73b620e43cece70b25daf4b22ebd3b75d5db7b016c93e4c82f118af7369f6f9"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/DevelopController.swift",
+    "sha256": "3aca143fa993f3bce7749153ec3ea659d56ab5ea76c645faef62034811bea484"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/AdjustmentAnalysis.swift",
+    "sha256": "60106388f30d349d41d69bd72a6adcbe53d5d3ee983cc6ae22c7e79bb061228f"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Channels/DocumentChannelsBackend.swift",
+    "sha256": "f1e7afd09b216d8d33058e6873b2f6b8c3905503c23a2d3e86f35bc057f92237"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Channels/EngineDocumentBackend+Channels.swift",
+    "sha256": "ee419358a99bb5f897d63f09fd763b9e327ab34f4ee7594926b18a5ddb05cec6"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Channels/StubDocumentBackend+Channels.swift",
+    "sha256": "c11a4e63d46ebf50b598a6e9ed1da9ef97927dfdad341f3667fd82d13f1a32c0"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/DocumentAdjustmentModels.swift",
+    "sha256": "4955df703e839eb2606180f9a0b11339ac2d467b8d4ebde1aba2f4c731e88a77"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/DocumentAdjustments.swift",
+    "sha256": "6497dbcee09102c6da105d691223dbf0edc67ecd397b711a1a3c19d60fb92f55"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift",
+    "sha256": "2534ba2ae7751320c6bc652a56f89955bb3a49b73385fe0fd962b1eb5db3d56f"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/DocumentBlendModes.swift",
+    "sha256": "a54beebf4ee8e42c3d8e0e21426ace5909f1fba8df70a7cf5488a009c9469a75"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/DocumentKeyMap.swift",
+    "sha256": "fc4bd2fc51e78ea5d5150b34ae5e608a68fee66392b32edf07e2cfce18893e83"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/DocumentOutline.swift",
+    "sha256": "853260ab6ea4e8bdd963b9b5a59decfa91a47752fbf4a1bcfaa461a8b4d2cc26"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/DocumentViewportMath.swift",
+    "sha256": "2793f27910de9e12dcdef2130fe6627ea89f9dcf31c495f2cc9dab26f9300eb2"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift",
+    "sha256": "d3c908bc61cf3a64857e771160708c9ffe1e347a89ed519445136d195c04a4cc"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Filters/DocumentFiltersBackend.swift",
+    "sha256": "61e5293b3732f6cd96efdab7210cc6e251f8a36c2d37f6191686ff744b58d674"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Filters/EngineDocumentBackend+Filters.swift",
+    "sha256": "72191b9537d26ff5f41a7eb3d553e34f9f65bfc51228127138d0d0074cbe6081"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Filters/FilterSchema.swift",
+    "sha256": "81dce89e0d64d8e225a1a53057dc8073ffb0ef2ca3a18204b9a78e4e413eb44c"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Filters/StubDocumentBackend+Filters.swift",
+    "sha256": "78e5c17616a7255a7e3fc775a992f140236ad85ebc05af724c293d810ee7265c"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Retouch/DocumentRetouchBackend.swift",
+    "sha256": "37061c243f3f88abbe9048e90bfb78ada0c91cc9b88da3ab45ac1f4d2949915d"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Retouch/EngineDocumentBackend+Retouch.swift",
+    "sha256": "2e36ddd22dd3ab8fc86092749d5b05272191cf89d63c8e85cc654e4fc5f9bcd9"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Retouch/StubDocumentBackend+Retouch.swift",
+    "sha256": "2fce7fad749811abe75fa71bf525b3925423be7f52d3f00cb71865a35b095f50"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/StubCompositor.swift",
+    "sha256": "48b8a40195cab6670abd03227f9188267ca6b29fdebddc8ab62ad26f1aee4ae3"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift",
+    "sha256": "b1d006262f69895ab57a3cdbe433faeaf75e692fad70c14feae7d677d94007bf"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/StubDocumentModel.swift",
+    "sha256": "663c6fdb65105241b9ce1391e6d35564ff380c9a55d2a10b675957e93ebe34e5"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Styles/DocumentStylesBackend.swift",
+    "sha256": "0e2ccc333c8119a55323c0a13fba0cbd0b6ca884a537d354136cfb5f2d75bd2a"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Styles/EngineDocumentBackend+Styles.swift",
+    "sha256": "85ee2b15a521eb09271bd2259c411e34d2c49872200dfae3d7d558acd49478e8"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Styles/LayerStyleModel.swift",
+    "sha256": "7f55e4beac5fba1940b010c05f3d9a702f160e77f9e56731ce3fd03da43c96d0"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Styles/StubDocumentBackend+Styles.swift",
+    "sha256": "5ea69e3a8956d0d19838bc12d3324ee6b3fdcb34c24bfce8182c7fda6fb0d419"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Styles/StyleJSON.swift",
+    "sha256": "a85d140cb23c0c7133eda4defea917929a5f77703d5a4c15e3f3ef873f3f834f"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Styles/StyleSchema.swift",
+    "sha256": "05b308b8b362a733cbdde3ba903417486050471edd3bc4d00a84487b38bb8de7"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Tools/DocumentToolsBackend.swift",
+    "sha256": "64704816014ef3f65be78ad41041c43f7b0a310d9d3f0a083661f1a112ccabcb"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Tools/EditorTools.swift",
+    "sha256": "f8791e44e997535af5fccac28bd23af67a66b0bf1e33061d551317fd99d2de77"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Tools/EngineDocumentBackend+Tools.swift",
+    "sha256": "028ceab1a41361c3752eedfc3eea6041b50fdd39f4052a2de38ec2f095f12b51"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Tools/FreeTransformMath.swift",
+    "sha256": "bb689ccd651702b48d91e1236964fabf01d07593a662dcfa0af1b7ab219d2ba9"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Document/Tools/StubDocumentBackend+Tools.swift",
+    "sha256": "ff0b6a6e8e368cac5b070588605de05ca9174a201f7d89bbf3d1f26111257fc9"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/EngineLibrary.swift",
+    "sha256": "af4e51553024d887163a120de8998356035d6c7dc8d96c495c40fd7e9c369754"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Export/ExportNaming.swift",
+    "sha256": "7cd4074428b1dfa8989ac78f0775fd030d44b62b385a19ff03a715ae5b56ff52"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Export/ExportPresetStore.swift",
+    "sha256": "b8a2aa109e34d4e6e6b93f655a61f2dcba10e9c9f879c0183d8bf96692dd8635"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Export/ExportSettings.swift",
+    "sha256": "639245bb49e77290e4504e5edd89368c5141fe0b3f5933e8be16ca681f276cb7"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Export/ExportWarnings.swift",
+    "sha256": "0e3d2f4525db83de1eb3da1dc9a39177b24cd5d0648189a5084d7d9ffa31b604"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Export/ExportWatermark.swift",
+    "sha256": "208ddeff9f6ef98b262931f33ee0eb85b9841c2a4701cf7b2d37c1151cd3a13e"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Grouping.swift",
+    "sha256": "e9bec727a0c3a95336b52e5e598531494c1ad5377004f4745c0dec12cf8a7e33"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/KeywordSuggestions.swift",
+    "sha256": "43353f96d96bd350aeccd52f1b2e80b556805bb058cd94699c846bf73d98d613"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/LibraryCatalog.swift",
+    "sha256": "86613dd8a9987d02d4dd57a000254bad8afd470cba9498a32591b28e42893852"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/LightroomImport.swift",
+    "sha256": "31c2b353e281625b903a28659d1d89c6118029211f7dd7a1f911b4dba38f71b2"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/ModelsAcquisition.swift",
+    "sha256": "ab3c1ef2965671874827d260bae01b41a7a836b517b3341b3603e8472d9629d4"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Photo/PhotoJobController.swift",
+    "sha256": "a010a81c7b17fadc93d8af2782d408219cfe2463358b2f94627c4865410c3a8b"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Photo/PhotoMergeSettings.swift",
+    "sha256": "564fc59773deb3c8317bec369b22d44f050779e5c33afd9a2c8caa075d52e83f"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/PhotoItem.swift",
+    "sha256": "2387bfb83196883972169559670f060802ac1f2881c6a067fa8ace33a2207682"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/PreviewEvents.swift",
+    "sha256": "299146f6fcc5bda152782b52dc7ff8e28a83a8284feda14dadb27b74e4e053b8"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Print/PrintLayout.swift",
+    "sha256": "54bd898b69dfbae435a51921b892e6c678e84a4dd3f4aef47833f868cd4b0e80"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Print/PrintSettings.swift",
+    "sha256": "7892f4e29c4ca629935263ddeb45d5d3c2e7a6fe5f713c868ba2fb538d763e86"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/StubLibrary.swift",
+    "sha256": "84da301db425a51a599a934ca68ffd53e794ea7f66309e8da0f3a753768b9f29"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Tether/IncomingStrip.swift",
+    "sha256": "c09eca4e178cc2e7ea707fd014a388d7eeb1a3246dc7d8ebed4dfd98cfe35a4a"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/Tether/TetherNaming.swift",
+    "sha256": "b79d96fd4503131a92b9520f9440ed9d6b7de87fcdca6eceb582735745760dde"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraCore/ThumbnailLoader.swift",
+    "sha256": "7947ed60ae75fd63f217277d4337f4bd31bce7181a9e58984922950fe451f795"
+  },
+  {
+    "file": "apps/mac/Sources/TesseraFFI/TesseraFFI.swift",
+    "sha256": "2ba9019a06f2cf5b990e101cf2d8e20469b7f540a4ca39c2efc4a3b214bc40ef"
+  }
+]

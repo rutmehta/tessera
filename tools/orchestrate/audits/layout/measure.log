@@ -1,0 +1,6 @@
+DATA library engine=true items=40 loading=false
+FIT status=(819.0, 25.0) loupe=(0.0, 0.0) grid=(0.0, 0.0)
+DATA raw engine=true items=5 loading=false
+FIT status=(731.0, 25.0) loupe=(0.0, 0.0) grid=(0.0, 0.0)
+FIT status=(496.0, 25.0) loupe=(0.0, 0.0) grid=(0.0, 0.0)
+FIT documentStatus=(969.0, 25.0) documentInspector=(249.0, 879.0) documentView=(456.0, 587.0)

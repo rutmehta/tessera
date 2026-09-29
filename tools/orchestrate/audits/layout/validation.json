@@ -1,0 +1,16 @@
+{
+  "matrix_captures": 18,
+  "successful_captures": 18,
+  "capture_checks_frontmost_false": 18,
+  "maximum_width_px": 1400,
+  "document_split_frame_in_host": [
+    -19.0,
+    -34.0,
+    1318.0,
+    817.0
+  ],
+  "minimum_highlights_gap": -0.0234375,
+  "confirmed_or_conditional_findings": 10,
+  "additional_risks": 12,
+  "scope": "Evidence consistency validation; not an application layout pass"
+}
