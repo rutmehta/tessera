@@ -1,0 +1,28 @@
+camera-raw-selftest: document 5212 × 3468 px, 16-bit
+camera-raw-selftest: check detail pane ok
+camera-raw-selftest: step 1 panel-basic window 0 79 2056 1157
+camera-raw-selftest: step 2 panel-curve window 0 79 2056 1157
+camera-raw-selftest: step 3 panel-hsl window 0 79 2056 1157
+camera-raw-selftest: step 4 panel-color_grading window 0 79 2056 1157
+camera-raw-selftest: step 5 panel-detail window 0 79 2056 1157
+camera-raw-selftest: step 6 panel-effects window 0 79 2056 1157
+camera-raw-selftest: preview/detail after three edits: 0.00 s
+camera-raw-selftest: check preview records no history ok
+camera-raw-selftest: step 7 edited-after window 0 79 2056 1157
+camera-raw-selftest: step 8 edited-before window 0 79 2056 1157
+camera-raw-selftest: check cancel closes, no history ok
+camera-raw-selftest: step 9 cancelled window 0 79 2056 1157
+camera-raw-selftest: step 10 applying window 0 79 2056 1157
+camera-raw-selftest: apply at full resolution: 13.84 s
+camera-raw-selftest: check apply is one history row ok
+camera-raw-selftest: step 11 applied window 0 79 2056 1157
+camera-raw-selftest: step 12 undone window 0 79 2056 1157
+camera-raw-selftest: check smart object ok
+camera-raw-selftest: check smart filter listed ok
+camera-raw-selftest: step 13 smart-filter window 0 79 2056 1157
+camera-raw-selftest: check re-edit keeps values ok
+camera-raw-selftest: step 14 smart-reedit window 0 79 2056 1157
+camera-raw-selftest: check re-edit replaces ok
+camera-raw-selftest: check selection refusal ok
+camera-raw-selftest: step 15 selection-refused window 0 79 2056 1157
+camera-raw-selftest: done, 0 failure(s)

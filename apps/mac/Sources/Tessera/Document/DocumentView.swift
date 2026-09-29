@@ -52,6 +52,7 @@ struct DocumentView: View {
         // B5-08 end
         .modifier(RetouchSheets(retouch: DocumentRetouch.shared))   // B5-09
         .modifier(LiquifySheets(liquify: DocumentLiquify.shared))   // B5-13
+        .modifier(CameraRawSheets(cameraRaw: DocumentCameraRaw.shared))   // B5-18
         .onAppear { DocumentText.shared.attach(workspace) }   // B5-10: the Type tool
         // B5-12 begin: Warp / Perspective / Puppet / Content-Aware Scale (Document/Transforms).
         .onAppear { DocumentTransforms.shared.attach(workspace) }

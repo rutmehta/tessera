@@ -13,7 +13,9 @@ extension FilterCatalogEntry {
 
 extension SmartFilterRow {
     init(_ r: SmartFilterRecord) {
-        self.init(index: r.index, filterId: r.filterId, name: r.name, enabled: r.enabled, filterJson: r.filterJson,
+        // B5-18: the engine names Camera Raw smart filters by their id.
+        let name = r.filterId == CameraRawFilter.id ? CameraRawFilter.title : r.name
+        self.init(index: r.index, filterId: r.filterId, name: name, enabled: r.enabled, filterJson: r.filterJson,
                   opacity: r.opacity, blendMode: r.blendMode, hasMask: r.hasMask)
     }
 }

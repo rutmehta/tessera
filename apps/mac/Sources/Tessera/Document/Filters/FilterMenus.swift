@@ -23,6 +23,7 @@ struct FilterMenu: View {
         LiquifyMenuItem(doc: doc)   // B5-13
         Divider()
         // B5-09 end
+        CameraRawMenuItem(doc: doc)   // B5-18: Camera Raw Filter… (⇧⌘A)
         ForEach(FilterCatalogEntry.grouped(catalogue), id: \.group) { section in
             Menu(section.group) {
                 ForEach(section.entries) { e in

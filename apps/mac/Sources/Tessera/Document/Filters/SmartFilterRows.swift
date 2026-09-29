@@ -85,6 +85,11 @@ final class SmartFilterOutline {
             return
         }
         // B5-13 end
+        // B5-18: Camera Raw smart filters re-edit in the Camera Raw Filter sheet.
+        if DocumentCameraRaw.handles(filterId: item.row.filterId) {
+            DocumentCameraRaw.shared.edit(doc, layer: item.layer, row: item.row)
+            return
+        }
         filters.editSmartFilter(doc, layer: item.layer, row: item.row)
     }
 
