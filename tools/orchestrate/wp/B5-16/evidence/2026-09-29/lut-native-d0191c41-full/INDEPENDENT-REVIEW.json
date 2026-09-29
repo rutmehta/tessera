@@ -1,0 +1,38 @@
+{
+  "head": "d0191c41859171dc28ef4114891ed4a4c51084b6",
+  "source_count": 8396,
+  "validation_payload_hashes": 19,
+  "source_git_verified": true,
+  "input_freezes_equal": true,
+  "ignored_ffi_verified": {
+    "apps/mac/build/ffi/CTesseraFFI.h": "66598c0c7f27f28fd8605f1b41ad7521b20ec054c902d3d57cf15f5fd621fd45",
+    "apps/mac/build/ffi/CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "apps/mac/build/ffi/TesseraFFI.swift": "daf7b29d4cb29838fc18eb37a5f28b1bfd8eff7c892babe0d0a7608f4e110898",
+    "apps/mac/build/ffi/libtessera_ffi.a": "5b7e5eba7909c4641b4108a3ed3c92f7cd6d204f1a792d0e3660a12c7d162594"
+  },
+  "fixture_verified": {
+    "path": "/Volumes/betterSSD/tessera-validation/m258-current/visible-run-f1d13c11/fixture/sony-arw.ARW",
+    "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+  },
+  "qualification_inputs_verified": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-lut-native-d0191c41/full-followup/run.py": "0177583200c9b33399cef2e5db2a27c573f6139707a96be6769673e4ef016533",
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-858147a3/run.py": "81913d3cded8ccbe1242ad1cd639b9539df143e2a4a67aeff6c6def2728aed7c",
+    "/Volumes/betterSSD/tessera-validation/b5-16-history-858147a3/required-adjacent-full.json": "64e28a941cf6ab414a6e5d89d5066c2288bc4d633fea9f1a8485424b28a819e7",
+    "/Volumes/betterSSD/tessera-validation/b5-16-lut-native-d0191c41/full-followup/required-full.json": "2d7fb01e32ef1ab54da3ba1056b18776f73eb60502eb6c3dbcbf18ec6fe2151c",
+    "/Volumes/betterSSD/tessera-validation/b5-16-lut-native-d0191c41/full-followup/baseline.json": "01fac31927b1b6eb6d2363ef5e5993fa2c7e4824f4ec9d3216af8c430edf4c39"
+  },
+  "mandatory_exact_passes": 155,
+  "xctest_actual_passes": 741,
+  "xctest_executed": 742,
+  "xctest_skips": [
+    "-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]"
+  ],
+  "xctest_failures": [],
+  "swift_testing_passes": 5,
+  "full_relinked_outputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-lut-native-d0191c41/full-followup/full-relinked-binaries/Tessera": "7dc0d8e659af5057cb27a4a63d099f9debf55862ec4a7128317341f33850c112",
+    "/Volumes/betterSSD/tessera-validation/b5-16-lut-native-d0191c41/full-followup/full-relinked-binaries/TesseraPackageTests": "e0d2d92507a871bbbb9031bf2ad28acfa7d36f29985c893ebaa968de73456516"
+  },
+  "direct_exit": 0,
+  "scope": "Full Swift automated acceptance only; non-strict test warnings retained; no GUI or Lens Blur model acceptance"
+}

@@ -1,0 +1,21 @@
+{
+  "04-full-01/after.json": "43f0e485f92951883724617cc2507472380129e762e8b0f2c2c22fa7d45e1a32",
+  "04-full-01/before.json": "9ddfb9bfa688f91bd831eafc183d386ae2837661fb8f9f86cd13755162c91b5e",
+  "04-full-01/command.json": "20725005bf67bba820076c6d71bea0060b604a30d993e7b55c5bc45262bba03e",
+  "04-full-01/exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+  "04-full-01/freeze.json": "799f62a6ec4e48ed1d415bada808fc18a283bf62a0e80dfdc01d6e9d90c8aeee",
+  "04-full-01/qualification-inputs-after.json": "fb7a56d04f4dfe259d126f9ee79d5039e20d351bfd34fd82122e701e9868ddb4",
+  "04-full-01/qualification-inputs-before.json": "fb7a56d04f4dfe259d126f9ee79d5039e20d351bfd34fd82122e701e9868ddb4",
+  "04-full-01/required-results.json": "c79ab98ea5bc68ae1dbdbaf6bb6a0bb2af0e6350fc58ad487f84d96fa2365f6d",
+  "04-full-01/run.log": "7081cd4915cdbffaefe4a0169dc807c4e34980240db4b9a62a16cf9adb884f2a",
+  "FINAL-RESULT.json": "17202d9105754dc9bfcb0d4a4be0ae1c30d0a59af2b1cd07c6a92d3e22099c83",
+  "PENDING-GUI.md": "3bb8b5eeedf33be03e8218dcb8181ef2970927798636493e0db8daa0dda6f986",
+  "PLAN-SHA256.json": "f797622678dce82e03b460f16b5463343938a656c1fc4f899bf1cf320c29c5ee",
+  "PLAN.md": "67228060f9f10da266c319818a811fde80966130a9608e57316f5d9ad04f2e59",
+  "PREPARATION-SHA256.json": "4900f732d8bc987bd1b70cc34605b52516d12424b575b6ad2e08c64b1ff1e6fb",
+  "VALIDATION.md": "771f9d5cfba27c1e589280db099b97299b43216c841db865cc1ed468ed29e7a0",
+  "baseline.json": "01fac31927b1b6eb6d2363ef5e5993fa2c7e4824f4ec9d3216af8c430edf4c39",
+  "prepared-snapshot.json": "a5049f45a19e7ddd88fab2b5e12d307d55f48776c414cfe5a1337c30d2ab3e34",
+  "required-full.json": "2d7fb01e32ef1ab54da3ba1056b18776f73eb60502eb6c3dbcbf18ec6fe2151c",
+  "run.py": "0177583200c9b33399cef2e5db2a27c573f6139707a96be6769673e4ef016533"
+}

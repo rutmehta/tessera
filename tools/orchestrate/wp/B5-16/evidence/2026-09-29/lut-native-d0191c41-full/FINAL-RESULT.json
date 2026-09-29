@@ -1,0 +1,43 @@
+{
+  "head": "d0191c41859171dc28ef4114891ed4a4c51084b6",
+  "direct_exit": 0,
+  "elapsed_seconds": 397.0312778330408,
+  "XCTest_executed": 742,
+  "XCTest_skipped": 1,
+  "XCTest_failed": 0,
+  "SwiftTesting_passed": 5,
+  "mandatory_passes": 155,
+  "sony_passes": [
+    "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualCachedThumbnailAfterOriginalDisconnect]' passed (4.719 seconds).",
+    "Test Case '-[TesseraCoreTests.SmartPreviewNativeWorkflowTests testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect]' passed (5.129 seconds)."
+  ],
+  "skip_lines": [
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/LibraryTests.swift:146: -[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement] : Test skipped - Opt-in generated 20k-file engine fixture",
+    "Test Case '-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]' skipped (0.002 seconds)."
+  ],
+  "full_relinked_outputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-lut-native-d0191c41/full-followup/full-relinked-binaries/Tessera": "7dc0d8e659af5057cb27a4a63d099f9debf55862ec4a7128317341f33850c112",
+    "/Volumes/betterSSD/tessera-validation/b5-16-lut-native-d0191c41/full-followup/full-relinked-binaries/TesseraPackageTests": "e0d2d92507a871bbbb9031bf2ad28acfa7d36f29985c893ebaa968de73456516"
+  },
+  "provenance": "Full test relink outputs; not relabelled strict. Prior strict output remains separately preserved.",
+  "freezes": {
+    "head_equal": true,
+    "source_equal": true,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true,
+    "runner_equal": true,
+    "qualification_inputs_equal": true,
+    "elapsed_seconds": 397.0312778330408
+  },
+  "warning_lines": [
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]",
+    "    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]",
+    "lensblur-export-warning: [\"sony-arw.ARW: Lens Blur skipped: Lens Blur depth model is not cached; download depth/anything-v2-small in Models\"]"
+  ]
+}

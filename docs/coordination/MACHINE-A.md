@@ -1,3 +1,9 @@
+## Inspector full suite passed; corrected WB diagnostic running
+
+Inspector `d0191c41` full suite direct exit0:741 XCTest passes, one existing opt-in skip, five Swift Testing passes; all155 mandatory checks passed. Independent review verified all8,396 source inputs,19 payload hashes,fourFFI artifacts,fixture and preserved full-relinked binaries. Portable evidence: `tools/orchestrate/wp/B5-16/evidence/2026-09-29/lut-native-d0191c41-full/`. Runtime released to FFI for `a9b90750` pure qualification; existing idle unowned Tessera apps are preserved and this is not a timing run. Dither-first GUI preparation stays source-only until release. No whole inspector/main or full VoiceOver acceptance is implied.
+
+Latest origin/wp/B5-16 remains76429f7f; source audit request/result already completed. Mailbox reconciled six accepted inspector integration receipts against pending whole-feature GUI, no duplicate work. Informational b92b51e3 remains a superseded source-only status/no ACK. Queue publication and peer receipt remain separate.
+
 ## Full inspector suite active; WB strict failure preserved
 
 WB pure6c55a1b0 has19passes but strict failed inherited testhelper argument-count lint. Independent8651input/artifact verification and failure preserved; fmt/defaultfeaturechecks unrun. Source-reviewed a9b90750 groups three borrowed output fields, preserving measured body/call values; next qualification pending. Frozen performance failure remains unmerged.
