@@ -682,6 +682,5 @@ mod tests {
     }
 }
 
-// Guard/transport source-only contracts; no live renderer observation.
-#[cfg(test)]
+// Explicit-token transport (feature-only via the parent module); no renderer hooks yet.
 mod transport;
