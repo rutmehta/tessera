@@ -1,3 +1,11 @@
+## 2026-09-29 00:01 UTC — parallel preparation with serialized runtime
+
+RAW admission foundation is on main `47d987c2`. The next private normalization plan is source-reviewed; codec prepares only tests/Unsupported scaffold on a preserved, reused checkout. No public conversion/rendering scope is authorized.
+
+FFI owns runtime: cache control composition `5f31f148` and candidate `7a3ec9bf` are clean and exactly match reviewed overlays. Baseline build is active; six actual-frame functional processes follow. Original frozen `3614e21b` remains untouched; no performance timing grant.
+
+B diagnostic bridge repair has verified peer receipt and result `87eed0a2` is accepted. Independent source review approved composed `114273ea`; 47-test/strict runner is ready and unrun, pending FFI lane release. Retry plan now checks exact PID/path/args after each Tab before any CUA observation to reduce the known implicit-relaunch hazard. No routing fix or GUI acceptance yet.
+
 ## RAW pure admission foundation integrated; cache frame qualification starts
 
 Integrated files exactly match independently qualified `c595dad2`: private test-build recipe/metadata admission predicates and checked partial-allocation arithmetic, with 20 contracts. Compilation/exact test binary, full image-core 116 passes/two ignored, strict and format passed. Independent review verified 8,971 immutable source inputs; original missing-DNG failure and versioned intended-fixture retry remain in portable evidence. DNG-only coverage is explicit. This is a private foundation, not a pixel renderer, provenance authority, memory reservation, ICC/environment or public workflow implementation.

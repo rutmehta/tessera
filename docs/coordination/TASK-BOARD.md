@@ -3,7 +3,7 @@
 <!-- CURRENT-QUEUE:START -->
 ## Current execution board
 
-Updated 2026-09-28 23:38 UTC. “Done” applies only to the stated scope; historical failures remain below and in the linked evidence directories.
+Updated 2026-09-29 00:01 UTC. “Done” applies only to the stated scope; historical failures remain below and in the linked evidence directories.
 
 | Task | Owner | State | Verified outcome and next action |
 | --- | --- | --- | --- |
@@ -17,9 +17,10 @@ Updated 2026-09-28 23:38 UTC. “Done” applies only to the stated scope; histo
 | Bounded RAW capture ownership | A | Done for the component | Main `1b073b0c`; 42 capture contracts, full 60-test suite, strict checks and fixture preservation verified. Holds an identified captured byte stream; does not promise an atomic filesystem snapshot. |
 | Closed captured-CFA decoder | A | Done for the component | Main `95bfadcf`; 11 focused tests, two explicit qualification tests covering Sony/Fuji/Nikon/Canon/DNG, full 71 ordinary tests and strict checks passed. Returns owned samples/metadata after stage cleanup. No recipe/render/document integration or decoder-memory bound is claimed. |
 | Restricted RAW render admission | A | Private foundation qualified and integrated | Exact `c595dad2` source: 20 focused tests, full 116 passed/two ignored, strict/format passed; independent 8,971-input verification. Missing-fixture failure preserved; intended Leica DNG retry qualified. No pixel renderer, ICC/environment authority, memory reservation or public integration. |
+| Private RAW normalization seam | A codec | Source-only tests/scaffold preparation | Plan reviewed after admission integration `47d987c2`; preserve exact Bayer/XTrans scalar arithmetic and legacy public behavior. No helper implementation, public API, renderer or allocation-cap claim yet. |
 | Smart Preview reopen baseline | A | Measured and independently verified | Harness `3614e21b`: 24 opens, four stable cohorts, 12 pixel comparisons and resource release passed. Auto reopen-to-final-callback medians: 646 ms SDR / 589 ms EDR; CPU: 167 / 166 ms, at the same 820×546 level. Evidence on main `b9ccf6fe`. These are startup measurements on one fixture/host. |
 | Bounded calibration-decision cache | A FFI worker / independent reviewer | Functional qualification independently verified | Final `7faea4b8`: strict/format, 22 pure, eight explicit Engine groups and full native 443 passed/25 ignored/zero failed. Independent review verified 8,646 Git inputs; evidence main `84b5c271`. Original failures preserved. Test executable/archive hashes are not claimed by these Cargo gates. Actual frame fidelity, release and preregistered performance qualification follow; no merge or speedup claim. |
-| Machine B coordination | A / B existing desktop writer | Active | New requests use the verified SSH queue plus durable Git mailbox. A validates targets and publishes receipts; a queue ID alone is not peer receipt. B owns its source branches; A alone merges main. Latest font result `d24ecab8` is accepted pending qualification. |
+| Machine B coordination | A / B existing desktop writer | Active | New requests use the verified SSH queue plus durable Git mailbox. A validates targets and publishes receipts; a queue ID alone is not peer receipt. B owns its source branches; A alone merges main. Trace repair request `58e629b8` has verified peer receipt; B result `87eed0a2` is accepted. Source-approved A composition `114273ea` awaits 47 focused tests/strict and an actual diagnostic retry. |
 
 **Current runtime owner:** A FFI worker, separately composed cache baseline/candidate builds followed by six actual-frame/lifecycle functional processes. Performance timing awaits a separate review/grant. B AX bridge repair is in source review/preparation; no GUI currently active. RAW pure foundation is qualified; its next normalization seam remains source-only planning.
 
