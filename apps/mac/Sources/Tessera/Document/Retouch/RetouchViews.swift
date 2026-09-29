@@ -231,7 +231,7 @@ struct NeuralFiltersSheet: View {
         VStack(alignment: .leading, spacing: Theme.Space.xxs) {
             ForEach(model.state.specs) { s in
                 let on = s.kind == model.state.kind
-                let missing = s.requiresWeights && (retouch.models.first { $0.modelId == modelId(s.kind) }?.installed != true)
+                let missing = s.requiresWeights && (retouch.models.first { $0.modelId == RetouchModelDownloads.modelId(for: s.kind) }?.installed != true)
                 Button { model.choose(s.kind) } label: {
                     HStack(spacing: Theme.Space.s) {
                         Text(s.name).font(Theme.Fonts.label).fontWeight(on ? .medium : .regular)
@@ -313,14 +313,6 @@ struct NeuralFiltersSheet: View {
         switch phase {
         case .available, .failed: return "Download and Apply"
         default: return "Apply"
-        }
-    }
-
-    private func modelId(_ k: NeuralKind) -> String {
-        switch k {
-        case .skinSmoothing: ""
-        case .colorize: "filters/ddcolor"
-        case .jpegArtifactRemoval: "enhance/drunet-color"
         }
     }
 }

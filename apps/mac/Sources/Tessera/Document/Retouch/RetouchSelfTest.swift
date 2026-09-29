@@ -8,7 +8,8 @@ import TesseraFFI
 /// (one "Remove" node, timed), undo / redo, save and reopen the `.tessera-doc`; Edit ▸ Content-Aware Fill on a
 /// marquee; a slow Remove on a large selection cancelled from the options bar (history unchanged); Remove
 /// Distractions review (one suggestion kept); Filter ▸ Neural Filters… for each filter (missing-weight
-/// messages, Skin Smoothing to a new layer). Each step prints `retouch-selftest: step <n> <name> window
+/// messages, Skin Smoothing to a new layer); B5-17a: Photo Restoration listed with its limitation, and without
+/// DRUNet every output fails and changes nothing, on pixels and on a smart object. Each step prints `retouch-selftest: step <n> <name> window
 /// <x> <y> <w> <h>` (for `screencapture -R`) and holds; checks print `check <name> ok|FAIL`. Quits at the end.
 @MainActor
 final class RetouchSelfTest {
@@ -305,7 +306,7 @@ final class RetouchSelfTest {
         // 5. Neural Filters.
         r.openNeuralFilters()
         guard let sheet = r.neuralSheet else { check("Neural Filters sheet", false); return finish() }
-        for k in [NeuralKind.colorize, .jpegArtifactRemoval] {
+        for k in [NeuralKind.colorize, .jpegArtifactRemoval, .photoRestoration] {
             sheet.choose(k)
             check("\(k.rawValue) names its missing model", sheet.missingModel != nil || r.models.contains { $0.installed })
             await mark("neural-\(k.rawValue)")
@@ -333,7 +334,62 @@ final class RetouchSelfTest {
             await mark("neural-skin-new-layer")
         }
         await downloads(doc2, v2)
+        await restoration(doc2, layer: layer)
         finish()
+    }
+
+    /// 7. Photo Restoration (B5-17a, M5-32): listed with its one control and the engine's limitation caption;
+    /// without DRUNet every output fails with the missing-weights message and changes nothing, on the pixel
+    /// layer and after it becomes a smart object. With DRUNet installed the atomicity checks are skipped.
+    private func restoration(_ doc: DocumentController, layer: DocLayerID) async {
+        let r = DocumentRetouch.shared
+        doc.run("Deselect") { try doc.backend.clearSelection() }
+        doc.select(layer)
+        r.deactivate()
+        r.refreshModels()
+        r.openNeuralFilters()
+        guard let sheet = r.neuralSheet else { return check("Neural Filters sheet for restoration", false) }
+        sheet.choose(.photoRestoration)
+        let spec = sheet.state.spec
+        check("Photo Restoration is listed", spec?.name == "Photo Restoration", "\(sheet.state.specs.map(\.name))")
+        check("Photo Restoration has one Photo enhancement control",
+              spec?.controls.map(\.key) == ["photo_enhancement"], "\(spec?.controls.map(\.key) ?? [])")
+        check("Photo Restoration shows its limitation", spec?.limitation?.hasPrefix("Denoise only") == true,
+              spec?.limitation ?? "nil")
+        check("Photo Restoration needs DRUNet", sheet.requiredModelId == "enhance/drunet-color")
+        await mark("neural-photo-restoration")
+        sheet.cancel()
+        await pause(0.3)
+        guard r.model("enhance/drunet-color")?.installed == false else {
+            return log("DRUNet is installed here: restoration missing-weights checks skipped")
+        }
+        guard let b = DocumentRetouch.backend(doc), let filters = doc.backend as? any DocumentFiltersBackend else {
+            return check("restoration backend", false)
+        }
+        func atomic(_ outputs: [NeuralOutput], _ what: String) {
+            for o in outputs {
+                let n = doc.history.count, layers = doc.layers.count
+                let smart = (try? filters.smartFilters(layer: layer).count) ?? -1
+                do {
+                    _ = try b.neuralFilter(layer: layer, kind: .photoRestoration, paramsJson: #"{"photo_enhancement":0.5}"#,
+                                           output: o)
+                    check("\(what) \(o.rawValue): missing DRUNet fails", false, "it applied")
+                } catch {
+                    let msg = "\(error)"
+                    check("\(what) \(o.rawValue): missing DRUNet is named",
+                          msg.contains("enhance/drunet-color") && msg.contains("weights"), msg)
+                }
+                check("\(what) \(o.rawValue): nothing changed",
+                      doc.history.count == n && doc.layers.count == layers
+                          && ((try? filters.smartFilters(layer: layer).count) ?? -1) == smart,
+                      "\(doc.history.map(\.label))")
+            }
+        }
+        atomic(NeuralOutput.allCases, "restoration on pixels")
+        guard doc.run("Convert for Smart Filters", { try filters.convertForSmartFilters(layer: layer) }) != nil else {
+            return check("convert for smart filters", false, model.statusMessage ?? "")
+        }
+        atomic([.currentLayer, .smartFilter], "restoration on a smart object")
     }
 
     /// 6. Model downloads (B5-09b) through a local stand-in for the engine's `ModelDownloads`: it reports

@@ -68,12 +68,40 @@ final class DocumentRetouchTests: XCTestCase {
     private var specs: [NeuralFilterSpec] { NeuralFilterSpec.engineCatalogue }
 
     func testNeuralCatalogueComesFromTheEngine() {
-        XCTAssertEqual(specs.map(\.kind), [.skinSmoothing, .colorize, .jpegArtifactRemoval])
-        XCTAssertEqual(specs.map(\.requiresWeights), [false, true, true])
+        XCTAssertEqual(specs.map(\.kind), [.skinSmoothing, .colorize, .jpegArtifactRemoval, .photoRestoration])
+        XCTAssertEqual(specs.map(\.requiresWeights), [false, true, true, true])
         XCTAssertEqual(specs[0].controls.map(\.key), ["blur", "smoothness"])
         XCTAssertEqual(specs[2].controls.first?.key, "strength")
         XCTAssertEqual(NeuralKind(filterId: "neural/colorize"), .colorize)
         XCTAssertNil(NeuralKind(filterId: "gaussian_blur"))
+    }
+
+    /// B5-17a: Photo Restoration (M5-32) is listed with its one control and the engine's limitation, maps to
+    /// its adapter id both ways, needs DRUNet, and re-opens a smart filter with its stored value.
+    @MainActor func testPhotoRestorationIsANeuralFilter() {
+        XCTAssertEqual(NeuralKind.allCases, [.skinSmoothing, .colorize, .jpegArtifactRemoval, .photoRestoration])
+        XCTAssertEqual(NeuralKind.photoRestoration.filterId, "neural/photo_restoration")
+        XCTAssertEqual(NeuralKind(filterId: "neural/photo_restoration"), .photoRestoration)
+        XCTAssertEqual(RetouchModelDownloads.modelId(for: .photoRestoration), "enhance/drunet-color")
+        guard let spec = specs.first(where: { $0.kind == .photoRestoration }) else { return XCTFail("not listed") }
+        XCTAssertEqual(spec.name, "Photo Restoration")
+        XCTAssertTrue(spec.requiresWeights)
+        XCTAssertEqual(spec.controls, [NeuralControl(key: "photo_enhancement", label: "Photo enhancement", min: 0, max: 1,
+                                                     defaultValue: 0.5)])
+        XCTAssertEqual(spec.limitation?.hasPrefix("Denoise only"), true, spec.limitation ?? "nil")
+        // The stub backend shows the same catalogue.
+        XCTAssertEqual(StubDocumentBackend().neuralFilterSpecs().map(\.kind), specs.map(\.kind))
+
+        var s = NeuralSheetState(specs: specs, layerKind: .pixel, hasSelection: false, kind: .photoRestoration)
+        XCTAssertEqual(s.paramsJson, #"{"photo_enhancement":0.5}"#)
+        s.set(spec.controls[0], 2)
+        XCTAssertEqual(s.paramsJson, #"{"photo_enhancement":1}"#)
+        let json = #"{"id":"neural/photo_restoration","params":{"photo_enhancement":0.25}}"#
+        let edit = NeuralSheetState(specs: specs, layerKind: .smartObject, hasSelection: false,
+                                    kind: NeuralKind(filterId: "neural/photo_restoration"), smartIndex: 0, filterJson: json)
+        XCTAssertEqual(edit.kind, .photoRestoration)
+        XCTAssertEqual(edit.value(spec.controls[0]), 0.25, accuracy: 1e-9)
+        XCTAssertEqual(edit.filterJson, json)
     }
 
     func testNeuralSheetDestinationsFollowTheLayer() {
@@ -211,7 +239,7 @@ final class DocumentRetouchTests: XCTestCase {
         let doc = try StubDocumentEngine.shared.newDocument(width: 32, height: 32, depth: .u8, profile: nil)
         defer { doc.close() }
         let r = try XCTUnwrap(doc as? any DocumentRetouchBackend)
-        XCTAssertEqual(r.neuralFilterSpecs().count, 3)
+        XCTAssertEqual(r.neuralFilterSpecs().map(\.kind), NeuralKind.allCases, "the engine catalogue, Photo Restoration included")
         XCTAssertThrowsError(try r.contentAwareFill(layer: 1, paramsJson: "{}"))
         XCTAssertThrowsError(try r.neuralFilter(layer: 1, kind: .skinSmoothing, paramsJson: "{}", output: .newLayer))
         XCTAssertEqual(try r.retouchModels(), [])
@@ -409,6 +437,7 @@ final class DocumentRetouchTests: XCTestCase {
         XCTAssertNil(RetouchModelDownloads.modelId(for: .auto), "Auto falls back to PatchMatch: nothing to download")
         XCTAssertEqual(RetouchModelDownloads.modelId(for: .colorize), "filters/ddcolor")
         XCTAssertEqual(RetouchModelDownloads.modelId(for: .jpegArtifactRemoval), "enhance/drunet-color")
+        XCTAssertEqual(RetouchModelDownloads.modelId(for: .photoRestoration), "enhance/drunet-color")
         XCTAssertNil(RetouchModelDownloads.modelId(for: .skinSmoothing))
         XCTAssertEqual(d.phase(lama), .available(lama))
         XCTAssertTrue(stub.requests.isEmpty, "nothing downloads before it is asked for")

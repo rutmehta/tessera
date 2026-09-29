@@ -54,13 +54,22 @@ pub enum RemoveBackend {
     Lama,
 }
 
-/// Neural filters M5-29 exposes (adapter ids `neural/skin_smoothing`, …).
+/// Neural filters M5-29 exposes (adapter ids `neural/skin_smoothing`, …),
+/// plus M5-32's Photo Restoration (B5-17a).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
 pub enum NeuralFilterKind {
     SkinSmoothing,
     Colorize,
     JpegArtifactRemoval,
+    PhotoRestoration,
 }
+
+const NEURAL_KINDS: [NeuralFilterKind; 4] = [
+    NeuralFilterKind::SkinSmoothing,
+    NeuralFilterKind::Colorize,
+    NeuralFilterKind::JpegArtifactRemoval,
+    NeuralFilterKind::PhotoRestoration,
+];
 
 /// Where a neural filter's result goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
@@ -79,8 +88,8 @@ pub enum NeuralDestination {
 pub struct RetouchResult {
     pub update: DocumentUpdate,
     /// The backend that actually ran: `PatchMatch`, `LaMa`, `Content-Aware
-    /// Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, or `none` (an
-    /// empty mask).
+    /// Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, `DRUNet (denoise
+    /// only)` (Photo Restoration), or `none` (an empty mask).
     pub backend: String,
     /// Why the backend differs from the request (Auto without LaMa), how
     /// face boxes were found, …
@@ -159,16 +168,20 @@ pub struct DistractionScan {
     pub limitation: String,
 }
 
-/// The neural filters M5-29 registers, with their controls.
+/// The neural filters the engine registers (M5-29, M5-32), with their
+/// controls. Each catalogue entry is matched to its kind by name, so none is
+/// dropped or mislabelled (an entry without a kind is a build-time gap caught
+/// by the tests, not silently truncated).
 #[uniffi::export]
 pub fn neural_filters() -> Vec<NeuralFilterInfo> {
     filters::neural_catalog()
         .into_iter()
-        .zip([
-            NeuralFilterKind::SkinSmoothing,
-            NeuralFilterKind::Colorize,
-            NeuralFilterKind::JpegArtifactRemoval,
-        ])
+        .filter_map(|f| {
+            let kind = NEURAL_KINDS
+                .into_iter()
+                .find(|&k| neural_name(k) == f.name)?;
+            Some((f, kind))
+        })
         .map(|(f, kind)| NeuralFilterInfo {
             kind,
             filter_id: neural_id(kind).into(),
@@ -195,6 +208,7 @@ fn neural_id(kind: NeuralFilterKind) -> &'static str {
         NeuralFilterKind::SkinSmoothing => "neural/skin_smoothing",
         NeuralFilterKind::Colorize => "neural/colorize",
         NeuralFilterKind::JpegArtifactRemoval => "neural/jpeg_artifact_removal",
+        NeuralFilterKind::PhotoRestoration => "neural/photo_restoration",
     }
 }
 
@@ -203,7 +217,45 @@ fn neural_name(kind: NeuralFilterKind) -> &'static str {
         NeuralFilterKind::SkinSmoothing => "Skin Smoothing",
         NeuralFilterKind::Colorize => "Colorize",
         NeuralFilterKind::JpegArtifactRemoval => "JPEG Artifact Removal",
+        NeuralFilterKind::PhotoRestoration => "Photo Restoration",
     }
+}
+
+/// Checks `params` against the catalogue before any model is loaded: known
+/// keys only (plus Skin Smoothing's `faces`), finite values inside the range.
+fn check_neural_params(
+    kind: NeuralFilterKind,
+    params: &serde_json::Map<String, serde_json::Value>,
+) -> Result<()> {
+    let info = neural_filters()
+        .into_iter()
+        .find(|f| f.kind == kind)
+        .ok_or_else(|| {
+            failure(format!(
+                "{} is not in the engine catalogue",
+                neural_name(kind)
+            ))
+        })?;
+    for (key, value) in params {
+        if kind == NeuralFilterKind::SkinSmoothing && key == "faces" {
+            continue;
+        }
+        let p = info
+            .params
+            .iter()
+            .find(|p| p.key == *key)
+            .ok_or_else(|| failure(format!("{}: unknown control {key}", info.name)))?;
+        value
+            .as_f64()
+            .filter(|v| v.is_finite() && *v >= p.min as f64 && *v <= p.max as f64)
+            .ok_or_else(|| {
+                failure(format!(
+                    "{}: {key} must be a number in {}..{}",
+                    info.name, p.min, p.max
+                ))
+            })?;
+    }
+    Ok(())
 }
 
 // ─────────────────────────────── models ───────────────────────────────
@@ -603,7 +655,7 @@ impl DocumentSession {
         Ok([
             (LAMA, "Remove (LaMa)"),
             (DDCOLOR, "Colorize (DDColor)"),
-            (DRUNET, "JPEG Artifact Removal (DRUNet)"),
+            (DRUNET, "JPEG Artifact Removal, Photo Restoration (DRUNet)"),
             (YUNET, "Face boxes (YuNet)"),
             (SFACE, "Face boxes (SFace)"),
         ]
@@ -984,11 +1036,13 @@ impl DocumentSession {
         let (s, sel) = self.retouch_target(layer)?;
         let l = find(&s, layer)?;
         let mut params = params_object(&params_json)?;
+        check_neural_params(kind, &params)?;
         let mut note = None;
         let backend = match kind {
             NeuralFilterKind::SkinSmoothing => "Skin Smoothing (CPU)",
             NeuralFilterKind::Colorize => "DDColor",
             NeuralFilterKind::JpegArtifactRemoval => "DRUNet",
+            NeuralFilterKind::PhotoRestoration => "DRUNet (denoise only)",
         };
         // Weights first: a missing model is the clear error, before any work.
         match kind {
@@ -1003,6 +1057,15 @@ impl DocumentSession {
                     DRUNET,
                     "neural/jpeg_artifact_removal",
                     "JPEG Artifact Removal",
+                )?;
+            }
+            NeuralFilterKind::PhotoRestoration => {
+                let reg = registry_for(&self.shared, DRUNET)?;
+                self.load_cached(
+                    &reg,
+                    DRUNET,
+                    "neural/photo_restoration",
+                    "Photo Restoration",
                 )?;
             }
             NeuralFilterKind::SkinSmoothing => {
@@ -1028,6 +1091,9 @@ impl DocumentSession {
                     NeuralFilterKind::Colorize => super::RasterFilterOperation::Colorize,
                     NeuralFilterKind::JpegArtifactRemoval => {
                         super::RasterFilterOperation::JpegArtifactRemoval
+                    }
+                    NeuralFilterKind::PhotoRestoration => {
+                        super::RasterFilterOperation::PhotoRestoration
                     }
                 };
                 self.apply_raster_filter(

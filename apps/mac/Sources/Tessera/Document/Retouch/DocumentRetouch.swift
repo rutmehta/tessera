@@ -546,12 +546,7 @@ final class NeuralSheetModel: Identifiable {
 
     /// The model the chosen filter needs, when it is not installed.
     var missingModel: RetouchModelInfo? {
-        let id: String? = switch state.kind {
-        case .colorize: "filters/ddcolor"
-        case .jpegArtifactRemoval: "enhance/drunet-color"
-        case .skinSmoothing: nil
-        }
-        guard let id else { return nil }
+        guard let id = RetouchModelDownloads.modelId(for: state.kind) else { return nil }
         return owner?.models.first { $0.modelId == id && !$0.installed }
     }
 

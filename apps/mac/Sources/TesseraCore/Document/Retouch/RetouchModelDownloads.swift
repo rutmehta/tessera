@@ -67,12 +67,13 @@ public final class RetouchModelDownloads {
     /// to PatchMatch) or PatchMatch.
     public static func modelId(for engine: RemoveEngine) -> String? { engine == .lama ? "remove/lama" : nil }
 
-    /// The model a neural filter needs (Skin Smoothing needs none).
+    /// The model a neural filter needs (Skin Smoothing needs none; JPEG Artifact Removal and Photo
+    /// Restoration share DRUNet).
     public static func modelId(for kind: NeuralKind) -> String? {
         switch kind {
         case .skinSmoothing: nil
         case .colorize: "filters/ddcolor"
-        case .jpegArtifactRemoval: "enhance/drunet-color"
+        case .jpegArtifactRemoval, .photoRestoration: "enhance/drunet-color"
         }
     }
 
