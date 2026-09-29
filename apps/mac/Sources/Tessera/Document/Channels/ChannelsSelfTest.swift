@@ -34,7 +34,12 @@ final class ChannelsSelfTest {
         self.hold = hold
     }
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("channels-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("channels-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
@@ -57,7 +62,7 @@ final class ChannelsSelfTest {
         await pause(0.8)
         var frame = ""
         if let w = workspace.current?.viewport?.window, let screen = NSScreen.screens.first {
-            w.orderFrontRegardless()
+            SelfTestHost.raiseForCapture(w, floating: false)
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
@@ -82,7 +87,7 @@ final class ChannelsSelfTest {
     private func run() async {
         log("waiting for a document")
         guard await wait(60, { workspace.current != nil && workspace.current?.viewport != nil }), let doc = workspace.current else {
-            log("no document"); log("done, 1 failure(s)"); return
+            log("FAIL no document"); log("done, \(failures) failure(s)"); return
         }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let panelKey = "InspectorPanel.Channels"

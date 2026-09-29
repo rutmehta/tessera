@@ -39,7 +39,12 @@ final class CameraRawSelfTest {
         self.hold = hold
     }
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("camera-raw-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("camera-raw-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
@@ -90,7 +95,7 @@ final class CameraRawSelfTest {
         }
         _ = await wait(10) { doc.lastFrame != nil }
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.depth.title)")
-        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { return finish() }
+        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { log("FAIL no pixel layer"); return finish() }
         doc.select(photo)
 
         // 420–425: open, every tab.

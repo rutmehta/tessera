@@ -18,9 +18,13 @@ final class StylesSelfTest {
     private var step = 0
     private var styles: DocumentStyles { .shared }
 
+    private static var started = false
+
     static func startIfRequested() {
+        guard !started else { return }
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--styles-selftest"), i + 1 < args.count else { return }
+        started = true
         let dir = URL(fileURLWithPath: (args[i + 1] as NSString).expandingTildeInPath)
         let hold = args.firstIndex(of: "--styles-selftest-hold").flatMap { $0 + 1 < args.count ? Double(args[$0 + 1]) : nil } ?? 2
         DispatchQueue.main.async {
@@ -37,7 +41,12 @@ final class StylesSelfTest {
         self.hold = hold
     }
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("styles-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("styles-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
@@ -66,13 +75,13 @@ final class StylesSelfTest {
         await pause(0.8)
         var frame = ""
         if let main = model.mainWindow {
-            main.orderFrontRegardless()
+            SelfTestHost.raiseForCapture(main, floating: false)
             frame = " window " + rect(main)
         }
         let panels = NSApp.windows.filter { $0 is NSPanel && $0.isVisible }
         let panel = panels.first { $0.title == "Global Light" } ?? panels.first { $0.title == "Layer Style" }
         if let panel {
-            panel.orderFrontRegardless()
+            SelfTestHost.raiseForCapture(panel, floating: false)
             frame += " panel " + rect(panel)
         }
         await pause(0.3)
