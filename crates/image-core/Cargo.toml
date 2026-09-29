@@ -8,6 +8,8 @@ license = "Apache-2.0"
 path = "src/lib.rs"
 
 [features]
+# Diagnostic scaffold only; disabled in default builds.
+wb-diagnostic = []
 default = ["ml-denoise", "imageio"]
 imageio = ["color-mgmt/imageio"]
 ml-denoise = ["dep:ml-enhance", "dep:ml-runtime"]

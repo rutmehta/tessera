@@ -686,3 +686,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(all(test, feature = "wb-diagnostic"))]
+mod wb_diagnostic_contracts;
