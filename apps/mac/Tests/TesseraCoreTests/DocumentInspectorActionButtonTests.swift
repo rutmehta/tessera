@@ -77,4 +77,20 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
                            "Tab/ShiftTab and other keys must remain native responder processing")
         }
     }
+
+    func testDismantleReleasesActionOwnerWhileNativeControlRemainsAlive() {
+        let button = DocumentInspectorNativeActionButton(frame: .zero)
+        weak var released: NSObject?
+        autoreleasepool {
+            let owner = NSObject()
+            released = owner
+            button.configure(title: "Fixture", identifier: "fixture", help: "", enabled: true) {
+                _ = owner.description
+            }
+        }
+        XCTAssertNotNil(released, "action owns its current callback context")
+        DocumentInspectorActionButton.dismantleNSView(button, coordinator: ())
+        XCTAssertNil(released, "detached representable must drop its action context")
+        withExtendedLifetime(button) {}
+    }
 }
