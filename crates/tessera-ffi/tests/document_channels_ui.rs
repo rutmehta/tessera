@@ -645,3 +645,232 @@ fn channel_thumbnails_survive_psd_reopen() {
     }
 }
 // B5-10b end
+
+// ─────────────────────── B5-17b: persisted alpha display ───────────────────────
+
+const GREEN: PaintColor = PaintColor {
+    r: 0.0,
+    g: 1.0,
+    b: 0.25,
+};
+
+const RED: PaintColor = PaintColor {
+    r: 1.0,
+    g: 0.0,
+    b: 0.0,
+};
+
+fn row(s: &DocumentSession, id: u64) -> ChannelRecord {
+    s.document_channels()
+        .unwrap()
+        .into_iter()
+        .find(|c| c.id == id)
+        .expect("channel row")
+}
+
+/// (kind, colour, opacity, selected_areas) of channel `id`.
+fn display(s: &DocumentSession, id: u64) -> (DocChannelKind, [f32; 3], f32, bool) {
+    let r = row(s, id);
+    (
+        r.kind,
+        [r.color.r, r.color.g, r.color.b],
+        r.opacity,
+        r.selected_areas,
+    )
+}
+
+fn engine_kind(s: &DocumentSession, id: u64) -> compositor::channels::ChannelKind {
+    s.document_state()
+        .unwrap()
+        .channels
+        .iter()
+        .find(|c| c.id.0 == id)
+        .expect("channel")
+        .kind
+        .clone()
+}
+
+#[test]
+fn alpha_display_is_one_undoable_node() {
+    let (_d, e) = engine();
+    let (s, _) = doc(&e);
+    let a = setup_a(&s);
+    assert_eq!(
+        display(&s, a),
+        (DocChannelKind::Alpha, [1.0, 0.0, 0.0], 0.5, false),
+        "legacy default: red, 50 %, masked areas"
+    );
+    let samples = chan_row(&s, a);
+    let n = labels(&s).len();
+    s.set_alpha_channel_display(a, GREEN, 0.3, true).unwrap();
+    assert_eq!(labels(&s).len(), n + 1, "one history node");
+    assert_eq!(labels(&s).last().unwrap(), "Channel Options");
+    assert_eq!(
+        display(&s, a),
+        (DocChannelKind::Alpha, [0.0, 1.0, 0.25], 0.3, true)
+    );
+    assert_eq!(chan_row(&s, a), samples, "display metadata never changes samples");
+    s.undo().unwrap();
+    assert_eq!(
+        display(&s, a),
+        (DocChannelKind::Alpha, [1.0, 0.0, 0.0], 0.5, false)
+    );
+    s.redo().unwrap();
+    assert_eq!(
+        display(&s, a),
+        (DocChannelKind::Alpha, [0.0, 1.0, 0.25], 0.3, true)
+    );
+}
+
+#[test]
+fn legacy_default_display_stays_plain_alpha() {
+    use compositor::channels::ChannelKind;
+    let (_d, e) = engine();
+    let (s, _) = doc(&e);
+    let a = setup_a(&s);
+    assert!(matches!(engine_kind(&s, a), ChannelKind::Alpha));
+    s.set_alpha_channel_display(a, GREEN, 0.3, false).unwrap();
+    assert!(matches!(
+        engine_kind(&s, a),
+        ChannelKind::AlphaDisplay {
+            selected: false,
+            ..
+        }
+    ));
+    // Back to red / 50 % / masked: the legacy identity, not an explicit copy of it.
+    s.set_alpha_channel_display(a, RED, 0.5, false).unwrap();
+    assert!(matches!(engine_kind(&s, a), ChannelKind::Alpha));
+    // Only the indicator differs from the default: explicit.
+    s.set_alpha_channel_display(a, RED, 0.5, true).unwrap();
+    assert!(matches!(
+        engine_kind(&s, a),
+        ChannelKind::AlphaDisplay { selected: true, .. }
+    ));
+}
+
+#[test]
+fn invalid_alpha_display_is_rejected_without_a_node() {
+    let (_d, e) = engine();
+    let (s, _) = doc(&e);
+    let a = setup_a(&s);
+    let n = labels(&s).len();
+    let before = display(&s, a);
+    let bad = [
+        (GREEN, 1.5),
+        (GREEN, -0.01),
+        (GREEN, f32::NAN),
+        (
+            PaintColor {
+                r: f32::INFINITY,
+                g: 0.0,
+                b: 0.0,
+            },
+            0.5,
+        ),
+        (
+            PaintColor {
+                r: 0.0,
+                g: -0.2,
+                b: 0.0,
+            },
+            0.5,
+        ),
+    ];
+    for (color, opacity) in bad {
+        assert!(s.set_alpha_channel_display(a, color, opacity, true).is_err());
+    }
+    assert!(
+        s.set_alpha_channel_display(999, GREEN, 0.5, false).is_err(),
+        "unknown channel"
+    );
+    assert_eq!(labels(&s).len(), n, "rejected edits record nothing");
+    assert_eq!(display(&s, a), before);
+}
+
+#[test]
+fn alpha_to_spot_to_alpha_round_trip() {
+    let (_d, e) = engine();
+    let (s, _) = doc(&e);
+    let a = setup_a(&s);
+    let samples = chan_row(&s, a);
+    s.set_alpha_channel_display(a, GREEN, 0.3, true).unwrap();
+    s.set_spot_channel(a, INK, 0.8).unwrap();
+    assert_eq!(row(&s, a).kind, DocChannelKind::Spot);
+    assert!(!row(&s, a).selected_areas, "spot ink has no indicator");
+    let n = labels(&s).len();
+    // Channel Options ▸ Color Indicates: Selected Areas turns the spot back into an alpha channel.
+    s.set_alpha_channel_display(a, GREEN, 0.3, true).unwrap();
+    assert_eq!(labels(&s).len(), n + 1);
+    assert_eq!(
+        display(&s, a),
+        (DocChannelKind::Alpha, [0.0, 1.0, 0.25], 0.3, true)
+    );
+    assert_eq!(chan_row(&s, a), samples);
+    s.undo().unwrap();
+    assert_eq!(row(&s, a).kind, DocChannelKind::Spot);
+}
+
+fn display_round_trip(ext: &str) {
+    let (d, e) = engine();
+    let (s, _) = doc(&e);
+    let a = setup_a(&s);
+    let legacy = s.new_alpha_channel("Legacy".into(), false).unwrap().channel_id;
+    let masked = s.new_alpha_channel("Masked".into(), false).unwrap().channel_id;
+    s.set_alpha_channel_display(a, GREEN, 0.3, true).unwrap();
+    s.set_alpha_channel_display(
+        masked,
+        PaintColor {
+            r: 0.0,
+            g: 0.0,
+            b: 1.0,
+        },
+        0.75,
+        false,
+    )
+    .unwrap();
+    let _ = legacy;
+    let path = d.path().join(format!("display.{ext}"));
+    s.save_as(path.to_string_lossy().into_owned()).unwrap();
+    s.close();
+    drop(s);
+
+    let r = e
+        .clone()
+        .open_document(path.to_string_lossy().into_owned())
+        .unwrap();
+    let rows = r.document_channels().unwrap();
+    assert_eq!(
+        rows.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(),
+        vec!["A", "Legacy", "Masked"],
+        "{ext}"
+    );
+    let close = |c: &ChannelRecord, rgb: [f32; 3], op: f32, sel: bool| {
+        assert_eq!(c.kind, DocChannelKind::Alpha, "{ext} {}", c.name);
+        assert_eq!(c.selected_areas, sel, "{ext} {}", c.name);
+        for (got, want) in [c.color.r, c.color.g, c.color.b].into_iter().zip(rgb) {
+            assert!((got - want).abs() < 1e-3, "{ext} {} {:?}", c.name, c.color);
+        }
+        // PSD stores opacity in whole percent.
+        assert!((c.opacity - op).abs() < 6e-3, "{ext} {} {}", c.name, c.opacity);
+    };
+    close(&rows[0], [0.0, 1.0, 0.25], 0.3, true);
+    close(&rows[1], [1.0, 0.0, 0.0], 0.5, false);
+    close(&rows[2], [0.0, 0.0, 1.0], 0.75, false);
+    assert_eq!(chan_row(&r, rows[0].id), [1.0, 1.0, 0.0, 0.0], "{ext}");
+    // Reopened channels still take new display settings as one node.
+    let n = labels(&r).len();
+    r.set_alpha_channel_display(rows[0].id, RED, 0.5, false)
+        .unwrap();
+    assert_eq!(labels(&r).len(), n + 1, "{ext}");
+    assert!(!row(&r, rows[0].id).selected_areas, "{ext}");
+}
+
+#[test]
+fn tessera_doc_round_trip_keeps_alpha_display() {
+    display_round_trip("tessera-doc");
+}
+
+#[test]
+fn psd_round_trip_keeps_alpha_display() {
+    display_round_trip("psd");
+}
