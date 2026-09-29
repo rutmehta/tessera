@@ -14,7 +14,8 @@ import TesseraCore
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
 ///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
-///   Document mode (B5-02, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels ·
+///   Document mode (B5-02, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels (over the canvas;
+///   a focused panel / toolbar view keeps Tab for the key-view loop, B5-21) ·
 ///   F screen modes · ⌫ delete layer; no culling key fires. ⌘ shortcuts are Layer / Select / View menu items.
 ///   Document tools (B5-04, `ToolKeyMap`): V M L W B E S J G C T I H Z (⇧ cycles M / L / W), [ ] size,
 ///   ⇧[ ⇧] hardness, 0–9 opacity, X swap / D default colours, Return / Esc, ⌫ clears the selection.
@@ -228,8 +229,26 @@ final class KeyRouter {
         return true
     }
 
+    /// B5-21: a view other than the canvas has the keyboard: a native control of the inspector, a panel or
+    /// the toolbar (a Layers eye button, the sidebar toggle) or a SwiftUI control's focus proxy under Full
+    /// Keyboard Access. Only something that accepted first responder gets here, so a click on empty panel
+    /// space leaves the canvas (or nothing) focused. Hidden or detached responders do not count.
+    static func panelViewHasKeyboard(in window: NSWindow?) -> Bool {
+        guard let window, let view = window.firstResponder as? NSView, view.window === window,
+              view !== window.contentView, !view.isHiddenOrHasHiddenAncestor else { return false }
+        var ancestor: NSView? = view
+        while let v = ancestor {
+            if v is DocumentViewportView { return false }
+            ancestor = v.superview
+        }
+        return true
+    }
+
     /// Document mode: only the document key map; culling, develop and mask keys never fire here.
     private func handleDocument(_ event: NSEvent) -> Bool {
+        // B5-21: Tab / ⇧Tab walk the native key-view loop while a panel view has the keyboard; Tab shows
+        // or hides the panels only over the canvas or with nothing focused.
+        if event.keyCode == 48, Self.panelViewHasKeyboard(in: event.window) { return false }
         // WP B5-04: tool letters (⇧ cycles a group), [ ] / ⇧[ ⇧] brush size and hardness, 0–9 opacity,
         // X / D colours, Return / Esc (transform, polygon lasso), ⌫ clears a pixel selection.
         if DocumentTools.shared.handleKey(event) { return true }
