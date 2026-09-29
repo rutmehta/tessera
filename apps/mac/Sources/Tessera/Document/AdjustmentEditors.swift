@@ -364,10 +364,12 @@ struct ExtendedAdjustmentEditor: View {
                   ?? "The table's samples are stored in the document")
             .accessibilityIdentifier("document.properties.colorLookup.file")
         HStack(spacing: Theme.Space.xs) {
-            button("Load 3D LUT…", "colorLookup.load", help: "Load a .cube or .3dl file; its samples are stored in the document") {
+            DocumentInspectorActionButton(title: "Load 3D LUT…", identifier: "document.properties.colorLookup.load",
+                                          help: "Load a .cube or .3dl file; its samples are stored in the document") {
                 loadLookup(dither: dither)
             }
-            button("Reset", "colorLookup.reset", help: "Back to the identity") {
+            DocumentInspectorActionButton(title: "Reset", identifier: "document.properties.colorLookup.reset",
+                                          help: "Back to the identity") {
                 set(.colorLookup(size: 2, data: ColorLookupFile.identity(size: 2), sourceFilename: nil, dither: dither), true)
             }
             .disabled(identity)
