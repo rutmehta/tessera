@@ -1,5 +1,6 @@
-2026-09-27 08:00:28.750 Tessera[22941:24031405] Sparkle updates not configured for this build
+2026-09-28 23:27:53.014 Tessera[88650:34728202] Sparkle updates not configured for this build
 transform-selftest: waiting for the workspace
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
 document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
 transform-selftest: document 1600 × 1000, Metal (Apple M4 Max)
 transform-selftest: check 380 Edit ▸ Transform items ok
@@ -7,12 +8,12 @@ transform-selftest: check 381 pixel target needs consent ok
 transform-selftest: check 381 preview keeps the Pixel row ok
 transform-selftest: check 384 document.transform.warpPreset inside the visible options bar at 1440 pt ok
 transform-selftest: check 384 document.transform.bend inside the visible options bar at 1440 pt ok
-transform-selftest: shot 381-warp-preview-pixel window 18816 1440 × 900
+transform-selftest: shot 381-warp-preview-pixel window 24143 1440 × 900
 transform-selftest: check 381 cancel keeps Pixel ok
 transform-selftest: check 381 cancel leaves history ok
 transform-selftest: check 381 no stale Warp hint after Cancel ok
 transform-selftest: check 381 Apply asks before converting ok
-transform-selftest: shot 381-convert-alert window 18816 1440 × 900
+transform-selftest: shot 381-convert-alert window 24143 1440 × 900
 transform-selftest: check 381 alert Cancel keeps the Pixel row ok
 transform-selftest: check 381 committed ok
 transform-selftest: check 381 smart object after consent ok
@@ -20,12 +21,12 @@ transform-selftest: check 381 one node ok
 transform-selftest: check 381 label ok
 transform-selftest: check 382 re-edit opens the stage ok
 transform-selftest: check 382 anchor follows the drag ok
-transform-selftest: shot 382-warp-drag window 18816 1440 × 900
-transform-selftest: 382 latency Preview median 169 ms · p95 263 ms (30)
+transform-selftest: shot 382-warp-drag window 24143 1440 × 900
+transform-selftest: 382 latency Preview median 475 ms · p95 694 ms (30)
 transform-selftest: check 383 split adds a column and a row ok
-transform-selftest: shot 383-warp-split window 18816 1440 × 900
+transform-selftest: shot 383-warp-split window 24143 1440 × 900
 transform-selftest: check 384 zero bend is identity ok
-transform-selftest: shot 384-warp-flag-bend window 18816 1440 × 900
+transform-selftest: shot 384-warp-flag-bend window 24143 1440 × 900
 transform-selftest: check 392 Return applies one node ok
 transform-selftest: check 394 re-edit kept one stage ok
 transform-selftest: check 392 undo steps back once ok
@@ -38,10 +39,10 @@ transform-selftest: check 384 Return in Bend commits then applies ok
 transform-selftest: check 384 no stale Warp hint after Apply ok
 transform-selftest: check 385 two linked planes ok
 transform-selftest: check 385 shared vertex moved once for both planes ok
-transform-selftest: shot 385-perspective-linked window 18816 1440 × 900
+transform-selftest: shot 385-perspective-linked window 24143 1440 × 900
 transform-selftest: check 386 crossing quad rejected ok
 transform-selftest: check 386 status explains ok
-transform-selftest: shot 386-perspective-rejected window 18816 1440 × 900
+transform-selftest: shot 386-perspective-rejected window 24143 1440 × 900
 transform-selftest: check 385 applied ok
 transform-selftest: check 388 document.transform.puppetMode inside the visible options bar at 1440 pt ok
 transform-selftest: check 388 document.transform.expansion inside the visible options bar at 1440 pt ok
@@ -49,25 +50,31 @@ transform-selftest: check 387 mesh ok
 transform-selftest: 387 puppet note Mesh built from 1/4 resolution: 16 px cells keep it within the engine's 16,384-vertex limit.
 transform-selftest: check 387 three pins ok
 transform-selftest: check 387 pin rotated ok
-transform-selftest: shot 387-puppet-pins window 18816 1440 × 900
+transform-selftest: shot 387-puppet-pins window 24143 1440 × 900
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
 transform-selftest: check 387 ⌥-click removes a pin ok
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
 transform-selftest: check 388 density remesh keeps pins ok
 transform-selftest: check 388 expansion 65 rejected ok
 transform-selftest: check 388 typed Expansion 80 ok
 transform-selftest: check 388 expansion 80 refused visibly ok
-transform-selftest: shot 388-expansion-refused window 18816 1440 × 900
+transform-selftest: shot 388-expansion-refused window 24143 1440 × 900
 transform-selftest: check 388 typed Expansion 6 ok
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
 transform-selftest: check 388 corrected Expansion accepted ok
-transform-selftest: shot 388-puppet-rigid-sparse window 18816 1440 × 900
+transform-selftest: shot 388-puppet-rigid-sparse window 24143 1440 × 900
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
 transform-selftest: check 391 mapping at 200 % ok
 transform-selftest: check 391 drag at 200 % moves 40 child px ok
-transform-selftest: shot 391-zoom-200 window 18816 1440 × 900
+transform-selftest: shot 391-zoom-200 window 24143 1440 × 900
 document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 800, y1: 500 })
-transform-selftest: shot 389-cas-amount-0 window 18816 1440 × 900
-transform-selftest: shot 389-cas-amount-1 window 18816 1440 × 900
-transform-selftest: shot 390-cas-protected-channel window 18816 1440 × 900
+transform-selftest: shot 389-cas-amount-0 window 24143 1440 × 900
+transform-selftest: shot 389-cas-amount-1 window 24143 1440 × 900
+transform-selftest: shot 390-cas-protected-channel window 24143 1440 × 900
 transform-selftest: check 389 fresh CAS cancelled to Pixel ok
 transform-selftest: check 390 channel offered, no skin option ok
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
 transform-selftest: check 389 CAS applied ok
 transform-selftest: check 395 position lock rejects ok
 transform-selftest: Warp did not start: Warp: drag the net's points and handles; Split, then click to add lines · Apply converts the layer to a smart object · Return applies, Esc cancels
