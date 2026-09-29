@@ -18,6 +18,12 @@ pub fn settings_fingerprint(settings: &DevelopSettings) -> [u8; 32] {
 }
 
 /// Fingerprint of the render's recipe identity: source image plus settings.
+///
+/// `image` is the id of the image actually rendered (Stage C review NB-3).
+/// For a Smart Preview that is the proxy's render id, not the source RAW's
+/// catalog id, so the value is consistent within one process but must not be
+/// compared across differently derived images (for example proxy against
+/// original, or across rebuilt previews).
 pub fn recipe_fingerprint(image: ImageId, settings: &DevelopSettings) -> [u8; 32] {
     Digest::derive(
         "tessera wb-diagnostic recipe v1",
