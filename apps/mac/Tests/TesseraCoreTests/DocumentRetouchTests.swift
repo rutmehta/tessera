@@ -78,7 +78,7 @@ final class DocumentRetouchTests: XCTestCase {
 
     /// B5-17a: Photo Restoration (M5-32) is listed with its one control and the engine's limitation, maps to
     /// its adapter id both ways, needs DRUNet, and re-opens a smart filter with its stored value.
-    func testPhotoRestorationIsANeuralFilter() {
+    @MainActor func testPhotoRestorationIsANeuralFilter() {
         XCTAssertEqual(NeuralKind.allCases, [.skinSmoothing, .colorize, .jpegArtifactRemoval, .photoRestoration])
         XCTAssertEqual(NeuralKind.photoRestoration.filterId, "neural/photo_restoration")
         XCTAssertEqual(NeuralKind(filterId: "neural/photo_restoration"), .photoRestoration)
@@ -239,7 +239,7 @@ final class DocumentRetouchTests: XCTestCase {
         let doc = try StubDocumentEngine.shared.newDocument(width: 32, height: 32, depth: .u8, profile: nil)
         defer { doc.close() }
         let r = try XCTUnwrap(doc as? any DocumentRetouchBackend)
-        XCTAssertEqual(r.neuralFilterSpecs().count, 3)
+        XCTAssertEqual(r.neuralFilterSpecs().map(\.kind), NeuralKind.allCases, "the engine catalogue, Photo Restoration included")
         XCTAssertThrowsError(try r.contentAwareFill(layer: 1, paramsJson: "{}"))
         XCTAssertThrowsError(try r.neuralFilter(layer: 1, kind: .skinSmoothing, paramsJson: "{}", output: .newLayer))
         XCTAssertEqual(try r.retouchModels(), [])

@@ -95,7 +95,10 @@ fn photo_restoration_without_weights_changes_nothing_for_any_destination() {
             s.convert_for_smart_filters(layer).unwrap();
         }
         let dests: &[NeuralDestination] = if smart {
-            &[NeuralDestination::CurrentLayer, NeuralDestination::SmartFilter]
+            &[
+                NeuralDestination::CurrentLayer,
+                NeuralDestination::SmartFilter,
+            ]
         } else {
             &[
                 NeuralDestination::CurrentLayer,

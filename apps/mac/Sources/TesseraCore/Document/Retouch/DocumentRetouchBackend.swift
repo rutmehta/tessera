@@ -26,9 +26,9 @@ public enum RemoveEngine: String, CaseIterable, Sendable, Identifiable {
     }
 }
 
-/// Neural filters M5-29 registers (FFI `NeuralFilterKind`).
+/// Neural filters M5-29 registers, plus M5-32's Photo Restoration (FFI `NeuralFilterKind`).
 public enum NeuralKind: String, CaseIterable, Sendable, Identifiable {
-    case skinSmoothing, colorize, jpegArtifactRemoval
+    case skinSmoothing, colorize, jpegArtifactRemoval, photoRestoration
     public var id: String { rawValue }
     /// The adapter id stored in smart filters.
     public var filterId: String {
@@ -36,6 +36,7 @@ public enum NeuralKind: String, CaseIterable, Sendable, Identifiable {
         case .skinSmoothing: "neural/skin_smoothing"
         case .colorize: "neural/colorize"
         case .jpegArtifactRemoval: "neural/jpeg_artifact_removal"
+        case .photoRestoration: "neural/photo_restoration"
         }
     }
     public init?(filterId: String) {

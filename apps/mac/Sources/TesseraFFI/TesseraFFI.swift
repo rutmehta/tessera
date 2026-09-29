@@ -22299,8 +22299,8 @@ public struct RetouchResult: Equatable, Hashable {
     public var update: DocumentUpdate
     /**
      * The backend that actually ran: `PatchMatch`, `LaMa`, `Content-Aware
-     * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, or `none` (an
-     * empty mask).
+     * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, `DRUNet (denoise
+     * only)` (Photo Restoration), or `none` (an empty mask).
      */
     public var backend: String
     /**
@@ -22318,8 +22318,8 @@ public struct RetouchResult: Equatable, Hashable {
     public init(update: DocumentUpdate, 
         /**
          * The backend that actually ran: `PatchMatch`, `LaMa`, `Content-Aware
-         * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, or `none` (an
-         * empty mask).
+         * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, `DRUNet (denoise
+         * only)` (Photo Restoration), or `none` (an empty mask).
          */backend: String, 
         /**
          * Why the backend differs from the request (Auto without LaMa), how
@@ -28250,7 +28250,8 @@ public func FfiConverterTypeNeuralDestination_lower(_ value: NeuralDestination) 
 
 
 /**
- * Neural filters M5-29 exposes (adapter ids `neural/skin_smoothing`, …).
+ * Neural filters M5-29 exposes (adapter ids `neural/skin_smoothing`, …),
+ * plus M5-32's Photo Restoration (B5-17a).
  */
 
 public enum NeuralFilterKind: Equatable, Hashable {
@@ -28258,6 +28259,7 @@ public enum NeuralFilterKind: Equatable, Hashable {
     case skinSmoothing
     case colorize
     case jpegArtifactRemoval
+    case photoRestoration
 
 
 
@@ -28285,6 +28287,8 @@ public struct FfiConverterTypeNeuralFilterKind: FfiConverterRustBuffer {
         
         case 3: return .jpegArtifactRemoval
         
+        case 4: return .photoRestoration
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -28303,6 +28307,10 @@ public struct FfiConverterTypeNeuralFilterKind: FfiConverterRustBuffer {
         
         case .jpegArtifactRemoval:
             writeInt(&buf, Int32(3))
+        
+        
+        case .photoRestoration:
+            writeInt(&buf, Int32(4))
         
         }
     }
@@ -33611,7 +33619,10 @@ public func listFilters() -> [FilterInfo]  {
 })
 }
 /**
- * The neural filters M5-29 registers, with their controls.
+ * The neural filters the engine registers (M5-29, M5-32), with their
+ * controls. Each catalogue entry is matched to its kind by name, so none is
+ * dropped or mislabelled (an entry without a kind is a build-time gap caught
+ * by the tests, not silently truncated).
  */
 public func neuralFilters() -> [NeuralFilterInfo]  {
     return try!  FfiConverterSequenceTypeNeuralFilterInfo.lift(try! rustCall() {
@@ -33803,7 +33814,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_list_filters() != 15632) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_func_neural_filters() != 17162) {
+    if (uniffi_tessera_ffi_checksum_func_neural_filters() != 49965) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_style_effects_schema_json() != 46429) {

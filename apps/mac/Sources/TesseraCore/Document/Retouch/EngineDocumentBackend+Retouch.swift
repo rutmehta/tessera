@@ -20,6 +20,7 @@ extension NeuralKind {
         case .skinSmoothing: .skinSmoothing
         case .colorize: .colorize
         case .jpegArtifactRemoval: .jpegArtifactRemoval
+        case .photoRestoration: .photoRestoration
         }
     }
     init(_ k: NeuralFilterKind) {
@@ -27,6 +28,7 @@ extension NeuralKind {
         case .skinSmoothing: self = .skinSmoothing
         case .colorize: self = .colorize
         case .jpegArtifactRemoval: self = .jpegArtifactRemoval
+        case .photoRestoration: self = .photoRestoration
         }
     }
 }
