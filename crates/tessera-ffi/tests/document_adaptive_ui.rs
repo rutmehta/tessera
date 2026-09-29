@@ -524,6 +524,56 @@ fn cancel_during_a_real_size_commit_stops_the_render_without_history() {
     assert_eq!(history(&s), n);
 }
 
+/// A two-click horizon across (nearly) the full width of a real-size
+/// fisheye, bent by the camera model as the sheet draws it.
+fn full_width_horizon(w: u32, h: u32) -> Adaptive {
+    let (wf, hf) = (f64::from(w), f64::from(h));
+    let mut a = Adaptive::new(
+        w as usize,
+        h as usize,
+        CameraModel::Manual {
+            focal_px: 0.4 * wf,
+            center: [wf / 2., hf / 2.],
+            projection: Projection::Equidistant,
+        },
+    );
+    a.output_focal_px = 0.4 * wf;
+    a.scale = 0.9;
+    let c = adaptive_wide_angle_curve(
+        json(&a),
+        vec![0.03 * wf, 0.3 * hf],
+        vec![0.97 * wf, 0.3 * hf],
+    )
+    .unwrap();
+    a.lines.push(LineConstraint {
+        points: c.chunks(2).map(|p| [p[0], p[1]]).collect(),
+        orientation: LineOrientation::Horizontal,
+        weight: 1.,
+    });
+    a
+}
+
+/// Review of B5-20b: the traced curve's straight source segments must stay
+/// within the solver's 0.25 px tolerance of the camera curve, so a
+/// full-width horizon on a real-size photo solves (it used to fail
+/// "constraint residual exceeds tolerance" with 64 segments per line).
+#[test]
+fn a_full_width_horizon_on_a_real_size_photo_solves_within_tolerance() {
+    let failed: Vec<String> = [(6000u32, 4000u32), (5212, 3468)]
+        .into_iter()
+        .filter_map(|(w, h)| {
+            let a = full_width_horizon(w, h);
+            filters::adaptive_lattice::Lattice::solve(
+                &a,
+                filters::adaptive_lattice::COARSE_VERTICES,
+            )
+            .err()
+            .map(|e| format!("{w} × {h}: {e}"))
+        })
+        .collect();
+    assert!(failed.is_empty(), "full-width horizon: {failed:?}");
+}
+
 #[test]
 fn layers_over_the_absolute_limit_are_refused_with_a_clear_error() {
     let (_dir, engine) = engine();
@@ -532,6 +582,18 @@ fn layers_over_the_absolute_limit_are_refused_with_a_clear_error() {
         .new_document(12000, 9000, DocDepth::U8, None)
         .unwrap();
     let layer = s.layers().unwrap()[0].id;
+    let n = history(&s);
+    let e = s
+        .begin_adaptive_wide_angle(layer, None)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        e.contains("100 megapixels") && e.contains("12000 × 9000"),
+        "{e}"
+    );
+    assert_eq!(history(&s), n);
+    // The smart-object branch refuses with the same message.
+    s.convert_for_smart_filters(layer).unwrap();
     let n = history(&s);
     let e = s
         .begin_adaptive_wide_angle(layer, None)

@@ -1,8 +1,11 @@
-//! B5-20b: the coarse-lattice solve against the dense solve on a layer under
-//! the 16,777,216-vertex cap (4000 × 3000), with the coarse path forced
-//! through the smart filter by `adaptive_lattice::with_coarse_budget`.
+//! B5-20b: the coarse-lattice solve against the dense solve on layers under
+//! the 16,777,216-vertex cap, with the coarse path forced through the smart
+//! filter by `adaptive_lattice::with_coarse_budget`: 4000 × 3000 (integer
+//! factor from the common divisor) and 3999 × 2999 (coprime axes: the
+//! rounded-up coarse canvas whose crop absorbs the half-size shift).
 //!
-//! Stated tolerances (the default coarse budget, 2,097,152 vertices):
+//! Stated tolerances, the same for both sizes (the default coarse budget,
+//! 2,097,152 vertices):
 //! - inverse map (output pixel centre -> source position), where both are
 //!   defined: max difference ≤ 0.02 source px;
 //! - pixels (straight RGBA, all channels): mean |Δ| ≤ 1e-3 over the whole
@@ -22,7 +25,15 @@ const COVERAGE: f64 = 1e-3;
 
 #[test]
 fn coarse_matches_dense_within_the_stated_tolerance() {
-    let (w, h) = (4000u32, 3000u32);
+    coarse_matches_dense(4000, 3000);
+}
+
+#[test]
+fn coarse_matches_dense_on_coprime_axes_within_the_same_tolerance() {
+    coarse_matches_dense(3999, 2999);
+}
+
+fn coarse_matches_dense(w: u32, h: u32) {
     let scene = Scene::new(w, h);
     let input = scene.raster();
     let recipe = scene.recipe();
@@ -49,7 +60,7 @@ fn coarse_matches_dense_within_the_stated_tolerance() {
     }
     let sampled = (w as usize).div_ceil(7) * (h as usize).div_ceil(7);
     eprintln!(
-        "factor {:.4}, {} vertices; map max Δ {worst:.5} px over {both} samples; coverage differs on {differ}/{sampled}",
+        "{w} × {h}: factor {:.4}, {} vertices; map max Δ {worst:.5} px over {both} samples; coverage differs on {differ}/{sampled}",
         lattice.factor(),
         lattice.vertices()
     );
@@ -82,13 +93,14 @@ fn coarse_matches_dense_within_the_stated_tolerance() {
         }
     }
     let mean = sum / d.len() as f64;
-    eprintln!("pixels: mean |Δ| {mean:.2e}, interior max |Δ| {interior:.2e}");
+    eprintln!("{w} × {h} pixels: mean |Δ| {mean:.2e}, interior max |Δ| {interior:.2e}");
     assert!(mean <= MEAN_ABS, "mean abs pixel difference {mean}");
     assert!(
         interior <= MAX_INTERIOR,
         "interior max pixel difference {interior}"
     );
     let (v, hz) = scene.straightness(&coarse);
+    eprintln!("{w} × {h} coarse straightness {v:.4} / {hz:.4} px");
     assert!(v <= 0.5 && hz <= 0.5, "coarse straightness {v} / {hz}");
 }
 
