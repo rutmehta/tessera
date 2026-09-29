@@ -290,7 +290,7 @@ impl Adaptive {
                         .checked_add(1)
                         .and_then(|h| w.checked_mul(h))
                 })
-                .is_none_or(|n| n > 16_777_216)
+                .is_none_or(|n| n > crate::displacement::MAX_VERTICES)
             || !self.output_focal_px.is_finite()
             || !(1e-3..=1e9).contains(&self.output_focal_px)
             || !self.scale.is_finite()

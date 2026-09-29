@@ -225,7 +225,7 @@ fn invalid(s: &str) -> Error {
 fn canvas(width: usize, height: usize) -> Result<usize> {
     width
         .checked_mul(height)
-        .filter(|n| width > 0 && height > 0 && *n <= 100_000_000)
+        .filter(|n| width > 0 && height > 0 && *n <= crate::MAX_IMAGE_PIXELS)
         .ok_or_else(|| invalid("nonempty canvas of at most 100 MP required"))
 }
 

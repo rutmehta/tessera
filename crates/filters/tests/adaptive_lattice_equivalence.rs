@@ -84,7 +84,10 @@ fn coarse_matches_dense_within_the_stated_tolerance() {
     let mean = sum / d.len() as f64;
     eprintln!("pixels: mean |Δ| {mean:.2e}, interior max |Δ| {interior:.2e}");
     assert!(mean <= MEAN_ABS, "mean abs pixel difference {mean}");
-    assert!(interior <= MAX_INTERIOR, "interior max pixel difference {interior}");
+    assert!(
+        interior <= MAX_INTERIOR,
+        "interior max pixel difference {interior}"
+    );
     let (v, hz) = scene.straightness(&coarse);
     assert!(v <= 0.5 && hz <= 0.5, "coarse straightness {v} / {hz}");
 }
@@ -122,12 +125,21 @@ fn the_coarse_path_is_deterministic_and_leaves_small_layers_on_the_fine_path() {
 
 #[test]
 fn lattice_budget_and_factor_follow_the_layer_size() {
-    for (w, h) in [(6000usize, 4000usize), (5212, 3468), (4096, 4096), (12001, 997)] {
+    for (w, h) in [
+        (6000usize, 4000usize),
+        (5212, 3468),
+        (4096, 4096),
+        (12001, 997),
+    ] {
         let scene = Scene::new(w as u32, h as u32);
-        let l = adaptive_lattice::Lattice::solve(&scene.recipe(), adaptive_lattice::COARSE_VERTICES)
-            .unwrap();
+        let l =
+            adaptive_lattice::Lattice::solve(&scene.recipe(), adaptive_lattice::COARSE_VERTICES)
+                .unwrap();
         assert!(l.vertices() <= adaptive_lattice::COARSE_VERTICES, "{w}×{h}");
-        assert!(l.vertices() * 2 > adaptive_lattice::COARSE_VERTICES / 2, "{w}×{h} uses the budget");
+        assert!(
+            l.vertices() * 2 > adaptive_lattice::COARSE_VERTICES / 2,
+            "{w}×{h} uses the budget"
+        );
         assert!(l.factor() > 0.0 && l.factor() < 1.0);
     }
 }

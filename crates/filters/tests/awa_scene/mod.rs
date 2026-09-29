@@ -111,7 +111,9 @@ impl Scene {
         );
         a.scale = self.scale;
         let trace = |f: &dyn Fn(f64) -> [f64; 2]| -> Vec<[f64; 2]> {
-            (0..=16).map(|i| self.observe(f(f64::from(i) / 16.))).collect()
+            (0..=64)
+                .map(|i| self.observe(f(f64::from(i) / 64.)))
+                .collect()
         };
         a.lines.push(LineConstraint {
             points: trace(&|t| {

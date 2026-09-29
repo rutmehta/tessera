@@ -24,6 +24,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub(crate) fn check_cancel(cancel: &engine_api::jobs::CancellationToken) -> Result<()> {
     cancel.check().map_err(|_| Error::Cancelled)
 }
+/// Largest planar image (and render canvas) in pixels.
+pub const MAX_IMAGE_PIXELS: usize = 100_000_000;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Image {
     pub width: usize,
@@ -45,7 +47,7 @@ impl Image {
         if self.width == 0
             || self.height == 0
             || self.width.checked_mul(self.height).is_none_or(|n| {
-                n > 100_000_000
+                n > MAX_IMAGE_PIXELS
                     || self
                         .planes
                         .iter()

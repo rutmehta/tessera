@@ -63,11 +63,34 @@ fn layers_over_100_megapixels_are_still_refused_before_any_work() {
     );
     let message = CompositorFilters
         .evaluate(&big, &node(&a), &context(12000, 9000))
-        .err()
-        .expect("over 100 MP is refused")
+        .expect_err("over 100 MP is refused")
         .to_string();
     assert!(
         message.contains("100 megapixels") && message.contains("12000 × 9000"),
         "{message}"
+    );
+}
+
+#[test]
+fn a_cancel_stops_the_coarse_render() {
+    use engine_api::{EngineError, jobs::CancellationToken};
+    let (w, h) = (6000u32, 4000u32);
+    let recipe = Scene::new(w, h).recipe();
+    let input = Raster::new(Extent::new(w, h), 4, Depth::F32, 0.5);
+    let token = CancellationToken::new();
+    let later = token.clone();
+    let canceller = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        later.cancel();
+    });
+    let t = std::time::Instant::now();
+    let result =
+        CompositorFilters.evaluate_with_cancel(&input, &node(&recipe), &context(w, h), &token);
+    eprintln!("cancelled after {:.2} s", t.elapsed().as_secs_f64());
+    canceller.join().unwrap();
+    assert!(
+        matches!(result, Err(EngineError::Cancelled)),
+        "{:?}",
+        result.map(|r| r.extent())
     );
 }
