@@ -705,6 +705,11 @@ impl CancelFlag {
         self.0.is_cancelled()
     }
 }
+impl CancelFlag {
+    pub(crate) fn token(&self) -> &CancellationToken {
+        &self.0
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct ExportProgress {

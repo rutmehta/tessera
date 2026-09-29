@@ -111,6 +111,15 @@ pub use content_aware::{
     ContentAwareMode, ContentAwareMoveInfo, ContentAwarePreviewResult, ContentAwareSeam,
 };
 // B5-13 end
+// B5-19 begin: Auto-Align / Auto-Blend Layers and Photomerge into layers.
+#[path = "document/stack.rs"]
+mod stack;
+pub use stack::{
+    MAX_STACK_MEGAPIXELS, PHOTOMERGE_CANCELLED, StackAlignMode, StackAlignOptions, StackBlendMode,
+    StackBlendOptions, StackEligibility, StackLensCorrection, default_stack_align_options,
+    default_stack_blend_options, stack_max_megapixels,
+};
+// B5-19 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
@@ -669,7 +678,12 @@ impl Engine {
         if let Some(s) = self.documents.find(&key) {
             return Ok(s);
         }
-        let opened = io::open_image(&self, &image_id, developed)?;
+        let opened = io::open_image(
+            &self,
+            &image_id,
+            developed,
+            &engine_api::jobs::CancellationToken::new(),
+        )?;
         Ok(self.register_document(Some(key), opened))
     }
 

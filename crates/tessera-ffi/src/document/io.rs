@@ -241,7 +241,12 @@ fn single_layer_state(
 }
 
 /// A library image rendered through the export path into one pixel layer.
-pub(crate) fn open_image(engine: &Arc<Engine>, image_id: &str, developed: bool) -> Result<Opened> {
+pub(crate) fn open_image(
+    engine: &Arc<Engine>,
+    image_id: &str,
+    developed: bool,
+    cancel: &CancellationToken,
+) -> Result<Opened> {
     let id = parse_id(image_id)?;
     let (path, orientation) = {
         let c = engine.lock()?;
@@ -285,7 +290,7 @@ pub(crate) fn open_image(engine: &Arc<Engine>, image_id: &str, developed: bool) 
             sharpen_for: export::SharpenFor::None,
             scale: 1,
         },
-        &engine_api::jobs::CancellationToken::new(),
+        cancel,
         match segmenter.as_mut() {
             Some(s) => Some(s.as_mut()),
             None => None,
@@ -700,7 +705,7 @@ pub(crate) fn export_flat(
 }
 
 /// Converts straight RGB (alpha untouched) between two ICC profiles.
-fn convert(source: &[u8], target: &[u8], rgba: &mut [f32]) -> Result<()> {
+pub(crate) fn convert(source: &[u8], target: &[u8], rgba: &mut [f32]) -> Result<()> {
     let src = lcms2::Profile::new_icc(source).map_err(failure)?;
     let dst = lcms2::Profile::new_icc(target).map_err(failure)?;
     let t: lcms2::Transform<[f32; 3], [f32; 3]> = lcms2::Transform::new_flags(

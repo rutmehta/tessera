@@ -178,6 +178,7 @@ struct ContentView: View {
             PrintSheet(printing: model.printing, model: model)
         }
         .photoJobSheets(model)   // M2-50: Photo Merge / Enhance
+        .stackSheets(model)   // B5-19: Auto-Align / Auto-Blend / Photomerge
         .sheet(isPresented: Binding(get: { model.collections.editor != nil },
                                     set: { if !$0 { model.collections.editor = nil } })) {
             SmartAlbumSheet(library: model.collections)
