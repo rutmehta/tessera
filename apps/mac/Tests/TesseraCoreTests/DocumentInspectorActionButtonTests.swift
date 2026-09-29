@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 @testable import Tessera
 
@@ -94,5 +95,41 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
         withExtendedLifetime(button) {
             XCTAssertNil(released, "detached representable must drop its action context")
         }
+    }
+
+    func testActualColorLookupEditorInstallsNativeActionsAndDisabledReset() async throws {
+        let priorPolicy = NSApplication.shared.activationPolicy()
+        defer { _ = NSApplication.shared.setActivationPolicy(priorPolicy) }
+        ShellHarness.prepare()
+        let workspace = DocumentWorkspace()
+        workspace.newDocument(workspace.newSettings)
+        let document = try XCTUnwrap(workspace.current)
+        document.addAdjustment(.colorLookup)
+        let host = NSHostingView(rootView: PropertiesPanel(document: document)
+            .frame(width: 288, height: 848, alignment: .topLeading))
+        let bounds = NSRect(x: 0, y: 0, width: 288, height: 848)
+        let window = NSWindow(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.setContentSize(bounds.size)
+        host.frame = bounds
+        defer { window.orderOut(nil); window.contentView = nil; window.close() }
+        window.orderBack(nil)
+        host.layoutSubtreeIfNeeded()
+        await Task.yield()
+        host.layoutSubtreeIfNeeded()
+        func actions(_ view: NSView) -> [DocumentInspectorNativeActionButton] {
+            if let action = view as? DocumentInspectorNativeActionButton { return [action] }
+            return view.subviews.flatMap { actions($0) }
+        }
+        let buttons = actions(host)
+        XCTAssertEqual(buttons.count, 2, "actual editor must use the adapter, not an unused test-only control")
+        let load = try XCTUnwrap(buttons.first { $0.accessibilityIdentifier() == "document.properties.colorLookup.load" })
+        let reset = try XCTUnwrap(buttons.first { $0.accessibilityIdentifier() == "document.properties.colorLookup.reset" })
+        XCTAssertTrue(load.isEnabled)
+        XCTAssertFalse(reset.isEnabled, "identity LUT must retain disabled Reset")
+        XCTAssertEqual(host.bounds, bounds)
+        // Deliberately no focus assignment or reachability assertion. A must
+        // qualify Name -> Tab -> action -> Tab in the real owned app.
     }
 }
