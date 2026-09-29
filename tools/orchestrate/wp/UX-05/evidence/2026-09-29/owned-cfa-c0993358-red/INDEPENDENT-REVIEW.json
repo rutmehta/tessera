@@ -1,0 +1,331 @@
+{
+  "243eacfe": {
+    "head": "243eacfee83a3a2bcce99ff65285e06558fee28f",
+    "source_count": 9231,
+    "git_mismatches": [],
+    "freezes": [
+      {
+        "path": "02-red/before.json",
+        "equal": true
+      },
+      {
+        "path": "02-red/artifacts-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/before.json",
+        "equal": true
+      },
+      {
+        "path": "01-compile/before.json",
+        "equal": true
+      },
+      {
+        "path": "01-compile/command/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/00-pass/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/01-clone/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "02-red/command/inputs-before.json",
+        "equal": true
+      }
+    ],
+    "runner_matches": true,
+    "oracle_matches": true,
+    "dependency_count": 257,
+    "dependency_mismatches": [],
+    "unit": {
+      "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/raw_decode-be8e9abbe6c30d95",
+      "sha256": "3a3e746d819d0304470af9a5f8090fbc2e0e433b3b6bc78b166218bc4d704a82"
+    },
+    "api": [
+      {
+        "case": "00-pass",
+        "exit": 0,
+        "diagnostics": []
+      },
+      {
+        "case": "01-clone",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0277",
+            "message": "the trait bound `OwnedCapturedCfa: Clone` is not satisfied",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/clone.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    "final_report_exists": false,
+    "protocol_names": [
+      "capture::tests::decode::owned::owned_classifier_refusal_prevents_decoder_and_releases_capture",
+      "capture::tests::decode::owned::owned_cleanup_failure_never_publishes_and_preserves_primary",
+      "capture::tests::decode::owned::owned_mismatch_and_decode_errors_use_common_cleanup",
+      "capture::tests::decode::owned::owned_precancel_and_invalid_native_bytes_release_stage",
+      "capture::tests::decode::owned::owned_success_binds_allocation_metadata_identity_after_cleanup"
+    ],
+    "compile_exit": 0,
+    "protocol_exit": 101,
+    "report_sha256": {
+      "PREPARATION.md": "b725d12e3cb11e152d862326cb40856f5ad9ab1567031666fe68905144a79bdb",
+      "STOP-REPORT.md": "9be2c5c15b5e2dface74b9bf9c3d3a288a7e81e6136497c4b6d38aa5bd22a10c"
+    },
+    "verdict": "Preserved meaningful scaffold RED; incomplete API oracle attempt"
+  },
+  "c0993358": {
+    "head": "c099335882b0e677d75d6069a1079e789e7efaad",
+    "source_count": 9231,
+    "git_mismatches": [],
+    "freezes": [
+      {
+        "path": "02-red/before.json",
+        "equal": true
+      },
+      {
+        "path": "02-red/artifacts-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/artifacts-before.json",
+        "equal": true
+      },
+      {
+        "path": "01-compile/before.json",
+        "equal": true
+      },
+      {
+        "path": "01-compile/command/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/08-sample_getter/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/05-opcode_mutation/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/03-default/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/07-private_fields/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/06-parts/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/02-conversion/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/00-pass/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/04-metadata_mutation/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "03-api/01-clone/inputs-before.json",
+        "equal": true
+      },
+      {
+        "path": "02-red/command/inputs-before.json",
+        "equal": true
+      }
+    ],
+    "runner_matches": true,
+    "oracle_matches": true,
+    "dependency_count": 257,
+    "dependency_mismatches": [],
+    "unit": {
+      "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/raw_decode-be8e9abbe6c30d95",
+      "sha256": "3a3e746d819d0304470af9a5f8090fbc2e0e433b3b6bc78b166218bc4d704a82"
+    },
+    "api": [
+      {
+        "case": "00-pass",
+        "exit": 0,
+        "diagnostics": []
+      },
+      {
+        "case": "01-clone",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0277",
+            "message": "the trait bound `OwnedCapturedCfa: Clone` is not satisfied",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/clone.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "case": "02-conversion",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0277",
+            "message": "the trait bound `OwnedCapturedCfa: From<DecodedCapturedCfa>` is not satisfied",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/conversion.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "case": "03-default",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0277",
+            "message": "the trait bound `OwnedCapturedCfa: Default` is not satisfied",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/default.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "case": "04-metadata_mutation",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0596",
+            "message": "cannot borrow data in a `&` reference as mutable",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/metadata_mutation.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "case": "05-opcode_mutation",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0596",
+            "message": "cannot borrow data in a `&` reference as mutable",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/opcode_mutation.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "case": "06-parts",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0599",
+            "message": "no method named `into_parts` found for struct `OwnedCapturedCfa` in the current scope",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/parts.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "case": "07-private_fields",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0451",
+            "message": "fields `image`, `metadata`, `identity` and `route` of struct `OwnedCapturedCfa` are private",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/private_fields.rs",
+                4
+              ],
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/private_fields.rs",
+                5
+              ],
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/private_fields.rs",
+                6
+              ],
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/private_fields.rs",
+                7
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "case": "08-sample_getter",
+        "exit": 1,
+        "diagnostics": [
+          {
+            "code": "E0599",
+            "message": "no method named `samples` found for reference `&OwnedCapturedCfa` in the current scope",
+            "primary": [
+              [
+                "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera/crates/raw-decode/tests/owned_api/sample_getter.rs",
+                3
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    "final_report_exists": true,
+    "protocol_names": [
+      "capture::tests::decode::owned::owned_classifier_refusal_prevents_decoder_and_releases_capture",
+      "capture::tests::decode::owned::owned_cleanup_failure_never_publishes_and_preserves_primary",
+      "capture::tests::decode::owned::owned_mismatch_and_decode_errors_use_common_cleanup",
+      "capture::tests::decode::owned::owned_precancel_and_invalid_native_bytes_release_stage",
+      "capture::tests::decode::owned::owned_success_binds_allocation_metadata_identity_after_cleanup"
+    ],
+    "compile_exit": 0,
+    "protocol_exit": 101,
+    "report_sha256": {
+      "VALIDATION.md": "1f9a9f5dd660b00f853cd5477f2e3e2edeccbcbfbfaf13e4e8e39447b59e42ee",
+      "PREPARATION.md": "ba0308ad7a783fb40606a438638083aa16d2264b4630db6521c1097cf3947e8a"
+    },
+    "verdict": "Approved meaningful scaffold RED and eight intended API boundaries; not implementation or real-family acceptance",
+    "api_wrapper_exit": 0,
+    "runner_delta": "HEAD only",
+    "source_delta": "Only Clone expectation E0599 to E0277 and exact trait-not-satisfied message"
+  }
+}

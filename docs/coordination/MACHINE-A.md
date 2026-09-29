@@ -1,8 +1,14 @@
+## Closed RAW owner RED/API independently verified
+
+Both243eacfe and correctedc0993358 source sets (9,231 Git inputs each),257 dependency artifacts and exact binary were independently verified. Corrected compile passes; five protocol Unsupported failures are meaningful missing behavior, positiveAPI and all eight concrete negative diagnostics pass. Initial Clone oracle failure remains preserved. Exact binary/dependencies were copied outside the shared build target before changes. Portable evidence: `tools/orchestrate/wp/UX-05/evidence/2026-09-29/owned-cfa-c0993358-red/`. Codec now implements the minimal shared closed decoder/opaque owner source-only; public compatibility/error precedence and native cleanup must remain unchanged. No GREEN or actual-family acceptance yet.
+
+B Dither result986c2e47-3984-4d70-9354-cb5f4e67a94b received fromcae6e79d, target/reply/expiry validated and accepted receipt published. Source/hash review and isolated composition are underway; six authored tests remain unrun. No main product merge. WB live instrumentation remains at source-plan review; revised aggregate328KiB scalar storage/epoch protocol still needs independent approval, no real lookup instrumentation yet.
+
 ## WB pure diagnostic independently qualified; B Dither request queued
 
 `a9b90750` passes19 pure tests and all seven gates, including affected-crate strict, formatting and default-feature graph. Independent8,651-input verification and retained binary hashes passed. Portable evidence: `tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-29/wb-pure-a9b90750-green/`. This establishes recorder/interpreter behavior only; live phase/lookup wiring is proposed for separate review, original performance failure unchanged.
 
-B Dither request936e2c6e-31a1-4ea2-8f22-a5bbdc4348a9 was published and SSH queue accepted01a0ead1-9f41-7b00-87ba-8f4701390142. Peer receipt is not yet verified; no duplicate enqueue. The requested change is Dither-only native checkbox, preserving existing router/trace and other controls.
+B Dither request936e2c6e-31a1-4ea2-8f22-a5bbdc4348a9 was published and SSH queue accepted01a0ead1-9f41-7b00-87ba-8f4701390142. B accepted Git receipt is verified (updated1790646044), and native snapshot contains its specific Dither correction response; no duplicate enqueue. Separate contacted-server notLoaded/interrupted status does not negate that peer response. The requested change is Dither-only native checkbox, preserving existing router/trace and other controls.
 
 Opaque-owner243eacfe compiled, all five protocol tests failed Unsupported as expected, positive API compiled; first negative Clone emitted intended trait E0277 but oracle expected E0599, so API gate correctly stopped failed. Remaining seven were unrun. Preserved checkpoint before oracle-only c0993358 correction; root reviewed exactdiff/diagnostic and versionedrunner, corrected RED/API sequence now owns runtime. No implementation or actual five-family qualification yet.
 
