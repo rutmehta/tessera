@@ -20,6 +20,7 @@ struct AppCommands: Commands {
                 Button("Open Document…") { docs.presentOpen() }
                     .keyboardShortcut("o", modifiers: [.command, .shift])
             }
+            StackFileMenuItems(stack: .shared)   // B5-19: File ▸ Automate ▸ Photomerge…
             Divider()
             Button("Open Folder…") { model.presentOpenPanel() }
                 .keyboardShortcut("o", modifiers: .command)
@@ -285,6 +286,7 @@ struct AppCommands: Commands {
                 // B5-09 begin
                 RetouchEditMenuItems(doc: doc)
                 // B5-09 end
+                StackEditMenuItems(stack: .shared)   // B5-19: Auto-Align / Auto-Blend Layers…
             }
         }
     }

@@ -4511,6 +4511,33 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func retouchModels() throws  -> [RetouchModel]
     
     /**
+     * Edit ▸ Auto-Align Layers: registers the root pixel layers `ids` (the
+     * reference stays put), extends the canvas to their union and keeps each
+     * source with its transform editable. One history node. Blocking.
+     */
+    func autoAlignLayers(ids: [UInt64], options: StackAlignOptions) throws  -> DocumentUpdate
+    
+    /**
+     * Edit ▸ Auto-Blend Layers: editable masks on each layer (panorama
+     * seams or focus stacking), optional seamless-tone correction layers
+     * and, when asked, one Content-Aware Fill layer for uncovered pixels.
+     * One history node. Blocking.
+     */
+    func autoBlendLayers(ids: [UInt64], options: StackBlendOptions) throws  -> DocumentUpdate
+    
+    /**
+     * Photomerge into this document: each source (library image id or
+     * file path) becomes a named top-level layer, aligned and blended, as
+     * one history node. Blocking (decodes every source first).
+     */
+    func photomergeIntoLayers(sources: [String], align: StackAlignOptions, blend: StackBlendOptions) throws  -> DocumentUpdate
+    
+    /**
+     * Whether `ids` (Layers panel selection) can be aligned and blended.
+     */
+    func stackEligibility(ids: [UInt64]) throws  -> StackEligibility
+    
+    /**
      * Whether Copy Layer Style has something to paste.
      */
     func canPasteLayerStyles()  -> Bool
@@ -6430,6 +6457,69 @@ open func retouchModels()throws  -> [RetouchModel]  {
 }
     
     /**
+     * Edit ▸ Auto-Align Layers: registers the root pixel layers `ids` (the
+     * reference stays put), extends the canvas to their union and keeps each
+     * source with its transform editable. One history node. Blocking.
+     */
+open func autoAlignLayers(ids: [UInt64], options: StackAlignOptions)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_auto_align_layers(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(ids),
+        FfiConverterTypeStackAlignOptions_lower(options),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Edit ▸ Auto-Blend Layers: editable masks on each layer (panorama
+     * seams or focus stacking), optional seamless-tone correction layers
+     * and, when asked, one Content-Aware Fill layer for uncovered pixels.
+     * One history node. Blocking.
+     */
+open func autoBlendLayers(ids: [UInt64], options: StackBlendOptions)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_auto_blend_layers(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(ids),
+        FfiConverterTypeStackBlendOptions_lower(options),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Photomerge into this document: each source (library image id or
+     * file path) becomes a named top-level layer, aligned and blended, as
+     * one history node. Blocking (decodes every source first).
+     */
+open func photomergeIntoLayers(sources: [String], align: StackAlignOptions, blend: StackBlendOptions)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_photomerge_into_layers(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(sources),
+        FfiConverterTypeStackAlignOptions_lower(align),
+        FfiConverterTypeStackBlendOptions_lower(blend),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Whether `ids` (Layers panel selection) can be aligned and blended.
+     */
+open func stackEligibility(ids: [UInt64])throws  -> StackEligibility  {
+    return try  FfiConverterTypeStackEligibility_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_stack_eligibility(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(ids),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Whether Copy Layer Style has something to paste.
      */
 open func canPasteLayerStyles() -> Bool  {
@@ -7479,6 +7569,13 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openDocumentFromImage(imageId: String, developed: Bool) throws  -> DocumentSession
     
     /**
+     * File ▸ Automate ▸ Photomerge: a new Untitled document whose one
+     * history node after "New Document" merges `sources` (library image ids
+     * or file paths) into named, aligned and blended layers. Blocking.
+     */
+    func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions) throws  -> DocumentSession
+    
+    /**
      * Each selected photo produces its own float LinearRaw DNG, stacked with
      * that source. SR doubles each dimension. Zero NR is a bit-exact bypass.
      */
@@ -8131,6 +8228,23 @@ open func openDocumentFromImage(imageId: String, developed: Bool)throws  -> Docu
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),
         FfiConverterBool.lower(developed),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * File ▸ Automate ▸ Photomerge: a new Untitled document whose one
+     * history node after "New Document" merges `sources` (library image ids
+     * or file paths) into named, aligned and blended layers. Blocking.
+     */
+open func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions)throws  -> DocumentSession  {
+    return try  FfiConverterTypeDocumentSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_photomerge_document(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(sources),
+        FfiConverterTypeStackAlignOptions_lower(align),
+        FfiConverterTypeStackBlendOptions_lower(blend),uniffiCallStatus
     )
 })
 }
@@ -23577,6 +23691,306 @@ public func FfiConverterTypeSoftProofOptions_lower(_ value: SoftProofOptions) ->
 
 
 /**
+ * Auto-Align Layers options.
+ */
+public struct StackAlignOptions: Equatable, Hashable {
+    public var mode: StackAlignMode
+    /**
+     * Index into the ids (or sources) of the layer that stays put.
+     */
+    public var referenceIndex: UInt32
+    public var vignetteRemoval: Bool
+    public var geometricDistortion: Bool
+    /**
+     * One per layer, in order; required by either lens correction.
+     */
+    public var lensCorrections: [StackLensCorrection]
+    public var seed: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(mode: StackAlignMode, 
+        /**
+         * Index into the ids (or sources) of the layer that stays put.
+         */referenceIndex: UInt32, vignetteRemoval: Bool, geometricDistortion: Bool, 
+        /**
+         * One per layer, in order; required by either lens correction.
+         */lensCorrections: [StackLensCorrection], seed: UInt64) {
+        self.mode = mode
+        self.referenceIndex = referenceIndex
+        self.vignetteRemoval = vignetteRemoval
+        self.geometricDistortion = geometricDistortion
+        self.lensCorrections = lensCorrections
+        self.seed = seed
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension StackAlignOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStackAlignOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StackAlignOptions {
+        return
+            try StackAlignOptions(
+                mode: FfiConverterTypeStackAlignMode.read(from: &buf), 
+                referenceIndex: FfiConverterUInt32.read(from: &buf), 
+                vignetteRemoval: FfiConverterBool.read(from: &buf), 
+                geometricDistortion: FfiConverterBool.read(from: &buf), 
+                lensCorrections: FfiConverterSequenceTypeStackLensCorrection.read(from: &buf), 
+                seed: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StackAlignOptions, into buf: inout [UInt8]) {
+        FfiConverterTypeStackAlignMode.write(value.mode, into: &buf)
+        FfiConverterUInt32.write(value.referenceIndex, into: &buf)
+        FfiConverterBool.write(value.vignetteRemoval, into: &buf)
+        FfiConverterBool.write(value.geometricDistortion, into: &buf)
+        FfiConverterSequenceTypeStackLensCorrection.write(value.lensCorrections, into: &buf)
+        FfiConverterUInt64.write(value.seed, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackAlignOptions_lift(_ buf: RustBuffer) throws -> StackAlignOptions {
+    return try FfiConverterTypeStackAlignOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackAlignOptions_lower(_ value: StackAlignOptions) -> RustBuffer {
+    return FfiConverterTypeStackAlignOptions.lower(value)
+}
+
+
+/**
+ * Auto-Blend Layers options.
+ */
+public struct StackBlendOptions: Equatable, Hashable {
+    public var mode: StackBlendMode
+    public var seamlessTones: Bool
+    /**
+     * Content-Aware Fill Transparent Areas: one new layer filling the
+     * pixels no layer covers.
+     */
+    public var contentAwareFill: Bool
+    public var seed: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(mode: StackBlendMode, seamlessTones: Bool, 
+        /**
+         * Content-Aware Fill Transparent Areas: one new layer filling the
+         * pixels no layer covers.
+         */contentAwareFill: Bool, seed: UInt64) {
+        self.mode = mode
+        self.seamlessTones = seamlessTones
+        self.contentAwareFill = contentAwareFill
+        self.seed = seed
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension StackBlendOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStackBlendOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StackBlendOptions {
+        return
+            try StackBlendOptions(
+                mode: FfiConverterTypeStackBlendMode.read(from: &buf), 
+                seamlessTones: FfiConverterBool.read(from: &buf), 
+                contentAwareFill: FfiConverterBool.read(from: &buf), 
+                seed: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StackBlendOptions, into buf: inout [UInt8]) {
+        FfiConverterTypeStackBlendMode.write(value.mode, into: &buf)
+        FfiConverterBool.write(value.seamlessTones, into: &buf)
+        FfiConverterBool.write(value.contentAwareFill, into: &buf)
+        FfiConverterUInt64.write(value.seed, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackBlendOptions_lift(_ buf: RustBuffer) throws -> StackBlendOptions {
+    return try FfiConverterTypeStackBlendOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackBlendOptions_lower(_ value: StackBlendOptions) -> RustBuffer {
+    return FfiConverterTypeStackBlendOptions.lower(value)
+}
+
+
+/**
+ * Whether the given layers can be aligned / blended, and why not.
+ */
+public struct StackEligibility: Equatable, Hashable {
+    public var canAlign: Bool
+    public var canBlend: Bool
+    /**
+     * The alignment problem, else the blend problem.
+     */
+    public var reason: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(canAlign: Bool, canBlend: Bool, 
+        /**
+         * The alignment problem, else the blend problem.
+         */reason: String?) {
+        self.canAlign = canAlign
+        self.canBlend = canBlend
+        self.reason = reason
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension StackEligibility: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStackEligibility: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StackEligibility {
+        return
+            try StackEligibility(
+                canAlign: FfiConverterBool.read(from: &buf), 
+                canBlend: FfiConverterBool.read(from: &buf), 
+                reason: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StackEligibility, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.canAlign, into: &buf)
+        FfiConverterBool.write(value.canBlend, into: &buf)
+        FfiConverterOptionString.write(value.reason, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackEligibility_lift(_ buf: RustBuffer) throws -> StackEligibility {
+    return try FfiConverterTypeStackEligibility.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackEligibility_lower(_ value: StackEligibility) -> RustBuffer {
+    return FfiConverterTypeStackEligibility.lower(value)
+}
+
+
+/**
+ * One layer's radial lens calibration (`merge::layers::LensCorrection`):
+ * distortion maps ideal to observed radius by `r·(1 + k1·r² + k2·r⁴ +
+ * k3·r⁶)`; vignette coefficients describe observed illumination.
+ */
+public struct StackLensCorrection: Equatable, Hashable {
+    public var k1: Double
+    public var k2: Double
+    public var k3: Double
+    public var v1: Double
+    public var v2: Double
+    public var v3: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(k1: Double, k2: Double, k3: Double, v1: Double, v2: Double, v3: Double) {
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
+        self.v1 = v1
+        self.v2 = v2
+        self.v3 = v3
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension StackLensCorrection: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStackLensCorrection: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StackLensCorrection {
+        return
+            try StackLensCorrection(
+                k1: FfiConverterDouble.read(from: &buf), 
+                k2: FfiConverterDouble.read(from: &buf), 
+                k3: FfiConverterDouble.read(from: &buf), 
+                v1: FfiConverterDouble.read(from: &buf), 
+                v2: FfiConverterDouble.read(from: &buf), 
+                v3: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StackLensCorrection, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.k1, into: &buf)
+        FfiConverterDouble.write(value.k2, into: &buf)
+        FfiConverterDouble.write(value.k3, into: &buf)
+        FfiConverterDouble.write(value.v1, into: &buf)
+        FfiConverterDouble.write(value.v2, into: &buf)
+        FfiConverterDouble.write(value.v3, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackLensCorrection_lift(_ buf: RustBuffer) throws -> StackLensCorrection {
+    return try FfiConverterTypeStackLensCorrection.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackLensCorrection_lower(_ value: StackLensCorrection) -> RustBuffer {
+    return FfiConverterTypeStackLensCorrection.lower(value)
+}
+
+
+/**
  * What one `stroke_points` call did.
  */
 public struct StrokeFrame: Equatable, Hashable {
@@ -29910,6 +30324,178 @@ public func FfiConverterTypeSmartPreviewState_lower(_ value: SmartPreviewState) 
 
 
 
+/**
+ * Auto-Align / Photomerge projection ("Layout" in Photoshop).
+ */
+
+public enum StackAlignMode: Equatable, Hashable {
+    
+    case auto
+    case perspective
+    case cylindrical
+    case spherical
+    case collage
+    case reposition
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension StackAlignMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStackAlignMode: FfiConverterRustBuffer {
+    typealias SwiftType = StackAlignMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StackAlignMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .auto
+        
+        case 2: return .perspective
+        
+        case 3: return .cylindrical
+        
+        case 4: return .spherical
+        
+        case 5: return .collage
+        
+        case 6: return .reposition
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StackAlignMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .auto:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .perspective:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .cylindrical:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .spherical:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .collage:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .reposition:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackAlignMode_lift(_ buf: RustBuffer) throws -> StackAlignMode {
+    return try FfiConverterTypeStackAlignMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackAlignMode_lower(_ value: StackAlignMode) -> RustBuffer {
+    return FfiConverterTypeStackAlignMode.lower(value)
+}
+
+
+
+/**
+ * Auto-Blend method.
+ */
+
+public enum StackBlendMode: Equatable, Hashable {
+    
+    /**
+     * Seams between overlapping images.
+     */
+    case panorama
+    /**
+     * Focus stacking: each region from its sharpest layer.
+     */
+    case stackImages
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension StackBlendMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStackBlendMode: FfiConverterRustBuffer {
+    typealias SwiftType = StackBlendMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StackBlendMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .panorama
+        
+        case 2: return .stackImages
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StackBlendMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .panorama:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .stackImages:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackBlendMode_lift(_ buf: RustBuffer) throws -> StackBlendMode {
+    return try FfiConverterTypeStackBlendMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStackBlendMode_lower(_ value: StackBlendMode) -> RustBuffer {
+    return FfiConverterTypeStackBlendMode.lower(value)
+}
+
+
+
 
 public enum StatusPhase: Equatable, Hashable {
     
@@ -33211,6 +33797,31 @@ fileprivate struct FfiConverterSequenceTypeSmartFilterRecord: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeStackLensCorrection: FfiConverterRustBuffer {
+    typealias SwiftType = [StackLensCorrection]
+
+    public static func write(_ value: [StackLensCorrection], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeStackLensCorrection.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [StackLensCorrection] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [StackLensCorrection]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeStackLensCorrection.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeStrokeSample: FfiConverterRustBuffer {
     typealias SwiftType = [StrokeSample]
 
@@ -33621,6 +34232,26 @@ public func neuralFilters() -> [NeuralFilterInfo]  {
 })
 }
 /**
+ * Photoshop's defaults: Auto layout, no lens corrections.
+ */
+public func defaultStackAlignOptions() -> StackAlignOptions  {
+    return try!  FfiConverterTypeStackAlignOptions_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_default_stack_align_options(uniffiCallStatus
+    )
+})
+}
+/**
+ * Photoshop's defaults: Panorama with seamless tones, no fill.
+ */
+public func defaultStackBlendOptions() -> StackBlendOptions  {
+    return try!  FfiConverterTypeStackBlendOptions_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_default_stack_blend_options(uniffiCallStatus
+    )
+})
+}
+/**
  * The effect kinds `LayerStyles` JSON may hold, their fields (JSON keys of
  * `settings`) with UI ranges, defaults and flags, top first in the engine's
  * stacking order. Field `type`s: `number` (`min`/`max` in stored units,
@@ -33806,6 +34437,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_neural_filters() != 17162) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_func_default_stack_align_options() != 6095) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_default_stack_blend_options() != 61674) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_func_style_effects_schema_json() != 46429) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -33924,6 +34561,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_document_from_image() != 20023) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_photomerge_document() != 36798) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_enhance() != 12673) {
@@ -34680,6 +35320,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_retouch_models() != 9959) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_auto_align_layers() != 19923) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_auto_blend_layers() != 11892) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_photomerge_into_layers() != 65337) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_stack_eligibility() != 24504) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_can_paste_layer_styles() != 15469) {

@@ -98,6 +98,14 @@ pub use vector_shapes::{
     VectorMaskRecord, shape_primitive_path,
 };
 // B5-11 end
+// B5-19 begin: Auto-Align / Auto-Blend Layers and Photomerge into layers.
+#[path = "document/stack.rs"]
+mod stack;
+pub use stack::{
+    StackAlignMode, StackAlignOptions, StackBlendMode, StackBlendOptions, StackEligibility,
+    StackLensCorrection, default_stack_align_options, default_stack_blend_options,
+};
+// B5-19 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{

@@ -4,7 +4,7 @@
 //! one in the overlap with one undo, focus stacking choosing the sharper
 //! source, content-aware fill only on request, Photomerge as exactly one
 //! history node (into the open document or a new Untitled one), and native
-//! save / reopen and the layered PSD copy keeping the masks.
+//! save / reopen and the layered PSD copy keeping the masks and composite.
 #![cfg(target_os = "macos")]
 
 use compositor::{Depth, DocOp, DocState, Document, Layer, LayerId, LayerKind, Raster, Rect};
@@ -25,7 +25,8 @@ fn engine() -> (tempfile::TempDir, Arc<Engine>) {
 
 /// Deterministic per-pixel noise in [-1, 1].
 fn noise(x: i64, y: i64) -> f64 {
-    let mut h = (x as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ (y as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+    let mut h = (x as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        ^ (y as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
     h ^= h >> 29;
     h = h.wrapping_mul(0xBF58_476D_1CE4_E5B9);
     h ^= h >> 32;
@@ -90,7 +91,10 @@ fn raster(pixels: &[[f32; 3]]) -> Raster {
 
 /// A document with root pixel layers `(name, pixels)`, bottom first; returns
 /// the session and the layer ids in the same order.
-fn doc(engine: &Arc<Engine>, layers: Vec<(&str, Vec<[f32; 3]>)>) -> (Arc<DocumentSession>, Vec<u64>) {
+fn doc(
+    engine: &Arc<Engine>,
+    layers: Vec<(&str, Vec<[f32; 3]>)>,
+) -> (Arc<DocumentSession>, Vec<u64>) {
     let mut d = Document::new(DocState::new(Extent::new(W, H), Depth::F32));
     let mut ids = Vec::new();
     for (name, pixels) in layers {
@@ -144,7 +148,11 @@ fn history_len(s: &DocumentSession) -> usize {
 }
 
 fn labels(s: &DocumentSession) -> Vec<String> {
-    s.history_items().unwrap().into_iter().map(|h| h.label).collect()
+    s.history_items()
+        .unwrap()
+        .into_iter()
+        .map(|h| h.label)
+        .collect()
 }
 
 fn mask_at(s: &DocumentSession, id: u64, x: u32, y: u32) -> f32 {
@@ -181,7 +189,7 @@ fn auto_align_registers_known_offset_grows_canvas_and_undoes_once() {
     let (s, ids) = doc(&e, vec![("left", crop(0., 0.)), ("right", crop(DX, 0.))]);
     let history = history_len(&s);
     let u = s
-        .auto_align_layers(ids.clone(), align(StackAlignMode::Reposition))
+        .auto_align_layers(ids.clone(), align(StackAlignMode::Collage))
         .unwrap();
     assert_eq!(history_len(&s), history + 1);
     assert_eq!(labels(&s).last().unwrap(), "Auto-Align Layers");
@@ -202,7 +210,10 @@ fn auto_align_registers_known_offset_grows_canvas_and_undoes_once() {
     // Hide the reference: the moved layer starts at the known offset (±1 px).
     s.set_visible(ids[0], false).unwrap();
     let x = first_opaque_column(&s, H / 2).expect("right layer is visible");
-    assert!(x.abs_diff(DX as u32) <= 1, "registered at {x}, expected {DX}");
+    assert!(
+        x.abs_diff(DX as u32) <= 1,
+        "registered at {x}, expected {DX}"
+    );
     s.undo().unwrap();
     s.undo().unwrap();
     assert_eq!(s.info().unwrap().width, W);
@@ -243,9 +254,21 @@ fn invalid_stacks_error_and_change_nothing() {
     let width = s.info().unwrap().width;
     let mut cases: Vec<(Vec<u64>, StackAlignOptions, &str)> = vec![
         (vec![ids[0]], align(StackAlignMode::Auto), "one layer"),
-        (vec![ids[0], ids[0]], align(StackAlignMode::Auto), "duplicate"),
-        (vec![ids[0], 999_999], align(StackAlignMode::Auto), "unknown"),
-        (vec![ids[0], ids[2]], align(StackAlignMode::Auto), "nested in a group"),
+        (
+            vec![ids[0], ids[0]],
+            align(StackAlignMode::Auto),
+            "duplicate",
+        ),
+        (
+            vec![ids[0], 999_999],
+            align(StackAlignMode::Auto),
+            "unknown",
+        ),
+        (
+            vec![ids[0], ids[2]],
+            align(StackAlignMode::Auto),
+            "nested in a group",
+        ),
         (vec![ids[0], ids[3]], align(StackAlignMode::Auto), "locked"),
         (
             vec![ids[0], ids[1]],
@@ -272,7 +295,11 @@ fn invalid_stacks_error_and_change_nothing() {
             "distortion without calibration",
         ),
     ];
-    cases.push((vec![ids[0], fill], align(StackAlignMode::Auto), "fill layer"));
+    cases.push((
+        vec![ids[0], fill],
+        align(StackAlignMode::Auto),
+        "fill layer",
+    ));
     for (sel, opts, why) in cases {
         let err = s.auto_align_layers(sel.clone(), opts);
         assert!(err.is_err(), "align accepted: {why}");
@@ -317,7 +344,7 @@ fn stack_eligibility_reports_root_pixel_layers() {
 fn auto_blend_panorama_masks_sum_to_one_in_overlap_and_undo_once() {
     let (_d, e) = engine();
     let (s, ids) = doc(&e, vec![("left", crop(0., 0.)), ("right", crop(DX, 0.))]);
-    s.auto_align_layers(ids.clone(), align(StackAlignMode::Reposition))
+    s.auto_align_layers(ids.clone(), align(StackAlignMode::Collage))
         .unwrap();
     let aligned_head = s.info().unwrap().history_head;
     let n = history_len(&s);
@@ -361,9 +388,15 @@ fn stack_images_masks_pick_the_sharper_source() {
     s.auto_blend_layers(ids.clone(), blend(StackBlendMode::StackImages, false))
         .unwrap();
     for y in [40, 90, 140] {
-        assert!(mask_at(&s, ids[0], 40, y) > 0.5, "near owns the left at y {y}");
+        assert!(
+            mask_at(&s, ids[0], 40, y) > 0.5,
+            "near owns the left at y {y}"
+        );
         assert!(mask_at(&s, ids[1], 40, y) < 0.5);
-        assert!(mask_at(&s, ids[1], 200, y) > 0.5, "far owns the right at y {y}");
+        assert!(
+            mask_at(&s, ids[1], 200, y) > 0.5,
+            "far owns the right at y {y}"
+        );
         assert!(mask_at(&s, ids[0], 200, y) < 0.5);
     }
 }
@@ -412,13 +445,16 @@ fn content_aware_fill_fills_transparent_corners_only_when_requested() {
 #[test]
 fn photomerge_into_layers_is_one_history_node_with_named_layers() {
     let (d, e) = engine();
-    let files = paths(d.path(), &[("pano-left", crop(0., 0.)), ("pano-right", crop(DX, 0.))]);
+    let files = paths(
+        d.path(),
+        &[("pano-left", crop(0., 0.)), ("pano-right", crop(DX, 0.))],
+    );
     let s = e.clone().new_document(W, H, DocDepth::U16, None).unwrap();
     let n = history_len(&s);
     let u = s
         .photomerge_into_layers(
             files,
-            align(StackAlignMode::Reposition),
+            align(StackAlignMode::Collage),
             blend(StackBlendMode::Panorama, false),
         )
         .unwrap();
@@ -475,7 +511,7 @@ fn photomerge_document_is_untitled_with_n_layers_and_masks_survive_save_and_psd(
         .clone()
         .photomerge_document(
             files,
-            align(StackAlignMode::Reposition),
+            align(StackAlignMode::Collage),
             blend(StackBlendMode::Panorama, false),
         )
         .unwrap();
@@ -485,7 +521,11 @@ fn photomerge_document_is_untitled_with_n_layers_and_masks_survive_save_and_psd(
     assert!(info.dirty);
     assert_eq!(info.layer_count, 2);
     assert_eq!(labels(&s).last().unwrap(), "Photomerge");
-    assert_eq!(history_len(&s), 2, "the new document plus one Photomerge node");
+    assert_eq!(
+        history_len(&s),
+        2,
+        "the new document plus one Photomerge node"
+    );
     assert!(e.document_ids().contains(&s.id()));
     let rows = s.layers().unwrap();
     assert!(rows.iter().all(|r| r.has_mask));
@@ -525,7 +565,16 @@ fn photomerge_document_is_untitled_with_n_layers_and_masks_survive_save_and_psd(
         .unwrap();
     let layers = p.layers().unwrap();
     assert_eq!(layers.len(), 2);
-    assert!(layers.iter().all(|l| l.has_mask && l.kind == DocLayerKind::Pixel));
+    assert!(layers.iter().all(|l| l.has_mask), "{layers:#?}");
+    let flat = p.read_level(0).unwrap();
+    assert_eq!((flat.0, flat.1), (after.0, after.1));
+    let worst = after
+        .2
+        .iter()
+        .zip(&flat.2)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0f32, f32::max);
+    assert!(worst < 0.02, "PSD composite differs by {worst}");
 }
 
 #[test]
