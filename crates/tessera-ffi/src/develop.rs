@@ -5861,6 +5861,255 @@ mod tests {
         assert_eq!(MaskSource::gate(1.0, 50.0), 255, "edges are sharpened");
         assert!(MaskSource::gate(0.1, 50.0) > MaskSource::gate(0.08, 50.0));
     }
+
+    /// Stage C (rev7 6.3) develop-job contracts C3-C5 on a CPU backend
+    /// (no calibration, no GPU). Run with --test-threads=1.
+    #[cfg(feature = "wb-diagnostic")]
+    mod wb_diag {
+        use super::*;
+        use image_core::wb_diagnostic::{
+            ARENA, RouteState, SlotMeta, State as ArenaState, harness::EpochGuard,
+        };
+        use std::sync::mpsc;
+
+        const GUARD: &str = "EpochGuard: requires --test-threads=1 and an Idle ARENA \
+                             (an earlier test may have leaked a live lease)";
+        const WAIT: Duration = Duration::from_secs(30);
+
+        enum Event {
+            Frame { generation: u64, is_final: bool },
+            Failed,
+        }
+        /// Records frames; optionally blocks inside the final frame callback of
+        /// one generation until released (C4).
+        struct Recorder {
+            events: Mutex<mpsc::Sender<Event>>,
+            block_generation: AtomicU64,
+            entered: Mutex<Option<mpsc::Sender<u64>>>,
+            release: Mutex<Option<mpsc::Receiver<()>>>,
+        }
+        impl DevelopListener for Recorder {
+            fn frame_ready(&self, frame: FrameInfo) {
+                let _ = self.events.lock().unwrap().send(Event::Frame {
+                    generation: frame.generation,
+                    is_final: frame.is_final,
+                });
+                if frame.is_final
+                    && frame.generation == self.block_generation.load(Ordering::SeqCst)
+                {
+                    if let Some(entered) = self.entered.lock().unwrap().as_ref() {
+                        let _ = entered.send(frame.generation);
+                    }
+                    if let Some(release) = self.release.lock().unwrap().as_ref() {
+                        let _ = release.recv_timeout(WAIT);
+                    }
+                }
+            }
+            fn render_failed(&self, _: String) {
+                let _ = self.events.lock().unwrap().send(Event::Failed);
+            }
+            fn saved(&self, _: String) {}
+        }
+
+        struct Fixture {
+            _dir: tempfile::TempDir,
+            engine: Arc<Engine>,
+            id: String,
+            session: Arc<DevelopSession>,
+            events: mpsc::Receiver<Event>,
+            listener: Arc<Recorder>,
+        }
+        /// A JPEG session whose engine backend is pre-set to CPU.
+        fn cpu_session() -> Fixture {
+            let dir = tempfile::tempdir().unwrap();
+            let photos = dir.path().join("photos");
+            std::fs::create_dir(&photos).unwrap();
+            image::RgbImage::from_fn(96, 64, |x, y| {
+                image::Rgb([(x * 2) as u8, (y * 3) as u8, ((x + y) % 251) as u8])
+            })
+            .save(photos.join("wb.jpg"))
+            .unwrap();
+            let engine =
+                Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+            assert!(
+                engine
+                    .renderer
+                    .set(crate::backend::Backend::cpu_for_test())
+                    .is_ok()
+            );
+            engine
+                .index_folder(photos.to_string_lossy().into_owned())
+                .unwrap();
+            let id = engine
+                .list_images(crate::ImageQuery::default())
+                .unwrap()
+                .remove(0)
+                .id;
+            let session = engine.clone().open_develop_session(id.clone()).unwrap();
+            let (tx, events) = mpsc::channel();
+            let listener = Arc::new(Recorder {
+                events: Mutex::new(tx),
+                block_generation: AtomicU64::new(u64::MAX),
+                entered: Mutex::new(None),
+                release: Mutex::new(None),
+            });
+            session.set_listener(Some(listener.clone()));
+            Fixture {
+                _dir: dir,
+                engine,
+                id,
+                session,
+                events,
+                listener,
+            }
+        }
+        fn current_generation(f: &Fixture) -> u64 {
+            f.session.shared.generation.load(Ordering::SeqCst)
+        }
+        /// Waits for the final frame of `generation`; `Err` on render failure.
+        fn wait_final(f: &Fixture, generation: u64) -> std::result::Result<(), ()> {
+            loop {
+                match f.events.recv_timeout(WAIT).expect("develop event") {
+                    Event::Frame {
+                        generation: g,
+                        is_final: true,
+                    } if g == generation => return Ok(()),
+                    Event::Failed => return Err(()),
+                    Event::Frame { .. } => {}
+                }
+            }
+        }
+        /// Harness wait (rev7 4.2): no reservation or lease is outstanding.
+        fn leases_terminal(timeout: Duration) -> bool {
+            let deadline = Instant::now() + timeout;
+            loop {
+                let c = ARENA.counts().unwrap();
+                if c.reserved == 0 && c.active == 0 {
+                    return true;
+                }
+                if Instant::now() >= deadline {
+                    return false;
+                }
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        }
+        fn drain_metas(g: &EpochGuard) -> Vec<SlotMeta> {
+            let mut metas = Vec::new();
+            while let Ok(d) = g.epoch().drain() {
+                metas.push(d.inspect(|v| *v.meta));
+            }
+            metas
+        }
+        fn of_generation(metas: &[SlotMeta], generation: u64) -> SlotMeta {
+            *metas
+                .iter()
+                .find(|m| m.request.generation == generation)
+                .expect("transaction for generation")
+        }
+
+        /// C3: a superseded DevelopJob that never renders records Abort, and
+        /// the epoch then quiesces and acknowledges.
+        #[test]
+        fn c3_superseded_job_records_abort_and_epoch_acknowledges() {
+            let g = EpochGuard::open().expect(GUARD);
+            let f = cpu_session();
+            g.epoch().arm(1).unwrap();
+            let serial = f.session.shared.render_serial.lock().unwrap();
+            f.session
+                .set_settings(r#"{"tone":{"exposure":0.3}}"#.into(), false)
+                .unwrap();
+            let superseded = current_generation(&f);
+            f.session
+                .set_settings(r#"{"tone":{"exposure":0.6}}"#.into(), false)
+                .unwrap();
+            let last = current_generation(&f);
+            assert!(last > superseded);
+            drop(serial);
+            wait_final(&f, last).expect("final frame");
+            assert!(leases_terminal(WAIT));
+            let metas = drain_metas(&g);
+            assert!(!metas.is_empty(), "WB-RED: no reservation");
+            let old = of_generation(&metas, superseded);
+            assert_eq!(old.route, RouteState::Aborted);
+            assert!(old.begin.is_none());
+            assert_eq!(old.request.phase_kind, 2);
+            let done = of_generation(&metas, last);
+            assert_eq!(done.route, RouteState::Unobserved);
+            g.epoch().close().unwrap();
+            assert_eq!(ARENA.state().unwrap(), ArenaState::Quiescent);
+            ARENA.acknowledge(g.epoch().epoch()).unwrap();
+        }
+
+        /// C4: the final listener callback arrives before the worker returns;
+        /// the harness wait does not finish until the lease is terminal.
+        #[test]
+        fn c4_final_callback_before_worker_return_does_not_end_wait() {
+            let g = EpochGuard::open().expect(GUARD);
+            let f = cpu_session();
+            let (entered_tx, entered_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            *f.listener.entered.lock().unwrap() = Some(entered_tx);
+            *f.listener.release.lock().unwrap() = Some(release_rx);
+            g.epoch().arm(1).unwrap();
+            let next = current_generation(&f) + 1;
+            f.listener.block_generation.store(next, Ordering::SeqCst);
+            f.session
+                .set_settings(r#"{"tone":{"exposure":0.4}}"#.into(), false)
+                .unwrap();
+            assert_eq!(entered_rx.recv_timeout(WAIT).unwrap(), next);
+            let c = ARENA.counts().unwrap();
+            assert!(c.reserved + c.active > 0, "WB-RED: no reservation");
+            assert!(
+                !leases_terminal(Duration::from_millis(300)),
+                "the final callback alone must not end the harness wait"
+            );
+            release_tx.send(()).unwrap();
+            assert!(leases_terminal(WAIT));
+            let m = of_generation(&drain_metas(&g), next);
+            assert_ne!(m.route, RouteState::Aborted);
+            assert_eq!(m.route, RouteState::Unobserved);
+        }
+
+        /// C5: a job cancelled after it was scheduled records Abort (never a
+        /// delivered route), a render failure records Abort, and the recipe
+        /// bytes are unchanged by the diagnostic.
+        #[test]
+        fn c5_cancel_and_render_failure_record_abort_recipe_unchanged() {
+            let g = EpochGuard::open().expect(GUARD);
+            let f = cpu_session();
+            let persisted = f.engine.get_recipe(f.id.clone()).unwrap();
+            let in_memory = serde_json::to_vec(&f.session.shared.lock().unwrap().recipe).unwrap();
+            g.epoch().arm(1).unwrap();
+            // Cancel: hold the state lock so the first job cannot pass its
+            // generation check, then supersede it from the same lock.
+            let (cancelled, last) = {
+                let mut st = f.session.shared.state.lock().unwrap();
+                f.session.shared.render(&mut st, false);
+                let cancelled = st.generation;
+                std::thread::sleep(Duration::from_millis(50));
+                f.session.shared.render(&mut st, false);
+                (cancelled, st.generation)
+            };
+            wait_final(&f, last).expect("final frame");
+            assert!(leases_terminal(WAIT));
+            // Render failure: the depth overlay without installed weights fails
+            // in the worker (surfaced through render_failed; never downloads).
+            f.session.set_render_depth_visualisation(true).unwrap();
+            let failed = current_generation(&f);
+            assert!(wait_final(&f, failed).is_err(), "render must fail");
+            assert!(leases_terminal(WAIT));
+            let metas = drain_metas(&g);
+            assert!(!metas.is_empty(), "WB-RED: no reservation");
+            assert_eq!(of_generation(&metas, cancelled).route, RouteState::Aborted);
+            assert_eq!(of_generation(&metas, last).route, RouteState::Unobserved);
+            assert_eq!(of_generation(&metas, failed).route, RouteState::Aborted);
+            assert_eq!(f.engine.get_recipe(f.id.clone()).unwrap(), persisted);
+            assert_eq!(
+                serde_json::to_vec(&f.session.shared.lock().unwrap().recipe).unwrap(),
+                in_memory
+            );
+        }
+    }
 }
 
 #[cfg(test)]

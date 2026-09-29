@@ -214,6 +214,14 @@ impl Backend {
         Renderer::with_ops(self.ops.clone(), self.cache.clone(), self.config.clone())
             .with_diagnostic_operator(self.diag_operator)
     }
+
+    /// WB diagnostic tests: a CPU backend (no calibration, no GPU).
+    #[cfg(all(test, feature = "wb-diagnostic"))]
+    pub(crate) fn cpu_for_test() -> Self {
+        let config = RendererConfig::default();
+        let name = format!("CPU ×{}", config.threads);
+        Self::new(Arc::new(CpuStageOp), config, name)
+    }
 }
 
 /// `gpu` yields the engine's shared Metal device (created on first use and
@@ -637,5 +645,125 @@ mod tests {
         assert!(!super::gpu_is_faster([10., 12., 40.], [9., 4., 80.]));
         assert!(!super::gpu_is_faster([10., 12., 40.], [10., 12., 40.]));
         assert!(!super::gpu_is_faster([10., 12., 40.], [f64::NAN, 4., 20.]));
+    }
+
+    /// Stage C (rev7 6.3) FFI synthetic contracts C1, C2, C2'. No GPU.
+    #[cfg(feature = "wb-diagnostic")]
+    mod wb_diag {
+        use super::super::*;
+        use engine_api::recipe::Recipe;
+        use image_core::wb_diagnostic::{
+            ARENA, RouteState, SlotMeta, harness::EpochGuard, recipe_fingerprint,
+            settings_fingerprint,
+        };
+
+        const GUARD: &str = "EpochGuard: requires --test-threads=1 and an Idle ARENA \
+                             (an earlier test may have leaked a live lease)";
+
+        fn drain_metas(g: &EpochGuard) -> Vec<SlotMeta> {
+            let mut metas = Vec::new();
+            while let Ok(d) = g.epoch().drain() {
+                metas.push(d.inspect(|v| *v.meta));
+            }
+            metas
+        }
+        fn image() -> RawImage {
+            common::synthetic(402, 64, 48, common::RGGB, [0, 0, 64, 48])
+        }
+
+        /// C1: fresh backends carry distinct nonzero tags; clones, renderers
+        /// and recipe snapshots keep them; `for_backend` resets to 0.
+        #[test]
+        fn c1_backend_operator_tags_are_distinct_and_propagate() {
+            let _g = EpochGuard::open().expect(GUARD);
+            let a = Backend::new(Arc::new(CpuStageOp), RendererConfig::default(), "a".into());
+            let b = Backend::new(Arc::new(CpuStageOp), RendererConfig::default(), "b".into());
+            assert_ne!(a.diag_operator, 0, "WB-RED: operator tag is 0");
+            assert_ne!(b.diag_operator, 0);
+            assert_ne!(a.diag_operator, b.diag_operator);
+            assert_eq!(a.clone().diag_operator, a.diag_operator);
+            let r = a.renderer();
+            assert_eq!(r.diagnostic_operator(), a.diag_operator);
+            assert_eq!(r.clone().diagnostic_operator(), a.diag_operator);
+            let recipe = Recipe::new(image().id());
+            assert_eq!(r.for_recipe(&recipe).diagnostic_operator(), a.diag_operator);
+            assert_eq!(r.for_backend(Arc::new(CpuStageOp)).diagnostic_operator(), 0);
+        }
+
+        /// C2: the unobserved (CPU) arm makes no reservation and counts its
+        /// three iterations while armed.
+        #[test]
+        fn c2_unobserved_arm_counts_iterations_without_reservation() {
+            let g = EpochGuard::open().expect(GUARD);
+            g.epoch().arm(1).unwrap();
+            let cpu = Backend::cpu_for_test();
+            let before = ARENA.counts().unwrap();
+            measure_at(
+                &cpu.renderer(),
+                &image(),
+                &DevelopSettings::default(),
+                0,
+                false,
+            )
+            .unwrap();
+            let after = ARENA.counts().unwrap();
+            assert_eq!(
+                after.cpu_iterations_unobserved - before.cpu_iterations_unobserved,
+                3,
+                "WB-RED: cpu counter unchanged"
+            );
+            assert_eq!((after.reserved, after.active, after.completed), (0, 0, 0));
+            assert_eq!(after.loss, 0);
+            assert!(drain_metas(&g).is_empty());
+        }
+
+        /// C2': the observed arm on a CPU renderer reserves one transaction
+        /// per iteration; CPU has no resident route, so each is Unobserved.
+        /// Fingerprints follow the exposure +0.25 and WB toggle mutations.
+        #[test]
+        fn c2p_observed_arm_on_cpu_reserves_three_unobserved() {
+            let g = EpochGuard::open().expect(GUARD);
+            g.epoch().arm(1).unwrap();
+            let cpu = Backend::cpu_for_test();
+            let image = image();
+            let base = DevelopSettings::default();
+            measure_at(&cpu.renderer(), &image, &base, 0, true).unwrap();
+            let mut metas = drain_metas(&g);
+            assert!(!metas.is_empty(), "WB-RED: no reservation");
+            assert_eq!(metas.len(), 3);
+            metas.sort_by_key(|m| m.request.generation);
+            let mut expected = Vec::new();
+            let mut s = base.clone();
+            expected.push(s.clone());
+            s.tone.exposure += 0.25;
+            expected.push(s.clone());
+            s.white_balance.mode = WhiteBalanceMode::Daylight;
+            expected.push(s);
+            for (i, m) in metas.iter().enumerate() {
+                assert_eq!(m.route, RouteState::Unobserved);
+                assert!(m.begin.is_none());
+                assert_eq!((m.request.phase_kind, m.request.generation), (1, i as u64));
+                assert_eq!(
+                    m.request.settings_fingerprint,
+                    settings_fingerprint(&expected[i])
+                );
+                assert_eq!(
+                    m.request.recipe_fingerprint,
+                    recipe_fingerprint(image.id(), &expected[i])
+                );
+                assert_eq!(m.request.expected_operator, cpu.diag_operator);
+                assert_eq!((m.request.output_tag, m.request.requested_level), (1, 0));
+            }
+            assert_ne!(
+                metas[0].request.settings_fingerprint,
+                metas[1].request.settings_fingerprint
+            );
+            assert_ne!(
+                metas[1].request.settings_fingerprint,
+                metas[2].request.settings_fingerprint
+            );
+            let c = ARENA.counts().unwrap();
+            assert_eq!((c.cpu_iterations_unobserved, c.loss), (0, 0));
+        }
     }
 }
