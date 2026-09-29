@@ -1,5 +1,5 @@
 //! Closed decoding of a retained capture into owned sensor samples and metadata.
-use super::{CapturedAssetIdentity, CapturedRaw};
+use super::{CapturedAssetIdentity, CapturedRaw, OwnedCapturedCfa};
 use crate::{CfaU16, RawMetadata, RawSource};
 use engine_api::{
     EngineError, EngineResult, jobs::CancellationToken, pinned_raw::PinnedRawDecoderRoute,
@@ -28,6 +28,13 @@ impl CapturedRaw {
     /// A completed phase error takes precedence over concurrent cancellation.
     pub fn decode_cfa(self, cancel: &CancellationToken) -> EngineResult<DecodedCapturedCfa> {
         self.decode_closed(cancel, decode_native, |_| {})
+            .map(OwnedCapturedCfa::into_public)
+    }
+
+    /// Decode into a read-only owned result after successful capture cleanup.
+    /// Classification and synchronous native cancellation boundaries match decode_cfa.
+    pub fn decode_owned_cfa(self, cancel: &CancellationToken) -> EngineResult<OwnedCapturedCfa> {
+        self.decode_closed(cancel, decode_native, |_| {})
     }
 
     // Private and concrete output: this is not a public callback/reader escape.
@@ -40,7 +47,7 @@ impl CapturedRaw {
             &mut dyn FnMut(DecodePhase),
         ) -> EngineResult<(CfaU16, RawMetadata)>,
         mut phase: impl FnMut(DecodePhase),
-    ) -> EngineResult<DecodedCapturedCfa> {
+    ) -> EngineResult<OwnedCapturedCfa> {
         let result = (|| {
             cancel.check()?;
             match self.route {
@@ -71,21 +78,16 @@ impl CapturedRaw {
                     message: "decoded CFA dimensions/layout differ from metadata".into(),
                 });
             }
-            Ok(DecodedCapturedCfa {
-                image,
-                metadata,
-                identity: self.identity,
-                route: self.route,
-            })
+            Ok((image, metadata, self.identity, self.route))
         })();
         // Decoder's inner scope has ended, including RawSource/RawFile destruction.
         // All failures use this common cleanup path, including pre-cancellation.
         let pool = self.stage.reservation.pool.clone();
         let cleanup = self.close();
         match result {
-            Ok(output) => {
+            Ok((image, metadata, identity, route)) => {
                 cleanup?;
-                Ok(output)
+                Ok(OwnedCapturedCfa::new(image, metadata, identity, route))
             }
             Err(primary) => {
                 if let Err(secondary) = cleanup {
@@ -103,6 +105,16 @@ impl CapturedRaw {
         decoder: impl FnOnce(&Path, &CancellationToken) -> EngineResult<(CfaU16, RawMetadata)>,
     ) -> EngineResult<DecodedCapturedCfa> {
         self.decode_closed(cancel, |path, token, _| decoder(path, token), |_| {})
+            .map(OwnedCapturedCfa::into_public)
+    }
+
+    #[cfg(all(test, unix))]
+    pub(super) fn decode_owned_cfa_with_for_test(
+        self,
+        cancel: &CancellationToken,
+        decoder: impl FnOnce(&Path, &CancellationToken) -> EngineResult<(CfaU16, RawMetadata)>,
+    ) -> EngineResult<OwnedCapturedCfa> {
+        self.decode_closed(cancel, |path, token, _| decoder(path, token), |_| {})
     }
 
     #[cfg(all(test, unix))]
@@ -112,6 +124,7 @@ impl CapturedRaw {
         phase: impl FnMut(DecodePhase),
     ) -> EngineResult<DecodedCapturedCfa> {
         self.decode_closed(cancel, decode_native, phase)
+            .map(OwnedCapturedCfa::into_public)
     }
 }
 

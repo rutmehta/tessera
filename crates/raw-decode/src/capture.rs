@@ -774,3 +774,6 @@ impl CapturedRaw {
 
 mod decode;
 pub use decode::DecodedCapturedCfa;
+
+mod owned;
+pub use owned::{CfaPlaneFacts, OwnedCapturedCfa};
