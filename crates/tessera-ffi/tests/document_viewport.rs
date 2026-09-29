@@ -570,18 +570,30 @@ fn save_render_undo_races_keep_history_and_surfaces_valid() {
     let path = dir.path().join("race.tessera-doc");
     s.save_as(path.to_string_lossy().into_owned()).unwrap();
     let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let saved = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let saver = {
-        let (s, stop, dir) = (s.clone(), stop.clone(), dir.path().to_owned());
+        let (s, stop, saved, dir) = (
+            s.clone(),
+            stop.clone(),
+            saved.clone(),
+            dir.path().to_owned(),
+        );
         std::thread::spawn(move || {
             let mut n = 0;
             while !stop.load(std::sync::atomic::Ordering::Relaxed) {
                 let p = dir.join(format!("race-{}.tessera-doc", n % 3));
                 s.save_as(p.to_string_lossy().into_owned()).unwrap();
                 n += 1;
+                saved.store(n, std::sync::atomic::Ordering::Release);
             }
             n
         })
     };
+    // Under load the edit loop can finish before the saver is scheduled;
+    // start editing only once the saver is demonstrably looping.
+    while saved.load(std::sync::atomic::Ordering::Acquire) == 0 {
+        std::thread::yield_now();
+    }
     let viewer = {
         let (s, stop) = (s.clone(), stop.clone());
         std::thread::spawn(move || {
