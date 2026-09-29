@@ -1,0 +1,83 @@
+{
+  "head": "6c55a1b0471c87c740be39f8a7ea0337a7c6321b",
+  "verified_git_sources": 8651,
+  "all_ten_freezes_equal": true,
+  "runner_sha256": "2ec5edb8a3798f94cbd9393355577ded6c85c260ddab15efb7b491ce72f7a532",
+  "artifacts": {
+    "image-core": {
+      "compile_attempt": "01-compile-image",
+      "head": "6c55a1b0471c87c740be39f8a7ea0337a7c6321b",
+      "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/image_core-74c89ed446e2d2bf",
+      "sha256": "afcc3d8f2dc63582cd4ec5f82b26ea922384aff9a77271b074682332cb080189",
+      "preserved": "/Volumes/betterSSD/tessera-validation/proxy-wb-diagnostic/6c55a1b0/retained-binaries/image-core-test"
+    },
+    "tessera-ffi": {
+      "compile_attempt": "02-compile-ffi",
+      "head": "6c55a1b0471c87c740be39f8a7ea0337a7c6321b",
+      "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/tessera_ffi-77a8e73842087cf8",
+      "sha256": "2abd7c7cc32a62fc8fddfdb8657f35de91259c5e504cce7a3c29daf1e17da52c",
+      "preserved": "/Volumes/betterSSD/tessera-validation/proxy-wb-diagnostic/6c55a1b0/retained-binaries/tessera-ffi-test"
+    }
+  },
+  "gates": [
+    {
+      "gate": "01-compile-image",
+      "direct_exit": 0,
+      "freeze_equal": true,
+      "source_count": 8651,
+      "log_sha256": "8e124f2d083be8288877a4333001d6b353aeaddf95f526adea151f4a03355d35"
+    },
+    {
+      "gate": "02-compile-ffi",
+      "direct_exit": 0,
+      "freeze_equal": true,
+      "source_count": 8651,
+      "log_sha256": "39d1f95c33f0cb2c0657dc19333fc971cb8ced90b165a16fbf418c4bd12257e3"
+    },
+    {
+      "gate": "03-green-image",
+      "direct_exit": 0,
+      "freeze_equal": true,
+      "source_count": 8651,
+      "log_sha256": "f4e8452c9997c959a230b23c229a4a74b0245e84d0216fa410796c719e9bd072"
+    },
+    {
+      "gate": "04-green-ffi",
+      "direct_exit": 0,
+      "freeze_equal": true,
+      "source_count": 8651,
+      "log_sha256": "5b0df46d247fba65f74f3baffa83da18130a7d5a29a94adf84a5823674c32484"
+    },
+    {
+      "gate": "05-strict",
+      "direct_exit": 101,
+      "freeze_equal": true,
+      "source_count": 8651,
+      "log_sha256": "40b83f4b03daad4087b7acb7c633c22633486bbe375cadfdd2ec0da2a4574598"
+    }
+  ],
+  "original_contracts": [
+    "fixed_scalar_storage_has_no_drop_and_fits_byte_bound",
+    "copies_exact_key_identity_matrix_and_drains_once",
+    "cap_plus_one_preserves_prefix_and_refuses_attribution",
+    "real_some_none_and_error_results_are_returned_once_without_ownership",
+    "full_or_already_overflowed_recorder_never_changes_or_skips_lookup",
+    "full_memo_identity_and_render_context_survive_drain_distinctly",
+    "complete_detail_hit_marks_nested_not_reached_only",
+    "padded_hit_after_detail_miss_skips_only_tiles",
+    "missing_error_abort_and_wrong_operator_cannot_prove_nested_hit",
+    "request_only_is_not_successful_lookup_or_publication",
+    "actual_auto_metal_and_live_unchanged_hit_are_required",
+    "equal_resolved_custom_matrix_is_inconclusive_without_substitution",
+    "baseline_requires_auto_metal_but_does_not_fabricate_cache_hits"
+  ],
+  "new_contracts": [
+    "any_request_under_detail_hit_is_contradictory_not_not_reached",
+    "child_lookup_before_enclosing_miss_is_inconclusive",
+    "cold_requests_close_children_in_order_and_padded_hit_stays_valid",
+    "duplicate_and_unknown_key_requests_cannot_borrow_other_miss",
+    "request_after_same_key_hit_and_child_after_parent_request_are_inconclusive",
+    "tile_request_under_padded_hit_is_contradictory_not_not_reached"
+  ],
+  "verdict": "19 pure passes accepted at6c55; strict failed inherited9argumenthelper; formatting/defaultfeaturegraph unrun. No complete qualification/livecausality/performance acceptance."
+}

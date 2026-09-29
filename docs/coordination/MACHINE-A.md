@@ -1,3 +1,9 @@
+## Full inspector suite active; WB strict failure preserved
+
+WB pure6c55a1b0 has19passes but strict failed inherited testhelper argument-count lint. Independent8651input/artifact verification and failure preserved; fmt/defaultfeaturechecks unrun. Source-reviewed a9b90750 groups three borrowed output fields, preserving measured body/call values; next qualification pending. Frozen performance failure remains unmerged.
+
+Inspector d0191c41 fullSwift with155mandatory passes is active under sole runtime. B audit requestd4a3357f queued01a0eabd-91d0-7c82-b0ae-3ea05d4ff401, peer completed receipt verified; result6b6ec8a6 reviewed/completed for sourceinventory only. Published76429f7f reports identify Dither-origin focus as first remaining actual check, then History; no new failure asserted. Informational b92b51e3 is a superseded source-audit status with no new action. Opaqueowner243eacfe scaffold/API source review and REDrunner are ready, unrun.
+
 ## Bounded native LUT GUI accepted; whole inspector still pending
 
 `d0191c41` actual disabled/enabled traversal passed Name→Load→Reset and reverse; native/matched AXButton lets Tab pass. Space/Return/keypad Reset each produced one visible edit/Undo; disabled Reset skipped, Load chooser Cancel and viewportTab hide/restore passed. Light/dark/compact controls and focusring observed. Root independently verified68payloads, bundle/fixture/source hashes and raw17events; two saved compact screenshots visually reviewed. App closed ordinarily, no replacement. Full inspector/History/VoiceOver/docmatrix remains pending; no heldrepeat/hover/pressedframe claim.
