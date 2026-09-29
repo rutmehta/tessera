@@ -707,6 +707,49 @@ pub(crate) fn interpret(c: &Capture) -> (Verdict, serde_json::Value) {
         return (v, serde_json::Value::Object(facts));
     }
     let (bucket, first) = top(daylight_t);
+    // A reach that `reach` itself could not determine is no conclusion.
+    for (label, t) in [
+        ("daylight_first", daylight_t),
+        ("daylight_repeat", repeat_t),
+        ("custom", custom_t),
+    ] {
+        let (b, r) = top(t);
+        if !matches!(r, Reach::Hit | Reach::Miss) {
+            v.inconclusive
+                .push(format!("{label}: reach {r:?} at {b:?} (undetermined)"));
+        }
+    }
+    if !v.inconclusive.is_empty() {
+        return (v, serde_json::Value::Object(facts));
+    }
+    // Stage D0 review NB-6: the edit's keys at the top bucket must have tile
+    // levels that the priming calibration requested at that bucket (reopen
+    // calibration for the baseline, first-open calibration for the
+    // candidate). An unforeseen level mismatch is no conclusion, never a
+    // contradiction. An empty request set is left to the priming checks.
+    if let Some(b) = bucket {
+        let calibration = if c.candidate {
+            calibrations(open)
+        } else {
+            reopen_cal.clone()
+        };
+        let requested: Vec<u8> = calibration
+            .iter()
+            .flat_map(|t| keys(t, b, Outcome::Request))
+            .map(|k| k.tile.level)
+            .collect();
+        let edited: Vec<u8> = [Outcome::Some, Outcome::None]
+            .into_iter()
+            .flat_map(|o| keys(daylight_t, b, o))
+            .map(|k| k.tile.level)
+            .collect();
+        if !requested.is_empty() && edited.iter().any(|l| !requested.contains(l)) {
+            v.inconclusive.push(format!(
+                "daylight_first: {b:?} key levels {edited:?} not among calibration request levels {requested:?}"
+            ));
+            return (v, serde_json::Value::Object(facts));
+        }
+    }
     if c.candidate {
         // The fresh operator gets None wherever the edit reached.
         if first != Reach::Miss {
@@ -805,15 +848,18 @@ fn actual(candidate: bool, edr: bool) {
         serde_json::to_vec_pretty(&report).expect("interpretation JSON"),
     )
     .expect("persist interpretation before asserting");
+    // Stage D0 review NB-2: a correctness violation is never hidden behind
+    // an inconclusive verdict, so it is asserted first (with both lists).
+    assert!(
+        verdict.violated.is_empty(),
+        "WB-D INVARIANT VIOLATED (NB-2): {:?}; inconclusive: {:?}",
+        verdict.violated,
+        verdict.inconclusive
+    );
     assert!(
         verdict.inconclusive.is_empty(),
         "WB-D INCONCLUSIVE (kept as observed, not rerun): {:?}",
         verdict.inconclusive
-    );
-    assert!(
-        verdict.violated.is_empty(),
-        "WB-D INVARIANT VIOLATED (NB-2): {:?}",
-        verdict.violated
     );
     assert!(
         verdict.contradicted.is_empty(),
@@ -1186,6 +1232,73 @@ mod interpretation {
         assert!(v.violated.is_empty() && v.contradicted.is_empty(), "{v:?}");
         assert_eq!(facts["post_bind_aborts_recorded"][0]["generation"], 98);
         assert_eq!(facts["runtime"]["k_per_phase"][2]["k"], 1);
+    }
+    /// Stage D0 review NB-3: inconclusive evidence is never read as contrary.
+    #[test]
+    fn inconclusive_capture_with_contrary_records_yields_no_contradiction() {
+        // Candidate: a contrary Daylight hit, but a Custom transaction overflowed.
+        let mut c = capture(true);
+        at(&mut c, DAYLIGHT).txns = vec![develop(DAYLIGHT, 4, 2, DAYLIGHT_WB, warm(2))];
+        at(&mut c, CUSTOM).txns[0].overflow = 1;
+        // Baseline: a contrary Daylight miss, but the phase lost a reservation.
+        let mut b = capture(false);
+        at(&mut b, DAYLIGHT).txns = vec![develop(DAYLIGHT, 4, 2, DAYLIGHT_WB, cold(2))];
+        at(&mut b, REPEAT).counts_after.loss = 1;
+        for x in [c, b] {
+            let (v, _) = interpret(&x);
+            assert!(!v.inconclusive.is_empty(), "{}", x.candidate);
+            assert!(
+                v.contradicted.is_empty(),
+                "{}: {:?}",
+                x.candidate,
+                v.contradicted
+            );
+        }
+    }
+    /// Stage D0 review NB-6: an edit/calibration tile-level mismatch at the
+    /// top bucket is inconclusive, never contradicted.
+    #[test]
+    fn level_mismatch_is_inconclusive() {
+        for candidate in [false, true] {
+            let mut c = capture(candidate);
+            let body = if candidate {
+                vec![
+                    (Bucket::Detail, Outcome::None, 1, 2),
+                    (Bucket::PaddedWb, Outcome::None, 1, 2),
+                    (Bucket::TileWb, Outcome::None, 1, 2),
+                ]
+            } else {
+                vec![(Bucket::Detail, Outcome::Some, 1, 2)]
+            };
+            at(&mut c, DAYLIGHT).txns = vec![develop(DAYLIGHT, 4, 2, DAYLIGHT_WB, body)];
+            let (v, _) = interpret(&c);
+            assert!(
+                v.inconclusive.iter().any(|m| m.contains("key levels")),
+                "{candidate}: {v:?}"
+            );
+            assert!(v.contradicted.is_empty(), "{candidate}: {v:?}");
+        }
+    }
+    /// An undetermined reach (for example a lookup without its enclosing
+    /// miss) is inconclusive, never contradicted.
+    #[test]
+    fn undetermined_reach_is_inconclusive() {
+        for candidate in [false, true] {
+            let mut c = capture(candidate);
+            at(&mut c, DAYLIGHT).txns = vec![develop(
+                DAYLIGHT,
+                4,
+                2,
+                DAYLIGHT_WB,
+                vec![(Bucket::Detail, Outcome::None, 0, 2)],
+            )];
+            let (v, _) = interpret(&c);
+            assert!(
+                v.inconclusive.iter().any(|m| m.contains("undetermined")),
+                "{v:?}"
+            );
+            assert!(v.contradicted.is_empty(), "{candidate}: {v:?}");
+        }
     }
     #[test]
     fn repeat_miss_and_custom_hit_contradict() {

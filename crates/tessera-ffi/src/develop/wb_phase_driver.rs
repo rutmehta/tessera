@@ -14,7 +14,9 @@
 //! 30 s TTL), then on the reopened session: exposure 0.5/AsShot, the exact
 //! failed first 0.5/Daylight edit, restore 0.5/AsShot, repeat 0.5/Daylight,
 //! 0.5/Custom 6500 K tint +10, restore the original recipe; close, release.
-//! No timing is recorded as evidence.
+//! No timing is recorded as evidence. The product's calibration stderr line
+//! ("develop ... calibration [first, tone, WB] ms") also lands in the G12
+//! logs; it is product logging, never evidence (rev7 §8; D0 review NB-5).
 use super::*;
 use crate::wb_diagnostic_contracts::{
     CUSTOM, Capture, DAYLIGHT, EXPOSURE, FrameSeen, OPEN, ORIGINAL, PhaseCapture, ProbeDelta,
@@ -149,7 +151,7 @@ fn arm(guard: &EpochGuard, ordinal: u64) -> Phase<'_> {
 /// before the caller asserts anything about it.
 fn finish(
     p: Phase<'_>,
-    receive: &Frames,
+    receive: Option<&Frames>,
     final_generation: u64,
     metal: bool,
     out: &Path,
@@ -158,7 +160,7 @@ fn finish(
     p.guard.epoch().disarm().expect("disarm phase");
     let quiescent = quiesce();
     let (mut frames, mut errors) = (p.frames, p.errors);
-    while let Ok((_, f)) = receive.try_recv() {
+    while let Some(Ok((_, f))) = receive.map(mpsc::Receiver::try_recv) {
         match f {
             Ok(f) => frames.push(seen(&f)),
             Err(e) => errors.push(e),
@@ -187,6 +189,26 @@ fn finish(
         &value,
     );
     capture
+}
+/// Stage D0 review NB-1: a fallible step between `arm` and `finish` failed.
+/// Persist the phase's drained records first, then panic, so a failure never
+/// discards records (the guard's drop would otherwise drain and discard them).
+fn abort(p: Phase<'_>, receive: Option<&Frames>, out: &Path, what: String) -> ! {
+    let ordinal = p.ordinal;
+    let _ = finish(p, receive, 0, false, out, json!({"aborted": what}));
+    panic!(
+        "WB-D {}: {what} (phase records persisted before panicking)",
+        phase_name(ordinal)
+    );
+}
+/// Unwraps a fallible step inside an armed phase, persisting the phase on error.
+macro_rules! or_abort {
+    ($e:expr, $phase:ident, $receive:expr, $out:expr, $what:literal) => {
+        match $e {
+            Ok(v) => v,
+            Err(e) => abort($phase, $receive, $out, format!("{}: {e:?}", $what)),
+        }
+    };
 }
 fn probe_delta(
     before: &DecisionCounts,
@@ -425,7 +447,7 @@ pub(crate) fn run(
             "fixture_blake3": fixture_hash, "journal_blake3": journal_hash,
             "proxy_blake3": proxy_hash, "smart_preview": [built.width, built.height],
             "settings": recipe.settings,
-            "note": "diagnostic evidence only; no timing is recorded (rev7 §8)"}),
+            "note": "diagnostic evidence only; no timing is recorded (rev7 §8); calibration ms on stderr are product logging, not evidence"}),
     );
     let hashes_unchanged = |label: &str| {
         assert_eq!(
@@ -466,10 +488,15 @@ pub(crate) fn run(
         RESIDENT.lock().unwrap().clear();
         let decision_before = decision_counts(&engine);
         let mut phase = arm(&guard, ordinal);
-        let s = engine
-            .clone()
-            .open_smart_preview_develop_session(id.clone())
-            .unwrap();
+        let s = or_abort!(
+            engine
+                .clone()
+                .open_smart_preview_develop_session(id.clone()),
+            phase,
+            None,
+            &out,
+            "open_smart_preview_develop_session"
+        );
         let info = s.info();
         let metal = info.backend.starts_with("Metal (");
         let weak_shared = Arc::downgrade(&s.shared);
@@ -479,35 +506,59 @@ pub(crate) fn run(
             // Never retain an unselected GPU candidate (as the harness does).
             GPU.lock().unwrap().take();
         }
-        s.set_display_headroom(if float { 4. } else { 1. }).unwrap();
+        or_abort!(
+            s.set_display_headroom(if float { 4. } else { 1. }),
+            phase,
+            None,
+            &out,
+            "set_display_headroom"
+        );
         let plan = s.plan_surface(VIEWPORT.0, VIEWPORT.1);
-        let ring: Vec<Surface> = (0..2)
+        let ring: std::result::Result<Vec<Surface>, String> = (0..2)
             .map(|_| {
                 if float {
-                    crate::surface::testing::create_owned_rgba16f(plan.width, plan.height)
+                    Ok(crate::surface::testing::create_owned_rgba16f(
+                        plan.width,
+                        plan.height,
+                    ))
                 } else {
-                    Surface::create_rgba8(plan.width, plan.height).unwrap()
+                    Surface::create_rgba8(plan.width, plan.height).map_err(|e| format!("{e:?}"))
                 }
             })
             .collect();
+        let ring = or_abort!(ring, phase, None, &out, "surface ring");
         let (send, receive) = mpsc::channel();
         s.set_listener(Some(Arc::new(ReopenListener(send))));
         RESIDENT.lock().unwrap().clear();
         let before = stats();
         for surface in &ring {
-            s.attach_surface(surface.id(), plan.width, plan.height)
-                .unwrap();
+            or_abort!(
+                s.attach_surface(surface.id(), plan.width, plan.height),
+                phase,
+                Some(&receive),
+                &out,
+                "attach_surface"
+            );
         }
         let expected = s.shared.state.lock().unwrap().generation;
         let frame = await_final(&receive, expected, &mut phase.frames, &mut phase.errors);
         let after = stats();
         let decision_after = decision_counts(&engine);
         let on_route = resident(&frame, float);
-        let settings: serde_json::Value =
-            serde_json::from_str(&s.get_settings_json().unwrap()).unwrap();
+        let settings = or_abort!(
+            s.get_settings_json()
+                .map_err(|e| format!("{e:?}"))
+                .and_then(
+                    |j| serde_json::from_str::<serde_json::Value>(&j).map_err(|e| e.to_string())
+                ),
+            phase,
+            Some(&receive),
+            &out,
+            "get_settings_json"
+        );
         let captured = finish(
             phase,
-            &receive,
+            Some(&receive),
             expected,
             metal,
             &out,
@@ -584,16 +635,32 @@ pub(crate) fn run(
         RESIDENT.lock().unwrap().clear();
         let before = stats();
         let mut phase = arm(&guard, ordinal);
-        o.session.set_settings(patch, false).unwrap();
+        or_abort!(
+            o.session.set_settings(patch, false),
+            phase,
+            Some(&o.receive),
+            &out,
+            "set_settings"
+        );
         let expected = o.session.shared.state.lock().unwrap().generation;
         let frame = await_final(&o.receive, expected, &mut phase.frames, &mut phase.errors);
         let after = stats();
         let on_route = resident(&frame, float);
-        let live: serde_json::Value =
-            serde_json::from_str(&o.session.get_settings_json().unwrap()).unwrap();
+        let live = or_abort!(
+            o.session
+                .get_settings_json()
+                .map_err(|e| format!("{e:?}"))
+                .and_then(
+                    |j| serde_json::from_str::<serde_json::Value>(&j).map_err(|e| e.to_string())
+                ),
+            phase,
+            Some(&o.receive),
+            &out,
+            "get_settings_json"
+        );
         let captured = finish(
             phase,
-            &o.receive,
+            Some(&o.receive),
             expected,
             o.metal,
             &out,
