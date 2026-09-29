@@ -1,11 +1,9 @@
-//! Opaque post-decode ownership contract. Construction remains Unsupported until RED.
-#[cfg(all(test, unix))]
-use super::DecodedCapturedCfa;
-use super::{CapturedAssetIdentity, CapturedRaw};
+//! Opaque owned result of the private closed captured-CFA decode path.
+use super::{CapturedAssetIdentity, DecodedCapturedCfa};
 use crate::{CfaLayout, CfaU16, RawMetadata};
-use engine_api::{
-    EngineError, EngineResult, jobs::CancellationToken, pinned_raw::PinnedRawDecoderRoute,
-};
+#[cfg(all(test, unix))]
+use engine_api::EngineResult;
+use engine_api::pinned_raw::PinnedRawDecoderRoute;
 
 /// Copied descriptive facts, not an admission token or memory reservation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,6 +25,31 @@ pub struct OwnedCapturedCfa {
     route: PinnedRawDecoderRoute,
 }
 impl OwnedCapturedCfa {
+    // Only the capture module's closed decoder may construct this owner.
+    pub(super) fn new(
+        image: CfaU16,
+        metadata: RawMetadata,
+        identity: CapturedAssetIdentity,
+        route: PinnedRawDecoderRoute,
+    ) -> Self {
+        Self {
+            image,
+            metadata,
+            identity,
+            route,
+        }
+    }
+
+    // Compatibility projection moves owned allocations; no inverse/public projection.
+    pub(super) fn into_public(self) -> DecodedCapturedCfa {
+        DecodedCapturedCfa {
+            image: self.image,
+            metadata: self.metadata,
+            identity: self.identity,
+            route: self.route,
+        }
+    }
+
     pub fn identity(&self) -> CapturedAssetIdentity {
         self.identity
     }
@@ -51,28 +74,6 @@ impl OwnedCapturedCfa {
     }
     #[cfg(all(test, unix))]
     pub(super) fn into_public_for_test(self) -> EngineResult<DecodedCapturedCfa> {
-        unsupported()
-    }
-}
-fn unsupported<T>() -> EngineResult<T> {
-    Err(EngineError::Unsupported {
-        what: "opaque captured CFA scaffold; behavioral RED not yet observed".into(),
-    })
-}
-impl CapturedRaw {
-    /// Consume this capture through the closed CFA decoder; no original locator reopen.
-    pub fn decode_owned_cfa(self, _cancel: &CancellationToken) -> EngineResult<OwnedCapturedCfa> {
-        unsupported()
-    }
-    #[cfg(all(test, unix))]
-    pub(super) fn decode_owned_cfa_with_for_test(
-        self,
-        _cancel: &CancellationToken,
-        _decoder: impl FnOnce(
-            &std::path::Path,
-            &CancellationToken,
-        ) -> EngineResult<(CfaU16, RawMetadata)>,
-    ) -> EngineResult<OwnedCapturedCfa> {
-        unsupported()
+        Ok(self.into_public())
     }
 }
