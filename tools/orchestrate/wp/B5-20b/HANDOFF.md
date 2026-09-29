@@ -10,7 +10,13 @@ No document-format change (FORMAT_VERSION 1), no recipe field added, no new depe
 - `732a96e7` filters: `adaptive_lattice` module + adapter wiring; transform cap constants.
 - `69d640f7` tessera-ffi: begin/commit/preview for real-size layers, mid-render cancel, `adaptive_wide_angle_max_pixels`.
 - `432a1b2a` mac: real-size self-test step, stored focal kept, `maxPixels`, runner case, bindings.
-- this HANDOFF.
+- `6b7ad152` HANDOFF.
+- Review round (A: APPROVE-WITH-CHANGES at 6b7ad152), commits on top:
+  - `84d5c545` RED: full-width horizon at 6000 × 4000 / 5212 × 3468 fails "constraint residual exceeds
+    tolerance"; 3999 × 2999 coarse-vs-dense equivalence; smart-object branch of the > 100 MP refusal restored.
+  - `d9d333d8` traced-curve segment count from the sagitta bound (below).
+  - `029fd2d2` ignored counting-allocator measurement at 100 MP (`tests/document_adaptive_memory.rs`).
+  - merge of `origin/main` (B5-18b and later).
 
 ## Approach (`crates/filters/src/adaptive_lattice.rs`, one module)
 The 16,777,216-vertex cap stays, as a cap on the **solve lattice**. Layers whose `(w+1)(h+1)` fits keep the dense
@@ -45,6 +51,45 @@ Straightness (stripe centroid spread along the traced range, uncorrected tilt �
 0.004 / 0.008 px, 5212 × 3468 0.003 / 0.007 px (bound 0.5 px). Memory (own test binary, counting allocator):
 24 MP peak 819 MB. The output raster is 384 MB of that. The dense estimate is 1,728 MB (bound: ≤ 60 %).
 
+## Traced-curve segments (review item 1)
+`adaptive_wide_angle_curve` joins its samples with straight source segments. A chord of length `L` on a curve of
+curvature `k` misses it by the sagitta `k L² / 8`, and curvature in pixels falls as 1 / image size for a given field
+of view, so B5-20's fixed cap of 64 segments grew the error linearly with the photo (≈ 0.46 px full-width at 24 MP,
+≈ 1.9 px at 100 MP, against 0.25 px). Now: start at `clamp(ceil(chord / 24), 4, 256)`, then double (up to 1024)
+while any segment's projected midpoint is more than `CURVE_SAGITTA_PX` = 0.05 px (a fifth of the tolerance) from the
+straight projected edge. Full-width horizon (3 %–97 % of the width at 0.3 h, equidistant f = 0.4 w): 470 segments at
+6000 × 4000, 410 at 5212 × 3468, 512 at 12240 × 8160; all three solve. The solver still densifies every 4 source px,
+so the densified-sample count per line is unchanged; the input-sample limit (16,384 per recipe) now allows ≈ 34
+full-width 24 MP lines (the 65,536 densified limit already allowed ≈ 46).
+
+## Coprime axes (review item 2)
+`coarse_matches_dense_on_coprime_axes_within_the_same_tolerance`, 3999 × 2999 (gcd 1, rounding path), the same
+table as 4000 × 3000: factor 0.4175, 2,093,763 vertices; map max Δ 0.0048 px (≤ 0.02); pixel mean |Δ| 9.7e-7
+(≤ 1e-3); interior max |Δ| 3.0e-4 (≤ 0.01); coverage differs on 0 / 245,388 samples; straightness 0.004 / 0.006 px.
+
+## Memory at 100 MP (review item 4)
+Measured with a counting allocator (`document_adaptive_memory`, release, `--ignored --test-threads=1`), 12240 × 8160
+layer with materialized tiles, begin + apply through the session:
+| case | document before | AWA working set above it | absolute peak | reviewer's estimate |
+|---|---|---|---|---|
+| U8 pixel layer | 0.80 GB | 3.26 GB | 4.06 GB | ≈ 4.1 GB |
+| F32 pixel layer | 2.00 GB | 3.26 GB | 5.25 GB | up to ≈ 6.5 GB |
+| U8 smart object, begin | 0.80 GB | 3.24 GB | 4.04 GB | ≈ 3.2 GB (begin) |
+The working set is the premultiplied F32 planes (1.6 GB) plus the F32 output raster (1.6 GB) either way.
+
+**Smart-object apply above ≈ 33.5 MP is refused** ("resource exhausted: CPU smart-filter pass retained results exceed
+configured limit", history unchanged). `compositor::render::smart_filters::FilterPassLimits::retained_bytes` is 1 GiB
+(same on main); passes at 6000 × 5500, fails at 6000 × 6000, 8000 × 8000 and 12240 × 8160. This is a compositor
+pass limit shared by the smart-filter stack, not AWA code, and is not changed here; the "> 100 MP is the only
+refusal" statement above holds for pixel layers only.
+
+**Mesh-resolution limit at 100 MP.** The fit error of the 17 × 17 control mesh scales with the correction it must
+absorb, which grows with the image while the tolerance stays 0.25 px. The `real_size_recipe` vertical (x 0.25 w →
+0.26 w over 0.2 h → 0.8 h, ≈ 1° of residual tilt) solves at 6000 × 4000, 8000 × 6000 and 10000 × 7000 but fails
+"constraint residual exceeds tolerance" at 12240 × 8160, with the traced curve already inside the sagitta bound and
+at a 4× larger coarse budget too. Users can raise the mesh size or line tolerance; changing the default objective
+would change stored B5-20 renders, so it is left for a follow-up.
+
 ## Timings (release, `document_adaptive_ui` ignored timing tests; blank U8 layer)
 - 6000 × 4000: begin 0.05 s, proxy preview 750 × 500 40–47 ms, full apply 0.36 s.
 - 4000 × 3000 (dense path, unchanged): preview 29–31 ms, apply 0.77–0.81 s. The dense solve is serial and
@@ -61,8 +106,8 @@ honest limit message; one constant source.
   boundary checks.
 - (c) done: the draft keeps the stored `focal_px` / `output_focal_px` verbatim until the focal length is edited.
 - (d) done for Rust (807f7d63) and Swift (986f085c).
-- (b) not done: the re-trace per focal tick stays synchronous on main. It is pure maths (≤ 64 damped-Newton
-  inversions per line), cheap next to the preview, which is already off main and latest-wins. Left as a follow-up
+- (b) not done: the re-trace per focal tick stays synchronous on main. It is pure maths (≈ chord / 24 damped-Newton
+  inversions per line, doubled when the sagitta check refines, at most 1024), cheap next to the preview, which is already off main and latest-wins. Left as a follow-up
   so this package keeps the workspace model unchanged.
 
 ## Gates (at 432a1b2a)
