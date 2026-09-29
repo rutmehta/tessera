@@ -778,3 +778,7 @@ Request5b27b9df-43bd-45d8-8ee4-5cf79bba101b validated/accepted. Separate codex/b
 ## Proactive inspector source follow-up audit
 
 Rut authorized continued source audit. Reviewed frozen527410c7 and Ac7127247; report INSPECTOR-KEYBOARD-FOLLOWUP-AUDIT.md distinguishes native Load/Reset scope, remaining SwiftUI Dither/menu/tab/action gates, History traversal/policy difference and native adapter lifetime/layout limits. No confirmed new product blocker, no product/test edits or B workloads. A54focused+3theme/layout/strict publication reconciled; actual GUI remains A-owned. Poll found no new pending request; receipt messages not acknowledged. Candidate frozen and old evidence preserved. Report sent as proactive Git status, not a duplicate task or runtime acceptance.
+
+## Requested remaining keyboard ownership inventory
+
+Accepted d4a3357f-2636-4a8a-8837-04c47ddb3a14 after target/expiry validation. INSPECTOR-OWNERSHIP-INVENTORY.md reviews frozen527410c7 and actual28da5782 bounded LUT acceptance. Explicit native marker vs unresolved SwiftUI vs native-unmarked controls separated, local key contracts and prioritized Dither-origin/History/menu/native-child GUI steps supplied. Dither failure NOT established. Conditional Dither-only checkbox proposal requires observed interception and A review before implementation. No product/router/trace/tests changed, B workloads UNRUN, A owns runtime/main. Previous audit remains historical snapshot; current note reconciles bounded GUI pass.
