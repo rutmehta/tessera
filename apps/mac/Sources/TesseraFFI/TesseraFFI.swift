@@ -30004,6 +30004,13 @@ public enum StrokeTarget: Equatable, Hashable {
      * The layer mask (created revealing all when the layer has none).
      */
     case mask
+    /**
+     * Saved alpha / spot channel `id` (also the Quick Mask channel). The
+     * layer argument is ignored; layer locks do not apply; the brush paints
+     * its colour's luminance, the eraser paints toward 0.
+     */
+    case channel(id: UInt64
+    )
 
 
 
@@ -30029,6 +30036,9 @@ public struct FfiConverterTypeStrokeTarget: FfiConverterRustBuffer {
         
         case 2: return .mask
         
+        case 3: return .channel(id: try FfiConverterUInt64.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -30044,6 +30054,11 @@ public struct FfiConverterTypeStrokeTarget: FfiConverterRustBuffer {
         case .mask:
             writeInt(&buf, Int32(2))
         
+        
+        case let .channel(id):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt64.write(id, into: &buf)
+            
         }
     }
 }

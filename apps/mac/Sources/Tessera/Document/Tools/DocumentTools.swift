@@ -161,6 +161,7 @@ final class DocumentTools {
         self.workspace = workspace
         invalidateOutline()
         if let doc = workspace.current { refreshOutline(doc) }
+        ChannelPaintSelfTest.startIfRequested() // B5-17: `--channel-paint-selftest=<dir>`
     }
 
     func activeDocumentChanged(in workspace: DocumentWorkspace) {
@@ -489,13 +490,52 @@ final class DocumentTools {
 
     // MARK: Painting
 
-    private func strokeLayer(_ doc: DocumentController) -> (DocLayerID, BrushStrokeTarget)? {
-        guard let l = doc.primary else { say("Select a layer to paint on"); return nil }
-        if l.kind == .pixel { return (l.id, paintMask && l.hasMask ? .mask : .pixels) }
-        if l.kind == .group { say("Groups have no pixels: select a layer inside the group"); return nil }
-        // Adjustment, fill and other layers paint their mask (created on the first stroke).
-        return (l.id, .mask)
+    // B5-17 begin: painting into the Quick Mask and saved channels.
+    /// The channel targeted by a plain click in the Channels panel (per document); a click on RGB or a
+    /// colour row clears it. Programmatic highlights (Save Selection, New Channel) do not target.
+    @ObservationIgnored private var paintChannel: (doc: String, id: UInt64)?
+    /// Channel stroke in progress (its overlay and thumbnail refresh while painting).
+    @ObservationIgnored private var channelStroke: (doc: String, id: UInt64)?
+    @ObservationIgnored private var channelRefreshed = Date.distantPast
+
+    /// Channels panel: a plain click on row `id` (nil = RGB / a colour row) targets it for painting.
+    func targetChannel(_ id: UInt64?, in doc: DocumentController) {
+        paintChannel = id.map { (doc: doc.id, id: $0) }
     }
+
+    /// Quick Mask > the targeted channel (still highlighted) > the primary layer's mask or pixels.
+    private func strokeLayer(_ doc: DocumentController) -> (DocLayerID, BrushStrokeTarget)? {
+        let channels = DocumentChannels.shared
+        let quick = channels.quickMask[doc.id]
+        var channel: UInt64?
+        if let p = paintChannel, p.doc == doc.id, p.id == channels.selectedChannel,
+           channels.records.contains(where: { $0.id == p.id }) {
+            channel = p.id
+        }
+        let l = doc.primary
+        do {
+            let target = try BrushStrokeTarget.resolve(quickMask: quick, channel: channel, layerKind: l?.kind,
+                                                       hasMask: l?.hasMask ?? false, paintMask: paintMask)
+            if case .channel(let id) = target {
+                let name = id == quick ? "Quick Mask" : channels.records.first(where: { $0.id == id })?.name ?? "channel"
+                say("Painting into \(name)")
+            }
+            return (l?.id ?? 0, target)
+        } catch {
+            say(error.localizedDescription)
+            return nil
+        }
+    }
+
+    /// While a channel stroke runs: reload the channels (thumbnail and overlay) at most every 150 ms.
+    private func channelStrokeFrame(final: Bool = false) {
+        guard let c = channelStroke, let doc = document, doc.id == c.doc else { return }
+        if final { channelStroke = nil }
+        guard final || Date().timeIntervalSince(channelRefreshed) > 0.15 else { return }
+        channelRefreshed = Date()
+        DocumentChannels.shared.reload(doc, force: true)
+    }
+    // B5-17 end
 
     private func sample(_ e: NSEvent, at c: CanvasPoint) -> PenSample {
         let tablet = e.subtype == .tabletPoint || e.subtype == .tabletProximity
@@ -521,6 +561,7 @@ final class DocumentTools {
             let o = self.cloneOffset!
             cloneOffset = (Float(o.width), Float(o.height), src.layer)
         }
+        if case .channel(let id) = target { channelStroke = (doc: doc.id, id: id) } else { channelStroke = nil } // B5-17
         coalescer = FrameStrokeCoalescer(minSpacing: max(0.25, brush.size * brush.spacing * 0.25))
         strokeTimes.removeAll()
         strokeOpen = true
@@ -564,6 +605,7 @@ final class DocumentTools {
                     case .success(let f):
                         tools.strokeTimes.append(Date().timeIntervalSince(start) * 1000)
                         tools.strokeObserver?(f)
+                        tools.channelStrokeFrame() // B5-17
                     case .failure(let e):
                         tools.strokeOpen = false
                         tools.say("Paint: \(e.localizedDescription)")
@@ -588,6 +630,7 @@ final class DocumentTools {
             guard let doc else { return }
             let tools = DocumentTools.shared
             tools.reload(doc)
+            tools.channelStrokeFrame(final: true) // B5-17
             if !times.isEmpty {
                 let s = times.sorted()
                 tools.strokeReadout = String(format: "%@: %d frames, median %.1f ms", label, s.count, s[s.count / 2])

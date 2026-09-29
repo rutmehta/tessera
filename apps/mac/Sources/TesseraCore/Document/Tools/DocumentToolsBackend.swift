@@ -40,7 +40,27 @@ public struct CanvasPoint: Equatable, Sendable, Codable {
     public var cgPoint: CGPoint { CGPoint(x: Double(x), y: Double(y)) }
 }
 
-public enum BrushStrokeTarget: String, Sendable, CaseIterable { case pixels, mask }
+public enum BrushStrokeTarget: Hashable, Sendable {
+    case pixels, mask
+    /// B5-17c: a saved alpha / spot channel or the Quick Mask channel (white = selected).
+    case channel(UInt64)
+
+    /// B5-17c: what a paint stroke targets. Quick Mask beats a channel targeted in the Channels panel, which
+    /// beats the primary layer (its mask when `paintMask` and it has one, or when it is not a pixel layer).
+    /// Throws a user-facing reason when nothing can be painted.
+    public static func resolve(quickMask: UInt64?, channel: UInt64?, layerKind: LayerKindTag?, hasMask: Bool,
+                               paintMask: Bool) throws -> BrushStrokeTarget {
+        if let q = quickMask { return .channel(q) }
+        if let c = channel { return .channel(c) }
+        guard let kind = layerKind else { throw DocumentError.invalid("Select a layer to paint on") }
+        switch kind {
+        case .pixel: return paintMask && hasMask ? .mask : .pixels
+        case .group: throw DocumentError.invalid("Groups have no pixels: select a layer inside the group")
+        // Adjustment, fill and other layers paint their mask (created on the first stroke).
+        default: return .mask
+        }
+    }
+}
 
 public enum BrushToolKind: String, Sendable, CaseIterable {
     case brush, eraser, clone, heal
