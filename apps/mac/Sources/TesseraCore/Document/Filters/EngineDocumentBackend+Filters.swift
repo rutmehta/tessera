@@ -13,9 +13,7 @@ extension FilterCatalogEntry {
 
 extension SmartFilterRow {
     init(_ r: SmartFilterRecord) {
-        // B5-18: the engine names Camera Raw smart filters by their id.
-        let name = r.filterId == CameraRawFilter.id ? CameraRawFilter.title : r.name
-        self.init(index: r.index, filterId: r.filterId, name: name, enabled: r.enabled, filterJson: r.filterJson,
+        self.init(index: r.index, filterId: r.filterId, name: r.name, enabled: r.enabled, filterJson: r.filterJson,
                   opacity: r.opacity, blendMode: r.blendMode, hasMask: r.hasMask)
     }
 }
@@ -41,6 +39,10 @@ extension EngineDocumentBackend: DocumentFiltersBackend {
         try bridged { try session.previewSmartFilter(layer: layer, index: index, filterJson: filterJson, region: region?.ffi) }
     }
 
+    public func filterPreviewLevel(layer: DocLayerID, smartIndex: UInt32?, filterJson: String) throws -> UInt8 {
+        try bridged { try session.filterPreviewLevel(layer: layer, smartIndex: smartIndex, filterJson: filterJson) }
+    }
+
     public func previewAdjustment(layer: DocLayerID, adjustmentJson: String) throws {
         try bridged { try session.previewAdjustment(layer: layer, adjustmentJson: adjustmentJson) }
     }
@@ -49,10 +51,15 @@ extension EngineDocumentBackend: DocumentFiltersBackend {
     public func filterError() -> String? { session.filterError() }
     public func cancelFilter() { session.cancelFilter() }
 
-    public func filterDetail(layer: DocLayerID, filterJson: String, x: Int64, y: Int64, width: UInt32,
+    public func filterDetail(layer: DocLayerID, smartIndex: UInt32?, filterJson: String, x: Int64, y: Int64, width: UInt32,
                              height: UInt32) throws -> FilterDetailSurface {
         let d = try bridged {
-            try session.filterDetail(layer: layer, filterJson: filterJson, x: x, y: y, width: width, height: height)
+            if let i = smartIndex {
+                try session.smartFilterDetail(layer: layer, index: i, filterJson: filterJson, x: x, y: y, width: width,
+                                              height: height)
+            } else {
+                try session.filterDetail(layer: layer, filterJson: filterJson, x: x, y: y, width: width, height: height)
+            }
         }
         return FilterDetailSurface(surfaceId: d.surfaceId, width: d.width, height: d.height, level: d.level)
     }

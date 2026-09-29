@@ -76,6 +76,9 @@ final class DocumentCameraRawTests: XCTestCase {
         XCTAssertEqual((p["amount"] as? NSNumber)?.doubleValue, 1)
         XCTAssertEqual((lookup(p, ["settings", "detail", "sharpening", "amount"]) as? NSNumber)?.doubleValue, 0)
         XCTAssertEqual((lookup(p, ["settings", "detail", "noise_reduction", "color"]) as? NSNumber)?.doubleValue, 0)
+        // B5-18b: no lens profile / CA analysis on rendered pixels (whole-image work the sheet cannot show).
+        XCTAssertEqual(lookup(p, ["settings", "lens", "profile", "kind"]) as? String, "none")
+        XCTAssertEqual(lookup(p, ["settings", "lens", "remove_chromatic_aberration"]) as? Bool, false)
         XCTAssertNil(lookup(p, ["settings", "tone"]))
         XCTAssertNil(lookup(p, ["settings", "white_balance"]), "as shot unless Temp or Tint moves")
 
@@ -161,6 +164,62 @@ final class DocumentCameraRawTests: XCTestCase {
         XCTAssertNil(CameraRawDraft().aiMaskRefusal)
     }
 
+    /// B5-18b review: the canvas preview omits Sharpening, Noise Reduction, Texture and Clarity when the engine
+    /// renders it on a pyramid level > 0 (their pixel radii are full-resolution); the sheet says so only then, and
+    /// only when one of them is active. Between 50 % and 100 % the viewport is still level 0: no note.
+    func testDetailPreviewNoteFollowsTheSubmittedPreviewLevel() throws {
+        let neutral = CameraRawDraft()
+        for level in 0...3 { XCTAssertNil(neutral.detailPreviewNote(previewLevel: level), "neutral at level \(level)") }
+        let active: [DevelopControl] = [DetailControls.amount, DetailControls.luminance, DetailControls.color,
+                                        CameraRawControls.texture, CameraRawControls.clarity]
+        for c in active {
+            for v in [c.range.upperBound / 2, c.range.lowerBound < 0 ? c.range.lowerBound / 2 : c.range.upperBound] {
+                var d = CameraRawDraft()
+                d.set(c, v)
+                XCTAssertNil(d.detailPreviewNote(previewLevel: 0), "\(c.id): level 0 includes the effects")
+                for level in [1, 2, 5] {
+                    let note = try XCTUnwrap(d.detailPreviewNote(previewLevel: level), "\(c.id) = \(v) at level \(level)")
+                    XCTAssertTrue(note.contains("100"), note)
+                }
+            }
+        }
+        // The viewport's level for a zoom (what it pushes to the engine): 50-100 % is level 0, no note.
+        var sharp = CameraRawDraft()
+        sharp.set(DetailControls.amount, 60)
+        for zoom in [0.99, 0.75, 2.0 / 3, 0.51, 1, 3] {
+            XCTAssertEqual(DocumentViewportMath.level(forZoom: zoom), 0, "zoom \(zoom)")
+            XCTAssertNil(sharp.detailPreviewNote(previewLevel: DocumentViewportMath.level(forZoom: zoom)), "zoom \(zoom)")
+        }
+        for zoom in [0.5, 1.0 / 3, 0.25, 0.1] {
+            XCTAssertGreaterThan(DocumentViewportMath.level(forZoom: zoom), 0, "zoom \(zoom)")
+            XCTAssertNotNil(sharp.detailPreviewNote(previewLevel: DocumentViewportMath.level(forZoom: zoom)), "zoom \(zoom)")
+        }
+        // Settings the zoomed-out preview shows as they are need no note.
+        let shown: [DevelopControl] = [CameraRawControls.exposure, CameraRawControls.dehaze, CameraRawControls.saturation,
+                                       DetailControls.radius, DetailControls.detail, DetailControls.colorSmoothness]
+        for c in shown {
+            var d = CameraRawDraft()
+            d.set(c, c.clamp(c.defaultValue + (c.range.upperBound - c.range.lowerBound) * 0.2))
+            XCTAssertNil(d.detailPreviewNote(previewLevel: 2), c.id)
+        }
+        // A recipe without detail values gets the engine's defaults (sharpening 40, colour NR 25): active.
+        let recipe = try XCTUnwrap(CameraRawDraft(filterJson: #"{"id":"camera_raw","params":{"settings":{}}}"#))
+        XCTAssertNotNil(recipe.detailPreviewNote(previewLevel: 2))
+        XCTAssertNil(recipe.detailPreviewNote(previewLevel: 0))
+    }
+
+    /// The stub's preview level is its viewport level (the engine's is the level `filter_preview_level` reports).
+    func testStubPreviewLevelIsTheViewportLevel() throws {
+        let b = StubDocumentBackend()
+        let layer = try XCTUnwrap(try b.layers().first).id
+        let json = CameraRawDraft().filterJson
+        XCTAssertEqual(try b.filterPreviewLevel(layer: layer, smartIndex: nil, filterJson: json), 0)
+        try b.setViewport(level: 2, x: 0, y: 0, width: 64, height: 64, zoom: 0.25)
+        XCTAssertEqual(try b.filterPreviewLevel(layer: layer, smartIndex: nil, filterJson: json), 2)
+        try b.setViewport(level: 0, x: 0, y: 0, width: 64, height: 64, zoom: 0.75)
+        XCTAssertEqual(try b.filterPreviewLevel(layer: layer, smartIndex: nil, filterJson: json), 0)
+    }
+
     func testDetailRequestsAreLatestWins() {
         var gate = LatestRequestBuffer<String>()
         let a = gate.submit("a")
@@ -197,16 +256,21 @@ final class DocumentCameraRawTests: XCTestCase {
         return (doc, filters)
     }
 
-    /// Mean red of the layer through `filterJson` (the detail pane's linear samples, 0…255).
-    private func mean(_ f: any DocumentFiltersBackend, _ layer: DocLayerID, _ json: String) throws -> Double {
-        let d = try f.filterDetail(layer: layer, filterJson: json, x: 0, y: 0, width: 16, height: 16)
+    /// Mean linear red of the layer through `filterJson`, 0…255 (the detail pane is sRGB-encoded, B5-18b).
+    private func mean(_ f: any DocumentFiltersBackend, _ layer: DocLayerID, _ json: String,
+                      smartIndex: UInt32? = nil) throws -> Double {
+        let d = try f.filterDetail(layer: layer, smartIndex: smartIndex, filterJson: json, x: 0, y: 0, width: 16, height: 16)
         let s = try XCTUnwrap(IOSurfaceLookup(d.surfaceId))
         IOSurfaceLock(s, .readOnly, nil)
         defer { IOSurfaceUnlock(s, .readOnly, nil) }
         let base = IOSurfaceGetBaseAddress(s).assumingMemoryBound(to: UInt8.self)
         let stride = IOSurfaceGetBytesPerRow(s)
         var sum = 0.0
-        for y in 0..<16 { for x in 0..<16 { sum += Double(base[y * stride + x * 4]) } }
+        func linear(_ v: UInt8) -> Double {
+            let e = Double(v) / 255
+            return e <= 0.04045 ? e / 12.92 : pow((e + 0.055) / 1.055, 2.4)
+        }
+        for y in 0..<16 { for x in 0..<16 { sum += linear(base[y * stride + x * 4]) * 255 } }
         return sum / 256
     }
 
@@ -221,7 +285,7 @@ final class DocumentCameraRawTests: XCTestCase {
         var plus = CameraRawDraft()
         plus.set(CameraRawControls.exposure, 1)
         let after = try mean(f, layer, plus.filterJson)
-        // `filter_detail` writes the document's linear samples (0.4 grey → 102), so +1 EV is ×2 in the surface.
+        // Decoded to linear (0.4 grey → 102), +1 EV is ×2.
         XCTAssertEqual(after / before, 2, accuracy: 0.05, "exposure +1 doubles linear light")
     }
 
@@ -341,8 +405,30 @@ final class DocumentCameraRawTests: XCTestCase {
         (reopened as? any DocumentBackend)?.close()
     }
 
-    /// The engine names this filter by its id (it is not in the menu catalogue); history rows and smart filter
-    /// rows show the menu title instead (A review of B5-18: they read "camera_raw").
+    /// B5-18b: the detail pane of a re-edit replaces the saved smart filter instead of stacking the edit on it.
+    @MainActor func testReEditDetailPaneShowsTheFilterOnce() throws {
+        let (doc, f) = try greyDocument()
+        defer { doc.close() }
+        let layer = try XCTUnwrap(doc.primary).id
+        _ = try f.convertForSmartFilters(layer: layer)
+        var plus = CameraRawDraft()
+        plus.set(CameraRawControls.exposure, 1)
+        _ = try f.applyFilter(layer: layer, filterJson: plus.filterJson)
+        var zero = CameraRawDraft()
+        zero.amountPercent = 0
+        let grey = try mean(f, layer, zero.filterJson, smartIndex: 0)
+        XCTAssertEqual(grey, 102, accuracy: 1.5, "the re-edited filter at amount 0 shows the unfiltered layer")
+        XCTAssertEqual(try mean(f, layer, plus.filterJson, smartIndex: 0) / grey, 2, accuracy: 0.05, "applied once")
+        XCTAssertEqual(try mean(f, layer, plus.filterJson), 255, accuracy: 1, "a new filter stacks (0.4 × 4, clipped)")
+        let cr = DocumentCameraRaw()
+        doc.reloadModel()
+        cr.edit(doc, layer: layer, row: try f.smartFilters(layer: layer)[0])
+        XCTAssertEqual(try XCTUnwrap(cr.sheet).smartIndex, 0)
+        cr.sheet?.cancel()
+    }
+
+    /// The engine names this filter "Camera Raw Filter" (B5-18b, `Spec::name`): history rows and smart filter
+    /// rows show the menu title with no Swift-side mapping (A review of B5-18: they read "camera_raw").
     @MainActor func testHistoryAndSmartFilterRowsShowTheFilterTitle() throws {
         let (doc, f) = try greyDocument()
         defer { doc.close() }
@@ -356,7 +442,7 @@ final class DocumentCameraRawTests: XCTestCase {
         _ = try f.applyFilter(layer: layer, filterJson: draft.filterJson)
         XCTAssertEqual(try doc.backend.historyItems().last?.label, "Camera Raw Filter")
         let rows = try f.smartFilters(layer: layer)
-        XCTAssertEqual(rows.map(\.filterId), ["camera_raw"], "the id is unchanged; only the shown name maps")
+        XCTAssertEqual(rows.map(\.filterId), ["camera_raw"], "the id is unchanged; only the name is the title")
         XCTAssertEqual(rows.map(\.name), ["Camera Raw Filter"])
         doc.reloadHistory()
         XCTAssertTrue(doc.history.contains { $0.label == "Camera Raw Filter" }, "\(doc.history.map(\.label))")

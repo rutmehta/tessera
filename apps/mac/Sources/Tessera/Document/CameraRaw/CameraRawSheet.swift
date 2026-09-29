@@ -123,9 +123,6 @@ final class CameraRawSheetModel: Identifiable {
         return layer.kind == .smartObject ? "Smart filter on “\(layer.name)”"
             : (doc.marquee != nil ? "Layer “\(layer.name)”, inside the selection" : "Layer “\(layer.name)”")
     }
-    /// The 1:1 pane renders the filter on top of the smart filter stack; while re-editing it would show the
-    /// saved filter twice, so the canvas preview is the reference then.
-    var detailAvailable: Bool { smartIndex == nil }
 
     func value(_ c: DevelopControl) -> Double { draft.value(c) }
 
@@ -139,6 +136,13 @@ final class CameraRawSheetModel: Identifiable {
     }
 
     var amountPercent: Double { draft.amountPercent }
+
+    /// Pyramid level of the last submitted canvas preview (the engine's `filter_preview_level`).
+    private(set) var previewLevel = 0
+
+    /// B5-18b: when the submitted preview's level is above 0 (zoom at or below 50 %), the canvas preview leaves
+    /// out Sharpening, Noise Reduction, Texture and Clarity.
+    var detailPreviewNote: String? { showBefore ? nil : draft.detailPreviewNote(previewLevel: previewLevel) }
 
     func setAmount(_ percent: Double, final: Bool) {
         var d = draft
@@ -187,6 +191,11 @@ final class CameraRawSheetModel: Identifiable {
             } else {
                 try backend.previewFilter(layer: layer.id, filterJson: draft.filterJson, region: doc.lastFrame?.canvasRect)
             }
+            if !showBefore {
+                // Same viewport as the submit just above (both on the main thread): the level it renders at.
+                previewLevel = Int(try backend.filterPreviewLevel(layer: layer.id, smartIndex: smartIndex,
+                                                                  filterJson: draft.filterJson))
+            }
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -218,7 +227,7 @@ final class CameraRawSheetModel: Identifiable {
 
     /// Latest-wins: one `filter_detail` runs at a time; a newer draft replaces the pending one.
     private func refreshDetail() {
-        guard detailAvailable, !closed, let request = detailGate.submit(detailJson) else { return }
+        guard !closed, let request = detailGate.submit(detailJson) else { return }
         run(request)
     }
 
@@ -226,11 +235,13 @@ final class CameraRawSheetModel: Identifiable {
         guard let backend else { return }
         let (w, h) = (UInt32(detailPixels.width), UInt32(detailPixels.height))
         let x = Int64(detailCenter.x) - Int64(w / 2), y = Int64(detailCenter.y) - Int64(h / 2)
-        let layer = layer.id, json = request.value
+        let layer = layer.id, json = request.value, index = smartIndex
         Task { @MainActor [weak self] in
             let result = await Task.detached(priority: .userInitiated) { () -> Result<(CGImage?, UInt8), Error> in
                 Result {
-                    let d = try backend.filterDetail(layer: layer, filterJson: json, x: x, y: y, width: w, height: h)
+                    // B5-18b: re-editing replaces the saved filter in the pane (no double apply).
+                    let d = try backend.filterDetail(layer: layer, smartIndex: index, filterJson: json, x: x, y: y,
+                                                     width: w, height: h)
                     return (IOSurfaceLookup(d.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(d.width), height: Int(d.height)) },
                             d.level)
                 }
@@ -282,7 +293,8 @@ final class CameraRawSheetModel: Identifiable {
 // MARK: - Views
 
 /// The sheet: detail pane, Amount and Before/After on the left; tabbed Develop controls on the right.
-/// Identifiers: `document.cameraRaw.<panel>`, `.<control id>`, `.amount`, `.before`, `.reset`, `.cancel`, `.ok`, `.detail`.
+/// Identifiers: `document.cameraRaw.<panel>`, `.<control id>`, `.amount`, `.before`, `.reset`, `.cancel`, `.ok`, `.detail`,
+/// `.detailNote`.
 struct CameraRawSheet: View {
     @Bindable var model: CameraRawSheetModel
     private let ident = "document.cameraRaw"
@@ -293,15 +305,9 @@ struct CameraRawSheet: View {
         } content: {
             HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: Theme.Space.m) {
-                    if model.detailAvailable {
-                        CameraRawDetailPane(model: model)
-                            .frame(width: 280, height: 280)
-                            .accessibilityIdentifier("\(ident).detail")
-                    } else {
-                        Text("Re-editing: the canvas shows the result.")
-                            .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                            .frame(width: 280, alignment: .leading)
-                    }
+                    CameraRawDetailPane(model: model)
+                        .frame(width: 280, height: 280)
+                        .accessibilityIdentifier("\(ident).detail")
                     DocSlider(title: "Amount", value: model.amountPercent, range: 0...100, defaultValue: 100, format: "%.0f %%",
                               step: 1, identifier: "\(ident).amount", revision: model.revision) { v, final in
                         model.setAmount(v, final: final)
@@ -312,6 +318,12 @@ struct CameraRawSheet: View {
                         .font(Theme.Fonts.caption)
                         .help("Shows the layer without the filter (canvas and detail pane)")
                         .accessibilityIdentifier("\(ident).before")
+                    if let note = model.detailPreviewNote {
+                        Text(note)
+                            .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                            .help("Sharpening, Noise Reduction, Texture and Clarity show on the canvas at 100 % and in the 1:1 pane; OK applies them at any zoom.")
+                            .accessibilityIdentifier("\(ident).detailNote")
+                    }
                     if model.applying {
                         HStack(spacing: Theme.Space.xs) {
                             ProgressView().controlSize(.small)

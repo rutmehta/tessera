@@ -1,0 +1,24 @@
+    Finished `release` profile [optimized] target(s) in 1m 33s
+     Running tests/document_camera_raw_preview.rs (/Users/rutmehta/.cache/tessera-target/B5-18b/release/deps/document_camera_raw_preview-6d9a245f03c9ebfc)
+
+running 1 test
+fit L2 preview, local settings: cold 9514 ms, peak 4284 MB
+fit L2 preview, local settings: warm median 9392 ms, peak 3662 MB
+fit L2 preview, vignette (global): cold 5889 ms, peak 2564 MB
+test bench_camera_raw_24mp has been running for over 60 seconds
+fit L2 preview, vignette (global): warm median 5256 ms, peak 2564 MB
+100% preview, local settings: cold 8775 ms, peak 3662 MB
+100% preview, local settings: warm median 8401 ms, peak 3662 MB
+100% preview, vignette (global): cold 5653 ms, peak 2564 MB
+100% preview, vignette (global): warm median 8415 ms, peak 2564 MB
+detail 280x280, local: 9114 ms, peak 3662 MB (level 0)
+detail 280x280, vignette: 5820 ms, peak 2564 MB (level 0)
+apply at full resolution: 8563 ms, peak 3662 MB
+test bench_camera_raw_24mp ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 150.31s
+
+cargo test --locked --release -p tessera-ffi --test  -- --ignored --nocapture  690.45s user 36.28s system 296% cpu 4:04.73 total
+tail -30  0.00s user 0.00s system 0% cpu 4:04.73 total
+
+[exited with code 0]

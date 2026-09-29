@@ -219,7 +219,7 @@ struct DocumentHistoryIDMap: Equatable, Sendable {
     mutating func rows(_ items: [DocHistoryItem]) -> [DocHistoryEntry] {
         if let root = items.filter({ $0.parent == nil }).map(\.id).min() { base = root }
         return items.filter { $0.id != base }.map {
-            DocHistoryEntry(id: $0.id, label: CameraRawFilter.displayName($0.label),   // B5-18
+            DocHistoryEntry(id: $0.id, label: $0.label,
                             parent: $0.parent.flatMap { $0 == base ? nil : $0 },
                             isCurrent: $0.isCurrent, author: $0.author)
         }

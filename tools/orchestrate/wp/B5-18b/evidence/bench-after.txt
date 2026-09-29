@@ -1,0 +1,16 @@
+running 1 test
+fit L2 preview, local settings: cold 800 ms, peak 344 MB
+fit L2 preview, local settings: warm median 451 ms, peak 219 MB
+fit L2 preview, vignette (global): cold 206 ms, peak 143 MB
+fit L2 preview, vignette (global): warm median 199 ms, peak 143 MB
+100% preview, local settings: cold 850 ms, peak 313 MB
+100% preview, local settings: warm median 606 ms, peak 244 MB
+100% preview, vignette (global): cold 6118 ms, peak 3098 MB
+100% preview, vignette (global): warm median 5402 ms, peak 2564 MB
+detail 280x280, local: 36 ms, peak 21 MB (level 0)
+detail 280x280, vignette: 946 ms, peak 145 MB (level 2)
+apply at full resolution: 10198 ms, peak 3662 MB
+test bench_camera_raw_24mp ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 39.28s
+
