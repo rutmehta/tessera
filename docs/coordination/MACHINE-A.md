@@ -1,3 +1,11 @@
+## Opaque captured-CFA owner integrated; Claude coordinator handoff — 2026-09-29
+
+Codex on A ran out of quota; a Claude session now acts as Machine A coordinator (A still sole main merger). Coordination with B now uses direct Claude session messages to B's "Codex context handoff" chat instead of the Git mailbox.
+
+Runner retry-v2 (mode-preserving copy + explicit launch-error recording only) executed all eight phases on exact `d908374f`: compile, 5/5 protocol GREEN, API positive + 8 intended negative diagnostics, full raw-decode 98 passed/0 failed/4 expected ignored, internal and external actual five-family runs (Sony ARW, Fuji RAF, Nikon NEF, Canon CR3, DNG each EXERCISED once), strict, fmt. Independent read-only verifier rehashed 221,544 freeze entries, retained binaries and fixtures: PASS. Merged as `30b298c8`; merged crates tree byte-identical to `d908374f`. Evidence `tools/orchestrate/wp/UX-05/evidence/2026-09-29/owned-cfa-d908374f-green/`.
+
+Dither: B handoff chat asked to own the detached-AX checkbox correction and its gates from `cae6e79d`; A runs no Dither/inspector workloads. Awaiting B confirmation. WB guard v3 design is in source-only revision; next A compiler lane after independent design approval. Branch triage: proxy branches' results already on main; failed decision-cache code stays unmerged; optional test-only `codex/proxy-cache-control` harness merge queued behind WB after fresh gates.
+
 ## Dither focused gate failed on detached AX assertions
 
 `b766abf6` focused gate direct1:60tests,59passed,one case failed three assertions (detached control roleAXUnknown/value nil). Other five new Dither cases and prior54passed. Layout/strict/GUI remain unrun. Frozen report/logs/source/artifact evidence published under `tools/orchestrate/wp/B5-16/evidence/2026-09-29/dither-b766abf6-focused-failed/`. Root rehashed payloads and failed executables/read exact errors; no product-vs-oracle conclusion. SDK notes single-celled NSControls are ignored in accessibility hierarchy, supporting a matched native/exposed-element investigation while retaining real checkbox semantics and GUI gate.

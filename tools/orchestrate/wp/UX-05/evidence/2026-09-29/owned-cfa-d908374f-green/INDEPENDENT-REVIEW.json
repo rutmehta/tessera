@@ -1,0 +1,172 @@
+{
+  "candidate": "d908374fd530d925e440bb21df209e60e694209b",
+  "branch": "codex/owned-captured-cfa",
+  "evidence": "/Volumes/betterSSD/tessera-validation/owned-captured-cfa/d908374f/retry-v2",
+  "verdict": "PASS",
+  "checks": {
+    "1_worktree_and_freeze": {
+      "result": "PASS",
+      "head": "d908374fd530d925e440bb21df209e60e694209b",
+      "status_clean": true,
+      "ignored_only": "fixtures/raw/ (gitignored)",
+      "tree_blobs": 9231,
+      "working_vs_blob_mismatches": 0,
+      "git_show_checked": 280,
+      "git_show_raw_decode_files": 31,
+      "git_show_mismatches": 0,
+      "freeze_maps_checked": 33,
+      "total_freeze_entries_compared_to_blobs": 221544,
+      "freeze_mismatches": 0,
+      "per_phase_entries": 9231,
+      "before_eq_after_all": true,
+      "inputs_before_eq_after_all": true,
+      "runner_oracle_apioracle_fixture_manifest_hashes_ok": true,
+      "dependency_context_257_matches_all_commands": true
+    },
+    "2_phases": {
+      "result": "PASS",
+      "01-compile": {
+        "exit": 0
+      },
+      "02-green": {
+        "exit": 0,
+        "summary": "5 passed; 0 failed; 0 ignored; 92 filtered out",
+        "required_5_all_ok": true
+      },
+      "03-api": {
+        "pass.rs": {
+          "exit": 0,
+          "log_bytes": 0
+        },
+        "negatives": {
+          "clone.rs": [
+            "E0277",
+            1
+          ],
+          "conversion.rs": [
+            "E0277",
+            1
+          ],
+          "default.rs": [
+            "E0277",
+            1
+          ],
+          "metadata_mutation.rs": [
+            "E0596",
+            1
+          ],
+          "opcode_mutation.rs": [
+            "E0596",
+            1
+          ],
+          "parts.rs": [
+            "E0599",
+            1
+          ],
+          "private_fields.rs": [
+            "E0451",
+            1
+          ],
+          "sample_getter.rs": [
+            "E0599",
+            1
+          ]
+        },
+        "each_single_coded_error_primary_span_in_own_fixture": true,
+        "extra_warning": "private_fields.rs: function `forge` is never used (benign)"
+      },
+      "04-full": {
+        "exit": 0,
+        "unit": "94 passed/0 failed/3 ignored",
+        "linear_dng": "3 passed",
+        "owned_api": "1 passed/1 ignored",
+        "doctests": "0",
+        "total_passed": 98,
+        "total_ignored": 4,
+        "ignored": [
+          "capture::tests::decode::actual_cfa_fixtures_return_owned_samples_after_original_copy_replacement (pre-existing on 55a241ee)",
+          "capture::tests::decode::actual_native_success_boundaries_observe_cancellation_before_publication (pre-existing on 55a241ee)",
+          "capture::tests::decode::owned::actual_opaque_owner_five_families_after_original_copy_replacement (new; run in 05)",
+          "external_owned_api_five_families_survive_capture_cleanup (new; run in 06)"
+        ],
+        "fixtures_decode_all_five": true,
+        "panics_logged_are_expected_unwind_tests_reported_ok": true,
+        "rebuild": "Finished 0.48s, binaries hash-equal to retained"
+      },
+      "05-family-internal": {
+        "exit": 0,
+        "summary": "1 passed; 0 failed; 0 ignored",
+        "exercised_once_each": true
+      },
+      "06-family-external": {
+        "exit": 0,
+        "summary": "1 passed; 0 failed; 0 ignored",
+        "exercised_once_each": true
+      },
+      "07-strict": {
+        "exit": 0,
+        "note": "only libraw-ffi C build-script warnings; no Rust warnings/errors"
+      },
+      "08-fmt": {
+        "exit": 0,
+        "log_bytes": 0
+      },
+      "fixtures": {
+        "dir_listing_exact_5": true,
+        "sha256_bytes_match_fixture_env": true,
+        "fixture_env_matches_authority": true,
+        "frozen_in_every_phase_and_command": true
+      }
+    },
+    "3_retained_artifacts": {
+      "result": "PASS",
+      "unit": {
+        "sha_ok": true,
+        "mode": "0o755",
+        "exec": true,
+        "source_exists": true,
+        "source_mode": "0o755",
+        "source_sha_ok": true
+      },
+      "integration": {
+        "sha_ok": true,
+        "mode": "0o755",
+        "exec": true,
+        "source_exists": true,
+        "source_mode": "0o755",
+        "source_sha_ok": true
+      },
+      "libs_ok": true
+    },
+    "4_runner_diff": {
+      "result": "PASS",
+      "patch_applies_to_parent_run_py_exactly": true,
+      "scope": [
+        "import stat",
+        "try/except OSError -> launch-error.json direct_exit null, re-raise",
+        "result initial None instead of 0",
+        "copyfile->copy2 + mode/exec assertion"
+      ],
+      "oracle_or_test_changes": false,
+      "preparation_sha256_match": true
+    },
+    "5_diff_vs_55a241ee": {
+      "result": "PASS",
+      "files": 18,
+      "outside_raw_decode_and_docs": [],
+      "docs": [
+        "docs/superpowers/plans/2026-09-28-owned-captured-cfa.md"
+      ],
+      "notes": [
+        "c0993358 changed clone.rs oracle E0599->E0277 before this run (pre-run correction, disclosed)",
+        "no Cargo.toml/lock changes",
+        "55a241ee is ancestor of main"
+      ]
+    },
+    "original_failed_02_green": {
+      "unchanged": true,
+      "basis": "mtimes all <=21:53:20, before retry-v2 creation 21:54; no exit file, empty run.log, oracle-error PermissionError; retained copies mode 0644 as recorded"
+    }
+  },
+  "discrepancies": []
+}
