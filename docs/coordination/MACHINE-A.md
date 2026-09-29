@@ -1,3 +1,12 @@
+## B5 packages integrated (Claude coordinator) — 2026-09-29
+
+Integrated after independent Opus source review of each branch and of B's round-2 fix deltas (no force-pushes; fixes on top of reviewed hashes):
+- 5778da58 B5-test-isolation + A fixup 4d9a3f17 (per-checkout FFI target dir with path hash). swift-gate 703/0.
+- 3345246b B5-17a Photo Restoration (743217a8) + B5-17b persisted alpha channel display (59240f28). swift-gate 708/0, bindings regenerated identical, tessera-ffi tests pass.
+- dc3e03ac B5-17c channel strokes, B5-12b (966574f2; NaN input + self-test abort fixes), B5-15 (3d731aca; code only — WP stays OPEN: main-thread spans 36–58 ms vs <8 ms target, filter self-test crash), B5-13 (cc05e38d; cancel-safe commit blocker fixed), B5-18 (73ad2b51), B5-19 (2b13053f; 200 MP pre-decode budget, profile conversion, Reposition removed with pinning test). Keep-both conflict resolutions: DocumentView.swift, SmartFilterRows.swift (13×18), document.rs module block (13×19). Gates on exact tree: swift-gate 775/0 (3 skipped), bindings identical, tessera-ffi tests pass, strict release OK.
+
+Pending: B5-16 Dither/History (automated gates green at d19c4001: 758/0, focused 98, layout 3, strict) awaits actual on-screen keyboard check (needs full-screen control approval); one keep-both conflict with B5-13 in DocumentView.swift. B5-19 follow-ups: memory-scaled cap, HEIC/PSD Photomerge note, profile-handle compare, align/blend cancel label. Evidence: /Volumes/betterSSD/tessera-validation/b5-*.
+
 ## WB live diagnostic: design rev7 approved, Stage A transport GREEN — 2026-09-29
 
 Design iterated rev4→rev7 with an independent Opus reviewer each round (scratch design docs; Codex's b081dcea "Revision 3" and scaffold c4611ac9 superseded). Key correction: Revision 3's ThreadId-keyed slots used std::thread::current(), which heap-allocates per foreign (GCD/Swift/Metal) thread until exit — unbounded per-thread storage. Rev4+ carries an explicit Copy token in feature-gated `Resolved.diag`; zero persistent per-thread bytes, static arena ≤296 KiB (+32 KiB allowance, 328 KiB total), ≤256 B one-time mutex heap. Rev7 approved with errata (G3 min 16; clippy allows; BeginContext forward compat; run_expect reason checks; --test-threads=1 enforced).
