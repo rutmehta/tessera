@@ -1,6 +1,6 @@
 # B5-18 handoff — Camera Raw Filter sheet (steps 420–439)
 
-Branch `wp/B5-18` (base origin/main aec3738e). Swift only; no Rust, FFI, bindings, board.json or Cargo.lock change.
+Branch `wp/B5-18`, linear on origin/main `c15dee24` (merge base; `aec3738e` in earlier revisions was stale). Swift only; no Rust, FFI, bindings, board.json or Cargo.lock change.
 `crates/tessera-ffi/src/document/filters.rs` untouched (B5-13 / B5-15 own it).
 
 ## What landed
@@ -43,9 +43,13 @@ Branch `wp/B5-18` (base origin/main aec3738e). Swift only; no Rust, FFI, binding
    every preview / 1:1 detail / smart-filter validation to level 0 over the whole canvas through `Spec::run`
    (`submit_preview`, `set_nodes`, `filter_detail`). The renderer is level-aware; exclude `camera_raw` from that
    gate after B5-13 and B5-15 merge. The sheet already coalesces drags so it benefits without Swift changes.
-2. **History / row label:** `Spec::name()` falls back to the raw id because `camera_raw` is not in
-   `filters::registry`, so the History row and smart filter row read "camera_raw". Map adapter ids to titles
-   ("Camera Raw Filter") in filters.rs with follow-up 1.
+2. **History / row label (fixed on the Swift side after A's round-2 review):** `Spec::name()` falls back to the
+   raw id because `camera_raw` is not in `filters::registry`, so the engine still labels it "camera_raw".
+   `81621d09` (RED test `DocumentCameraRawTests.testHistoryAndSmartFilterRowsShowTheFilterTitle`) and `d583b03f`
+   map it to "Camera Raw Filter" where Swift converts engine history items (`DocumentHistoryIDMap.rows`) and smart
+   filter records (`SmartFilterRow.init`), via `CameraRawFilter.displayName`. filters.rs untouched; swift-gate OK
+   at `d583b03f` (720 XCTest, 3 skipped, 0 failures). Optional later cleanup: name adapter ids in filters.rs with
+   follow-up 1, then drop the Swift mapping.
 3. **Detail pane while re-editing:** `filter_detail` always appends (`StackEdit::Append`), so re-editing would show
    the saved smart filter twice; the sheet hides the pane then and relies on the canvas preview. An FFI
    `filter_detail` variant with `StackEdit::Replace(index)` would restore it (same bug affects the generic filter
