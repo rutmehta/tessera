@@ -15,8 +15,22 @@ struct Admission {
     original_wb: [u8; 32],
     custom_wb: [u8; 32],
 }
-fn admit(_facts: Admission) -> Result<bool, Error> {
-    Err(Error::Unsupported)
+fn admit(facts: Admission) -> Result<bool, Error> {
+    let common = facts.automatic
+        && facts.first_metal
+        && facts.reopened_metal
+        && facts.original_wb != facts.custom_wb;
+    let decision = if facts.candidate {
+        facts.second_lookup_hits == 1
+            && facts.second_measurements == 0
+            && facts.second_publications == 0
+            && facts.identical_key
+    } else {
+        facts.second_lookup_hits == 0
+            && facts.second_measurements == 1
+            && facts.second_publications == 0
+    };
+    Ok(common && decision)
 }
 fn real_phase_capture(
     _candidate: bool,

@@ -1,4 +1,4 @@
-//! Unsupported diagnostic contracts only: no renderer/cache observation is wired.
+//! Pure diagnostic storage/interpreter only: no renderer/cache observation is wired.
 //! Request is not admission; lookup Some has no pending/persistent provenance.
 #![allow(dead_code)]
 
@@ -86,29 +86,129 @@ impl Default for Recorder {
     }
 }
 impl Recorder {
-    pub fn push(&mut self, _record: Record) -> Result<(), Error> {
-        Err(Error::Unsupported)
+    pub fn push(&mut self, record: Record) -> Result<(), Error> {
+        if self.storage.len >= CAPACITY {
+            self.storage.overflow = self.storage.overflow.saturating_add(1);
+            return Err(Error::Overflow);
+        }
+        self.storage.records[self.storage.len] = Some(record);
+        self.storage.len += 1;
+        Ok(())
     }
     pub fn drain(&mut self) -> Result<Snapshot, Error> {
-        Err(Error::Unsupported)
+        Ok(std::mem::take(self).storage)
     }
 }
-/// Future observation wraps one real result, never performs a second lookup.
-/// Regardless of recorder overflow, the closure MUST run once and its original
-/// Some/None/error MUST return as Ok(original_result). Outer Unsupported is a
-/// scaffold-only boundary and cannot remain as a production observer failure.
-/// Diagnostic overflow is recorded separately in Snapshot::overflow; it may
-/// never skip lookup, consume its value or replace its renderer error.
+/// Observe one real lookup without changing its result or ownership.
+/// Overflow lives only in the recorder: it never skips a lookup or replaces
+/// Some/None/error. The outer result is retained for the scaffold API contract,
+/// but observation itself has no failing return path.
 pub fn observe_once<T, E>(
-    _recorder: &mut Recorder,
-    _record: Record,
-    _lookup: impl FnOnce() -> Result<Option<T>, E>,
+    recorder: &mut Recorder,
+    mut record: Record,
+    lookup: impl FnOnce() -> Result<Option<T>, E>,
 ) -> Result<Result<Option<T>, E>, Error> {
-    Err(Error::Unsupported)
+    let result = lookup();
+    record.outcome = match &result {
+        Ok(Some(_)) => Outcome::Some,
+        Ok(None) => Outcome::None,
+        Err(_) => Outcome::Error,
+    };
+    let _ = recorder.push(record);
+    Ok(result)
 }
-/// Interprets complete same-identity phases; absence alone is never a hit.
-pub fn reach(_snapshot: &Snapshot, _identity: Identity, _bucket: Bucket) -> Result<Reach, Error> {
-    Err(Error::Unsupported)
+/// Interpret only one complete, bounded, same-identity render transaction.
+/// Missing/nested records prove nothing unless a successful enclosing hit
+/// explains why that lookup was not reached. A request is never a lookup hit.
+pub fn reach(snapshot: &Snapshot, identity: Identity, bucket: Bucket) -> Result<Reach, Error> {
+    if snapshot.overflow != 0 || snapshot.len < 2 || snapshot.len > CAPACITY {
+        return Ok(Reach::Inconclusive);
+    }
+    let records = &snapshot.records[..snapshot.len];
+    if records
+        .iter()
+        .any(|r| r.is_none_or(|r| r.identity != identity))
+    {
+        return Ok(Reach::Inconclusive);
+    }
+    let first = records[0].as_ref().unwrap();
+    let last = records[records.len() - 1].as_ref().unwrap();
+    if first.outcome != Outcome::Begin || last.outcome != Outcome::End {
+        return Ok(Reach::Inconclusive);
+    }
+    let body = &records[1..records.len() - 1];
+    if body
+        .iter()
+        .flatten()
+        .any(|r| matches!(r.outcome, Outcome::Begin | Outcome::End | Outcome::Abort))
+    {
+        return Ok(Reach::Inconclusive);
+    }
+    // Any render lookup error prevents attribution of skipped downstream work.
+    if body.iter().flatten().any(|r| r.outcome == Outcome::Error) {
+        return Ok(
+            if body
+                .iter()
+                .flatten()
+                .any(|r| r.bucket == bucket && r.outcome == Outcome::Error)
+            {
+                Reach::Failed
+            } else {
+                Reach::Inconclusive
+            },
+        );
+    }
+    let outcomes = |target| {
+        let mut hits = 0usize;
+        let mut misses = 0usize;
+        for r in body.iter().flatten().filter(|r| r.bucket == target) {
+            match r.outcome {
+                Outcome::Some => hits += 1,
+                Outcome::None => misses += 1,
+                _ => {}
+            }
+        }
+        (hits, misses)
+    };
+    let detail = outcomes(Bucket::Detail);
+    let padded = outcomes(Bucket::PaddedWb);
+    let tile = outcomes(Bucket::TileWb);
+    // Full-level lookups execute at most once. Contradictory nested activity
+    // after an enclosing hit is untrustworthy, not evidence for either branch.
+    if detail.0 + detail.1 > 1
+        || padded.0 + padded.1 > 1
+        || (detail.0 != 0 && (padded.0 + padded.1 + tile.0 + tile.1 != 0))
+        || (padded.0 != 0 && tile.0 + tile.1 != 0)
+    {
+        return Ok(Reach::Inconclusive);
+    }
+    // A lower-level event without its enclosing misses is not a complete
+    // control-flow trace, even when that individual event says Some.
+    if (padded.0 + padded.1 != 0 && detail != (0, 1))
+        || (tile.0 + tile.1 != 0 && (detail != (0, 1) || padded != (0, 1)))
+    {
+        return Ok(Reach::Inconclusive);
+    }
+    let (hits, misses) = outcomes(bucket);
+    if hits != 0 && misses == 0 {
+        return Ok(Reach::Hit);
+    }
+    if misses != 0 && hits == 0 {
+        return Ok(Reach::Miss);
+    }
+    if hits != 0 || misses != 0 {
+        return Ok(Reach::Inconclusive);
+    }
+    let not_reached = match bucket {
+        Bucket::Detail => false,
+        Bucket::PaddedWb => detail == (1, 0),
+        Bucket::TileWb => detail == (1, 0) || (detail == (0, 1) && padded == (1, 0)),
+    };
+    Ok(if not_reached {
+        Reach::NotReached
+    } else {
+        Reach::Inconclusive
+    })
 }
 const _: () = assert!(std::mem::size_of::<Recorder>() <= MAX_BYTES);
 const _: () = assert!(!std::mem::needs_drop::<Recorder>());
