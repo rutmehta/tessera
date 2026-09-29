@@ -485,6 +485,17 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
             if let priorRecentFolders { defaults.set(priorRecentFolders, forKey: "RecentFolderPaths") }
             else { defaults.removeObject(forKey: "RecentFolderPaths") }
         }
+        // AppModel.openFolder opens through EngineLibrary.defaultSupportDirectory. Without an
+        // override that is the user's real catalog, shared with the app and every concurrent
+        // test process: a writer there holds the index past this test's wait and pollutes it.
+        let priorAppDir = ProcessInfo.processInfo.environment["TESSERA_APP_DIR"]
+        setenv("TESSERA_APP_DIR", fixture.root.appendingPathComponent("folder-support").path, 1)
+        defer {
+            if let priorAppDir { setenv("TESSERA_APP_DIR", priorAppDir, 1) }
+            else { unsetenv("TESSERA_APP_DIR") }
+        }
+        XCTAssertEqual(EngineLibrary.defaultSupportDirectory.path,
+                       fixture.root.appendingPathComponent("folder-support").path)
         let firstDestination = fixture.root.appendingPathComponent("destination-a")
         let reentrantDestination = fixture.root.appendingPathComponent("destination-c")
         try FileManager.default.createDirectory(at: firstDestination, withIntermediateDirectories: true)
