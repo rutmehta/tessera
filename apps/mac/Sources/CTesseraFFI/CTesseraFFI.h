@@ -2989,6 +2989,12 @@ RustBuffer uniffi_tessera_ffi_fn_func_blend_mode_names(RustCallStatus *_Nonnull 
 RustBuffer uniffi_tessera_ffi_fn_func_adaptive_wide_angle_curve(RustBuffer recipe_json, RustBuffer from, RustBuffer to, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_ADAPTIVE_WIDE_ANGLE_MAX_PIXELS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_ADAPTIVE_WIDE_ANGLE_MAX_PIXELS
+uint64_t uniffi_tessera_ffi_fn_func_adaptive_wide_angle_max_pixels(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_WARP_PRESET
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_WARP_PRESET
 RustBuffer uniffi_tessera_ffi_fn_func_warp_preset(double width, double height, RustBuffer preset, double bend, RustCallStatus *_Nonnull out_status
@@ -3373,6 +3379,12 @@ uint16_t uniffi_tessera_ffi_checksum_func_blend_mode_names(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_ADAPTIVE_WIDE_ANGLE_CURVE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_ADAPTIVE_WIDE_ANGLE_CURVE
 uint16_t uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_curve(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_ADAPTIVE_WIDE_ANGLE_MAX_PIXELS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_ADAPTIVE_WIDE_ANGLE_MAX_PIXELS
+uint16_t uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_max_pixels(void
     
 );
 #endif

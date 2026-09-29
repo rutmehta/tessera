@@ -50,3 +50,9 @@ extension StubDocumentBackend: DocumentAdaptiveWideAngleBackend {
     public func cancelAdaptiveWideAngle(token: UInt64) {}
     public func adaptiveWideAngleCurve(recipeJson: String, from: CGPoint, to: CGPoint) throws -> [CGPoint] { throw Self.adaptiveNeedsEngine }
 }
+
+extension AdaptiveWideAngleFilter {
+    /// Largest layer the engine renders, in pixels (one source: `filters::adaptive_lattice::MAX_PIXELS`). Layers over
+    /// the dense 16,777,216-vertex lattice render through a coarse solve lattice (B5-20b).
+    public static var maxPixels: UInt64 { adaptiveWideAngleMaxPixels() }
+}

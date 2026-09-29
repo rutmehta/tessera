@@ -151,6 +151,7 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         XCTAssertEqual(AdaptiveWideAngleFilter.displayName("adaptive_wide_angle"), "Adaptive Wide Angle")
         XCTAssertEqual(AdaptiveWideAngleFilter.displayName("Gaussian Blur"), "Gaussian Blur")
         XCTAssertNil(AdaptiveWideAngleFilter.refusal(kind: .pixel))
+        XCTAssertEqual(AdaptiveWideAngleFilter.maxPixels, 100_000_000, "B5-20b: the engine's one limit, over FFI")
         XCTAssertNil(AdaptiveWideAngleFilter.refusal(kind: .smartObject))
         XCTAssertNotNil(AdaptiveWideAngleFilter.refusal(kind: .adjustment))
         XCTAssertNotNil(AdaptiveWideAngleFilter.refusal(kind: nil))

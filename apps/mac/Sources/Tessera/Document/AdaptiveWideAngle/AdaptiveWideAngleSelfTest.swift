@@ -3,8 +3,9 @@ import ImageIO
 import TesseraCore
 
 /// `--adaptive-wide-angle-selftest <dir>` (test aid, WP B5-20): acceptance steps 460–479 through the calls the menu,
-/// canvas and sheet make. If the library has a RAW (sample.dng is 5212 × 3468) it checks that the filter refuses it
-/// (over the 4095 × 4095 lattice cap). Then it writes a 1200 × 900 fisheye grid into <dir>, opens it, opens Filter ▸
+/// canvas and sheet make. If the library has a RAW (sample.dng is 5212 × 3468, over the dense 16,777,216-vertex
+/// lattice) it opens the workspace on it, constrains, previews and applies at full resolution through the coarse
+/// lattice (B5-20b; one history row), then undoes. Then it writes a 1200 × 900 fisheye grid into <dir>, opens it, opens Filter ▸
 /// Adaptive Wide Angle…, switches to Fisheye, sets the focal length, draws a vertical and a straight constraint (as a drag
 /// does), toggles Preview, cancels (no history), reopens and applies (one row), undoes, converts for smart filters,
 /// applies as a smart filter, re-opens the row (lines and camera kept), edits it (still one smart filter), and
@@ -151,7 +152,9 @@ final class AdaptiveWideAngleSelfTest {
         let awa = DocumentAdaptiveWideAngle.shared
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        // 477: a library RAW over 4095 × 4095 is refused with the size in the message.
+        // B5-20b: a library RAW over the dense lattice (sample.dng, 5212 × 3468) previews and applies through the
+        // coarse lattice; only layers over the engine's absolute limit are refused.
+        log("engine limit \(AdaptiveWideAngleFilter.maxPixels) px")
         if await wait(60, { !model.isLoading && !model.library.items.isEmpty }),
            let item = model.library.items.first(where: { $0.name == "sample.dng" }) ?? model.library.items.first(where: { $0.kind == .raw }) {
             model.select(id: item.id)
@@ -160,17 +163,28 @@ final class AdaptiveWideAngleSelfTest {
                let photo = big.layers.first(where: { $0.kind == .pixel })?.id {
                 big.select(photo)
                 log("library document \(big.info.width) × \(big.info.height) px")
-                awa.open(big)
-                _ = await wait(60) { !awa.opening }
-                let status = model.statusMessage ?? ""
-                if big.info.width >= 4096 || big.info.height >= 4096 {
-                    check("oversized layer refused", awa.workspace == nil && status.contains("4095 × 4095"), status)
-                    await mark("oversized-refused")
+                let t = Date()
+                if let m = await open({ awa.open(big) }) {
+                    log(String(format: "real-size workspace open: %.2f s", Date().timeIntervalSince(t)))
+                    check("real-size workspace opens", m.info.width == big.info.width && m.info.height == big.info.height)
+                    await constrain(m, mm: 16)
+                    m.preview = true
+                    _ = await wait(60) { m.corrected != nil || m.error != nil }
+                    check("real-size corrected preview", m.corrected != nil, m.error ?? "")
+                    log("real-size preview \(m.info.previewWidth) × \(m.info.previewHeight): \(m.previewMillis.map { String(format: "%.0f ms", $0) } ?? "–")")
+                    await mark("real-size-preview")
+                    let rows = big.history.count
+                    check("real-size apply is one history row", await applied(m) && big.history.count == rows + 1,
+                          "\(big.history.map(\.label)) \(model.statusMessage ?? "")")
+                    await mark("real-size-applied")
+                    big.undo()
+                    await pause(1)
+                } else {
+                    check("real-size workspace opens", false, model.statusMessage ?? "")
                 }
-                awa.workspace?.cancel()
             }
         } else {
-            log("no RAW in the library: the oversized-layer check is skipped")
+            log("no RAW in the library: the real-size check is skipped")
         }
 
         guard let url = fisheyeGrid() else { log("FAIL could not write the fisheye grid"); return finish() }

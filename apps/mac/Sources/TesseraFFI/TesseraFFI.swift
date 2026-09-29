@@ -36375,6 +36375,16 @@ public func adaptiveWideAngleCurve(recipeJson: String, from: [Double], to: [Doub
 })
 }
 /**
+ * Largest layer (pixels) Adaptive Wide Angle renders, for the app's copy.
+ */
+public func adaptiveWideAngleMaxPixels() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_adaptive_wide_angle_max_pixels(uniffiCallStatus
+    )
+})
+}
+/**
  * A preset warp mesh (`transform::warp::WarpMesh` JSON) of a `width ×
  * height` child. Bend is signed [-1, 1]; zero is the identity mesh.
  */
@@ -36654,6 +36664,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_curve() != 43296) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_max_pixels() != 55008) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_warp_preset() != 23938) {

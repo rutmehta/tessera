@@ -93,6 +93,11 @@ public struct AdaptiveWideAngleDraft: Equatable, @unchecked Sendable {
     public private(set) var lines: [AdaptiveConstraint]
     private let base: [String: Any]
     private let center: [Double]
+    /// The stored camera and output focal lengths (pixels), written back verbatim until the focal length is edited
+    /// (B5-20b: re-edit must not clamp them to the slider's range or overwrite a differing output focal).
+    private let storedFocalPx: Double
+    private let storedOutputFocalPx: Double
+    private var focalEdited = false
 
     /// Parses an engine recipe. Throws for a recipe this sheet cannot edit (a lens profile camera, a malformed one).
     public init(recipeJson: String) throws {
@@ -108,6 +113,8 @@ public struct AdaptiveWideAngleDraft: Equatable, @unchecked Sendable {
         projection = AdaptiveProjection(rawValue: manual["projection"] as? String ?? "") ?? .rectilinear
         center = (manual["center"] as? [NSNumber])?.map(\.doubleValue) ?? [Double(w) / 2, Double(h) / 2]
         let focalPx = (manual["focal_px"] as? NSNumber)?.doubleValue ?? Double(max(w, h))
+        storedFocalPx = focalPx
+        storedOutputFocalPx = (root["output_focal_px"] as? NSNumber)?.doubleValue ?? focalPx
         focal35 = 0
         scalePercent = 100
         lines = []
@@ -126,13 +133,18 @@ public struct AdaptiveWideAngleDraft: Equatable, @unchecked Sendable {
 
     private var longEdge: Double { Double(max(width, height)) }
     public var focalPx: Double { focal35 / 36 * longEdge }
+    /// The camera focal the recipe carries: the stored one until the focal length is edited.
+    private var cameraFocalPx: Double { focalEdited ? focalPx : storedFocalPx }
 
     private func clampFocal(_ v: Double) -> Double {
         let r = AdaptiveWideAngleFilter.focalRange
         return v.isFinite ? min(max(v, r.lowerBound), r.upperBound) : 24
     }
 
-    public mutating func setFocal35(_ mm: Double) { focal35 = clampFocal(mm) }
+    public mutating func setFocal35(_ mm: Double) {
+        focal35 = clampFocal(mm)
+        focalEdited = true
+    }
 
     public mutating func setScalePercent(_ v: Double) {
         let r = AdaptiveWideAngleFilter.scaleRange
@@ -140,7 +152,7 @@ public struct AdaptiveWideAngleDraft: Equatable, @unchecked Sendable {
     }
 
     /// Changes whenever the constraint curves must be traced again (camera model or focal length).
-    public var curveKey: String { "\(projection.rawValue)|\(focalPx)" }
+    public var curveKey: String { "\(projection.rawValue)|\(cameraFocalPx)" }
 
     // MARK: Lines
 
@@ -184,8 +196,8 @@ public struct AdaptiveWideAngleDraft: Equatable, @unchecked Sendable {
     /// The recipe for the engine (keys sorted), with the edited camera, scale and lines over the base recipe.
     public var recipeJson: String {
         var r = base
-        r["camera"] = ["Manual": ["focal_px": focalPx, "center": center, "projection": projection.rawValue]]
-        r["output_focal_px"] = focalPx
+        r["camera"] = ["Manual": ["focal_px": cameraFocalPx, "center": center, "projection": projection.rawValue]]
+        r["output_focal_px"] = focalEdited ? focalPx : storedOutputFocalPx
         r["scale"] = scalePercent / 100
         r["lines"] = lines.map { l in
             ["points": l.points.map { [Double($0.x), Double($0.y)] }, "orientation": l.orientation.rawValue, "weight": l.weight] as [String: Any]
