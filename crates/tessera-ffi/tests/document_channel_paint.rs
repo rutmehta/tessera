@@ -180,7 +180,10 @@ fn channel_stroke_changes_only_the_channel_in_one_undoable_node() {
     let (d, e) = engine();
     let (s, layer) = doc(&e);
     fill(&s, layer);
-    let a = s.new_alpha_channel("Alpha 1".into(), false).unwrap().channel_id;
+    let a = s
+        .new_alpha_channel("Alpha 1".into(), false)
+        .unwrap()
+        .channel_id;
     let composite = export_png(&s, &d.path().join("before.png"));
     let pixels = layer_px(&s, layer, 100, 150);
     let n = nodes(&s);
@@ -227,7 +230,10 @@ fn channel_stroke_changes_only_the_channel_in_one_undoable_node() {
 fn brush_paints_luminance_and_eraser_paints_toward_zero() {
     let (_d, e) = engine();
     let (s, layer) = doc(&e);
-    let a = s.new_alpha_channel("Alpha 1".into(), true).unwrap().channel_id;
+    let a = s
+        .new_alpha_channel("Alpha 1".into(), true)
+        .unwrap()
+        .channel_id;
     assert_eq!(chan_px(&s, a, 100, 150), 1.0);
     stroke(&s, layer, a, StrokeTool::Eraser, WHITE, 50.0, 150.0);
     assert_eq!(labels(&s).last().unwrap(), "Eraser");
@@ -249,7 +255,10 @@ fn brush_paints_luminance_and_eraser_paints_toward_zero() {
 fn selection_limits_channel_paint() {
     let (_d, e) = engine();
     let (s, layer) = doc(&e);
-    let a = s.new_alpha_channel("Alpha 1".into(), false).unwrap().channel_id;
+    let a = s
+        .new_alpha_channel("Alpha 1".into(), false)
+        .unwrap()
+        .channel_id;
     s.select_marquee(
         MarqueeShape::Rect,
         0.0,
@@ -272,7 +281,10 @@ fn selection_limits_channel_paint() {
 fn layer_locks_and_layer_kind_do_not_block_channel_paint() {
     let (_d, e) = engine();
     let (s, layer) = doc(&e);
-    let a = s.new_alpha_channel("Alpha 1".into(), false).unwrap().channel_id;
+    let a = s
+        .new_alpha_channel("Alpha 1".into(), false)
+        .unwrap()
+        .channel_id;
     s.set_locks(
         layer,
         LayerLocks {
@@ -322,7 +334,10 @@ fn unknown_channel_fails_without_a_history_node() {
 fn clone_and_heal_are_refused_on_channels() {
     let (_d, e) = engine();
     let (s, layer) = doc(&e);
-    let a = s.new_alpha_channel("Alpha 1".into(), false).unwrap().channel_id;
+    let a = s
+        .new_alpha_channel("Alpha 1".into(), false)
+        .unwrap()
+        .channel_id;
     s.set_clone_source(layer, 10.0, 0.0).unwrap();
     let n = nodes(&s);
     for tool in [StrokeTool::Clone, StrokeTool::Heal] {
@@ -365,7 +380,10 @@ fn round_trip(ext: &str) {
     let (d, e) = engine();
     let (s, layer) = doc(&e);
     fill(&s, layer);
-    let a = s.new_alpha_channel("Painted".into(), false).unwrap().channel_id;
+    let a = s
+        .new_alpha_channel("Painted".into(), false)
+        .unwrap()
+        .channel_id;
     stroke(&s, layer, a, StrokeTool::Brush, WHITE, 50.0, 150.0);
     let composite = export_png(&s, &d.path().join("before.png"));
     let path = d.path().join(format!("painted.{ext}"));

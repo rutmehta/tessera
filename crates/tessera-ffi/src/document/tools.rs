@@ -98,6 +98,12 @@ pub enum StrokeTarget {
     Pixels,
     /// The layer mask (created revealing all when the layer has none).
     Mask,
+    // B5-17c begin
+    /// Saved alpha / spot channel `id` (also the Quick Mask channel). The
+    /// layer argument is ignored; layer locks do not apply; the brush paints
+    /// its colour's luminance, the eraser paints toward 0.
+    Channel { id: u64 },
+    // B5-17c end
 }
 
 /// The painting tool.
@@ -1322,23 +1328,45 @@ impl DocumentSession {
             self.update(&mut st, &before, None, true);
         }
         let state = st.doc.state().clone();
-        let l = find(&state, layer)?;
-        if l.props.locks.pixels || l.props.locks.all {
-            return Err(failure("the layer's pixels are locked"));
-        }
+        // B5-17c begin: the layer lookup and lock checks apply to layer
+        // targets only (a channel target ignores `layer`).
+        let paintable = || {
+            let l = find(&state, layer)?;
+            if l.props.locks.pixels || l.props.locks.all {
+                return Err(failure("the layer's pixels are locked"));
+            }
+            Ok(l)
+        };
+        // B5-17c end
         let mut prelude = Vec::new();
         let (base, paint_target, lock_alpha) = match target {
-            StrokeTarget::Pixels => match &l.kind {
-                LayerKind::Pixel(r) => {
-                    (r.clone(), PaintTarget::Content, l.props.locks.transparency)
-                }
-                _ => {
+            // B5-17c begin: resolved through the channel paint target (as
+            // tessera-mcp does); never alpha-locked; Clone/Heal refused.
+            StrokeTarget::Channel { id } => {
+                if matches!(tool, StrokeTool::Clone | StrokeTool::Heal) {
                     return Err(failure(
-                        "only pixel layers can be painted; paint its mask or add a pixel layer",
+                        "the Clone Stamp and Healing Brush cannot paint into a channel",
                     ));
                 }
-            },
-            StrokeTarget::Mask => match &l.mask {
+                let pt = PaintTarget::Channel(compositor::channels::ChannelId(id));
+                let base = pt.raster(&state, LayerId(layer)).map_err(engine_err)?;
+                (base.clone(), pt, false)
+            }
+            // B5-17c end
+            StrokeTarget::Pixels => {
+                let l = paintable()?;
+                match &l.kind {
+                    LayerKind::Pixel(r) => {
+                        (r.clone(), PaintTarget::Content, l.props.locks.transparency)
+                    }
+                    _ => {
+                        return Err(failure(
+                            "only pixel layers can be painted; paint its mask or add a pixel layer",
+                        ));
+                    }
+                }
+            }
+            StrokeTarget::Mask => match &paintable()?.mask {
                 Some(m) => (m.raster.clone(), PaintTarget::Mask, false),
                 None => {
                     let m = LayerMask::reveal_all(state.canvas, state.depth);
