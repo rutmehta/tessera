@@ -36363,6 +36363,18 @@ public func blendModeNames() -> [String]  {
  * interleaved x, y samples including both ends. Photoshop's Constraint
  * tool bends lines the same way; the constraint then only has to absorb
  * the camera model's error, not the lens curvature.
+ *
+ * Segment count: the solver joins samples with straight source segments,
+ * and a chord of length `L` on a curve of curvature `k` misses it by the
+ * sagitta `k L² / 8`. Curvature in pixels falls as 1 / image size for a
+ * given field of view, so a fixed count (the B5-20 cap of 64) grows the
+ * error linearly with the photo (≈ 0.46 px on a full-width 24 MP line,
+ * ≈ 1.9 px at 100 MP, against 0.25 px). The start is one segment per
+ * 24 source px (`clamp(ceil(chord / 24), 4, 256)`); the count then
+ * doubles, up to 1024, while any segment's measured output-space sagitta
+ * exceeds `CURVE_SAGITTA_PX`. Halving `L` quarters the sagitta, so one or
+ * two doublings cover 100 MP and strong fisheyes (a full-width 24 MP
+ * horizon at f = 0.4 w takes one: 470 segments).
  */
 public func adaptiveWideAngleCurve(recipeJson: String, from: [Double], to: [Double])throws  -> [Double]  {
     return try  FfiConverterSequenceDouble.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -36663,7 +36675,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_blend_mode_names() != 47688) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_curve() != 43296) {
+    if (uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_curve() != 43935) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_adaptive_wide_angle_max_pixels() != 55008) {

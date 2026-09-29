@@ -277,10 +277,11 @@ const CURVE_MAX_SEGMENTS: usize = 1024;
 /// given field of view, so a fixed count (the B5-20 cap of 64) grows the
 /// error linearly with the photo (≈ 0.46 px on a full-width 24 MP line,
 /// ≈ 1.9 px at 100 MP, against 0.25 px). The start is one segment per
-/// 24 source px (`clamp(ceil(chord / 24), 4, 256)`: ≈ 0.03 px at 24 MP);
-/// the count then doubles, up to 1024, while any segment's measured
-/// output-space sagitta exceeds `CURVE_SAGITTA_PX`. Halving `L` quarters
-/// the sagitta, so one or two doublings cover 100 MP and strong fisheyes.
+/// 24 source px (`clamp(ceil(chord / 24), 4, 256)`); the count then
+/// doubles, up to 1024, while any segment's measured output-space sagitta
+/// exceeds `CURVE_SAGITTA_PX`. Halving `L` quarters the sagitta, so one or
+/// two doublings cover 100 MP and strong fisheyes (a full-width 24 MP
+/// horizon at f = 0.4 w takes one: 470 segments).
 #[uniffi::export]
 pub fn adaptive_wide_angle_curve(
     recipe_json: String,
