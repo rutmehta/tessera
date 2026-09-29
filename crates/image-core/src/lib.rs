@@ -17,6 +17,8 @@
 
 #![forbid(unsafe_code)]
 
+#[macro_use]
+mod wb_hooks;
 mod adobe;
 pub use ml_depth;
 pub mod cache;

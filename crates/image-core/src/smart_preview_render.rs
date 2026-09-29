@@ -87,9 +87,16 @@ impl Renderer {
             .copied()
             .filter(|c| unique_seen.insert(*c))
             .collect();
-        if let Some(rendered) =
-            self.try_camera_linear_resident(image, settings, &unique, output, cancel, None)?
-        {
+        if let Some(rendered) = self.try_camera_linear_resident(
+            image,
+            settings,
+            &unique,
+            output,
+            cancel,
+            None,
+            #[cfg(feature = "wb-diagnostic")]
+            None,
+        )? {
             for tile in rendered.tiles {
                 cancel.check()?;
                 sink(tile);
@@ -194,6 +201,7 @@ impl Renderer {
             }))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn try_camera_linear_resident(
         &self,
         image: &RawImage,
@@ -202,6 +210,7 @@ impl Renderer {
         output: RenderOutput,
         cancel: &CancellationToken,
         surface: Option<SurfaceTarget>,
+        #[cfg(feature = "wb-diagnostic")] diag: Option<crate::wb_diagnostic::Token>,
     ) -> EngineResult<Option<ResidentOutput>> {
         cancel.check()?;
         self.validate_camera_linear_proxy(image, settings)?;
@@ -243,10 +252,43 @@ impl Renderer {
                 "outside camera-linear output",
             ));
         }
+        // After every early return: the only site that binds a token.
+        #[cfg(feature = "wb-diagnostic")]
+        let r = self.wb_bind(r, diag, output, level);
         if level > 0 {
             return self.run_camera_linear_coarse(&r, coords, output, cancel, batch, surface);
         }
         self.run_resident(&r, coords, output, cancel, batch, surface)
             .map(Some)
+    }
+}
+
+#[cfg(feature = "wb-diagnostic")]
+impl Renderer {
+    /// WB diagnostic binding (rev7 R3a, D1). B0: returns `r` unchanged.
+    fn wb_bind<'a>(
+        &self,
+        r: Resolved<'a>,
+        diag: Option<crate::wb_diagnostic::Token>,
+        output: RenderOutput,
+        level: u8,
+    ) -> Resolved<'a> {
+        let _ = (diag, output, level);
+        r
+    }
+
+    /// Test entry point (rev7 R3a'): `try_camera_linear_resident` is visible
+    /// only inside `render`. Does not call `wb_bind` itself.
+    #[cfg(test)]
+    pub(crate) fn camera_linear_resident_for_test(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        coords: &[TileCoord],
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        diag: Option<crate::wb_diagnostic::Token>,
+    ) -> EngineResult<Option<ResidentOutput>> {
+        self.try_camera_linear_resident(image, settings, coords, output, cancel, None, diag)
     }
 }
