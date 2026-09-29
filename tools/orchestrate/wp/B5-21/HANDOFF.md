@@ -43,7 +43,11 @@ toggles the panels again. This matches Photoshop (Tab in a panel moves between f
   main: plain button, focus-proxy view, eye button → History chain).
 - `89e1fcc5` fix: `apps/mac/Sources/Tessera/App/KeyRouter.swift` (`panelViewHasKeyboard(in:)` + one guard at the
   top of `handleDocument`, header comment).
-- this handoff.
+- `df1f29b4` this handoff (reviewed by A).
+- `4a4f11e3` review B1 RED: 5 more tests in `DocumentPanelTabTraversalTests` (3 red: alpha-0 container, grid behind
+  document mode, entering document mode / document change).
+- `bd125ed8` review B1 fix: `DocumentViewport.swift` (`claimKeyboardIfStray`), `KeyRouter.swift` (`isStrayResponder`).
+- handoff update (B1 section, checklist, later-WP note).
 
 Tests (hosted `NSWindow`s ordered back; the app is never activated and no window is made key):
 Tab/⇧Tab over a focused plain `NSButton` isn't consumed; the same for a non-control first-responder view (focus
@@ -61,24 +65,68 @@ from ↺ goes back to +. Tab from `LayersOutlineView` reaches −, and the panel
   -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors`): exit 0, "Build of product 'Tessera' complete!".
 - `tools/orchestrate/swift-gate.sh`: 837 XCTest tests (3 skipped, 0 failures) + 5 swift-testing tests, `SWIFT GATE OK`.
 
+## Review B1 fix (Machine A review of df1f29b4)
+
+Blocker: ContentView keeps the Library grid (`ThumbnailCollectionView`) attached at opacity 0 behind document mode.
+When it was first responder (click a thumbnail, then ⌘E; or `--open-document`, A's trace), `panelViewHasKeyboard`
+reported a panel view and the grid's `keyDown` swallowed Tab: no panel toggle, no focus move until a canvas click.
+
+Fix (commits on top of df1f29b4, no rebase):
+- `DocumentViewportView.claimKeyboardIfStray()` (`apps/mac/Sources/Tessera/Document/DocumentViewport.swift`), called
+  from `viewDidMoveToWindow` (entering document mode) and at the end of `attach(_:)` (document change). It makes
+  the viewport first responder only when the window's first responder is nothing / the window, a view in another
+  window, or a stray view. A focused panel, toolbar or text control keeps the keyboard.
+- `KeyRouter.isStrayResponder(_:)`: hidden, under an ancestor with `alphaValue` 0 or layer opacity 0, or inside a
+  `ThumbnailCollectionView` (the grid and filmstrip are never visible in document mode). `panelViewHasKeyboard`
+  now ignores stray responders (defence in depth), so Tab toggles the panels even if the grid gets focus again.
+
+Tests added in `DocumentPanelTabTraversalTests` (RED commit first; 3 of 5 new tests red before the fix):
+- focused view under an alpha-0 container → Tab toggles the panels both ways;
+- the real grid (hosted SwiftUI fixture mirroring ContentView's ZStack) forced to first responder in document mode
+  → not a panel view, Tab toggles the panels;
+- entering document mode with the grid as first responder → the viewport has the keyboard, Tab toggles; a new
+  current document while the grid holds it → the new viewport has it;
+- a focused Layers eye button keeps the keyboard across a viewport re-attach;
+- realistic restore (replaces reliance on the synthetic hidden-button test, which stays): eye button focused, hide
+  the panels via View ▸ Hide Panels (`togglePanels`) and via the F path (`cycleScreenMode` twice); the inspector
+  leaves the window, AppKit drops the focus, nothing left holds Tab, Tab brings the panels back, the canvas can take
+  the keyboard and Tab over it hides them again.
+
+## Gates after the B1 fix (worktree, bd125ed8)
+
+- `apps/mac/build-ffi.sh`: OK.
+- Focused: `DocumentPanelTabTraversalTests|DocumentKeyRoutingTests|KeyFocusTests|InspectorFocusTraceTests|InspectorFocusAXBridgeTests|DocumentHistoryKeyboardTraversalTests|DocumentDitherCheckboxTests`:
+  59 tests, 0 failures (DocumentPanelTabTraversalTests 12/12).
+- Strict release build: "Build of product 'Tessera' complete!".
+- `tools/orchestrate/swift-gate.sh`: 842 XCTest tests (3 skipped, 0 failures) + 5 swift-testing tests, `SWIFT GATE OK`.
+
 ## On-screen checklist for A (FKA ON, isolated profile, focus trace on)
 
-Open or create a document, Stack tab, History expanded with the height not at its default (so −, + and ↺ are all
-enabled).
+A's refined 0–13 checklist in `review-b5-21.md` (Machine A) supersedes this one; this is our version with the B1
+steps folded in.
 
-1. Click the canvas, press Tab: the panels hide (trace: DocumentViewportView, handled=true). Tab again: they come back.
-2. Click a Layers row, then Tab: focus moves to the row's eye button (ring). Tab again: focus moves on
-   (next eye button or the Layers footer controls), the panels stay visible, trace handled=false (NSButton / KeyViewProxy).
-3. Keep pressing Tab: focus goes through the Layers footer and the History disclosure to History −, then +, then
-   ↺ (focus ring on each); the panels stay visible the whole way. ⇧Tab from ↺ goes back to +.
-4. With focus on + press Space: History grows by one row (the History H-act check from B5-16).
-5. With focus on an eye button press B: the Brush tool is selected, focus stays and the panels stay.
-6. Focus a toolbar tool button or the titlebar sidebar toggle (Tab / ⇧Tab to it): Tab moves focus and doesn't
-   toggle the panels.
-7. Click in the layer-name rename field or a Properties text field: Tab keeps the field behaviour (no panel toggle).
-8. Click the canvas again, Tab: panels toggle (no regression). Hide the panels with focus on the canvas, then check
-   that nothing in the hidden inspector keeps Tab (Tab brings the panels back).
-9. Regression: Dither D2/D3 from B5-16 (Tab from Dither → Color header, panels stay).
+0. Launch with `--open-document` (or click a thumbnail in the grid, then ⌘E). Before clicking anything, check
+   the trace: first responder is `DocumentViewportView`, not `ThumbnailCollectionView`.
+1. Without clicking, press Tab: the panels hide (trace: DocumentViewportView, handled=true). Tab again: they come back.
+2. Open or create a second document (or switch documents) without clicking the canvas: Tab still toggles the panels.
+3. Stack tab, History expanded with the height not at its default (−, + and ↺ all enabled). Click a Layers row,
+   then Tab: focus moves to the row's eye button (ring). Tab again: focus moves on, panels stay, trace handled=false
+   (NSButton / KeyViewProxy).
+4. Keep pressing Tab: focus goes through the Layers footer and the History disclosure to History −, then +, then ↺
+   (focus ring on each); the panels stay visible the whole way. ⇧Tab from ↺ goes back to +.
+5. With focus on + press Space: History grows by one row (the History H-act check from B5-16).
+6. With focus on an eye button press B: the Brush tool is selected, focus stays and the panels stay.
+7. Focus a toolbar tool button or the titlebar sidebar toggle: Tab moves focus and doesn't toggle the panels.
+8. Click in the layer-name rename field or a Properties text field: Tab keeps the field behaviour (no panel toggle).
+9. With an eye button focused, View ▸ Hide Panels: the panels hide; press Tab: they come back (not dead).
+10. With an eye button focused, press F twice (full screen, then full screen without panels): press Tab: the
+    panels come back. Press F again to return to standard.
+11. Click the canvas, Tab: panels toggle (no regression).
+12. Leave document mode (grid), click a thumbnail, ⌘E again: step 0/1 behaviour holds on re-entry.
+13. Regression: Dither D2/D3 from B5-16 (Tab from Dither → Color header, panels stay).
 
 Known, out of scope: Space over a focused plain eye/toolbar button still pans (document `panHold`) and does not
 press the button. That's unchanged by this package.
+
+Later WP (not in B5-21): ⌫ on a focused Layers eye button deletes the layer (pre-existing; B5-21 makes the button
+easier to reach).
