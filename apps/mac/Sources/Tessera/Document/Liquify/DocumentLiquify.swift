@@ -122,6 +122,9 @@ final class LiquifyWorkspaceModel: Identifiable {
     @ObservationIgnored private var pendingSince: Date?
     @ObservationIgnored private var inFlight = false
     @ObservationIgnored private var strokeTool: LiquifyToolKind?
+    /// The tool of the batches still to send (kept after the pointer is released).
+    @ObservationIgnored private var batchTool: LiquifyToolKind?
+    @ObservationIgnored private var endPending = false
     @ObservationIgnored private var restTimer: Timer?
     @ObservationIgnored private var lastPoint: LiquifyInputPoint?
     @ObservationIgnored private var fitted = false
@@ -189,6 +192,8 @@ final class LiquifyWorkspaceModel: Identifiable {
         guard busy == nil, !closed else { return }
         error = nil
         strokeTool = tool.withOption(option)
+        batchTool = strokeTool
+        endPending = false
         showOriginal = false
         add(source, pressure: pressure)
         restTimer?.invalidate()
@@ -216,9 +221,9 @@ final class LiquifyWorkspaceModel: Identifiable {
         restTimer = nil
         strokeTool = nil
         lastPoint = nil
-        let (b, t) = (backend, info.token)
-        queue.async { try? b.liquifyEndStroke(token: t) }
-        refresh(mesh: true)
+        // The stroke ends after its last batch has been sent (`pump`).
+        endPending = true
+        pump()
     }
 
     private func add(_ p: CGPoint, pressure: Float) {
@@ -231,7 +236,17 @@ final class LiquifyWorkspaceModel: Identifiable {
 
     /// Sends the pending points and renders, unless a batch is in flight (they join the next one).
     private func pump() {
-        guard !inFlight, !pending.isEmpty, let tool = strokeTool else { return }
+        guard !inFlight else { return }
+        if pending.isEmpty {
+            if endPending {
+                endPending = false
+                let (b, t) = (backend, info.token)
+                queue.async { try? b.liquifyEndStroke(token: t) }
+                refresh(mesh: true)
+            }
+            return
+        }
+        guard let tool = batchTool else { pending.removeAll(); return }
         let batch = pending
         let since = pendingSince ?? Date()
         pending.removeAll()
@@ -292,7 +307,7 @@ final class LiquifyWorkspaceModel: Identifiable {
 
     /// Waits until queued engine work has run (self-test).
     func idle() async {
-        while inFlight || !pending.isEmpty { try? await Task.sleep(for: .milliseconds(10)) }
+        while inFlight || !pending.isEmpty || endPending { try? await Task.sleep(for: .milliseconds(10)) }
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in queue.async { c.resume() } }
         try? await Task.sleep(for: .milliseconds(30))
     }

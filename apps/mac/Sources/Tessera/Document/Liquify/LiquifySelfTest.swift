@@ -254,7 +254,7 @@ final class LiquifySelfTest {
         _ = await wait(120) { applied != nil }
         check("407 apply is one Liquify node", (try? applied?.get()) != nil && doc.history.count == hist406 + 1
               && doc.history.last?.label == "Liquify", "\(doc.history.map(\.label).suffix(3))")
-        check("407 workspace closed", L.workspace == nil && docWindow?.attachedSheet == nil)
+        check("407 workspace closed", await wait(5) { L.workspace == nil && docWindow?.attachedSheet == nil })
         await shot("407-applied")
         doc.run("Undo") { try doc.backend.undo() }
         check("407 undo", doc.history.last(where: { $0.id == doc.info.historyHead })?.label != "Liquify")

@@ -32,7 +32,7 @@ struct LiquifySheets: ViewModifier {
 struct LiquifyWorkspaceSheet: View {
     @Bindable var model: LiquifyWorkspaceModel
 
-    private let panelWidth: CGFloat = 264
+    private let panelWidth: CGFloat = 312
 
     var body: some View {
         SheetScaffold(title: model.title, subtitle: model.subtitle) {
@@ -196,6 +196,14 @@ final class LiquifyCanvasView: NSView {
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        // A zoomed image must never draw over the tool column or the controls.
+        clipsToBounds = true
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
