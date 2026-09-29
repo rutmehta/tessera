@@ -255,11 +255,32 @@ fn unproject(recipe: &Adaptive, q: [f64; 2], guess: [f64; 2]) -> Option<[f64; 2]
     ((f[0] - q[0]).hypot(f[1] - q[1]) < 1e-3).then_some(p)
 }
 
+/// Output-pixel error allowed for one traced segment: the largest distance
+/// between the projected midpoint of a straight source segment and the
+/// straight projected edge. A fifth of the solver's default 0.25 px
+/// constraint tolerance, leaving the rest to the mesh fit.
+const CURVE_SAGITTA_PX: f64 = 0.05;
+/// Most segments per traced line (1,025 input samples; the solver still
+/// densifies every four source pixels, so this does not raise its sample
+/// count).
+const CURVE_MAX_SEGMENTS: usize = 1024;
+
 /// The source-pixel image of the straight scene edge from `from` to `to`
 /// under `recipe_json`'s camera: the curve a constraint line follows, as
 /// interleaved x, y samples including both ends. Photoshop's Constraint
 /// tool bends lines the same way; the constraint then only has to absorb
 /// the camera model's error, not the lens curvature.
+///
+/// Segment count: the solver joins samples with straight source segments,
+/// and a chord of length `L` on a curve of curvature `k` misses it by the
+/// sagitta `k L² / 8`. Curvature in pixels falls as 1 / image size for a
+/// given field of view, so a fixed count (the B5-20 cap of 64) grows the
+/// error linearly with the photo (≈ 0.46 px on a full-width 24 MP line,
+/// ≈ 1.9 px at 100 MP, against 0.25 px). The start is one segment per
+/// 24 source px (`clamp(ceil(chord / 24), 4, 256)`: ≈ 0.03 px at 24 MP);
+/// the count then doubles, up to 1024, while any segment's measured
+/// output-space sagitta exceeds `CURVE_SAGITTA_PX`. Halving `L` quarters
+/// the sagitta, so one or two doublings cover 100 MP and strong fisheyes.
 #[uniffi::export]
 pub fn adaptive_wide_angle_curve(
     recipe_json: String,
@@ -280,23 +301,48 @@ pub fn adaptive_wide_angle_curve(
     if !chord.is_finite() || chord < 1.0 {
         return Err(failure("a constraint line needs two distinct ends"));
     }
-    let n = ((chord / 24.0).ceil() as usize).clamp(4, 64);
-    let mut out = Vec::with_capacity((n + 1) * 2);
-    let mut prev = a;
-    for i in 0..=n {
-        let t = i as f64 / n as f64;
-        let p = if i == 0 {
-            a
-        } else if i == n {
-            b
-        } else {
-            let q = [qa[0] + (qb[0] - qa[0]) * t, qa[1] + (qb[1] - qa[1]) * t];
-            unproject(&recipe, q, prev).ok_or_else(outside)?
-        };
-        out.extend_from_slice(&p);
-        prev = p;
+    let trace = |n: usize| -> Result<Vec<[f64; 2]>> {
+        let mut out = Vec::with_capacity(n + 1);
+        let mut prev = a;
+        for i in 0..=n {
+            let t = i as f64 / n as f64;
+            let p = if i == 0 {
+                a
+            } else if i == n {
+                b
+            } else {
+                let q = [qa[0] + (qb[0] - qa[0]) * t, qa[1] + (qb[1] - qa[1]) * t];
+                unproject(&recipe, q, prev).ok_or_else(outside)?
+            };
+            out.push(p);
+            prev = p;
+        }
+        Ok(out)
+    };
+    // Distance of each segment's projected midpoint from the projected edge.
+    let (dx, dy) = (qb[0] - qa[0], qb[1] - qa[1]);
+    let span = dx.hypot(dy);
+    let sagitta = |points: &[[f64; 2]]| -> f64 {
+        if span.is_nan() || span <= 1e-9 {
+            return 0.0;
+        }
+        points
+            .windows(2)
+            .map(|s| {
+                let m = [(s[0][0] + s[1][0]) / 2., (s[0][1] + s[1][1]) / 2.];
+                recipe.project(m).map_or(f64::INFINITY, |q| {
+                    ((q[0] - qa[0]) * dy - (q[1] - qa[1]) * dx).abs() / span
+                })
+            })
+            .fold(0.0, f64::max)
+    };
+    let mut n = ((chord / 24.0).ceil() as usize).clamp(4, 256);
+    let mut points = trace(n)?;
+    while n < CURVE_MAX_SEGMENTS && sagitta(&points) > CURVE_SAGITTA_PX {
+        n *= 2;
+        points = trace(n)?;
     }
-    Ok(out)
+    Ok(points.into_iter().flatten().collect())
 }
 
 impl DocumentSession {
@@ -683,7 +729,24 @@ mod tests {
         let c =
             adaptive_wide_angle_curve(json.clone(), vec![150., 100.], vec![150., 500.]).unwrap();
         let pts: Vec<[f64; 2]> = c.chunks(2).map(|p| [p[0], p[1]]).collect();
-        assert_eq!(pts.len(), 18);
+        // 400 px chord: 17 segments to start (one per 24 px), doubled while a
+        // segment's output-space sagitta exceeds CURVE_SAGITTA_PX.
+        let segments = pts.len() - 1;
+        assert!(
+            segments.is_multiple_of(17) && (segments / 17).is_power_of_two(),
+            "{segments}"
+        );
+        for s in pts.windows(2) {
+            let m = [(s[0][0] + s[1][0]) / 2., (s[0][1] + s[1][1]) / 2.];
+            let q = fish.project(m).unwrap();
+            let (a, b) = (
+                fish.project([150., 100.]).unwrap(),
+                fish.project([150., 500.]).unwrap(),
+            );
+            let err = ((q[0] - a[0]) * (b[1] - a[1]) - (q[1] - a[1]) * (b[0] - a[0])).abs()
+                / (b[0] - a[0]).hypot(b[1] - a[1]);
+            assert!(err <= CURVE_SAGITTA_PX, "segment sagitta {err}");
+        }
         assert_eq!((pts[0], pts[pts.len() - 1]), ([150., 100.], [150., 500.]));
         // Barrel: the middle of a left-side vertical bows away from the centre.
         assert!(pts[pts.len() / 2][0] < 149.0, "{:?}", pts[pts.len() / 2]);

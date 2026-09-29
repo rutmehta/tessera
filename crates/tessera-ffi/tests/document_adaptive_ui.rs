@@ -557,12 +557,14 @@ fn full_width_horizon(w: u32, h: u32) -> Adaptive {
 /// within the solver's 0.25 px tolerance of the camera curve, so a
 /// full-width horizon on a real-size photo solves (it used to fail
 /// "constraint residual exceeds tolerance" with 64 segments per line).
+/// 12240 × 8160 is the largest 3:2 layer under the 100 MP limit.
 #[test]
 fn a_full_width_horizon_on_a_real_size_photo_solves_within_tolerance() {
-    let failed: Vec<String> = [(6000u32, 4000u32), (5212, 3468)]
+    let failed: Vec<String> = [(6000u32, 4000u32), (5212, 3468), (12240, 8160)]
         .into_iter()
         .filter_map(|(w, h)| {
             let a = full_width_horizon(w, h);
+            eprintln!("{w} × {h}: {} traced segments", a.lines[0].points.len() - 1);
             filters::adaptive_lattice::Lattice::solve(
                 &a,
                 filters::adaptive_lattice::COARSE_VERTICES,
