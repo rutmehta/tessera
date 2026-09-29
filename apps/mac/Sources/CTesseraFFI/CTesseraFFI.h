@@ -1987,6 +1987,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_documentsession_remove_smart_filter(uint
 RustBuffer uniffi_tessera_ffi_fn_method_documentsession_set_smart_filter(uint64_t ptr, uint64_t layer, uint32_t index, RustBuffer edit, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SMART_FILTER_DETAIL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SMART_FILTER_DETAIL
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_smart_filter_detail(uint64_t ptr, uint64_t layer, uint32_t index, RustBuffer filter_json, int64_t x, int64_t y, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SMART_FILTER_MASK_THUMBNAIL
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_SMART_FILTER_MASK_THUMBNAIL
 uint32_t uniffi_tessera_ffi_fn_method_documentsession_smart_filter_mask_thumbnail(uint64_t ptr, uint64_t layer, uint32_t index, uint32_t max_px, RustCallStatus *_Nonnull out_status
@@ -5108,6 +5113,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_documentsession_remove_smart_filter(
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SET_SMART_FILTER
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SET_SMART_FILTER
 uint16_t uniffi_tessera_ffi_checksum_method_documentsession_set_smart_filter(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SMART_FILTER_DETAIL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DOCUMENTSESSION_SMART_FILTER_DETAIL
+uint16_t uniffi_tessera_ffi_checksum_method_documentsession_smart_filter_detail(void
     
 );
 #endif

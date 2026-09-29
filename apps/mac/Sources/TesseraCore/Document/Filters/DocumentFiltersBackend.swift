@@ -61,8 +61,10 @@ public protocol DocumentFiltersBackend: AnyObject, Sendable {
     func filterError() -> String?
     /// Cancels a running apply and the preview.
     func cancelFilter()
-    /// The filter over `width × height` level-0 pixels at `(x, y)`: the dialog's 1:1 pane. Blocking.
-    func filterDetail(layer: DocLayerID, filterJson: String, x: Int64, y: Int64, width: UInt32,
+    /// The filter over `width × height` level-0 pixels at `(x, y)`: the dialog's 1:1 pane (sRGB-encoded,
+    /// as the canvas shows it). With `smartIndex` it replaces that smart filter (re-edit) instead of being
+    /// stacked on top. Blocking.
+    func filterDetail(layer: DocLayerID, smartIndex: UInt32?, filterJson: String, x: Int64, y: Int64, width: UInt32,
                       height: UInt32) throws -> FilterDetailSurface
     /// One history node: destructive on pixel layers (inside the selection), appended as a smart
     /// filter on smart objects. Blocking (seconds on large layers).

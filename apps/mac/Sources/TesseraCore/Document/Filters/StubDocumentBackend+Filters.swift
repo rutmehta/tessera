@@ -14,7 +14,7 @@ extension StubDocumentBackend: DocumentFiltersBackend {
     public func clearPreview() throws {}
     public func filterError() -> String? { nil }
     public func cancelFilter() {}
-    public func filterDetail(layer: DocLayerID, filterJson: String, x: Int64, y: Int64, width: UInt32,
+    public func filterDetail(layer: DocLayerID, smartIndex: UInt32?, filterJson: String, x: Int64, y: Int64, width: UInt32,
                              height: UInt32) throws -> FilterDetailSurface { throw Self.needsEngine }
     public func applyFilter(layer: DocLayerID, filterJson: String) throws -> DocumentChange { throw Self.needsEngine }
     public func applyAdjustment(layer: DocLayerID, adjustmentJson: String) throws -> DocumentChange { throw Self.needsEngine }

@@ -123,9 +123,6 @@ final class CameraRawSheetModel: Identifiable {
         return layer.kind == .smartObject ? "Smart filter on “\(layer.name)”"
             : (doc.marquee != nil ? "Layer “\(layer.name)”, inside the selection" : "Layer “\(layer.name)”")
     }
-    /// The 1:1 pane renders the filter on top of the smart filter stack; while re-editing it would show the
-    /// saved filter twice, so the canvas preview is the reference then.
-    var detailAvailable: Bool { smartIndex == nil }
 
     func value(_ c: DevelopControl) -> Double { draft.value(c) }
 
@@ -218,7 +215,7 @@ final class CameraRawSheetModel: Identifiable {
 
     /// Latest-wins: one `filter_detail` runs at a time; a newer draft replaces the pending one.
     private func refreshDetail() {
-        guard detailAvailable, !closed, let request = detailGate.submit(detailJson) else { return }
+        guard !closed, let request = detailGate.submit(detailJson) else { return }
         run(request)
     }
 
@@ -226,11 +223,13 @@ final class CameraRawSheetModel: Identifiable {
         guard let backend else { return }
         let (w, h) = (UInt32(detailPixels.width), UInt32(detailPixels.height))
         let x = Int64(detailCenter.x) - Int64(w / 2), y = Int64(detailCenter.y) - Int64(h / 2)
-        let layer = layer.id, json = request.value
+        let layer = layer.id, json = request.value, index = smartIndex
         Task { @MainActor [weak self] in
             let result = await Task.detached(priority: .userInitiated) { () -> Result<(CGImage?, UInt8), Error> in
                 Result {
-                    let d = try backend.filterDetail(layer: layer, filterJson: json, x: x, y: y, width: w, height: h)
+                    // B5-18b: re-editing replaces the saved filter in the pane (no double apply).
+                    let d = try backend.filterDetail(layer: layer, smartIndex: index, filterJson: json, x: x, y: y,
+                                                     width: w, height: h)
                     return (IOSurfaceLookup(d.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(d.width), height: Int(d.height)) },
                             d.level)
                 }
@@ -293,15 +292,9 @@ struct CameraRawSheet: View {
         } content: {
             HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: Theme.Space.m) {
-                    if model.detailAvailable {
-                        CameraRawDetailPane(model: model)
-                            .frame(width: 280, height: 280)
-                            .accessibilityIdentifier("\(ident).detail")
-                    } else {
-                        Text("Re-editing: the canvas shows the result.")
-                            .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                            .frame(width: 280, alignment: .leading)
-                    }
+                    CameraRawDetailPane(model: model)
+                        .frame(width: 280, height: 280)
+                        .accessibilityIdentifier("\(ident).detail")
                     DocSlider(title: "Amount", value: model.amountPercent, range: 0...100, defaultValue: 100, format: "%.0f %%",
                               step: 1, identifier: "\(ident).amount", revision: model.revision) { v, final in
                         model.setAmount(v, final: final)

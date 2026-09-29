@@ -4816,7 +4816,8 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     /**
      * `filter_json` on the layer's own pixels (on a smart object: after its
      * smart filters) over `width × height` level-0 pixels at `(x, y)`,
-     * written into an RGBA8 IOSurface (straight alpha) the session retains
+     * written into an RGBA8 IOSurface (straight alpha, sRGB-encoded like the
+     * canvas shows the document's linear samples) the session retains
      * until the next call: the filter dialog's 1:1 detail pane. Blocking.
      */
     func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32) throws  -> FilterDetail
@@ -4862,6 +4863,12 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      * Edits smart filter `index` of a smart object (one history node).
      */
     func setSmartFilter(layer: UInt64, index: UInt32, edit: SmartFilterEdit) throws  -> DocumentUpdate
+    
+    /**
+     * B5-18b: like `filter_detail`, re-editing smart filter `index` of a
+     * smart object (the edited filter replaces it instead of stacking on top).
+     */
+    func smartFilterDetail(layer: UInt64, index: UInt32, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32) throws  -> FilterDetail
     
     /**
      * The mask of smart filter `index` as a grey RGBA8 IOSurface (white =
@@ -6724,7 +6731,8 @@ open func convertForSmartFilters(layer: UInt64)throws  -> DocumentUpdate  {
     /**
      * `filter_json` on the layer's own pixels (on a smart object: after its
      * smart filters) over `width × height` level-0 pixels at `(x, y)`,
-     * written into an RGBA8 IOSurface (straight alpha) the session retains
+     * written into an RGBA8 IOSurface (straight alpha, sRGB-encoded like the
+     * canvas shows the document's linear samples) the session retains
      * until the next call: the filter dialog's 1:1 detail pane. Blocking.
      */
 open func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32)throws  -> FilterDetail  {
@@ -6842,6 +6850,26 @@ open func setSmartFilter(layer: UInt64, index: UInt32, edit: SmartFilterEdit)thr
         FfiConverterUInt64.lower(layer),
         FfiConverterUInt32.lower(index),
         FfiConverterTypeSmartFilterEdit_lower(edit),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * B5-18b: like `filter_detail`, re-editing smart filter `index` of a
+     * smart object (the edited filter replaces it instead of stacking on top).
+     */
+open func smartFilterDetail(layer: UInt64, index: UInt32, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32)throws  -> FilterDetail  {
+    return try  FfiConverterTypeFilterDetail_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_smart_filter_detail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),
+        FfiConverterString.lower(filterJson),
+        FfiConverterInt64.lower(x),
+        FfiConverterInt64.lower(y),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
     )
 })
 }
@@ -37157,7 +37185,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_convert_for_smart_filters() != 47318) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_detail() != 61247) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_detail() != 24838) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_filter_error() != 38602) {
@@ -37179,6 +37207,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_set_smart_filter() != 22273) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filter_detail() != 45428) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filter_mask_thumbnail() != 1951) {

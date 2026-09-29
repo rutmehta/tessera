@@ -10,11 +10,6 @@ public enum CameraRawFilter {
     public static let id = "camera_raw"
     public static let title = "Camera Raw Filter"
 
-    /// The engine names this filter by its id: it is not in the menu catalogue, so `Spec::name` in
-    /// crates/tessera-ffi/src/document/filters.rs falls back to "camera_raw" for history labels and smart
-    /// filter names. Shown names map it to the title here (history rows, smart filter rows).
-    public static func displayName(_ engineName: String) -> String { engineName == id ? title : engineName }
-
     /// Why the sheet cannot open on a layer of `kind` (nil: it can). Pixel layers are filtered inside the
     /// selection; on a smart object the filter is a smart filter over the whole layer, and the engine's
     /// retouch smart filters take no selection mask.
@@ -114,10 +109,13 @@ public struct CameraRawDraft: Equatable, @unchecked Sendable {
     /// 0…1.
     public private(set) var amount: Double
 
-    /// Neutral on rendered pixels: `DevelopSettings::default` sharpens (40) and colour-denoises (25) for raw
-    /// files; Camera Raw's defaults for non-raw images turn both off.
+    /// Neutral on rendered pixels: `DevelopSettings::default` sharpens (40), colour-denoises (25) and applies
+    /// lens profile / chromatic aberration corrections for raw files; Camera Raw's defaults for non-raw images
+    /// turn them off (the sheet has no Optics panel). Without whole-image lens analysis the engine previews
+    /// only the visible region (B5-18b).
     public static var neutralSettings: [String: Any] {
-        ["detail": ["sharpening": ["amount": 0.0], "noise_reduction": ["color": 0.0]]]
+        ["detail": ["sharpening": ["amount": 0.0], "noise_reduction": ["color": 0.0]],
+         "lens": ["profile": ["kind": "none"], "remove_chromatic_aberration": false]]
     }
 
     public init() {
