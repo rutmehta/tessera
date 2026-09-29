@@ -183,6 +183,24 @@ impl RequestContext {
         generation: 0,
     };
 }
+impl BeginContext {
+    /// Constructor, so callers stay source-compatible when fields are added.
+    pub const fn new(
+        resolved_wb: [u8; 32],
+        output_tag: u8,
+        headroom_bits: u32,
+        render_level: u8,
+        operator: u64,
+    ) -> BeginContext {
+        BeginContext {
+            resolved_wb,
+            output_tag,
+            headroom_bits,
+            render_level,
+            operator,
+        }
+    }
+}
 impl SlotMeta {
     const EMPTY: SlotMeta = SlotMeta {
         token: EMPTY_TOKEN,
@@ -695,13 +713,7 @@ mod tests {
             ..RequestContext::EMPTY
         }
     }
-    const BEGIN: BeginContext = BeginContext {
-        resolved_wb: [1; 32],
-        output_tag: 1,
-        headroom_bits: 0,
-        render_level: 0,
-        operator: 1,
-    };
+    const BEGIN: BeginContext = BeginContext::new([1; 32], 1, 0, 0, 1);
     fn lease(a: &'static Arena, generation: u64) -> Lease {
         a.reserve_armed(ctx(generation))
             .expect("armed reservation")
@@ -1135,13 +1147,7 @@ mod tests {
             expected_operator: 8,
             generation: 9,
         };
-        let begin = BeginContext {
-            resolved_wb: [9; 32],
-            output_tag: 2,
-            headroom_bits: 4f32.to_bits(),
-            render_level: 1,
-            operator: 8,
-        };
+        let begin = BeginContext::new([9; 32], 2, 4f32.to_bits(), 1, 8);
         let bound = A.reserve_armed(request).unwrap().bind();
         let bound_token = bound.token();
         A.begin(bound_token, begin);
