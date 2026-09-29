@@ -1,0 +1,213 @@
+{
+  "verdict": "Approved exact-file integration of private helper and legacy delegation",
+  "ref": "2d7c00fa11700b61e681349f5130663e6325f33d",
+  "source_count": 9141,
+  "gates": [
+    {
+      "gate": "01-compile",
+      "direct_exit": 0,
+      "all_git_hashes_exact": 9141,
+      "freeze_equal": true,
+      "log_sha256": "313769e0866c05df9d10e71a54e7622e5aeae4b5cf00d577ab10ffd23c7572a8",
+      "command": {
+        "TESSERA_test_fixture_overrides_scrubbed": true,
+        "argv": [
+          "cargo",
+          "test",
+          "--locked",
+          "--jobs",
+          "2",
+          "-p",
+          "raw-decode",
+          "--release",
+          "--lib",
+          "normalize::",
+          "--no-run"
+        ],
+        "cwd": "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera",
+        "env": {
+          "CARGO_BUILD_JOBS": "2",
+          "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+          "MACOSX_DEPLOYMENT_TARGET": "15.0",
+          "RAYON_NUM_THREADS": "2"
+        }
+      }
+    },
+    {
+      "gate": "02-green",
+      "direct_exit": 0,
+      "all_git_hashes_exact": 9141,
+      "freeze_equal": true,
+      "log_sha256": "f0572d924c7c1c381f63d65d2c9014e673c6830f440516663253e8ef2da02e14",
+      "command": {
+        "TESSERA_test_fixture_overrides_scrubbed": true,
+        "argv": [
+          "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/raw_decode-be8e9abbe6c30d95",
+          "normalize::",
+          "--test-threads=1",
+          "--nocapture"
+        ],
+        "cwd": "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera",
+        "env": {
+          "CARGO_BUILD_JOBS": "2",
+          "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+          "MACOSX_DEPLOYMENT_TARGET": "15.0",
+          "RAYON_NUM_THREADS": "2"
+        }
+      }
+    },
+    {
+      "gate": "03-full",
+      "direct_exit": 0,
+      "all_git_hashes_exact": 9141,
+      "freeze_equal": true,
+      "log_sha256": "60d7a69ba87d5e4624c7ecb22001aa6cca01794bc992ffca2169554dc7920a8c",
+      "command": {
+        "TESSERA_test_fixture_overrides_scrubbed": true,
+        "argv": [
+          "cargo",
+          "test",
+          "--locked",
+          "--jobs",
+          "2",
+          "-p",
+          "raw-decode",
+          "--release",
+          "--",
+          "--test-threads=1",
+          "--nocapture"
+        ],
+        "cwd": "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera",
+        "env": {
+          "CARGO_BUILD_JOBS": "2",
+          "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+          "MACOSX_DEPLOYMENT_TARGET": "15.0",
+          "RAW_DECODE_FIXTURES": "/Users/rutmehta/Developer/tessera/fixtures/raw",
+          "RAYON_NUM_THREADS": "2"
+        }
+      }
+    },
+    {
+      "gate": "04-strict",
+      "direct_exit": 0,
+      "all_git_hashes_exact": 9141,
+      "freeze_equal": true,
+      "log_sha256": "86a107f6a76ac68fbf0f1c104cfeac4cbb3c6057ed9d2d672ffab40b0766d044",
+      "command": {
+        "TESSERA_test_fixture_overrides_scrubbed": true,
+        "argv": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--jobs",
+          "2",
+          "-p",
+          "raw-decode",
+          "--release",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "cwd": "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera",
+        "env": {
+          "CARGO_BUILD_JOBS": "2",
+          "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+          "MACOSX_DEPLOYMENT_TARGET": "15.0",
+          "RAYON_NUM_THREADS": "2"
+        }
+      }
+    },
+    {
+      "gate": "05-fmt",
+      "direct_exit": 0,
+      "all_git_hashes_exact": 9141,
+      "freeze_equal": true,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "command": {
+        "TESSERA_test_fixture_overrides_scrubbed": true,
+        "argv": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--",
+          "--check"
+        ],
+        "cwd": "/Users/rutmehta/.codex/worktrees/raw-render-admission/tessera",
+        "env": {
+          "CARGO_BUILD_JOBS": "2",
+          "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated",
+          "MACOSX_DEPLOYMENT_TARGET": "15.0",
+          "RAYON_NUM_THREADS": "2"
+        }
+      }
+    }
+  ],
+  "exact_focused_names": [
+    "normalize::legacy_tests::legacy_bayer_xtrans_full_sensor_bits_are_preserved",
+    "normalize::legacy_tests::legacy_entry_delegates_once_with_owned_input_and_uncancelled_token",
+    "normalize::legacy_tests::legacy_invalid_input_keeps_raw_decode_error_category",
+    "normalize::legacy_tests::legacy_permissive_layout_and_negative_black_controls",
+    "normalize::tests::allocation_error_precedes_concurrent_cancellation",
+    "normalize::tests::bayer_all_phases_and_green_conventions_are_bit_exact",
+    "normalize::tests::cancellation_after_validation_and_reservation_prevents_conversion",
+    "normalize::tests::cancellation_at_publication_boundary_returns_no_image",
+    "normalize::tests::cancellation_inside_wide_row_stops_at_first_quantum",
+    "normalize::tests::checked_sizes_accept_exact_count_without_allocating",
+    "normalize::tests::checked_sizes_reject_extent_count_and_allocation_overflow",
+    "normalize::tests::checked_sizes_reject_isize_ceiling_without_usize_arithmetic_overflow",
+    "normalize::tests::finite_negative_black_and_legacy_zero_white_remain_compatible",
+    "normalize::tests::invalid_dimensions_counts_layout_and_levels_refuse_before_reserve",
+    "normalize::tests::legacy_channel_range_layouts_are_not_replaced_by_stricter_profile",
+    "normalize::tests::normalization_is_once_and_retains_clamped_above_white_samples",
+    "normalize::tests::offset_crop_does_not_shift_full_sensor_phase",
+    "normalize::tests::owned_capacity_and_pointers_are_observed_without_clone_or_reallocation",
+    "normalize::tests::pre_cancelled_request_allocates_and_publishes_nothing",
+    "normalize::tests::successful_loop_observes_bounded_chunks_including_partial_tail",
+    "normalize::tests::xtrans_all_phases_are_bit_exact"
+  ],
+  "full_counts": {
+    "passed": 92,
+    "failed": 0,
+    "ignored": 2
+  },
+  "artifact_rehashed": {
+    "compile_attempt": "01-compile",
+    "head": "2d7c00fa11700b61e681349f5130663e6325f33d",
+    "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/raw_decode-be8e9abbe6c30d95",
+    "sha256": "2da57702bc7cf8afe07063a3e98fc3558e135e2bb21743b7ddcbec193ef77014"
+  },
+  "fixtures_rehashed": {
+    "canon-cr3.CR3": {
+      "bytes": 20948692,
+      "path": "/Users/rutmehta/Developer/tessera/fixtures/raw/canon-cr3.CR3",
+      "sha256": "15384b775867ec4c42b11882837f1e368cedc0561832ffab271221e6bb80be4c"
+    },
+    "fuji-raf.RAF": {
+      "bytes": 33786880,
+      "path": "/Users/rutmehta/Developer/tessera/fixtures/raw/fuji-raf.RAF",
+      "sha256": "330fc84b597e7be6d7477aad5715705efaa99d4663eb05aa47e1250d6f421549"
+    },
+    "nikon-nef.NEF": {
+      "bytes": 44169458,
+      "path": "/Users/rutmehta/Developer/tessera/fixtures/raw/nikon-nef.NEF",
+      "sha256": "26d58c21ed3019af5a22ef6bc02f017b863aad9eafcf84252ed375cd495c0efb"
+    },
+    "sample.dng": {
+      "bytes": 36433920,
+      "path": "/Users/rutmehta/Developer/tessera/fixtures/raw/sample.dng",
+      "sha256": "914f27df1ab095446c5db058703719f4a3749adedbfb9f353a3e85fa4f8f9b58"
+    },
+    "sony-arw.ARW": {
+      "bytes": 16646144,
+      "path": "/Users/rutmehta/Developer/tessera/fixtures/raw/sony-arw.ARW",
+      "sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8"
+    }
+  },
+  "limits": [
+    "Two captured-decoder qualification tests ignored, not newly executed.",
+    "No public API/captured continuation/renderer integration.",
+    "No global memory cap/RSS guarantee or public cancellation improvement."
+  ],
+  "review": "Read-only source/log/hash verification; no workload"
+}

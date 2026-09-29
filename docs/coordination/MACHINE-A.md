@@ -1,3 +1,9 @@
+## Private RAW normalization integrated; inspector actual GUI next
+
+Main now contains exact qualified `2d7c00fa` helper and legacy delegation. Independent review verified9,141sourceinputs, all21focused and92fullpasses/twoignored, strict/fmt, exact executable and5originalfixturehashes. Existing public/native boundaries remain unchanged; no renderer/memory-cap/publiccancellation claim. Next owned continuation is a source-only interface proposal.
+
+Inspector `d0191c41` passed54focused+3Theme/Layout+strict with independent8,396input/artifactverification. Worker has actual GUI grant after RAWlane release, including copied Reset/Undo and Load chooser Cancel, with PIDguard and no default-profile cleanup. WB recorder remains diagnostic-only under lifecycle source review, cache performance still failed/unmerged.
+
 ## Native LUT candidate under automated gates; two RED checkpoints verified
 
 B result `81854c4d-8cee-440c-93b9-645ee5b7e2b8` validated/accepted. Source review approved exact five-file composition `d0191c41` over preserved `4685efd5`; router/trace unchanged. Inspector worker owns compiler for 54 focused, strict and separate ThemeLint/layout. GUI not authorized yet.

@@ -234,32 +234,17 @@ impl RawSource {
 }
 
 fn linearize(image: libraw_ffi::CfaImage) -> EngineResult<CfaImage> {
-    validate_plane(&image)?;
-    if image
-        .black
-        .iter()
-        .any(|&b| !b.is_finite() || b >= image.white as f32)
-    {
-        return Err(decode_error("invalid sensor black/white levels"));
-    }
-    let pixels = image
-        .data
-        .iter()
-        .enumerate()
-        .map(|(i, &v)| {
-            let channel = image
-                .cfa_layout
-                .channel_at(i as u32 % image.width, i as u32 / image.width);
-            let black = image.black[channel];
-            ((v as f32 - black) / (image.white as f32 - black)).clamp(0.0, 1.2)
-        })
-        .collect();
-    Ok(CfaImage {
-        pyramid: CfaPyramid {
-            extent: Extent::new(image.width, image.height),
-            pixels,
+    normalize::normalize(
+        normalize::PackedPlane {
+            width: image.width,
+            height: image.height,
+            layout: image.cfa_layout,
+            samples: image.data,
+            black: image.black,
+            white: image.white,
         },
-    })
+        &engine_api::jobs::CancellationToken::new(),
+    )
 }
 
 fn validate_plane(image: &libraw_ffi::CfaImage) -> EngineResult<()> {
@@ -286,6 +271,9 @@ fn decode_error(message: impl Into<String>) -> EngineError {
         message: message.into(),
     }
 }
+
+// Private shared arithmetic; hooks and observations exist only in tests.
+mod normalize;
 
 #[cfg(test)]
 mod tests;
