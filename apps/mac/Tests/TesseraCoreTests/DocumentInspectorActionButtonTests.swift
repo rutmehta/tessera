@@ -88,9 +88,11 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
                 _ = owner.description
             }
         }
-        XCTAssertNotNil(released, "action owns its current callback context")
-        DocumentInspectorActionButton.dismantleNSView(button, coordinator: ())
-        XCTAssertNil(released, "detached representable must drop its action context")
-        withExtendedLifetime(button) {}
+        let retainedByAction = autoreleasepool { released != nil }
+        XCTAssertTrue(retainedByAction, "action owns its current callback context")
+        autoreleasepool { DocumentInspectorActionButton.dismantleNSView(button, coordinator: ()) }
+        withExtendedLifetime(button) {
+            XCTAssertNil(released, "detached representable must drop its action context")
+        }
     }
 }
