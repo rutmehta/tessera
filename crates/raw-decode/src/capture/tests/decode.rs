@@ -566,3 +566,6 @@ fn cancelled_decode_preserves_primary_error_when_unlink_fails() {
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     assert!(!stage.exists());
 }
+
+#[path = "owned.rs"]
+mod owned;

@@ -1,0 +1,64 @@
+{
+  "pass.rs": {
+    "exit": 0
+  },
+  "private_fields.rs": {
+    "code": "E0451",
+    "contains": [
+      "private",
+      "image",
+      "metadata",
+      "identity",
+      "route"
+    ]
+  },
+  "conversion.rs": {
+    "code": "E0277",
+    "contains": [
+      "From<DecodedCapturedCfa>",
+      "OwnedCapturedCfa"
+    ]
+  },
+  "default.rs": {
+    "code": "E0277",
+    "contains": [
+      "Default",
+      "OwnedCapturedCfa"
+    ]
+  },
+  "clone.rs": {
+    "code": "E0599",
+    "contains": [
+      "clone",
+      "OwnedCapturedCfa"
+    ]
+  },
+  "metadata_mutation.rs": {
+    "code": "E0596",
+    "contains": [
+      "cannot borrow",
+      "mutable"
+    ]
+  },
+  "opcode_mutation.rs": {
+    "code": "E0596",
+    "contains": [
+      "cannot borrow",
+      "mutable"
+    ]
+  },
+  "sample_getter.rs": {
+    "code": "E0599",
+    "contains": [
+      "samples",
+      "OwnedCapturedCfa"
+    ]
+  },
+  "parts.rs": {
+    "code": "E0599",
+    "contains": [
+      "into_parts",
+      "OwnedCapturedCfa"
+    ]
+  }
+}
