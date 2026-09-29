@@ -123,6 +123,57 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["kept.png", "support"])
     }
 
+    /// Blocks the main thread (so the export's completion cannot be delivered) until `url` exists.
+    private func blockMainUntilWritten(_ url: URL, timeout: Double = 60) -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        while !FileManager.default.fileExists(atPath: url.path) {
+            if Date() > end { return false }
+            Thread.sleep(forTimeInterval: 0.005)
+        }
+        return true
+    }
+
+    /// A Cancel that arrives after the last checkpoint, once the file is already in place, must report the
+    /// export as done: the destination was written, so "cancelled" would be wrong (A review of B5-15).
+    func testCancelAfterTheFileIsWrittenReportsExported() async throws {
+        let dir = try temp()
+        let ws = DocumentWorkspace()
+        try ws.install(try engineDocument(dir))
+        let doc = try XCTUnwrap(ws.current)
+        let url = dir.appendingPathComponent("late.png")
+        var outcome: FlatExportTask.Outcome?
+        let task = try XCTUnwrap(ws.startExportFlat(doc, ExportFlatSettings(format: .png, quality: 90, color: .srgb), to: url) {
+            outcome = $0
+        })
+        XCTAssertTrue(blockMainUntilWritten(url))
+        ws.cancelExportFlat(task)
+        XCTAssertTrue(task.cancelling)
+        let finished = await waitFor { outcome != nil }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(outcome, .exported)
+        XCTAssertTrue(ws.flatExports.isEmpty)
+        let src = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        XCTAssertEqual(CGImageSourceCreateImageAtIndex(src, 0, nil)?.width, 1600)
+    }
+
+    func testStubCancelAfterTheFileIsWrittenReportsExported() async throws {
+        let dir = try temp()
+        let ws = DocumentWorkspace()
+        try ws.install(StubDocumentBackend(sampleWidth: 300, height: 200))
+        let doc = try XCTUnwrap(ws.current)
+        let url = dir.appendingPathComponent("stub-late.png")
+        var outcome: FlatExportTask.Outcome?
+        let task = try XCTUnwrap(ws.startExportFlat(doc, ExportFlatSettings(format: .png, quality: 90, color: .srgb), to: url) {
+            outcome = $0
+        })
+        XCTAssertTrue(blockMainUntilWritten(url))
+        ws.cancelExportFlat(task)
+        let finished = await waitFor { outcome != nil }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(outcome, .exported)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+    }
+
     func testStubBackendExportsOffTheMainThread() async throws {
         let dir = try temp()
         let ws = DocumentWorkspace()
