@@ -4698,6 +4698,22 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func duplicateDocumentChannel(id: UInt64) throws  -> ChannelUpdate
     
     /**
+     * Quick Mask on (B5-17d): the selection becomes the new, visible alpha
+     * channel `name` and the selection is dropped, so strokes into the mask
+     * are not clipped to it and painting white can grow it. Without a
+     * selection the channel is all selected (white). One "Quick Mask"
+     * history node; undo restores the selection.
+     */
+    func enterQuickMask(name: String) throws  -> ChannelUpdate
+    
+    /**
+     * Quick Mask off (B5-17d): channel `id` replaces the selection (an
+     * empty mask deselects) and is deleted, as one "Quick Mask" history
+     * node. Fails without a node when `id` is unknown.
+     */
+    func exitQuickMask(id: UInt64) throws  -> DocumentUpdate
+    
+    /**
      * Select ▸ Load Selection: channel `id` (inverted when `invert`)
      * combined with the current selection by `op`. One history node.
      */
@@ -6438,6 +6454,38 @@ open func duplicateDocumentChannel(id: UInt64)throws  -> ChannelUpdate  {
     return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_documentsession_duplicate_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Quick Mask on (B5-17d): the selection becomes the new, visible alpha
+     * channel `name` and the selection is dropped, so strokes into the mask
+     * are not clipped to it and painting white can grow it. Without a
+     * selection the channel is all selected (white). One "Quick Mask"
+     * history node; undo restores the selection.
+     */
+open func enterQuickMask(name: String)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_enter_quick_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Quick Mask off (B5-17d): channel `id` replaces the selection (an
+     * empty mask deselects) and is deleted, as one "Quick Mask" history
+     * node. Fails without a node when `id` is unknown.
+     */
+open func exitQuickMask(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_exit_quick_mask(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(id),uniffiCallStatus
     )
@@ -37101,6 +37149,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_duplicate_document_channel() != 42170) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_enter_quick_mask() != 56460) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_exit_quick_mask() != 18521) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection_channel() != 62039) {

@@ -75,4 +75,12 @@ extension EngineDocumentBackend: DocumentChannelsBackend {
     public func setChannelVisible(id: UInt64, visible: Bool) throws {
         try bridged { try session.setChannelVisible(id: id, visible: visible) }
     }
+
+    public func enterQuickMask(name: String) throws -> SavedChannelChange {
+        try channelChange { try session.enterQuickMask(name: name) }
+    }
+
+    public func exitQuickMask(id: UInt64) throws -> DocumentChange {
+        try change { try session.exitQuickMask(id: id) }
+    }
 }

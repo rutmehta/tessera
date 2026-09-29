@@ -260,8 +260,8 @@ final class DocumentChannels {
 
     // MARK: Quick Mask
 
-    /// Q: enter (the selection becomes a temporary channel shown as an overlay) or exit (it becomes the
-    /// selection again).
+    /// Q: enter (the selection becomes a temporary channel shown as an overlay and is dropped, B5-17d) or
+    /// exit (the mask becomes the selection again). Each is one "Quick Mask" history node.
     func toggleQuickMask() {
         guard let doc = document, let b = backend(doc) else { return }
         if let id = quickMask[doc.id] {
@@ -271,7 +271,7 @@ final class DocumentChannels {
         } else {
             var made: UInt64?
             doc.run("Quick Mask") {
-                let c = try QuickMask.enter(b, hasSelection: doc.marquee != nil)
+                let c = try QuickMask.enter(b)
                 made = c.channelID
                 return c.change
             }

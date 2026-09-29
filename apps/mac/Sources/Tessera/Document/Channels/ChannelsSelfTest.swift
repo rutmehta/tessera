@@ -182,6 +182,7 @@ final class ChannelsSelfTest {
         let before = doc.marquee
         channels.toggleQuickMask()
         check("quick mask on", channels.isQuickMask(doc) && names().contains(QuickMask.channelName), "\(names())")
+        check("quick mask on drops the selection (B5-17d)", doc.marquee == nil, "\(String(describing: doc.marquee))")
         await mark("quick-mask")
         channels.toggleQuickMask()
         check("quick mask off", !channels.isQuickMask(doc) && !names().contains(QuickMask.channelName), "\(names())")

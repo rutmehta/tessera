@@ -245,4 +245,19 @@ extension StubDocumentBackend: DocumentChannelsBackend {
     public func setChannelVisible(id: UInt64, visible: Bool) throws {
         try modify(id) { c in c.visible = visible }
     }
+
+    public func enterQuickMask(name: String) throws -> SavedChannelChange {
+        let sel = try selectionCoverage()
+        let c = try add(try Self.check(name), kind: .alpha, color: ToolColor(r: 1, g: 0, b: 0), opacity: 0.5,
+                        coverage: sel ?? .all)
+        try setChannelVisible(id: c.channelID, visible: true)
+        guard sel != nil else { return c }
+        return SavedChannelChange(channelID: c.channelID, change: try clearSelection())
+    }
+
+    public func exitQuickMask(id: UInt64) throws -> DocumentChange {
+        let c = try loadSelectionChannel(id: id, op: .replace, invert: false)
+        _ = try deleteDocumentChannel(id: id)
+        return c
+    }
 }
