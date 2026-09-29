@@ -104,6 +104,9 @@ final class DocumentHistoryHeightControl: NSStackView {
 @MainActor
 final class HistoryHeightButton: NSButton, KeyOwningControl {
     override var acceptsFirstResponder: Bool { isEnabled }
+    // NSButton gates key-view membership on the system keyboard-navigation setting separately from
+    // acceptsFirstResponder; keep Tab reachability on the same enabled-only policy as focus.
+    override var canBecomeKeyView: Bool { isEnabled && !isHiddenOrHasHiddenAncestor }
 
     override func keyDown(with event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
