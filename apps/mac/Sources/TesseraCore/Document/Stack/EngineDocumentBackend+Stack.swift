@@ -12,7 +12,6 @@ extension StackAlignLayout {
         case .cylindrical: self = .cylindrical
         case .spherical: self = .spherical
         case .collage: self = .collage
-        case .reposition: self = .reposition
         }
     }
     var ffi: StackAlignMode {
@@ -22,7 +21,6 @@ extension StackAlignLayout {
         case .cylindrical: .cylindrical
         case .spherical: .spherical
         case .collage: .collage
-        case .reposition: .reposition
         }
     }
 }
@@ -56,17 +54,21 @@ extension EngineDocumentBackend: DocumentStackBackend {
         try change { try session.autoBlendLayers(ids: ids, options: options.ffi) }
     }
 
-    public func photomergeIntoLayers(sources: [String], align: StackAlignSettings, blend: StackBlendSettings) throws
-        -> DocumentChange {
-        try change { try session.photomergeIntoLayers(sources: sources, align: align.ffi, blend: blend.ffi) }
+    public func photomergeIntoLayers(sources: [String], align: StackAlignSettings, blend: StackBlendSettings,
+                                     cancel: CancelFlag) throws -> DocumentChange {
+        try change {
+            try session.photomergeIntoLayers(sources: sources, align: align.ffi, blend: blend.ffi, cancel: cancel)
+        }
     }
 }
 
 extension EngineDocumentEngine: DocumentStackEngine {
     /// Blocking (decodes, aligns and blends every photo): call off the main thread.
-    public func photomergeDocument(sources: [String], align: StackAlignSettings, blend: StackBlendSettings) throws
-        -> any DocumentBackend {
-        let s = try bridged { try engine.photomergeDocument(sources: sources, align: align.ffi, blend: blend.ffi) }
+    public func photomergeDocument(sources: [String], align: StackAlignSettings, blend: StackBlendSettings,
+                                   cancel: CancelFlag) throws -> any DocumentBackend {
+        let s = try bridged {
+            try engine.photomergeDocument(sources: sources, align: align.ffi, blend: blend.ffi, cancel: cancel)
+        }
         return backend(for: s)
     }
 }

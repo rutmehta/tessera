@@ -5,9 +5,10 @@ import Foundation
 // crates/tessera-ffi/src/document/stack.rs (EngineDocumentBackend+Stack.swift); the rules here repeat
 // the session's checks in the same words so menus disable and sheets explain before any engine call.
 
-/// Photoshop's Layout / Projection choices.
+/// Photoshop's Layout / Projection choices. Reposition is withheld until the engine registers it correctly
+/// (crates/tessera-ffi/tests/document_stack_ui.rs pins the bug).
 public enum StackAlignLayout: String, CaseIterable, Sendable, Identifiable {
-    case auto, perspective, cylindrical, spherical, collage, reposition
+    case auto, perspective, cylindrical, spherical, collage
     public var id: String { rawValue }
 
     public var title: String {
@@ -17,7 +18,6 @@ public enum StackAlignLayout: String, CaseIterable, Sendable, Identifiable {
         case .cylindrical: "Cylindrical"
         case .spherical: "Spherical"
         case .collage: "Collage"
-        case .reposition: "Reposition"
         }
     }
 
@@ -28,7 +28,6 @@ public enum StackAlignLayout: String, CaseIterable, Sendable, Identifiable {
         case .cylindrical: "Wraps a wide panorama around a cylinder (reduces bow-tie distortion)."
         case .spherical: "Maps the photos onto a sphere, for very wide or tall panoramas."
         case .collage: "Moves, rotates and scales the photos without distorting them."
-        case .reposition: "Moves the photos only."
         }
     }
 }
@@ -84,6 +83,8 @@ public struct StackEligibilityInfo: Equatable, Sendable {
 
 public enum StackCommandRules {
     public static let maxLayers = 128
+    /// All layers or photos of one stack together (the engine's `stack_max_megapixels`).
+    public static let maxMegapixels = 200
 
     /// Lens profiles are not mapped to calibrations yet, so the lens toggles stay off.
     public static let lensCorrectionAvailable = false
@@ -92,6 +93,11 @@ public enum StackCommandRules {
         + "library lens profiles are not available in document mode yet."
     /// Alignment and blending run in the engine without a cancellation point yet.
     public static let busyNote = "This can take a while for large photos and cannot be cancelled."
+    /// Photomerge can stop while it reads the photos, before anything changes.
+    public static let photomergeBusyNote =
+        "Reading the photos can be cancelled; aligning and blending cannot be interrupted once they start."
+    /// What the engine returns when a Photomerge was cancelled (nothing changed).
+    public static let photomergeCancelled = "Photomerge was cancelled"
 
     private enum Stage { case align, blend }
 
@@ -105,6 +111,7 @@ public enum StackCommandRules {
             if l.parent != nil { return "\(title) works on top-level layers; “\(l.name)” is inside a group" }
             if l.locks.all || l.locks.pixels || l.locks.position { return "“\(l.name)” is locked" }
             if l.clipped { return "“\(l.name)” is part of a clipping mask" }
+            // The engine also requires four channels (RGBA); `DocumentStack` asks it before opening a sheet.
             let ok = l.kind == .pixel || (stage == .blend && l.kind == .smartObject)
             if !ok { return "\(title) needs pixel layers; “\(l.name)” is not a pixel layer" }
         }

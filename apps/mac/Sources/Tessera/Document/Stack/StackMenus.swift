@@ -32,6 +32,12 @@ struct StackSheetsModifier: ViewModifier {
     let model: AppModel
     @Bindable var stack: DocumentStack
 
+    private var cancelAction: (() -> Void)? {
+        guard stack.canCancel else { return nil }
+        let stack = stack
+        return { stack.cancelBusy() }
+    }
+
     func body(content: Content) -> some View {
         content
             .onAppear { stack.attach(model) }
@@ -40,7 +46,7 @@ struct StackSheetsModifier: ViewModifier {
                 case .align: AutoAlignSheet(stack: stack)
                 case .blend: AutoBlendSheet(stack: stack)
                 case .photomerge: PhotomergeSheet(stack: stack, hasDocument: model.documents.current != nil)
-                case .busy(let what): StackBusySheet(title: what)
+                case .busy(let what): StackBusySheet(title: what, cancel: cancelAction)
                 }
             }
     }
@@ -51,9 +57,12 @@ extension View {
     func stackSheets(_ model: AppModel) -> some View { modifier(StackSheetsModifier(model: model, stack: .shared)) }
 }
 
-/// Indeterminate progress while the engine aligns or blends (no Cancel: it cannot be interrupted yet).
+/// Indeterminate progress while the engine aligns or blends. Photomerge offers Cancel (honoured while it
+/// reads the photos); Auto-Align / Auto-Blend cannot be interrupted yet, so they show none.
 struct StackBusySheet: View {
     let title: String
+    let cancel: (() -> Void)?
+    @State private var cancelling = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
@@ -61,7 +70,19 @@ struct StackBusySheet: View {
                 ProgressView().controlSize(.small)
                 Text("\(title)…").font(Theme.Fonts.body)
             }
-            Text(StackCommandRules.busyNote).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+            Text(cancel == nil ? StackCommandRules.busyNote : StackCommandRules.photomergeBusyNote)
+                .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let cancel {
+                HStack {
+                    Spacer()
+                    Button(cancelling ? "Cancelling…" : "Cancel") { cancelling = true; cancel() }
+                        .buttonStyle(.theme(.bordered, height: Theme.Height.large))
+                        .keyboardShortcut(.cancelAction)
+                        .disabled(cancelling)
+                        .accessibilityIdentifier("stack-busy-cancel")
+                }
+            }
         }
         .padding(Theme.Space.l)
         .frame(width: 360, alignment: .leading)

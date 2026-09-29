@@ -4527,10 +4527,12 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     
     /**
      * Photomerge into this document: each source (library image id or
-     * file path) becomes a named top-level layer, aligned and blended, as
-     * one history node. Blocking (decodes every source first).
+     * JPEG / PNG / TIFF path) becomes a named top-level layer, converted to
+     * the document's profile, aligned and blended, as one history node.
+     * Blocking (decodes every source first); `cancel` stops it before the
+     * edit with [`PHOTOMERGE_CANCELLED`] and nothing changed.
      */
-    func photomergeIntoLayers(sources: [String], align: StackAlignOptions, blend: StackBlendOptions) throws  -> DocumentUpdate
+    func photomergeIntoLayers(sources: [String], align: StackAlignOptions, blend: StackBlendOptions, cancel: CancelFlag) throws  -> DocumentUpdate
     
     /**
      * Whether `ids` (Layers panel selection) can be aligned and blended.
@@ -6491,17 +6493,20 @@ open func autoBlendLayers(ids: [UInt64], options: StackBlendOptions)throws  -> D
     
     /**
      * Photomerge into this document: each source (library image id or
-     * file path) becomes a named top-level layer, aligned and blended, as
-     * one history node. Blocking (decodes every source first).
+     * JPEG / PNG / TIFF path) becomes a named top-level layer, converted to
+     * the document's profile, aligned and blended, as one history node.
+     * Blocking (decodes every source first); `cancel` stops it before the
+     * edit with [`PHOTOMERGE_CANCELLED`] and nothing changed.
      */
-open func photomergeIntoLayers(sources: [String], align: StackAlignOptions, blend: StackBlendOptions)throws  -> DocumentUpdate  {
+open func photomergeIntoLayers(sources: [String], align: StackAlignOptions, blend: StackBlendOptions, cancel: CancelFlag)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_documentsession_photomerge_into_layers(
             self.uniffiCloneHandle(),
         FfiConverterSequenceString.lower(sources),
         FfiConverterTypeStackAlignOptions_lower(align),
-        FfiConverterTypeStackBlendOptions_lower(blend),uniffiCallStatus
+        FfiConverterTypeStackBlendOptions_lower(blend),
+        FfiConverterTypeCancelFlag_lower(cancel),uniffiCallStatus
     )
 })
 }
@@ -7569,11 +7574,13 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openDocumentFromImage(imageId: String, developed: Bool) throws  -> DocumentSession
     
     /**
-     * File ▸ Automate ▸ Photomerge: a new Untitled document whose one
-     * history node after "New Document" merges `sources` (library image ids
-     * or file paths) into named, aligned and blended layers. Blocking.
+     * File ▸ Automate ▸ Photomerge: a new Untitled document, in the first
+     * photo's colour profile, whose one history node after "New Document"
+     * merges `sources` (library image ids or JPEG / PNG / TIFF paths) into
+     * named, aligned and blended layers. Blocking; `cancel` as for
+     * `photomerge_into_layers`.
      */
-    func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions) throws  -> DocumentSession
+    func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions, cancel: CancelFlag) throws  -> DocumentSession
     
     /**
      * Each selected photo produces its own float LinearRaw DNG, stacked with
@@ -8233,18 +8240,21 @@ open func openDocumentFromImage(imageId: String, developed: Bool)throws  -> Docu
 }
     
     /**
-     * File ▸ Automate ▸ Photomerge: a new Untitled document whose one
-     * history node after "New Document" merges `sources` (library image ids
-     * or file paths) into named, aligned and blended layers. Blocking.
+     * File ▸ Automate ▸ Photomerge: a new Untitled document, in the first
+     * photo's colour profile, whose one history node after "New Document"
+     * merges `sources` (library image ids or JPEG / PNG / TIFF paths) into
+     * named, aligned and blended layers. Blocking; `cancel` as for
+     * `photomerge_into_layers`.
      */
-open func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions)throws  -> DocumentSession  {
+open func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions, cancel: CancelFlag)throws  -> DocumentSession  {
     return try  FfiConverterTypeDocumentSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_engine_photomerge_document(
             self.uniffiCloneHandle(),
         FfiConverterSequenceString.lower(sources),
         FfiConverterTypeStackAlignOptions_lower(align),
-        FfiConverterTypeStackBlendOptions_lower(blend),uniffiCallStatus
+        FfiConverterTypeStackBlendOptions_lower(blend),
+        FfiConverterTypeCancelFlag_lower(cancel),uniffiCallStatus
     )
 })
 }
@@ -30325,7 +30335,8 @@ public func FfiConverterTypeSmartPreviewState_lower(_ value: SmartPreviewState) 
 
 
 /**
- * Auto-Align / Photomerge projection ("Layout" in Photoshop).
+ * Auto-Align / Photomerge projection ("Layout" in Photoshop). Photoshop's
+ * Reposition is withheld until `merge::layers` registers it correctly.
  */
 
 public enum StackAlignMode: Equatable, Hashable {
@@ -30335,7 +30346,6 @@ public enum StackAlignMode: Equatable, Hashable {
     case cylindrical
     case spherical
     case collage
-    case reposition
 
 
 
@@ -30367,8 +30377,6 @@ public struct FfiConverterTypeStackAlignMode: FfiConverterRustBuffer {
         
         case 5: return .collage
         
-        case 6: return .reposition
-        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -30395,10 +30403,6 @@ public struct FfiConverterTypeStackAlignMode: FfiConverterRustBuffer {
         
         case .collage:
             writeInt(&buf, Int32(5))
-        
-        
-        case .reposition:
-            writeInt(&buf, Int32(6))
         
         }
     }
@@ -34252,6 +34256,16 @@ public func defaultStackBlendOptions() -> StackBlendOptions  {
 })
 }
 /**
+ * `MAX_STACK_MEGAPIXELS`, as a Swift-visible constant.
+ */
+public func stackMaxMegapixels() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_stack_max_megapixels(uniffiCallStatus
+    )
+})
+}
+/**
  * The effect kinds `LayerStyles` JSON may hold, their fields (JSON keys of
  * `settings`) with UI ranges, defaults and flags, top first in the engine's
  * stacking order. Field `type`s: `number` (`min`/`max` in stored units,
@@ -34443,6 +34457,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_default_stack_blend_options() != 61674) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_func_stack_max_megapixels() != 2212) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_func_style_effects_schema_json() != 46429) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34563,7 +34580,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_document_from_image() != 20023) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_photomerge_document() != 36798) {
+    if (uniffi_tessera_ffi_checksum_method_engine_photomerge_document() != 30948) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_enhance() != 12673) {
@@ -35328,7 +35345,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_auto_blend_layers() != 11892) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_photomerge_into_layers() != 65337) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_photomerge_into_layers() != 50452) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_stack_eligibility() != 24504) {

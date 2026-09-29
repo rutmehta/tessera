@@ -7,15 +7,24 @@
 //! layers; pixel layers for alignment, pixel or aligned layers for blending),
 //! so nothing changes on error; the engine validates again atomically.
 //!
-//! Alignment and blending are not cancellable yet (`merge::layers` takes no
-//! token): the app shows an indeterminate busy state, never a Cancel button.
+//! Memory: every stack is limited to [`MAX_STACK_MEGAPIXELS`] in total,
+//! checked before anything is decoded or copied (Photomerge reads each
+//! file's size from its header). Photomerge takes JPEG / PNG / TIFF files
+//! and library photos only, and converts each photo into the target
+//! document's colour profile (a new document takes the first photo's).
+//!
+//! Cancellation: Photomerge checks its `CancelFlag` before and while
+//! decoding each photo and once more before the edit. Alignment and blending
+//! themselves are not cancellable yet (`merge::layers` takes no token).
 //! Lens corrections (vignette removal, geometric distortion) need one
 //! explicit calibration per layer; library lens profiles are not mapped.
+//! Reposition is not offered: `merge::layers` mis-registers it (see
+//! `reposition_is_withheld_while_the_engine_misregisters_it`).
 
 use super::{DocumentSession, DocumentUpdate, Opened, io};
-use crate::{Engine, Result, failure};
-use compositor::{DocOp, DocState, Document, LayerId, LayerKind, Raster};
-use engine_api::{EngineResult, tile::Extent};
+use crate::{Engine, Result, export::CancelFlag, failure};
+use compositor::{ColorProfile, DocOp, DocState, Document, LayerId, LayerKind, Raster};
+use engine_api::{EngineResult, jobs::CancellationToken, tile::Extent};
 use merge::{
     LinearImage,
     layers::{AlignMode, AlignOptions, BlendMode, BlendOptions, LensCorrection},
@@ -25,7 +34,38 @@ use std::{path::Path, sync::Arc, sync::atomic::AtomicBool};
 /// Most layers or photos one stack takes (`merge::layers`).
 const MAX_STACK: usize = 128;
 
-/// Auto-Align / Photomerge projection ("Layout" in Photoshop).
+/// Most pixels one stack takes, in megapixels (all layers or photos
+/// together). Alignment and blending keep several full-resolution float
+/// copies (about 50 bytes per source pixel at peak), so this keeps a stack
+/// near 10 GB: e.g. eight 24 MP or four 48 MP photos.
+pub const MAX_STACK_MEGAPIXELS: u64 = 200;
+const MAX_STACK_PIXELS: u64 = MAX_STACK_MEGAPIXELS * 1_000_000;
+
+/// The error a cancelled Photomerge returns (nothing changed).
+pub const PHOTOMERGE_CANCELLED: &str = "Photomerge was cancelled";
+
+/// `MAX_STACK_MEGAPIXELS`, as a Swift-visible constant.
+#[uniffi::export]
+pub fn stack_max_megapixels() -> u64 {
+    MAX_STACK_MEGAPIXELS
+}
+
+fn megapixels(pixels: u64) -> u64 {
+    pixels.div_ceil(1_000_000)
+}
+
+fn over_budget(what: &str, pixels: u64) -> Option<String> {
+    (pixels > MAX_STACK_PIXELS).then(|| {
+        format!(
+            "{what} is limited to {MAX_STACK_MEGAPIXELS} megapixels in total; these have {} \
+             megapixels. Use fewer or smaller images.",
+            megapixels(pixels)
+        )
+    })
+}
+
+/// Auto-Align / Photomerge projection ("Layout" in Photoshop). Photoshop's
+/// Reposition is withheld until `merge::layers` registers it correctly.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
 pub enum StackAlignMode {
     Auto,
@@ -33,7 +73,6 @@ pub enum StackAlignMode {
     Cylindrical,
     Spherical,
     Collage,
-    Reposition,
 }
 
 /// Auto-Blend method.
@@ -124,7 +163,6 @@ impl From<StackAlignMode> for AlignMode {
             StackAlignMode::Cylindrical => AlignMode::Cylindrical,
             StackAlignMode::Spherical => AlignMode::Spherical,
             StackAlignMode::Collage => AlignMode::Collage,
-            StackAlignMode::Reposition => AlignMode::Reposition,
         }
     }
 }
@@ -218,6 +256,7 @@ fn problem(s: &DocState, ids: &[u64], stage: Stage) -> Option<String> {
     if ids.len() > MAX_STACK {
         return Some(format!("{title} takes at most {MAX_STACK} layers"));
     }
+    let mut pixels = 0u64;
     for (i, id) in ids.iter().enumerate() {
         if ids[..i].contains(id) {
             return Some(format!("layer {id} is selected twice"));
@@ -249,34 +288,109 @@ fn problem(s: &DocState, ids: &[u64], stage: Stage) -> Option<String> {
                 "{title} needs pixel layers; “{name}” is not a pixel layer"
             ));
         }
+        let extent = match &l.kind {
+            LayerKind::Pixel(r) => r.extent(),
+            LayerKind::SmartObject(so) => so.state.canvas,
+            _ => Extent::new(0, 0),
+        };
+        pixels = pixels.saturating_add(u64::from(extent.width) * u64::from(extent.height));
     }
-    None
+    over_budget(title, pixels)
 }
 
 fn is_image_id(s: &str) -> bool {
     s.len() == 32 && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// One Photomerge source (a library image id, rendered developed, or a
-/// `.tessera-doc` / PSD / JPEG / PNG / TIFF path) as its display name and the
-/// composite's RGB, in the document encoding (as Auto-Align reads layers).
-fn load_source(engine: &Arc<Engine>, source: &str) -> Result<(String, LinearImage)> {
-    let (opened, name) = if is_image_id(source) {
-        let o = io::open_image(engine, source, true)?;
-        let name = o.title.clone();
-        (o, name)
+fn ext(path: &Path) -> String {
+    path.extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default()
+}
+
+/// Pixel count from the file header only (no decode); `None` when the
+/// header cannot say (HEIC, linear DNG): those count after decoding.
+fn header_pixels(path: &Path) -> Option<u64> {
+    let (w, h) = if matches!(ext(path).as_str(), "tif" | "tiff") {
+        let file = std::io::BufReader::new(std::fs::File::open(path).ok()?);
+        tiff::decoder::Decoder::new(file).ok()?.dimensions().ok()?
+    } else if image_core::RgbSource::recognizes(path) {
+        image::ImageReader::open(path)
+            .ok()?
+            .with_guessed_format()
+            .ok()?
+            .into_dimensions()
+            .ok()?
     } else {
-        let path = Path::new(source);
-        let name = path
-            .file_stem()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Layer".into());
-        (io::open_path(path)?, name)
+        let m = raw_decode::RawSource::open(path).ok()?.metadata();
+        (m.width, m.height)
     };
-    let (extent, rgba) = compositor::Compositor::new(64 << 20).render_level_rgba(&opened.doc, 0)?;
-    Ok((
-        name,
-        LinearImage {
+    Some(u64::from(w) * u64::from(h))
+}
+
+/// One Photomerge source, resolved but not decoded.
+enum Source {
+    Image { id: String, path: String },
+    File(String),
+}
+
+impl Source {
+    fn resolve(engine: &Arc<Engine>, s: &str) -> Result<Self> {
+        if is_image_id(s) {
+            let c = engine.lock()?;
+            let path =
+                Engine::path(&c, s).map_err(|_| failure("photo not found in the library"))?;
+            return Ok(Self::Image {
+                id: s.to_owned(),
+                path,
+            });
+        }
+        match ext(Path::new(s)).as_str() {
+            "jpg" | "jpeg" | "png" | "tif" | "tiff" => Ok(Self::File(s.to_owned())),
+            _ => Err(failure(
+                "Photomerge takes JPEG, PNG or TIFF files or library photos",
+            )),
+        }
+    }
+
+    fn path(&self) -> &Path {
+        match self {
+            Self::Image { path, .. } | Self::File(path) => Path::new(path),
+        }
+    }
+
+    /// Decodes into its display name, the composite's RGB converted into
+    /// `target` (`None`: keep the photo's own profile) and that profile.
+    fn load(
+        &self,
+        engine: &Arc<Engine>,
+        target: Option<&ColorProfile>,
+        cancel: &CancellationToken,
+    ) -> Result<(String, LinearImage, ColorProfile)> {
+        let (opened, name) = match self {
+            Self::Image { id, .. } => {
+                let o = io::open_image(engine, id, true, cancel)?;
+                let name = o.title.clone();
+                (o, name)
+            }
+            Self::File(path) => {
+                let name = Path::new(path)
+                    .file_stem()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "Layer".into());
+                (io::open_path(Path::new(path))?, name)
+            }
+        };
+        let source = profile_or_srgb(opened.doc.state().profile.as_ref())?;
+        let (extent, mut rgba) = compositor::Compositor::new(64 << 20)
+            .render_level_rgba_with_cancel(&opened.doc, 0, cancel)?;
+        drop(opened);
+        let target = target.cloned().unwrap_or_else(|| source.clone());
+        let (from, to) = (icc(&source)?, icc(&target)?);
+        if from != to {
+            io::convert(from, to, &mut rgba)?;
+        }
+        let image = LinearImage {
             width: extent.width as usize,
             height: extent.height as usize,
             pixels: rgba
@@ -287,12 +401,37 @@ fn load_source(engine: &Arc<Engine>, source: &str) -> Result<(String, LinearImag
                 .collect(),
             color_matrix: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
             as_shot_neutral: [1.; 3],
-        },
-    ))
+        };
+        Ok((name, image, target))
+    }
 }
 
-/// Decodes every source (blocking) after checking the count.
-fn load_sources(engine: &Arc<Engine>, sources: &[String]) -> Result<Vec<(String, LinearImage)>> {
+/// A document's profile, untagged meaning sRGB.
+fn profile_or_srgb(p: Option<&ColorProfile>) -> Result<ColorProfile> {
+    match p {
+        Some(p) => Ok(p.clone()),
+        None => Ok(io::profile(None)?.expect("sRGB")),
+    }
+}
+
+fn icc(p: &ColorProfile) -> Result<&[u8]> {
+    p.icc.as_deref().map(Vec::as_slice).ok_or_else(|| {
+        failure(format!(
+            "the colour profile “{}” is not embedded, so photos cannot be converted to it",
+            p.name
+        ))
+    })
+}
+
+/// Checks the count and the pixel budget (from headers), then decodes every
+/// source in order, converting each into `target` (`None`: the first
+/// photo's profile). Returns the images and the profile they are in.
+fn load_sources(
+    engine: &Arc<Engine>,
+    sources: &[String],
+    target: Option<ColorProfile>,
+    cancel: &CancellationToken,
+) -> Result<(Vec<(String, LinearImage)>, ColorProfile)> {
     if sources.len() < 2 {
         return Err(failure("Photomerge needs two or more photos"));
     }
@@ -301,10 +440,44 @@ fn load_sources(engine: &Arc<Engine>, sources: &[String]) -> Result<Vec<(String,
             "Photomerge takes at most {MAX_STACK} photos"
         )));
     }
-    sources
+    let named = |s: &str, e: crate::BridgeError| failure(format!("{s}: {e}"));
+    let resolved = sources
         .iter()
-        .map(|s| load_source(engine, s).map_err(|e| failure(format!("{s}: {e}"))))
-        .collect()
+        .map(|s| Source::resolve(engine, s).map_err(|e| named(s, e)))
+        .collect::<Result<Vec<_>>>()?;
+    let headers: Vec<_> = resolved.iter().map(|s| header_pixels(s.path())).collect();
+    let known = headers
+        .iter()
+        .flatten()
+        .fold(0u64, |a, b| a.saturating_add(*b));
+    if let Some(p) = over_budget("Photomerge", known) {
+        return Err(failure(p));
+    }
+    let mut target = target;
+    let mut total = known;
+    let mut images = Vec::with_capacity(sources.len());
+    for ((source, s), header) in resolved.iter().zip(sources).zip(&headers) {
+        if cancel.is_cancelled() {
+            return Err(failure(PHOTOMERGE_CANCELLED));
+        }
+        let loaded = source.load(engine, target.as_ref(), cancel);
+        if cancel.is_cancelled() {
+            return Err(failure(PHOTOMERGE_CANCELLED));
+        }
+        let (name, image, profile) = loaded.map_err(|e| named(s, e))?;
+        if header.is_none() {
+            total = total.saturating_add((image.width * image.height) as u64);
+            if let Some(p) = over_budget("Photomerge", total) {
+                return Err(failure(p));
+            }
+        }
+        target.get_or_insert(profile);
+        images.push((name, image));
+    }
+    if cancel.is_cancelled() {
+        return Err(failure(PHOTOMERGE_CANCELLED));
+    }
+    Ok((images, target.expect("two or more sources")))
 }
 
 fn photomerge_op(
@@ -385,13 +558,16 @@ impl DocumentSession {
     }
 
     /// Photomerge into this document: each source (library image id or
-    /// file path) becomes a named top-level layer, aligned and blended, as
-    /// one history node. Blocking (decodes every source first).
+    /// JPEG / PNG / TIFF path) becomes a named top-level layer, converted to
+    /// the document's profile, aligned and blended, as one history node.
+    /// Blocking (decodes every source first); `cancel` stops it before the
+    /// edit with [`PHOTOMERGE_CANCELLED`] and nothing changed.
     pub fn photomerge_into_layers(
         &self,
         sources: Vec<String>,
         align: StackAlignOptions,
         blend: StackBlendOptions,
+        cancel: Arc<CancelFlag>,
     ) -> Result<DocumentUpdate> {
         let engine = self
             .shared
@@ -399,28 +575,35 @@ impl DocumentSession {
             .upgrade()
             .ok_or_else(|| failure("engine is closed"))?;
         align_options(&align, sources.len().max(1))?;
-        let images = load_sources(&engine, &sources)?;
+        let profile = {
+            let st = self.shared.lock()?;
+            profile_or_srgb(st.live().state().profile.as_ref())?
+        };
+        let (images, _) = load_sources(&engine, &sources, Some(profile), cancel.token())?;
         self.edit(photomerge_op(images, &align, &blend)?, Some("Photomerge"))
     }
 }
 
 #[uniffi::export]
 impl Engine {
-    /// File ▸ Automate ▸ Photomerge: a new Untitled document whose one
-    /// history node after "New Document" merges `sources` (library image ids
-    /// or file paths) into named, aligned and blended layers. Blocking.
+    /// File ▸ Automate ▸ Photomerge: a new Untitled document, in the first
+    /// photo's colour profile, whose one history node after "New Document"
+    /// merges `sources` (library image ids or JPEG / PNG / TIFF paths) into
+    /// named, aligned and blended layers. Blocking; `cancel` as for
+    /// `photomerge_into_layers`.
     pub fn photomerge_document(
         self: Arc<Self>,
         sources: Vec<String>,
         align: StackAlignOptions,
         blend: StackBlendOptions,
+        cancel: Arc<CancelFlag>,
     ) -> Result<Arc<DocumentSession>> {
         align_options(&align, sources.len().max(1))?;
-        let images = load_sources(&self, &sources)?;
+        let (images, profile) = load_sources(&self, &sources, None, cancel.token())?;
         let op = photomerge_op(images, &align, &blend)?;
         let depth = compositor::Depth::F32;
         let mut state = DocState::new(Extent::new(1, 1), depth);
-        state.profile = io::profile(None)?;
+        state.profile = Some(profile);
         let session = self.register_document(
             None,
             Opened {

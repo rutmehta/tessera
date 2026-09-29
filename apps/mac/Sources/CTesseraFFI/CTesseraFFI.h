@@ -608,7 +608,7 @@ uint64_t uniffi_tessera_ffi_fn_method_engine_open_document_from_image(uint64_t p
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
-uint64_t uniffi_tessera_ffi_fn_method_engine_photomerge_document(uint64_t ptr, RustBuffer sources, RustBuffer align, RustBuffer blend, RustCallStatus *_Nonnull out_status
+uint64_t uniffi_tessera_ffi_fn_method_engine_photomerge_document(uint64_t ptr, RustBuffer sources, RustBuffer align, RustBuffer blend, uint64_t cancel, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ENHANCE
@@ -1988,7 +1988,7 @@ RustBuffer uniffi_tessera_ffi_fn_method_documentsession_auto_blend_layers(uint64
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_PHOTOMERGE_INTO_LAYERS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_PHOTOMERGE_INTO_LAYERS
-RustBuffer uniffi_tessera_ffi_fn_method_documentsession_photomerge_into_layers(uint64_t ptr, RustBuffer sources, RustBuffer align, RustBuffer blend, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_tessera_ffi_fn_method_documentsession_photomerge_into_layers(uint64_t ptr, RustBuffer sources, RustBuffer align, RustBuffer blend, uint64_t cancel, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DOCUMENTSESSION_STACK_ELIGIBILITY
@@ -2858,6 +2858,12 @@ RustBuffer uniffi_tessera_ffi_fn_func_default_stack_blend_options(RustCallStatus
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_STACK_MAX_MEGAPIXELS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_STACK_MAX_MEGAPIXELS
+uint64_t uniffi_tessera_ffi_fn_func_stack_max_megapixels(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_STYLE_EFFECTS_SCHEMA_JSON
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_STYLE_EFFECTS_SCHEMA_JSON
 RustBuffer uniffi_tessera_ffi_fn_func_style_effects_schema_json(RustCallStatus *_Nonnull out_status
@@ -3233,6 +3239,12 @@ uint16_t uniffi_tessera_ffi_checksum_func_default_stack_align_options(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_DEFAULT_STACK_BLEND_OPTIONS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_DEFAULT_STACK_BLEND_OPTIONS
 uint16_t uniffi_tessera_ffi_checksum_func_default_stack_blend_options(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_STACK_MAX_MEGAPIXELS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_STACK_MAX_MEGAPIXELS
+uint16_t uniffi_tessera_ffi_checksum_func_stack_max_megapixels(void
     
 );
 #endif

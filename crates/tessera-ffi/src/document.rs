@@ -102,8 +102,9 @@ pub use vector_shapes::{
 #[path = "document/stack.rs"]
 mod stack;
 pub use stack::{
-    StackAlignMode, StackAlignOptions, StackBlendMode, StackBlendOptions, StackEligibility,
-    StackLensCorrection, default_stack_align_options, default_stack_blend_options,
+    MAX_STACK_MEGAPIXELS, PHOTOMERGE_CANCELLED, StackAlignMode, StackAlignOptions, StackBlendMode,
+    StackBlendOptions, StackEligibility, StackLensCorrection, default_stack_align_options,
+    default_stack_blend_options, stack_max_megapixels,
 };
 // B5-19 end
 
@@ -664,7 +665,12 @@ impl Engine {
         if let Some(s) = self.documents.find(&key) {
             return Ok(s);
         }
-        let opened = io::open_image(&self, &image_id, developed)?;
+        let opened = io::open_image(
+            &self,
+            &image_id,
+            developed,
+            &engine_api::jobs::CancellationToken::new(),
+        )?;
         Ok(self.register_document(Some(key), opened))
     }
 

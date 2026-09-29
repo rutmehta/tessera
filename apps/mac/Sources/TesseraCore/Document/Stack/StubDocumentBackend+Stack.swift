@@ -1,4 +1,5 @@
 import Foundation
+import TesseraFFI
 
 // The stack calls on the stub (WP B5-19; `--stub-library` runs and unit tests). The stub has no pixels
 // to register or blend, so it applies the engine's selection rules (the same messages) and then reports
@@ -26,16 +27,16 @@ extension StubDocumentBackend: DocumentStackBackend {
         throw Self.needsEngine("Auto-Blend Layers")
     }
 
-    public func photomergeIntoLayers(sources: [String], align: StackAlignSettings, blend: StackBlendSettings) throws
-        -> DocumentChange {
+    public func photomergeIntoLayers(sources: [String], align: StackAlignSettings, blend: StackBlendSettings,
+                                     cancel: CancelFlag) throws -> DocumentChange {
         if sources.count < 2 { throw DocumentError.invalid("Photomerge needs two or more photos") }
         throw Self.needsEngine("Photomerge")
     }
 }
 
 extension StubDocumentEngine: DocumentStackEngine {
-    public func photomergeDocument(sources: [String], align: StackAlignSettings, blend: StackBlendSettings) throws
-        -> any DocumentBackend {
+    public func photomergeDocument(sources: [String], align: StackAlignSettings, blend: StackBlendSettings,
+                                   cancel: CancelFlag) throws -> any DocumentBackend {
         if sources.count < 2 { throw DocumentError.invalid("Photomerge needs two or more photos") }
         throw DocumentError.unsupported("Photomerge needs the engine (the stub backend has no pixels)")
     }

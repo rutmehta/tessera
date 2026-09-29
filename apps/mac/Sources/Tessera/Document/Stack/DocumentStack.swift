@@ -2,11 +2,14 @@ import AppKit
 import Observation
 import SwiftUI
 import TesseraCore
+import TesseraFFI
+import UniformTypeIdentifiers
 
 /// Edit ▸ Auto-Align Layers…, Edit ▸ Auto-Blend Layers… and File ▸ Automate ▸ Photomerge… (WP B5-19).
 /// Menu enablement follows the Layers selection (`StackCommandRules`); the sheets collect options; each
 /// run is one blocking engine call off the main thread (one history node) with an indeterminate busy
-/// sheet — the engine has no cancellation point for alignment or blending yet, so there is no Cancel.
+/// sheet. Photomerge's busy sheet has Cancel (honoured while the photos are read, before anything
+/// changes); the engine has no cancellation point inside alignment or blending yet.
 @MainActor @Observable
 final class DocumentStack {
     static let shared = DocumentStack()
@@ -31,6 +34,15 @@ final class DocumentStack {
     var photomerge = PhotomergeForm()
     /// The running operation's title.
     private(set) var busy: String?
+    /// The running Photomerge's cancel flag (nil for Auto-Align / Auto-Blend, which cannot stop).
+    @ObservationIgnored private(set) var cancelFlag: CancelFlag?
+    /// Whether the busy sheet offers Cancel.
+    var canCancel: Bool { cancelFlag != nil }
+
+    func cancelBusy() {
+        cancelFlag?.cancel()
+        say("Cancelling Photomerge…")
+    }
 
     private init() {}
 
@@ -70,9 +82,17 @@ final class DocumentStack {
 
     // MARK: Presenting
 
+    /// The engine's own check (it also requires four-channel pixel layers, which the rules cannot see).
+    private func engineProblem(_ doc: DocumentController, align: Bool) -> String? {
+        guard let b = doc.backend as? any DocumentStackBackend,
+              let e = try? b.stackEligibility(ids: selection(doc)) else { return nil }
+        return (align ? e.canAlign : e.canBlend) ? nil : e.reason
+    }
+
     func presentAlign() {
         guard let doc = document else { return }
-        if let p = StackCommandRules.alignProblem(layers: doc.layers, selected: selection(doc)) {
+        if let p = StackCommandRules.alignProblem(layers: doc.layers, selected: selection(doc))
+            ?? engineProblem(doc, align: true) {
             say("Auto-Align Layers: \(p)"); return
         }
         if align.referenceIndex >= UInt32(selection(doc).count) { align.referenceIndex = 0 }
@@ -81,7 +101,8 @@ final class DocumentStack {
 
     func presentBlend() {
         guard let doc = document else { return }
-        if let p = StackCommandRules.blendProblem(layers: doc.layers, selected: selection(doc)) {
+        if let p = StackCommandRules.blendProblem(layers: doc.layers, selected: selection(doc))
+            ?? engineProblem(doc, align: false) {
             say("Auto-Blend Layers: \(p)"); return
         }
         sheet = .blend
@@ -110,7 +131,8 @@ final class DocumentStack {
     func addFiles() {
         let panel = NSOpenPanel()
         panel.title = "Add Photos to Photomerge"
-        panel.allowedContentTypes = DocumentWorkspace.documentTypes
+        // Flat images only: the engine reads their size from the header before decoding anything.
+        panel.allowedContentTypes = [.jpeg, .png, .tiff]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK else { return }
@@ -121,15 +143,20 @@ final class DocumentStack {
     // MARK: Running
 
     /// Runs `body` off the main thread under the busy sheet, then refreshes the document.
-    private func perform(_ doc: DocumentController, _ what: String,
+    private func perform(_ doc: DocumentController, _ what: String, cancel: CancelFlag? = nil,
                          _ body: @escaping @Sendable () throws -> DocumentChange) {
         busy = what
+        cancelFlag = cancel
         sheet = .busy(what)
         say("\(what)…")
         Task { @MainActor in
             let result = await Task.detached(priority: .userInitiated) { Result { try body() } }.value
             self.busy = nil
+            self.cancelFlag = nil
             if case .busy = self.sheet { self.sheet = nil }
+            if cancel?.isCancelled() == true, case .failure = result {
+                self.say(StackCommandRules.photomergeCancelled); return
+            }
             if doc.run(what, { try result.get() }) != nil {
                 DocumentTools.shared.refreshOutline(doc)
                 self.say("\(what) finished")
@@ -155,7 +182,10 @@ final class DocumentStack {
             guard let b = doc.backend as? any DocumentStackBackend else {
                 say("Photomerge: this document cannot merge photos"); return
             }
-            perform(doc, "Photomerge") { try b.photomergeIntoLayers(sources: r.sources, align: r.align, blend: r.blend) }
+            let cancel = CancelFlag()
+            perform(doc, "Photomerge", cancel: cancel) {
+                try b.photomergeIntoLayers(sources: r.sources, align: r.align, blend: r.blend, cancel: cancel)
+            }
             return
         }
         // Library images merge on their library's engine; files on the documents' engine.
@@ -165,15 +195,24 @@ final class DocumentStack {
         guard let stackEngine = engine as? any DocumentStackEngine else {
             say("Photomerge: the document engine cannot merge photos"); return
         }
+        let cancel = CancelFlag()
         busy = "Photomerge"
+        cancelFlag = cancel
         sheet = .busy("Photomerge")
         say("Photomerge…")
         Task { @MainActor in
             let result = await Task.detached(priority: .userInitiated) {
-                Result { try stackEngine.photomergeDocument(sources: r.sources, align: r.align, blend: r.blend) }
+                Result {
+                    try stackEngine.photomergeDocument(sources: r.sources, align: r.align, blend: r.blend,
+                                                       cancel: cancel)
+                }
             }.value
             self.busy = nil
+            self.cancelFlag = nil
             if case .busy = self.sheet { self.sheet = nil }
+            if cancel.isCancelled(), case .failure = result {
+                self.say(StackCommandRules.photomergeCancelled); return
+            }
             switch result {
             case .success(let backend):
                 do {

@@ -1,4 +1,5 @@
 import Foundation
+import TesseraFFI
 
 // Auto-Align / Auto-Blend Layers and Photomerge (WP B5-19): the session's stack calls
 // (crates/tessera-ffi/src/document/stack.rs), adopted by `EngineDocumentBackend` and, validating only,
@@ -12,13 +13,15 @@ public protocol DocumentStackBackend: AnyObject, Sendable {
     func autoAlignLayers(ids: [DocLayerID], options: StackAlignSettings) throws -> DocumentChange
     /// Panorama seam or focus-stack masks on each layer (plus an optional Content-Aware Fill layer).
     func autoBlendLayers(ids: [DocLayerID], options: StackBlendSettings) throws -> DocumentChange
-    /// Library image ids or file paths as named layers of this document, aligned and blended.
-    func photomergeIntoLayers(sources: [String], align: StackAlignSettings, blend: StackBlendSettings) throws
-        -> DocumentChange
+    /// Library image ids or JPEG / PNG / TIFF paths as named layers of this document (converted to its
+    /// profile), aligned and blended. `cancel` stops it while the photos are read; it then throws
+    /// `StackCommandRules.photomergeCancelled` with nothing changed.
+    func photomergeIntoLayers(sources: [String], align: StackAlignSettings, blend: StackBlendSettings,
+                              cancel: CancelFlag) throws -> DocumentChange
 }
 
-/// File ▸ Automate ▸ Photomerge into a new Untitled document.
+/// File ▸ Automate ▸ Photomerge into a new Untitled document (in the first photo's profile).
 public protocol DocumentStackEngine: AnyObject, Sendable {
-    func photomergeDocument(sources: [String], align: StackAlignSettings, blend: StackBlendSettings) throws
-        -> any DocumentBackend
+    func photomergeDocument(sources: [String], align: StackAlignSettings, blend: StackBlendSettings,
+                            cancel: CancelFlag) throws -> any DocumentBackend
 }
