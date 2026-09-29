@@ -1,0 +1,22 @@
+{
+  "01-compile/after.json": "82edec28e7dbc36420b304d2b3464ca3905c44c34f745db3c8eaed173c2b5e4a",
+  "01-compile/before.json": "82edec28e7dbc36420b304d2b3464ca3905c44c34f745db3c8eaed173c2b5e4a",
+  "01-compile/command.json": "693130d6687d756aa62ef5dd76d06c73389c46c535350e1e404e976e32fc3107",
+  "01-compile/exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+  "01-compile/freeze.json": "cc99cf9225429eeac65e158c32808610ef613c32380e41627543b70bed2b2e57",
+  "01-compile/run.log": "133a1b88c71b24068041e1af52fc1613c4049d0a4c44e7e1ff9896178cb3ed52",
+  "02-red/after.json": "82edec28e7dbc36420b304d2b3464ca3905c44c34f745db3c8eaed173c2b5e4a",
+  "02-red/artifact-after.json": "267218a262c7ee18b3eb713f517f049d41bce34fd7e2fb3beffb2dc5ae5e1c07",
+  "02-red/artifact-before.json": "267218a262c7ee18b3eb713f517f049d41bce34fd7e2fb3beffb2dc5ae5e1c07",
+  "02-red/before.json": "82edec28e7dbc36420b304d2b3464ca3905c44c34f745db3c8eaed173c2b5e4a",
+  "02-red/command.json": "3415342acd26c9afb4e8ff5cf839c4522b0edae1eae56f0ac7bacb9ab2c13b9b",
+  "02-red/exit": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+  "02-red/freeze.json": "d72fcfe7eee29f677013dd422640a0c86b3c19e3ded82adcce9d764b838bd015",
+  "02-red/observed.json": "7df10fdd226819e20a5e8ae5b0fd1db183f405b7bfbd5f1f0c64c36339c78f60",
+  "02-red/run.log": "707f7b8d94eb873263e813eb4e2f3a27fbfc544b5d4cb497e8766ff96781c75c",
+  "RED-OBSERVATION.json": "293920a003d1975523abec8421e8e19762adcd4ae5cdc2587a81794b52df6b92",
+  "RED-OBSERVATION.md": "1c4fe217877ea8fb6668141b03e69e75390f81898ac7649a372993a372f32a84",
+  "artifact.json": "267218a262c7ee18b3eb713f517f049d41bce34fd7e2fb3beffb2dc5ae5e1c07",
+  "required-tests.json": "2f1dbe9cc4103a6a62b0c169baf3274313c4e17f72f089343d9b71f7cdf7411e",
+  "run.py": "b77d98d5dd07c970577d624c3a70917073ce1c89e258c1a6a2fca58d8ca35fc9"
+}

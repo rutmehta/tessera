@@ -1,3 +1,9 @@
+## Normalization RED independently verified; narrow WB diagnostic plan recorded
+
+Normalization `bf75fe66` compiled and its exact test binary produced 17 Unsupported failures. Independent review verified 9,140 immutable Git inputs, all freezes and the executable digest. Later table rows remain unexecuted. Portable RED evidence is preserved; author is authorized only to implement the private helper, keeping all 17 tests and legacy/public behavior unchanged until review and GREEN.
+
+The WB diagnostic plan is narrowed to actual image-core lookup outcomes and key/phase identity plus FFI harness observations. GPU admission/eviction/kernel instrumentation is deferred. This is a plan, not implementation or a performance rerun; the failed acceptance threshold stays unchanged. Inspector `4685efd5` passed 48 focused tests and strict; independent artifact verification precedes its GUI retry.
+
 ## Cache performance failure independently confirmed; inspector lifetime retry active
 
 All 22 fixed-order cache timing processes completed, but the aggregate gate failed warm white-balance edits: SDR 5.016 → 14.738 ms, EDR 4.850 → 14.446 ms, above the unchanged two-ms/10% regression allowance. Independent review recomputed medians/CV/gates and verified source/artifact freezes. Reopen and first-miss gates passing do not make the candidate acceptable. Portable failure evidence is preserved; cache remains off main. Source diagnosis suggests calibration primes the exact Daylight state used by the later probe, while cache-hit operators start fresh; stage-level proof remains pending.

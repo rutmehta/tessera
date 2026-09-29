@@ -1,0 +1,58 @@
+{
+  "ref": "bf75fe6664d5b91d7c519816a53e4533b055ce62",
+  "source_entries": 9140,
+  "freezes": [
+    {
+      "stage": "01-compile",
+      "source_count": 9140,
+      "equal": true,
+      "exit": 0
+    },
+    {
+      "stage": "02-red",
+      "source_count": 9140,
+      "equal": true,
+      "exit": 101
+    }
+  ],
+  "artifact": {
+    "compile_attempt": "01-compile",
+    "head": "bf75fe6664d5b91d7c519816a53e4533b055ce62",
+    "path": "/Volumes/betterSSD/tessera-cache/target/depth-histogram-readonly-77eb68d0-relocated/release/deps/raw_decode-be8e9abbe6c30d95",
+    "sha256": "dc7a46b10ed9abc3ecc911471f49748e916611685c25581c6ac47b23ffc97db3"
+  },
+  "failed_names": [
+    "normalize::tests::allocation_error_precedes_concurrent_cancellation",
+    "normalize::tests::bayer_all_phases_and_green_conventions_are_bit_exact",
+    "normalize::tests::cancellation_after_validation_and_reservation_prevents_conversion",
+    "normalize::tests::cancellation_at_publication_boundary_returns_no_image",
+    "normalize::tests::cancellation_inside_wide_row_stops_at_first_quantum",
+    "normalize::tests::checked_sizes_accept_exact_count_without_allocating",
+    "normalize::tests::checked_sizes_reject_extent_count_and_allocation_overflow",
+    "normalize::tests::checked_sizes_reject_isize_ceiling_without_usize_arithmetic_overflow",
+    "normalize::tests::finite_negative_black_and_legacy_zero_white_remain_compatible",
+    "normalize::tests::invalid_dimensions_counts_layout_and_levels_refuse_before_reserve",
+    "normalize::tests::legacy_channel_range_layouts_are_not_replaced_by_stricter_profile",
+    "normalize::tests::normalization_is_once_and_retains_clamped_above_white_samples",
+    "normalize::tests::offset_crop_does_not_shift_full_sensor_phase",
+    "normalize::tests::owned_capacity_and_pointers_are_observed_without_clone_or_reallocation",
+    "normalize::tests::pre_cancelled_request_allocates_and_publishes_nothing",
+    "normalize::tests::successful_loop_observes_bounded_chunks_including_partial_tail",
+    "normalize::tests::xtrans_all_phases_are_bit_exact"
+  ],
+  "required_names_exact": true,
+  "legacy_lib_bytes_equal_after_removing_only_test_module_declaration": true,
+  "changed_paths": [
+    "crates/raw-decode/src/lib.rs",
+    "crates/raw-decode/src/normalize.rs",
+    "crates/raw-decode/src/normalize/tests.rs",
+    "docs/superpowers/plans/2026-09-28-private-raw-normalization.md"
+  ],
+  "verdict": "Approved meaningful compiled Unsupported RED; private-helper implementation may be scoped by coordinator. No GREEN or later table-row coverage claim.",
+  "limitations": [
+    "Synthetic filtered test only; fixture field explicitly none, not an asset hash preservation assertion.",
+    "Table-driven bodies stop at first failing assertion; later rows/events are not exercised.",
+    "No public API, legacy delegation or decoder integration qualified."
+  ],
+  "review_execution": "read-only source/log/hash inspection; no compiler/test/app/GPU run"
+}
