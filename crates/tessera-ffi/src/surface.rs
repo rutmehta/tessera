@@ -484,6 +484,19 @@ pub mod testing {
         id
     }
 
+    /// Owned EDR target for scoped test lifetime assertions.
+    #[cfg(test)]
+    pub(crate) fn create_owned_rgba16f(width: u32, height: u32) -> super::Surface {
+        super::allocation::create(
+            width,
+            height,
+            8,
+            super::PIXEL_FORMAT_RGBA16F,
+            super::SurfaceKind::Rgba16Float,
+        )
+        .expect("IOSurfaceCreate failed")
+    }
+
     /// An EDR (`'RGhA'` RGBA16F) viewport IOSurface, retained for the life
     /// of the process.
     pub fn create_rgba16f(width: u32, height: u32) -> u32 {
