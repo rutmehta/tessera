@@ -2,6 +2,8 @@
 //! Request is not admission; lookup Some has no pending/persistent provenance.
 #![allow(dead_code)]
 
+use engine_api::stage::MemoKey;
+
 pub const CAPACITY: usize = 256;
 pub const MAX_BYTES: usize = 32 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,9 +32,8 @@ pub struct Identity {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Record {
     pub identity: Identity,
-    pub key: [u8; 32],
-    pub resolved_wb: [u8; 32],
-    pub coordinate: [u32; 3],
+    /// Exact copied lookup key: image u128, StageId, ParamHash and TileCoord.
+    pub key: MemoKey,
     pub bucket: Bucket,
     pub outcome: Outcome,
 }
@@ -42,8 +43,21 @@ pub enum Error {
     Overflow,
     Incomplete,
 }
+/// One snapshot belongs to one render transaction. These scalar fields bind
+/// every record to the full recipe and actual resolved presentation/WB state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct Context {
+    pub recipe_fingerprint: [u8; 32],
+    pub resolved_wb: [u8; 32],
+    /// 0=scene linear, 1=SDR display, 2=display linear; no implicit defaults.
+    pub output_tag: u8,
+    pub headroom_bits: u32,
+    /// Requested render level; key.tile.level may instead be L0 tail input.
+    pub render_level: u8,
+}
 #[derive(Debug)]
 pub struct Snapshot {
+    pub context: Context,
     pub records: [Option<Record>; CAPACITY],
     pub len: usize,
     pub overflow: u64,
@@ -63,6 +77,7 @@ impl Default for Recorder {
     fn default() -> Self {
         Self {
             storage: Snapshot {
+                context: Context::default(),
                 records: [None; CAPACITY],
                 len: 0,
                 overflow: 0,
@@ -79,6 +94,11 @@ impl Recorder {
     }
 }
 /// Future observation wraps one real result, never performs a second lookup.
+/// Regardless of recorder overflow, the closure MUST run once and its original
+/// Some/None/error MUST return as Ok(original_result). Outer Unsupported is a
+/// scaffold-only boundary and cannot remain as a production observer failure.
+/// Diagnostic overflow is recorded separately in Snapshot::overflow; it may
+/// never skip lookup, consume its value or replace its renderer error.
 pub fn observe_once<T, E>(
     _recorder: &mut Recorder,
     _record: Record,
@@ -104,15 +124,22 @@ mod tests {
                 transaction: 3,
                 generation: 4,
             },
-            key: [5; 32],
-            resolved_wb: [6; 32],
-            coordinate: [0, 1, 2],
+            key: MemoKey {
+                image_id: engine_api::id::ImageId(99),
+                stage: engine_api::stage::StageId::WhiteBalance,
+                params_hash: engine_api::stage::ParamHash::of(
+                    engine_api::stage::StageId::WhiteBalance,
+                    &5u32,
+                ),
+                tile: engine_api::tile::TileCoord::new(0, 1, 2),
+            },
             bucket,
             outcome,
         }
     }
     fn snapshot(records: &[Record]) -> Snapshot {
         let mut s = Snapshot {
+            context: Context::default(),
             records: [None; CAPACITY],
             len: records.len(),
             overflow: 0,
@@ -208,6 +235,77 @@ mod tests {
                 Some(Outcome::Error)
             ]
         );
+    }
+    #[test]
+    fn full_or_already_overflowed_recorder_never_changes_or_skips_lookup() {
+        use std::{cell::Cell, sync::Arc};
+        for previous_overflow in [0, 7] {
+            let mut r = Recorder {
+                storage: snapshot(&[rec(Bucket::TileWb, Outcome::None); CAPACITY]),
+            };
+            r.storage.overflow = previous_overflow;
+            let calls = Cell::new(0);
+            let value = Arc::new(23);
+            let weak = Arc::downgrade(&value);
+            let original_ptr = Arc::as_ptr(&value);
+            let got = observe_once(&mut r, rec(Bucket::Detail, Outcome::None), || {
+                calls.set(calls.get() + 1);
+                Ok::<_, u8>(Some(value))
+            })
+            .expect("overflow is diagnostic state, never replacement renderer result")
+            .unwrap()
+            .unwrap();
+            assert_eq!(calls.get(), 1);
+            assert_eq!(Arc::as_ptr(&got), original_ptr);
+            drop(got);
+            assert!(weak.upgrade().is_none());
+            let none = observe_once(&mut r, rec(Bucket::Detail, Outcome::None), || {
+                calls.set(calls.get() + 1);
+                Ok::<Option<u8>, u8>(None)
+            })
+            .expect("must return real None despite overflow");
+            assert_eq!(none, Ok(None));
+            let err = observe_once(&mut r, rec(Bucket::Detail, Outcome::None), || {
+                calls.set(calls.get() + 1);
+                Err::<Option<u8>, _>(42)
+            })
+            .expect("must return original error despite overflow");
+            assert_eq!(err, Err(42));
+            assert_eq!(calls.get(), 3);
+            let s = r.drain().unwrap();
+            assert_eq!(s.len, CAPACITY);
+            assert_eq!(s.overflow, previous_overflow + 3);
+            assert_eq!(s.records[0], Some(rec(Bucket::TileWb, Outcome::None)));
+        }
+    }
+    #[test]
+    fn full_memo_identity_and_render_context_survive_drain_distinctly() {
+        let mut r = Recorder::default();
+        let context = Context {
+            recipe_fingerprint: [11; 32],
+            resolved_wb: [12; 32],
+            output_tag: 2,
+            headroom_bits: 4f32.to_bits(),
+            render_level: 1,
+        };
+        r.storage.context = context;
+        let original = rec(Bucket::TileWb, Outcome::Some);
+        let mut variants = [original; 5];
+        variants[1].key.image_id = engine_api::id::ImageId(100);
+        variants[2].key.stage = engine_api::stage::StageId::Detail;
+        variants[3].key.params_hash =
+            engine_api::stage::ParamHash::of(engine_api::stage::StageId::WhiteBalance, &6u32);
+        variants[4].key.tile = engine_api::tile::TileCoord::new(1, 2, 3);
+        for record in variants {
+            r.push(record).unwrap();
+        }
+        let s = r.drain().unwrap();
+        assert_eq!(s.context, context);
+        for (i, record) in variants.iter().enumerate() {
+            assert_eq!(s.records[i], Some(*record));
+        }
+        assert_eq!(s.records[0].unwrap().key.tile.level, 0);
+        assert_eq!(s.context.render_level, 1);
     }
     #[test]
     fn complete_detail_hit_marks_nested_not_reached_only() {
