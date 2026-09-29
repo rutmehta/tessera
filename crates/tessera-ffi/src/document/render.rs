@@ -1493,8 +1493,8 @@ mod frame_cancellation_tests {
         let fresh = renderer.signal().begin_frame();
         let fresh_accepted = renderer.signal().finish_frame(&fresh);
         assert!(fresh_accepted);
-        // A request after acceptance cannot retroactively revoke this callback.
-        renderer.request(Vec::new(), false, 0);
+        // Cancellation after acceptance cannot retroactively revoke this callback.
+        renderer.invalidate_frame();
         let fresh_attempt = FrameAttempt {
             result: Ok(Some(())),
             record: Some(sample_record()),
@@ -1728,9 +1728,90 @@ mod frame_cancellation_tests {
             "final frame shows the last draft"
         );
         assert!(
-            frames.windows(2).all(|w| w[0] < w[1]),
+            // `<=`: a microsecond race can publish the last draft twice.
+            frames.windows(2).all(|w| w[0] <= w[1]),
             "frames advance through newer drafts: {frames:?}"
         );
+    }
+
+    /// Drives the real session paths: a frame is held in flight (the test owns
+    /// the backend lock the worker needs), then `attach_surface` replaces the
+    /// ring and `detach_surfaces` releases it. Each must cancel that frame at
+    /// once. The generation gate alone would also keep it from publishing, so
+    /// the cancellation assertion fails if either path drops `invalidate_frame`.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn ring_replacement_and_detach_cancel_the_in_flight_frame() {
+        use crate::surface::testing::create_rgba8;
+        #[derive(Default)]
+        struct Frames(Mutex<Vec<u32>>);
+        impl super::super::DocumentListener for Frames {
+            fn on_frame(&self, frame: DocFrameInfo) {
+                self.0.lock().unwrap().push(frame.surface_id);
+            }
+            fn on_layers_changed(&self, _: Vec<u64>) {}
+            fn on_history_changed(&self, _: u64) {}
+            fn on_render_failed(&self, _: String) {}
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "t".into());
+        let frames = Arc::new(Frames::default());
+        session.set_listener(Some(frames.clone()));
+        let render = &session.shared.render;
+        let in_flight = || {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                if let Some(cancel) = render.signal().active_frame.clone() {
+                    return cancel;
+                }
+                assert!(Instant::now() < deadline, "frame never started");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        };
+
+        let old = create_rgba8(2, 2);
+        session.attach_surface(old, 2, 2).unwrap();
+        session.wait_idle();
+        assert_eq!(*frames.0.lock().unwrap(), vec![old], "first paint");
+
+        // Ring replaced (a different size) while a frame is in flight.
+        let backend = render.backend.lock().unwrap();
+        session.refresh().unwrap();
+        let held = in_flight();
+        assert!(!held.is_cancelled());
+        let new = create_rgba8(3, 2);
+        session.attach_surface(new, 3, 2).unwrap();
+        let cancelled = held.is_cancelled();
+        drop(backend); // release even on failure so the worker can finish
+        assert!(
+            cancelled,
+            "attach_surface replacing the ring cancels the frame"
+        );
+        session.wait_idle();
+        assert_eq!(
+            *frames.0.lock().unwrap(),
+            vec![old, new],
+            "the cancelled frame never publishes; the new ring gets its own"
+        );
+
+        // Surfaces released while a frame is in flight.
+        let backend = render.backend.lock().unwrap();
+        session.refresh().unwrap();
+        let held = in_flight();
+        assert!(!held.is_cancelled());
+        session.detach_surfaces();
+        let cancelled = held.is_cancelled();
+        drop(backend);
+        assert!(cancelled, "detach_surfaces cancels the frame");
+        session.wait_idle();
+        assert_eq!(
+            *frames.0.lock().unwrap(),
+            vec![old, new],
+            "nothing publishes after detach"
+        );
+        session.close();
     }
 
     #[test]
