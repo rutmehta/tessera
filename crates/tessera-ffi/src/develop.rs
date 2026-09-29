@@ -6108,6 +6108,14 @@ mod tests {
         /// bytes are unchanged by the diagnostic.
         #[test]
         fn c5_cancel_and_render_failure_record_abort_recipe_unchanged() {
+            // Stage C review NB-1: the render-failure trigger below relies on
+            // no depth weights being reachable. An exported override pointing
+            // at real weights would make the depth render succeed, so refuse
+            // to run rather than report a misleading failure.
+            assert!(
+                std::env::var_os("TESSERA_DEPTH_MODELS").is_none(),
+                "C5 requires TESSERA_DEPTH_MODELS to be unset (its render-failure trigger needs absent depth weights)"
+            );
             let g = EpochGuard::open().expect(GUARD);
             let f = cpu_session();
             let persisted = f.engine.get_recipe(f.id.clone()).unwrap();

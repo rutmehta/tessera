@@ -707,3 +707,5 @@ fn engine_same_engine_unchanged_proxy_reopen_baseline() {
 
 #[path = "decision_reuse_qualification.rs"]
 mod decision_reuse_qualification;
+#[cfg(feature = "wb-diagnostic")]
+pub(crate) use decision_reuse_qualification::wb_phase_driver;

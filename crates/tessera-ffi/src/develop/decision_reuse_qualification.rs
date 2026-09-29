@@ -1,6 +1,11 @@
 //! Source-only qualification extension. Pixel IO is outside callback timing.
 //! No physical display latency or cold-filesystem claim.
 use super::*;
+// WB diagnostic Stage D phase driver (rev7 §6.4); feature-only. A child
+// module so it reuses this variant's selector and decision probe unchanged.
+#[cfg(feature = "wb-diagnostic")]
+#[path = "wb_phase_driver.rs"]
+pub(crate) mod wb_phase_driver;
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
 struct DecisionCounts {
     measurements: Option<u64>,
