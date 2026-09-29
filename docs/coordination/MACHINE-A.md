@@ -1,3 +1,7 @@
+## Status publication and inspector provenance
+
+A status `6dd5ef73-92f0-4c87-84b3-cd383c5996c1` published to B through Git after main55a241ee; no new peer receipt claimed. Portable automated evidence for inspector `d0191c41` now preserved under B5-16/evidence/2026-09-29/lut-native-d0191c41. Actual GUI owns runtime. WB pure lifecycle `6c55a1b0` independently source-approved, qualification runner preparing only; no live calls or performance remedy.
+
 ## Private RAW normalization integrated; inspector actual GUI next
 
 Main now contains exact qualified `2d7c00fa` helper and legacy delegation. Independent review verified9,141sourceinputs, all21focused and92fullpasses/twoignored, strict/fmt, exact executable and5originalfixturehashes. Existing public/native boundaries remain unchanged; no renderer/memory-cap/publiccancellation claim. Next owned continuation is a source-only interface proposal.
