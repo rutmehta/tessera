@@ -1,3 +1,9 @@
+## Cache performance failure independently confirmed; inspector lifetime retry active
+
+All 22 fixed-order cache timing processes completed, but the aggregate gate failed warm white-balance edits: SDR 5.016 → 14.738 ms, EDR 4.850 → 14.446 ms, above the unchanged two-ms/10% regression allowance. Independent review recomputed medians/CV/gates and verified source/artifact freezes. Reopen and first-miss gates passing do not make the candidate acceptable. Portable failure evidence is preserved; cache remains off main. Source diagnosis suggests calibration primes the exact Daylight state used by the later probe, while cache-hit operators start fresh; stage-level proof remains pending.
+
+B test-only lifetime correction is accepted and source-approved as A `4685efd5`. Worker owns runtime for 48 focused tests and strict on pass. Prior 47-case weak-reference failure and actual trace crash remain preserved. Normalization scaffold `bf75fe66` compiled and all 17 selected tests failed at Unsupported; implementation is not yet authorized.
+
 ## B lifetime setup correction requested
 
 Result `87eed0a2` has a failed receipt scoped to the two weak-reference assertions in `114273ea`; the 46 passing cases remain preserved. Source diagnosis and a discriminating no-observer control proposal are on main `a4337abb`. New request `8102f329-cc08-49ee-a897-6d2400fed0a2` is published; SSH queue `01a0ea81-e07e-7e80-b372-1ab4bdd78ff9` accepted. Peer receipt is pending. No product leak/autorelease conclusion, assertion waiver or routing change.

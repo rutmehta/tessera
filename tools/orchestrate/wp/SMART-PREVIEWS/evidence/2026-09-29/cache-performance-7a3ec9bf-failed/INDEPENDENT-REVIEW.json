@@ -1,0 +1,49 @@
+{
+  "processes": 22,
+  "order_matches_fixed": true,
+  "all_child_exits": 0,
+  "outer_exit": 1,
+  "all_stored_source_artifact_fixture_runner_freezes_equal": true,
+  "runner_and_retained_binaries_current_hashes_match": true,
+  "all198_raw_frame_files_dimensions_size_match": true,
+  "recomputed": {
+    "sdr": {
+      "reopen_baseline": 590.619375,
+      "reopen_candidate": 67.425584,
+      "edits": {
+        "exposure": {
+          "baseline": 4.863292,
+          "candidate": 6.150209,
+          "maximum_allowed_ms": 6.863292
+        },
+        "white_balance": {
+          "baseline": 5.015667,
+          "candidate": 14.738041,
+          "maximum_allowed_ms": 7.015667
+        }
+      },
+      "overall_pass": false
+    },
+    "edr": {
+      "reopen_baseline": 589.6349170000001,
+      "reopen_candidate": 66.600042,
+      "edits": {
+        "exposure": {
+          "baseline": 4.953749999999999,
+          "candidate": 5.61425,
+          "maximum_allowed_ms": 6.953749999999999
+        },
+        "white_balance": {
+          "baseline": 4.850167,
+          "candidate": 14.446166,
+          "maximum_allowed_ms": 6.850167
+        }
+      },
+      "overall_pass": false
+    }
+  },
+  "recorded_fidelity_comparisons": 180,
+  "recorded_fidelity_all_pass": true,
+  "disposition": "FAIL; do not accept partial benefits",
+  "review_runtime": "read-only calculation only; no benchmark or test rerun"
+}
