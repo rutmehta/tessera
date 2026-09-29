@@ -1,6 +1,6 @@
 ## WB live diagnostic G12: calibration priming loss identified — 2026-09-29
 
-G12 ran once (automatic Metal, SDR+EDR, baseline 7b16217e vs candidate 90ae129e): all four processes clean, no inconclusive/contradiction/invariant findings. Baseline reopen calibration requests and primes the exact Detail key the first Daylight WB edit hits; the candidate's decision-cache hit skips calibration and the first Daylight edit misses Detail/PaddedWb/TileWb. Repeat edits hit and Custom misses in both. Attribution only — no timing or remedy claim. Evidence tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-29/wb-diagnostic-g12-*/. Independent evidence verification pending. Failed decision-cache product code remains unmerged.
+G12 ran once (automatic Metal, SDR+EDR, baseline 7b16217e vs candidate 90ae129e): all four processes clean, no inconclusive/contradiction/invariant findings. Baseline reopen calibration requests and primes the exact Detail key the first Daylight WB edit hits; the candidate's decision-cache hit skips calibration and the first Daylight edit misses Detail/PaddedWb/TileWb. Repeat edits hit and Custom misses in both. Attribution only — no timing or remedy claim. Evidence tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-29/wb-diagnostic-g12-*/. Independently VERIFIED-WITH-CAVEATS from raw records; RESULT.md wording corrected (consistent-with, not causal). Failed decision-cache product code remains unmerged.
 
 ## B5-16 Dither/History integrated — 2026-09-29
 
