@@ -860,6 +860,47 @@ fn finalize_frame<T>(
 
 pub(crate) fn worker_loop(shared: Arc<Shared>) {
     let r = &shared.render;
+    run_frames(
+        r,
+        |since, cancel| present_frame(&shared, since, cancel),
+        |result, layers, history| {
+            let Some(listener) = shared.listener() else {
+                return;
+            };
+            if let Some(result) = result {
+                match result {
+                    Ok(Some(info)) => listener.on_frame(info),
+                    Ok(None) => {}
+                    Err(e) => listener.on_render_failed(e.to_string()),
+                }
+            }
+            if !layers.is_empty() {
+                listener.on_layers_changed(layers.into_iter().collect());
+            }
+            if history && let Ok(st) = shared.lock() {
+                let head = st.doc.history().current();
+                drop(st);
+                listener.on_history_changed(head);
+            }
+        },
+    );
+    // Free GPU memory as soon as the session stops.
+    *r.backend.lock().unwrap_or_else(|e| e.into_inner()) = Backend::Stopped;
+    r.thumbs.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    let mut s = r.signal();
+    s.busy = false;
+    r.cv.notify_all();
+}
+
+/// The render thread's scheduling loop until `stop`. `present` renders one
+/// frame (production: [`present_frame`]; tests inject a slow renderer) and
+/// `deliver` receives the accepted result plus the changed rows and history
+/// flag, called without the Signal lock.
+fn run_frames<T>(
+    r: &Renderer,
+    mut present: impl FnMut(Instant, &CancellationToken) -> FrameAttempt<T>,
+    mut deliver: impl FnMut(Option<Result<Option<T>>>, BTreeSet<u64>, bool),
+) {
     loop {
         let (layers, history, since, cancel) = {
             let mut s = r.signal();
@@ -881,7 +922,7 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
             )
         };
         let attempt = if let Some(cancel) = &cancel {
-            present_frame(&shared, since.unwrap_or_else(Instant::now), cancel)
+            present(since.unwrap_or_else(Instant::now), cancel)
         } else {
             FrameAttempt {
                 result: Ok(None),
@@ -892,33 +933,11 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
             .as_ref()
             .is_some_and(|cancel| r.signal().finish_frame(cancel));
         let result = finalize_frame(r, attempt, publish);
-        if let Some(listener) = shared.listener() {
-            if let Some(result) = result {
-                match result {
-                    Ok(Some(info)) => listener.on_frame(info),
-                    Ok(None) => {}
-                    Err(e) => listener.on_render_failed(e.to_string()),
-                }
-            }
-            if !layers.is_empty() {
-                listener.on_layers_changed(layers.into_iter().collect());
-            }
-            if history && let Ok(st) = shared.lock() {
-                let head = st.doc.history().current();
-                drop(st);
-                listener.on_history_changed(head);
-            }
-        }
+        deliver(result, layers, history);
         let mut s = r.signal();
         s.busy = false;
         r.cv.notify_all();
     }
-    // Free GPU memory as soon as the session stops.
-    *r.backend.lock().unwrap_or_else(|e| e.into_inner()) = Backend::Stopped;
-    r.thumbs.lock().unwrap_or_else(|e| e.into_inner()).clear();
-    let mut s = r.signal();
-    s.busy = false;
-    r.cv.notify_all();
 }
 
 // B5-14 begin
@@ -1606,5 +1625,92 @@ mod frame_cancellation_tests {
                 }
             })
             .unwrap();
+    }
+
+    // B5-22: latest-wins coalescing. A draft never cancels the frame in
+    // flight; the worker renders the newest state as soon as it completes.
+
+    #[test]
+    fn draft_request_keeps_in_flight_frame_and_coalesces_the_next() {
+        let renderer = Renderer::new(None);
+        let current = renderer.signal().begin_frame();
+        renderer.request(Vec::new(), false, 0);
+        renderer.request(Vec::new(), false, 0);
+        assert!(
+            !current.is_cancelled(),
+            "a new draft must not cancel the frame in flight"
+        );
+        let mut s = renderer.signal();
+        assert!(s.finish_frame(&current), "the in-flight frame publishes");
+        assert!(s.frame, "one coalesced frame stays pending");
+    }
+
+    #[test]
+    fn drafts_faster_than_frame_time_keep_publishing_latest_wins() {
+        use std::thread;
+        const FRAME: Duration = Duration::from_millis(20);
+        const GAP: Duration = Duration::from_millis(4);
+        const DRAFTS: u64 = 100;
+        let renderer = Arc::new(Renderer::new(None));
+        let draft = Arc::new(AtomicU64::new(0));
+        let published = Arc::new(Mutex::new(Vec::<u64>::new()));
+        let worker = {
+            let (renderer, draft, published) = (renderer.clone(), draft.clone(), published.clone());
+            thread::spawn(move || {
+                run_frames(
+                    &renderer,
+                    |_, cancel| {
+                        // Snapshot at frame start, like present_frame.
+                        let seen = draft.load(Ordering::SeqCst);
+                        let deadline = Instant::now() + FRAME;
+                        while Instant::now() < deadline {
+                            if let Err(e) = cancel.check() {
+                                return FrameAttempt {
+                                    result: Err(e.into()),
+                                    record: None,
+                                };
+                            }
+                            thread::sleep(Duration::from_millis(1));
+                        }
+                        FrameAttempt {
+                            result: Ok(Some(seen)),
+                            record: None,
+                        }
+                    },
+                    |result, _, _| {
+                        if let Some(Ok(Some(seen))) = result {
+                            published.lock().unwrap().push(seen);
+                        }
+                    },
+                )
+            })
+        };
+        let started = Instant::now();
+        for i in 1..=DRAFTS {
+            draft.store(i, Ordering::SeqCst);
+            renderer.request(Vec::new(), false, 0);
+            thread::sleep(GAP);
+        }
+        let dragged = started.elapsed();
+        renderer.wait_idle();
+        renderer.stop();
+        worker.join().unwrap();
+        let frames = published.lock().unwrap().clone();
+        // At least one frame per two frame times while drafts stream in.
+        let floor = (dragged.as_millis() / (2 * FRAME.as_millis())).max(2) as usize;
+        assert!(
+            frames.len() >= floor,
+            "frame starvation: {} frames for {DRAFTS} drafts over {dragged:?} (want >= {floor})",
+            frames.len()
+        );
+        assert_eq!(
+            frames.last(),
+            Some(&DRAFTS),
+            "final frame shows the last draft"
+        );
+        assert!(
+            frames.windows(2).all(|w| w[0] < w[1]),
+            "frames advance through newer drafts: {frames:?}"
+        );
     }
 }
