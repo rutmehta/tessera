@@ -1,3 +1,9 @@
+## Dither focused gate failed on detached AX assertions
+
+`b766abf6` focused gate direct1:60tests,59passed,one case failed three assertions (detached control roleAXUnknown/value nil). Other five new Dither cases and prior54passed. Layout/strict/GUI remain unrun. Frozen report/logs/source/artifact evidence published under `tools/orchestrate/wp/B5-16/evidence/2026-09-29/dither-b766abf6-focused-failed/`. Root rehashed payloads and failed executables/read exact errors; no product-vs-oracle conclusion. SDK notes single-celled NSControls are ignored in accessibility hierarchy, supporting a matched native/exposed-element investigation while retaining real checkbox semantics and GUI gate.
+
+RAW `d908374f` compiled, but first GREEN test launch failed before execution: retained copy lost executable mode. No test GREEN failure/pass is claimed. Setup failure preserved; runner-only mode-preserving version being prepared with same source/oracles. No active heavy runtime while preparing correction.
+
 ## Current qualification queue
 
 Dither candidate `b766abf6` composes exact reviewed B `cae6e79d` files onto preserved `d0191c41`; only Dither source/tests/handoff changed, router/trace unchanged. Inspector worker owns60focused→3theme/layout→strict; stop first failure, no actual GUI/full acceptance yet. Previous Dither Tab failure stays preserved.

@@ -1,0 +1,30 @@
+{
+  "head": "b766abf62ef0c38d977827236bd3de11af048026",
+  "direct_exit": 1,
+  "elapsed_seconds": 104.18652579095215,
+  "tests_executed": 60,
+  "tests_passed": 59,
+  "failed_test_cases": 1,
+  "failed_assertions": 3,
+  "errors": [
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentDitherCheckboxTests.swift:21: error: -[TesseraCoreTests.DocumentDitherCheckboxTests testNativeCheckboxMetadataValueAndNativeFocusPolicy] : XCTAssertEqual failed: (\"Optional(__C.NSAccessibilityRole(_rawValue: AXUnknown))\") is not equal to (\"Optional(__C.NSAccessibilityRole(_rawValue: AXCheckBox))\")",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentDitherCheckboxTests.swift:24: error: -[TesseraCoreTests.DocumentDitherCheckboxTests testNativeCheckboxMetadataValueAndNativeFocusPolicy] : XCTAssertEqual failed: (\"nil\") is not equal to (\"Optional(1)\")",
+    "/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentDitherCheckboxTests.swift:34: error: -[TesseraCoreTests.DocumentDitherCheckboxTests testNativeCheckboxMetadataValueAndNativeFocusPolicy] : XCTAssertEqual failed: (\"nil\") is not equal to (\"Optional(0)\")"
+  ],
+  "freeze": {
+    "head_equal": true,
+    "source_equal": true,
+    "ignored_ffi_equal": true,
+    "fixture_equal": true,
+    "runner_equal": true,
+    "qualification_inputs_equal": true,
+    "elapsed_seconds": 104.18652579095215
+  },
+  "preserved_outputs": {
+    "/Volumes/betterSSD/tessera-validation/b5-16-dither-native-b766abf6/failed-focused-binaries/Tessera": "faa083ed8770f570b09b047b5cc7e73fa32b8e70201020d852d1c6780da886ae",
+    "/Volumes/betterSSD/tessera-validation/b5-16-dither-native-b766abf6/failed-focused-binaries/TesseraPackageTests": "d5ff0125b04b67c6ca6205bd464f9e8069e53a9b9135df82c3ad60b17fee6012"
+  },
+  "later_gates": "layout/strict/GUI UNRUN; stopped first failed gate",
+  "diagnosis": "Unresolved detached-control accessibility role/value; no correction attempted",
+  "runtime_released": true
+}

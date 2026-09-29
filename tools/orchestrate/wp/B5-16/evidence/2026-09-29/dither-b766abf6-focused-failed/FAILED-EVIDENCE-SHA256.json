@@ -1,0 +1,21 @@
+{
+  "01-focused-01/after.json": "d9478cdc6e90aed2ab0aacc1627f5d99537e25a8f61af84ea7ba5a987d645d93",
+  "01-focused-01/before.json": "c8ba8a71ce855eef37df56e699b29f440a0d9144e6fe62a64f9c77835283e5c2",
+  "01-focused-01/command.json": "6c7df034c6c524ad867204b9ad300c8ab2dfd40057a623201f373b0f4ad0f69a",
+  "01-focused-01/exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+  "01-focused-01/freeze.json": "cfc33272d5da9fe5a21b8cd5a9023ec2df7e13337497a74dbfb776eab2aad96e",
+  "01-focused-01/qualification-inputs-after.json": "b99dff6d0b5f2db923e7571ee3e9bad58440b5d779c9522616b5187a0032ea20",
+  "01-focused-01/qualification-inputs-before.json": "b99dff6d0b5f2db923e7571ee3e9bad58440b5d779c9522616b5187a0032ea20",
+  "01-focused-01/required-results.json": "e192a6cd49a4b2de2e938a232d76734a1208a850d7a01a5a2fd261aedd3f1714",
+  "01-focused-01/run.log": "328b100b8318043f92722ce68731f1d551402af458fe7b409688ea178276cdb7",
+  "FAILED-FOCUSED.json": "fc4a6f616ea5911b1f913c007bedd6b03e3aae6d7f657bdfd733a6f26e7b2b00",
+  "FAILED-FOCUSED.md": "74391492548649725102c1744ac19932d498b669c4bfc12769ef0b92673fe4b5",
+  "PLAN-SHA256.json": "86adab5a1d26ea9b89ebfd88f7580e04f37d6f3447536635d3963a580cc41301",
+  "PLAN.md": "867f5b8fe0325e1431135d305f2c57d504eff03fc0083c6e42ebff57e577d64e",
+  "PREPARATION-SHA256.json": "b14b199bce8f54ccfb86fa091995b962485ef75cd6d0f6a54671dd2ce3291146",
+  "baseline.json": "8ebafd642105f404cd300eee2694b671c883f2f2fa430c47982b5a083456bb3a",
+  "composition.json": "0b299db25a7220e6f81622ef653aef6f3bf90bec91f4aaa4e931064e1302300d",
+  "required-adjacent.json": "bbf60eba7f49585a75e98e45f83caa8f0b9e7f677b08e4790f7ebd84b382d34c",
+  "required-tests.json": "ad69168b7b78d1066141b1e53b608ace48fdbf27feacda3a50ae28aa6cdb072b",
+  "run.py": "43f7afec23f354ba9956bb1023c076d60a811286de20ada8ee84dbc87ec6d7c1"
+}
