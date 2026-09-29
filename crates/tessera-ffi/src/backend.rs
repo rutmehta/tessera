@@ -149,9 +149,12 @@ fn measure_at(
                 WhiteBalanceMode::Daylight
             };
         }
-        // C0: signature only; no reservation is made yet.
+        // Outside the timed region: the observed (Metal) arm reserves one
+        // transaction per iteration; the CPU arm only counts, while armed.
         #[cfg(all(test, feature = "wb-diagnostic"))]
-        let _ = (observe, i);
+        let lease = observe_iteration(renderer, image, &s, level, i, observe);
+        #[cfg(all(test, feature = "wb-diagnostic"))]
+        let mut surfaced = true;
         let start = Instant::now();
         let histogram = match surface_render(
             renderer,
@@ -161,10 +164,15 @@ fn measure_at(
             surface.id(),
             &cancel,
             #[cfg(all(test, feature = "wb-diagnostic"))]
-            None,
+            lease.as_ref().map(image_core::wb_diagnostic::Lease::token),
         )? {
             Some(histogram) => histogram,
             None => {
+                // The `render_region` fallback is not observed: Declined.
+                #[cfg(all(test, feature = "wb-diagnostic"))]
+                {
+                    surfaced = false;
+                }
                 let tiles = renderer.render_region(image, &s, level, rect)?;
                 crate::develop::write_level(Some(&surface), &tiles)
                     .map_err(engine_api::EngineError::internal)?
@@ -172,8 +180,52 @@ fn measure_at(
         };
         std::hint::black_box(histogram);
         *time = start.elapsed().as_secs_f64() * 1000.;
+        #[cfg(all(test, feature = "wb-diagnostic"))]
+        if let Some(lease) = lease {
+            use image_core::wb_diagnostic::Route;
+            lease.finish(if surfaced {
+                Route::Delivered
+            } else {
+                Route::Declined
+            });
+        }
     }
     Ok(times)
+}
+
+/// WB diagnostic calibration reservation for iteration `i` (rev7 4.2).
+#[cfg(all(test, feature = "wb-diagnostic"))]
+fn observe_iteration(
+    renderer: &Renderer,
+    image: &RawImage,
+    settings: &DevelopSettings,
+    level: u8,
+    iteration: usize,
+    observe: bool,
+) -> Option<image_core::wb_diagnostic::Lease> {
+    use image_core::wb_diagnostic::{
+        ARENA, PhaseKind, RequestContext, Reservation, output_tag, process_identity,
+        recipe_fingerprint, settings_fingerprint,
+    };
+    if !observe {
+        ARENA.count_cpu_iteration_unobserved();
+        return None;
+    }
+    let (tag, headroom) = output_tag(image_core::RenderOutput::Display);
+    ARENA
+        .reserve_armed(RequestContext::new(
+            recipe_fingerprint(image.id(), settings),
+            settings_fingerprint(settings),
+            process_identity(renderer.config().process_version),
+            tag,
+            headroom,
+            level,
+            PhaseKind::Calibration {
+                iteration: iteration as u8,
+            },
+            renderer.diagnostic_operator(),
+        ))
+        .map(Reservation::bind)
 }
 /// The selected develop backend: operators and the memo cache every session
 /// shares. Each session builds its own [`Renderer`] over them so it can own
@@ -197,7 +249,7 @@ impl Backend {
             config,
             name,
             #[cfg(all(test, feature = "wb-diagnostic"))]
-            diag_operator: 0,
+            diag_operator: image_core::wb_diagnostic::ARENA.next_operator(),
         }
     }
 
