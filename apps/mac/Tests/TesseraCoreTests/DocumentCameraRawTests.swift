@@ -341,6 +341,28 @@ final class DocumentCameraRawTests: XCTestCase {
         (reopened as? any DocumentBackend)?.close()
     }
 
+    /// The engine names this filter by its id (it is not in the menu catalogue); history rows and smart filter
+    /// rows show the menu title instead (A review of B5-18: they read "camera_raw").
+    @MainActor func testHistoryAndSmartFilterRowsShowTheFilterTitle() throws {
+        let (doc, f) = try greyDocument()
+        defer { doc.close() }
+        let layer = try XCTUnwrap(doc.primary).id
+        var draft = CameraRawDraft()
+        draft.set(CameraRawControls.exposure, 0.5)
+        _ = try f.applyFilter(layer: layer, filterJson: draft.filterJson)
+        XCTAssertEqual(try doc.backend.historyItems().last?.label, "Camera Raw Filter")
+
+        _ = try f.convertForSmartFilters(layer: layer)
+        _ = try f.applyFilter(layer: layer, filterJson: draft.filterJson)
+        XCTAssertEqual(try doc.backend.historyItems().last?.label, "Camera Raw Filter")
+        let rows = try f.smartFilters(layer: layer)
+        XCTAssertEqual(rows.map(\.filterId), ["camera_raw"], "the id is unchanged; only the shown name maps")
+        XCTAssertEqual(rows.map(\.name), ["Camera Raw Filter"])
+        doc.reloadHistory()
+        XCTAssertTrue(doc.history.contains { $0.label == "Camera Raw Filter" }, "\(doc.history.map(\.label))")
+        XCTAssertFalse(doc.history.contains { $0.label == "camera_raw" }, "\(doc.history.map(\.label))")
+    }
+
     @MainActor func testSmartObjectWithSelectionAndAIMasksAreRefusedWithAReason() throws {
         let (doc, f) = try greyDocument()
         defer { doc.close() }
