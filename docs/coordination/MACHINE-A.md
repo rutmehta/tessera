@@ -1,3 +1,8 @@
+## Batch 5 integrated — 2026-09-29
+
+Main 4a1359c9 = 8d3996f7 + B5-18b 3d3d29de (Camera Raw viewport preview; detail effects omitted only when preview level>0, note tied to engine level via filter_preview_level), B5-23 630d4ace (Photoshop ⌘-click channel load; sweep doc), claude/selftest-quit-fix 5a4a773a (export/print/timing self-tests quit after gate release and Develop close), B5-22 e373b993 (latest-wins document frame coalescing; fixes 20 MP vector drag freeze from bb020485). Each independently reviewed (no blockers). Gates on exact tree: swift-gate 843/0, bindings identical, tessera-ffi serial pass, strict OK.
+Pending: B5-21 (Tab loop; reviews pass, gates pass at 2879626a) awaits on-screen FKA checklist — Rut declined screen control this round. B5-20 AWA approved, merges with B5-20b coarse solve. Known flake smart_preview hdr_saved_offline_recipe (process-wide table in image_edit_admission.rs; A-owned).
+
 ## WB live diagnostic G12: calibration priming loss identified — 2026-09-29
 
 G12 ran once (automatic Metal, SDR+EDR, baseline 7b16217e vs candidate 90ae129e): all four processes clean, no inconclusive/contradiction/invariant findings. Baseline reopen calibration requests and primes the exact Detail key the first Daylight WB edit hits; the candidate's decision-cache hit skips calibration and the first Daylight edit misses Detail/PaddedWb/TileWb. Repeat edits hit and Custom misses in both. Attribution only — no timing or remedy claim. Evidence tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-29/wb-diagnostic-g12-*/. Independently VERIFIED-WITH-CAVEATS from raw records; RESULT.md wording corrected (consistent-with, not causal). Failed decision-cache product code remains unmerged.
