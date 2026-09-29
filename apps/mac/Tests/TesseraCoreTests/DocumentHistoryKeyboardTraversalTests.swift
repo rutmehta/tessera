@@ -152,16 +152,13 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
         return String(describing: type(of: responder))
     }
 
-    /// In-process AX identifiers under `root` (SwiftUI rows expose no NSView of their own).
-    private func axIdentifiers(_ element: Any, depth: Int = 0) -> [String] {
-        guard depth < 40 else { return [] }
-        let object = element as AnyObject
-        var out: [String] = []
-        if let id = object.accessibilityIdentifier?(), !id.isEmpty { out.append(id) }
-        for child in (object.accessibilityChildren?() ?? nil) ?? [] {
-            out += axIdentifiers(child, depth: depth + 1)
-        }
-        return out
+    /// The History list's content height. In-process AX exposes no SwiftUI rows (only AppKit-backed
+    /// elements), so the SwiftUI ScrollView's document height stands in for the rendered row count.
+    /// On the Stack tab the only SwiftUI-hosted scroll view is History's (Layers is an NSOutlineView).
+    private func historyContentHeight(_ host: NSView) -> CGFloat? {
+        let scrollers = find(host, NSScrollView.self).filter { String(describing: type(of: $0)).contains("HostingScrollView") }
+        guard scrollers.count == 1 else { return nil }
+        return scrollers[0].documentView?.frame.height
     }
 
     // MARK: 1. H1/H2 native traversal
@@ -214,7 +211,9 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
         do {
             let (window, view) = standalone(requested: 0, column: 900)
             XCTAssertFalse(view.decrease.isEnabled)
-            XCTAssertFalse(window.makeFirstResponder(view.decrease), "a disabled button refuses focus")
+            // makeFirstResponder does not consult acceptsFirstResponder; key-view membership is the gate.
+            XCTAssertFalse(view.decrease.acceptsFirstResponder, "a disabled button refuses focus")
+            XCTAssertFalse(view.decrease.canBecomeKeyView, "a disabled button leaves the key-view loop")
             XCTAssertTrue(window.makeFirstResponder(view.increase))
             try tab(window, shift: true, router: router)
             XCTAssertFalse(window.firstResponder === view.decrease, "Shift-Tab must not land on disabled −")
@@ -393,18 +392,21 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
         control.increase.performClick(nil)
         settle(host)
         XCTAssertEqual(UserDefaults.standard.double(forKey: heightKey), initial + row)
-        func rows() -> Set<String> { Set(axIdentifiers(host).filter { $0.hasPrefix("document.history.row.") }) }
-        let rowsA = rows()
+        let heightA = try XCTUnwrap(historyContentHeight(host), "one SwiftUI History scroller on the Stack tab")
         workspace.select(docB, activateDocument: false)
         settle(host)
         XCTAssertTrue(workspace.current === docB)
         XCTAssertEqual(UserDefaults.standard.double(forKey: heightKey), initial + row, "height is global, not per document")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: expandedKey))
         let after = try XCTUnwrap(find(host, DocumentHistoryHeightControl.self).first)
+        XCTAssertTrue(after === control)
         XCTAssertEqual(after.readout.stringValue, String(format: "%.0f pt", initial + row))
-        let rowsB = rows()
-        XCTAssertEqual(rowsA.count, docA.history.count + 1, "docA rows (Opened + states): \(rowsA.sorted())")
-        XCTAssertEqual(rowsB.count, docB.history.count + 1, "History must show docB's states: \(rowsB.sorted())")
+        let heightB = try XCTUnwrap(historyContentHeight(host))
+        XCTAssertEqual(heightB - heightA, CGFloat(docB.history.count - docA.history.count) * Theme.Height.row, accuracy: 0.5,
+                       "History must list docB's states (A \(heightA) pt, B \(heightB) pt)")
+        workspace.select(docA, activateDocument: false)
+        settle(host)
+        XCTAssertEqual(try XCTUnwrap(historyContentHeight(host)), heightA, accuracy: 0.5, "switching back shows docA again")
     }
 
     // MARK: 10. H12 tool letter over a focused History button
