@@ -164,23 +164,35 @@ final class DocumentCameraRawTests: XCTestCase {
         XCTAssertNil(CameraRawDraft().aiMaskRefusal)
     }
 
-    /// B5-18b review: below 100 % the canvas preview omits Sharpening, Noise Reduction, Texture and Clarity
-    /// (their pixel radii are full-resolution); the sheet says so only when one of them is active.
-    func testDetailPreviewNoteShowsBelow100PercentWhenADetailEffectIsActive() throws {
+    /// B5-18b review: the canvas preview omits Sharpening, Noise Reduction, Texture and Clarity when the engine
+    /// renders it on a pyramid level > 0 (their pixel radii are full-resolution); the sheet says so only then, and
+    /// only when one of them is active. Between 50 % and 100 % the viewport is still level 0: no note.
+    func testDetailPreviewNoteFollowsTheSubmittedPreviewLevel() throws {
         let neutral = CameraRawDraft()
-        for zoom in [0.1, 0.5, 0.99, 1, 2] { XCTAssertNil(neutral.detailPreviewNote(zoom: zoom), "neutral at \(zoom)") }
+        for level in 0...3 { XCTAssertNil(neutral.detailPreviewNote(previewLevel: level), "neutral at level \(level)") }
         let active: [DevelopControl] = [DetailControls.amount, DetailControls.luminance, DetailControls.color,
                                         CameraRawControls.texture, CameraRawControls.clarity]
         for c in active {
             for v in [c.range.upperBound / 2, c.range.lowerBound < 0 ? c.range.lowerBound / 2 : c.range.upperBound] {
                 var d = CameraRawDraft()
                 d.set(c, v)
-                let note = try XCTUnwrap(d.detailPreviewNote(zoom: 0.5), "\(c.id) = \(v) at 50 %")
-                XCTAssertTrue(note.contains("100"), note)
-                XCTAssertNotNil(d.detailPreviewNote(zoom: 0.99), c.id)
-                XCTAssertNil(d.detailPreviewNote(zoom: 1), "\(c.id): exact at 100 %")
-                XCTAssertNil(d.detailPreviewNote(zoom: 3), "\(c.id): exact above 100 %")
+                XCTAssertNil(d.detailPreviewNote(previewLevel: 0), "\(c.id): level 0 includes the effects")
+                for level in [1, 2, 5] {
+                    let note = try XCTUnwrap(d.detailPreviewNote(previewLevel: level), "\(c.id) = \(v) at level \(level)")
+                    XCTAssertTrue(note.contains("100"), note)
+                }
             }
+        }
+        // The viewport's level for a zoom (what it pushes to the engine): 50-100 % is level 0, no note.
+        var sharp = CameraRawDraft()
+        sharp.set(DetailControls.amount, 60)
+        for zoom in [0.99, 0.75, 2.0 / 3, 0.51, 1, 3] {
+            XCTAssertEqual(DocumentViewportMath.level(forZoom: zoom), 0, "zoom \(zoom)")
+            XCTAssertNil(sharp.detailPreviewNote(previewLevel: DocumentViewportMath.level(forZoom: zoom)), "zoom \(zoom)")
+        }
+        for zoom in [0.5, 1.0 / 3, 0.25, 0.1] {
+            XCTAssertGreaterThan(DocumentViewportMath.level(forZoom: zoom), 0, "zoom \(zoom)")
+            XCTAssertNotNil(sharp.detailPreviewNote(previewLevel: DocumentViewportMath.level(forZoom: zoom)), "zoom \(zoom)")
         }
         // Settings the zoomed-out preview shows as they are need no note.
         let shown: [DevelopControl] = [CameraRawControls.exposure, CameraRawControls.dehaze, CameraRawControls.saturation,
@@ -188,12 +200,24 @@ final class DocumentCameraRawTests: XCTestCase {
         for c in shown {
             var d = CameraRawDraft()
             d.set(c, c.clamp(c.defaultValue + (c.range.upperBound - c.range.lowerBound) * 0.2))
-            XCTAssertNil(d.detailPreviewNote(zoom: 0.25), c.id)
+            XCTAssertNil(d.detailPreviewNote(previewLevel: 2), c.id)
         }
         // A recipe without detail values gets the engine's defaults (sharpening 40, colour NR 25): active.
         let recipe = try XCTUnwrap(CameraRawDraft(filterJson: #"{"id":"camera_raw","params":{"settings":{}}}"#))
-        XCTAssertNotNil(recipe.detailPreviewNote(zoom: 0.25))
-        XCTAssertNil(recipe.detailPreviewNote(zoom: 1))
+        XCTAssertNotNil(recipe.detailPreviewNote(previewLevel: 2))
+        XCTAssertNil(recipe.detailPreviewNote(previewLevel: 0))
+    }
+
+    /// The stub's preview level is its viewport level (the engine's is the level `filter_preview_level` reports).
+    func testStubPreviewLevelIsTheViewportLevel() throws {
+        let b = StubDocumentBackend()
+        let layer = try XCTUnwrap(try b.layers().first).id
+        let json = CameraRawDraft().filterJson
+        XCTAssertEqual(try b.filterPreviewLevel(layer: layer, smartIndex: nil, filterJson: json), 0)
+        try b.setViewport(level: 2, x: 0, y: 0, width: 64, height: 64, zoom: 0.25)
+        XCTAssertEqual(try b.filterPreviewLevel(layer: layer, smartIndex: nil, filterJson: json), 2)
+        try b.setViewport(level: 0, x: 0, y: 0, width: 64, height: 64, zoom: 0.75)
+        XCTAssertEqual(try b.filterPreviewLevel(layer: layer, smartIndex: nil, filterJson: json), 0)
     }
 
     func testDetailRequestsAreLatestWins() {

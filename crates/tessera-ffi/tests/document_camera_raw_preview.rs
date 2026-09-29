@@ -668,3 +668,55 @@ fn preview_at_100_percent_and_the_detail_pane_keep_the_detail_effects() {
     assert!(d <= 2.5 / 255.0, "100 % preview vs apply {d}");
     assert!(max_diff(&without, &applied) > 0.02, "apply includes detail");
 }
+
+// ──────── the note follows the submitted level (A's review of de753f5f) ────────
+
+/// The viewport renders level `floor(log2(1 / zoom))`, so between 50 % and
+/// 100 % it is still level 0: the preview includes the detail effects and
+/// `filter_preview_level` (what the sheet's note reads) says 0. From 50 %
+/// down (level >= 1) it says so and the effects are omitted.
+#[test]
+fn preview_level_decides_whether_the_detail_effects_are_omitted() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let (w, h) = (512u32, 384u32);
+    let s = open(&engine, &opaque_png(dir.path(), "b.png", w, h));
+    let id = s.layers().unwrap()[0].id;
+    for smart in [false, true] {
+        if smart {
+            s.convert_for_smart_filters(id).unwrap();
+            s.apply_filter(
+                id,
+                camera_raw(serde_json::json!({"tone": {"exposure": 0.2}})),
+            )
+            .unwrap();
+        }
+        let index = smart.then_some(0u32);
+        for (level, zoom) in [(0u8, 0.75), (0, 0.51), (1, 0.5), (1, 0.3), (2, 0.25)] {
+            let (lw, lh) = (w >> level, h >> level);
+            s.set_viewport(level, 0, 0, lw, lh, zoom).unwrap();
+            let submitted = s
+                .filter_preview_level(id, index, local_json(0.5))
+                .unwrap();
+            assert_eq!(
+                submitted, level,
+                "zoom {zoom} (smart {smart}): the preview renders level {level}"
+            );
+            let with = previewed(&s, id, local_json(0.5), level, smart);
+            let without = previewed(&s, id, local_json_without_detail(0.5), level, smart);
+            let d = max_diff(&with, &without);
+            if level == 0 {
+                assert!(
+                    d > 0.02,
+                    "zoom {zoom} (smart {smart}): level 0 preview includes the detail effects: {d}"
+                );
+            } else {
+                assert!(
+                    d == 0.0,
+                    "zoom {zoom} (smart {smart}): level {level} preview omits the detail effects: {d}"
+                );
+            }
+        }
+        s.clear_preview().unwrap();
+    }
+}
