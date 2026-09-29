@@ -551,3 +551,120 @@ fn engine_names_the_camera_raw_filter_and_checks_smart_filters_on_a_small_level(
         "Camera Raw Filter"
     );
 }
+
+// ─────────────── detail effects below 100 % (A's review of 117b44f8) ───────────────
+
+/// `local_json` with the radius-dependent detail effects (sharpening, noise
+/// reduction, Texture, Clarity) off: what a zoomed-out preview shows.
+fn local_json_without_detail(exposure: f64) -> String {
+    camera_raw(serde_json::json!({
+        "tone": {"exposure": exposure, "contrast": 20.0, "highlights": -30.0, "shadows": 30.0,
+                 "clarity": 0.0, "texture": 0.0},
+        "detail": {"sharpening": {"amount": 0.0}, "noise_reduction": {"luminance": 0.0, "color": 0.0}},
+        "color": {"saturation": 15.0},
+    }))
+}
+
+/// The layer as presented at `level` with `json` previewed (`smart`: as a
+/// re-edit of smart filter 0).
+fn previewed(s: &DocumentSession, id: u64, json: String, level: u8, smart: bool) -> Vec<f32> {
+    if smart {
+        s.preview_smart_filter(id, 0, json, None).unwrap();
+    } else {
+        s.preview_filter(id, json, None).unwrap();
+    }
+    s.wait_filters_idle();
+    assert_eq!(s.filter_error(), None);
+    s.read_presented_level(level).unwrap().2
+}
+
+/// Below 100 % the preview renders a smaller pyramid level, where the detail
+/// effects' full-resolution pixel radii would look 2-4x too wide: like Camera
+/// Raw, the zoomed-out preview omits them (the sheet says so).
+#[test]
+fn zoomed_out_preview_omits_the_detail_effects() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let (w, h) = (1024u32, 768u32);
+    let s = open(&engine, &opaque_png(dir.path(), "z.png", w, h));
+    let id = s.layers().unwrap()[0].id;
+    for smart in [false, true] {
+        if smart {
+            s.convert_for_smart_filters(id).unwrap();
+            s.apply_filter(
+                id,
+                camera_raw(serde_json::json!({"tone": {"exposure": 0.2}})),
+            )
+            .unwrap();
+        }
+        for level in [1u8, 2] {
+            let (lw, lh) = (w >> level, h >> level);
+            s.set_viewport(level, 0, 0, lw, lh, 1.0 / f64::from(1u8 << level))
+                .unwrap();
+            let with = previewed(&s, id, local_json(0.5), level, smart);
+            let without = previewed(&s, id, local_json_without_detail(0.5), level, smart);
+            let d = max_diff(&with, &without);
+            assert!(
+                d == 0.0,
+                "level {level} (smart {smart}): preview includes detail effects, {d} from the preview without them"
+            );
+            assert!(
+                max_diff(&with, &live(&s, level)) > 0.05,
+                "the tone settings still preview"
+            );
+        }
+    }
+}
+
+/// At 100 % the preview includes the detail effects and matches Apply in the
+/// visible region; the 1:1 pane includes them whatever the zoom.
+#[test]
+fn preview_at_100_percent_and_the_detail_pane_keep_the_detail_effects() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let (w, h) = (512usize, 384usize);
+    let s = open(
+        &engine,
+        &opaque_png(dir.path(), "e.png", w as u32, h as u32),
+    );
+    let id = s.layers().unwrap()[0].id;
+    let (x0, y0, rw, rh) = (150usize, 100usize, 160usize, 120usize);
+    let r = region(x0 as i64, y0 as i64, rw as i64, rh as i64);
+    s.set_viewport(0, x0 as u32, y0 as u32, rw as u32, rh as u32, 1.0)
+        .unwrap();
+    let at = |json: String| {
+        s.preview_filter(id, json, r).unwrap();
+        s.wait_filters_idle();
+        assert_eq!(s.filter_error(), None);
+        crop(&s.read_presented_level(0).unwrap().2, w, x0, y0, rw, rh)
+    };
+    let with = at(local_json(0.5));
+    let without = at(local_json_without_detail(0.5));
+    let d = max_diff(&with, &without);
+    assert!(d > 0.02, "100 % preview shows the detail effects: {d}");
+
+    // The 1:1 pane is level 0 and includes them even while zoomed out.
+    s.set_viewport(2, 0, 0, (w / 4) as u32, (h / 4) as u32, 0.25)
+        .unwrap();
+    let pane_with = s
+        .filter_detail(
+            id,
+            local_json(0.5),
+            x0 as i64,
+            y0 as i64,
+            rw as u32,
+            rh as u32,
+        )
+        .unwrap();
+    assert_eq!(pane_with.level, 0);
+    let d = max_diff(&pane(&pane_with), &with);
+    assert!(d <= 0.01, "pane vs 100 % preview {d}");
+    s.clear_preview().unwrap();
+
+    // Apply (made while zoomed out) is exact: equal to the 100 % preview.
+    s.apply_filter(id, local_json(0.5)).unwrap();
+    let applied = crop(&live(&s, 0), w, x0, y0, rw, rh);
+    let d = max_diff(&with, &applied);
+    assert!(d <= 2.5 / 255.0, "100 % preview vs apply {d}");
+    assert!(max_diff(&without, &applied) > 0.02, "apply includes detail");
+}

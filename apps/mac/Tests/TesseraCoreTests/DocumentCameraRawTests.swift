@@ -164,6 +164,38 @@ final class DocumentCameraRawTests: XCTestCase {
         XCTAssertNil(CameraRawDraft().aiMaskRefusal)
     }
 
+    /// B5-18b review: below 100 % the canvas preview omits Sharpening, Noise Reduction, Texture and Clarity
+    /// (their pixel radii are full-resolution); the sheet says so only when one of them is active.
+    func testDetailPreviewNoteShowsBelow100PercentWhenADetailEffectIsActive() throws {
+        let neutral = CameraRawDraft()
+        for zoom in [0.1, 0.5, 0.99, 1, 2] { XCTAssertNil(neutral.detailPreviewNote(zoom: zoom), "neutral at \(zoom)") }
+        let active: [DevelopControl] = [DetailControls.amount, DetailControls.luminance, DetailControls.color,
+                                        CameraRawControls.texture, CameraRawControls.clarity]
+        for c in active {
+            for v in [c.range.upperBound / 2, c.range.lowerBound < 0 ? c.range.lowerBound / 2 : c.range.upperBound] {
+                var d = CameraRawDraft()
+                d.set(c, v)
+                let note = try XCTUnwrap(d.detailPreviewNote(zoom: 0.5), "\(c.id) = \(v) at 50 %")
+                XCTAssertTrue(note.contains("100"), note)
+                XCTAssertNotNil(d.detailPreviewNote(zoom: 0.99), c.id)
+                XCTAssertNil(d.detailPreviewNote(zoom: 1), "\(c.id): exact at 100 %")
+                XCTAssertNil(d.detailPreviewNote(zoom: 3), "\(c.id): exact above 100 %")
+            }
+        }
+        // Settings the zoomed-out preview shows as they are need no note.
+        let shown: [DevelopControl] = [CameraRawControls.exposure, CameraRawControls.dehaze, CameraRawControls.saturation,
+                                       DetailControls.radius, DetailControls.detail, DetailControls.colorSmoothness]
+        for c in shown {
+            var d = CameraRawDraft()
+            d.set(c, c.clamp(c.defaultValue + (c.range.upperBound - c.range.lowerBound) * 0.2))
+            XCTAssertNil(d.detailPreviewNote(zoom: 0.25), c.id)
+        }
+        // A recipe without detail values gets the engine's defaults (sharpening 40, colour NR 25): active.
+        let recipe = try XCTUnwrap(CameraRawDraft(filterJson: #"{"id":"camera_raw","params":{"settings":{}}}"#))
+        XCTAssertNotNil(recipe.detailPreviewNote(zoom: 0.25))
+        XCTAssertNil(recipe.detailPreviewNote(zoom: 1))
+    }
+
     func testDetailRequestsAreLatestWins() {
         var gate = LatestRequestBuffer<String>()
         let a = gate.submit("a")
