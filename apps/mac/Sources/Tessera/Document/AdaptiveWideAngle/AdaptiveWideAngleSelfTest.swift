@@ -1,9 +1,11 @@
 import AppKit
+import ImageIO
 import TesseraCore
 
 /// `--adaptive-wide-angle-selftest <dir>` (test aid, WP B5-20): acceptance steps 460–479 through the calls the menu,
-/// canvas and sheet make. After the library loads it opens `sample.dng` with Edit in Layers, opens Filter ▸ Adaptive
-/// Wide Angle…, switches to Fisheye, sets the focal length, draws a vertical and a straight constraint (as a drag
+/// canvas and sheet make. If the library has a RAW (sample.dng is 5212 × 3468) it checks that the filter refuses it
+/// (over the 4095 × 4095 lattice cap). Then it writes a 1200 × 900 fisheye grid into <dir>, opens it, opens Filter ▸
+/// Adaptive Wide Angle…, switches to Fisheye, sets the focal length, draws a vertical and a straight constraint (as a drag
 /// does), toggles Preview, cancels (no history), reopens and applies (one row), undoes, converts for smart filters,
 /// applies as a smart filter, re-opens the row (lines and camera kept), edits it (still one smart filter), and
 /// checks that a conflicting constraint reports an error without history. Each step prints
@@ -113,21 +115,64 @@ final class AdaptiveWideAngleSelfTest {
         return false
     }
 
+    /// A 1200 × 900 equidistant-fisheye image of a rectilinear grid (f = 520 px), written as PNG.
+    private func fisheyeGrid() -> URL? {
+        let (w, h, f) = (1200, 900, 520.0)
+        var px = [UInt8](repeating: 255, count: w * h * 4)
+        for y in 0..<h {
+            for x in 0..<w {
+                let (dx, dy) = (Double(x) + 0.5 - Double(w) / 2, Double(y) + 0.5 - Double(h) / 2)
+                let r = hypot(dx, dy)
+                let k = r < 1e-9 ? 1 : f * tan(min(r / f, 1.45)) / r
+                let (u, v) = (dx * k, dy * k)
+                let line = abs(u.truncatingRemainder(dividingBy: 90)) < 3 || abs(v.truncatingRemainder(dividingBy: 90)) < 3
+                let i = (y * w + x) * 4
+                let c: (UInt8, UInt8, UInt8) = line ? (30, 30, 40) : (u < 0) == (v < 0) ? (235, 225, 170) : (170, 200, 235)
+                px[i] = c.0; px[i + 1] = c.1; px[i + 2] = c.2; px[i + 3] = 255
+            }
+        }
+        let url = dir.appendingPathComponent("awa-fisheye-grid.png")
+        guard let provider = CGDataProvider(data: Data(px) as CFData),
+              let image = CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: w * 4,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                                  provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent),
+              let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(dest, image, nil)
+        return CGImageDestinationFinalize(dest) ? url : nil
+    }
+
     func run() async {
         let ws = model.documents
         let awa = DocumentAdaptiveWideAngle.shared
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        guard await wait(60, { !model.isLoading && !model.library.items.isEmpty }) else {
-            log("FAIL the library did not load"); return finish()
+
+        // 477: a library RAW over 4095 × 4095 is refused with the size in the message.
+        if await wait(60, { !model.isLoading && !model.library.items.isEmpty }),
+           let item = model.library.items.first(where: { $0.name == "sample.dng" }) ?? model.library.items.first(where: { $0.kind == .raw }) {
+            model.select(id: item.id)
+            ws.editInLayers(model.focusedItem)
+            if await wait(120, { ws.current != nil && ws.opening == nil }), let big = ws.current,
+               let photo = big.layers.first(where: { $0.kind == .pixel })?.id {
+                big.select(photo)
+                log("library document \(big.info.width) × \(big.info.height) px")
+                awa.open(big)
+                _ = await wait(60) { !awa.opening }
+                let status = model.statusMessage ?? ""
+                if big.info.width >= 4096 || big.info.height >= 4096 {
+                    check("oversized layer refused", awa.workspace == nil && status.contains("4095 × 4095"), status)
+                    await mark("oversized-refused")
+                }
+                awa.workspace?.cancel()
+            }
+        } else {
+            log("no RAW in the library: the oversized-layer check is skipped")
         }
-        let items = model.library.items
-        guard let item = items.first(where: { $0.name == "sample.dng" }) ?? items.first(where: { $0.kind == .raw }) else {
-            log("FAIL no RAW in the library"); return finish()
-        }
-        model.select(id: item.id)
-        ws.editInLayers(model.focusedItem)
-        guard await wait(120, { ws.current != nil && ws.opening == nil }), let doc = ws.current else {
-            log("FAIL Edit in Layers opened nothing: \(model.statusMessage ?? "")"); return finish()
+
+        guard let url = fisheyeGrid() else { log("FAIL could not write the fisheye grid"); return finish() }
+        ws.open(url)
+        guard await wait(120, { ws.current?.info.width == 1200 && ws.opening == nil }), let doc = ws.current else {
+            log("FAIL the fisheye grid did not open: \(model.statusMessage ?? "")"); return finish()
         }
         _ = await wait(10) { doc.lastFrame != nil }
         log("document \(doc.info.width) × \(doc.info.height) px")
