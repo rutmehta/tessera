@@ -1,0 +1,25 @@
+{
+  "compositions": {
+    "baseline": "5f31f14853ff0ebcb063de4f55abdeb3a5a761ad",
+    "candidate": "7a3ec9bfc22919593ee47f87566e10dc741d91c1"
+  },
+  "immutable_file_counts": {
+    "baseline": 8641,
+    "candidate": 8647
+  },
+  "artifacts": {
+    "baseline": "cfbd322ba3a3b91aaf978f76e389a42c9e2fa921a40726a37356b52c1276669c",
+    "candidate": "3ffce84e1deaab32ad6b9a4c69f91ce7855d96be7cb6885b1722ba662b521b11"
+  },
+  "processes": 6,
+  "open_frames": 36,
+  "edit_frames": 24,
+  "independent_pixel_comparisons": 40,
+  "max_absolute_error": {
+    "sdr": 0.003921568393707275,
+    "edr": 0.0009765625
+  },
+  "max_observed_release_ms": 0.0265,
+  "verdict": "Approved actual-frame functional qualification only; performance UNRUN",
+  "review_runtime": "read/hash/numeric evidence analysis only"
+}

@@ -1,0 +1,13 @@
+# Task3 independent functional evidence review
+
+Approved actual-frame functional qualification for baseline composition `5f31f14853ff0ebcb063de4f55abdeb3a5a761ad` and candidate `7a3ec9bfc22919593ee47f87566e10dc741d91c1`. Performance remains UNRUN and requires a separate coordinator grant.
+
+Independently verified all8,641baseline and8,647candidate source hashes against immutable Git blobs and exact reviewed base+overlay maps. Both locked builds exited0 with equal freezes. Retained test executable hashes match current files: baseline `cfbd322ba3a3b91aaf978f76e389a42c9e2fa921a40726a37356b52c1276669c`; candidate `3ffce84e1deaab32ad6b9a4c69f91ce7855d96be7cb6885b1722ba662b521b11`. Runner/threshold/source manifest hashes and all6process before/after maps match; explicit Sony fixture current SHA matches bf4c6d21… recorded identity.
+
+Six explicit single-test processes each exited0 with one actual passed ignored test and0ignored.36open frames delivered actualL1/820×546. Candidate controlledCPU/Metal backend assertions are independent of actual route proof; retained records confirm Metal frames have resident receipts/submissions and CPU frames do not, with0timed pixel readback.24edit frames cover exposure,WB,mappedgeometry CPUfallback and restored route. Every candidate process has6lookups/5hits/1measurement/1publication/1entry with unchanged full key and no repeated calibration. Baseline counters are null rather than invented zero.
+
+Independent reread of retained RGB payloads recomputed all40matching CPU-reference comparisons. Levels/dimensions/displaydimensions/settings matched. Maximum absolute SDR error0.003921568393707275; EDR0.0009765625. Every channel met unchanged thresholds; required EDR frames contain above-white content. These are actual pixels, not verdict-only verification.
+
+All36rows report bounded release following source-verified WeakShared/Renderer/GPU and IOSurface lookup checks; maximum observed resource-release interval0.0265ms. All6Engine drops passed5s bound. Source assertions retain recipe/journal/proxy/copied-original/fixture identity and restored settings. The process passes execute these assertions after each cycle; they do not establish global RSS/driver-cache bounds or prove broader cameras.
+
+Functional selectors use controlled calibration samples; their timings provide no speedup evidence. This approval permits consideration of the separately preregistered actual-auto performance stage, not automatic execution or rollout. The paired runner must require these exact functional sources/artifacts/fixture/runner hashes and unchanged thresholds. No compiler, application, GPU or test workload was executed by this reviewer; verification used read/hash and offline numeric evidence analysis only.
