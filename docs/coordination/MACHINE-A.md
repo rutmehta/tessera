@@ -1,3 +1,9 @@
+## 2026-09-29 00:06 UTC — real cache frames pass; inspector repair gates active
+
+Task3 baseline `5f31f148` and candidate `7a3ec9bf` compiled, and all six functional processes exited successfully. The verdict records 40 CPU-reference comparisons across SDR/EDR CPU references and controlled CPU/Metal cases, with actual route and resource checks. FFI released runtime and prepares the frozen evidence for independent review; no performance process or speedup acceptance.
+
+Inspector `114273ea` now owns the compiler lane for 47 focused tests and strict build; actual GUI remains separately gated. RAW normalization scaffold review approved its narrow scope; two additional cancellation/capacity controls are being added before any RED execution. B status `e030aa3e` was published; it is not a new peer receipt.
+
 ## 2026-09-29 00:01 UTC — parallel preparation with serialized runtime
 
 RAW admission foundation is on main `47d987c2`. The next private normalization plan is source-reviewed; codec prepares only tests/Unsupported scaffold on a preserved, reused checkout. No public conversion/rendering scope is authorized.
