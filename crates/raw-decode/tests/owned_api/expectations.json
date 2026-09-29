@@ -27,10 +27,11 @@
     ]
   },
   "clone.rs": {
-    "code": "E0599",
+    "code": "E0277",
     "contains": [
-      "clone",
-      "OwnedCapturedCfa"
+      "Clone",
+      "OwnedCapturedCfa",
+      "not satisfied"
     ]
   },
   "metadata_mutation.rs": {
