@@ -1,3 +1,7 @@
+## Test-only proxy qualification harness integrated — 2026-09-29
+
+`codex/proxy-cache-control` (5f31f148: reopen baseline + uncached decision-reuse control harness, no product code) merged onto main with one test-only fix `aa11bd1c` (per-function clippy too_many_arguments allow on `edit_frame`, matching existing convention). Gates on exact `aa11bd1c`: fmt 0; `cargo test -p tessera-ffi --release` 0 failures; `cargo clippy -p tessera-ffi --release --all-targets -D warnings` 0. First attempt `bf7cac23` preserved as failed: clippy too_many_arguments (real) and fallback test NotFound because the fresh worktree lacked gitignored fixtures/raw (environmental). Logs: /Volumes/betterSSD/tessera-validation/proxy-cache-control-merge-{bf7cac23,aa11bd1c}/. Failed calibration-decision-cache product code remains unmerged.
+
 ## Opaque captured-CFA owner integrated; Claude coordinator handoff — 2026-09-29
 
 Codex on A ran out of quota; a Claude session now acts as Machine A coordinator (A still sole main merger). Coordination with B now uses direct Claude session messages to B's "Codex context handoff" chat instead of the Git mailbox.
