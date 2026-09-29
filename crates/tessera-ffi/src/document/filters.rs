@@ -1997,7 +1997,7 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
         let _pressure = super::render::Pressure::begin(super::render::PressureKind::Filters);
         match &job {
             Job::Preview(..) => q.lock().cpu_previews += 1, // B5-15
-            Job::Bake(_) => q.lock().cpu_bakes += 1,        // B5-15
+            Job::Bake(..) => q.lock().cpu_bakes += 1,       // B5-15
         }
         match job {
             Job::Preview(p, cancel) => {
@@ -2727,7 +2727,7 @@ impl DocumentSession {
                 i.generation += 1;
                 i.preview_job = None;
                 if let Some(c) = &i.running {
-                    c.store(true, Ordering::Relaxed);
+                    c.cancel();
                 }
                 let g = i.generation;
                 i.preview = Some((g, PreviewShown::Stack(layer, Arc::new(nl))));
