@@ -2161,7 +2161,8 @@ a watcher that runs `screencapture -x -o -l <window>`. Brush feel on a real tabl
      stored mesh (📸 `408-re-edit.png`); edit and Apply: still one Liquify row, replaced in place
      (📸 `408-smart-filter.png`).
 409. **Cancel while busy.** Apply a large distortion and press Esc / Cancel at once: the sheet closes immediately,
-     no result lands later and History is unchanged (📸 `409-cancelled.png`).
+     no result lands later and History is unchanged (📸 `409-cancelled.png`). (A cancel that reaches the engine
+     after its last check finds the step written; the app undoes it when the job returns, as B5-09 Remove does.)
 410. **Content-Aware Move.** Make a selection, click the Content-Aware Move slot after Remove in the Healing Brush
      group (`square.on.square.dashed`): the options bar shows Move / Extend, Structure 1…7, Color, Seed and "Drag the
      selection to where it should go". Without a selection, or on an unsupported layer, it says why instead.
