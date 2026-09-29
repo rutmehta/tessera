@@ -216,8 +216,8 @@ fn missing_lama_and_neural_weights_give_the_documented_error() {
     assert_eq!(pixels(&s), before);
     // The catalogue matches M5-29's registration.
     let cat = neural_filters();
-    assert_eq!(cat.len(), 3);
-    assert!(!cat[0].requires_weights && cat[1].requires_weights && cat[2].requires_weights);
+    assert_eq!(cat.len(), 4);
+    assert!(!cat[0].requires_weights && cat[1..].iter().all(|f| f.requires_weights));
     assert_eq!(cat[2].params[0].key, "strength");
 }
 
