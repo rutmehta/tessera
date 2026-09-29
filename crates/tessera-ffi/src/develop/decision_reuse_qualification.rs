@@ -46,6 +46,7 @@ fn validate_decisions(before: &DecisionCounts, after: &DecisionCounts, cycle: us
         }
     }
 }
+#[allow(clippy::too_many_arguments)]
 fn edit_frame(
     label: &str,
     session: &DevelopSession,
