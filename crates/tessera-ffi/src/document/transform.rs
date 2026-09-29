@@ -41,7 +41,7 @@
 
 use super::{
     DocLayerKind, DocRect, DocumentSession, DocumentUpdate, State, TransformMatrix, blend_name,
-    filtering, find, kind_of, layer_revision, raster_from_rgba,
+    changed_layers, filtering, find, kind_of, layer_revision, raster_from_rgba,
 };
 use crate::{Result, failure};
 use compositor::{
@@ -1138,8 +1138,25 @@ impl DocumentSession {
         if let Some(active) = st.advanced.active.as_mut() {
             active.last = Some(op);
         }
-        let mut update = self.update(&mut st, &before, Some(&applied), false);
-        update.created.clear();
+        // B5-12b: a preview is scratch-only and not a row change of its layer. Announcing the layer
+        // made the host reload its rows from the scratch, so Properties / Layers showed the uncommitted
+        // smart object and its filter row before Apply. The frame is still requested; other rows (a
+        // pending drag of another control committed above) are announced; cancel, commit and a
+        // replacing `begin` announce the layer (the rows reload to what is committed).
+        st.epoch += 1;
+        let rows: Vec<u64> = changed_layers(&before, st.live().state())
+            .into_iter()
+            .filter(|&id| id != a.layer)
+            .collect();
+        let update = DocumentUpdate {
+            layers_changed: rows.clone(),
+            created: Vec::new(),
+            history_head: st.doc.history().current(),
+            dirty_rect: DocRect::of(applied.damage),
+            epoch: st.epoch,
+            dirty: st.dirty(),
+        };
+        self.shared.render.request(rows, false, st.epoch);
         Ok(AdvancedTransformPreview {
             update,
             deformed_json,

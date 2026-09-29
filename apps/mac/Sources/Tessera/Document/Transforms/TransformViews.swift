@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TesseraCore
 
@@ -13,6 +14,12 @@ struct TransformOptionsBar: View {
 
     var body: some View {
         if let s = t.session {
+            // B5-12b: the uncommitted edit is a transient state here; Layers / Properties keep the original.
+            if let p = t.previewLabel {
+                Text(p).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
+                    .help("Not applied yet: Return or Apply records it, Esc discards it")
+                    .accessibilityIdentifier("document.transform.previewState")
+            }
             switch s.op {
             case .warp: warp(s)
             case .perspective: perspective
@@ -28,6 +35,18 @@ struct TransformOptionsBar: View {
                 .font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
                 .help(s.start.limitations.joined(separator: "\n"))
                 .accessibilityLabel("Limitations")
+            // B5-12b: why the last edit was refused (also in the status bar).
+            if let r = t.refusal {
+                HStack(spacing: Theme.Space.xs) {
+                    Image(systemName: "exclamationmark.triangle").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.warning)
+                    Text(r).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary).lineLimit(1).truncationMode(.tail)
+                }
+                .frame(maxWidth: Theme.Width.labelWide * 3, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .help(r)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("document.transform.refusal")
+            }
             if let r = t.latencyReadout {
                 Text(r).font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary).fixedSize()
                     .accessibilityIdentifier("document.transform.latency")
@@ -55,7 +74,9 @@ struct TransformOptionsBar: View {
         MenuPicker(selection: Binding(get: { t.warpPreset }, set: { t.applyWarpPreset($0) }), options: presets)
             .frame(width: Theme.Width.labelWide + Theme.Space.l)
             .help("Warp preset")
-        OptionField(title: "Bend", value: Binding(get: { t.warpBend }, set: { t.setWarpBend($0) }), range: -100...100, unit: "%")
+            .accessibilityIdentifier("document.transform.warpPreset")
+            .background(TransformFrameProbe(id: "document.transform.warpPreset"))
+        TransformField(title: "Bend", value: t.warpBend, unit: "%", identifier: "document.transform.bend") { t.setWarpBend($0) }
             .disabled(t.warpPreset == "Custom")
         Menu {
             Button("Default (1 × 1)") { t.update { if case .warp = $0 { $0 = .warp(.identity(width: Double(s.start.childWidth), height: Double(s.start.childHeight))) } } }
@@ -92,16 +113,18 @@ struct TransformOptionsBar: View {
                    options: [(false, "Normal"), (true, "Rigid")])
             .frame(width: Theme.Width.labelWide)
             .help("Mode")
+            .accessibilityIdentifier("document.transform.puppetMode")
+            .background(TransformFrameProbe(id: "document.transform.puppetMode"))
         SegmentedPicker(selection: Binding(get: { t.puppetDensity }, set: { t.puppetDensity = $0; t.remesh() }),
                         segments: PuppetDensityTag.allCases.map { .init(value: $0, title: $0.title, symbol: nil, help: "Density: \($0.title)") },
                         height: Theme.Height.small, fill: false)
             .fixedSize()
-        OptionField(title: "Expansion", value: Binding(get: { Double(t.puppetExpansion) }, set: {
-            t.puppetExpansion = UInt32(min(max($0, 0), 64)); t.remesh()
-        }), range: 0...64, unit: "px")
+        // B5-12b: typed values go to the engine (0…64 px); a refusal keeps the rejected value on show.
+        TransformField(title: "Expansion", value: t.puppetExpansionShown, unit: "px", rejected: t.expansionRejected != nil,
+                       identifier: "document.transform.expansion") { t.setPuppetExpansion($0) }
         OptionToggle(title: "Show Mesh", on: Binding(get: { t.showMesh }, set: { t.showMesh = $0; t.redraw() }))
-        OptionField(title: "Rotate", value: Binding(get: { t.selectedPinDegrees ?? 0 }, set: { t.setSelectedPinDegrees($0) }),
-                    range: -360...360, unit: "°", fractionDigits: 1)
+        TransformField(title: "Rotate", value: t.selectedPinDegrees ?? 0, unit: "°", fractionDigits: 1,
+                       identifier: "document.transform.rotate") { t.setSelectedPinDegrees(min(max($0, -360), 360)) }
             .disabled(t.selectedPin == nil)
         Text("\(p.pins.count) pin\(p.pins.count == 1 ? "" : "s")").font(Theme.Fonts.captionNumeric)
             .foregroundStyle(Theme.textTertiary).fixedSize()
@@ -112,12 +135,15 @@ struct TransformOptionsBar: View {
     }
 
     @ViewBuilder private func scale(_ c: ContentAwareScaleModel) -> some View {
-        OptionField(title: "W", value: Binding(get: { Double(c.width) }, set: { t.setScale(width: UInt32(max($0, 1))) }),
-                    range: 1...Double(c.canvasWidth * 4), unit: "px")
-        OptionField(title: "H", value: Binding(get: { Double(c.height) }, set: { t.setScale(height: UInt32(max($0, 1))) }),
-                    range: 1...Double(c.canvasHeight * 4), unit: "px")
-        OptionField(title: "Amount", value: Binding(get: { Double(c.amount) * 100 }, set: { t.setScale(amount: Float($0 / 100)) }),
-                    range: 0...100, unit: "%")
+        TransformField(title: "W", value: Double(c.width), unit: "px", identifier: "document.transform.width") {
+            t.setScale(width: UInt32(min(max($0, 1), Double(c.canvasWidth * 4))))
+        }
+        TransformField(title: "H", value: Double(c.height), unit: "px", identifier: "document.transform.height") {
+            t.setScale(height: UInt32(min(max($0, 1), Double(c.canvasHeight * 4))))
+        }
+        TransformField(title: "Amount", value: Double(c.amount) * 100, unit: "%", identifier: "document.transform.amount") {
+            t.setScale(amount: Float($0 / 100))
+        }
         MenuPicker(selection: Binding(get: { c.protectChannel }, set: { t.setScale(protect: .some($0)) }),
                    options: [(UInt64?.none, "Protect: None")] + t.channels.map { (UInt64?.some($0.id), "Protect: \($0.name)") })
             .frame(width: Theme.Width.labelWide + Theme.Space.xxl)
@@ -155,4 +181,174 @@ struct TransformSheets: ViewModifier {
                  + "text or shape stay inside it unchanged, with its masks and style on the smart object. Undo restores the layer.")
         }
     }
+}
+
+/// B5-12b: the options bar's numeric field while a transform session is open (the shared `OptionField`
+/// swallowed Esc and Return, and clamped through its formatter). Caption, value, unit like `OptionField`.
+/// Keys while editing: Return commits the value, ends editing and applies the session (unless the value
+/// was refused); Esc with an edited value reverts it and ends editing (a second Esc, now on the canvas,
+/// cancels the session); Esc with the value unchanged cancels the session at once.
+struct TransformField: View {
+    let title: String
+    let value: Double
+    var unit = ""
+    var fractionDigits = 0
+    /// The value on show was refused (drawn in the reject colour until corrected).
+    var rejected = false
+    let identifier: String
+    let commit: (Double) -> Void
+
+    var body: some View {
+        HStack(spacing: Theme.Space.xs) {
+            Text(title).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+            TransformFieldCell(value: value, fractionDigits: fractionDigits, rejected: rejected, identifier: identifier,
+                               title: title, commit: commit)
+                .frame(width: Theme.Width.label - Theme.Space.l)
+            if !unit.isEmpty { Text(unit).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary) }
+        }
+        .fixedSize()
+    }
+}
+
+private struct TransformFieldCell: NSViewRepresentable {
+    let value: Double
+    let fractionDigits: Int
+    let rejected: Bool
+    let identifier: String
+    let title: String
+    let commit: (Double) -> Void
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeNSView(context: Context) -> TransformNumberField {
+        let f = TransformNumberField()
+        f.setAccessibilityIdentifier(identifier)
+        f.setAccessibilityLabel(title)
+        f.onReturn = { DocumentTransforms.shared.applyAfterFieldCommit() }
+        f.onEscape = { DocumentTransforms.shared.cancel() }
+        f.focusAfterEditing = { DocumentTransforms.shared.document?.viewport }
+        return f
+    }
+
+    func updateNSView(_ f: TransformNumberField, context: Context) {
+        f.onCommit = commit
+        f.fractionDigits = fractionDigits
+        f.isEnabled = isEnabled
+        f.rejected = rejected
+        f.value = value
+    }
+}
+
+/// The AppKit field behind `TransformField` (its own delegate, so Esc / Return are handled while the field
+/// editor has the keyboard — the key router leaves text fields alone).
+@MainActor
+final class TransformNumberField: NSTextField, NSTextFieldDelegate {
+    /// The accepted value (shown whenever the field is not being edited).
+    var value: Double = 0 { didSet { if !isEditingText { show() } } }
+    var fractionDigits = 0 { didSet { if oldValue != fractionDigits, !isEditingText { show() } } }
+    /// The value on show was refused.
+    var rejected = false {
+        didSet { textColor = rejected ? Theme.Palette.reject : Theme.Palette.textPrimary }
+    }
+    var onCommit: ((Double) -> Void)?
+    var onReturn: (() -> Void)?
+    var onEscape: (() -> Void)?
+    /// Where the keyboard goes when editing ends (the canvas, so the next Esc / Return reach the session).
+    var focusAfterEditing: (() -> NSResponder?)?
+    private var ending = false
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        bezelStyle = .roundedBezel
+        isBezeled = true
+        controlSize = .small
+        font = Theme.NSFonts.captionNumeric
+        alignment = .right
+        textColor = Theme.Palette.textPrimary
+        usesSingleLineMode = true
+        cell?.isScrollable = true
+        delegate = self
+        show()
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    var isEditingText: Bool { currentEditor() != nil }
+    /// The text as typed (the field editor's while editing).
+    var text: String { currentEditor()?.string ?? stringValue }
+
+    private var numberFormat: NumberFormatter {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = fractionDigits
+        f.usesGroupingSeparator = false
+        return f
+    }
+
+    func formatted(_ v: Double) -> String { numberFormat.string(from: NSNumber(value: v)) ?? "\(v)" }
+
+    /// The typed number (no range: the session or the engine decides and says why it refuses). Never NaN
+    /// or infinite ("nan", "inf", "1e999"): those are not values, and would trap in `UInt32(_:)` (W / H)
+    /// or poison Rotate / Bend.
+    func parsed() -> Double? {
+        let s = text.trimmingCharacters(in: .whitespaces)
+        let v = numberFormat.number(from: s)?.doubleValue ?? Double(s.replacingOccurrences(of: ",", with: "."))
+        guard let v, v.isFinite else { return nil }
+        return v
+    }
+
+    private func show() { stringValue = formatted(value) }
+
+    /// Commits the typed value when it differs from what is on show.
+    private func commitText() {
+        guard let v = parsed() else { show(); return }
+        if text != formatted(value) || v != value { onCommit?(v) }
+    }
+
+    private func endEditing() {
+        ending = true
+        if let w = window { w.makeFirstResponder(focusAfterEditing?() ?? nil) }
+        ending = false
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        switch selector {
+        case #selector(NSResponder.insertNewline(_:)):
+            commitText()
+            endEditing()
+            onReturn?()
+            return true
+        case #selector(NSResponder.cancelOperation(_:)):
+            let edited = text != formatted(value)
+            textView.string = formatted(value)
+            endEditing()
+            show()
+            if !edited { onEscape?() }
+            return true
+        default:
+            return false
+        }
+    }
+
+    func controlTextDidEndEditing(_ obj: Notification) {
+        guard !ending else { return }
+        commitText()
+    }
+}
+
+/// B5-12b: an inert AppKit view behind a SwiftUI control, so the self-test can read where the control
+/// sits in the window (is it inside the visible options bar, not under the toolbar or scrolled off).
+struct TransformFrameProbe: NSViewRepresentable {
+    let id: String
+    func makeNSView(context: Context) -> TransformProbeView {
+        let v = TransformProbeView()
+        v.identifier = NSUserInterfaceItemIdentifier(id)
+        return v
+    }
+    func updateNSView(_ v: TransformProbeView, context: Context) {}
+}
+
+final class TransformProbeView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func isAccessibilityElement() -> Bool { false }
 }

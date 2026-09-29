@@ -52,6 +52,13 @@ final class DocumentTransforms {
     /// The Apply alert: wrapping a pixel / text / shape layer needs the user's consent.
     var consentPending = false
     private(set) var status: String?
+    /// B5-12b: the last refused edit (a crossing perspective drag, an out-of-range option), shown in the
+    /// options bar next to the controls and said in the status bar; cleared by the next accepted edit.
+    private(set) var refusal: String?
+    /// B5-12b: Expansion as typed when the engine refused it (the field keeps showing it until corrected).
+    private(set) var expansionRejected: Double?
+    /// Expansion as typed while its remesh is queued.
+    private(set) var expansionPending: Double?
     /// "Warp: median 48 ms · p95 70 ms (24 drags)" (drag step → presented frame).
     private(set) var latencyReadout: String?
     @ObservationIgnored private(set) var latencies: [Double] = []
@@ -107,6 +114,27 @@ final class DocumentTransforms {
 
     private func backend(_ doc: DocumentController) -> (any DocumentTransformsBackend)? { doc.backend as? any DocumentTransformsBackend }
     private func say(_ s: String) { status = s; document?.report?(s) }
+    /// B5-12b: a refused edit: the status bar and the options bar say why; the previous state stays.
+    private func refuse(_ s: String) {
+        refusal = s
+        say(s)
+    }
+
+    /// B5-12b: "Warp (preview)" while an edit is shown but not applied. The Layers and Properties panels
+    /// keep showing the original layer until Apply (previews are scratch-only in the engine and do not
+    /// announce row changes); this is the transient state the options bar shows instead.
+    var previewLabel: String? {
+        guard let s = session, s.previewed else { return nil }
+        return "\(s.op.tag.title) (preview)"
+    }
+
+    /// B5-12b: the status hint of the current tool (B5-11b's derived hint), said when a session ends so its
+    /// instructions never linger after Apply, Cancel or a tool change.
+    private func publishToolHint(_ doc: DocumentController?) {
+        guard let doc, let h = DocumentTools.shared.hint(for: doc) else { return }
+        status = nil
+        doc.report?(h)
+    }
     func redraw() { overlay(document)?.needsDisplay = true }
 
     /// Waits until queued engine work has finished (self-test).
@@ -253,10 +281,10 @@ final class DocumentTransforms {
         commit(convert: true)
     }
 
-    private func commit(convert: Bool) {
+    private func commit(convert: Bool, announce: Bool = true) {
         guard let s = session, let doc = document, s.doc === doc, let t = backend(doc) else { return }
         flushPreviewThen { [weak self] in
-            guard let self else { return }
+            guard let self, self.session?.start.token == s.start.token else { return }
             let token = s.start.token
             let title = s.op.tag.title
             self.end()
@@ -265,7 +293,8 @@ final class DocumentTransforms {
             } done: { [weak doc] c in
                 guard let doc else { return }
                 let me = DocumentTransforms.shared
-                me.say("\(title) applied")
+                // A result, not an instruction (B5-11b); after a tool change the new tool's hint stays.
+                if announce { me.say("\(title) applied") }
                 me.reloadAfterFrame(doc, epoch: c.epoch) { me.onFinished?(.success(c)) }
             } failed: { e in
                 DocumentTransforms.shared.onFinished?(.failure(e))
@@ -292,20 +321,30 @@ final class DocumentTransforms {
     }
 
     private func end() {
+        let doc = session?.doc ?? document
         session = nil
         gesture = nil
         consentPending = false
         previewDirty = false
         selectedPin = nil
+        refusal = nil
+        expansionRejected = nil
+        expansionPending = nil
         generation += 1
         document?.viewport?.cursorDidChange()
+        publishToolHint(doc)   // B5-12b: the session's instructions end with it
         redraw()
     }
 
     /// Another tool was chosen: apply what does not need consent, otherwise cancel.
     func toolSelected() {
         guard let s = session else { return }
-        if s.start.needsConversion { say("\(s.op.tag.title) cancelled: applying it converts the layer (use Apply)"); cancel() } else { apply() }
+        if s.start.needsConversion {
+            cancel()
+            say("\(s.op.tag.title) cancelled: applying it converts the layer (use Apply)")
+        } else {
+            commit(convert: false, announce: false)
+        }
     }
 
     /// Cancels the session when the workspace switches to another document (tab, open, close).
@@ -387,12 +426,12 @@ final class DocumentTransforms {
                         if let d = p.deformed { s.deformed = d }
                         me.session = s
                         me.status = nil
+                        if !me.previewDirty { me.refusal = nil }
                         me.track(epoch: p.change.epoch, since: started, doc: doc)
                     case .failure(let e):
                         // The engine kept the previous preview; so does the editor (unless a newer edit is queued).
                         if !me.previewDirty { s.op = s.accepted; me.session = s }
-                        me.status = "\(op.tag.title): \(e.localizedDescription)"
-                        doc.report?(me.status ?? "")
+                        me.refuse("\(op.tag.title): \(e.localizedDescription)")
                     }
                     me.redraw()
                     me.pumpPreview()
@@ -405,7 +444,8 @@ final class DocumentTransforms {
     private func flushPreviewThen(_ then: @escaping @MainActor () -> Void) {
         Task { @MainActor in
             pumpPreview()
-            while previewInFlight || previewDirty {
+            // B5-12b: also queued engine work (a remesh typed into Expansion before Return).
+            while previewInFlight || previewDirty || busy > 0 {
                 try? await Task.sleep(for: .milliseconds(5))
                 pumpPreview()
             }
@@ -434,6 +474,9 @@ final class DocumentTransforms {
     }
 
     func resetLatencies() { latencies.removeAll(); latencyReadout = nil }
+
+    /// The engine's rule for perspective planes (transform::perspective: quads must stay strictly convex).
+    static let perspectiveRefusal = "Perspective Warp: planes must stay convex — the drag stops at the last convex shape"
 
     // MARK: Options bar actions
 
@@ -500,18 +543,58 @@ final class DocumentTransforms {
     }
 
     /// Puppet ▸ density / expansion: a new mesh; pins keep their places.
-    func remesh() {
+    func remesh(expansion: UInt32? = nil, typed: Double? = nil) {
         guard let s = session, let doc = document, let t = backend(doc), case .puppet(let old) = s.op else { return }
-        let (layer, density, expansion) = (s.start.layer, puppetDensity, puppetExpansion)
+        let (layer, density, expansion) = (s.start.layer, puppetDensity, expansion ?? puppetExpansion)
         enqueue("Puppet Warp") {
             try t.puppetMesh(layer: layer, density: density, expansion: expansion)
         } done: { info in
             let me = DocumentTransforms.shared
             guard me.session?.start.token == s.start.token else { return }
+            me.puppetExpansion = expansion
+            me.expansionRejected = nil
+            me.expansionPending = nil
+            me.refusal = nil
             me.puppetNote = info.note
             me.selectedPin = nil
             me.session?.deformed = nil
             me.update { $0 = .puppet(old.rebased(onto: info.mesh)) }
+        } failed: { e in
+            // B5-12b: the engine's refusal stays visible; the field keeps the rejected value until corrected.
+            let me = DocumentTransforms.shared
+            guard me.session?.start.token == s.start.token else { return }
+            me.expansionPending = nil
+            if let typed { me.expansionRejected = typed }
+            me.refusal = "Puppet Warp: \(e.localizedDescription)"
+        }
+    }
+
+    /// B5-12b: Expansion as typed. The engine decides the range (0…64 px): an out-of-range value is refused
+    /// with its error (never clamped), the mesh and pins stay, and the field shows the rejected value.
+    func setPuppetExpansion(_ typed: Double) {
+        guard let s = session, case .puppet = s.op else { return }
+        let v = typed.rounded()
+        guard v.isFinite, v >= 0, v <= Double(UInt32.max) else {
+            expansionRejected = typed
+            refuse("Puppet Warp: puppet expansion must be 0…64 px")
+            return
+        }
+        if expansionRejected == nil, expansionPending == nil, UInt32(v) == puppetExpansion { return }
+        expansionPending = typed
+        remesh(expansion: UInt32(v), typed: typed)
+    }
+
+    /// The value the Expansion field shows: the rejected entry while refused, else the accepted one.
+    var puppetExpansionShown: Double { expansionRejected ?? expansionPending ?? Double(puppetExpansion) }
+
+    /// B5-12b: Return in an options-bar field: the field's value is committed first (a remesh may still be
+    /// queued), then the session applies — unless that value was refused (the session stays open).
+    func applyAfterFieldCommit() {
+        guard let token = session?.start.token else { return }
+        Task { @MainActor in
+            await idle()
+            guard let s = session, s.start.token == token, expansionRejected == nil else { return }
+            apply()
         }
     }
 
@@ -695,7 +778,8 @@ final class DocumentTransforms {
                 p = next
                 update { $0 = .perspective(p) }
             } else {
-                status = "Perspective Warp: planes must stay convex (the previous shape is kept)"
+                // B5-12b: said in the status bar and the options bar (it was only stored before).
+                refuse(Self.perspectiveRefusal)
             }
         case (.pin(let i), .puppet(var p)) where i < p.pins.count:
             p.pins[i].target = child

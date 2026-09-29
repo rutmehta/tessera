@@ -1,0 +1,115 @@
+2026-09-29 03:30:53.213 Tessera[35189:36576533] Sparkle updates not configured for this build
+transform-selftest: waiting for the workspace
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+transform-selftest: document 1600 × 1000, Metal (Apple M4 Max)
+transform-selftest: check 380 Edit ▸ Transform items ok
+transform-selftest: Warp began in 41 ms
+transform-selftest: check 381 pixel target needs consent ok
+transform-selftest: check 381 preview keeps the Pixel row ok
+transform-selftest: check 384 document.transform.warpPreset inside the visible options bar at 1440 pt ok
+transform-selftest: check 384 document.transform.bend inside the visible options bar at 1440 pt ok
+transform-selftest: shot 381-warp-preview-pixel window 26704 1440 × 900
+transform-selftest: check 381 cancel keeps Pixel ok
+transform-selftest: check 381 cancel leaves history ok
+transform-selftest: check 381 no stale Warp hint after Cancel ok
+transform-selftest: Warp began in 38 ms
+transform-selftest: check 381 Apply asks before converting ok
+transform-selftest: shot 381-convert-alert window 26704 1440 × 900
+transform-selftest: check 381 alert Cancel keeps the Pixel row ok
+transform-selftest: check 381 committed ok
+transform-selftest: check 381 smart object after consent ok
+transform-selftest: check 381 one node ok
+transform-selftest: check 381 label ok
+transform-selftest: Warp began in 38 ms
+transform-selftest: check 382 re-edit opens the stage ok
+transform-selftest: check 382 anchor follows the drag ok
+transform-selftest: shot 382-warp-drag window 26704 1440 × 900
+transform-selftest: 382 latency Preview median 351 ms · p95 538 ms (30)
+transform-selftest: check 383 split adds a column and a row ok
+transform-selftest: shot 383-warp-split window 26704 1440 × 900
+transform-selftest: check 384 zero bend is identity ok
+transform-selftest: shot 384-warp-flag-bend window 26704 1440 × 900
+transform-selftest: check 392 Return applies one node ok
+transform-selftest: check 394 re-edit kept one stage ok
+transform-selftest: check 392 undo steps back once ok
+transform-selftest: check 392 redo restores the stage ok
+transform-selftest: Warp began in 35 ms
+transform-selftest: check 384 Esc typed in Bend ok
+transform-selftest: check 384 first Esc ends field editing ok
+transform-selftest: check 384 second Esc cancels ok
+transform-selftest: Warp began in 36 ms
+transform-selftest: check 384 Esc with Bend unchanged cancels ok
+transform-selftest: Warp began in 35 ms
+transform-selftest: check 384 Return in Bend commits then applies ok
+transform-selftest: check 384 no stale Warp hint after Apply ok
+transform-selftest: Perspective Warp began in 33 ms
+transform-selftest: check 385 two linked planes ok
+transform-selftest: check 385 shared vertex moved once for both planes ok
+transform-selftest: shot 385-perspective-linked window 26704 1440 × 900
+transform-selftest: check 386 crossing quad rejected ok
+transform-selftest: check 386 status explains ok
+transform-selftest: shot 386-perspective-rejected window 26704 1440 × 900
+transform-selftest: check 385 applied ok
+transform-selftest: Puppet Warp began in 84 ms
+transform-selftest: check 388 document.transform.puppetMode inside the visible options bar at 1440 pt ok
+transform-selftest: check 388 document.transform.expansion inside the visible options bar at 1440 pt ok
+transform-selftest: check 387 mesh ok
+transform-selftest: 387 puppet note Mesh built from 1/4 resolution: 16 px cells keep it within the engine's 16,384-vertex limit.
+transform-selftest: check 387 three pins ok
+transform-selftest: check 387 pin rotated ok
+transform-selftest: shot 387-puppet-pins window 26704 1440 × 900
+transform-selftest: check 387 ⌥-click removes a pin ok
+transform-selftest: check 388 density remesh keeps pins ok
+transform-selftest: check 388 expansion 65 rejected ok
+transform-selftest: check 388 typed Expansion 80 ok
+transform-selftest: check 388 expansion 80 refused visibly ok
+transform-selftest: shot 388-expansion-refused window 26704 1440 × 900
+transform-selftest: check 388 typed Expansion 6 ok
+transform-selftest: check 388 corrected Expansion accepted ok
+transform-selftest: shot 388-puppet-rigid-sparse window 26704 1440 × 900
+transform-selftest: Warp began in 37 ms
+transform-selftest: check 391 mapping at 200 % ok
+transform-selftest: check 391 drag at 200 % moves 40 child px ok
+transform-selftest: shot 391-zoom-200 window 26704 1440 × 900
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 800, y1: 500 })
+transform-selftest: Content-Aware Scale began in 47 ms
+transform-selftest: shot 389-cas-amount-0 window 26704 1440 × 900
+transform-selftest: shot 389-cas-amount-1 window 26704 1440 × 900
+transform-selftest: shot 390-cas-protected-channel window 26704 1440 × 900
+transform-selftest: check 389 fresh CAS cancelled to Pixel ok
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+transform-selftest: Content-Aware Scale began in 41 ms
+transform-selftest: check 390 channel offered, no skin option ok
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+transform-selftest: check 389 CAS applied ok
+transform-selftest: check 395 position lock rejects ok
+transform-selftest: Warp began in 108 ms
+transform-selftest: check 396 text needs explicit conversion ok
+transform-selftest: shot 396-text-warp-preview window 26704 1440 × 900
+transform-selftest: check 396 cancel keeps live text ok
+transform-selftest: Warp began in 34 ms
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 800, y1: 500 })
+transform-selftest: check 393 switch ended the session ok
+transform-selftest: check 393 no late history node ok
+transform-selftest: check 397 native save ok
+transform-selftest: check 398 PSD refuses native-only stages ok
+transform-selftest: 398 message: invalid argument `PSD adapter`: TransformOp and smart-filter stages are native-only; rasterize explicitly for PSD
+transform-selftest: check 398 rasterized copy ok
+transform-selftest: 398 rasterized copy took 14405 ms
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1600, y1: 1000 })
+transform-selftest: check 397 reopened stages ok
+transform-selftest: shot 397-reopened-native window 26704 1440 × 900
+transform-selftest: check 397 re-edit after reopen ok
+transform-selftest: shot 399-panels-1440 window 26704 1440 × 900
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2736, y1: 1824 })
+transform-selftest: Warp began in 35 ms
+transform-selftest: 399 begin on 20 MP: 292 ms, draft level 3
+transform-selftest: 399 20 MP drag latency (preview call → presented frame): n 30 median 344.5 ms p95 562.3 ms max 579.5 ms
+transform-selftest: check 399 20 MP drags presented ok
+transform-selftest: shot 399-20mp-warp-drag window 26704 1440 × 900
+transform-selftest: 399 20 MP apply → exact frame: 948 ms
+transform-selftest: shot 399-20mp-applied window 26704 1440 × 900
+transform-selftest: done, 0 failure(s)

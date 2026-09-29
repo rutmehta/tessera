@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import ImageIO
 import TesseraCore
 import TesseraFFI
@@ -19,6 +20,11 @@ final class TransformSelfTest {
     private var failures = 0
     private var t: DocumentTransforms { .shared }
     private static var started = false
+    private static var auditWindow: NSWindow?
+    private final class AuditWindow: NSWindow {
+        override var canBecomeKey: Bool { false }
+        override var canBecomeMain: Bool { false }
+    }
 
     static func startIfRequested(_ workspace: DocumentWorkspace) {
         guard !started else { return }
@@ -30,6 +36,20 @@ final class TransformSelfTest {
             path = args[i + 1]
         } else { return }
         started = true
+        // `--nonactivating` (accessory policy) may not instantiate the SwiftUI window scene: host the real
+        // content in a window that never becomes key or main, ordered behind other apps. A window, not
+        // BackgroundAuditWindow's panel: AppKit does not count panels, so closing the Apply alert's sheet
+        // (step 381) would be "the last window closed" and quit the app mid-run.
+        if args.contains("--nonactivating"), !NSApp.windows.contains(where: { !($0 is NSPanel) && $0.isVisible }) {
+            let w = AuditWindow(contentRect: NSRect(x: 40, y: 40, width: 1440, height: 900), styleMask: [.titled, .resizable],
+                                backing: .buffered, defer: false)
+            w.isReleasedWhenClosed = false
+            w.title = "Tessera transform self-test"
+            w.contentView = NSHostingView(rootView: ContentView(model: workspace.app ?? AppModel.shared)
+                .frame(minWidth: 960, minHeight: 600))
+            w.order(.below, relativeTo: 0)
+            auditWindow = w
+        }
         DocumentTransforms.shared.workspace = workspace
         let test = TransformSelfTest(workspace: workspace, dir: URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
         Task { @MainActor in await test.run() }
@@ -139,13 +159,86 @@ final class TransformSelfTest {
     }
 
     private func history() -> Int { (try? doc?.backend.historyItems().count) ?? 0 }
+    private var statusLine: String { workspace.app?.statusMessage ?? "" }
+
+    // MARK: B5-12b helpers
+
+    /// An options-bar field (AppKit) by accessibility identifier.
+    private func optionField(_ id: String) -> TransformNumberField? {
+        func find(_ v: NSView) -> TransformNumberField? {
+            if let f = v as? TransformNumberField, f.accessibilityIdentifier() == id { return f }
+            for s in v.subviews { if let f = find(s) { return f } }
+            return nil
+        }
+        return viewport?.window?.contentView.flatMap(find)
+    }
+
+    /// Screen frame of the accessibility element `id` in this window (SwiftUI controls included).
+    private func axFrame(_ id: String) -> CGRect? {
+        if let f = optionField(id), let w = f.window { return w.convertToScreen(f.convert(f.bounds, to: nil)) }
+        // SwiftUI pop-ups carry a `TransformFrameProbe` behind them (an AppKit view with their frame).
+        func probe(_ v: NSView) -> NSView? {
+            if v is TransformProbeView, v.identifier?.rawValue == id { return v }
+            for s in v.subviews { if let p = probe(s) { return p } }
+            return nil
+        }
+        if let p = viewport?.window?.contentView.flatMap(probe), let w = p.window {
+            return w.convertToScreen(p.convert(p.bounds, to: nil))
+        }
+        var seen = 0
+        func walk(_ el: Any, _ depth: Int) -> CGRect? {
+            seen += 1
+            guard depth < 40, seen < 20_000, let e = el as? NSAccessibilityElementProtocol else { return nil }
+            if let o = el as? NSObject, o.responds(to: #selector(NSAccessibilityProtocol.accessibilityIdentifier)),
+               (o.perform(#selector(NSAccessibilityProtocol.accessibilityIdentifier))?.takeUnretainedValue() as? String) == id {
+                return e.accessibilityFrame()
+            }
+            let kids = (el as? NSObject)?.responds(to: #selector(NSAccessibilityProtocol.accessibilityChildren)) == true
+                ? ((el as? NSObject)?.perform(#selector(NSAccessibilityProtocol.accessibilityChildren))?.takeUnretainedValue() as? [Any]) ?? []
+                : []
+            for k in kids { if let r = walk(k, depth + 1) { return r } }
+            return nil
+        }
+        guard let w = viewport?.window else { return nil }
+        return walk(w, 0)
+    }
+
+    /// B5-12b item 7: the control sits inside the window's visible content (below the toolbar, not scrolled
+    /// or clipped off the right edge of the options bar).
+    private func checkVisible(_ step: String, _ id: String) {
+        guard let w = viewport?.window else { return }
+        let content = w.convertToScreen(w.contentLayoutRect).insetBy(dx: -0.5, dy: -0.5)
+        guard let r = axFrame(id) else { return check("\(step) \(id) found", false, "no accessibility element") }
+        check("\(step) \(id) inside the visible options bar at \(Int(w.frame.width)) pt", content.contains(r) && r.width > 1,
+              "control \(r.integral) visible content \(content.integral)")
+    }
+
+    /// Focuses the options-bar field `id`, types `text` (nil: as is) and sends `code` to its field editor.
+    private func typeInField(_ id: String, _ text: String?, key code: UInt16, _ chars: String) -> Bool {
+        guard let f = optionField(id), let w = f.window else { return false }
+        if f.currentEditor() == nil, !w.makeFirstResponder(f) { return false }
+        guard let editor = f.currentEditor() as? NSTextView,
+              let e = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                       windowNumber: w.windowNumber, context: nil, characters: chars,
+                                       charactersIgnoringModifiers: chars, isARepeat: false, keyCode: code) else { return false }
+        if let text { editor.string = text }
+        editor.keyDown(with: e)
+        return true
+    }
     private func kind(_ id: DocLayerID) -> LayerKindTag? { doc?.node(id)?.kind }
 
     private func began(_ tag: AdvancedTransformTag) async -> Bool {
+        let t0 = Date()
         t.begin(tag)
         let ok = await wait(20) { t.session != nil }
+        log(String(format: "%@ began in %.0f ms", tag.title, Date().timeIntervalSince(t0) * 1000))
         await settle()
-        if !ok { log("\(tag.title) did not start: \(t.status ?? "-")") }
+        if !ok {
+            log("\(tag.title) did not start: \(t.status ?? "-")")
+            // Diagnose: a late start (engine begin slower than the wait) vs. a session ended by something.
+            let late = await wait(60) { t.session != nil }
+            log("\(tag.title) \(late ? "started late" : "still not started after 80 s") (tool \(doc?.tool.rawValue ?? "-"))")
+        }
         return ok
     }
 
@@ -209,13 +302,13 @@ final class TransformSelfTest {
         log("waiting for the workspace")
         _ = await wait(90) { workspace.app != nil }
         guard let url = writeCard("card.png", width: 1600, height: 1000), let d = await open(url) else {
-            log("FAIL could not open the test card"); return finish()
+            log("could not open the test card"); return abort()
         }
         await setWindowWidth(1440)
         viewport?.zoomToFit()
         await pause(0.5)
         log("document \(d.info.width) × \(d.info.height), \(d.info.backend)")
-        guard let photo = d.layers.first(where: { $0.kind == .pixel })?.id else { log("FAIL no pixel layer"); return finish() }
+        guard let photo = d.layers.first(where: { $0.kind == .pixel })?.id else { log("no pixel layer"); return abort() }
         d.select(photo)
 
         // 380: Edit ▸ Transform exposes the four commands.
@@ -235,22 +328,35 @@ final class TransformSelfTest {
 
         // 381: pixel layer: cancel leaves Pixel and history; Apply asks and wraps in one node.
         let h0 = history()
-        guard await began(.warp) else { return finish() }
+        guard await began(.warp) else { return abort() }
         check("381 pixel target needs consent", t.session?.start.needsConversion == true)
         t.warpBend = 40
         t.applyWarpPreset("Arc")
-        await settle()
+        await settle(0.4)
+        // B5-12b item 5: the pending preview is not a committed smart object in the panels.
+        check("381 preview keeps the Pixel row", kind(photo) == .pixel && t.previewLabel == "Warp (preview)",
+              "\(String(describing: kind(photo))) \(t.previewLabel ?? "-")")
+        // B5-12b item 7: Warp preset and Bend inside the visible options bar at 1440 pt.
+        checkVisible("384", "document.transform.warpPreset")
+        checkVisible("384", "document.transform.bend")
         await shot("381-warp-preview-pixel")
         _ = await finished { t.cancel() }
         check("381 cancel keeps Pixel", kind(photo) == .pixel, "\(String(describing: kind(photo)))")
         check("381 cancel leaves history", history() == h0, "\(history()) vs \(h0)")
-        guard await began(.warp) else { return finish() }
+        // B5-12b item 6: the tool's hint replaces the Warp instructions.
+        check("381 no stale Warp hint after Cancel", statusLine == DocumentTools.shared.hint(for: d), statusLine)
+        guard await began(.warp) else { return abort() }
         t.warpBend = 40
         t.applyWarpPreset("Arc")
         await settle()
         t.apply()
         check("381 Apply asks before converting", t.consentPending)
         await shot("381-convert-alert")
+        // B5-12b item 5: Cancel of the alert keeps the original layer in the panels.
+        t.consentPending = false
+        await settle(0.3)
+        check("381 alert Cancel keeps the Pixel row", kind(photo) == .pixel && t.session != nil, "\(String(describing: kind(photo)))")
+        t.apply()
         let r381 = await finished { t.confirmConversion() }
         check("381 committed", (try? r381?.get()) != nil, "\(String(describing: r381))")
         check("381 smart object after consent", kind(photo) == .smartObject)
@@ -258,7 +364,7 @@ final class TransformSelfTest {
         check("381 label", doc?.history.last?.label == "Warp", doc?.history.last?.label ?? "-")
 
         // 382–384: re-edit the stage; drag an anchor and a handle; split; zero bend.
-        guard await began(.warp) else { return finish() }
+        guard await began(.warp) else { return abort() }
         if let tb = doc?.backend as? any DocumentTransformsBackend, let stage = try? tb.transformStages(layer: photo).first {
             _ = await finished { t.cancel() }
             t.editStage(d, layer: photo, index: stage.index)
@@ -314,8 +420,38 @@ final class TransformSelfTest {
         await settle()
         check("392 redo restores the stage", (try? d.backend.info().historyHead) == applied && stagesNow() == appliedStage)
 
+        // B5-12b item 4: Esc / Return while the Bend field of the options bar is editing.
+        guard await began(.warp) else { return abort() }
+        t.warpBend = 20
+        t.applyWarpPreset("Arc")
+        await settle(0.3)
+        check("384 Esc typed in Bend", typeInField("document.transform.bend", "35", key: 53, "\u{1b}"))
+        await settle()
+        check("384 first Esc ends field editing", optionField("document.transform.bend")?.currentEditor() == nil
+              && t.session != nil && optionField("document.transform.bend")?.stringValue == "20",
+              "session \(t.session != nil) field \(optionField("document.transform.bend")?.stringValue ?? "-")")
+        _ = await finished { _ = key(code: 53, chars: "\u{1b}") }
+        check("384 second Esc cancels", t.session == nil)
+        guard await began(.warp) else { return abort() }
+        t.warpBend = 20
+        t.applyWarpPreset("Arc")
+        await settle(0.3)
+        _ = await finished { _ = typeInField("document.transform.bend", nil, key: 53, "\u{1b}") }
+        check("384 Esc with Bend unchanged cancels", t.session == nil)
+        guard await began(.warp) else { return abort() }
+        t.warpBend = 20
+        t.applyWarpPreset("Arc")
+        await settle(0.3)
+        let hReturn = history()
+        _ = await finished { _ = typeInField("document.transform.bend", "30", key: 36, "\r") }
+        check("384 Return in Bend commits then applies", t.session == nil && history() == hReturn + 1 && t.warpBend == 30,
+              "session \(t.session != nil) nodes \(history() - hReturn) bend \(t.warpBend)")
+        check("384 no stale Warp hint after Apply", !statusLine.contains("drag the net"), statusLine)
+        d.undo()
+        await settle()
+
         // 385–386: linked perspective planes on a second layer (duplicate the smart object).
-        guard await began(.perspective) else { return finish() }
+        guard await began(.perspective) else { return abort() }
         t.splitPerspective(vertical: true)
         await settle()
         if case .perspective(let p) = t.session?.op {
@@ -331,21 +467,24 @@ final class TransformSelfTest {
             }
             await shot("385-perspective-linked")
             // 386: drag a corner across the plane: rejected, the previous shape stays.
-            let valid = t.session?.op
             let corner = p.destination[1][0]
             await drag(view(corner), view(CGPoint(x: p.destination[0][2].x + 300, y: p.destination[0][2].y - 200)), steps: 6)
             await settle()
             if case .perspective(let p3) = t.session?.op {
                 check("386 crossing quad rejected", p3.isValid && t.session?.op != nil, t.status ?? "")
             }
-            check("386 status explains", (t.status ?? "").contains("convex") || t.session?.op == valid, t.status ?? "-")
+            // B5-12b item 2: the status bar and the options bar say why.
+            check("386 status explains", statusLine.contains("convex") && (t.refusal ?? "").contains("convex"),
+                  "status \(statusLine) · bar \(t.refusal ?? "-")")
             await shot("386-perspective-rejected")
         }
         _ = await finished { t.apply() }
         check("385 applied", doc?.history.last?.label == "Perspective Warp", doc?.history.last?.label ?? "-")
 
         // 387–388: puppet pins, drag, rotate, delete, density.
-        guard await began(.puppet) else { return finish() }
+        guard await began(.puppet) else { return abort() }
+        checkVisible("388", "document.transform.puppetMode")
+        checkVisible("388", "document.transform.expansion")
         if case .puppet(let p) = t.session?.op {
             check("387 mesh", p.restVertices.count > 20, "\(p.restVertices.count) vertices")
             log("387 puppet note \(t.puppetNote ?? "-")")
@@ -378,6 +517,18 @@ final class TransformSelfTest {
         } else {
             check("388 expansion 65 rejected", true)
         }
+        // B5-12b item 3: Expansion 80 typed into the options bar: the engine refuses it, the field keeps it.
+        let accepted = t.puppetExpansion
+        check("388 typed Expansion 80", typeInField("document.transform.expansion", "80", key: 48, "\t"))
+        await settle(0.3)
+        check("388 expansion 80 refused visibly", t.expansionRejected == 80 && t.puppetExpansion == accepted
+              && optionField("document.transform.expansion")?.stringValue == "80" && statusLine.contains("64") && t.refusal != nil,
+              "rejected \(String(describing: t.expansionRejected)) field \(optionField("document.transform.expansion")?.stringValue ?? "-") status \(statusLine)")
+        await shot("388-expansion-refused")
+        check("388 typed Expansion 6", typeInField("document.transform.expansion", "6", key: 48, "\t"))
+        await settle(0.3)
+        check("388 corrected Expansion accepted", t.expansionRejected == nil && t.puppetExpansion == 6 && t.refusal == nil,
+              "\(t.puppetExpansion) \(String(describing: t.expansionRejected))")
         await shot("388-puppet-rigid-sparse")
         _ = await finished { t.apply() }
 
@@ -386,7 +537,7 @@ final class TransformSelfTest {
         viewport?.zoomIn()
         viewport?.panBy(dx: -300, dy: -150)
         await pause(0.5)
-        guard await began(.warp) else { return finish() }
+        guard await began(.warp) else { return abort() }
         if case .warp(let m) = t.session?.op, let v = viewport {
             let anchor = m.controlPoints[3][3]
             let expected = v.viewPoint(canvas: t.session!.start.mapping.document(anchor))
@@ -441,7 +592,7 @@ final class TransformSelfTest {
             _ = try? s.clearSelection()
             d.reloadModel()
         }
-        guard await began(.contentAwareScale) else { return finish() }
+        guard await began(.contentAwareScale) else { return abort() }
         check("390 channel offered, no skin option", t.channels.contains { $0.name == "Protect left" } && !(t.session?.start.limitations.joined().contains("skin detector") ?? true),
               t.channels.map(\.name).joined(separator: ","))
         t.setScale(width: UInt32(W * 0.7), amount: 0)
@@ -475,7 +626,7 @@ final class TransformSelfTest {
             d.reloadModel()
             if let text = d.layers.first(where: { $0.kind == .text })?.id {
                 d.select(text)
-                guard await began(.warp) else { return finish() }
+                guard await began(.warp) else { return abort() }
                 check("396 text needs explicit conversion", t.session?.start.needsConversion == true)
                 t.warpBend = 50
                 t.applyWarpPreset("Flag")
@@ -483,16 +634,16 @@ final class TransformSelfTest {
                 await shot("396-text-warp-preview")
                 _ = await finished { t.cancel() }
                 check("396 cancel keeps live text", kind(text) == .text)
-            }
-        }
+            } else { check("396 text layer added", false) }
+        } else { check("396 text backend", false) }
 
         // 393: a preview, then switching documents cancels without a late mutation.
         let hBeforeSwitch = history()
         d.select(photo)
-        guard await began(.warp) else { return finish() }
+        guard await began(.warp) else { return abort() }
         t.warpBend = 30
         t.applyWarpPreset("Wave")
-        guard let url2 = writeCard("second.png", width: 800, height: 500), let d2 = await open(url2) else { return finish() }
+        guard let url2 = writeCard("second.png", width: 800, height: 500), let d2 = await open(url2) else { return abort() }
         await pause(1)
         check("393 switch ended the session", t.session == nil,
               "current \(workspace.current?.id ?? "-") session \(t.session?.doc?.id ?? "-") d2 \(d2.id) d \(d.id)")
@@ -541,8 +692,8 @@ final class TransformSelfTest {
                 _ = await wait(20) { t.session != nil }
                 check("397 re-edit after reopen", t.session?.start.existing?.kind == .warp)
                 _ = await finished { t.cancel() }
-            }
-        }
+            } else { check("397 warp stage to re-edit", false) }
+        } else { check("397 reopen native", false) }
         await shot("399-panels-1440")
 
         // 399: drag latency on a 20 MP smart object (draft proxy while dragging).
@@ -556,7 +707,7 @@ final class TransformSelfTest {
                 d3.reloadModel()
                 await settle(1)
                 let started = Date()
-                guard await began(.warp) else { return finish() }
+                guard await began(.warp) else { return abort() }
                 log(String(format: "399 begin on 20 MP: %.0f ms, draft level %d", Date().timeIntervalSince(started) * 1000,
                            Int(t.session?.start.draftLevel ?? 0)))
                 t.resetLatencies()
@@ -580,8 +731,17 @@ final class TransformSelfTest {
                 _ = await finished { t.apply() }
                 log(String(format: "399 20 MP apply → exact frame: %.0f ms", Date().timeIntervalSince(t0) * 1000))
                 await shot("399-20mp-applied")
-            }
+            } else { check("399 20 MP pixel layer", false) }
+        } else if ProcessInfo.processInfo.environment["TRANSFORM_SELFTEST_20MP"] != "0" {
+            check("399 20 MP card opened", false)
         }
+        finish()
+    }
+
+    /// A step could not run (a session did not start, a test document did not open): the run stops here
+    /// and counts it as a failure (never "0 failure(s)" for a run that skipped its remaining steps).
+    private func abort(_ line: Int = #line) {
+        check("run aborted at TransformSelfTest.swift:\(line)", false, t.status ?? "-")
         finish()
     }
 
