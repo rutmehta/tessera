@@ -116,22 +116,32 @@ final class LiquifySelfTest {
     func run() async {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let ws = model.documents
+        // `--open-document` may fire before the workspace is attached: open it here if nothing arrived.
+        if !(await wait(20, { ws.current != nil || ws.opening != nil })),
+           let i = CommandLine.arguments.firstIndex(of: "--open-document"), i + 1 < CommandLine.arguments.count {
+            _ = await wait(60) { ws.app != nil }
+            ws.open(URL(fileURLWithPath: (CommandLine.arguments[i + 1] as NSString).expandingTildeInPath))
+        }
         guard await wait(120, { ws.current?.viewport != nil && ws.opening == nil }), let doc = ws.current, let v = doc.viewport else {
-            log("FAIL no document (launch with --open-document <image>)"); return finish()
+            failures += 1
+            log("FAIL no document (launch with --open-document <image>): \(model.statusMessage ?? "") current \(ws.current != nil) "
+                + "viewport \(ws.current?.viewport != nil) mode \(model.viewMode) window \(model.mainWindow != nil)"
+                + " windows \(NSApp.windows.map { "\(type(of: $0)) visible \($0.isVisible)" })")
+            return finish()
         }
         _ = await wait(20) { doc.lastFrame != nil }
         if let w = docWindow, w.frame.width != 1440 {
             // 1440-pt window for the inspector evidence (resizing never activates or raises it).
             w.setFrame(NSRect(x: w.frame.minX, y: w.frame.minY, width: 1440, height: 900), display: true)
         }
-        guard let layer = doc.layers.first(where: { $0.kind == .pixel }) else { log("FAIL no pixel layer"); return finish() }
+        guard let layer = doc.layers.first(where: { $0.kind == .pixel }) else { failures += 1; log("FAIL no pixel layer"); return finish() }
         doc.select(layer.id)
         let (W, H) = (Double(doc.info.width), Double(doc.info.height))
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.backend)")
         let L = DocumentLiquify.shared
         guard let lb = DocumentLiquify.backend(doc), let tools = doc.backend as? any DocumentToolsBackend,
               let filters = doc.backend as? any DocumentFiltersBackend, let retouch = doc.backend as? any DocumentRetouchBackend else {
-            log("FAIL backends"); return finish()
+            failures += 1; log("FAIL backends"); return finish()
         }
 
         // 400. Filter ▸ Liquify… opens on the selected layer.

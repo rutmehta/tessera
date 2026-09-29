@@ -2128,10 +2128,11 @@ every step below through `DocumentTransforms` and synthesized viewport events an
 ## B5-13. Liquify and Content-Aware Move
 
 Engine backend, a scratch image (never a fixture) opened with `--open-document`, a pixel layer selected. The self-test
-`Tessera.app --args --open-document <image> --liquify-selftest=<dir>` (launched with `open -g -n`, never activated)
-drives every step below through Filter ▸ Liquify…, synthesized events into the workspace canvas and the viewport, and
+`Tessera.app --args --nonactivating --open-document <image> --liquify-selftest=<dir>` (launched with `open -g -n`,
+never activated) drives every step below through Filter ▸ Liquify…, synthesized events into the workspace canvas and the viewport, and
 the Content-Aware Move options; it prints `check <step> ok|FAIL` and, for screenshots, writes `<dir>/<name>.req` for
-a watcher that runs `screencapture -x -o -l <window>`. Brush feel on a real tablet needs on-screen verification.
+a watcher that runs `screencapture -x -o -l <window>`. Brush feel on a real tablet needs on-screen verification. Evidence (JPEG copies of the shots and the log):
+`tools/orchestrate/wp/B5-13/evidence/`.
 
 400. **Open.** Filter ▸ Liquify… (⇧⌘X) opens a sheet on the selected layer: tools on the left, the canvas at the
      layer's full canvas size (fit), Brush / Mesh and mask / Reconstruct / View / Output on the right, Cancel and

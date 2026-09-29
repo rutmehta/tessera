@@ -1,0 +1,67 @@
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 652, y1: 434 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 652, y1: 434 })
+liquify-selftest: document 652 × 434 px, Metal (Apple M4 Max)
+liquify-selftest: check 400 opens on the selected pixel layer at canvas size ok
+liquify-selftest: preview Preview at full resolution
+liquify-selftest: step 1 400-liquify-open window 24152 1040 × 820
+liquify-selftest: check 401 forward warp moves content along the drag ok
+liquify-selftest: step 2 401-forward-warp window 24152 1040 × 820
+liquify-selftest: check 402 twirl cw/ccw, pucker, bloat, push left are distinct ok
+liquify-selftest: check 402 twirl directions differ ok
+liquify-selftest: step 3 402-tools window 24152 1040 × 820
+liquify-selftest: check 403 reconstruct halves the distortion ok
+liquify-selftest: check 403 restore all removes it ok
+liquify-selftest: step 4 403-restored window 24152 1040 × 820
+liquify-selftest: check 404 frozen area is not deformed ok
+liquify-selftest: step 5 404-freeze-mask-zoomed window 24152 1040 × 820
+liquify-selftest: check 404 thaw restores editing ok
+liquify-selftest: check 405 lower pressure/rate still deform ok
+liquify-selftest: step 6 405-mesh-small window 24152 1040 × 820
+liquify-selftest: step 7 405-mesh-large window 24152 1040 × 820
+liquify-selftest: step 8 406-before window 24152 1040 × 820
+liquify-selftest: check 406 before/after leaves document and history ok
+liquify-selftest: check 407 apply is one Liquify node ok
+liquify-selftest: check 407 workspace closed ok
+liquify-selftest: step 9 407-applied window 24151 1440 × 900
+liquify-selftest: check 407 undo ok
+liquify-selftest: check 407 redo ok
+liquify-selftest: check 409 cancel returns at once ok
+liquify-selftest: check 409 no late history change ok
+liquify-selftest: step 10 409-cancelled window 24151 1440 × 900
+liquify-selftest: check 410 Content-Aware Move on with a selection ok
+liquify-selftest: check 411 preview computed outside the selection ok
+liquify-selftest: check 415 integer document-pixel offset matches the drag ok
+liquify-selftest: check 416 preview adds no history ok
+liquify-selftest: step 11 411-move-preview window 24151 1440 × 900
+liquify-selftest: check 412 extend preview ok
+liquify-selftest: step 12 412-extend-preview window 24151 1440 × 900
+liquify-selftest: check 414 seed change re-previews ok
+liquify-selftest: check 415 zoomed drag adds exact pixels ok
+liquify-selftest: step 13 415-zoomed window 24151 1440 × 900
+liquify-selftest: check 416 apply is one node ok
+liquify-selftest: step 14 416-applied window 24151 1440 × 900
+liquify-selftest: check 416 cancel leaves history and selection ok
+liquify-selftest: check 413 feathered selection previews ok
+liquify-selftest: step 15 413-feathered window 24151 1440 × 900
+liquify-selftest: check 417 locked layer refuses the move ok
+liquify-selftest: check 417 locked layer refuses Liquify ok
+liquify-selftest: check 417 no selection: nothing starts ok
+liquify-selftest: check 419 Remove (PatchMatch) still one node ok
+liquify-selftest: check 419 Content-Aware Fill still one node ok
+liquify-selftest: check 419 neural missing weights named ok
+liquify-selftest: check 408 smart object opens as smart ok
+liquify-selftest: check 408 one Liquify smart filter ok
+liquify-selftest: check 408 re-edit loads the stored mesh ok
+liquify-selftest: step 16 408-re-edit window 24155 1040 × 820
+liquify-selftest: check 408 re-edit replaces in place ok
+liquify-selftest: step 17 408-smart-filter window 24151 1440 × 900
+liquify-selftest: check 418 save ok
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 652, y1: 434 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 652, y1: 434 })
+liquify-selftest: check 418 reopened smart filter ok
+liquify-selftest: check 418 reopened stage opens edited ok
+liquify-selftest: step 18 418-reopened-re-edit window 24156 1040 × 820
+liquify-selftest: step 19 418-reopened window 24151 1440 × 900
+liquify-selftest: check 419 window is 1440 pt ok
+liquify-selftest: step 20 419-inspector-1440 window 24151 1440 × 900
+liquify-selftest: done, 0 failure(s)
