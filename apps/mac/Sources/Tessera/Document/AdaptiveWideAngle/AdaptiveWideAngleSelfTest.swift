@@ -43,7 +43,11 @@ final class AdaptiveWideAngleSelfTest {
         self.hold = hold
     }
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("awa-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" counts as a failure (never a silent "done, 0 failure(s)").
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("awa-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }
