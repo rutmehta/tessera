@@ -27,6 +27,9 @@ pub struct Options {
     /// HDR transfer. Requires Rec.2020 PNG16 or AVIF10/12; headroom comes from the recipe.
     #[arg(long, value_parser = ["pq", "hlg"])]
     hdr: Option<String>,
+    /// ISO gain-map JPEG with an sRGB SDR base; requires HDR recipe headroom.
+    #[arg(long, conflicts_with = "hdr")]
+    gain_map: bool,
     /// AVIF encoding speed, 1 (slow) through 10 (fast).
     #[arg(long, default_value_t = 6, value_parser = clap::value_parser!(u8).range(1..=10))]
     avif_speed: u8,
@@ -135,6 +138,16 @@ fn is_image(path: &Path) -> bool {
 }
 
 fn settings(options: &Options) -> Result<ExportSettings> {
+    if options.gain_map {
+        ensure!(
+            options.format == "jpeg"
+                && options.color_space == "srgb"
+                && options.hdr.is_none()
+                && options.watermark.is_none()
+                && options.upscale.is_none(),
+            "--gain-map requires sRGB JPEG without PQ/HLG, watermark or upscaling"
+        );
+    }
     if options.hdr.is_some() {
         ensure!(
             options.color_space == "rec2020"
@@ -200,6 +213,7 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         Resize::None
     };
     Ok(ExportSettings {
+        gain_map: options.gain_map,
         hdr: options.hdr.as_deref().map(|v| {
             if v == "pq" {
                 export::HdrTransfer::Pq

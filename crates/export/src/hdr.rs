@@ -24,7 +24,7 @@ pub(crate) fn validate(settings: &ExportSettings) -> EngineResult<()> {
     Ok(())
 }
 
-fn headroom(recipe: &Recipe, transfer: HdrTransfer) -> EngineResult<f32> {
+pub(crate) fn headroom(recipe: &Recipe, transfer: HdrTransfer) -> EngineResult<f32> {
     let stops = recipe.settings.output.hdr_headroom_stops;
     if !stops.is_finite() || !(0.0..=16.0).contains(&stops) {
         return Err(encode_error("HDR headroom must be finite and 0–16 stops"));
@@ -51,7 +51,9 @@ pub(crate) fn render(
     settings: &ExportSettings,
     cancel: &CancellationToken,
 ) -> EngineResult<image::Rgb32FImage> {
-    let headroom = headroom(recipe, settings.hdr.expect("HDR render selected"))?;
+    // Gain-map output shares the PQ display-linear rendition and peak ceiling,
+    // but encodes its SDR base and logarithmic ratio without applying PQ.
+    let headroom = headroom(recipe, settings.hdr.unwrap_or(HdrTransfer::Pq))?;
     let mut develop = recipe.settings.clone();
     // These output controls are consumed here, not by the scene renderer.
     develop.output.proof_profile = None;

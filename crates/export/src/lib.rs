@@ -7,6 +7,7 @@ pub use mask_ai;
 mod avif;
 mod codec;
 mod dng;
+mod gain_map;
 mod hdr;
 pub use engine_api::tools::HdrTransfer;
 mod jxl;
@@ -102,8 +103,11 @@ pub enum Metadata {
 #[derive(Clone, Debug)]
 pub struct ExportSettings {
     pub format: Format,
-    /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits. None is SDR.
+    /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits.
+    /// None selects SDR unless `gain_map` is enabled.
     pub hdr: Option<HdrTransfer>,
+    /// ISO 21496-1 gain-map JPEG with an sRGB SDR base. Requires HDR recipe headroom.
+    pub gain_map: bool,
     pub color_space: ColorSpace,
     pub metadata: Metadata,
     /// Remove named regions and associated person keywords across native/XMP carriers.
@@ -146,6 +150,7 @@ impl Default for ExportSettings {
         Self {
             format: Format::Jpeg { quality: 90 },
             hdr: None,
+            gain_map: false,
             color_space: ColorSpace::Srgb,
             metadata: Metadata::All,
             remove_person_info: false,
@@ -447,6 +452,8 @@ pub struct RenderedExport {
     rgb: image::Rgb32FImage,
     packet: Option<XmpPacket>,
     native: native::Native,
+    gain_map_headroom: f32,
+    gain_map_clip: bool,
     settings: ExportSettings,
     path: PathBuf,
     side_path: PathBuf,
@@ -488,7 +495,19 @@ pub fn render_one_cancellable(
     settings.format.validate()?;
     dng::validate(settings)?;
     hdr::validate(settings)?;
-    if settings.hdr.is_some()
+    gain_map::validate(settings)?;
+    let gain_map_headroom = if settings.gain_map {
+        let headroom = hdr::headroom(recipe, HdrTransfer::Pq)?;
+        if headroom <= 1.0 {
+            return Err(encode_error(
+                "gain-map JPEG requires positive HDR headroom in the recipe",
+            ));
+        }
+        headroom
+    } else {
+        1.0
+    };
+    if (settings.hdr.is_some() || settings.gain_map)
         && (upscale.is_some()
             || ai_masks::active(&recipe.settings)
             || depth::active(&image.source, &recipe.settings))
@@ -547,6 +566,7 @@ pub fn render_one_cancellable(
     let needs_hooks = depth::active(&image.source, &recipe.settings);
     let mut warnings = Vec::new();
     let gpu_pixels = if settings.hdr.is_none()
+        && !settings.gain_map
         && !matches!(settings.format, Format::Dng)
         && upscale.is_none()
         && !needs_hooks
@@ -576,7 +596,7 @@ pub fn render_one_cancellable(
     let already_resized = gpu_pixels.is_some();
     let mut used_gpu = already_resized;
     let started = std::time::Instant::now();
-    let rgb = if settings.hdr.is_some() {
+    let rgb = if settings.hdr.is_some() || settings.gain_map {
         hdr::render(image, recipe, settings, cancel)?
     } else if matches!(settings.format, Format::Dng) {
         let rgb = if ai_masks::active(&recipe.settings) {
@@ -682,6 +702,9 @@ pub fn render_one_cancellable(
         rgb,
         packet,
         native,
+        gain_map_headroom,
+        gain_map_clip: recipe.settings.output.gamut_mapping
+            == engine_api::recipe::settings::GamutMapping::Clip,
         settings: settings.clone(),
         path,
         side_path,
@@ -698,6 +721,8 @@ fn encode_rendered(
         rgb,
         packet,
         native,
+        gain_map_headroom,
+        gain_map_clip,
         settings,
         path,
         side_path,
@@ -706,7 +731,20 @@ fn encode_rendered(
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
-    if settings.hdr.is_some() {
+    if settings.gain_map {
+        gain_map::encode(
+            temp.as_file_mut(),
+            &rgb,
+            &settings,
+            gain_map::Metadata {
+                headroom: gain_map_headroom,
+                clip: gain_map_clip,
+                native: &native,
+                xmp: packet.as_ref().map(XmpPacket::serialize),
+            },
+            cancel,
+        )?;
+    } else if settings.hdr.is_some() {
         hdr::encode(
             temp.as_file_mut(),
             &rgb,

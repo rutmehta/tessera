@@ -155,6 +155,8 @@ pub struct ExportOptions {
     pub bit_depth: u8,
     /// PQ/HLG Rec.2020 output; null keeps SDR. PNG requires 16 bits, AVIF 10/12.
     pub hdr: Option<export::HdrTransfer>,
+    /// ISO gain-map JPEG with an sRGB SDR base; requires HDR recipe headroom.
+    pub gain_map: bool,
     pub color_space: DocumentSpace,
     pub resize: ResizeOptions,
     /// Recorded in the file; converts inch/cm sizes to pixels.
@@ -191,6 +193,7 @@ impl Default for ExportOptions {
             watermark: None,
             bit_depth: 8,
             hdr: None,
+            gain_map: false,
             color_space: DocumentSpace::Srgb,
             resize: ResizeOptions::default(),
             dpi: 72,
@@ -236,6 +239,17 @@ impl ExportOptions {
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
         self.after_export.validate()?;
+        if self.gain_map
+            && (self.format != FileFormat::Jpeg
+                || self.color_space != DocumentSpace::Srgb
+                || self.hdr.is_some()
+                || self.watermark.is_some()
+                || self.upscale != 1)
+        {
+            return Err(failure(
+                "gain_map requires sRGB JPEG without PQ/HLG, watermark or upscaling",
+            ));
+        }
         if self.hdr.is_some() {
             if self.color_space != DocumentSpace::Rec2020
                 || !((self.format == FileFormat::Png && self.bit_depth == 16)
@@ -369,6 +383,7 @@ impl ExportOptions {
             },
             color_space: self.color_space.into(),
             hdr: self.hdr,
+            gain_map: self.gain_map,
             metadata: match self.metadata {
                 MetadataPolicy::All => export::Metadata::All,
                 MetadataPolicy::Copyright => export::Metadata::CopyrightOnly,

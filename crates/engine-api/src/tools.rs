@@ -255,7 +255,7 @@ pub struct ExportSettings {
     /// Write HDR (gain map or PQ/HLG, format permitting).
     #[serde(default)]
     pub hdr: bool,
-    /// PQ by default when HDR is enabled. Must be omitted for SDR.
+    /// PQ by default for HDR PNG/AVIF. Must be omitted for SDR and gain-map JPEG.
     #[serde(default)]
     pub hdr_transfer: Option<HdrTransfer>,
     /// AVIF sample precision. Defaults to 10 in HDR, 8 in SDR; allowed 8/10/12.

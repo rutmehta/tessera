@@ -85,6 +85,13 @@ impl Console {
                 "custom ICC handles need a registry/output mapping",
             ));
         }
+        let gain_map = settings.hdr && matches!(settings.format, ExportFormat::Jpeg { .. });
+        if gain_map && settings.hdr_transfer.is_some() {
+            return Err(EngineError::invalid(
+                "hdr_transfer",
+                "JPEG HDR uses a gain map; omit PQ/HLG transfer",
+            ));
+        }
         if !settings.hdr && settings.hdr_transfer.is_some() {
             return Err(EngineError::invalid("hdr_transfer", "requires hdr=true"));
         }
@@ -105,10 +112,14 @@ impl Console {
         if settings.hdr
             && !matches!(
                 settings.format,
-                ExportFormat::Png { bit_depth: 16 } | ExportFormat::Avif { .. }
+                ExportFormat::Jpeg { .. }
+                    | ExportFormat::Png { bit_depth: 16 }
+                    | ExportFormat::Avif { .. }
             )
         {
-            return Err(unsupported("HDR requires PNG16 or AVIF10/12"));
+            return Err(unsupported(
+                "HDR requires gain-map JPEG, PNG16 or AVIF10/12",
+            ));
         }
         if settings.hdr && avif_bits == 8 {
             return Err(unsupported("HDR AVIF requires 10/12 bits"));
@@ -157,10 +168,10 @@ impl Console {
         };
         let options = export::ExportSettings {
             format,
-            hdr: settings
-                .hdr
+            gain_map,
+            hdr: (settings.hdr && !gain_map)
                 .then_some(settings.hdr_transfer.unwrap_or(export::HdrTransfer::Pq)),
-            color_space: if settings.hdr {
+            color_space: if settings.hdr && !gain_map {
                 export::ColorSpace::Rec2020
             } else {
                 export::ColorSpace::Srgb
