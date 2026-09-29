@@ -224,6 +224,64 @@ fn adapter_id(id: &str) -> bool {
     )
 }
 
+// B5-18b begin: the Camera Raw Filter is an adapter the renderer evaluates at
+// any pyramid level and over any region (its input is the image it develops),
+// so previews, the 1:1 detail pane, smart-filter checks and bakes render the
+// view level over the visible region (plus the halo its local operators need)
+// instead of the whole canvas at level 0. Apply stays full resolution.
+const CAMERA_RAW: &str = "camera_raw";
+const CAMERA_RAW_TITLE: &str = "Camera Raw Filter";
+
+/// Adapters rendered at any level and over any region (see `camera_raw_halo`).
+fn level_aware(id: &str) -> bool {
+    id == CAMERA_RAW
+}
+
+/// Pixels the Camera Raw adapter developed (tests and benches: the work a
+/// preview or detail render did).
+static CAMERA_RAW_PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Radius (pixels) the Texture / Clarity guided filters read around a pixel:
+/// two box means of radius 8 plus the extrema clamp of radius 1, rounded up.
+const PRESENCE_HALO: i64 = 24;
+
+/// The halo (pixels of the level it runs on) a Camera Raw Filter needs around
+/// a region, or `None` when its result depends on the whole image: lens
+/// corrections (profile, CA analysis, manual distortion / vignetting,
+/// defringe), Dehaze's global statistics, placed effects (vignette, grain,
+/// lens blur), geometry, local masks, and any raw-only stage left non-default.
+/// Such settings render over the whole canvas of the level, like any other
+/// whole-image filter. Everything else is per-pixel (white balance, tone,
+/// curves, colour, grading) or has a bounded support (Detail's sharpening and
+/// noise reduction, Texture / Clarity).
+fn camera_raw_halo(spec: &Spec) -> Result<Option<i64>> {
+    let v: serde_json::Value = serde_json::from_str(&spec.json).map_err(failure)?;
+    let p = filters::camera_raw::parse(&v["params"])?;
+    let (s, d) = (&p.settings, engine_api::recipe::DevelopSettings::default());
+    let lens = &s.lens;
+    let lens_off = lens.profile == engine_api::recipe::settings::LensProfileSource::None
+        && !lens.remove_chromatic_aberration
+        && lens.manual_distortion == 0.0
+        && lens.manual_vignetting == 0.0
+        && lens.defringe_purple.amount == 0.0
+        && lens.defringe_green.amount == 0.0
+        && lens.softness_correction == 0.0;
+    let local = lens_off
+        && s.tone.dehaze == 0.0
+        && s.effects.vignette.amount == 0.0
+        && s.effects.grain.amount == 0.0
+        && s.effects.lens_blur.is_none()
+        && s.locals == d.locals
+        && s.geometry == d.geometry
+        && s.decode == d.decode
+        && s.linearize == d.linearize
+        && s.denoise == d.denoise
+        && s.demosaic == d.demosaic
+        && s.camera_profile == d.camera_profile;
+    Ok(local.then(|| i64::from(pipeline_cpu::detail_halo(&s.detail)) + PRESENCE_HALO))
+}
+// B5-18b end
+
 /// Private evaluation errors remain typed until the native or legacy boundary.
 #[derive(Debug)]
 enum FilterEvalError {
@@ -309,12 +367,18 @@ impl Spec {
             let (effect, params) = self.at(context.level as u8)?;
             return run_effect(effect, &params, img, cancel);
         }
-        if context.level != 0 || img.rect != Rect::of_extent(context.canvas) {
+        // B5-18b: level-aware adapters develop the image they are given.
+        let aware = level_aware(&self.id);
+        if !aware && (context.level != 0 || img.rect != Rect::of_extent(context.canvas)) {
             return Err(failure("retouch filters require the complete level-0 canvas").into());
         }
         effect_checkpoint(cancel)?;
         let v: serde_json::Value = serde_json::from_str(&self.json).map_err(failure)?;
-        let input = raster_from_rgba(context.canvas, compositor::Depth::F32, &img.px, false)?;
+        let extent = Extent::new(img.w() as u32, img.h() as u32);
+        if aware {
+            CAMERA_RAW_PIXELS.fetch_add(extent.area(), Ordering::Relaxed);
+        }
+        let input = raster_from_rgba(extent, compositor::Depth::F32, &img.px, false)?;
         use compositor::render::smart_filters::SmartFilterEvaluator;
         let output = filters::CompositorFilters.evaluate(
             &input,
@@ -379,6 +443,10 @@ impl Spec {
     }
 
     fn name(&self) -> String {
+        // B5-18b: history labels and smart filter rows name the Camera Raw Filter.
+        if self.id == CAMERA_RAW {
+            return CAMERA_RAW_TITLE.to_owned();
+        }
         registry::find(&self.id).map_or_else(|| self.id.clone(), |f| f.name.to_owned())
     }
 
@@ -548,8 +616,12 @@ impl Node {
     }
 }
 
+/// Whether the stack has an adapter that needs the whole level-0 canvas
+/// (B5-18b: not the level-aware Camera Raw Filter).
 fn full_resolution(nodes: &[Node]) -> bool {
-    nodes.iter().any(|n| n.enabled && adapter_id(&n.spec.id))
+    nodes
+        .iter()
+        .any(|n| n.enabled && adapter_id(&n.spec.id) && !level_aware(&n.spec.id))
 }
 
 fn nodes_of(so: &SmartObject) -> Result<Vec<Node>> {
@@ -1197,6 +1269,15 @@ fn run_effect(
 fn stack_halo(nodes: &[Node], level: u8) -> Result<Option<i64>> {
     let mut sum = 0i64;
     for n in nodes.iter().filter(|n| n.enabled) {
+        // B5-18b begin
+        if level_aware(&n.spec.id) {
+            match camera_raw_halo(&n.spec)? {
+                Some(h) => sum += h,
+                None => return Ok(None),
+            }
+            continue;
+        }
+        // B5-18b end
         if adapter_id(&n.spec.id) {
             return Ok(None);
         }
@@ -1929,6 +2010,21 @@ fn filtered_with_cancel(
         }
     }
     Ok(cur.crop(region))
+}
+
+/// A linear 0…1 sample, sRGB-encoded to 8 bits.
+fn srgb_u8(v: f32) -> u8 {
+    let v = if v.is_finite() {
+        v.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let e = if v <= 0.003_130_8 {
+        12.92 * v
+    } else {
+        1.055 * v.powf(1.0 / 2.4) - 0.055
+    };
+    (e * 255.0 + 0.5) as u8
 }
 
 /// The stack a preview evaluates.
@@ -2960,6 +3056,22 @@ impl DocumentSession {
                 Rect::of_extent(s.canvas),
                 cancel,
             )?;
+        } else if nodes.iter().any(|n| n.enabled && level_aware(&n.spec.id)) {
+            // B5-18b: the Camera Raw Filter (settings, document profile and
+            // renderer) is checked on a small level, not the whole canvas.
+            let level = (0..super::render::MAX_VIEW_LEVEL)
+                .find(|&lv| s.canvas.at_level(lv).area() <= 262_144)
+                .unwrap_or(super::render::MAX_VIEW_LEVEL - 1);
+            filtered(
+                &self.shared.filters.q,
+                &self.shared.filters.comp,
+                &s,
+                l,
+                &nodes,
+                level,
+                Rect::of_extent(s.canvas.at_level(level)),
+                cancel,
+            )?;
         }
         let mut nl = l.clone();
         if let LayerKind::SmartObject(so) = &mut nl.kind {
@@ -3078,7 +3190,8 @@ impl DocumentSession {
 
     /// `filter_json` on the layer's own pixels (on a smart object: after its
     /// smart filters) over `width × height` level-0 pixels at `(x, y)`,
-    /// written into an RGBA8 IOSurface (straight alpha) the session retains
+    /// written into an RGBA8 IOSurface (straight alpha, sRGB-encoded like the
+    /// canvas shows the document's linear samples) the session retains
     /// until the next call: the filter dialog's 1:1 detail pane. Blocking.
     pub fn filter_detail(
         &self,
@@ -3090,12 +3203,50 @@ impl DocumentSession {
         height: u32,
     ) -> Result<FilterDetail> {
         let spec = Spec::parse(&filter_json)?;
+        self.detail(layer, StackEdit::Append(spec), x, y, width, height)
+    }
+
+    /// B5-18b: like `filter_detail`, re-editing smart filter `index` of a
+    /// smart object (the edited filter replaces it instead of stacking on top).
+    #[allow(clippy::too_many_arguments)]
+    pub fn smart_filter_detail(
+        &self,
+        layer: u64,
+        index: u32,
+        filter_json: String,
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    ) -> Result<FilterDetail> {
+        let spec = Spec::parse(&filter_json)?;
+        self.detail(
+            layer,
+            StackEdit::Replace(index as usize, spec),
+            x,
+            y,
+            width,
+            height,
+        )
+    }
+}
+
+impl DocumentSession {
+    fn detail(
+        &self,
+        layer: u64,
+        edit: StackEdit,
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    ) -> Result<FilterDetail> {
         if width == 0 || height == 0 || width > 4096 || height > 4096 {
             return Err(failure("detail size must be 1…4096 pixels"));
         }
         let (base, _) = self.filter_target(layer)?;
         let l = find(&base, layer)?;
-        let nodes = edited_stack(l, &StackEdit::Append(spec))?;
+        let nodes = edited_stack(l, &edit)?;
         let r0 = Rect::new(x, y, x + i64::from(width), y + i64::from(height));
         // Whole-image filters are filtered on a level of at most ~4 MP.
         let level = if !full_resolution(&nodes) && stack_halo(&nodes, 0)?.is_none() {
@@ -3135,9 +3286,12 @@ impl DocumentSession {
                         } else {
                             [0.0; 4]
                         };
-                        for c in 0..4 {
-                            px[o + c] = (p[c].clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
+                        // B5-18b: sRGB-encoded (the pane is an sRGB image
+                        // of the linear samples the canvas shows).
+                        for c in 0..3 {
+                            px[o + c] = srgb_u8(p[c]);
                         }
+                        px[o + 3] = (p[3].clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
                     }
                 }
             })
@@ -3151,7 +3305,10 @@ impl DocumentSession {
             level,
         })
     }
+}
 
+#[uniffi::export]
+impl DocumentSession {
     /// Applies `filter_json` to `layer` as one history node (labelled with
     /// the filter's name). Pixel layers are filtered at full resolution
     /// inside the selection (all of it without one); smart objects get the
@@ -3768,6 +3925,13 @@ fn max_id(l: &Layer) -> u64 {
 
 /// Test and bench support (not exported over UniFFI).
 impl DocumentSession {
+    /// B5-18b: pixels the Camera Raw adapter has developed in this process
+    /// (previews, detail panes, checks, bakes and applies).
+    #[doc(hidden)]
+    pub fn camera_raw_pixels_developed(&self) -> u64 {
+        CAMERA_RAW_PIXELS.load(Ordering::Relaxed)
+    }
+
     /// B5-15: `false` bakes every smart filter on the CPU (the route before
     /// P19), `true` restores the GPU route where it applies.
     #[doc(hidden)]

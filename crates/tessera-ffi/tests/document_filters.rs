@@ -709,9 +709,17 @@ fn filter_detail_is_a_one_to_one_crop() {
             for y in 0..48usize {
                 for x in 0..64usize {
                     for c in 0..4 {
-                        let want = expected[(((80 + y) * 320 + 100 + x) * 4) + c];
+                        let want = expected[(((80 + y) * 320 + 100 + x) * 4) + c].clamp(0.0, 1.0);
+                        // B5-18b: colour is sRGB-encoded (as the canvas shows it), alpha linear.
+                        let want = if c < 3 && want > 0.003_130_8 {
+                            1.055 * want.powf(1.0 / 2.4) - 0.055
+                        } else if c < 3 {
+                            12.92 * want
+                        } else {
+                            want
+                        };
                         let got = px[y * stride + x * 4 + c];
-                        worst = worst.max(got.abs_diff((want.clamp(0.0, 1.0) * 255.0 + 0.5) as u8));
+                        worst = worst.max(got.abs_diff((want * 255.0 + 0.5) as u8));
                     }
                 }
             }
