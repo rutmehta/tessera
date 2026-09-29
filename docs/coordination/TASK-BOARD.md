@@ -3,7 +3,7 @@
 <!-- CURRENT-QUEUE:START -->
 ## Current execution board
 
-Updated 2026-09-29 01:43 UTC. “Done” applies only to the stated scope; historical failures remain below and in the linked evidence directories.
+Updated 2026-09-29 01:50 UTC. “Done” applies only to the stated scope; historical failures remain below and in the linked evidence directories.
 
 | Task | Owner | State | Verified outcome and next action |
 | --- | --- | --- | --- |
@@ -23,7 +23,7 @@ Updated 2026-09-29 01:43 UTC. “Done” applies only to the stated scope; histo
 | Bounded calibration-decision cache | A FFI / independent reviewers | Performance qualification failed; unmerged | Functional/native/frame/resource gates passed. All 22 timing processes completed, but WB edits regressed from ~5 ms to ~14.5–14.7 ms in SDR/EDR. Original thresholds and failure preserved; no rerun or product merge. Pure exact-key diagnostic `a9b90750` passed19 tests/strict/fmt/default graph with independent verification. Live wiring proposal needs storage/lifetime clarification; no real-frame diagnosis, performance rerun or remedy yet. |
 | Machine B coordination | A / B existing desktop writer | Active | New requests use the verified SSH queue plus durable Git mailbox. A validates targets and publishes receipts; a queue ID alone is not peer receipt. B owns its source branches; A alone merges main. Lifetime correction `47307c56` completed for diagnostic repair only; 48 tests/strict and actual trace passed that scope. Routing request `5b27b9df` has verified peer receipt; B source `527410c7` composed as A `d0191c41`; bounded actual LUT keyboard/action/appearance checks passed. Full inspector gates remain pending. Earlier failures remain preserved. |
 
-**Current runtime owner:** None: opaque-owner `c0993358` RED/API independently verified; codec implementation and B Dither-source composition are source-only. Inspector `d0191c41` Dither-origin Tab failed (panels hidden); owned app closed and evidence preserved, B Dither-only correction has verified accepted receipt and is in progress. Corrected WB diagnostic `a9b90750` independently passed all seven gates/19 pure tests and8,651-input verification; no live observation or actual frames. Original cache performance failure remains unmerged. Whole inspector remains unmerged pending correction and remaining GUI.
+**Current runtime owner:** A inspector worker for Dither candidate `b766abf6`:60 focused,3 theme/layout,strict. B source `cae6e79d` independently reviewed and composed; actual failure `d0191c41` remains preserved. RAW opaque-owner implementation `d908374f` is source-approved; eight-phase GREEN/API/full/five-family/strict/format runner is queued next. WB pure diagnostic `a9b90750` is qualified; live instrumentation proposal still under bounded storage/context review, no actual-frame or performance acceptance.
 
 **Preserved failures:** inspector `1d361fa3` had unsupported direct AX test assumptions and test-order leakage; `cd0b850d` had an unsized fixture; `7732a03e` had the theme-token violation. Each failure and correction is retained. The earlier GUI's brief profileless relaunch has unmeasured default-profile effects; no claim of zero user-state changes is made. Owned test apps are closed.
 

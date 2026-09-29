@@ -1,3 +1,11 @@
+## Current qualification queue
+
+Dither candidate `b766abf6` composes exact reviewed B `cae6e79d` files onto preserved `d0191c41`; only Dither source/tests/handoff changed, router/trace unchanged. Inspector worker owns60focused→3theme/layout→strict; stop first failure, no actual GUI/full acceptance yet. Previous Dither Tab failure stays preserved.
+
+Opaque-owner implementation `d908374f` independently source-approved: one shared closed decoder, opaque construction after cleanup, private move projection preserves existing API. Native body, protocol/API tests and normalization unchanged. Prepared eight-phase compile/GREEN/API/full/two actual five-family/strict/fmt runner is next after inspector release. No implementation runtime acceptance yet.
+
+WB live instrumentation remains source-plan review: proposed fixed shared slots/epoch quiescence resolves initial gaps; persistent per-thread storage accounting needs correction before any guard implementation. Pure diagnostic remains independently qualified; original cache performance failure is unchanged. No new B request or duplicate writer.
+
 ## Closed RAW owner RED/API independently verified
 
 Both243eacfe and correctedc0993358 source sets (9,231 Git inputs each),257 dependency artifacts and exact binary were independently verified. Corrected compile passes; five protocol Unsupported failures are meaningful missing behavior, positiveAPI and all eight concrete negative diagnostics pass. Initial Clone oracle failure remains preserved. Exact binary/dependencies were copied outside the shared build target before changes. Portable evidence: `tools/orchestrate/wp/UX-05/evidence/2026-09-29/owned-cfa-c0993358-red/`. Codec now implements the minimal shared closed decoder/opaque owner source-only; public compatibility/error precedence and native cleanup must remain unchanged. No GREEN or actual-family acceptance yet.
