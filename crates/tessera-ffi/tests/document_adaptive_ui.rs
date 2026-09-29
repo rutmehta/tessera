@@ -438,7 +438,8 @@ fn real_size_layers_preview_and_apply_through_the_coarse_lattice() {
         .unwrap();
     let layer = s.layers().unwrap()[0].id;
     // Content: a dark vertical bar on the background.
-    s.set_selection_rect(1200, 0, 400, i64::from(h), 0.0).unwrap();
+    s.set_selection_rect(1200, 0, 400, i64::from(h), 0.0)
+        .unwrap();
     s.fill_selection(
         layer,
         SelectionFill::Color {
@@ -463,7 +464,10 @@ fn real_size_layers_preview_and_apply_through_the_coarse_lattice() {
     let p = s
         .preview_adaptive_wide_angle(info.token, Some(json(&a)))
         .unwrap();
-    assert_eq!((p.width, p.height), (info.preview_width, info.preview_height));
+    assert_eq!(
+        (p.width, p.height),
+        (info.preview_width, info.preview_height)
+    );
     assert!(!p.original);
     assert_eq!(history(&s), n, "previews record no history");
     s.commit_adaptive_wide_angle(info.token, json(&a)).unwrap();
@@ -493,6 +497,31 @@ fn real_size_layers_preview_and_apply_through_the_coarse_lattice() {
     let back: Adaptive = serde_json::from_str(&again.recipe_json).unwrap();
     assert_eq!(back, a);
     s.cancel_adaptive_wide_angle(again.token);
+}
+
+/// A cancel while a real-size pixel commit renders stops it (the render
+/// checks between output tiles) and leaves history unchanged.
+#[test]
+fn cancel_during_a_real_size_commit_stops_the_render_without_history() {
+    let (w, h) = (5212u32, 3468u32);
+    let (_dir, engine) = engine();
+    let s = engine
+        .clone()
+        .new_document(w, h, DocDepth::U8, None)
+        .unwrap();
+    let layer = s.layers().unwrap()[0].id;
+    let info = s.begin_adaptive_wide_angle(layer, None).unwrap();
+    let a = real_size_recipe(&info.recipe_json, w, h);
+    let n = history(&s);
+    let (worker, token, recipe) = (s.clone(), info.token, json(&a));
+    let t = std::time::Instant::now();
+    let commit = std::thread::spawn(move || worker.commit_adaptive_wide_angle(token, recipe));
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    s.cancel_adaptive_wide_angle(info.token);
+    let result = commit.join().unwrap();
+    eprintln!("commit returned after {:.2} s", t.elapsed().as_secs_f64());
+    assert!(result.is_err(), "a cancelled commit never applies");
+    assert_eq!(history(&s), n);
 }
 
 #[test]
@@ -685,6 +714,10 @@ fn timing_on_a_24_megapixel_layer() {
     let info = s.begin_adaptive_wide_angle(layer, None).unwrap();
     eprintln!("begin 6000×4000: {:.2} s", t.elapsed().as_secs_f64());
     let a = real_size_recipe(&info.recipe_json, w, h);
+    let t = std::time::Instant::now();
+    s.commit_adaptive_wide_angle(info.token, json(&a)).unwrap();
+    eprintln!("apply 6000×4000: {:.2} s", t.elapsed().as_secs_f64());
+    let info = s.begin_adaptive_wide_angle(layer, None).unwrap();
     for _ in 0..2 {
         let p = s
             .preview_adaptive_wide_angle(info.token, Some(json(&a)))
@@ -694,7 +727,4 @@ fn timing_on_a_24_megapixel_layer() {
             p.width, p.height, info.preview_factor, p.millis
         );
     }
-    let t = std::time::Instant::now();
-    s.commit_adaptive_wide_angle(info.token, json(&a)).unwrap();
-    eprintln!("apply 6000×4000: {:.2} s", t.elapsed().as_secs_f64());
 }

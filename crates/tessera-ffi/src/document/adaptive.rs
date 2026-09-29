@@ -10,8 +10,9 @@
 //!   pixel layer's raster, or what smart filter `stage_index` of a smart
 //!   object receives. It returns the recipe to edit (a default Manual
 //!   rectilinear camera, or the stored recipe when re-editing) and a
-//!   box-downsampled proxy size. Layers over the 16,777,216-vertex lattice
-//!   (about 4095 × 4095 px) are refused here with a clear message.
+//!   box-downsampled proxy size. Layers over 100 megapixels are refused here
+//!   with a clear message (B5-20b: layers over the dense 16,777,216-vertex
+//!   lattice render through `filters::adaptive_lattice`'s coarse lattice).
 //! - `preview_adaptive_wide_angle` solves a uniformly scaled copy of the
 //!   recipe on the proxy and renders it into an RGBA8 IOSurface (straight
 //!   alpha, layer samples). It never touches the document or its history.
@@ -20,7 +21,8 @@
 //!   ONE history node: a pixel layer's pixels (destructive, through the
 //!   selection as Filter menu filters), or on a smart object the smart
 //!   filter appended or the re-edited one replaced in place. Errors (solve
-//!   failures, a changed layer, a cancel) never reach history.
+//!   failures, a changed layer, a cancel) never reach history. A cancel
+//!   stops a pixel layer's render between output tiles.
 //! - `cancel_adaptive_wide_angle` drops the workspace.
 //!
 //! Camera models: Manual rectilinear or equidistant (fisheye) with a focal
@@ -33,7 +35,7 @@ use compositor::{
     DocOp, LayerId, LayerKind, Raster, Rect, SmartFilter,
     render::smart_filters::{FilterContext, SmartFilterEvaluator},
 };
-use engine_api::tile::Extent;
+use engine_api::{jobs::CancellationToken, tile::Extent};
 use std::{
     collections::HashMap,
     sync::{
@@ -100,6 +102,8 @@ struct Job {
     surfaces: [Option<Arc<Surface>>; 2],
     flip: usize,
     cancel: Arc<AtomicBool>,
+    /// The same cancel for the full-resolution render (checked per tile).
+    stop: CancellationToken,
 }
 
 static NEXT: AtomicU64 = AtomicU64::new(1);
@@ -115,14 +119,15 @@ fn jobs() -> std::sync::MutexGuard<'static, HashMap<u64, Arc<Mutex<Job>>>> {
     m
 }
 
-/// The engine's lattice cap as a user-facing refusal (`None`: within it).
+/// The engine's size limit as a user-facing refusal (`None`: supported).
 pub(crate) fn size_refusal(width: u32, height: u32) -> Option<String> {
-    let vertices = (u64::from(width) + 1) * (u64::from(height) + 1);
-    (vertices > 16_777_216).then(|| {
-        format!(
-            "Adaptive Wide Angle supports layers up to 4095 × 4095 pixels (16,777,216 mesh vertices); this layer is {width} × {height}"
-        )
-    })
+    filters::adaptive_lattice::size_refusal(width as usize, height as usize)
+}
+
+/// Largest layer (pixels) Adaptive Wide Angle renders, for the app's copy.
+#[uniffi::export]
+pub fn adaptive_wide_angle_max_pixels() -> u64 {
+    filters::adaptive_lattice::MAX_PIXELS as u64
 }
 
 /// Box-downsample straight RGBA by an integer factor (premultiplied average).
@@ -169,48 +174,20 @@ fn parse_recipe(json: &str) -> Result<(serde_json::Value, Adaptive)> {
 }
 
 /// The recipe for a source downsampled by `factor` to `extent`: sizes, focal
-/// lengths, centre, crop, samples and the line tolerance scale together.
+/// lengths, centre, crop, samples and the line tolerance scale together
+/// (B5-20b: the coarse lattice's scaling, which also keeps the solver's
+/// full-resolution sample count on short segments).
 fn scaled(recipe: &Adaptive, factor: u32, extent: Extent) -> Adaptive {
-    let s = f64::from(factor);
-    let mut a = recipe.clone();
-    a.source_width = extent.width as usize;
-    a.source_height = extent.height as usize;
-    a.output_width = extent.width as usize;
-    a.output_height = extent.height as usize;
-    a.camera = match &recipe.camera {
-        CameraModel::Manual {
-            focal_px,
-            center,
-            projection,
-        } => CameraModel::Manual {
-            focal_px: focal_px / s,
-            center: [center[0] / s, center[1] / s],
-            projection: *projection,
-        },
-        CameraModel::Profile {
-            focal_px,
-            center,
-            calibration,
-        } => CameraModel::Profile {
-            focal_px: focal_px / s,
-            center: [center[0] / s, center[1] / s],
-            calibration: calibration.clone(),
-        },
-    };
-    a.output_focal_px /= s;
-    a.crop = [a.crop[0] / s, a.crop[1] / s];
-    a.line_tolerance = (a.line_tolerance / s).max(1e-3);
-    let (w, h) = (extent.width as f64, extent.height as f64);
-    for line in &mut a.lines {
-        for p in &mut line.points {
-            *p = [(p[0] / s).min(w), (p[1] / s).min(h)];
-        }
-    }
-    a
+    let (w, h) = (extent.width as usize, extent.height as usize);
+    filters::adaptive_lattice::scale_recipe(recipe, 1.0 / f64::from(factor), [w, h, w, h])
 }
 
-fn evaluate(input: &Raster, params: serde_json::Value) -> Result<Raster> {
-    Ok(filters::CompositorFilters.evaluate(
+fn evaluate(
+    input: &Raster,
+    params: serde_json::Value,
+    cancel: &CancellationToken,
+) -> Result<Raster> {
+    Ok(filters::CompositorFilters.evaluate_with_cancel(
         input,
         &SmartFilter {
             name: ADAPTIVE_WIDE_ANGLE_ID.into(),
@@ -223,6 +200,7 @@ fn evaluate(input: &Raster, params: serde_json::Value) -> Result<Raster> {
             canvas: input.extent(),
             level: 0,
         },
+        cancel,
     )?)
 }
 
@@ -484,12 +462,14 @@ impl DocumentSession {
             surfaces: [None, None],
             flip: 0,
             cancel: Arc::new(AtomicBool::new(false)),
+            stop: CancellationToken::new(),
         };
         let mut m = jobs();
         let me = Arc::downgrade(&self.shared);
         m.retain(|_, j| match j.lock() {
             Ok(j) if Weak::ptr_eq(&j.owner, &me) => {
                 j.cancel.store(true, Ordering::Relaxed);
+                j.stop.cancel();
                 false
             }
             _ => true,
@@ -521,7 +501,11 @@ impl DocumentSession {
                     ));
                 }
                 let small = scaled(&recipe, j.factor, j.proxy.extent());
-                evaluate(&j.proxy, serde_json::to_value(small).map_err(failure)?)?
+                evaluate(
+                    &j.proxy,
+                    serde_json::to_value(small).map_err(failure)?,
+                    &CancellationToken::new(),
+                )?
             }
         };
         let e = rendered.extent();
@@ -567,7 +551,7 @@ impl DocumentSession {
         recipe_json: String,
     ) -> Result<DocumentUpdate> {
         let job = self.adaptive_job(token)?;
-        let (layer, stage, smart, revision, extent, pixels, cancel) = {
+        let (layer, stage, smart, revision, extent, pixels, cancel, stop) = {
             let j = job.lock().map_err(failure)?;
             (
                 j.layer,
@@ -577,6 +561,7 @@ impl DocumentSession {
                 j.extent,
                 j.pixels.clone(),
                 j.cancel.clone(),
+                j.stop.clone(),
             )
         };
         let (params, recipe) = parse_recipe(&recipe_json)?;
@@ -601,7 +586,10 @@ impl DocumentSession {
         } else {
             let (raster, clip, keep_alpha, depth) =
                 pixels.ok_or_else(|| failure("not a pixel layer"))?;
-            let rendered = evaluate(&raster, params)?;
+            let rendered = match evaluate(&raster, params, &stop) {
+                Err(_) if stop.is_cancelled() => return Err(failure("cancelled")),
+                r => r?,
+            };
             if cancel.load(Ordering::Relaxed) || !jobs().contains_key(&token) {
                 return Err(failure("cancelled"));
             }
@@ -635,6 +623,7 @@ impl DocumentSession {
                 let mine = Weak::ptr_eq(&j.owner, &Arc::downgrade(&self.shared));
                 if mine {
                     j.cancel.store(true, Ordering::Relaxed);
+                    j.stop.cancel();
                 }
                 mine
             })
@@ -729,12 +718,50 @@ mod tests {
     #[test]
     fn size_refusal_is_the_absolute_pixel_limit() {
         // B5-20b: real photo sizes render through the coarse lattice.
-        for (w, h) in [(4095, 4095), (4096, 4096), (5212, 3468), (6000, 4000), (10000, 10000)] {
+        for (w, h) in [
+            (4095, 4095),
+            (4096, 4096),
+            (5212, 3468),
+            (6000, 4000),
+            (10000, 10000),
+        ] {
             assert!(size_refusal(w, h).is_none(), "{w} × {h}");
         }
         let why = size_refusal(12000, 9000).unwrap();
-        assert!(why.contains("12000 × 9000") && why.contains("100 megapixels"), "{why}");
+        assert!(
+            why.contains("12000 × 9000") && why.contains("100 megapixels"),
+            "{why}"
+        );
         assert!(size_refusal(10001, 10000).is_some());
+    }
+
+    /// B5-20b: the 1/8 proxy of a 24 MP recipe solves (the B5-20 proxy scaling
+    /// under-sampled long traced lines and failed the scaled tolerance).
+    #[test]
+    fn a_24_megapixel_recipe_solves_on_its_preview_proxy() {
+        let (w, h) = (6000.0, 4000.0);
+        let mut a = Adaptive::new(
+            6000,
+            4000,
+            CameraModel::Manual {
+                focal_px: 0.4 * w,
+                center: [w / 2., h / 2.],
+                projection: Projection::Equidistant,
+            },
+        );
+        a.output_focal_px = 0.4 * w;
+        let c = adaptive_wide_angle_curve(
+            serde_json::to_string(&a).unwrap(),
+            vec![0.25 * w, 0.2 * h],
+            vec![0.26 * w, 0.8 * h],
+        )
+        .unwrap();
+        a.lines.push(transform::adaptive::LineConstraint {
+            points: c.chunks(2).map(|p| [p[0], p[1]]).collect(),
+            orientation: transform::adaptive::LineOrientation::Vertical,
+            weight: 1.,
+        });
+        scaled(&a, 8, Extent::new(750, 500)).solve().unwrap();
     }
 
     #[test]
@@ -766,7 +793,11 @@ mod tests {
         );
         assert_eq!(s.output_focal_px, 100.);
         assert_eq!(s.crop, [2., 1.]);
-        assert_eq!(s.lines[0].points, vec![[25., 12.5], [200., 150.]]);
+        // 890 px densify to 64 samples at full size; the 222 px proxy chord
+        // would get 56, so the full-resolution samples are inserted.
+        assert_eq!(s.lines[0].points.len(), 65);
+        assert_eq!(s.lines[0].points[0], [25., 12.5]);
+        assert_eq!(s.lines[0].points[64], [200., 150.]);
         assert_eq!(s.line_tolerance, 0.0625);
         s.validate().unwrap();
     }
