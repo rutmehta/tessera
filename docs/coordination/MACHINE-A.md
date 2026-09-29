@@ -1,3 +1,7 @@
+## WB live diagnostic G12: calibration priming loss identified — 2026-09-29
+
+G12 ran once (automatic Metal, SDR+EDR, baseline 7b16217e vs candidate 90ae129e): all four processes clean, no inconclusive/contradiction/invariant findings. Baseline reopen calibration requests and primes the exact Detail key the first Daylight WB edit hits; the candidate's decision-cache hit skips calibration and the first Daylight edit misses Detail/PaddedWb/TileWb. Repeat edits hit and Custom misses in both. Attribution only — no timing or remedy claim. Evidence tools/orchestrate/wp/SMART-PREVIEWS/evidence/2026-09-29/wb-diagnostic-g12-*/. Independent evidence verification pending. Failed decision-cache product code remains unmerged.
+
 ## B5-16 Dither/History integrated — 2026-09-29
 
 Main c9efa690 = dd2cf300 + wp/B5-16-dither-ax 619676d0. One real conflict: B5-16 status-bar refactor to row(compact:) vs B5-13 "Content-Aware Move" tool label; resolved by carrying B5-13's label into both full and compact row() text. Automated gates on exact tree: swift-gate 830/0 (3 skipped), focused 98/0, layout 3/0, strict release OK, bindings identical.
