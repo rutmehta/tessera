@@ -1,15 +1,15 @@
 #!/bin/bash
-# Launches this worktree's Tessera in the background (open -g -n: never activated), runs --transform-selftest,
+# Launches this worktree's Tessera in the background (open -g -n and --nonactivating: never activated), runs --transform-selftest,
 # captures only its own window (screencapture -x -o -l <windowID>) when the test asks, then quits only its PID.
 set -u
 WT=/Users/rutmehta/Developer/lightroom/.worktrees/B5-12b
-SP=/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/74acb14f-b2e3-4e99-8ce1-272270467adc/scratchpad/transform-run-b512b
+SP=${SP:-${TMPDIR:-/tmp}/transform-run-b512b}
 EV=$WT/tools/orchestrate/wp/B5-12b/evidence
 rm -rf "$SP"; mkdir -p "$SP/app" "$SP/folder" "$SP/test" "$EV"
 LOG=$SP/selftest.log
 : > "$LOG"
 APP=$WT/apps/mac/build/Tessera.app
-open -g -n --stderr "$LOG" ${SKIP20:+--env TRANSFORM_SELFTEST_20MP=0} "$APP" --args --app-dir "$SP/app" --folder "$SP/folder" \
+open -g -n --stderr "$LOG" ${SKIP20:+--env TRANSFORM_SELFTEST_20MP=0} ${RENDERLOG:+--env TESSERA_DOC_RENDER_LOG=1} "$APP" --args --nonactivating --app-dir "$SP/app" --folder "$SP/folder" \
   "--transform-selftest=$SP/test"
 sleep 2
 PID=$(pgrep -nf "$APP/Contents/MacOS/Tessera")
