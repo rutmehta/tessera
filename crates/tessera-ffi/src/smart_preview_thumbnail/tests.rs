@@ -57,7 +57,14 @@ impl Fixture {
         let support = dir.path().join("support");
         let original = dir.path().join("disconnected/photo.arw");
         let engine = Engine::open(support.to_string_lossy().into()).unwrap();
-        let id = ImageId(501);
+        // Edit admission is process-wide and keyed only by ImageId (shared across
+        // Engines by design), so parallel tests must not share an image identity.
+        static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(501);
+        let id = ImageId(
+            NEXT_ID
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                .into(),
+        );
         let db = rusqlite::Connection::open(&engine.db).unwrap();
         db.execute(
             "INSERT INTO root(id,path) VALUES(1,?)",
@@ -349,7 +356,13 @@ fn completed_job_drop_does_not_clobber_reentrant_replacement_and_events_are_term
         count: AtomicUsize,
     }
     impl crate::EngineEventListener for Replace {
-        fn on_event(&self, _: EngineEvent) {
+        fn on_event(&self, event: EngineEvent) {
+            // The listener also starts the catalog change watcher, whose
+            // LibraryChanged events are unrelated to thumbnail completion.
+            let EngineEvent::PreviewReady { image_id, max_px } = event else {
+                return;
+            };
+            assert_eq!((image_id, max_px), (self.slot.0.to_string(), self.slot.1));
             self.count.fetch_add(1, Ordering::SeqCst);
             let engine = self.engine.upgrade().unwrap();
             engine
