@@ -623,13 +623,34 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         report,
     })
 }
-/// Decode one `Adobe_imageDevelopSettings.text` value. RED stub.
+/// Decode one `Adobe_imageDevelopSettings.text` value. The format is chosen by
+/// the first non-space token: `<` is XMP (older catalogs), `s` followed by `=`
+/// is the Lua table literal LrC 15.5 writes. Decode errors name the image.
 pub fn develop(
-    _image: i64,
+    image: i64,
     text: &str,
     process_version: &str,
 ) -> EngineResult<(Recipe, Vec<String>)> {
-    xmp::parse(text, process_version)
+    let head = text.trim_start();
+    let result = if head.starts_with('<') {
+        xmp::parse(text, process_version)
+    } else if head
+        .strip_prefix('s')
+        .is_some_and(|rest| rest.trim_start().starts_with('='))
+    {
+        lua_develop::parse(text, process_version)
+    } else {
+        Err(decode(
+            "develop settings are neither XMP nor an `s =` Lua literal",
+        ))
+    };
+    result.map_err(|e| match e {
+        EngineError::Decode { format, message } => EngineError::Decode {
+            format,
+            message: format!("image {image}: {message}"),
+        },
+        other => other,
+    })
 }
 
 /// Counts from the same validated plan the importer will produce.
