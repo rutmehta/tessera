@@ -34,14 +34,33 @@ renderer. Unsupported engine controls fail explicitly. AI masks are rejected
 even when amount is zero; this adapter never loads models. Without the feature,
 the identifier returns `Unsupported`.
 
-The boundary is nonempty F32 **straight RGBA in document-linear working space**.
+The boundary is nonempty F32 **straight RGBA in the document's encoded working
+space**: samples carry the document profile's transfer curve, like every other
+compositor sample (B5-28; before it the filter wrongly treated them as linear).
 Do not unpremultiply it. `FilterContext` supplies profile, native level and
-canvas. Embedded RGB matrix-shaper ICC profiles are authoritative. color-mgmt
-linearizes their TRCs and resolves the working-space conversion to/from linear
-Rec.2020. Untagged documents mean linear sRGB. Unresolved profiles and ICC CLUT
-profiles error instead of falling back to sRGB. Alpha is preserved, including
-transparent pixels with nonzero RGB. Amount interpolates developed RGB against
-the original in the document space. Zero amount is an exact CPU COW identity.
+canvas. Embedded RGB matrix-shaper ICC profiles are authoritative. Untagged
+documents are **sRGB-encoded** (sRGB primaries and sRGB curve). Unresolved
+profiles and ICC CLUT profiles error instead of falling back to sRGB.
+
+Per pixel: decode with the profile TRC, apply the profile -> linear Rec.2020
+matrix, develop, apply the inverse matrix, re-encode with the same TRC.
+`camera_raw::profile_curves` samples the profile -> linearized-twin ICC
+transform (color-mgmt/LCMS, no BPC) into a 4096-entry per-channel decode table;
+decode interpolates it linearly and encode is the exact inverse of that
+piecewise-linear decode (binary search), so CPU and resident GPU evaluate the
+identical curve. `encode(decode(x)) == x` holds on strictly increasing
+segments of the decode table; a flat run (equal adjacent entries) maps back to
+the run's right end. Float samples outside [0,1]:
+point-symmetric about decode(0) below zero (odd-symmetric for every normal TRC)
+and continued with the endpoint slope above one. A linear-TRC profile (linear
+Rec.2020 float documents) is detected and is an exact identity, keeping the
+matrix-only arithmetic bit for bit. Non-monotone or flat-at-white TRCs are
+rejected. Curves are cached per ICC digest (16 entries).
+
+Alpha is preserved, including transparent pixels with nonzero RGB. **Amount is
+the filter's opacity and blends the encoded samples** (developed-and-re-encoded
+against the original), matching every other document filter's fade. Zero
+amount is an exact CPU COW identity.
 
 CPU evaluation uses `image_core::Renderer::render_rgb_linear`, a native RGB
 Develop entry point with persistent **f32** stage checkpoints. It does not use
@@ -58,7 +77,8 @@ The adapter shares a 256 MiB payload LRU, capped at 64 checkpoints. Entries own
 exact f32 planes and the small RGB calibration. Image-core exposes the same
 configurable cache through Renderer; it is separate from its legacy tile cache.
 Source identity hashes exact input bits, every tile revision, dimensions and
-colour/level/canvas context because FilterContext has no layer ID. This permits
+colour matrix and transfer-curve table, level/canvas context because
+FilterContext has no layer ID. This permits
 safe reuse between identical layer inputs and invalidates same-revision pixel
 changes. Image-core callers must supply an immutable image ID plus revision.
 Stage keys chain source identity and upstream settings. WB changes retain lens
@@ -108,7 +128,7 @@ chain**. Select `lens.profile={"kind":"none"}` and
 | WB Auto | Shared engine estimator gap; execution errors. Presets and Custom are supported. |
 | Point colors, LUT/style, retouch, nondefault camera profiles, unsupported display transforms | Shared native engine/host-resource gaps; schema validation rejects changed unsupported controls rather than approximating them. |
 | Raw denoise, demosaic, highlight reconstruction | **RGB source limitation.** There is no CFA or pre-demosaic signal. Valid raw-domain recipe settings are retained but skipped, matching the RGB Develop reference; unsupported engine settings still fail validation. |
-| Output HDR/proof/export controls | This filter returns document-linear RGB, before output encoding. Unsupported changed output controls fail shared validation; it does not apply a display/export transform inside a layer. |
+| Output HDR/proof/export controls | This filter returns document RGB re-encoded with the document profile's own TRC, not a display/export rendition. Unsupported changed output controls fail shared validation; it does not apply a display/export transform inside a layer. |
 
 Whole-frame buffers must fit device storage limits; the manual optics bridge
 additionally retains the existing less-than-2^24-pixel operator limit. It is not
