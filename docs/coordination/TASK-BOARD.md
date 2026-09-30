@@ -1,5 +1,11 @@
 # Tessera task board — Machine A coordinator
 
+## Coordinator reconciliation — 2026-09-30 06:37 UTC
+
+This Codex coordinator resumed read-only reconciliation after its workers hit usage limits. Main is now `74f76332`; `MACHINE-A.md` records a replacement Claude Machine A coordinator and subsequent integrations. Its newer handoff supersedes stale rows/runtime text below: opaque CFA is integrated (`30b298c8`), Dither is integrated (`c9efa690`), and WB attribution G12 is complete with caveats; the failed decision-cache product remains unmerged. The newer B5-21/B5-25 GUI acceptance remains pending per the latest handoff. These are reconciled repository records, not newly executed acceptance checks.
+
+Fetched origin and read B's `origin/wp/B5-16` takeover; that historical file still ends at the Dither source handoff. Mailbox poll: 10 pending messages all target the exact A chat UUID, six older accepted receipts, six expired messages, zero invalid messages. Pending results and accepted receipts overlap the replacement coordinator's work; no duplicate acceptance, execution or completion receipts were issued. No compiler/test runner was observed; existing user app processes were preserved. Ownership must be reconciled with the replacement coordinator before this chat launches workers, GUI tests or merges. No queue wakeup was sent.
+
 <!-- CURRENT-QUEUE:START -->
 ## Current execution board
 
