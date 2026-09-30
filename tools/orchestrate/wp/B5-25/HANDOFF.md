@@ -35,9 +35,9 @@ than the canvas, not a stray responder: the same predicate as B5-21's Tab rule).
 
 - `4b29eb7d` RED: `apps/mac/Tests/TesseraCoreTests/DocumentPanelButtonKeySafetyTests.swift` (10 tests, 5 red on
   d0e6e2bd, 13 failing assertions), e.g.
-  - `:155 testDeleteOverFocusedLayersEyeButtonDeletesNothing: ("3") is not equal to ("6") - ⌫ over a focused eye button must not delete the selected layer`
-  - `:174 testDeleteOverFocusedPlainToolbarButtonDeletesNothing: ("2") is not equal to ("6")`
-  - `:220 testSpaceOverFocusedPlainButtonPressesOnceAndDoesNotPan: ("0") is not equal to ("1") - Space presses the focused button`; `:221 ... must not start a canvas pan`
+  - `:159 testDeleteOverFocusedLayersEyeButtonDeletesNothing: ("3") is not equal to ("6") - ⌫ over a focused eye button must not delete the selected layer`
+  - `:178 testDeleteOverFocusedPlainToolbarButtonDeletesNothing: ("2") is not equal to ("6")`
+  - `:226 testSpaceOverFocusedPlainButtonPressesOnceAndDoesNotPan: ("0") is not equal to ("1") - Space presses the focused button`; `:227 ... must not start a canvas pan`
   - `testSpaceOverFocusedLayersEyeButtonTogglesVisibilityOnce: Optional(true) is not equal to Optional(false)`, no-pan assert
   - disabled-button Space test (later rewritten, see below).
 - `2da4c714` fix: `apps/mac/Sources/Tessera/App/KeyRouter.swift` (`panelViewKey`, one call in `handleDocument`,
