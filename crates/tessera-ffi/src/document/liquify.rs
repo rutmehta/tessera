@@ -1003,6 +1003,8 @@ static HOOKS: LazyLock<Mutex<HookList>> = LazyLock::new(Default::default);
 ///   render of a pixel layer;
 /// - `"content-aware:show"`: `preview_content_aware_move`, after the result
 ///   is stored, just before it is shown;
+/// - `"adaptive:render"`: `commit_adaptive_wide_angle`, just before the
+///   full-resolution render of a pixel layer (B5-20d);
 /// - `"write"`: a checked history write (`edit_checked`, `set_nodes_checked`),
 ///   under the document lock, after any validation render, just before the
 ///   node is applied. A hook here must not take the document lock.

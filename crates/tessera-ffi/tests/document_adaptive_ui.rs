@@ -499,10 +499,15 @@ fn real_size_layers_preview_and_apply_through_the_coarse_lattice() {
     s.cancel_adaptive_wide_angle(again.token);
 }
 
-/// A cancel while a real-size pixel commit renders stops it (the render
-/// checks between output tiles) and leaves history unchanged.
+/// A cancel requested as a real-size pixel commit starts its render (at the
+/// test-only `"adaptive:render"` checkpoint, not after a wall-clock delay:
+/// B5-20d) stops the render (it checks the cancel before solving and between
+/// output tiles) and leaves history unchanged: the history write is never
+/// reached.
 #[test]
 fn cancel_during_a_real_size_commit_stops_the_render_without_history() {
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicBool, Ordering};
     let (w, h) = (5212u32, 3468u32);
     let (_dir, engine) = engine();
     let s = engine
@@ -513,15 +518,39 @@ fn cancel_during_a_real_size_commit_stops_the_render_without_history() {
     let info = s.begin_adaptive_wide_angle(layer, None).unwrap();
     let a = real_size_recipe(&info.recipe_json, w, h);
     let n = history(&s);
-    let (worker, token, recipe) = (s.clone(), info.token, json(&a));
+    let token = info.token;
+    let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+    let (log, weak, fired) = (seen.clone(), Arc::downgrade(&s), AtomicBool::new(false));
+    s.set_apply_checkpoint_hook(Some(Arc::new(move |at: &str| {
+        log.lock().unwrap().push(at.to_owned());
+        if at == "adaptive:render"
+            && !fired.swap(true, Ordering::SeqCst)
+            && let Some(s) = weak.upgrade()
+        {
+            s.cancel_adaptive_wide_angle(token);
+        }
+    })));
     let t = std::time::Instant::now();
-    let commit = std::thread::spawn(move || worker.commit_adaptive_wide_angle(token, recipe));
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    s.cancel_adaptive_wide_angle(info.token);
-    let result = commit.join().unwrap();
+    let e = s
+        .commit_adaptive_wide_angle(token, json(&a))
+        .expect_err("a cancelled commit never applies");
     eprintln!("commit returned after {:.2} s", t.elapsed().as_secs_f64());
-    assert!(result.is_err(), "a cancelled commit never applies");
+    s.set_apply_checkpoint_hook(None);
+    assert!(e.to_string().contains("cancelled"), "{e}");
+    let seen = seen.lock().unwrap().clone();
+    assert!(
+        seen.iter().any(|x| x == "adaptive:render"),
+        "the cancel landed at the render checkpoint: {seen:?}"
+    );
+    assert!(
+        !seen.iter().any(|x| x == "write"),
+        "the render stopped before the history write: {seen:?}"
+    );
     assert_eq!(history(&s), n);
+    assert!(
+        s.commit_adaptive_wide_angle(token, json(&a)).is_err(),
+        "the workspace is closed"
+    );
 }
 
 /// A two-click horizon across (nearly) the full width of a real-size
