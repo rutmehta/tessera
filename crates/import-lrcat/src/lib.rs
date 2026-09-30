@@ -3,6 +3,7 @@
 #[cfg(feature = "fixture")]
 pub mod fixture;
 pub mod lua;
+pub mod lua_develop;
 pub mod previews;
 mod search_map;
 pub mod xmp;
@@ -227,13 +228,22 @@ fn selection(row: &SourceRow) -> Selection {
     }
     .normalized()
 }
-fn keyword_tree(rows: &[SourceRow], synonyms: &[SourceRow]) -> EngineResult<Vec<Keyword>> {
+/// Build the keyword hierarchy. Lightroom stores one unnamed root row (NULL
+/// name, NULL parent); its children are the top-level keywords and the root
+/// itself is not a keyword. Any other unnamed keyword is skipped with a report
+/// entry and its children take its place under its parent.
+fn keyword_tree(
+    rows: &[SourceRow],
+    synonyms: &[SourceRow],
+    report: &mut Vec<String>,
+) -> EngineResult<Vec<Keyword>> {
     fn build(
         id: i64,
         rows: &[SourceRow],
         synonyms: &[SourceRow],
         seen: &mut BTreeSet<i64>,
-    ) -> EngineResult<Keyword> {
+        report: &mut Vec<String>,
+    ) -> EngineResult<Vec<Keyword>> {
         if !seen.insert(id) {
             return Err(decode("keyword hierarchy cycle or duplicate id"));
         }
@@ -241,39 +251,64 @@ fn keyword_tree(rows: &[SourceRow], synonyms: &[SourceRow]) -> EngineResult<Vec<
             .iter()
             .find(|r| number(r, "id_local") == Some(id))
             .ok_or_else(|| decode("missing keyword"))?;
-        let mut children = vec![];
-        for child in rows.iter().filter(|r| number(r, "parent") == Some(id)) {
-            children.push(build(
-                required_id(child, "id_local")?,
-                rows,
-                synonyms,
-                seen,
-            )?);
-        }
-        Ok(Keyword {
+        let children = children(Some(id), rows, synonyms, seen, report)?;
+        let Some(name) = text(r, "name") else {
+            report.push(format!(
+                "keyword {id} has no name; skipped (its children moved up a level)"
+            ));
+            return Ok(children);
+        };
+        Ok(vec![Keyword {
             id,
-            name: required_text(r, "name")?,
+            name,
             synonyms: synonyms
                 .iter()
                 .filter(|r| number(r, "keyword") == Some(id))
                 .filter_map(|r| text(r, "name"))
                 .collect(),
             children,
-        })
+        }])
+    }
+    fn children(
+        parent: Option<i64>,
+        rows: &[SourceRow],
+        synonyms: &[SourceRow],
+        seen: &mut BTreeSet<i64>,
+        report: &mut Vec<String>,
+    ) -> EngineResult<Vec<Keyword>> {
+        let mut out = vec![];
+        for child in rows
+            .iter()
+            .filter(|r| number(r, "parent").filter(|p| *p != 0) == parent)
+        {
+            let id = required_id(child, "id_local")?;
+            if parent.is_none() && text(child, "name").is_none() {
+                continue; // unnamed roots are handled by the caller
+            }
+            out.extend(build(id, rows, synonyms, seen, report)?);
+        }
+        Ok(out)
     }
     let mut seen = BTreeSet::new();
     let mut roots = vec![];
+    let mut unnamed_roots = 0;
     for row in rows
         .iter()
-        .filter(|r| number(r, "parent").is_none_or(|p| p == 0))
+        .filter(|r| number(r, "parent").is_none_or(|p| p == 0) && text(r, "name").is_none())
     {
-        roots.push(build(
-            required_id(row, "id_local")?,
-            rows,
-            synonyms,
-            &mut seen,
-        )?);
+        let id = required_id(row, "id_local")?;
+        if !seen.insert(id) {
+            return Err(decode("keyword hierarchy cycle or duplicate id"));
+        }
+        unnamed_roots += 1;
+        if unnamed_roots > 1 {
+            report.push(format!(
+                "keyword {id} is a second unnamed root keyword; its children were imported at the top level"
+            ));
+        }
+        roots.extend(children(Some(id), rows, synonyms, &mut seen, report)?);
     }
+    roots.extend(children(None, rows, synonyms, &mut seen, report)?);
     if seen.len() != rows.len() {
         return Err(decode("keyword hierarchy has missing parents or cycles"));
     }
@@ -352,7 +387,7 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             .iter()
             .map(|r| required_text(r, "absolutePath").map(PathBuf::from))
             .collect::<EngineResult<_>>()?,
-        keywords: keyword_tree(&keywords, &synonyms)?,
+        keywords: keyword_tree(&keywords, &synonyms, &mut report)?,
         ..Library::default()
     };
     let mut people = BTreeSet::new();
@@ -385,24 +420,52 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
     };
     for row in &collections {
         let id = required_id(row, "id_local")?;
-        let name = required_text(row, "name")?;
         let parent = number(row, "parent").filter(|p| *p != 0);
-        let kind = required_text(row, "creationId")?;
+        // Only library collections are imported; slideshow/print/book/web
+        // creations (and rows with no kind) are reported, not guessed.
+        let Some(kind) = text(row, "creationId")
+            .and_then(|k| k.strip_prefix("com.adobe.ag.library.").map(str::to_owned))
+        else {
+            let kind = text(row, "creationId").unwrap_or_else(|| "no kind".into());
+            report.push(format!(
+                "collection {id} ({kind}) is not a library collection; skipped"
+            ));
+            continue;
+        };
+        let name = text(row, "name").unwrap_or_else(|| {
+            report.push(format!(
+                "collection {id} has no name; imported as \"Untitled {id}\""
+            ));
+            format!("Untitled {id}")
+        });
         if kind.contains("smart") {
-            let raw = contents
+            let Some(raw) = contents
                 .iter()
                 .filter(|r| number(r, "collection") == Some(id))
                 .find_map(|r| text(r, "content").filter(|s| s.contains('{')))
-                .ok_or_else(|| decode(format!("smart collection {id} missing rules")))?;
+            else {
+                report.push(format!("smart collection {id} has no rules; skipped"));
+                continue;
+            };
+            // Rules the reader cannot represent skip that smart collection only.
+            let search = match lua::parse(&raw) {
+                Ok(search) => search_map::translate(search),
+                Err(e) => {
+                    report.push(format!(
+                        "smart collection {id} rules not translated ({e}); skipped"
+                    ));
+                    continue;
+                }
+            };
             library.smart_albums.push(SmartAlbum {
                 id,
                 name,
                 parent,
-                search: search_map::translate(lua::parse(&raw)?),
+                search,
                 // Keeps the M2-11 behaviour: a smart album inside a group is scoped.
                 scoped: true,
             });
-        } else if kind.contains("set") {
+        } else if kind.contains("set") || kind == "group" {
             library.album_groups.push(AlbumGroup { id, name, parent });
         } else {
             // Catalogs can contain identically named collections. Use an ID
@@ -472,9 +535,15 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         } else {
             filename
         };
-        let mut recipe = if let Some(row) = develops.iter().find(|r| number(r, "image") == Some(id))
+        // Lightroom leaves an empty develop row (NULL process version) for
+        // images that were never developed.
+        let mut recipe = if let Some(row) = develops
+            .iter()
+            .find(|r| number(r, "image") == Some(id))
+            .filter(|r| text(r, "text").is_some_and(|t| !t.trim().is_empty()))
         {
-            let (recipe, warnings) = xmp::parse(
+            let (recipe, warnings) = develop(
+                id,
                 &required_text(row, "text")?,
                 &required_text(row, "processVersion")?,
             )?;
@@ -554,6 +623,36 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         report,
     })
 }
+/// Decode one `Adobe_imageDevelopSettings.text` value. The format is chosen by
+/// the first non-space token: `<` is XMP (older catalogs), `s` followed by `=`
+/// is the Lua table literal LrC 15.5 writes. Decode errors name the image.
+pub fn develop(
+    image: i64,
+    text: &str,
+    process_version: &str,
+) -> EngineResult<(Recipe, Vec<String>)> {
+    let head = text.trim_start();
+    let result = if head.starts_with('<') {
+        xmp::parse(text, process_version)
+    } else if head
+        .strip_prefix('s')
+        .is_some_and(|rest| rest.trim_start().starts_with('='))
+    {
+        lua_develop::parse(text, process_version)
+    } else {
+        Err(decode(
+            "develop settings are neither XMP nor an `s =` Lua literal",
+        ))
+    };
+    result.map_err(|e| match e {
+        EngineError::Decode { format, message } => EngineError::Decode {
+            format,
+            message: format!("image {image}: {message}"),
+        },
+        other => other,
+    })
+}
+
 /// Counts from the same validated plan the importer will produce.
 pub fn inspect(path: impl AsRef<Path>) -> EngineResult<Summary> {
     let plan = import(path)?;

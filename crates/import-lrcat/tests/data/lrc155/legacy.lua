@@ -1,0 +1,10 @@
+s = { AutoLateralCA = 0,
+	Brightness = 50,
+	Contrast = 25,
+	Exposure = 0,
+	Exposure2012 = 1.25,
+	FillLight = 0,
+	ProcessVersion = "11.0",
+	Shadows = 5,
+	Version = "15.5",
+	WhiteBalance = "As Shot" }
