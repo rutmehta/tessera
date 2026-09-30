@@ -3,6 +3,7 @@
 #[cfg(feature = "fixture")]
 pub mod fixture;
 pub mod lua;
+pub mod lua_develop;
 pub mod previews;
 mod search_map;
 pub mod xmp;
@@ -541,7 +542,8 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             .find(|r| number(r, "image") == Some(id))
             .filter(|r| text(r, "text").is_some_and(|t| !t.trim().is_empty()))
         {
-            let (recipe, warnings) = xmp::parse(
+            let (recipe, warnings) = develop(
+                id,
                 &required_text(row, "text")?,
                 &required_text(row, "processVersion")?,
             )?;
@@ -621,6 +623,15 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         report,
     })
 }
+/// Decode one `Adobe_imageDevelopSettings.text` value. RED stub.
+pub fn develop(
+    _image: i64,
+    text: &str,
+    process_version: &str,
+) -> EngineResult<(Recipe, Vec<String>)> {
+    xmp::parse(text, process_version)
+}
+
 /// Counts from the same validated plan the importer will produce.
 pub fn inspect(path: impl AsRef<Path>) -> EngineResult<Summary> {
     let plan = import(path)?;
