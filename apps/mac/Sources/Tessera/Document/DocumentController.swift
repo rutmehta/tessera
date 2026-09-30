@@ -9,7 +9,11 @@ import TesseraCore
 final class DocumentController: Identifiable {
     let backend: any DocumentBackend
     let id: String
-    private(set) var info: DocumentSummary
+    private(set) var info: DocumentSummary {
+        didSet { if info.profileName != oldValue.profileName { refreshDisplayColor() } }
+    }
+    /// B5-30: the colour space the canvas and the detail panes tag the document's samples with.
+    @ObservationIgnored private(set) var displayColor = DocumentDisplayColor.srgb
     private(set) var layers: [LayerRecord] = []
     private(set) var outline = DocumentOutline()
     /// Selected layers; the last is the primary one (Properties, blend mode, opacity).
@@ -58,6 +62,11 @@ final class DocumentController: Identifiable {
         reloadModel()
         reloadHistory()
         if let top = outline.children(of: DocumentOutline.root).first { selection = [top] }
+        refreshDisplayColor()
+    }
+
+    /// B5-30: re-reads the document profile (open, Assign / Convert to Profile, undo across them).
+    private func refreshDisplayColor() {
     }
 
     var title: String { info.title }

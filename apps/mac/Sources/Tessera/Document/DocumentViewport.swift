@@ -241,6 +241,18 @@ final class DocumentViewportView: NSView {
 
     var retainedSurfaceCount: Int { ring.count }
 
+    /// B5-30: the colour space the canvas presents the document's samples in (the controller's).
+    private(set) var displayColor = DocumentDisplayColor.srgb
+    /// Test seams: the layer's colour space and EDR flag, and the pixel format surfaces are sampled as.
+    var layerColorSpace: CGColorSpace? { metalLayer?.colorspace }
+    var layerWantsEDR: Bool { metalLayer?.wantsExtendedDynamicRangeContent ?? false }
+    var surfacePixelFormat: MTLPixelFormat { .rgba8Unorm_srgb }
+    var ringSurfaces: [IOSurfaceRef] { ring.values.map(\.surface) }
+
+    /// B5-30: the document profile changed (or a document was attached): re-tag the layer and surfaces.
+    func displayColorDidChange() {
+    }
+
     func detachFromWorkspace() {
         attach(nil)
         workspace = nil

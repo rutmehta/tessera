@@ -424,6 +424,8 @@ public protocol DocumentBackend: AnyObject, Sendable {
     /// the surfaces, clipped to the level and the surface size; `zoom` (1 = 100 %) is echoed in frames.
     func setViewport(level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double) throws
     func setDisplayHeadroom(headroom: Float) throws
+    /// B5-30: the document profile's ICC bytes for tagging the canvas; nil = sRGB (untagged or built-in sRGB).
+    func displayProfileICC() throws -> Data?
     func refresh() throws
     func detachSurfaces()
 
@@ -433,6 +435,10 @@ public protocol DocumentBackend: AnyObject, Sendable {
     func saveAs(path: String, intent: DocSaveDestinationIntent) throws -> DocSaveAsResult
     func exportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
     func close()
+}
+
+public extension DocumentBackend {
+    func displayProfileICC() throws -> Data? { nil }
 }
 
 /// The IOSurfaces document mode shares with a backend: RGBA8 ('RGBA'), straight alpha, sRGB-encoded.

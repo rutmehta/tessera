@@ -147,11 +147,11 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
     private func changed() { revision &+= 1 }
 
     func start() {
-        let (b, t) = (backend, info.token)
+        let (b, t, color) = (backend, info.token, doc.displayColor)
         Task { @MainActor [weak self] in
             let r = await Task.detached(priority: .userInitiated) { Result { try b.previewAdaptiveWideAngle(token: t, recipeJson: nil) } }.value
             guard let self, !self.closed else { return }
-            if case .success(let f) = r { self.original = Self.image(f) }
+            if case .success(let f) = r { self.original = Self.image(f, color) }
             self.changed()
         }
         schedulePreview()
@@ -314,12 +314,12 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
     }
 
     private func run(_ request: LatestRequestBuffer<String>.Request) {
-        let (b, t, json) = (backend, info.token, request.value)
+        let (b, t, json, color) = (backend, info.token, request.value, doc.displayColor)
         Task { @MainActor [weak self] in
             let r = await Task.detached(priority: .userInitiated) {
                 Result { () -> (AdaptiveWideAnglePreviewFrame, CGImage?) in
                     let f = try b.previewAdaptiveWideAngle(token: t, recipeJson: json)
-                    return (f, Self.image(f))
+                    return (f, Self.image(f, color))
                 }
             }.value
             guard let self else { return }
@@ -341,8 +341,8 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
         }
     }
 
-    nonisolated static func image(_ f: AdaptiveWideAnglePreviewFrame) -> CGImage? {
-        IOSurfaceLookup(f.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(f.width), height: Int(f.height)) }
+    nonisolated static func image(_ f: AdaptiveWideAnglePreviewFrame, _ color: DocumentDisplayColor) -> CGImage? {
+        IOSurfaceLookup(f.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(f.width), height: Int(f.height), space: color.space) }
     }
 
     // MARK: Keys (canvas first responder)
