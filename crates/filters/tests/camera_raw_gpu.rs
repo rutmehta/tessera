@@ -443,3 +443,101 @@ fn documented_rgb_exclusions_remain_explicit() {
         );
     }
 }
+
+fn upload(gpu: &pipeline_gpu::GpuContext, data: &[[f32; 4]]) -> wgpu::Buffer {
+    gpu.device
+        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(data),
+            usage: wgpu::BufferUsages::STORAGE,
+        })
+}
+
+fn profile_context(builtin: Option<color_mgmt::Builtin>, extent: Extent) -> FilterContext {
+    use compositor::document::ColorProfile;
+    FilterContext {
+        profile: builtin.map(|b| {
+            let icc = color_mgmt::Registry::new().builtin(b).unwrap();
+            ColorProfile::from_icc("working", icc.icc_bytes().to_vec())
+        }),
+        level: 0,
+        canvas: extent,
+    }
+}
+
+/// B5-28: the resident path decodes encoded samples like the CPU path. An
+/// untagged document is sRGB-encoded: +1 EV on 0.5 is 0.6858, not 1.0.
+#[test]
+fn resident_plus_one_ev_doubles_decoded_light_of_srgb_encoded_mid_grey() {
+    let gpu = pipeline_gpu::GpuContext::new().unwrap();
+    let extent = Extent::new(16, 16);
+    let data = vec![[0.5, 0.5, 0.5, 1.]; extent.area() as usize];
+    let mut s = resident_settings();
+    s.detail.sharpening.amount = 0.;
+    s.detail.noise_reduction.color = 0.;
+    s.tone.exposure = 1.;
+    let value = json!({"settings": s});
+    for builtin in [None, Some(color_mgmt::Builtin::Srgb)] {
+        let context = profile_context(builtin, extent);
+        let output = camera_raw_gpu::evaluate(
+            &gpu.device,
+            &gpu.queue,
+            &upload(&gpu, &data),
+            extent,
+            &value,
+            &context,
+        )
+        .unwrap();
+        let p = readback(&gpu, &output, extent.area() * 16)[40];
+        assert!((p[1] - 0.6858).abs() < 0.002, "{builtin:?}: {p:?}");
+    }
+}
+
+/// CPU evaluator and resident GPU agree on ENCODED input for gamma (Adobe RGB),
+/// sRGB-curve (Display P3, untagged) and linear profiles, including signed
+/// and >1 float samples on both sides of the transfer-curve extension.
+#[test]
+fn resident_matches_cpu_evaluator_on_encoded_samples_across_profiles() {
+    use color_mgmt::Builtin;
+    let gpu = pipeline_gpu::GpuContext::new().unwrap();
+    let extent = Extent::new(37, 29);
+    let (mut raster, mut data) = pixels(extent);
+    for (i, p) in data.iter_mut().enumerate().step_by(9) {
+        p[0] = -0.1 - (i % 3) as f32 * 0.05;
+        p[2] = 1.2 + (i % 5) as f32 * 0.1;
+    }
+    raster
+        .edit_region(Rect::of_extent(extent), 2, |x, y, p| {
+            *p = data[(y * extent.width + x) as usize];
+        })
+        .unwrap();
+    let input = upload(&gpu, &data);
+    let mut s = rich_settings();
+    s.detail.sharpening.amount = 0.;
+    s.detail.noise_reduction.luminance = 0.;
+    for builtin in [
+        None,
+        Some(Builtin::DisplayP3),
+        Some(Builtin::AdobeRgb),
+        Some(Builtin::LinearRec2020),
+    ] {
+        let context = profile_context(builtin, extent);
+        let value = json!({"settings": s, "amount": 0.8});
+        let cpu = filters::camera_raw::evaluate(&raster, &value, &context).unwrap();
+        let output =
+            camera_raw_gpu::evaluate(&gpu.device, &gpu.queue, &input, extent, &value, &context)
+                .unwrap();
+        let actual = readback(&gpu, &output, extent.area() * 16);
+        let mut max_error = 0f32;
+        for (i, p) in actual.iter().enumerate() {
+            let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
+            assert_eq!(p[3].to_bits(), data[i][3].to_bits());
+            for c in 0..3 {
+                assert!(p[c].is_finite());
+                max_error = max_error.max((p[c] - expected[c]).abs());
+            }
+        }
+        eprintln!("{builtin:?}: max |GPU - CPU| {max_error}");
+        assert!(max_error < 0.002, "{builtin:?}: {max_error}");
+    }
+}
