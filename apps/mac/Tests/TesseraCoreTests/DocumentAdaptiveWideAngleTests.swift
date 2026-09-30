@@ -259,7 +259,7 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         // Changing the camera re-traces the curve.
         let traced = m.draft.lines[0].points
         m.setFocal(30)
-        XCTAssertNotEqual(m.draft.lines[0].points, traced)
+        await waitFor("the re-trace") { m.draft.lines[0].points != traced }
         XCTAssertEqual(try backend.historyItems().count, rows, "editing records no history")
         var ended: Result<DocumentChange, Error>?
         m.onApplied = { ended = $0 }
@@ -268,6 +268,225 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         if case .failure(let e) = ended { XCTFail("apply failed: \(e)") }
         XCTAssertEqual(try backend.historyItems().count, rows + 1)
         XCTAssertNil(DocumentAdaptiveWideAngle.shared.workspace)
+    }
+
+    /// B5-26: dragging the focal slider re-traces the constraints off the main actor, latest wins: a tick never waits
+    /// for the tracer, a slow tracer runs far fewer times than there are ticks, results for superseded focal lengths
+    /// are never shown, and the curves end on exactly the released value (then a preview of them lands).
+    @MainActor func testFocalSliderRetracesOffTheMainThreadLatestWins() async throws {
+        let engine = try Engine.open(appSupportDir: try temp().appendingPathComponent("support").path)
+        let backend = EngineDocumentBackend(session: try engine.newDocument(width: 120, height: 90, depth: .u8, profile: nil))
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        let b = try XCTUnwrap(backend as (any DocumentBackend) as? any DocumentAdaptiveWideAngleBackend)
+        let layer = try XCTUnwrap(doc.layers.first).id
+        let info = try b.beginAdaptiveWideAngle(layer: layer, stageIndex: nil)
+        let m = AdaptiveWideAngleWorkspaceModel(doc: doc, backend: b, info: info,
+                                                draft: try AdaptiveWideAngleDraft(recipeJson: info.recipeJson), layerName: "Layer 1")
+        defer { m.cancel() }
+        m.start()
+        await waitFor("the first preview") { m.original != nil && m.corrected != nil }
+        m.projection = .equidistant
+        m.setFocal(18)
+        await waitFor("the fisheye preview") { m.corrected != nil }
+        XCTAssertTrue(m.addLine(from: CGPoint(x: 20, y: 10), to: CGPoint(x: 20, y: 80), orientation: .vertical))
+        let initial = m.draft.lines[0].points
+
+        let log = TraceLog()
+        m.tracer = { json, from, to in
+            log.record(json: json, onMain: Thread.isMainThread)
+            Thread.sleep(forTimeInterval: 0.08)
+            return try b.adaptiveWideAngleCurve(recipeJson: json, from: from, to: to)
+        }
+        var previews = 0
+        m.onPreview = { previews += 1 }
+        let ticks = Array(stride(from: 20.0, through: 40.0, by: 0.5))
+        let clock = ContinuousClock()
+        var longest = Duration.zero
+        for v in ticks {
+            let t0 = clock.now
+            m.setFocal(v)
+            longest = max(longest, clock.now - t0)
+        }
+        XCTAssertEqual(m.draft.focal35, 40, "the slider value itself is applied at once")
+        XCTAssertLessThan(longest, .milliseconds(80), "a slider tick waited for the tracer on the main actor")
+
+        var want = m.draft
+        want.setCurve(try b.adaptiveWideAngleCurve(recipeJson: want.recipeJson, from: want.lines[0].from, to: want.lines[0].to), at: 0)
+        let final = want.lines[0].points
+        XCTAssertNotEqual(final, initial)
+        var seen: [[CGPoint]] = []
+        await waitFor("the final re-trace") {
+            let p = m.draft.lines[0].points
+            if seen.last != p { seen.append(p) }
+            return p == final
+        }
+        // Let any superseded trace still in flight land, then check it was discarded.
+        let settle = Date().addingTimeInterval(0.4)
+        while Date() < settle {
+            let p = m.draft.lines[0].points
+            if seen.last != p { seen.append(p) }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertEqual(seen.last, final, "a stale trace replaced the final curves")
+        XCTAssertTrue(seen.allSatisfy { $0 == initial || $0 == final }, "curves for a superseded focal length were shown")
+
+        XCTAssertFalse(log.onMain, "the tracer ran on the main thread")
+        XCTAssertGreaterThanOrEqual(log.count, 1)
+        XCTAssertLessThanOrEqual(log.count, 3, "\(ticks.count) ticks traced \(log.count) times: not coalesced")
+        let last = try AdaptiveWideAngleDraft(recipeJson: try XCTUnwrap(log.last))
+        XCTAssertEqual(last.focal35, 40, "the last trace is for the released value")
+        await waitFor("a preview of the final curves") { previews > 0 }
+    }
+
+    /// A workspace on a fresh 120 × 90 document (optionally a smart object) with a fisheye 18 mm camera and `lines`
+    /// traced by the real tracer.
+    @MainActor private func fisheyeWorkspace(smartObject: Bool = false, lines: [(CGPoint, CGPoint)]) async throws
+        -> (m: AdaptiveWideAngleWorkspaceModel, b: any DocumentAdaptiveWideAngleBackend, backend: EngineDocumentBackend,
+            doc: DocumentController, layer: DocLayerID) {
+        let engine = try Engine.open(appSupportDir: try temp().appendingPathComponent("support").path)
+        let backend = EngineDocumentBackend(session: try engine.newDocument(width: 120, height: 90, depth: .u8, profile: nil))
+        let doc = try DocumentController(backend: backend)
+        let b = try XCTUnwrap(backend as (any DocumentBackend) as? any DocumentAdaptiveWideAngleBackend)
+        let layer = try XCTUnwrap(doc.layers.first).id
+        if smartObject {
+            let filters = try XCTUnwrap(backend as (any DocumentBackend) as? any DocumentFiltersBackend)
+            _ = try filters.convertForSmartFilters(layer: layer)
+            doc.reloadModel()
+        }
+        let info = try b.beginAdaptiveWideAngle(layer: layer, stageIndex: nil)
+        let m = AdaptiveWideAngleWorkspaceModel(doc: doc, backend: b, info: info,
+                                                draft: try AdaptiveWideAngleDraft(recipeJson: info.recipeJson), layerName: "Layer 1")
+        m.start()
+        await waitFor("the first preview") { m.original != nil && m.corrected != nil }
+        m.projection = .equidistant
+        m.setFocal(18)
+        for (a, c) in lines { XCTAssertTrue(m.addLine(from: a, to: c, orientation: .vertical)) }
+        return (m, b, backend, doc, layer)
+    }
+
+    /// Follow-up to B5-26 review: a line whose final trace fails at OK is not committed with its curve from the
+    /// previous camera. OK fails with the same "Constraint n: …" message a drag shows, and records no history.
+    @MainActor func testOKSurfacesAFailedFinalTrace() async throws {
+        let w = try await fisheyeWorkspace(lines: [(CGPoint(x: 20, y: 10), CGPoint(x: 20, y: 80))])
+        defer { w.doc.close() }
+        let (m, b) = (w.m, w.b)
+        let rows = try w.backend.historyItems().count
+        let t = ScriptedTracer(delays: [0.2], failure: "outside the camera's field of view")
+        m.tracer = { json, a, c in try t.trace(json) { try b.adaptiveWideAngleCurve(recipeJson: json, from: a, to: c) } }
+        m.setFocal(30)
+        var ended: Result<DocumentChange, Error>?
+        m.onApplied = { ended = $0 }
+        m.ok()
+        await waitFor("OK to end") { ended != nil }
+        if case .success = ended { XCTFail("OK committed a constraint whose final trace failed") }
+        XCTAssertEqual(m.error, "Constraint 1: outside the camera's field of view")
+        XCTAssertEqual(try w.backend.historyItems().count, rows, "nothing committed")
+        m.cancel()
+    }
+
+    /// OK pressed while a slider re-trace is still pending commits curves traced for the released focal length.
+    @MainActor func testOKDuringAPendingRetraceCommitsTheFinalFocal() async throws {
+        let w = try await fisheyeWorkspace(smartObject: true, lines: [(CGPoint(x: 20, y: 10), CGPoint(x: 20, y: 80))])
+        defer { w.doc.close() }
+        let (m, b) = (w.m, w.b)
+        let t = ScriptedTracer(delays: [0.15])
+        m.tracer = { json, a, c in try t.trace(json) { try b.adaptiveWideAngleCurve(recipeJson: json, from: a, to: c) } }
+        for v in stride(from: 20.0, through: 40.0, by: 1) { m.setFocal(v) }
+        var want = m.draft
+        want.setCurve(try b.adaptiveWideAngleCurve(recipeJson: want.recipeJson, from: want.lines[0].from, to: want.lines[0].to), at: 0)
+        XCTAssertNotEqual(m.draft.lines[0].points, want.lines[0].points, "the re-trace is still pending")
+        var ended: Result<DocumentChange, Error>?
+        m.onApplied = { ended = $0 }
+        m.ok()
+        await waitFor("the apply") { ended != nil }
+        if case .failure(let e) = ended { return XCTFail("apply failed: \(e)") }
+        let stored = try b.beginAdaptiveWideAngle(layer: w.layer, stageIndex: 0)
+        defer { b.cancelAdaptiveWideAngle(token: stored.token) }
+        let committed = try AdaptiveWideAngleDraft(recipeJson: stored.recipeJson)
+        XCTAssertEqual(committed.focal35, 40, accuracy: 1e-9)
+        XCTAssertEqual(committed.lines.map(\.points), want.lines.map(\.points), "committed curves are for 40 mm")
+    }
+
+    /// Cancel while a slow re-trace is in flight: its late result is dropped (no curves applied, no preview
+    /// submitted) and the queued one never runs.
+    @MainActor func testCancelDropsALateRetrace() async throws {
+        let w = try await fisheyeWorkspace(lines: [(CGPoint(x: 20, y: 10), CGPoint(x: 20, y: 80))])
+        defer { w.doc.close() }
+        let (m, b) = (w.m, w.b)
+        let t = ScriptedTracer(delays: [0.3])
+        m.tracer = { json, a, c in try t.trace(json) { try b.adaptiveWideAngleCurve(recipeJson: json, from: a, to: c) } }
+        var previews = 0
+        m.onPreview = { previews += 1 }
+        m.setFocal(30)
+        m.setFocal(35)
+        await waitFor("the trace to start") { t.started >= 1 }
+        let points = m.draft.lines[0].points
+        m.cancel()
+        let (revision, landed) = (m.revision, previews)
+        await waitFor("the late trace") { t.finished >= 1 }
+        try? await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(m.draft.lines[0].points, points, "a trace landed after Cancel")
+        XCTAssertEqual(m.revision, revision, "a preview was scheduled after Cancel")
+        XCTAssertEqual(previews, landed, "a preview landed after Cancel")
+        XCTAssertEqual(t.started, 1, "the queued re-trace ran after Cancel")
+    }
+
+    /// OK closes the workspace while a slow re-trace from the slider is still in flight: that late result is dropped.
+    @MainActor func testCloseAfterOKDropsALateRetrace() async throws {
+        let w = try await fisheyeWorkspace(lines: [(CGPoint(x: 20, y: 10), CGPoint(x: 20, y: 80))])
+        defer { w.doc.close() }
+        let (m, b) = (w.m, w.b)
+        let t = ScriptedTracer(delays: [0.5, 0])
+        m.tracer = { json, a, c in try t.trace(json) { try b.adaptiveWideAngleCurve(recipeJson: json, from: a, to: c) } }
+        var previews = 0
+        m.onPreview = { previews += 1 }
+        m.setFocal(30)
+        await waitFor("the trace to start") { t.started >= 1 }
+        var ended: Result<DocumentChange, Error>?
+        m.onApplied = { ended = $0 }
+        m.ok()
+        await waitFor("the apply") { ended != nil }
+        if case .failure(let e) = ended { return XCTFail("apply failed: \(e)") }
+        XCTAssertLessThan(t.finished, 2, "OK waited for the slow slider trace")
+        let (points, revision, landed) = (m.draft.lines[0].points, m.revision, previews)
+        await waitFor("the late trace") { t.finished >= 2 }
+        try? await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(m.draft.lines[0].points, points, "a trace landed after the workspace closed")
+        XCTAssertEqual(m.revision, revision, "a preview was scheduled after the workspace closed")
+        XCTAssertEqual(previews, landed)
+        XCTAssertEqual(t.started, 2)
+    }
+
+    /// Lines removed and drawn while a re-trace is in flight: its curves are matched by their ends, so the surviving
+    /// line gets its own new curve and the new line keeps the one traced when it was drawn.
+    @MainActor func testLinesEditedDuringARetraceMatchByEnds() async throws {
+        let (a0, a1) = (CGPoint(x: 20, y: 10), CGPoint(x: 20, y: 80))
+        let (b0, b1) = (CGPoint(x: 100, y: 10), CGPoint(x: 100, y: 80))
+        let (c0, c1) = (CGPoint(x: 45, y: 5), CGPoint(x: 45, y: 85))
+        let w = try await fisheyeWorkspace(lines: [(a0, a1), (b0, b1)])
+        defer { w.doc.close() }
+        let (m, b) = (w.m, w.b)
+        let t = ScriptedTracer(delays: [0.3, 0])
+        m.tracer = { json, a, c in try t.trace(json) { try b.adaptiveWideAngleCurve(recipeJson: json, from: a, to: c) } }
+        m.setFocal(30)
+        await waitFor("the trace to start") { t.started >= 1 }
+        m.selected = 0
+        m.removeSelected()
+        XCTAssertTrue(m.addLine(from: c0, to: c1, orientation: .vertical))
+        XCTAssertEqual(m.draft.lines.map { [$0.from, $0.to] }, [[b0, b1], [c0, c1]])
+        let json = m.draft.recipeJson
+        let wantB = try b.adaptiveWideAngleCurve(recipeJson: json, from: b0, to: b1)
+        let wantC = try b.adaptiveWideAngleCurve(recipeJson: json, from: c0, to: c1)
+        XCTAssertEqual(m.draft.lines[1].points, wantC, "the new line is traced under the new camera")
+        XCTAssertNotEqual(m.draft.lines[0].points, wantB, "the surviving line waits for the re-trace")
+        await waitFor("the re-trace") { t.finished >= 2 && m.draft.lines[0].points == wantB }
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(m.draft.lines.count, 2)
+        XCTAssertEqual(m.draft.lines[0].points, wantB)
+        XCTAssertEqual(m.draft.lines[1].points, wantC, "the new line's curve was replaced by another line's")
+        XCTAssertNil(m.error)
+        m.cancel()
     }
 
     /// B5-20c: OK on a smart object over the compositor's smart-filter pass limit (6000 × 6000) keeps the sheet open
@@ -315,5 +534,39 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
             if Date() > end { XCTFail("timed out waiting for \(what)"); return }
             try? await Task.sleep(for: .milliseconds(10))
         }
+    }
+}
+
+/// What the injected tracer saw (called off the main actor).
+private final class TraceLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var jsons: [String] = []
+    private var main = false
+
+    func record(json: String, onMain: Bool) { lock.withLock { jsons.append(json); main = main || onMain } }
+    var count: Int { lock.withLock { jsons.count } }
+    var last: String? { lock.withLock { jsons.last } }
+    var onMain: Bool { lock.withLock { main } }
+}
+
+/// A tracer with per-call delays (the last repeats) that can fail every call; counts starts and ends.
+private final class ScriptedTracer: @unchecked Sendable {
+    private let lock = NSLock()
+    private let delays: [Double]
+    private let failure: String?
+    private var starts = 0
+    private var ends = 0
+
+    init(delays: [Double], failure: String? = nil) { self.delays = delays; self.failure = failure }
+
+    var started: Int { lock.withLock { starts } }
+    var finished: Int { lock.withLock { ends } }
+
+    func trace(_ json: String, _ real: () throws -> [CGPoint]) throws -> [CGPoint] {
+        let n = lock.withLock { starts += 1; return starts - 1 }
+        defer { lock.withLock { ends += 1 } }
+        Thread.sleep(forTimeInterval: delays[min(n, delays.count - 1)])
+        if let failure { throw DocumentError.invalid(failure) }
+        return try real()
     }
 }
