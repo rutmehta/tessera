@@ -333,6 +333,9 @@ final class FilterSheetModel: Identifiable {
         }
     }
 
+    /// The pane's CGImage. B5-27: the surface holds the canvas's bytes for the region (the document's own
+    /// samples, whatever its working profile), and the canvas decodes its surfaces as sRGB
+    /// (`rgba8Unorm_srgb` into an extended linear sRGB layer), so the pane is tagged sRGB to match it.
     nonisolated static func image(_ s: IOSurfaceRef, width: Int, height: Int) -> CGImage? {
         IOSurfaceLock(s, .readOnly, nil)
         defer { IOSurfaceUnlock(s, .readOnly, nil) }
