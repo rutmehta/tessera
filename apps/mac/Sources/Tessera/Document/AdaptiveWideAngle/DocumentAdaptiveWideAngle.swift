@@ -301,7 +301,8 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
         }
         draft = d
         curvesStale = false
-        schedulePreview()
+        // While OK commits, the sheet is about to close (or show OK's error): no new preview.
+        if busy == nil { schedulePreview() } else { changed() }
     }
 
     // MARK: Preview
@@ -363,7 +364,13 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
         let refused = jobs.start("Applying \(title)…", operation: title, {
             var d = d
             if stale {
-                for (i, r) in Self.traceAll(d, tracer).enumerated() { if case .success(let p) = r { d.setCurve(p, at: i) } }
+                // A failed trace fails OK with the message a drag shows; nothing is committed.
+                for (i, r) in Self.traceAll(d, tracer).enumerated() {
+                    switch r {
+                    case .success(let p): d.setCurve(p, at: i)
+                    case .failure(let e): throw DocumentError.invalid("Constraint \(i + 1): \(e.localizedDescription)")
+                    }
+                }
             }
             return try b.commitAdaptiveWideAngle(token: t, recipeJson: d.recipeJson)
         }) { [weak self] end in
