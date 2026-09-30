@@ -256,6 +256,12 @@ final class DocumentCameraRawTests: XCTestCase {
         return (doc, filters)
     }
 
+    /// Linear light of an sRGB-encoded sample given as 0…255 (untagged documents are sRGB-encoded, B5-28).
+    private func decoded(_ v: Double) -> Double {
+        let e = v / 255
+        return e <= 0.04045 ? e / 12.92 : pow((e + 0.055) / 1.055, 2.4)
+    }
+
     /// Mean red sample of the layer through `filterJson`, 0…255: the detail pane sRGB-encodes
     /// the samples (B5-18b), which this undoes.
     private func mean(_ f: any DocumentFiltersBackend, _ layer: DocLayerID, _ json: String,
@@ -289,10 +295,6 @@ final class DocumentCameraRawTests: XCTestCase {
         // `mean` undoes the pane's sRGB encoding, so it reads the layer's own
         // samples (0.4 grey → 102). Those samples are sRGB-ENCODED in an untagged
         // document (B5-28): +1 EV doubles their DECODED light, 0.4 → 0.551.
-        func decoded(_ v: Double) -> Double {
-            let e = v / 255
-            return e <= 0.04045 ? e / 12.92 : pow((e + 0.055) / 1.055, 2.4)
-        }
         XCTAssertEqual(before, 102, accuracy: 1.5)
         XCTAssertEqual(decoded(after) / decoded(before), 2, accuracy: 0.05, "exposure +1 doubles linear light")
     }
@@ -426,8 +428,11 @@ final class DocumentCameraRawTests: XCTestCase {
         zero.amountPercent = 0
         let grey = try mean(f, layer, zero.filterJson, smartIndex: 0)
         XCTAssertEqual(grey, 102, accuracy: 1.5, "the re-edited filter at amount 0 shows the unfiltered layer")
-        XCTAssertEqual(try mean(f, layer, plus.filterJson, smartIndex: 0) / grey, 2, accuracy: 0.05, "applied once")
-        XCTAssertEqual(try mean(f, layer, plus.filterJson), 255, accuracy: 1, "a new filter stacks (0.4 × 4, clipped)")
+        // Samples are sRGB-encoded (B5-28): +1 EV doubles decoded light.
+        let once = try mean(f, layer, plus.filterJson, smartIndex: 0)
+        XCTAssertEqual(decoded(once) / decoded(grey), 2, accuracy: 0.05, "applied once")
+        let twice = try mean(f, layer, plus.filterJson)
+        XCTAssertEqual(decoded(twice) / decoded(grey), 4, accuracy: 0.1, "a new filter stacks (×4 linear, 0.4 → 0.755)")
         let cr = DocumentCameraRaw()
         doc.reloadModel()
         cr.edit(doc, layer: layer, row: try f.smartFilters(layer: layer)[0])
