@@ -252,7 +252,9 @@ final class DocumentPanelButtonKeySafetyTests: XCTestCase {
         XCTAssertFalse(model.documents.spaceHeld)
     }
 
-    func testSpaceOverDisabledFocusedButtonDoesNotPan() throws {
+    /// AppKit drops the keyboard from a control that becomes disabled, so Space falls back to the
+    /// nothing-focused behaviour (pan) and never fires the disabled button.
+    func testDisablingAFocusedButtonNeverFiresItOnSpace() throws {
         let model = documentModel()
         let router = KeyRouter(model: model)
         let window = plainWindow()
@@ -263,9 +265,34 @@ final class DocumentPanelButtonKeySafetyTests: XCTestCase {
         window.contentView?.addSubview(button)
         XCTAssertTrue(window.makeFirstResponder(button))
         button.isEnabled = false
+        XCTAssertFalse(window.firstResponder === button, "a disabled button gives up the keyboard")
         press(try space(window), window, router: router)
-        XCTAssertEqual(counter.count, 0)
+        XCTAssertEqual(counter.count, 0, "Space never fires a disabled button")
+        XCTAssertTrue(model.documents.spaceHeld, "with nothing focused Space pans, as before")
+        press(try space(window, up: true), window, router: router)
         XCTAssertFalse(model.documents.spaceHeld)
+    }
+
+    /// A stand-in for a SwiftUI control's focus proxy under Full Keyboard Access (a plain view that takes
+    /// the keyboard): the first Space is left to it, repeats are dropped, ⌫ is swallowed, and nothing pans.
+    private final class FocusProxyView: NSView {
+        override var acceptsFirstResponder: Bool { true }
+    }
+
+    func testFocusProxyGetsFirstSpaceButNoPanRepeatOrDelete() throws {
+        let model = documentModel()
+        let doc = try XCTUnwrap(model.documents.current)
+        let router = KeyRouter(model: model)
+        let window = plainWindow()
+        let proxy = FocusProxyView(frame: NSRect(x: 10, y: 10, width: 40, height: 20))
+        window.contentView?.addSubview(proxy)
+        XCTAssertTrue(window.makeFirstResponder(proxy))
+        let before = doc.layers.count
+        XCTAssertFalse(router.handle(try space(window)), "the first Space goes to the focused control")
+        XCTAssertTrue(router.handle(try space(window, repeat: true)), "key repeat is dropped")
+        XCTAssertFalse(model.documents.spaceHeld)
+        XCTAssertTrue(router.handle(try backspace(window)), "⌫ is swallowed")
+        XCTAssertEqual(doc.layers.count, before)
     }
 
     // MARK: 4. Canvas Space-pan and text fields unchanged
