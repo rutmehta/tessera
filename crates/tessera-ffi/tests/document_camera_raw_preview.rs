@@ -515,16 +515,26 @@ fn detail_pane_matches_the_canvas_in_srgb_and_display_p3_documents() {
     let (dir, engine) = engine();
     let (w, h) = (256usize, 192usize);
     let (x0, y0, dw, dh) = (40usize, 30usize, 96usize, 64usize);
-    for (file, icc, profile) in [
-        ("srgb.png", builtin_icc(color_mgmt::Builtin::Srgb), "sRGB"),
-        ("p3.png", builtin_icc(color_mgmt::Builtin::DisplayP3), "P3"),
+    for (file, icc, srgb) in [
+        ("srgb.png", builtin_icc(color_mgmt::Builtin::Srgb), true),
+        ("p3.png", builtin_icc(color_mgmt::Builtin::DisplayP3), false),
     ] {
         let s = open(
             &engine,
             &tagged_png(dir.path(), file, w as u32, h as u32, icc),
         );
+        // The document keeps the embedded profile and its samples as stored.
         let name = s.info().unwrap().profile_name.unwrap_or_default();
-        assert!(name.contains(profile), "{file}: document profile {name}");
+        assert_eq!(
+            name.contains("sRGB"),
+            srgb,
+            "{file}: document profile {name}"
+        );
+        let first = &s.read_presented_level(0).unwrap().2[..3];
+        assert!(
+            max_diff(first, &[0.95, 0.05, 0.08]) <= 1.0 / 255.0,
+            "{file}: samples converted on open: {first:?}"
+        );
         let id = s.layers().unwrap()[0].id;
         for json in [
             r#"{"id":"gaussian_blur","params":{"radius":2}}"#.to_owned(),
