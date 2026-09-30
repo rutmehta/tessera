@@ -116,11 +116,14 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
     /// Called when a preview lands (self-test) and when OK finishes or is discarded.
     @ObservationIgnored var onPreview: (() -> Void)?
     @ObservationIgnored var onApplied: ((Result<DocumentChange, Error>) -> Void)?
+    /// Traces one constraint (`adaptive_wide_angle_curve`); injectable so tests can slow it down.
+    @ObservationIgnored var tracer: @Sendable (_ recipeJson: String, _ from: CGPoint, _ to: CGPoint) throws -> [CGPoint]
 
     init(doc: DocumentController, backend: any DocumentAdaptiveWideAngleBackend, info: AdaptiveWideAngleWorkspaceInfo,
          draft: AdaptiveWideAngleDraft, layerName: String) {
         self.doc = doc; self.backend = backend; self.info = info; self.draft = draft; self.layerName = layerName
         tracedKey = draft.curveKey
+        tracer = { [backend] json, a, b in try backend.adaptiveWideAngleCurve(recipeJson: json, from: a, to: b) }
     }
 
     var title: String { AdaptiveWideAngleFilter.title }
@@ -235,7 +238,7 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
         var d = draft
         guard let i = d.addLine(from: a, to: b, orientation: orientation) else { changed(); return false }
         do {
-            d.setCurve(try backend.adaptiveWideAngleCurve(recipeJson: d.recipeJson, from: d.lines[i].from, to: d.lines[i].to), at: i)
+            d.setCurve(try tracer(d.recipeJson, d.lines[i].from, d.lines[i].to), at: i)
         } catch {
             self.error = error.localizedDescription
             changed()
@@ -255,7 +258,7 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
         var d = draft
         for i in d.lines.indices {
             do {
-                d.setCurve(try backend.adaptiveWideAngleCurve(recipeJson: d.recipeJson, from: d.lines[i].from, to: d.lines[i].to), at: i)
+                d.setCurve(try tracer(d.recipeJson, d.lines[i].from, d.lines[i].to), at: i)
             } catch {
                 self.error = "Constraint \(i + 1): \(error.localizedDescription)"
             }
