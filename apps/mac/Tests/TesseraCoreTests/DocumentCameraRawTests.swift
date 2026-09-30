@@ -256,7 +256,8 @@ final class DocumentCameraRawTests: XCTestCase {
         return (doc, filters)
     }
 
-    /// Mean linear red of the layer through `filterJson`, 0…255 (the detail pane is sRGB-encoded, B5-18b).
+    /// Mean red sample of the layer through `filterJson`, 0…255: the detail pane sRGB-encodes
+    /// the samples (B5-18b), which this undoes.
     private func mean(_ f: any DocumentFiltersBackend, _ layer: DocLayerID, _ json: String,
                       smartIndex: UInt32? = nil) throws -> Double {
         let d = try f.filterDetail(layer: layer, smartIndex: smartIndex, filterJson: json, x: 0, y: 0, width: 16, height: 16)
@@ -285,8 +286,15 @@ final class DocumentCameraRawTests: XCTestCase {
         var plus = CameraRawDraft()
         plus.set(CameraRawControls.exposure, 1)
         let after = try mean(f, layer, plus.filterJson)
-        // Decoded to linear (0.4 grey → 102), +1 EV is ×2.
-        XCTAssertEqual(after / before, 2, accuracy: 0.05, "exposure +1 doubles linear light")
+        // `mean` undoes the pane's sRGB encoding, so it reads the layer's own
+        // samples (0.4 grey → 102). Those samples are sRGB-ENCODED in an untagged
+        // document (B5-28): +1 EV doubles their DECODED light, 0.4 → 0.551.
+        func decoded(_ v: Double) -> Double {
+            let e = v / 255
+            return e <= 0.04045 ? e / 12.92 : pow((e + 0.055) / 1.055, 2.4)
+        }
+        XCTAssertEqual(before, 102, accuracy: 1.5)
+        XCTAssertEqual(decoded(after) / decoded(before), 2, accuracy: 0.05, "exposure +1 doubles linear light")
     }
 
     @MainActor func testEngineRejectsOutOfDomainValuesWithoutHistory() throws {

@@ -43,9 +43,34 @@ fn camera_raw_tone_on_raster_preserves_alpha() {
             &node("camera_raw", json!({"settings":{"tone":{"exposure":1},"detail":{"sharpening":{"amount":0},"noise_reduction":{"color":0}}},"amount":0.5})),
          &context())
         .unwrap();
+    // B5-28: an untagged document is sRGB-ENCODED. +1 EV doubles decoded
+    // light, and amount 0.5 blends the encoded samples. Above 1 the curve
+    // continues with its endpoint slope (d decode / de at 1 = 2.4 / 1.055).
+    let encode = |v: f32| {
+        if v > 1. {
+            1. + (v - 1.) / (2.4 / 1.055)
+        } else if v <= 0.003_130_8 {
+            12.92 * v
+        } else {
+            1.055 * v.powf(1. / 2.4) - 0.055
+        }
+    };
+    let decode = |e: f32| {
+        if e <= 0.04045 {
+            e / 12.92
+        } else {
+            ((e + 0.055) / 1.055).powf(2.4)
+        }
+    };
     for x in [0, 255, 256, 258] {
         for c in 0..3 {
-            assert!((out.pixel(x, 2)[c] - input.pixel(x, 2)[c] * 1.5).abs() < 1e-6);
+            let before = input.pixel(x, 2)[c];
+            let want = before + 0.5 * (encode(2. * decode(before)) - before);
+            assert!(
+                (out.pixel(x, 2)[c] - want).abs() < 2e-4,
+                "{x}/{c}: {} != {want}",
+                out.pixel(x, 2)[c]
+            );
         }
         assert_eq!(out.pixel(x, 2)[3], input.pixel(x, 2)[3]);
     }

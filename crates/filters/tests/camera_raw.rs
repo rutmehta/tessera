@@ -536,11 +536,13 @@ fn in_memory_develop_slider_source_context_and_hdr_parity() {
                     .unwrap();
             }
             let (forward, backward) = camera_raw::profile_matrices(&context).unwrap();
+            // B5-28: samples are encoded; decode with the profile's curve.
+            let curves = camera_raw::profile_curves(&context).unwrap();
             let mut planes = vec![Vec::new(); 3];
             for y in 0..extent.height {
                 for x in 0..extent.width {
                     let p = input.pixel(x, y);
-                    let rgb = forward.apply([p[0] as f64, p[1] as f64, p[2] as f64]);
+                    let rgb = forward.apply(curves.decode([p[0], p[1], p[2]]).map(f64::from));
                     for c in 0..3 {
                         planes[c].push(rgb[c] as f32);
                     }
@@ -574,11 +576,9 @@ fn in_memory_develop_slider_source_context_and_hdr_parity() {
                     } else {
                         [0.; 3]
                     };
+                    let expected = curves.encode(expected.map(|v| v as f32));
                     for c in 0..3 {
-                        assert_eq!(
-                            actual[c],
-                            before[c] + 0.63 * (expected[c] as f32 - before[c])
-                        );
+                        assert_eq!(actual[c], before[c] + 0.63 * (expected[c] - before[c]));
                     }
                 }
             }
