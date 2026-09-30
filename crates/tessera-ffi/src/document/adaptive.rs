@@ -674,6 +674,7 @@ impl DocumentSession {
         } else {
             let (raster, clip, keep_alpha, depth) =
                 pixels.ok_or_else(|| failure("not a pixel layer"))?;
+            super::liquify::apply_checkpoint(&self.shared, "adaptive:render"); // B5-20d
             let rendered = match evaluate(&raster, params, &stop) {
                 Err(_) if stop.is_cancelled() => return Err(failure("cancelled")),
                 r => r?,
