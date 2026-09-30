@@ -22,7 +22,10 @@
 //!   selection as Filter menu filters), or on a smart object the smart
 //!   filter appended or the re-edited one replaced in place. Errors (solve
 //!   failures, a changed layer, a cancel) never reach history. A cancel
-//!   stops a pixel layer's render between output tiles.
+//!   stops a pixel layer's render between output tiles. A smart object
+//!   whose stack would exceed the compositor's CPU smart-filter pass limit
+//!   (`FilterPassLimits::retained_bytes`, ≈ 33.5 MP) is refused before any
+//!   render with a plain message (B5-20c; pixel layers are unaffected).
 //! - `cancel_adaptive_wide_angle` drops the workspace.
 //!
 //! Camera models: Manual rectilinear or equidistant (fisheye) with a focal
@@ -33,7 +36,7 @@ use super::{DocumentSession, DocumentUpdate, Shared, find, raster_from_rgba};
 use crate::{Result, failure, surface::Surface};
 use compositor::{
     DocOp, LayerId, LayerKind, Raster, Rect, SmartFilter,
-    render::smart_filters::{FilterContext, SmartFilterEvaluator},
+    render::smart_filters::{FilterContext, FilterPassLimits, SmartFilterEvaluator},
 };
 use engine_api::{jobs::CancellationToken, tile::Extent};
 use std::{
@@ -122,6 +125,33 @@ fn jobs() -> std::sync::MutexGuard<'static, HashMap<u64, Arc<Mutex<Job>>>> {
 /// The engine's size limit as a user-facing refusal (`None`: supported).
 pub(crate) fn size_refusal(width: u32, height: u32) -> Option<String> {
     filters::adaptive_lattice::size_refusal(width as usize, height as usize)
+}
+
+/// B5-20c: the refusal for a smart object over the compositor's CPU
+/// smart-filter pass limit (A's decision: keep the limit, say it plainly).
+pub(crate) const SMART_OBJECT_LIMIT_MESSAGE: &str = "Adaptive Wide Angle on a Smart Object is limited to \
+about 33 MP. Rasterize the layer, or apply to a pixel layer.";
+/// What the compositor's full-level CPU pass retains per smart-object pixel
+/// while it renders the stack: the unmasked source and result, RGBA F32 each
+/// (compositor `smart_filters::entry_bytes`, `canvas.area() * 32`).
+const PASS_BYTES_PER_PIXEL: u64 = 32;
+/// The compositor's error for that limit (`FilterPass::reserve`). Only a
+/// fallback: the bridge carries it as text, and the up-front check below
+/// catches the smart object's own entry; this also covers nested smart
+/// objects whose entries add up past the limit.
+const PASS_LIMIT_ERROR: &str = "CPU smart-filter pass retained results exceed configured limit";
+
+/// Largest smart object (pixels) whose stack the compositor's CPU pass can
+/// retain, from the real limit (`FilterPassLimits::default()`, 1 GiB):
+/// 33,554,432.
+pub(crate) fn smart_object_max_pixels() -> u64 {
+    FilterPassLimits::default().retained_bytes as u64 / PASS_BYTES_PER_PIXEL
+}
+
+/// `Some(message)` when the compositor would refuse a smart object of
+/// `extent` (its child canvas) for the pass limit.
+pub(crate) fn smart_object_refusal(extent: Extent) -> Option<&'static str> {
+    (extent.area() > smart_object_max_pixels()).then_some(SMART_OBJECT_LIMIT_MESSAGE)
 }
 
 /// Largest layer (pixels) Adaptive Wide Angle renders, for the app's copy.
@@ -620,6 +650,11 @@ impl DocumentSession {
             ));
         }
         let update = if smart {
+            // Refused before rendering: the stack cannot fit the compositor's
+            // CPU smart-filter pass (`extent` is the child canvas).
+            if let Some(why) = smart_object_refusal(extent) {
+                return Err(failure(why));
+            }
             // Validated by rendering the whole stack before the node is added.
             self.set_adapter_smart_filter(
                 layer,
@@ -629,7 +664,13 @@ impl DocumentSession {
                 ADAPTIVE_WIDE_ANGLE_ID,
                 params,
                 &cancel,
-            )?
+            )
+            .map_err(|e| match e {
+                crate::BridgeError::Failure { message } if message.contains(PASS_LIMIT_ERROR) => {
+                    failure(SMART_OBJECT_LIMIT_MESSAGE)
+                }
+                e => e,
+            })?
         } else {
             let (raster, clip, keep_alpha, depth) =
                 pixels.ok_or_else(|| failure("not a pixel layer"))?;
@@ -777,6 +818,25 @@ mod tests {
         assert!(c.chunks(2).all(|p| (p[1] - 100.).abs() < 1e-6));
         assert!(adaptive_wide_angle_curve(json.clone(), vec![1., 1.], vec![1., 1.]).is_err());
         assert!(adaptive_wide_angle_curve(json, vec![1.], vec![1., 1.]).is_err());
+    }
+
+    #[test]
+    fn the_smart_object_limit_comes_from_the_compositor_pass_limit() {
+        assert_eq!(smart_object_max_pixels(), 33_554_432);
+        let e = |w, h| Extent {
+            width: w,
+            height: h,
+        };
+        assert_eq!(smart_object_refusal(e(6000, 5500)), None);
+        assert_eq!(
+            smart_object_refusal(e(8192, 4096)),
+            None,
+            "exactly the limit"
+        );
+        assert_eq!(
+            smart_object_refusal(e(6000, 6000)),
+            Some(SMART_OBJECT_LIMIT_MESSAGE)
+        );
     }
 
     #[test]
