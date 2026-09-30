@@ -58,12 +58,12 @@ Updated with justification (GREEN `dbf73f25` + Swift follow-up):
   `x + 0.5·(enc(2·dec(x)) − x)` with sRGB curve and endpoint-slope extension above 1; < 2e-4.
 - Swift `testNeutralIsIdentityAndExposureDoublesLinear` and `testReEditDetailPaneShowsTheFilterOnce`: ratios
   asserted on decoded samples (×2 once, ×4 stacked; the stacked filter no longer clips at 255).
+- Merge of main (B5-27): the detail pane now holds the canvas's own bytes (no `srgb_u8` re-encode), so Swift `mean`
+  reads raw pane bytes (0.4 grey -> 102) and the ratio checks decode them with `decoded()`. The earlier
+  "pane brighter than the canvas" follow-up is resolved by B5-27.
 - tessera-ffi Camera Raw tests (B5-18/18b/27): **no change needed**, all pass.
 
 ## Follow-ups (out of scope, not changed)
-- `crates/tessera-ffi/src/document/filters.rs` ~3364 (B5-18b detail pane) sRGB-encodes samples via `srgb_u8` as if
-  they were linear, while the canvas (`render.rs` `quantize`) shows them directly. The pane is therefore brighter
-  than the canvas for 8/16-bit docs. Swift/ffi tests decode the pane to recover samples, which is why they still hold.
 - `document_adaptive_ui::cancel_during_a_real_size_commit_stops_the_render_without_history` fails in `--release`
   on main as well (commit finishes in ≈0.31 s, before the 300 ms cancel); unrelated to this package.
 

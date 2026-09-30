@@ -4861,9 +4861,11 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     /**
      * `filter_json` on the layer's own pixels (on a smart object: after its
      * smart filters) over `width × height` level-0 pixels at `(x, y)`,
-     * written into an RGBA8 IOSurface (straight alpha, sRGB-encoded like the
-     * canvas shows the document's linear samples) the session retains
+     * written into an RGBA8 IOSurface (straight alpha) the session retains
      * until the next call: the filter dialog's 1:1 detail pane. Blocking.
+     * B5-27: the pane holds the same bytes the canvas surfaces would for
+     * that region (the document's own samples in its working profile, sRGB
+     * or Display P3 alike), so the host draws it exactly as the canvas.
      */
     func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32) throws  -> FilterDetail
     
@@ -6879,9 +6881,11 @@ open func convertForSmartFilters(layer: UInt64)throws  -> DocumentUpdate  {
     /**
      * `filter_json` on the layer's own pixels (on a smart object: after its
      * smart filters) over `width × height` level-0 pixels at `(x, y)`,
-     * written into an RGBA8 IOSurface (straight alpha, sRGB-encoded like the
-     * canvas shows the document's linear samples) the session retains
+     * written into an RGBA8 IOSurface (straight alpha) the session retains
      * until the next call: the filter dialog's 1:1 detail pane. Blocking.
+     * B5-27: the pane holds the same bytes the canvas surfaces would for
+     * that region (the document's own samples in its working profile, sRGB
+     * or Display P3 alike), so the host draws it exactly as the canvas.
      */
 open func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32)throws  -> FilterDetail  {
     return try  FfiConverterTypeFilterDetail_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -37617,7 +37621,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_convert_for_smart_filters() != 47318) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_detail() != 24838) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_detail() != 37629) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_filter_error() != 38602) {
