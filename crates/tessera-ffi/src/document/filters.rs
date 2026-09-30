@@ -2049,19 +2049,16 @@ fn filtered_with_cancel(
     Ok(cur.crop(region))
 }
 
-/// A linear 0…1 sample, sRGB-encoded to 8 bits.
-fn srgb_u8(v: f32) -> u8 {
+/// B5-27: a 0…1 document sample to 8 bits as the canvas presents it
+/// (`render::quantize`, the GPU `rgba8unorm` store): the document's own
+/// encoding, no transfer curve and no profile conversion.
+fn canvas_u8(v: f32) -> u8 {
     let v = if v.is_finite() {
         v.clamp(0.0, 1.0)
     } else {
         0.0
     };
-    let e = if v <= 0.003_130_8 {
-        12.92 * v
-    } else {
-        1.055 * v.powf(1.0 / 2.4) - 0.055
-    };
-    (e * 255.0 + 0.5) as u8
+    (v * 255.0 + 0.5) as u8
 }
 
 /// The stack a preview evaluates.
@@ -3265,9 +3262,11 @@ impl DocumentSession {
 
     /// `filter_json` on the layer's own pixels (on a smart object: after its
     /// smart filters) over `width × height` level-0 pixels at `(x, y)`,
-    /// written into an RGBA8 IOSurface (straight alpha, sRGB-encoded like the
-    /// canvas shows the document's linear samples) the session retains
+    /// written into an RGBA8 IOSurface (straight alpha) the session retains
     /// until the next call: the filter dialog's 1:1 detail pane. Blocking.
+    /// B5-27: the pane holds the same bytes the canvas surfaces would for
+    /// that region (the document's own samples in its working profile, sRGB
+    /// or Display P3 alike), so the host draws it exactly as the canvas.
     pub fn filter_detail(
         &self,
         layer: u64,
@@ -3361,12 +3360,12 @@ impl DocumentSession {
                         } else {
                             [0.0; 4]
                         };
-                        // B5-18b: sRGB-encoded (the pane is an sRGB image
-                        // of the linear samples the canvas shows).
-                        for c in 0..3 {
-                            px[o + c] = srgb_u8(p[c]);
+                        // B5-27: the canvas's bytes, not re-encoded to sRGB
+                        // (that brightened every pane and could not follow
+                        // a Display P3 document's encoding).
+                        for c in 0..4 {
+                            px[o + c] = canvas_u8(p[c]);
                         }
-                        px[o + 3] = (p[3].clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
                     }
                 }
             })
