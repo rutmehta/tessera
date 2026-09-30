@@ -129,3 +129,31 @@ fn empty_develop_row_imports_as_unedited() {
     let img = plan.images.iter().find(|i| i.catalog_id == 32).unwrap();
     assert_eq!(img.recipe.settings.tone.exposure, 0.0);
 }
+
+#[test]
+fn untranslatable_smart_collection_is_reported_not_fatal() {
+    let (_dir, f) = setup();
+    let c = Connection::open(&f.catalog).unwrap();
+    c.execute_batch(
+        r#"INSERT INTO AgLibraryCollection VALUES
+            (30,'Recent',NULL,'com.adobe.ag.library.smart_collection'),
+            (31,'No rules',NULL,'com.adobe.ag.library.smart_collection');
+           INSERT INTO AgLibraryCollectionContent VALUES
+            (30,'s = { { criteria = "captureTime", operation = "inLast", value = 1, value_units = "months", }, combine = "intersect", }');"#,
+    )
+    .unwrap();
+    drop(c);
+    let plan = import(&f.catalog).unwrap();
+    let ids: Vec<i64> = plan.library.smart_albums.iter().map(|s| s.id).collect();
+    assert_eq!(ids, [3, 5]);
+    assert!(
+        plan.report
+            .iter()
+            .any(|r| r.contains("smart collection 30") && r.contains("unknown rule field"))
+    );
+    assert!(
+        plan.report
+            .iter()
+            .any(|r| r.contains("smart collection 31") && r.contains("no rules"))
+    );
+}
