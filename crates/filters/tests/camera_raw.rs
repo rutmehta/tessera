@@ -148,8 +148,9 @@ fn decoded_fixture(builtin: Builtin) -> (RawImage, Raster, FilterContext, Transf
 
 /// Encoded-sample tolerance of the Develop parity golden. The filter's
 /// 4096-entry per-channel LUT (linear interpolation, exact PL inverse) vs the
-/// analytic LCMS curve, plus f32 render noise, stays well below 1/4096.
-const GOLDEN_TOLERANCE: f32 = 0.0004;
+/// analytic LCMS curve, plus f32 render noise, stays well below 1/4096
+/// (measured worst 5.3e-5, Adobe RGB).
+const GOLDEN_TOLERANCE: f32 = 0.0001;
 
 /// The library Develop render of the same PNG (scene-linear Rec.2020, then the
 /// document profile's matrix and TRC) is what the filter must produce.
@@ -287,10 +288,11 @@ fn neutral_settings_are_identity_on_encoded_samples() {
     let mut input = Raster::new(extent, 4, Depth::F32, 0.);
     input
         .edit_region(Rect::of_extent(extent), 1, |x, y, p| {
-            let v = x as f32 / 22.;
+            // -0.35 ..= 1.4, so every channel has samples below 0 and above 1.
+            let v = x as f32 / 22. * 1.75 - 0.35;
             *p = [
                 v,
-                (v * 0.7 + y as f32 * 0.05).min(1.),
+                v * 0.7 + y as f32 * 0.2 - 0.1,
                 1. - v,
                 (y % 3) as f32 / 2.,
             ];

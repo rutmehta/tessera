@@ -43,7 +43,7 @@ P3, Adobe RGB, linear Rec.2020; < 2e-4), `linear_profile_transfer_is_exact_ident
 Develop parity: the golden fixture now stores the PNG as ENCODED document samples (`RawImage::open` PNG ->
 linear Rec.2020 -> document matrix -> document TRC via LCMS, independent of the filter's LUT) and compares the
 filter against `Renderer::render_region_as(.., RenderOutput::SceneLinear)` of the same PNG, encoded the same way.
-Tolerance 4e-4 encoded; measured max 4.9e-5 (sRGB), 4.7e-5 (P3), 5.3e-5 (Adobe RGB).
+Tolerance 1e-4 encoded (was 4e-4, tightened after A review); measured max 4.9e-5 (sRGB), 4.7e-5 (P3), 5.3e-5 (Adobe RGB).
 GPU vs CPU evaluator on encoded input: tolerance 0.002; measured ≤ 3.7e-5 (linear Rec.2020 3.3e-6).
 
 Updated with justification (GREEN `dbf73f25` + Swift follow-up):
@@ -52,10 +52,14 @@ Updated with justification (GREEN `dbf73f25` + Swift follow-up):
 - `camera_raw_gpu.rs::cpu_reference`: decodes/encodes with `profile_curves`.
 - `resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha` and ignored `bench_24mp_cpu_gpu`: compare
   encoded samples; the 0.002 bound is unchanged in [-1,1] and **relative above |1|**. Decoded (darker) input drives
-  a few rich-chain outliers (sharpening 57 + dehaze on a noise pattern) to ≈6.4 encoded, where CPU/GPU agree to
-  ≈0.11 % relative (absolute 0.0072). Measured scaled max 0.00116. The bench passes (CPU 22 s, GPU 1.3 s).
+  a few rich-chain outliers (sharpening 57 + dehaze on a noise pattern) far above 1, where CPU/GPU agree to
+  ≈0.12 % relative. Measured scaled max 0.00116; absolute max 0.0072 at amount 0.35 and 0.0205 at amount 1
+  (one sample at 17.7 encoded). Tightening after A's review: an absolute ceiling of 0.025 on top of the
+  relative bound (A suggested ~0.01, which the 17.7 sample exceeds). The bench passes (CPU 22 s, GPU 1.3 s).
 - `compositor_adapter.rs::camera_raw_tone_on_raster_preserves_alpha`: expectation `x × 1.5` (linear) ->
-  `x + 0.5·(enc(2·dec(x)) − x)` with sRGB curve and endpoint-slope extension above 1; < 2e-4.
+  `x + 0.5·(enc(2·dec(x)) − x)` with sRGB curve and endpoint-slope extension above 1; < 5e-5 (was 2e-4). Measured ≤ 1.4e-6 in
+  [0,1] but 2.8e-5 for the sample at 1.0 (+1 EV lands above 1, where the filter uses the LUT's last-segment slope
+  and the test the analytic 2.4/1.055), so A's suggested 1e-5 fails; 5e-5 is the tightest round bound.
 - Swift `testNeutralIsIdentityAndExposureDoublesLinear` and `testReEditDetailPaneShowsTheFilterOnce`: ratios
   asserted on decoded samples (×2 once, ×4 stacked; the stacked filter no longer clips at 255).
 - Merge of main (B5-27): the detail pane now holds the canvas's own bytes (no `srgb_u8` re-encode), so Swift `mean`
@@ -64,6 +68,10 @@ Updated with justification (GREEN `dbf73f25` + Swift follow-up):
 - tessera-ffi Camera Raw tests (B5-18/18b/27): **no change needed**, all pass.
 
 ## Follow-ups (out of scope, not changed)
+- GPU vs CPU gap at bright values: in `resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha` the
+  rich chain (sharpening + dehaze on the noise pattern) drives samples to ≈17.7 encoded, where the resident and
+  CPU paths differ by 0.0205 absolute (≈0.12 % relative). Find which operator (sharpen, dehaze, or their order in
+  f32) diverges and whether the gap can be brought under 0.01 absolute.
 - `document_adaptive_ui::cancel_during_a_real_size_commit_stops_the_render_without_history` fails in `--release`
   on main as well (commit finishes in ≈0.31 s, before the 300 ms cancel); unrelated to this package.
 

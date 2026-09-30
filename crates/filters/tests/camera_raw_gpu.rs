@@ -175,26 +175,36 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
         let actual = readback(&gpu, &output, extent.area() * 16);
         // B5-28: samples are sRGB-encoded (untagged), so this compares
         // encoded samples. The decoded (darker) input drives a few rich-chain
-        // outliers far above 1 (up to ~6.4 encoded); the resident and CPU
-        // operators agree there to ~0.1 % RELATIVE, so the unchanged 0.002
-        // bound is absolute in [-1, 1] and relative beyond it.
+        // outliers far above 1 (one reaches ~17.7 encoded at amount 1); the
+        // resident and CPU operators agree there to ~0.12 % RELATIVE, so the
+        // unchanged 0.002 bound is absolute in [-1, 1] and relative beyond it.
+        // An absolute ceiling of 0.025 (measured 0.0205, at that 17.7 sample)
+        // keeps a large value from hiding a large gap; see B5-28 HANDOFF
+        // follow-up on the bright-value GPU/CPU gap.
         let mut max_error = 0.0_f32;
+        let mut max_absolute = 0.0_f32;
         for (i, p) in actual.iter().enumerate() {
             let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
             assert_eq!(p[3].to_bits(), data[i][3].to_bits());
             for c in 0..3 {
                 assert!(p[c].is_finite());
                 let scale = expected[c].abs().max(1.);
-                max_error = max_error.max((p[c] - expected[c]).abs() / scale);
+                let gap = (p[c] - expected[c]).abs();
+                max_error = max_error.max(gap / scale);
+                max_absolute = max_absolute.max(gap);
                 if amount == 0. {
                     assert_eq!(p[c].to_bits(), data[i][c].to_bits());
                 }
             }
         }
-        eprintln!("amount {amount}: max scaled error {max_error}");
+        eprintln!("amount {amount}: max scaled error {max_error}, max absolute {max_absolute}");
         assert!(
             max_error < 0.002,
             "amount {amount}: max absolute RGB error (relative above 1) {max_error}"
+        );
+        assert!(
+            max_absolute < 0.025,
+            "amount {amount}: max absolute RGB error {max_absolute}"
         );
     }
 }

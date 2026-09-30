@@ -46,6 +46,8 @@ fn camera_raw_tone_on_raster_preserves_alpha() {
     // B5-28: an untagged document is sRGB-ENCODED. +1 EV doubles decoded
     // light, and amount 0.5 blends the encoded samples. Above 1 the curve
     // continues with its endpoint slope (d decode / de at 1 = 2.4 / 1.055).
+    // Measured gap: <= 1.4e-6 in [0, 1]; 2.8e-5 above 1, where the filter
+    // extends with its LUT's last-segment slope rather than this analytic one.
     let encode = |v: f32| {
         if v > 1. {
             1. + (v - 1.) / (2.4 / 1.055)
@@ -67,7 +69,7 @@ fn camera_raw_tone_on_raster_preserves_alpha() {
             let before = input.pixel(x, 2)[c];
             let want = before + 0.5 * (encode(2. * decode(before)) - before);
             assert!(
-                (out.pixel(x, 2)[c] - want).abs() < 2e-4,
+                (out.pixel(x, 2)[c] - want).abs() < 5e-5,
                 "{x}/{c}: {} != {want}",
                 out.pixel(x, 2)[c]
             );

@@ -48,7 +48,9 @@ matrix, develop, apply the inverse matrix, re-encode with the same TRC.
 transform (color-mgmt/LCMS, no BPC) into a 4096-entry per-channel decode table;
 decode interpolates it linearly and encode is the exact inverse of that
 piecewise-linear decode (binary search), so CPU and resident GPU evaluate the
-identical curve and `encode(decode(x)) == x`. Float samples outside [0,1]:
+identical curve. `encode(decode(x)) == x` holds on strictly increasing
+segments of the decode table; a flat run (equal adjacent entries) maps back to
+the run's right end. Float samples outside [0,1]:
 point-symmetric about decode(0) below zero (odd-symmetric for every normal TRC)
 and continued with the endpoint slope above one. A linear-TRC profile (linear
 Rec.2020 float documents) is detected and is an exact identity, keeping the
