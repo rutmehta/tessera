@@ -1,3 +1,11 @@
+## B5-20 Adaptive Wide Angle integrated; batches 6-8 — 2026-09-29
+
+- 3f6b9aca batch 6: B5-22 frame-cancellation test hardening (31e6dba7), B5-24 vector self-test inspector-tab lookup (1754dc4e). swift-gate 843/0.
+- 00f8152f batch 7: tessera-ffi test isolation (per-fixture image ids for the process-wide admission gate; save/undo race waits for first save). hdr_saved_offline_recipe flake fixed (6/10 → 0/20). Remaining load-sensitive timing test composite_thumbnails_reuse_mips_across_edits (warm >4× faster than cold) left unchanged pending decision.
+- 8a030b55 batch 8: B5-20 AWA (23c8faa2) + B5-20b coarse-lattice solve (769c7b2a). New smart-filter id in existing storage, FORMAT_VERSION 1, no external deps (internal filters→transform path dep only). Layers under the 16.7M-vertex lattice cap render byte-for-byte as B5-20; larger layers solve on ≤2,097,152 vertices and sample at full res; >100 MP refused. Constraint segments derived from error bound (full-width horizon at 24 MP passes). Measured 100 MP peak: 4.06 GB U8, 5.25 GB F32; smart-object begin +3.24 GB. Independent reviews APPROVE. Gates on exact tree: swift-gate 854/0, ffi+filters+transform tests pass, clippy/fmt/strict OK, bindings identical.
+  Accepted limitations (minimal complexity): smart-object AWA refused above ~33.5 MP by the 1 GiB FilterPassLimits (plain-language message follow-up B5-20c); ~100 MP tilt limit of the 17×17 mesh.
+Pending: B5-21 Tab loop awaiting on-screen FKA checklist (screen control not approved yet).
+
 ## Batch 5 integrated — 2026-09-29
 
 Main 4a1359c9 = 8d3996f7 + B5-18b 3d3d29de (Camera Raw viewport preview; detail effects omitted only when preview level>0, note tied to engine level via filter_preview_level), B5-23 630d4ace (Photoshop ⌘-click channel load; sweep doc), claude/selftest-quit-fix 5a4a773a (export/print/timing self-tests quit after gate release and Develop close), B5-22 e373b993 (latest-wins document frame coalescing; fixes 20 MP vector drag freeze from bb020485). Each independently reviewed (no blockers). Gates on exact tree: swift-gate 843/0, bindings identical, tessera-ffi serial pass, strict OK.
