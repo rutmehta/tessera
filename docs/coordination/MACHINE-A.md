@@ -1,3 +1,12 @@
+## Batches 9-12 integrated — 2026-09-29
+
+- 031eaa56 B5-20c: plain smart-object size message for AWA (limit derived from FilterPassLimits, ~33.5 MP).
+- c7eda9ad B5-27: 1:1 detail pane shows canvas bytes. Root cause: the canvas performs no colour conversion (CPU quantize / GPU present.wgsl store), and B5-18b's pane sRGB-encoded already-encoded samples (every pane too bright, not only P3). Known limitation recorded: canvas does not colour-manage non-sRGB documents (product decision pending).
+- f28e2bdf B5-26: AWA focal-slider re-trace off main, latest-wins; OK surfaces failed traces.
+- c3c257e6 B5-28 + B5-20d: Camera Raw document filter now decodes/encodes the document profile transfer curve (LCMS-sampled 4096-entry LUT, cached by ICC digest; CPU and GPU share one curve; amount blends in encoded space). Confirmed bug: document samples are encoded everywhere (COMPOSITOR.md:119, io.rs, render.rs) but camera_raw.rs treated them as linear; +1 EV on encoded 0.5 gave 1.0 instead of 0.6858. Develop-golden parity ≤5.3e-5, GPU/CPU ≤3.7e-5. Existing Camera Raw smart filters re-render (correctly); no format bump (pre-release). B5-20d makes two AWA cancel tests deterministic.
+All independently reviewed. Gates on exact trees: swift-gate 855–861/0, rust tests, clippy/fmt/strict OK, bindings identical.
+Pending: B5-21 + B5-25 (Tab loop + keyboard data-safety; reviews and gates pass) await on-screen 22-step FKA checklist — screen control not yet approved. B running release-build profiling pass.
+
 ## B5-20 Adaptive Wide Angle integrated; batches 6-8 — 2026-09-29
 
 - 3f6b9aca batch 6: B5-22 frame-cancellation test hardening (31e6dba7), B5-24 vector self-test inspector-tab lookup (1754dc4e). swift-gate 843/0.
