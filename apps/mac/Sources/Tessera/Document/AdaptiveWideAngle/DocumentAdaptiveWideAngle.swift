@@ -7,8 +7,8 @@ import TesseraCore
 /// The engine snapshots the layer (`begin_adaptive_wide_angle`) and renders proxy previews of the recipe this model
 /// edits (`AdaptiveWideAngleDraft`): a camera model (Perspective or Fisheye) with a focal length, a scale, and
 /// constraint lines drawn on the source. Each line is traced by the engine along the camera model's image of a
-/// straight edge (`adaptive_wide_angle_curve`), as Photoshop's Constraint tool bends its lines. Previews run off the
-/// main thread, latest wins. OK renders at full resolution as one history node (`RetouchJobs`): the pixels of a
+/// straight edge (`adaptive_wide_angle_curve`), as Photoshop's Constraint tool bends its lines. Camera changes re-trace
+/// the lines and previews run off the main thread, latest wins. OK renders at full resolution as one history node (`RetouchJobs`): the pixels of a
 /// pixel layer, or a smart filter on a smart object; double-clicking that smart filter re-opens it here.
 @MainActor @Observable
 final class DocumentAdaptiveWideAngle {
@@ -110,6 +110,10 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
     var busy: String? { jobs.running?.title }
 
     @ObservationIgnored private var gate = LatestRequestBuffer<String>()
+    /// Constraint re-traces after a camera change (B5-26): one in flight, the newest queued, older results dropped.
+    @ObservationIgnored private var traceGate = LatestRequestBuffer<AdaptiveWideAngleDraft>()
+    /// The curves lag the camera: a re-trace is queued or in flight.
+    @ObservationIgnored private var curvesStale = false
     @ObservationIgnored private var fitted = false
     @ObservationIgnored private var closed = false
     @ObservationIgnored private var tracedKey: String
@@ -157,13 +161,12 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
 
     var projection: AdaptiveProjection {
         get { draft.projection }
-        set { draft.projection = newValue; retrace(); schedulePreview() }
+        set { draft.projection = newValue; cameraChanged() }
     }
 
     func setFocal(_ mm: Double) {
         draft.setFocal35(mm)
-        retrace()
-        schedulePreview()
+        cameraChanged()
     }
 
     func setScale(_ percent: Double) {
@@ -251,19 +254,54 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
         return true
     }
 
-    /// Re-traces every line after a camera change (pure maths in the engine: synchronous).
-    private func retrace() {
-        guard draft.curveKey != tracedKey else { return }
+    /// A camera change: re-trace the lines off the main thread (latest wins), then preview; with no lines (or no
+    /// change to the curves) preview at once.
+    private func cameraChanged() {
+        guard draft.curveKey != tracedKey else { return schedulePreview() }
         tracedKey = draft.curveKey
+        guard !draft.lines.isEmpty else {
+            traceGate.invalidate()
+            curvesStale = false
+            return schedulePreview()
+        }
+        curvesStale = true
+        changed()
+        if !closed, let r = traceGate.submit(draft) { trace(r) }
+    }
+
+    private func trace(_ request: LatestRequestBuffer<AdaptiveWideAngleDraft>.Request) {
+        let (tracer, d) = (tracer, request.value)
+        Task { @MainActor [weak self] in
+            let curves = await Task.detached(priority: .userInitiated) { Self.traceAll(d, tracer) }.value
+            guard let self else { return }
+            let (accept, next) = self.traceGate.finish(request.generation)
+            if accept, !self.closed { self.applyTrace(from: d, curves) }
+            if let next, !self.closed { self.trace(next) }
+        }
+    }
+
+    /// Traces every line of `d` under its camera.
+    nonisolated private static func traceAll(_ d: AdaptiveWideAngleDraft,
+                                             _ tracer: (String, CGPoint, CGPoint) throws -> [CGPoint]) -> [Result<[CGPoint], Error>] {
+        let json = d.recipeJson
+        return d.lines.map { l in Result { try tracer(json, l.from, l.to) } }
+    }
+
+    /// Lands a re-trace on the current draft: lines are matched by their ends (lines added meanwhile were already
+    /// traced under this camera; removed ones are skipped).
+    private func applyTrace(from traced: AdaptiveWideAngleDraft, _ curves: [Result<[CGPoint], Error>]) {
+        guard traced.curveKey == draft.curveKey else { return }
         var d = draft
         for i in d.lines.indices {
-            do {
-                d.setCurve(try tracer(d.recipeJson, d.lines[i].from, d.lines[i].to), at: i)
-            } catch {
-                self.error = "Constraint \(i + 1): \(error.localizedDescription)"
+            guard let j = traced.lines.firstIndex(where: { $0.from == d.lines[i].from && $0.to == d.lines[i].to }) else { continue }
+            switch curves[j] {
+            case .success(let p): d.setCurve(p, at: i)
+            case .failure(let e): error = "Constraint \(i + 1): \(e.localizedDescription)"
             }
         }
         draft = d
+        curvesStale = false
+        schedulePreview()
     }
 
     // MARK: Preview
@@ -319,9 +357,15 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
 
     func ok() {
         guard busy == nil, !closed else { return }
-        let (b, t, json, doc, title) = (backend, info.token, draft.recipeJson, doc, title)
+        let (b, t, d, doc, title, tracer) = (backend, info.token, draft, doc, title, tracer)
+        // OK while a re-trace is pending: trace the final camera inside the render job (off the main thread).
+        let stale = curvesStale
         let refused = jobs.start("Applying \(title)…", operation: title, {
-            try b.commitAdaptiveWideAngle(token: t, recipeJson: json)
+            var d = d
+            if stale {
+                for (i, r) in Self.traceAll(d, tracer).enumerated() { if case .success(let p) = r { d.setCurve(p, at: i) } }
+            }
+            return try b.commitAdaptiveWideAngle(token: t, recipeJson: d.recipeJson)
         }) { [weak self] end in
             guard let self else { return }
             switch end {
@@ -360,6 +404,7 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
     private func close() {
         closed = true
         gate.invalidate()
+        traceGate.invalidate()
         DocumentAdaptiveWideAngle.shared.closed(self)
     }
 }
