@@ -282,7 +282,39 @@ fn live(s: &DocumentSession, level: u8) -> Vec<f32> {
     s.read_presented_level(level).unwrap().2
 }
 
-fn srgb_to_linear(v: u8) -> f32 {
+/// The pane's bytes as 0…1 straight RGBA. B5-27: like the canvas surfaces,
+/// the pane holds the document's own samples (its encoding, its profile)
+/// quantized to 8 bits, so these compare directly with the canvas samples.
+fn pane(d: &FilterDetail) -> Vec<f32> {
+    pane_bytes(d)
+        .into_iter()
+        .map(|v| f32::from(v) / 255.0)
+        .collect()
+}
+
+fn pane_bytes(d: &FilterDetail) -> Vec<u8> {
+    let surface = tessera_ffi::surface::Surface::lookup(d.surface_id, d.width, d.height).unwrap();
+    let mut out = Vec::new();
+    surface
+        .with_pixels(|px, stride| {
+            for y in 0..d.height as usize {
+                out.extend_from_slice(&px[y * stride..y * stride + d.width as usize * 4]);
+            }
+        })
+        .unwrap();
+    out
+}
+
+/// What the canvas writes to its RGBA8 surfaces for a sample (CPU `quantize`,
+/// GPU `textureStore` into `rgba8unorm`).
+fn canvas_byte(v: f32) -> u8 {
+    (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8
+}
+
+/// Display light of one 8-bit colour channel: the host decodes canvas bytes
+/// with `rgba8Unorm_srgb` into an extended linear sRGB layer, and pane bytes
+/// through the colour space of the pane's CGImage (sRGB).
+fn display_linear(v: u8) -> f32 {
     let e = f32::from(v) / 255.0;
     if e <= 0.04045 {
         e / 12.92
@@ -291,24 +323,38 @@ fn srgb_to_linear(v: u8) -> f32 {
     }
 }
 
-/// The detail pane decoded to linear straight RGBA.
-fn pane(d: &FilterDetail) -> Vec<f32> {
-    let surface = tessera_ffi::surface::Surface::lookup(d.surface_id, d.width, d.height).unwrap();
-    let mut out = Vec::new();
-    surface
-        .with_pixels(|px, stride| {
-            for y in 0..d.height as usize {
-                for x in 0..d.width as usize {
-                    let o = y * stride + x * 4;
-                    for c in 0..3 {
-                        out.push(srgb_to_linear(px[o + c]));
-                    }
-                    out.push(f32::from(px[o + 3]) / 255.0);
-                }
+fn builtin_icc(b: color_mgmt::Builtin) -> Vec<u8> {
+    color_mgmt::Registry::new()
+        .builtin(b)
+        .unwrap()
+        .icc_bytes()
+        .to_vec()
+}
+
+/// A 16-bit opaque PNG of saturated colour (outside sRGB when read as
+/// Display P3) with an embedded `icc` profile.
+fn tagged_png(dir: &Path, name: &str, w: u32, h: u32, icc: Vec<u8>) -> PathBuf {
+    use image::ImageEncoder;
+    let mut bytes = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            let ramp = x as f32 / w as f32;
+            let rgb = match (x / 16 + y / 16) % 3 {
+                0 => [0.95, 0.05 + 0.3 * ramp, 0.08],
+                1 => [0.1, 0.9 - 0.4 * ramp, 0.2],
+                _ => [0.15 + 0.5 * ramp, 0.2, 0.92],
+            };
+            for v in rgb {
+                bytes.extend_from_slice(&((v * 65535.0 + 0.5) as u16).to_ne_bytes());
             }
-        })
+        }
+    }
+    let path = dir.join(name);
+    let mut enc = image::codecs::png::PngEncoder::new(std::fs::File::create(&path).unwrap());
+    enc.set_icc_profile(icc).unwrap();
+    enc.write_image(&bytes, w, h, image::ExtendedColorType::Rgb16)
         .unwrap();
-    out
+    path
 }
 
 // ───────────────────────────── tests ─────────────────────────────
@@ -450,10 +496,78 @@ fn detail_pane_renders_the_tile_and_matches_the_canvas() {
         s.wait_filters_idle();
         assert_eq!(s.filter_error(), None);
         let canvas = crop(&s.read_presented_level(0).unwrap().2, w, x0, y0, dw, dh);
-        // sRGB-encoded 8 bits: at most half a step near white (~0.0045 linear).
+        // B5-27: 8-bit quantization of the same samples: half a step.
         let diff = max_diff(&pane, &canvas);
         assert!(diff <= 0.01, "pane vs canvas {diff}");
         s.clear_preview().unwrap();
+    }
+}
+
+/// B5-27: the pane shows what the canvas shows for the same region, in sRGB
+/// and Display P3 documents alike. The canvas presents a document's samples
+/// in the document's own encoding (no conversion), and the host decodes the
+/// canvas surfaces and the pane's CGImage through the same sRGB curve, so the
+/// pane's bytes must be the canvas's bytes. Tolerance: one 8-bit step
+/// (rounding), and at most 0.005 in decoded display light.
+#[test]
+fn detail_pane_matches_the_canvas_in_srgb_and_display_p3_documents() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let (w, h) = (256usize, 192usize);
+    let (x0, y0, dw, dh) = (40usize, 30usize, 96usize, 64usize);
+    for (file, icc, profile) in [
+        ("srgb.png", builtin_icc(color_mgmt::Builtin::Srgb), "sRGB"),
+        ("p3.png", builtin_icc(color_mgmt::Builtin::DisplayP3), "P3"),
+    ] {
+        let s = open(
+            &engine,
+            &tagged_png(dir.path(), file, w as u32, h as u32, icc),
+        );
+        let name = s.info().unwrap().profile_name.unwrap_or_default();
+        assert!(name.contains(profile), "{file}: document profile {name}");
+        let id = s.layers().unwrap()[0].id;
+        for json in [
+            r#"{"id":"gaussian_blur","params":{"radius":2}}"#.to_owned(),
+            camera_raw(
+                serde_json::json!({"tone": {"exposure": 0.4}, "color": {"saturation": 20.0}}),
+            ),
+        ] {
+            let d = s
+                .filter_detail(id, json.clone(), x0 as i64, y0 as i64, dw as u32, dh as u32)
+                .unwrap();
+            assert_eq!((d.width, d.height, d.level), (dw as u32, dh as u32, 0));
+            let pane = pane_bytes(&d);
+            s.set_viewport(0, x0 as u32, y0 as u32, dw as u32, dh as u32, 1.0)
+                .unwrap();
+            s.preview_filter(
+                id,
+                json.clone(),
+                region(x0 as i64, y0 as i64, dw as i64, dh as i64),
+            )
+            .unwrap();
+            s.wait_filters_idle();
+            assert_eq!(s.filter_error(), None);
+            let canvas: Vec<u8> = crop(&s.read_presented_level(0).unwrap().2, w, x0, y0, dw, dh)
+                .into_iter()
+                .map(canvas_byte)
+                .collect();
+            let (mut worst_byte, mut worst_light) = (0u8, 0f32);
+            for (i, (&p, &c)) in pane.iter().zip(&canvas).enumerate() {
+                worst_byte = worst_byte.max(p.abs_diff(c));
+                if i % 4 < 3 {
+                    worst_light = worst_light.max((display_linear(p) - display_linear(c)).abs());
+                }
+            }
+            assert!(
+                worst_byte <= 1,
+                "{file} {json}: pane vs canvas bytes differ by {worst_byte}"
+            );
+            assert!(
+                worst_light <= 0.005,
+                "{file} {json}: pane vs canvas display light differs by {worst_light}"
+            );
+            s.clear_preview().unwrap();
+        }
     }
 }
 

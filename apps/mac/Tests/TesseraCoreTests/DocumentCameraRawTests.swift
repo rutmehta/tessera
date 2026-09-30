@@ -256,7 +256,8 @@ final class DocumentCameraRawTests: XCTestCase {
         return (doc, filters)
     }
 
-    /// Mean linear red of the layer through `filterJson`, 0…255 (the detail pane is sRGB-encoded, B5-18b).
+    /// Mean red sample of the layer through `filterJson`, 0…255. B5-27: the detail pane holds the
+    /// document's own samples, like the canvas surfaces (Camera Raw treats them as linear).
     private func mean(_ f: any DocumentFiltersBackend, _ layer: DocLayerID, _ json: String,
                       smartIndex: UInt32? = nil) throws -> Double {
         let d = try f.filterDetail(layer: layer, smartIndex: smartIndex, filterJson: json, x: 0, y: 0, width: 16, height: 16)
@@ -266,11 +267,7 @@ final class DocumentCameraRawTests: XCTestCase {
         let base = IOSurfaceGetBaseAddress(s).assumingMemoryBound(to: UInt8.self)
         let stride = IOSurfaceGetBytesPerRow(s)
         var sum = 0.0
-        func linear(_ v: UInt8) -> Double {
-            let e = Double(v) / 255
-            return e <= 0.04045 ? e / 12.92 : pow((e + 0.055) / 1.055, 2.4)
-        }
-        for y in 0..<16 { for x in 0..<16 { sum += linear(base[y * stride + x * 4]) * 255 } }
+        for y in 0..<16 { for x in 0..<16 { sum += Double(base[y * stride + x * 4]) } }
         return sum / 256
     }
 
@@ -285,7 +282,7 @@ final class DocumentCameraRawTests: XCTestCase {
         var plus = CameraRawDraft()
         plus.set(CameraRawControls.exposure, 1)
         let after = try mean(f, layer, plus.filterJson)
-        // Decoded to linear (0.4 grey → 102), +1 EV is ×2.
+        // Samples are linear to Camera Raw (0.4 grey → 102): +1 EV is ×2.
         XCTAssertEqual(after / before, 2, accuracy: 0.05, "exposure +1 doubles linear light")
     }
 
