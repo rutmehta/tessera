@@ -438,16 +438,29 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             format!("Untitled {id}")
         });
         if kind.contains("smart") {
-            let raw = contents
+            let Some(raw) = contents
                 .iter()
                 .filter(|r| number(r, "collection") == Some(id))
                 .find_map(|r| text(r, "content").filter(|s| s.contains('{')))
-                .ok_or_else(|| decode(format!("smart collection {id} missing rules")))?;
+            else {
+                report.push(format!("smart collection {id} has no rules; skipped"));
+                continue;
+            };
+            // Rules the reader cannot represent skip that smart collection only.
+            let search = match lua::parse(&raw) {
+                Ok(search) => search_map::translate(search),
+                Err(e) => {
+                    report.push(format!(
+                        "smart collection {id} rules not translated ({e}); skipped"
+                    ));
+                    continue;
+                }
+            };
             library.smart_albums.push(SmartAlbum {
                 id,
                 name,
                 parent,
-                search: search_map::translate(lua::parse(&raw)?),
+                search,
                 // Keeps the M2-11 behaviour: a smart album inside a group is scoped.
                 scoped: true,
             });
