@@ -73,24 +73,33 @@ fn layers_over_100_megapixels_are_still_refused_before_any_work() {
 
 #[test]
 fn a_cancel_stops_the_coarse_render() {
+    // Deterministic: the token is cancelled before any work starts, so the
+    // result cannot depend on how fast this machine renders.
     use engine_api::{EngineError, jobs::CancellationToken};
+    use filters::adaptive_lattice::{self, COARSE_VERTICES, Lattice};
     let (w, h) = (6000u32, 4000u32);
+    assert!(!adaptive_lattice::dense_fits(w as usize, h as usize));
     let recipe = Scene::new(w, h).recipe();
     let input = Raster::new(Extent::new(w, h), 4, Depth::F32, 0.5);
     let token = CancellationToken::new();
-    let later = token.clone();
-    let canceller = std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        later.cancel();
-    });
-    let t = std::time::Instant::now();
+    token.cancel();
+
+    // Through the smart filter: no raster comes back.
     let result =
         CompositorFilters.evaluate_with_cancel(&input, &node(&recipe), &context(w, h), &token);
-    eprintln!("cancelled after {:.2} s", t.elapsed().as_secs_f64());
-    canceller.join().unwrap();
     assert!(
         matches!(result, Err(EngineError::Cancelled)),
         "{:?}",
         result.map(|r| r.extent())
+    );
+
+    // The full-resolution render itself stops at its per-tile check (this
+    // skips `evaluate`'s up-front check).
+    let lattice = Lattice::solve(&recipe, COARSE_VERTICES).unwrap();
+    let rendered = adaptive_lattice::render(&input, &lattice, &token);
+    assert!(
+        matches!(rendered, Err(EngineError::Cancelled)),
+        "{:?}",
+        rendered.map(|r| r.extent())
     );
 }
