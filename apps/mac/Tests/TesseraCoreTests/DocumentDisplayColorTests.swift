@@ -190,6 +190,49 @@ final class DocumentDisplayColorTests: XCTestCase {
         XCTAssertEqual(messages, [diagnostic], "consume the pending warning only once")
     }
 
+    func testProfileReadFailureReportsOnceUntilProfileStateChanges() async throws {
+        let backend = ProfileSwitchBackend()
+        backend.profileReadError = "profile read failed"
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        doc.reloadModel() // Preserve the opening warning until the callback is installed.
+        var messages: [String] = []
+        let first = expectation(description: "opening profile read warning")
+        doc.report = { messages.append($0); first.fulfill() }
+        await fulfillment(of: [first], timeout: 2)
+        XCTAssertEqual(messages, ["Display: profile read failed"])
+
+        doc.report = { messages.append($0) }
+        for _ in 0..<3 { doc.reloadModel(); doc.reloadHistory() }
+        await Task.yield()
+        XCTAssertEqual(messages.count, 1, "ordinary edit refreshes must not repeat the warning")
+
+        backend.profileReadError = nil
+        backend.profile = icc(CGColorSpace(name: CGColorSpace.displayP3))
+        doc.reloadModel()
+        XCTAssertEqual(doc.displayColor.iccData, backend.profile)
+        backend.profileReadError = "profile read failed"
+        let changed = expectation(description: "warning after profile changes again")
+        doc.report = { messages.append($0); changed.fulfill() }
+        doc.reloadModel()
+        await fulfillment(of: [changed], timeout: 2)
+        XCTAssertEqual(messages, ["Display: profile read failed", "Display: profile read failed"])
+        XCTAssertTrue(doc.displayColor.isSRGB)
+
+        // A successful untagged read and a failed read both have nil ICC bytes,
+        // but recovery must reset the diagnostic identity.
+        doc.report = { messages.append($0) }
+        backend.profileReadError = nil
+        backend.profile = nil
+        doc.reloadModel()
+        backend.profileReadError = "profile read failed"
+        let afterUntagged = expectation(description: "warning after untagged recovery")
+        doc.report = { messages.append($0); afterUntagged.fulfill() }
+        doc.reloadModel()
+        await fulfillment(of: [afterUntagged], timeout: 2)
+        XCTAssertEqual(messages.count, 3)
+    }
+
     func testUnsupportedProfilesFallBackToSRGBWithADiagnostic() throws {
         let none = DocumentDisplayColor.resolve(icc: nil, name: nil)
         XCTAssertTrue(none.isSRGB)

@@ -85,18 +85,27 @@ final class DocumentController: Identifiable {
     /// B5-30: re-reads the document profile (open, Assign / Convert to Profile, undo across them).
     private func refreshDisplayColor() {
         let icc: Data?
+        var readDiagnostic: String?
         do { icc = try backend.displayProfileICC() } catch {
             icc = nil
-            report?("Display: \(error.localizedDescription)")
+            readDiagnostic = "Display: \(error.localizedDescription)"
         }
         // Distinguish an absent profile from an invalid empty ICC. Re-read on model/history refresh,
         // but only resolve the TRC and re-tag retained surfaces when the bytes actually change.
-        let digest = SHA256.hash(data: Data([icc == nil ? 0 : 1]) + (icc ?? Data()))
+        // Failed reads have no ICC bytes: key their fallback by profile name and diagnostic,
+        // separately from successful untagged reads, so recovery resets the warning identity.
+        let identity: Data
+        if let readDiagnostic {
+            identity = Data([2]) + Data((info.profileName ?? "").utf8) + Data([0]) + Data(readDiagnostic.utf8)
+        } else {
+            identity = Data([icc == nil ? 0 : 1]) + (icc ?? Data())
+        }
+        let digest = SHA256.hash(data: identity)
         guard digest != displayProfileDigest else { return }
         displayProfileDigest = digest
         pendingDisplayDiagnostic = nil
         displayColor = DocumentDisplayColor.resolve(icc: icc, name: info.profileName)
-        if let d = displayColor.diagnostic {
+        if let d = readDiagnostic ?? displayColor.diagnostic {
             NSLog("%@", d)
             pendingDisplayDiagnostic = d
         }

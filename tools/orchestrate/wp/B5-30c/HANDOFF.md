@@ -185,22 +185,38 @@ other worktrees' processes were neither controlled nor terminated. No push or me
 ## Fixtures for the coordinator
 
 Generated files are included in `tools/orchestrate/wp/B5-30c/fixtures/`. Reproduce with
-`swift tools/orchestrate/wp/B5-30/make-fixtures.swift /tmp` to produce both fixture pairs:
+`swift tools/orchestrate/wp/B5-30/make-fixtures.swift /tmp` to produce all three fixture pairs:
 
 - `b5-30-red-{p3,srgb}.png`: original saturated-red / grey comparison.
 - `b5-30-half-step-{p3,srgb}.png`: upper half alternates black/white every source pixel; lower half
-  splits at source x=255, putting the edge halfway through a 2-pixel footprint at 50% zoom.
+  splits at source x=255.
+- `b5-30-alpha-{p3,srgb}.png`: black at alpha 128 on transparent.
 
 The generator was run in this worktree. `sips` confirmed 512x256 and the P3/sRGB profiles for all
-four files; decompressed PNG scanlines are byte-identical within each pair. ImageIO writes P3 as an
+six files; decompressed PNG scanlines are byte-identical within each pair. ImageIO writes P3 as an
 `iCCP` chunk and sRGB as a standard `sRGB` chunk on this macOS version. Thus the sRGB PNG is a reference
 for standard sRGB; the actual Apple/HP ICC representation is separately exercised by the render test.
 This corrects the original B5-30 handoff's assumption that the generated sRGB PNG necessarily embeds
 Apple's ICC bytes.
 
-On a wide-gamut display, open each pair in Tessera. For the red pair, P3 red should be more saturated
-while greys match. For the half-step pair at 50% zoom with pixel-aligned positioning, upper stripes
-should resolve to about 187/255 and the lower edge's halfway sample should match that grey, in both
-profiles. It must not be encoded 128/255. This is a future human/automation check, not an on-screen
-result claimed by Machine B. Offscreen renderer measurements above isolate the viewport sampler from
-backend pyramid selection and WindowServer/display conversion.
+At exactly 50% zoom, `level(forZoom: 0.5) = 1`: the viewport selects the engine's
+half-size level, built by averaging raw 8-bit values (`mip_exact` / `mip.wgsl`).
+The half-step edge therefore reaches Metal as 128 for both profiles regardless of B5-30c.
+The 187.5 offscreen result above is valid proof of the GPU path, not what 50% shows.
+B5-30c's visible effect is at zooms BETWEEN levels below 200% (for example, 75%, 150%)
+and for transparency over the checkerboard.
+
+On a wide-gamut display, open each pair in Tessera. Use Digital Color Meter
+**"Display in sRGB", 8-bit**:
+
+1. Red pair at any zoom: P3 red more saturated, greys 128 both.
+2. Half-step at 50%: both read 128±1 (agreement only).
+3. Half-step at 150%: midpoint ≈187 and adjacent pairs sum ≈330–375 = PASS;
+   ≈128 / sums ≈255 = FAIL; P3 and sRGB within ±2.
+4. Alpha fixture: black at alpha 128 on transparent — expected over the dark checker
+   (A7A39C) ≈121/118/113 pass vs ≈83/81/78 fail; light checker in dark theme
+   ≈169/167/164 vs ≈115; light theme white ≈187 vs ≈127.
+
+These are future on-screen checks, not results claimed by Machine B. Offscreen renderer
+measurements above isolate the viewport sampler from backend pyramid selection and
+WindowServer/display conversion.

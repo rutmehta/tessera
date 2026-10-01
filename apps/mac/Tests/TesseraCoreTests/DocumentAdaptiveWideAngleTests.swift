@@ -398,8 +398,8 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         m.ok()
         await waitFor("failed final apply") { ended != nil }
         XCTAssertEqual(m.error, "Constraint 1: outside the camera's field of view")
-        let deadline = Date().addingTimeInterval(1.2)
-        while Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        await waitFor("both final and late slider traces to finish", timeout: 5) { t.finished >= 2 }
+        await Task.yield()
         XCTAssertEqual(m.error, "Constraint 1: outside the camera's field of view",
                        "A pre-OK slider trace and its preview must not clear the final apply error")
     }
