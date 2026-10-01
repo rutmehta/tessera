@@ -480,6 +480,36 @@ mod tests {
         .unwrap()
     }
     #[test]
+    fn signed_patch_presence_does_not_amplify_one_ulp() {
+        let n = 17 * 17;
+        let center = n / 2;
+        let mut planes = vec![vec![0.18; n]; 3];
+        for (c, v) in [-0.006959494, -0.005868249, 0.097931265]
+            .into_iter()
+            .enumerate()
+        {
+            planes[c][center] = v;
+        }
+        let original = crate::Image::new(17, 17, planes.clone()).unwrap();
+        planes[2][center] = planes[2][center].next_up();
+        let perturbed = crate::Image::new(17, 17, planes).unwrap();
+        let settings = ToneSettings {
+            texture: -100.0,
+            clarity: -100.0,
+            ..Default::default()
+        };
+        let a = tone_extra_image(&original, &settings).unwrap();
+        let b = tone_extra_image(&perturbed, &settings).unwrap();
+        let gap = (a.planes()[2][center] - b.planes()[2][center]).abs();
+        eprintln!(
+            "signed patch one ulp: {} -> {}, gap={gap}",
+            a.planes()[2][center],
+            b.planes()[2][center]
+        );
+        assert!(gap < 0.001, "presence amplified one ulp: {gap}");
+    }
+
+    #[test]
     fn whole_image_uses_global_statistics_beyond_tile_extent() {
         let values: Vec<_> = (0..512).map(|x| 0.2 + 0.6 * x as f32 / 511.0).collect();
         let image = crate::Image::new(512, 1, vec![values.clone(); 3]).unwrap();

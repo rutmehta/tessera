@@ -149,6 +149,32 @@ fn rich_settings() -> DevelopSettings {
     s
 }
 
+// A single input ulp must not become a visible jump after sharpen + presence.
+#[test]
+fn signed_luminance_chain_is_stable_under_one_input_ulp() {
+    let extent = Extent::new(259, 263);
+    let (raster, _) = pixels(extent);
+    let context = FilterContext {
+        profile: None,
+        level: 2,
+        canvas: extent,
+    };
+    let value = json!({"settings": rich_settings()});
+    let original = cpu_reference(&raster, &value, &context).pixel(84, 41)[2];
+    let mut perturbed = raster.clone();
+    perturbed
+        .edit_region(Rect::of_extent(extent), 1, |x, y, p| {
+            if (x, y) == (84, 41) {
+                p[2] = p[2].next_up();
+            }
+        })
+        .unwrap();
+    let changed = cpu_reference(&perturbed, &value, &context).pixel(84, 41)[2];
+    let gap = (changed - original).abs();
+    eprintln!("one input blue ulp: {original} -> {changed}, gap={gap}");
+    assert!(gap < 0.01, "ill-conditioned presence gain: {gap}");
+}
+
 #[test]
 fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
     let gpu = pipeline_gpu::GpuContext::new().unwrap();
@@ -173,14 +199,8 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
             camera_raw_gpu::evaluate(&gpu.device, &gpu.queue, &buffer, extent, &value, &context)
                 .unwrap();
         let actual = readback(&gpu, &output, extent.area() * 16);
-        // B5-28: samples are sRGB-encoded (untagged), so this compares
-        // encoded samples. The decoded (darker) input drives a few rich-chain
-        // outliers far above 1 (one reaches ~17.7 encoded at amount 1); the
-        // resident and CPU operators agree there to ~0.12 % RELATIVE, so the
-        // unchanged 0.002 bound is absolute in [-1, 1] and relative beyond it.
-        // An absolute ceiling of 0.025 (measured 0.0205, at that 17.7 sample)
-        // keeps a large value from hiding a large gap; see B5-28 HANDOFF
-        // follow-up on the bright-value GPU/CPU gap.
+        // Compare encoded samples with an absolute HDR bound as well as the
+        // existing scaled guard. Signed-luminance presence must be conditioned.
         let mut max_error = 0.0_f32;
         let mut max_absolute = 0.0_f32;
         for (i, p) in actual.iter().enumerate() {
@@ -203,7 +223,7 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
             "amount {amount}: max absolute RGB error (relative above 1) {max_error}"
         );
         assert!(
-            max_absolute < 0.025,
+            max_absolute < 0.01,
             "amount {amount}: max absolute RGB error {max_absolute}"
         );
     }
@@ -454,10 +474,9 @@ fn invalid_buffer_and_unsupported_settings_fail_without_dispatch() {
     ));
 }
 
-/// Full-frame error is recorded, not asserted against the unmet 0.01 bound.
-/// Baseline full-frame max: 6.14 (small rich-chain max: 0.0205). A/Codex engine
-/// follow-up: clamp the texture/clarity signed-luminance divisor or evaluate
-/// texture/clarity before sharpening. Preserve main's sampled relative guard.
+/// Assert absolute 0.01 parity over every RGB sample, including signed HDR.
+/// Keep the original sampled scaled guard as an additional regression check.
+/// Unconditioned presence had a baseline full-frame maximum of 6.14.
 #[test]
 #[ignore = "24MP CPU/GPU timing; run explicitly in release on Metal"]
 fn bench_24mp_cpu_gpu() {
@@ -515,6 +534,10 @@ fn bench_24mp_cpu_gpu() {
         }
     }
     eprintln!("24MP all-pixel max absolute={max_absolute}, worst={worst:?}");
+    assert!(
+        max_absolute < 0.01,
+        "24MP absolute RGB error {max_absolute}"
+    );
 }
 
 fn resident_settings() -> DevelopSettings {
