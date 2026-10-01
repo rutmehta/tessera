@@ -1001,10 +1001,13 @@ mod eng1_conditioning_tests {
         let a = center_rgb(&neutral);
         let b = center_rgb(&changed);
         let (delta, channel) = max_delta(&a, &b);
+        let request_delta = request.adjusted(texture) - request.z;
+        eprintln!(
+            "ENG1 almost-noop texture={texture:?} request_delta={request_delta:?} rgb_delta={delta:?} channel={channel}"
+        );
         assert!(
             delta <= SENSITIVITY_LIMIT,
-            "almost no-op texture={texture}, encoded_delta={}, RGB_delta={delta}, channel={channel}",
-            request.adjusted(texture) - request.z
+            "almost no-op texture={texture}, encoded_delta={request_delta}, RGB_delta={delta}, channel={channel}"
         );
         let unchanged_texture = (1..=32)
             .map(|k| texture * 2.0_f32.powi(-k))
@@ -1049,18 +1052,20 @@ mod eng1_conditioning_tests {
                     let neighbor_input = scene(neighbor);
                     let output = render(&neighbor_input, -100.0);
                     let (delta, i) = max_delta(&baseline, &output);
+                    let input_delta = max_delta(&input, &neighbor_input).0;
+                    eprintln!(
+                        "ENG1 positive-neighbor case={case} channel={channel} direction={} input_delta={input_delta:?} output_delta={delta:?} output_channel={} pixel=({}, {})",
+                        if up { "up" } else { "down" },
+                        i / N,
+                        i % N % SIDE,
+                        i % N / SIDE
+                    );
                     if delta > worst.0 {
-                        worst = (
-                            delta,
-                            case,
-                            channel,
-                            up,
-                            i,
-                            max_delta(&input, &neighbor_input).0,
-                        );
+                        worst = (delta, case, channel, up, i, input_delta);
                     }
                 }
             }
+            eprintln!("ENG1 positive-neighbors case={case} eligible={eligible}/6");
             assert!(eligible > 0, "case {case} must exercise positive neighbors");
         }
         // Assert only after scanning every eligible fixed neighbor, so the
