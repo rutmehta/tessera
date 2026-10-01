@@ -19,6 +19,12 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### External LR diagnostics integration — 2026-10-01 23:35 UTC
+
+Main `427ab116` integrates LR-DIAG; `7e6b6820` records the updated chain. Exact external batch37b `62b9a89b` on e558c5df passes Rust/Clippy/fmt/Swift/drift/strict; raw Swift916tests/3skipped/0failures in199.717s. Logs/exits independently inspected; exact combined427ab116 validation with ENG-2/B5-42c remains unverified here. Shared diagnostics writer, fail-closed malformed-shape guard, approximate matrix contract and separate import-report group are integrated infrastructure, not Adobe parity or completed LR translations.
+
+Existing coordinator order now LR-7d/7e → LR-2d/2e → LR-1c → LR-4d/4e → LR-3e → LR-6d → LR-5; B5-48 independent. Conditions include legacy pre-LR-2 rendering/parametric curves/history, mask luminance-domain/Swift group/enabled/depth cap, and scaled retouch/session renderer/one-entry import. Existing owners retain implementation and review. Mailbox unchanged0/75/6/16/0; external cargo active, no PERF runtime handoff. Preserve candidate failures and no duplicate runtime or wakeup.
+
 ### External AX follow-up integration — 2026-10-01 23:10 UTC
 
 Main `ad93e333` integrates Swift-only B5-42c accessibility audit follow-ups. Exact external batch39 head `3e216188` on87536669 has Swift0/drift0/strict0; raw Swift917tests/3skipped/0failures in204.321s. Independently read logs/exits; candidate gates do not establish an exact combined ad93e333 run with ENG-1/2. Actual keyboard/VoiceOver acceptance remains separate. Main rulings update `b84ba37a` published; existing coordinator retains integrations. Mailbox unchanged0/75/6/16/0, external cargo active, no explicit PERF runtime handoff. Preserve prior candidate failures and no duplicate runtime or wakeup.
