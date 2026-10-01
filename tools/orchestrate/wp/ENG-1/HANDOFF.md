@@ -754,3 +754,95 @@ tracked source on both revisions before removing diagnostics, and
 | tip-8.log | `2cc7beebe477b5e3c0aa08104c11e55d741f8d94247d1bc403f02a9deae34d27` |
 | tip-off.log | `4608cad0a52fe2ec3e5b12066dd070531f9953bb0659bade38ae227e92daeeb2` |
 | tip-on.log | `f4bf2c630f7b2f38fa48bd1960378ef7283662ad4dfad5a2a317bb8d41b4e629` |
+
+## ENG-1h — approved 24 MP presence regression guards (2026-10-01)
+
+Local-only follow-up on `e2a2a57a`, branch `wp/ENG-1-texture-clarity`, without
+rebase. Machine A approved replacing the ignored bench's all-pixel `< 0.01`
+guard with presence-off `<= 0.02` and presence-on `<= presence-off + 1e-4`.
+The every-997th-pixel scaled `< 0.002` guard is unchanged and runs in both
+configurations. Both runs check finite CPU/GPU RGB and bit-exact CPU/GPU alpha
+against the input. Only texture and clarity are zeroed for presence off.
+The bench comment names ENG-4, the measured 0.016636014 at pixel 4,999,168 red
+(GPU 0.5281837 / CPU 0.5115477), and ENG-4's responsibility to restore the
+0.01 absolute bound. No production code or app changes; no app launched.
+
+### ENG-1g attribution retained
+
+These are the historical ENG-1g measurements, not additional ENG-1h runs.
+Base is local main `87536669ea555535ebb6622a17848f2b0fb530f3`; tip measured
+in ENG-1g was `3e565432`. Indices are zero-based.
+
+| Revision | Presence | Max absolute gap | Pixel | Channel | GPU | CPU |
+| --- | --- | ---: | ---: | --- | ---: | ---: |
+| base | on | 6.1408234 | 5,112,798 | blue | 225.30309 | 219.16226 |
+| base | off | 0.016636014 | 4,999,168 | red | 0.5281837 | 0.5115477 |
+| tip | on | 0.01663196 | 4,999,168 | red | 0.5281682 | 0.51153624 |
+| tip | off | 0.016636014 | 4,999,168 | red | 0.5281837 | 0.5115477 |
+
+At pixel 4,999,168 red, ENG-1g's cumulative stage isolation measured:
+
+| Cumulative enabled stages | GPU red | CPU red | Absolute red gap |
+| --- | ---: | ---: | ---: |
+| Neutral bridge | 0.46875 | 0.46875 | 0 |
+| + White balance | 0.46674666 | 0.46674666 | 0 |
+| + Detail | 0.4080246 | 0.4080245 | 1.1920929e-07 |
+| + Tone (no presence/dehaze/curves) | 0.4591821 | 0.4445941 | 0.0145880282 |
+| + Presence | 0.45916852 | 0.44458404 | 0.0145844817 |
+| + Dehaze | 0.45916852 | 0.44458404 | 0.0145844817 |
+| + RGB curve | 0.48747167 | 0.4716921 | 0.0157795846 |
+| + Color | 0.47831452 | 0.462764 | 0.015550524 |
+| + Local adjustments | 0.53591484 | 0.518707 | 0.0172078609 |
+| + Effects (full original settings) | 0.5281682 | 0.51153624 | 0.01663196 |
+
+ENG-1 reduces main's 24 MP worst case from **6.1408** to the pre-existing
+tone-stage gap. Presence off has the same maximum on base and tip; tone
+introduces the residual before presence is applied. ENG-4 restores the
+0.01 absolute bound. This approved guard isolates presence regression from
+that outstanding tone precision work.
+
+### Fresh Metal bench and gates
+
+Test commit: `2d07862159d24f5851d3817161121691954f0d87`.
+The ignored bench ran **once**, on Apple M4 Max **Metal**, and passed:
+**1 passed, 0 failed**, 97.44 s. Both bounds, sampled guards, finite-RGB
+checks, and exact-alpha checks passed.
+
+| Presence | All-pixel max absolute gap | Pixel | Channel | GPU | CPU | CPU time | GPU time |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| off | 0.016636014 | 4,999,168 | red | 0.5281837 | 0.5115477 | 41.949610667 s | 2.972812750 s |
+| on | 0.01663196 | 4,999,168 | red | 0.5281682 | 0.51153624 | 43.586716959 s | 2.166960875 s |
+
+GPU times include pipeline creation and exclude upload/readback. Presence on
+is approximately 0.000004054 below presence off, satisfying the +1e-4 guard.
+
+All commands used the requested environment:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/ENG-1-texture-clarity
+export CARGO_BUILD_JOBS=3
+export RAYON_NUM_THREADS=3
+cargo test -p filters --release --test camera_raw_gpu bench_24mp_cpu_gpu -- --ignored --exact --nocapture
+cargo test -p filters --release --test camera_raw_gpu
+cargo clippy -p filters --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+- Non-ignored release camera-raw GPU suite: **10 passed, 0 failed, 1 ignored**.
+- Filters clippy, all targets, `-D warnings`: **exit 0**.
+- Workspace format check after formatting the edited test: **exit 0**.
+- `git diff --check`: **exit 0**.
+
+Existing vendored LibRaw C/C++ warnings were emitted; the requested Rust
+clippy gate passed. Changes are limited to the ignored test and this handoff.
+Commits remain local; no rebase or push.
+
+Durable logs: `/Users/rutmehta/tessera-evidence/ENG-1/eng1h/`.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| bench.log | `8338b79272223470a7e4251d688c179c13e61c44c5fdad912e84993de2f23b38` |
+| test.log | `b8e4ba78b499e6b3cc2211565200a515ba70f54c5243386d59a81d4acccdaf5d` |
+| clippy.log | `330371267abc951b5b3d52c2f796abcdd9d6e7ba1b8a66edac52614f3692eef2` |
+| fmt.log | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
