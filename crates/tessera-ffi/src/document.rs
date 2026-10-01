@@ -876,6 +876,7 @@ impl State {
 /// Immutable session read view. The live draft is only an Arc<DocState>;
 /// holding this view never holds either the edit lock or the render backend.
 /// Keep the committed document separate from the live interactive draft.
+#[derive(Clone)]
 struct PublishedState {
     doc: Arc<Document>,
     live: Arc<DocState>,
@@ -1250,6 +1251,26 @@ impl DocumentSession {
         if let Ok(mut st) = self.shared.lock() {
             st.closed = true;
             st.view.surfaces.clear();
+        } else {
+            // Poison means an edit unwound before its publication was complete.
+            // Close the mutable session, but preserve the last valid reader model.
+            let mut st = self.shared.state.lock().unwrap_or_else(|e| e.into_inner());
+            st.closed = true;
+            st.view.surfaces.clear();
+            let previous = self
+                .shared
+                .published
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
+            let mut closed = (*previous).clone();
+            closed.closed = true;
+            closed.view.surface_size = None;
+            *self
+                .shared
+                .published
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Arc::new(closed);
         }
         self.shared.render.stop();
         self.shared.filters.stop();

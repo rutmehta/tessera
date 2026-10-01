@@ -23,6 +23,33 @@ use std::{
 };
 use wgpu::util::DeviceExt;
 
+/// Frame completion deliberately bypasses StateGuard publication. Expose only
+/// immutable state plus the private cursor operation: no DerefMut, so a future
+/// reader-visible write at the completion call site must use Shared::lock().
+struct FrameCompletionState<'a> {
+    state: std::sync::MutexGuard<'a, super::State>,
+}
+
+impl<'a> FrameCompletionState<'a> {
+    fn lock(shared: &'a Shared) -> Result<Self> {
+        Ok(Self {
+            state: shared.state.lock().map_err(failure)?,
+        })
+    }
+
+    fn advance_ring(&mut self, index: usize) {
+        self.state.view.next = index + 1;
+    }
+}
+
+impl std::ops::Deref for FrameCompletionState<'_> {
+    type Target = super::State;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
+
 /// Levels a viewport may show (the compositor's `MAX_LEVEL`).
 pub(crate) const MAX_VIEW_LEVEL: u8 = compositor::render::MAX_LEVEL;
 
@@ -1181,7 +1208,7 @@ fn present_frame(
         // the private ring cursor changes no reader-visible state, so it must
         // not rebuild the model publication or retain surface Arcs there.
         {
-            let mut st = shared.state.lock().map_err(failure)?;
+            let mut st = FrameCompletionState::lock(shared)?;
             cancel.check()?;
             if st.closed
                 || st.view.generation != generation
@@ -1196,7 +1223,7 @@ fn present_frame(
                 }
                 return Ok(None);
             }
-            st.view.next = index + 1;
+            st.advance_ring(index);
             rec.superseded = st.epoch != epoch;
         }
         let canvas_rect = src.to_level0(level).intersect(&Rect::of_extent(canvas));

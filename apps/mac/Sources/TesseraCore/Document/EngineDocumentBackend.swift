@@ -631,10 +631,11 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
 
 // MARK: - B5-15 (P16): Export Flat off the main actor
 
-/// `beginExportFlat` takes an immediate snapshot and may wait for the native session lock.
-/// UI callers use `prepareExportFlat` to reserve the session without entering that lock,
-/// then take the snapshot and run the export on a worker. Other backends (the stub) run
-/// their synchronous `exportFlat` on a detached task.
+/// `beginExportFlat` captures an immediate immutable snapshot through the native publication
+/// lock, independent of render/edit locks. UI callers capture at confirm, then run the job
+/// on a worker. `prepareExportFlat` remains available for callers that deliberately defer
+/// acquisition and need to reserve the session across close. Other backends (the stub)
+/// run their synchronous `exportFlat` on a detached task.
 public protocol DocumentFlatExporting: AnyObject, Sendable {
     func beginExportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
         -> DocumentFlatExport
@@ -652,7 +653,7 @@ public final class DocumentFlatExportPreparation: @unchecked Sendable {
 
     init(prepare: @escaping @Sendable () throws -> DocumentFlatExport) { self.prepare = prepare }
 
-    /// May wait behind a native render. Call once, off main. A concurrent Cancel is
+    /// Consume a deferred reservation once on its worker. A concurrent Cancel is
     /// forwarded even if it arrived before the snapshot existed.
     public func snapshot() throws -> DocumentFlatExport {
         assert(!Thread.isMainThread, "Export Flat session snapshot must run off main")

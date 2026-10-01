@@ -662,12 +662,12 @@ final class DocumentWorkspace {
     // Deterministic test seam: pause the worker before any export work.
     @ObservationIgnored var exportWorkerWillRun: @Sendable () -> Void = {}
 
-    /// Export Flat of `doc` to `url` with `s` without blocking the main thread: reserve the session now,
-    /// then snapshot, composite, convert, encode and write on a background
-    /// task with progress and Cancel in the window. Cancelling leaves the destination untouched (the file is
-    /// renamed into place only when complete). Closing the document does not stop the export; quitting
-    /// cancels it. The snapshot includes edits committed before the worker acquires it; later edits do not
-    /// affect the export. `then` runs on the main actor with the outcome.
+    /// Capture Export Flat's immutable snapshot synchronously at confirm through the short
+    /// publication lock. Edits committed after confirm are excluded. Composite, convert,
+    /// encode and write on a background task with progress and Cancel in the window.
+    /// Cancelling leaves the destination untouched (the file is renamed only when complete).
+    /// Closing the document does not stop the export; quitting cancels it.
+    /// `then` runs on the main actor with the outcome.
     @discardableResult
     func startExportFlat(_ doc: DocumentController, _ s: ExportFlatSettings, to url: URL,
                          then: (@MainActor (FlatExportTask.Outcome) -> Void)? = nil) -> FlatExportTask? {
@@ -680,24 +680,18 @@ final class DocumentWorkspace {
         let run: @Sendable (@escaping @Sendable (Double, String) -> Void) throws -> Void
         let cancel: @Sendable () -> Void
         if let exporter = backend as? DocumentFlatExporting {
-            let preparation: DocumentFlatExportPreparation
+            let job: DocumentFlatExport
             do {
-                preparation = try exporter.prepareExportFlat(path: path, format: format, quality: quality, color: color)
+                let snapshotSpan = trace.begin("export_flat_snapshot")
+                defer { trace.end(snapshotSpan) }
+                job = try exporter.beginExportFlat(path: path, format: format, quality: quality, color: color)
             } catch {
                 say("Export Flat: \(error.localizedDescription)")
                 then?(.failed(error.localizedDescription))
                 return nil
             }
-            run = { progress in
-                let job: DocumentFlatExport
-                do {
-                    let snapshotSpan = trace.begin("export_flat_snapshot")
-                    defer { trace.end(snapshotSpan) }
-                    job = try preparation.snapshot()
-                }
-                try job.run(progress: progress)
-            }
-            cancel = { preparation.cancel() }
+            run = { progress in try job.run(progress: progress) }
+            cancel = { job.cancel() }
         } else {
             // Backends without a background exporter (the stub): their synchronous export, off the main thread.
             let flag = CancelBox()
@@ -1322,7 +1316,8 @@ final class FlatExportProgressView: NSView {
         }
 
         func update(_ task: FlatExportTask) {
-            if self.task !== task {
+            let taskChanged = self.task !== task
+            if taskChanged {
                 self.task?.progressChanged = nil
                 self.task = task
                 task.progressChanged = { [weak self] in self?.publish() }
@@ -1337,10 +1332,10 @@ final class FlatExportProgressView: NSView {
                 nameAX.setAccessibilityValue(title)
                 CATransaction.commit()
             }
-            publish()
+            publish(forceNotifications: taskChanged)
         }
 
-        private func publish() {
+        private func publish(forceNotifications: Bool = false) {
             guard let task else { return }
             let trace = workspace?.exportTrace
             let span = trace?.begin("export_flat_hud_update")
@@ -1348,9 +1343,9 @@ final class FlatExportProgressView: NSView {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             let status = "\(task.phase) \(Int((task.fraction * 100).rounded())) %"
-            let phaseChanged = phaseAX.accessibilityValue() as? String != status
+            let phaseChanged = forceNotifications || phaseAX.accessibilityValue() as? String != status
             let percentage = "\(Int((task.fraction * 100).rounded())) %"
-            let progressChanged = (progressAX.accessibilityValue() as? NSNumber)?.doubleValue != task.fraction
+            let progressChanged = forceNotifications || (progressAX.accessibilityValue() as? NSNumber)?.doubleValue != task.fraction
                 || progressAX.accessibilityValueDescription() != percentage
             if phaseChanged {
                 phase.string = status
