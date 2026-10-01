@@ -47,13 +47,34 @@ fn lr4_opaque_brush_color_and_image_are_retained_atomically() {
 
 #[test]
 fn lr4_explicit_luminance_and_depth_bounds_translate() {
-    for (fields, kind) in [("LumMin = 0.25, LumMax = 0.75, LumFeather = 0", "luminance_range"), ("DepthMin = 0.25, DepthMax = 0.75, DepthFeather = 0", "depth")] {
-        let (r, _) = lua_develop::parse(&row(&format!(r#"{{ What = "Mask/Range", CorrectionRangeMask = {{ {fields} }} }}"#)), "15.4").unwrap();
+    for (fields, kind) in [
+        (
+            "LumMin = 0.25, LumMax = 0.75, LumFeather = 0",
+            "luminance_range",
+        ),
+        (
+            "DepthMin = 0.25, DepthMax = 0.75, DepthFeather = 0",
+            "depth",
+        ),
+    ] {
+        let (r, _) = lua_develop::parse(
+            &row(&format!(
+                r#"{{ What = "Mask/Range", CorrectionRangeMask = {{ {fields} }} }}"#
+            )),
+            "15.4",
+        )
+        .unwrap();
         assert_eq!(r.settings.locals.adjustments.len(), 1);
         let v = serde_json::to_value(&r.settings.locals.adjustments[0]).unwrap();
         assert_eq!(v["components"][0]["kind"], kind);
         assert_eq!(v["components"][0]["range"], json!([0.25, 0.75]));
-        assert!(r.unknown.get("lrcat_develop_source").and_then(|v| v.get("properties")).and_then(|v| v.get("MaskGroupBasedCorrections")).is_none());
+        assert!(
+            r.unknown
+                .get("lrcat_develop_source")
+                .and_then(|v| v.get("properties"))
+                .and_then(|v| v.get("MaskGroupBasedCorrections"))
+                .is_none()
+        );
     }
 }
 #[test]
@@ -78,8 +99,35 @@ fn lr4_component_range_keeps_both_inversions() {
 #[test]
 fn lr4_unknown_fields_and_types_keep_exact_source() {
     for field in ["FutureField = 42", "Type = 9", "LumRange = \"opaque\""] {
-        let lua = row(&format!(r#"{{ What = "Mask/Range", CorrectionRangeMask = {{ LumMin = 0.25, LumMax = 0.75, {field} }} }}"#));
+        let lua = row(&format!(
+            r#"{{ What = "Mask/Range", CorrectionRangeMask = {{ LumMin = 0.25, LumMax = 0.75, {field} }} }}"#
+        ));
         let (r, _) = lua_develop::parse(&lua, "15.4").unwrap();
-        assert!(r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].as_str().unwrap().contains(field));
+        assert!(
+            r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"]
+                .as_str()
+                .unwrap()
+                .contains(field)
+        );
     }
+}
+
+#[test]
+fn lr4_ignored_or_duplicate_fields_never_lose_source() {
+    // Bounds on the correction itself are misplaced; duplicate component fields
+    // cannot be declared faithfully translated by choosing only the first.
+    let cases = [
+        r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = {{ LumMin = 0.1, CorrectionMasks = {{ What = "Mask/Gradient", MaskActive = false }} }} }"#,
+        r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = {{ CorrectionMasks = {{ What = "Mask/Gradient", MaskActive = false, MaskActive = true }} }} }"#,
+    ];
+    for lua in cases {
+        let (r, _) = lua_develop::parse(lua, "15.4").unwrap();
+        assert!(r.unknown.get("lrcat_develop_source").and_then(|v|v.get("properties")).and_then(|v|v.get("MaskGroupBasedCorrections")).is_some());
+    }
+}
+
+#[test]
+fn lr4_nil_untranslated_mask_key_still_has_exact_source() {
+    let (r, _) = lua_develop::parse(r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = nil }"#, "15.4").unwrap();
+    assert_eq!(r.unknown.get("lrcat_develop_source").and_then(|v|v.get("properties")).and_then(|v|v.get("MaskGroupBasedCorrections")), Some(&json!("nil")));
 }

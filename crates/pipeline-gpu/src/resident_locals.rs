@@ -556,3 +556,26 @@ fn dispatch(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod lr4_tests {
+    use super::*;
+    use engine_api::recipe::MaskComponent;
+    #[test]
+    fn lr4_disabled_components_do_not_seed_gpu_masks() {
+        let mut off = MaskComponent::new(MaskKind::Linear { start:[0.,0.], end:[1.,0.] });
+        off.enabled = false;
+        let on = MaskComponent::new(MaskKind::Linear { start:[1.,0.], end:[0.,0.] });
+        let g = LocalAdjustment { components:vec![off,on], ..Default::default() };
+        let data = mask_parameters(&g, Extent::new(2,1)).unwrap();
+        assert_eq!(data[2],1.);
+        assert_eq!(&data[8..12], &[1.,0.,0.,0.]);
+    }
+    #[test]
+    fn lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry() {
+        let mut c = MaskComponent::new(MaskKind::Brush { strokes:vec![] });
+        c.group = Some(vec![]);
+        let g = LocalAdjustment { components:vec![c], ..Default::default() };
+        assert!(mask_parameters(&g, Extent::new(2,1)).is_err());
+    }
+}

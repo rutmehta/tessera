@@ -2232,3 +2232,26 @@ mod tests {
         assert_eq!(out, vec![0.0, 0.25, 0.75, 1.0]);
     }
 }
+
+#[cfg(test)]
+mod lr4_tests {
+    use super::*;
+    fn tree() -> LocalAdjustment {
+        let mut c = MaskComponent::new(MaskKind::Brush { strokes:vec![] });
+        c.group = Some(vec![MaskComponent::new(MaskKind::Linear { start:[0.25,0.], end:[0.75,0.] })]);
+        LocalAdjustment { components:vec![c], ..Default::default() }
+    }
+    #[test]
+    fn lr4_renderable_tree_preserves_group_and_disabled_child() {
+        let mut g = tree();
+        g.components[0].group.as_mut().unwrap()[0].enabled = false;
+        assert_eq!(renderable_group(&g).components, g.components);
+    }
+    #[test]
+    fn lr4_window_coordinates_include_nested_leaves() {
+        let locals = LocalsSettings { adjustments:vec![tree()], ..Default::default() };
+        let got = window_locals(&locals, engine_api::tile::Extent::new(100,100), (25,0,50,100));
+        let child = &got.adjustments[0].components[0].group.as_ref().unwrap()[0];
+        assert_eq!(child.kind, MaskKind::Linear { start:[0.,0.], end:[1.,0.] });
+    }
+}

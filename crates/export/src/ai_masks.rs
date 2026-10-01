@@ -212,3 +212,19 @@ pub(crate) fn render_with_hooks(
         },
     ))
 }
+
+#[cfg(test)]
+mod lr4_tests {
+    use super::*;
+    use engine_api::recipe::MaskComponent;
+    #[test]
+    fn lr4_nested_ai_activates_raster_export_but_disabled_does_not() {
+        let mut c = MaskComponent::new(MaskKind::Brush {strokes:vec![]});
+        c.group = Some(vec![MaskComponent::new(MaskKind::Subject {model:None})]);
+        let mut s = DevelopSettings::default();
+        s.locals.adjustments.push(LocalAdjustment {components:vec![c], ..Default::default()});
+        assert!(active(&s));
+        s.locals.adjustments[0].components[0].enabled = false;
+        assert!(!active(&s));
+    }
+}

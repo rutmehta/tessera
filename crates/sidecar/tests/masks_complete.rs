@@ -202,3 +202,8 @@ fn lr4_optional_tree_and_disabled_fields_roundtrip() {
         ]}
     ]}));
 }
+
+#[test]
+fn lr4_arbitrary_legacy_fallback_survives_native_roundtrip() {
+    direct(json!({"kind":"linear","start":[0.1,0.2],"end":[0.8,0.9],"group":[]}));
+}

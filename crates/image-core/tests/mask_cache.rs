@@ -166,3 +166,27 @@ fn warm_geometric_cache_does_not_bypass_rgb_validation() {
             .is_err()
     );
 }
+
+#[test]
+fn lr4_nested_ranges_hash_the_actual_rgb() {
+    let cache = MaskRasterCache::new(1 << 20);
+    let mut wrapper = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+    wrapper.group = Some(vec![MaskComponent::new(MaskKind::LuminanceRange {
+        range: [0.1, 0.3],
+        smoothness: 0.,
+    })]);
+    let group = LocalAdjustment {
+        components: vec![wrapper],
+        ..Default::default()
+    };
+    let a = Image::new(2, 1, vec![vec![0.2; 2]; 3]).unwrap();
+    let b = Image::new(2, 1, vec![vec![0.8; 2]; 3]).unwrap();
+    let first = cache
+        .rasterize(&a, &group, 0, ParamHash::default(), MaskOptions::default())
+        .unwrap();
+    let second = cache
+        .rasterize(&b, &group, 0, ParamHash::default(), MaskOptions::default())
+        .unwrap();
+    assert_eq!(&*first, &[1., 1.]);
+    assert_eq!(&*second, &[0., 0.]);
+}
