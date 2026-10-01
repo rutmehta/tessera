@@ -115,8 +115,13 @@ fn compose_components(
             match c.kind.is_ai() {
                 true => ai(&c.kind, w, h)?,
                 false => {
+                    // Preserve additive leaf parameters; this compositor owns
+                    // inversion/combination and applies them exactly once below.
+                    let mut leaf = c.clone();
+                    leaf.invert = false;
+                    leaf.combine = MaskCombine::Add;
                     let single = LocalAdjustment {
-                        components: vec![MaskComponent::new(c.kind.clone())],
+                        components: vec![leaf],
                         ..Default::default()
                     };
                     pipeline_cpu::masks::rasterize(

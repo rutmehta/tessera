@@ -65,7 +65,7 @@ fn direct(kind: serde_json::Value) -> String {
     let out = masks::export_masks(&serde_json::to_value(&locals).unwrap()).unwrap();
     let t = xml::Tree::parse(&xml::packet(&out)).unwrap();
     let back: Vec<LocalAdjustment> =
-        serde_json::from_value(masks::import_masks(&t).unwrap()).unwrap();
+        serde_json::from_value(masks::import_masks(&t, true).unwrap()).unwrap();
     assert_eq!(back, locals);
     assert!(!out.contains("&quot;kind&quot;"));
     out
@@ -132,7 +132,7 @@ fn foreign(component: &str) -> String {
 #[test]
 fn direct_foreign_radial_rdf_description_attributes() {
     let t = xml::Tree::parse(&foreign(r#"<rdf:li><rdf:Description crs:What="Mask/CircularGradient" crs:Left="0.1" crs:Right="0.9" crs:Top="0.2" crs:Bottom="0.8" crs:Angle="23.5" crs:Feather="42.25" crs:MaskBlendMode="1" crs:MaskInverted="True"/></rdf:li>"#)).unwrap();
-    let v = masks::import_masks(&t).unwrap();
+    let v = masks::import_masks(&t, true).unwrap();
     assert_eq!(v[0]["components"][0]["combine"], "subtract");
     assert_eq!(v[0]["components"][0]["center"], json!([0.5, 0.5]));
     assert_eq!(v[0]["components"][0]["invert"], true);
@@ -146,7 +146,7 @@ fn direct_foreign_opaque_and_invalid_fail_atomically() {
         r#"<rdf:li crs:What="Mask/Gradient" crs:MaskBlendMode="999"/>"#,
         r#"<rdf:li crs:What="Mask/Gradient" crs:FullX="NaN"/>"#,
     ] {
-        assert!(masks::import_masks(&xml::Tree::parse(&foreign(c)).unwrap()).is_err());
+        assert!(masks::import_masks(&xml::Tree::parse(&foreign(c)).unwrap(), true).is_err());
     }
 }
 #[test]
@@ -168,7 +168,8 @@ fn direct_radial_foreign_edit_does_not_use_stale_geometry() {
         "<crs:Right>0.75</crs:Right>",
         "<crs:Right>0.875</crs:Right>",
     );
-    let back = masks::import_masks(&xml::Tree::parse(&xml::packet(&changed)).unwrap()).unwrap();
+    let back =
+        masks::import_masks(&xml::Tree::parse(&xml::packet(&changed)).unwrap(), true).unwrap();
     assert_eq!(back[0]["components"][0]["center"][0], json!(0.5625));
     assert_eq!(back[0]["components"][0]["radii"][0], json!(0.3125));
 }

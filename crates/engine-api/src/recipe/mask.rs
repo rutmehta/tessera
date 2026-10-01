@@ -232,6 +232,11 @@ pub struct MaskComponent {
     /// this field; imported groups use an empty brush as their fallback.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<Vec<MaskComponent>>,
+    /// Optional four-bound luminance band: [low-feather, low, high, high-feather].
+    /// Replaces the two-bound range/smoothness only on a luminance leaf.
+    /// Absent preserves the original operator and serialized bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub luminance_bounds: Option<[f32; 4]>,
     /// What to select when `group` is absent.
     #[serde(flatten)]
     pub kind: MaskKind,
@@ -268,6 +273,7 @@ impl MaskComponent {
             kind,
             enabled: true,
             group: None,
+            luminance_bounds: None,
             combine: MaskCombine::Add,
             invert: false,
         }
@@ -341,9 +347,9 @@ impl LocalAdjustment {
     /// Bound recursive render work before allocating per-level alpha planes.
     /// Includes disabled nodes so toggling cannot bypass structural limits.
     pub fn validate_mask_tree(&self) -> crate::EngineResult<()> {
-        let mut stack: Vec<_> = self.components.iter().map(|c| (c, 0usize)).collect();
+        let mut stack: Vec<_> = self.components.iter().map(|c| (c, 0usize, true)).collect();
         let mut count = 0usize;
-        while let Some((c, depth)) = stack.pop() {
+        while let Some((c, depth, parent_enabled)) = stack.pop() {
             count += 1;
             if depth > 64 || count > 65_536 {
                 return Err(crate::EngineError::invalid(
@@ -351,8 +357,21 @@ impl LocalAdjustment {
                     "mask tree exceeds 64 levels or 65536 components",
                 ));
             }
+            let enabled = parent_enabled && c.enabled;
+            if let Some(b) = c.luminance_bounds.filter(|_| enabled) {
+                if c.group.is_some()
+                    || !matches!(c.kind, MaskKind::LuminanceRange { .. })
+                    || b.iter().any(|v| !v.is_finite() || !(0. ..=1.).contains(v))
+                    || b.windows(2).any(|p| p[0] > p[1])
+                {
+                    return Err(crate::EngineError::invalid(
+                        "mask.luminance_bounds",
+                        "expected ordered four-bound luminance leaf in 0..=1",
+                    ));
+                }
+            }
             if let Some(children) = &c.group {
-                stack.extend(children.iter().map(|c| (c, depth + 1)));
+                stack.extend(children.iter().map(|c| (c, depth + 1, enabled)));
             }
         }
         Ok(())

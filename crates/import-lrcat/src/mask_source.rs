@@ -80,7 +80,7 @@ fn sequence<'a, 'input>(n: Node<'a, 'input>) -> Option<Vec<Node<'a, 'input>>> {
 }
 fn range(n: Node<'_, '_>) -> Option<()> {
     let f = fields(n)?;
-    let lum = ["LumMin", "LumMax", "LumFeather"]
+    let lum = ["LumMin", "LumMax", "LumFeather", "LumRange"]
         .iter()
         .any(|key| f.contains_key(*key));
     let depth = ["DepthMin", "DepthMax", "DepthFeather"]
@@ -92,7 +92,9 @@ fn range(n: Node<'_, '_>) -> Option<()> {
     for (name, value) in &f {
         if !matches!(
             name.as_str(),
-            "LumMin"
+            "Type"
+                | "LumRange"
+                | "LumMin"
                 | "LumMax"
                 | "LumFeather"
                 | "DepthMin"
@@ -139,8 +141,10 @@ fn component(n: Node<'_, '_>) -> Option<()> {
             ("What" | "MaskActive" | "MaskInverted" | "MaskBlendMode", Field::Scalar(_)) => (),
             ("FullX" | "FullY" | "ZeroX" | "ZeroY", Field::Scalar(_))
                 if kind == "Mask/Gradient" => {}
-            ("Left" | "Right" | "Top" | "Bottom" | "Angle" | "Feather", Field::Scalar(_))
-                if kind == "Mask/CircularGradient" => {}
+            (
+                "Left" | "Right" | "Top" | "Bottom" | "Angle" | "Feather" | "Flipped",
+                Field::Scalar(_),
+            ) if kind == "Mask/CircularGradient" => {}
             _ => return None,
         }
     }
@@ -192,6 +196,8 @@ pub(crate) fn fully_translated(root: Node<'_, '_>) -> bool {
     let new_shape = root.descendants().any(|n| {
         n.has_tag_name((CRS, "Masks"))
             || n.has_tag_name((CRS, "CorrectionRangeMask"))
+            || n.has_tag_name((CRS, "Flipped"))
+            || n.attribute((CRS, "Flipped")).is_some()
             || n.has_tag_name((CRS, "MaskActive"))
                 && matches!(n.text(), Some("False" | "false" | "0"))
             || n.attribute((CRS, "MaskActive"))

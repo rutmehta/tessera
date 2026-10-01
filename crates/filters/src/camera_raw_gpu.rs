@@ -30,10 +30,16 @@ use std::{collections::HashMap, sync::Arc};
 use wgpu::{Buffer, Device, Queue, util::DeviceExt};
 
 fn supported_settings(s: &DevelopSettings) -> EngineResult<bool> {
-    Ok(
-        s.effects.lens_blur.is_none()
-            && RgbOpticsPlan::new(s, Extent::new(64, 64), None)?.is_some(),
-    )
+    Ok(s.effects.lens_blur.is_none()
+        && !s
+            .locals
+            .adjustments
+            .iter()
+            .filter(|g| g.enabled)
+            .flat_map(|g| &g.components)
+            .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+            .any(|c| c.luminance_bounds.is_some())
+        && RgbOpticsPlan::new(s, Extent::new(64, 64), None)?.is_some())
 }
 
 /// Settings-only capability. Device/frame resource limits are checked by
@@ -61,7 +67,11 @@ pub fn evaluate(
 ) -> EngineResult<Buffer> {
     let params = parse(value)?;
     if !supported_settings(&params.settings)? {
-        return Err(EngineError::Unsupported { what: "camera_raw resident lens/geometry (including Auto lens analysis); use CPU evaluator".into() });
+        return Err(EngineError::Unsupported {
+            what:
+                "camera_raw resident settings (lens/geometry or CPU-only masks); use CPU evaluator"
+                    .into(),
+        });
     }
     let (forward, backward) = profile_matrices(context)?;
     let curves = profile_curves(context)?;

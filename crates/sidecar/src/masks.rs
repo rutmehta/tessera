@@ -221,6 +221,9 @@ fn export_component(c: &Value) -> EngineResult<String> {
         b += &seq("crs:Masks", &body);
         return Ok(b);
     }
+    if !c["luminance_bounds"].is_null() {
+        b += &native("ts:luminance_bounds", &c["luminance_bounds"]);
+    }
     match kind {
         "linear" => {
             b += &text("crs:What", "Mask/Gradient");
@@ -307,7 +310,7 @@ fn export_component(c: &Value) -> EngineResult<String> {
     Ok(b)
 }
 
-pub(super) fn import_masks(t: &Tree) -> EngineResult<Value> {
+pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<Value> {
     let Some(Property::Node(root)) = t.property(CRS, "MaskGroupBasedCorrections") else {
         return Err(error("masks require a sequence"));
     };
@@ -358,11 +361,11 @@ pub(super) fn import_masks(t: &Tree) -> EngineResult<Value> {
         let mut components = Vec::new();
         if let Some(masks) = child(t, n, CRS, "CorrectionMasks") {
             for c in t.items(masks) {
-                components.push(import_component(t, c)?);
+                components.push(import_component(t, c, foreign_extensions)?);
             }
         }
         if let Some(range) = child(t, n, CRS, "CorrectionRangeMask") {
-            components.push(import_range(t, range)?);
+            components.push(import_range(t, range, foreign_extensions)?);
         }
         v["components"] = json!(components);
         let local: LocalAdjustment = serde_json::from_value(v)?;
@@ -371,7 +374,7 @@ pub(super) fn import_masks(t: &Tree) -> EngineResult<Value> {
     }
     Ok(serde_json::to_value(locals)?)
 }
-fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
+fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResult<Value> {
     let mut parent = n.parent;
     let mut depth = 0;
     while let Some(i) = parent {
@@ -404,7 +407,7 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
         "range" => {
             let r = child(t, n, CRS, "CorrectionRangeMask")
                 .ok_or_else(|| error("missing range mask"))?;
-            c = import_range(t, r)?;
+            c = import_range(t, r, foreign_extensions)?;
         }
         "group" => {
             let masks = child(t, n, CRS, "Masks").ok_or_else(|| error("missing nested masks"))?;
@@ -417,7 +420,7 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
             c["group"] = json!(
                 t.items(masks)
                     .into_iter()
-                    .map(|n| import_component(t, n))
+                    .map(|n| import_component(t, n, foreign_extensions))
                     .collect::<EngineResult<Vec<_>>>()?
             );
         }
@@ -455,8 +458,16 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
             }
             c["angle"] = json!(num(t, n, "Angle", 0.0)?);
             c["feather"] = json!(num(t, n, "Feather", 0.0)?);
-            if get(t, n, CRS, "Flipped").is_some() {
-                return Err(error("radial Flipped semantics retained in XMP"));
+            if let Some(flipped) = get(t, n, CRS, "Flipped") {
+                if !foreign_extensions {
+                    return Err(error("radial Flipped semantics retained in XMP"));
+                }
+                let inverted = !flag(Some(flipped), true)?;
+                if get(t, n, CRS, "MaskInverted").is_some()
+                    && flag(get(t, n, CRS, "MaskInverted"), false)? != inverted
+                {
+                    return Err(error("radial Flipped semantics retained in XMP"));
+                }
             }
         }
         "brush" => {
@@ -510,7 +521,7 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
         && let Some(range) = child(t, n, CRS, "CorrectionRangeMask")
     {
         let seed: MaskComponent = serde_json::from_value(c)?;
-        c = json!({"kind":"brush", "strokes":[], "group":[seed, import_range(t, range)?]});
+        c = json!({"kind":"brush", "strokes":[], "group":[seed, import_range(t, range, foreign_extensions)?]});
     }
     if kind != "group" && child(t, n, CRS, "Masks").is_some() {
         return Err(error("nested mask group retained in XMP"));
@@ -524,23 +535,74 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
         }
     );
     c["enabled"] = json!(flag(get(t, n, CRS, "MaskActive"), true)?);
-    c["invert"] = json!(
-        c["invert"].as_bool().unwrap_or(false) ^ flag(get(t, n, CRS, "MaskInverted"), false)?
-    );
+    let component_invert = if kind == "radial" && get(t, n, CRS, "Flipped").is_some() {
+        !flag(get(t, n, CRS, "Flipped"), true)?
+    } else {
+        flag(get(t, n, CRS, "MaskInverted"), false)?
+    };
+    c["invert"] = json!(c["invert"].as_bool().unwrap_or(false) ^ component_invert);
+    if let Some(bounds) = extension(t, n, "luminance_bounds")? {
+        c["luminance_bounds"] = bounds;
+    }
     let c: MaskComponent = serde_json::from_value(c)?;
     Ok(serde_json::to_value(c)?)
 }
 
-// Only explicit scalar bounds are interpreted. Opaque LumRange/AreaModels and
-// type-number-only encodings remain source-retained; their semantics are not
-// specified by the tag inventory.
-fn import_range(t: &Tree, n: &Node) -> EngineResult<Value> {
+// Explicit scalar and four-bound luminance ranges. Type codes dispatch only
+// with matching geometry; color models remain opaque until their color space
+// and selection kernel can be represented faithfully.
+fn import_range(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResult<Value> {
     let lum = get(t, n, CRS, "LumMin").is_some() && get(t, n, CRS, "LumMax").is_some();
     let depth = get(t, n, CRS, "DepthMin").is_some() && get(t, n, CRS, "DepthMax").is_some();
+    let four = get(t, n, CRS, "LumRange");
+    let subtype = get(t, n, CRS, "Type");
+    if !foreign_extensions && (four.is_some() || subtype.is_some()) {
+        return Err(error("opaque or ambiguous range mask retained in XMP"));
+    }
+    let selected = match subtype.as_deref().map(str::trim) {
+        None => None,
+        Some("2") => Some("luminance_range"),
+        Some("3") => Some("depth"),
+        _ => return Err(error("opaque or ambiguous range mask retained in XMP")),
+    };
+    if let Some(value) = four {
+        if selected == Some("depth")
+            || [
+                "LumMin",
+                "LumMax",
+                "LumFeather",
+                "DepthMin",
+                "DepthMax",
+                "DepthFeather",
+                "ColorAmount",
+            ]
+            .iter()
+            .any(|key| get(t, n, CRS, key).is_some())
+            || child(t, n, CRS, "AreaModels").is_some()
+            || child(t, n, CRS, "PointModels").is_some()
+        {
+            return Err(error("opaque or ambiguous range mask retained in XMP"));
+        }
+        let bounds = value
+            .split_whitespace()
+            .map(number)
+            .collect::<EngineResult<Vec<_>>>()?;
+        if bounds.len() != 4
+            || bounds.iter().any(|v| !(0. ..=1.).contains(v))
+            || bounds.windows(2).any(|p| p[0] > p[1])
+        {
+            return Err(error("opaque or ambiguous range mask retained in XMP"));
+        }
+        return Ok(
+            json!({"kind":"luminance_range", "range":[bounds[1],bounds[2]],
+            "luminance_bounds":bounds,"combine":"intersect", "smoothness":0.,
+            "invert":flag(get(t,n,CRS,"Invert"),false)?}),
+        );
+    }
     if lum == depth
-        || get(t, n, CRS, "Type").is_some()
+        || selected == Some("luminance_range") && !lum
+        || selected == Some("depth") && !depth
         || child(t, n, CRS, "AreaModels").is_some()
-        || get(t, n, CRS, "LumRange").is_some()
     {
         return Err(error("opaque or ambiguous range mask retained in XMP"));
     }

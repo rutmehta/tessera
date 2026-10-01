@@ -158,7 +158,28 @@ fn rasterize_components(
                 }
                 MaskKind::LuminanceRange { range, smoothness } => {
                     for (i, v) in plane.iter_mut().enumerate() {
-                        *v = band(luminance(input, i), range, smoothness / 200.);
+                        let y = luminance(input, i);
+                        *v = if let Some([outer_low, low, high, outer_high]) =
+                            component.luminance_bounds
+                        {
+                            if y < low {
+                                if low == outer_low {
+                                    0.
+                                } else {
+                                    smooth((y - outer_low) / (low - outer_low))
+                                }
+                            } else if y > high {
+                                if high == outer_high {
+                                    0.
+                                } else {
+                                    smooth((outer_high - y) / (outer_high - high))
+                                }
+                            } else {
+                                1.
+                            }
+                        } else {
+                            band(y, range, smoothness / 200.)
+                        };
                     }
                 }
                 MaskKind::Depth { range, feather, .. } => {

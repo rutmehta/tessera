@@ -342,6 +342,11 @@ fn mask_parameters(group: &LocalAdjustment, extent: Extent) -> EngineResult<Vec<
     ];
     let mut stamps = 0usize;
     for c in group.components.iter().filter(|c| c.enabled) {
+        if c.luminance_bounds.is_some() {
+            return Err(invalid(
+                "four-bound luminance masks require the CPU mask path",
+            ));
+        }
         if c.group.is_some() {
             return Err(invalid("nested mask groups require the CPU mask path"));
         }

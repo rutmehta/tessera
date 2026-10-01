@@ -20,6 +20,18 @@ struct Property<'a> {
     node: Option<Node<'a, 'a>>,
 }
 
+// Preserve the previous decoder's error/empty-target behavior when geometry or
+// local parameters cannot render. Legacy/native forms retain their existing path.
+fn decode_with_mask_audit(text: &str, extensions: bool) -> EngineResult<sidecar::ImportedRecipe> {
+    let packet = XmpPacket::parse(text)?;
+    let imported = packet.to_catalog_recipe_with_foreign_mask_extensions(extensions)?;
+    if extensions && !crate::mask_source::renderable(&imported.recipe.settings.locals.adjustments) {
+        packet.to_catalog_recipe_with_foreign_mask_extensions(false)
+    } else {
+        Ok(imported)
+    }
+}
+
 /// Import through the shared codec. The catalog version remains authoritative for
 /// Adobe XMP; a hash-verified native companion is interpreted only by sidecar.
 /// Compatibility diagnostics retain individual properties as well as the exact
@@ -78,7 +90,17 @@ pub(crate) fn parse_inner(
             });
         }
     }
-    let original = XmpPacket::parse(text)?.to_catalog_recipe()?;
+    // Upgrade foreign mask forms only when the entire parent is consumed. An
+    // untranslated input must keep its prior recipe, not just its raw envelope.
+    let mask_properties: Vec<_> = properties
+        .iter()
+        .filter(|p| p.namespace == CRS && p.name == "MaskGroupBasedCorrections")
+        .collect();
+    let foreign_mask_extensions = mask_properties.len() == 1
+        && mask_properties[0]
+            .node
+            .is_some_and(crate::mask_source::fully_translated);
+    let original = decode_with_mask_audit(text, foreign_mask_extensions)?;
     let verified_native = properties.iter().any(|p| {
         p.namespace == CRS && p.name == "ProcessVersion" && ProcessVersion::from_crs(p.raw).is_ok()
     }) && original
@@ -169,7 +191,7 @@ pub(crate) fn parse_inner(
     let imported = if normalized == text {
         original
     } else {
-        XmpPacket::parse(normalized)?.to_catalog_recipe()?
+        decode_with_mask_audit(&normalized, foreign_mask_extensions)?
     };
     let mut recipe = imported.recipe;
     let mut warnings = imported.warnings;

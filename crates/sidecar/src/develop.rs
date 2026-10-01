@@ -186,17 +186,21 @@ impl XmpPacket {
     /// retained in `Recipe::unknown["sidecar_xmp"]` for lossless later export via
     /// `from_imported_recipe`.
     pub fn to_recipe(&self) -> EngineResult<ImportedRecipe> {
-        self.decode_recipe(true)
+        self.decode_recipe(true, true)
     }
 
     /// Decode ordinary CRS fields into an uncommitted catalog import transaction.
     /// The catalog supplies its authoritative process version and geometry hooks,
     /// then records history once, after all hooks have completed.
     pub fn to_catalog_recipe(&self) -> EngineResult<ImportedRecipe> {
-        self.decode_recipe(false)
+        self.decode_recipe(false, true)
     }
 
-    fn decode_recipe(&self, standalone: bool) -> EngineResult<ImportedRecipe> {
+    pub fn to_catalog_recipe_with_foreign_mask_extensions(&self, extensions: bool) -> EngineResult<ImportedRecipe> {
+        self.decode_recipe(false, extensions)
+    }
+
+    fn decode_recipe(&self, standalone: bool, foreign_mask_extensions: bool) -> EngineResult<ImportedRecipe> {
         let tree = Tree::parse(&self.xml)?;
         let mut recipe = Recipe {
             selection: self.selection()?,
@@ -217,7 +221,7 @@ impl XmpPacket {
                     .insert(key.qualified_name(), raw);
                 continue;
             }
-            if let Err(e) = decode(key, &tree, &mut value) {
+            if let Err(e) = decode(key, &tree, &mut value, foreign_mask_extensions) {
                 warnings.push(format!("{key}: {e}; retained in original XMP"));
             }
         }
@@ -435,7 +439,12 @@ fn enum_value(s: &str, choices: &[&str]) -> EngineResult<Value> {
         .map(|s| json!(s))
         .ok_or_else(|| error("invalid enumeration"))
 }
-fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
+fn decode(
+    key: CrsKey,
+    tree: &Tree,
+    doc: &mut Value,
+    foreign_mask_extensions: bool,
+) -> EngineResult<()> {
     use CrsKey::*;
     let path = key.recipe_path().ok_or_else(|| unsupported(key))?;
     let s = tree
@@ -479,7 +488,7 @@ fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
             Some(v) => v,
             None => return Ok(()),
         },
-        MaskGroupBasedCorrections => masks::import_masks(tree)?,
+        MaskGroupBasedCorrections => masks::import_masks(tree, foreign_mask_extensions)?,
         PointColors | LensBlur | RetouchAreas | RetouchInfo => structures::decode(key, tree)?,
         Look => {
             let Some(Property::Node(n)) = tree.property(CRS, key.xmp_name()) else {

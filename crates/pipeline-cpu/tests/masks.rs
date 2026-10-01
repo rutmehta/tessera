@@ -14,6 +14,7 @@ fn composition_and_inversion() {
         g.components.push(MaskComponent {
             enabled: true,
             group: None,
+            luminance_bounds: None,
             kind: linear(),
             combine: op,
             invert: true,

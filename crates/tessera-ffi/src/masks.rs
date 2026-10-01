@@ -415,6 +415,7 @@ fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
     Some(MaskComponent {
         enabled: c.enabled,
         group: None,
+        luminance_bounds: c.luminance_bounds,
         kind,
         combine: c.combine,
         invert: c.invert,
@@ -1375,6 +1376,7 @@ impl DevelopSession {
         g.components.push(MaskComponent {
             enabled: true,
             group: None,
+            luminance_bounds: None,
             kind,
             combine: combine.into(),
             invert: false,
@@ -1649,6 +1651,7 @@ impl DevelopSession {
                     .push(MaskComponent {
                         enabled: true,
                         group: None,
+                        luminance_bounds: None,
                         kind: component,
                         combine: combine.into(),
                         invert: false,
@@ -1767,6 +1770,7 @@ impl DevelopSession {
                     .push(MaskComponent {
                         enabled: true,
                         group: None,
+                        luminance_bounds: None,
                         kind,
                         combine: combine.into(),
                         invert: false,
@@ -2197,6 +2201,7 @@ mod tests {
                 MaskComponent {
                     enabled: true,
                     group: None,
+                    luminance_bounds: None,
                     kind: MaskKind::Linear {
                         start: [0.0, 0.0],
                         end: [0.0, 1.0],
