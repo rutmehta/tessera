@@ -1,0 +1,16 @@
+---- export_batch_does_not_starve_slider_drag stdout ----
+develop original L2 calibration [first, tone, WB] ms: CPU [4605.192917, 1245.708333, 1952.582666]; GPU [1962.9219170000001, 6.967292, 113.04899999999999]
+slider without export: render p50 4.8 ms p90 20.6 ms max 761.6 ms
+slider during export: 120 frames in 2.16999575s (20 at L2): render p50 5.2 ms p90 15.2 ms max 33.2 ms; set→frame p50 6.1 ms p90 16.3 ms max 34.2 ms; export 5 images in 13.8988895s, 0 completed during the drag
+
+thread 'export_batch_does_not_starve_slider_drag' (47164114) panicked at crates/tessera-ffi/tests/develop.rs:1198:5:
+drag stays at L2: [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    export_batch_does_not_starve_slider_drag
+
+test result: FAILED. 8 passed; 1 failed; 3 ignored; 0 measured; 0 filtered out; finished in 62.48s
+
+error: test failed, to rerun pass `-p tessera-ffi --test develop`

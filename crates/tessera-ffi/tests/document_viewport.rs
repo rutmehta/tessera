@@ -682,8 +682,11 @@ fn composite_thumbnails_reuse_mips_across_edits() {
     let e = Extent::new(3072, 2048);
     let (doc, ids) = small_document(e);
     let s = engine.adopt_document(doc, "thumbs".into());
+    let baseline = s.thumbnail_mip_stats();
     let t = Instant::now();
     let first = s.composite_thumbnail(48).unwrap();
+    let cold_stats = s.thumbnail_mip_stats();
+    assert!(cold_stats.1 > baseline.1, "cold thumbnail must build mips");
     let cold = t.elapsed();
     let layer = ids[5].0;
     s.set_opacity(layer, 0.4, false).unwrap();
@@ -692,19 +695,37 @@ fn composite_thumbnails_reuse_mips_across_edits() {
     let warm = t.elapsed();
     assert_ne!(first, second, "an edit renders a new thumbnail");
     eprintln!("composite thumbnail: cold {cold:?}, after an opacity edit {warm:?}");
-    assert!(warm * 4 < cold, "cold {cold:?} vs warm {warm:?}");
+    let warm_stats = s.thumbnail_mip_stats();
+    eprintln!("mip counters: baseline {baseline:?}, cold {cold_stats:?}, warm {warm_stats:?}");
+    assert!(
+        warm_stats.0 > cold_stats.0,
+        "edited thumbnail must hit cached mips"
+    );
+    assert_eq!(warm_stats.1, cold_stats.1, "edit must not rebuild mips");
+    assert!(
+        warm < Duration::from_secs(30),
+        "warm thumbnail took {warm:?}"
+    );
     // A drag shows its live state, warm from the first tick.
     let mut ticks = Vec::new();
     for i in 0..5 {
+        let before = s.thumbnail_mip_stats();
         s.set_opacity(layer, 0.1 * i as f32, true).unwrap();
         let t = Instant::now();
         s.composite_thumbnail(48).unwrap();
         ticks.push(t.elapsed());
+        let after = s.thumbnail_mip_stats();
+        eprintln!("drag {i}: mip counters {before:?} -> {after:?}");
+        if s.info().unwrap().backend != "CPU" {
+            assert!(after.0 > before.0, "drag tick must hit cached mips");
+            assert_eq!(after.1, before.1, "drag tick must not rebuild mips");
+        }
     }
     eprintln!("drag ticks: {ticks:?}");
-    if s.info().unwrap().backend != "CPU" {
-        assert!(ticks.iter().all(|t| *t * 4 < cold), "{ticks:?}");
-    }
+    assert!(
+        ticks.iter().all(|t| *t < Duration::from_secs(30)),
+        "{ticks:?}"
+    );
     s.commit("Opacity".into()).unwrap();
     s.close();
 }

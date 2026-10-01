@@ -1,0 +1,62 @@
+load build pid=36803 started 2026-10-01T04:28:05Z
+RUN 1 START 2026-10-01T04:28:05Z load_alive=yes
+composite thumbnail: cold 241.151041ms, after an opacity edit 974.042µs
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [575.916µs, 334.417µs, 330.25µs, 548.416µs, 346.5µs]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.57s
+RUN 1 END 2026-10-01T04:28:07Z load_alive=yes
+RUN 2 START 2026-10-01T04:28:07Z load_alive=yes
+composite thumbnail: cold 122.980583ms, after an opacity edit 1.074083ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [723.833µs, 543.125µs, 481.125µs, 399.417µs, 365.792µs]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.29s
+RUN 2 END 2026-10-01T04:28:08Z load_alive=yes
+RUN 3 START 2026-10-01T04:28:08Z load_alive=yes
+composite thumbnail: cold 273.57475ms, after an opacity edit 821.917µs
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [472.5µs, 375.416µs, 400.333µs, 381.25µs, 692.708µs]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.48s
+RUN 3 END 2026-10-01T04:28:09Z load_alive=yes
+RUN 4 START 2026-10-01T04:28:09Z load_alive=yes
+composite thumbnail: cold 303.455334ms, after an opacity edit 1.138209ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [1.143625ms, 483.292µs, 540.791µs, 497.208µs, 432.583µs]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.52s
+RUN 4 END 2026-10-01T04:28:10Z load_alive=yes
+RUN 5 START 2026-10-01T04:28:10Z load_alive=yes
+composite thumbnail: cold 117.199709ms, after an opacity edit 1.51125ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [1.090541ms, 1.811542ms, 1.224041ms, 826.292µs, 3.534375ms]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.35s
+RUN 5 END 2026-10-01T04:28:11Z load_alive=yes
+RUN 6 START 2026-10-01T04:28:11Z load_alive=yes
+composite thumbnail: cold 120.120833ms, after an opacity edit 940.542µs
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [769.041µs, 789.625µs, 724.625µs, 845.708µs, 621.583µs]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.31s
+RUN 6 END 2026-10-01T04:28:11Z load_alive=yes
+RUN 7 START 2026-10-01T04:28:11Z load_alive=yes
+composite thumbnail: cold 250.777334ms, after an opacity edit 1.217334ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [712.041µs, 1.0925ms, 1.313791ms, 1.198417ms, 1.009417ms]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.85s
+RUN 7 END 2026-10-01T04:28:13Z load_alive=yes
+RUN 8 START 2026-10-01T04:28:13Z load_alive=yes
+composite thumbnail: cold 117.81425ms, after an opacity edit 1.092875ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [807.458µs, 829.5µs, 881.375µs, 1.246542ms, 419.625µs]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.33s
+RUN 8 END 2026-10-01T04:28:15Z load_alive=yes
+RUN 9 START 2026-10-01T04:28:15Z load_alive=yes
+composite thumbnail: cold 138.555917ms, after an opacity edit 1.211542ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [1.501417ms, 805.833µs, 1.9975ms, 1.055458ms, 909.833µs]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.39s
+RUN 9 END 2026-10-01T04:28:16Z load_alive=yes
+RUN 10 START 2026-10-01T04:28:16Z load_alive=yes
+composite thumbnail: cold 114.445292ms, after an opacity edit 1.158416ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag ticks: [1.026084ms, 1.068167ms, 2.903834ms, 587.334µs, 2.788208ms]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.33s
+RUN 10 END 2026-10-01T04:28:17Z load_alive=yes
+LOAD BUILD OK

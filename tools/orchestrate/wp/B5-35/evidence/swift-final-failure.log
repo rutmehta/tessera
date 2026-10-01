@@ -1,0 +1,7 @@
+Test Suite 'ShellLayoutTests' started at 2026-10-01 01:48:58.733.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+Context leak detected, CoreAnalytics returned false
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-35/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:194: error: -[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize] : XCTAssertTrue failed - 1 inspector layout failures:
+document-1728x1117-stack-history-open historyBody overlaps historyHeader: {{900, 412}, {288, 192}} / {{1440, 1085}, {288, 32}}
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' failed (36.695 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' started.

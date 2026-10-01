@@ -478,6 +478,7 @@ pub struct ResidentRenderer {
     children: HashMap<LayerId, (Arc<crate::document::DocState>, ResidentRenderer)>,
     budget: u64,
     stats: ResidentStats,
+    mip_probe: crate::mip_probe::MipProbe,
     pending_l0: Vec<(u64, Tile)>,
     pending_mips: Vec<u64>,
     pending_smart: Vec<(u64, smart_gpu::SmartPlan, wgpu::Buffer)>,
@@ -574,6 +575,7 @@ impl ResidentRenderer {
             children: HashMap::new(),
             budget,
             stats: ResidentStats::default(),
+            mip_probe: Default::default(),
             pending_l0: Vec::new(),
             pending_mips: Vec::new(),
             pending_smart: Vec::new(),
@@ -711,14 +713,24 @@ impl ResidentRenderer {
         id
     }
 
+    /// Enable test diagnostics and return cumulative (mip hits, mip rebuilds).
+    /// Counts both retained raster-node lookups and content-addressed mip hits.
+    /// Only subsequent work is counted; production callers leave this disabled.
+    #[doc(hidden)]
+    pub fn mip_cache_probe(&self) -> (u64, u64) {
+        self.mip_probe.snapshot()
+    }
+
     fn intern_mip(&mut self, key: MipKey) -> u64 {
         if let Some(&id) = self.mips.get(&key) {
+            self.mip_probe.hit();
             self.touch(id);
             return id;
         }
         let id = self.id(NodeKey::Mip(key));
         self.mips.insert(key, id);
         self.pending_mips.push(id);
+        self.mip_probe.rebuild();
         id
     }
 
@@ -749,6 +761,9 @@ impl ResidentRenderer {
         }
         let i = (ty * cols + tx) as usize;
         if levels[l as usize][i] != UNRESOLVED {
+            if l > 0 && levels[l as usize][i] != 0 {
+                self.mip_probe.hit();
+            }
             return Ok(levels[l as usize][i]);
         }
         let id = if l == 0 {
