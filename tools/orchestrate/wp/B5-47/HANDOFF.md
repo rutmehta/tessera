@@ -268,3 +268,28 @@ confirming the top-origin text/bar placement independently of layer-frame assert
 - Both PNGs and this handoff are committed with `docs(B5-47b):`. All three
   B5-47b commits carry the requested co-author trailer. Local commits only;
   no Rust, Cargo.lock, board.json, rebase, push, foreground window, or screen capture.
+
+
+## B5-47c phase accessibility notification follow-up
+
+Commits are on top of `1c27da8e` on `wp/B5-47`, without rebasing.
+
+- `e7d279e1` (`test(B5-47c):`) adds an injectable notification-post closure,
+  defaulting to `NSAccessibility.post`, and a deterministic regression recording
+  notification targets/types without a live AX client. The unchanged publication
+  behavior failed with 10 assertions in one test (`evidence/b5-47c-red.log`).
+- `c5a5ad20` (`fix(B5-47c):`) posts `.valueChanged` on the phase element only
+  when its AX string changes, and on the progress element only when its numeric
+  value or percentage description changes. Notifications follow the layer transaction.
+- Regression coverage includes a phase-only transition at 63%, the actual Cancel
+  button action and callback, duplicate publication suppression, a numeric change
+  within the same rounded percentage, row reuse, and a final phase-only transition
+  at 100%. All four HUD tests passed (`evidence/b5-47c-green.log`).
+- Required serial FFI + Swift gate command, using the prescribed PATH and
+  `CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-47`, exited **0** and printed
+  **SWIFT GATE OK**: **904 XCTest tests, 3 skipped, zero failures**, plus
+  **5 Swift Testing tests passed**. See `evidence/b5-47c-swift-gate.log`;
+  full local output is `/tmp/B5-47c-swift-gate.log`.
+- All three B5-47c commits carry the requested co-author trailer. Local commits
+  only; no Rust, Cargo.lock, board.json, rebase, push, installation, or GUI launch.
+  The existing P16 whole-main-thread <8 ms target remains OPEN.
