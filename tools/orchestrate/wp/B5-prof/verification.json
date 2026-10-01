@@ -1,0 +1,12 @@
+{
+  "branch": "wp/B5-prof",
+  "measured_commit": "68264c74c365d8e7a4c33ddaecebf934f9305b08",
+  "tracked_product_diff_empty": true,
+  "temporary_harness_removed": true,
+  "json_files_validated": 9,
+  "summary_rows": 17,
+  "hotspot_tables": 12,
+  "packaged_binary_sha256_verified": "f857d0af3c0aa42520ceae96b8437f33625a2c6ffc0be230a7305332830b57d3",
+  "source_mappings_exist": true,
+  "coverage": "See explicit main-thread, presentation and foreground-invariance limitations in REPORT.md."
+}

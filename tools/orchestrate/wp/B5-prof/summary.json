@@ -1,0 +1,156 @@
+{
+  "columns": [
+    "scenario",
+    "wall_latency",
+    "main_max",
+    "peak_memory",
+    "boundary"
+  ],
+  "rows": [
+    [
+      "1. Saved 24 MP layered document, engine open \u2192 first listener frame",
+      "310.01 ms; n=3",
+      "N/A: Rust test, not AppKit",
+      "901 MiB process RSS",
+      "prof_saved_layered_24mp; one process, cold first trial; excludes launch/UI presentation"
+    ],
+    [
+      "2. Brush on 5472 \u00d7 3648 (20 MP), tools self-test",
+      "stroke_points 1.62 ms; frame render 2.87 ms (median of 3 per-run medians)",
+      "59.0 ms S, available brush windows",
+      "2,572 MiB whole-test RSS",
+      "valid/tools-1..3; whole-stroke wall not instrumented"
+    ],
+    [
+      "3. 20 MP fill-only vector drag, reused release",
+      "152.5 ms; 60 previews; median 15 frames",
+      "21 ms S, 2 isolated trace windows",
+      "4,915 MiB whole-test RSS",
+      "vector-1..3 in old scratch; source/build qualification below"
+    ],
+    [
+      "4. Camera Raw 24 MP \u2014 fit L2 preview, local settings",
+      "228 ms; median of 3 warm-run medians",
+      "N/A: engine test thread",
+      "+220 MB heap; \u22647,074 MiB whole-process RSS",
+      "cr-bench-1..3; each warm-run median has n=3"
+    ],
+    [
+      "4. Camera Raw 24 MP \u2014 100% preview, local settings",
+      "533 ms; median of 3 warm-run medians",
+      "N/A: engine test thread",
+      "+244 MB heap; \u22647,074 MiB whole-process RSS",
+      "cr-bench-1..3; each warm-run median has n=3"
+    ],
+    [
+      "4. Camera Raw 24 MP \u2014 fit L2 preview, vignette (global)",
+      "259 ms; median of 3 warm-run medians",
+      "N/A: engine test thread",
+      "+143 MB heap; \u22647,074 MiB whole-process RSS",
+      "cr-bench-1..3; each warm-run median has n=3"
+    ],
+    [
+      "4. Camera Raw 24 MP \u2014 100% preview, vignette (global)",
+      "10,244 ms; median of 3 warm-run medians",
+      "N/A: engine test thread",
+      "+2,564 MB heap; \u22647,074 MiB whole-process RSS",
+      "cr-bench-1..3; each warm-run median has n=3"
+    ],
+    [
+      "5. Gaussian r12 24 MP \u2192 completed frame",
+      "723.20 ms; n=3",
+      "N/A: engine test thread",
+      "1,819 MiB isolated process RSS",
+      "prof_gaussian_isolated_24mp; two synthetic U8 layers"
+    ],
+    [
+      "5. Liquify commit 24 MP \u2192 completed frame",
+      "84.90 ms; n=3",
+      "N/A: engine test thread",
+      "828 MiB isolated process RSS",
+      "prof_liquify_isolated_24mp; two synthetic U8 layers"
+    ],
+    [
+      "5. Camera Raw full apply, 24 MP app",
+      "7,230 ms; n=3",
+      "78.0 ms S",
+      "2,917 MiB whole-test RSS",
+      "camera-raw-1..3; real Canon U16 layer"
+    ],
+    [
+      "6. Export Flat UI, 18 MP smart-filter fixture, reused",
+      "1,920 ms; n=3 first exports",
+      "76.05 ms R; target <8 ms not met",
+      "7,471 MiB entire-suite RSS",
+      "fperf-1..3; 14 MP styled variant 83,080 ms / 140.32 ms R"
+    ],
+    [
+      "6a. Export Flat 24 MP engine worker",
+      "466.30 ms; median of 3 run medians",
+      "N/A; snapshot timing is not UI main max",
+      "1,351 MiB process RSS",
+      "prof_export_flat_24mp-1..3; each run exports 3 times"
+    ],
+    [
+      "7. Paint undo / redo \u2192 frame, 24 MP engine",
+      "0.96 / 0.90 ms; median of 3 run p50s",
+      "N/A: engine test thread",
+      "561 MiB process RSS",
+      "prof_paint_undo_24mp-1..3; each run n=5 strokes"
+    ],
+    [
+      "7. Gaussian undo / redo \u2192 frame",
+      "1.00 / 0.70 ms; n=3",
+      "N/A: engine test thread",
+      "1,819 MiB process RSS",
+      "prof_gaussian_isolated_24mp"
+    ],
+    [
+      "7. Liquify undo / redo \u2192 frame",
+      "1.00 / 0.70 ms; n=3",
+      "N/A: engine test thread",
+      "828 MiB process RSS",
+      "prof_liquify_isolated_24mp"
+    ],
+    [
+      "8. Viewport / full-level, 24 MP, 4K",
+      "pan 12.50 / 2.37 ms; opacity 2.56 / 3.77 ms; median of 3 run p50s",
+      "N/A: engine test thread",
+      "531 MiB process RSS",
+      "viewport-1..3; each mode n=30 pan + 30 opacity"
+    ],
+    [
+      "8a. Render live-state locks",
+      "max held 0.29 ms; max wait 1.64 ms",
+      "Not a main-thread span",
+      "\u2014",
+      "viewport-1..3, render_records; 60 records/mode/run"
+    ]
+  ],
+  "tools_20mp_runs": [
+    {
+      "run": 1,
+      "engine_ms": 1.62,
+      "frame_ms": 2.99,
+      "engine_n": 181,
+      "frame_n": 149,
+      "rss_mib": 2571.71875
+    },
+    {
+      "run": 2,
+      "engine_ms": 1.15,
+      "frame_ms": 2.87,
+      "engine_n": 179,
+      "frame_n": 136,
+      "rss_mib": 2323.75
+    },
+    {
+      "run": 3,
+      "engine_ms": 1.91,
+      "frame_ms": 2.77,
+      "engine_n": 179,
+      "frame_n": 148,
+      "rss_mib": 2467.3125
+    }
+  ]
+}
