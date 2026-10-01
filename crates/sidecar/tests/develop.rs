@@ -162,3 +162,24 @@ fn aux_enhance_properties_become_provenance_not_edits() {
         XmpPacket::from_recipe(&edited, &Metadata::default(), &MarkPreset::lightroom()).unwrap();
     assert!(!fresh.serialize().contains("Enhance"));
 }
+
+#[test]
+fn lr2b_monochrome_xmp_roundtrip() {
+    let mut r = Recipe::default();
+    r.edit(EditMeta::default(), |s| {
+        s.color.monochrome = Some(engine_api::recipe::settings::MonochromeSettings {
+            enabled: true,
+            mixer: engine_api::recipe::settings::HueBands {
+                red: 30.,
+                blue: -20.,
+                ..Default::default()
+            },
+        });
+    })
+    .unwrap();
+    let packet = XmpPacket::from_recipe(&r, &Metadata::default(), &MarkPreset::default()).unwrap();
+    assert_eq!(
+        packet.to_recipe().unwrap().recipe.settings.color.monochrome,
+        r.settings.color.monochrome
+    );
+}

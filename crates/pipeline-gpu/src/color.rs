@@ -77,7 +77,7 @@ fn build_parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()> {
 #[cfg(test)]
 mod lr2_tests {
     #[test]
-    fn grayscale_requires_cpu_instead_of_silently_rendering_color() {
+    fn lr2b_grayscale_has_gpu_parameters() {
         let s = engine_api::recipe::settings::ColorSettings {
             monochrome: Some(engine_api::recipe::settings::MonochromeSettings {
                 enabled: true,
@@ -85,7 +85,7 @@ mod lr2_tests {
             }),
             ..Default::default()
         };
-        assert!(super::parameters(&s, &mut vec![0.; 9]).is_err());
+        assert!(super::parameters(&s, &mut vec![0.; 9]).is_ok());
     }
 
     #[test]

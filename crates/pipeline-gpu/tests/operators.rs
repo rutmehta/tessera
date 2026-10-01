@@ -297,3 +297,28 @@ fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
     }
     assert!(failures.is_empty(), "tone cancellation: {failures:?}");
 }
+
+#[test]
+fn lr2b_monochrome_gpu_matches_cpu() {
+    use engine_api::recipe::settings::{ColorSettings, HueBands, MonochromeSettings};
+    let mut s = ColorSettings {
+        monochrome: Some(MonochromeSettings {
+            enabled: true,
+            mixer: HueBands {
+                red: 50.,
+                orange: -20.,
+                yellow: 30.,
+                green: -40.,
+                aqua: 70.,
+                blue: -80.,
+                purple: 90.,
+                magenta: -10.,
+            },
+        }),
+        ..Default::default()
+    };
+    compare(StageId::Color, Op::Color(&s), tile(3, 2));
+    s.saturation = 20.;
+    s.grading.highlights.saturation = 10.;
+    compare(StageId::Color, Op::Color(&s), tile(3, 2));
+}

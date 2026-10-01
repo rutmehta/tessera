@@ -881,3 +881,45 @@ mod tests {
         assert!(p.windows(2).all(|v| v[1] >= v[0]));
     }
 }
+
+#[cfg(test)]
+mod lr2b_tests {
+    use super::*;
+    use engine_api::tile::{Extent, TileCoord, TileLayout};
+    fn tile(x: f32) -> Tile {
+        Tile::from_samples(
+            TileCoord::new(0, 0, 0),
+            TileLayout {
+                extent: Extent::new(1, 1),
+                halo: 0,
+                channels: 3,
+            },
+            vec![x; 3],
+        )
+        .unwrap()
+    }
+    #[test]
+    fn lr2b_hdr_curve_renders_unclamped_control_point() {
+        let s: ToneSettings =
+            serde_json::from_str(r#"{"curves_extended":{"rgb":[{"x":0,"y":0},{"x":2,"y":3}]}}"#)
+                .unwrap();
+        let mut t = tile(decode(2.));
+        tone_extra(&mut t, &s).unwrap();
+        assert!((t.samples::<f32>().unwrap()[0] - decode(3.)).abs() < 0.0001);
+    }
+    #[test]
+    fn lr2b_legacy_exposure_and_brightness_are_separate_operators() {
+        let s: ToneSettings = serde_json::from_str(r#"{"legacy_pv2010":{"exposure":1}}"#).unwrap();
+        let mut t = tile(0.25);
+        crate::tone(&mut t, &s).unwrap();
+        assert_eq!(t.samples::<f32>().unwrap(), &[0.5; 3]);
+        let s: ToneSettings =
+            serde_json::from_str(r#"{"legacy_pv2010":{"brightness":100}}"#).unwrap();
+        let mut t = tile(1.);
+        crate::tone(&mut t, &s).unwrap();
+        assert_eq!(t.samples::<f32>().unwrap(), &[1.; 3]);
+        let mut t = tile(0.25);
+        crate::tone(&mut t, &s).unwrap();
+        assert!((t.samples::<f32>().unwrap()[0] - 0.4).abs() < 1e-6);
+    }
+}
