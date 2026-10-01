@@ -84,17 +84,33 @@ impl PreviewCache {
         let rgb = match &*source {
             Decoded::Rgb { full, preview } => {
                 let input = if max.is_some() { preview } else { full };
+                let scale = if recipe.settings.locals.retouch.is_empty() {
+                    1
+                } else {
+                    max.map_or(1, |max| {
+                        input
+                            .width()
+                            .max(input.height())
+                            .div_ceil(max.max(1))
+                            .max(1)
+                    })
+                };
                 pipeline_cpu::render_scaled_with_context(
                     &recipe.settings,
                     &RenderSource::Rgb(input),
-                    1,
+                    scale,
                     &retouch_context(),
                 )?
             }
             Decoded::Raw(raw) => {
                 let e = raw.active_extent();
-                let l = if max.is_some() {
-                    level(e.width, e.height, 1024)
+                let l = if let Some(max) = max {
+                    let edge = if recipe.settings.locals.retouch.is_empty() {
+                        1024
+                    } else {
+                        max.max(1)
+                    };
+                    level(e.width, e.height, edge)
                 } else {
                     0
                 };

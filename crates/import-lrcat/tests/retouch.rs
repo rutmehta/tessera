@@ -127,12 +127,19 @@ fn lr3d_import_is_one_history_entry_and_approximate_without_warnings() {
         let raw = format!("{{ {SPOT} }}");
         let (r, warnings) = develop(1, &format!("s = {{ {key} = {raw} }}"), "15.4").unwrap();
         assert_eq!(r.history.entries.len(), 1);
-        assert!(matches!(r.history.entries[0].meta.author, engine_api::recipe::history::Author::Import { .. }));
+        assert!(matches!(
+            r.history.entries[0].meta.author,
+            engine_api::recipe::history::Author::Import { .. }
+        ));
         r.validate().unwrap();
         assert_eq!(r.unknown["lrcat_develop_source"]["properties"][key], raw);
         assert!(warnings.is_empty(), "{warnings:?}");
-        let entries = r.unknown["lrcat_translation_diagnostics"][key].as_array().unwrap();
-        assert!(entries.iter().any(|e| e["level"] == "info" && e["status"] == "approximate" && e["field"] == "/settings/locals/retouch"));
+        let entries = r.unknown["lrcat_translation_diagnostics"][key]
+            .as_array()
+            .unwrap();
+        assert!(entries.iter().any(|e| e["level"] == "info"
+            && e["status"] == "approximate"
+            && e["field"] == "/settings/locals/retouch"));
         assert_eq!(serde_json::to_value(&r).unwrap()["schema_version"], 4);
     }
 }
@@ -141,7 +148,8 @@ fn lr3d_import_is_one_history_entry_and_approximate_without_warnings() {
 fn lr3d_provenance_and_circle_are_approximate_but_center_value_is_retained() {
     for extra in ["Seed=12, MaskDigest='synthetic',", ""] {
         let spot = SPOT.replace("centerX=", &format!("{extra} centerX="));
-        let (r, warnings) = develop(1, &format!("s = {{RetouchAreas = {{ {spot} }} }}"), "15.4").unwrap();
+        let (r, warnings) =
+            develop(1, &format!("s = {{RetouchAreas = {{ {spot} }} }}"), "15.4").unwrap();
         assert_eq!(r.settings.locals.retouch.len(), 1);
         assert!(warnings.is_empty());
     }

@@ -5,7 +5,7 @@ mod common;
 use engine_api::recipe::{required_schema_version, v4_features_used};
 
 #[test]
-fn imported_recipes_require_schema_3() {
+fn imported_recipes_bump_only_for_retouch() {
     let dir = tempfile::tempdir().unwrap();
     let synthetic = common::write(dir.path(), 300);
     let fixture = import_lrcat::fixture::write(&dir.path().join("fx")).unwrap();
