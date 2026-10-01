@@ -133,6 +133,10 @@ fn lr7d_pv2012_ignored_ca_is_info_not_warning() {
             .contains("ignored (PV2012+)")
     );
     assert!(r.settings.lens.legacy_ca_red.is_none());
+    let note = &r.unknown[import_lrcat::diagnostics::KEY]["ChromaticAberrationR"][0];
+    assert_eq!(note["status"], "ignored");
+    assert_eq!(note["level"], "info");
+    assert!(note.get("field").is_none());
 }
 
 #[test]

@@ -13,11 +13,8 @@ fn imported_recipes_require_schema_3() {
     for catalog in [synthetic, fixture.catalog] {
         for image in import_lrcat::import(&catalog).unwrap().images {
             let recipe = &image.recipe;
-            let feature = recipe.settings.geometry.upright.homography.is_some()
-                || recipe.settings.geometry.upright.homography_mode.is_some()
-                || recipe.settings.lens.legacy_ca_red.is_some()
-                || recipe.settings.lens.legacy_ca_blue.is_some();
-            let expected = if feature { 4 } else { 3 };
+            // Both known fixtures contain zero LR-7 schema-4 features.
+            let expected = 3;
             assert_eq!(required_schema_version(recipe), expected);
             let written: serde_json::Value =
                 serde_json::from_slice(&recipe.to_json().unwrap()).unwrap();

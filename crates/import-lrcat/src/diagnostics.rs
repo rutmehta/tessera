@@ -95,6 +95,44 @@ pub fn entries(recipe: &Recipe) -> BTreeMap<String, Vec<Entry>> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn ignored_entries_have_no_field_append_dedupe_and_round_trip() {
+        let mut recipe = Recipe::default();
+        push_ignored(&mut recipe, "CA", "LR-7", "stale");
+        push_ignored(&mut recipe, "CA", "LR-7", "stale");
+        push_ignored(&mut recipe, "CA", "LR-7", "another reason");
+        push_approximate(&mut recipe, "Other", "/a", "LR-2", "existing");
+        let other = recipe.unknown[KEY]["Other"].clone();
+        push_ignored(&mut recipe, "Other", "LR-7", "stale");
+        assert_eq!(recipe.unknown[KEY]["Other"][0], other[0]);
+        assert_eq!(recipe.unknown[KEY]["Other"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            recipe.unknown[KEY]["CA"],
+            serde_json::json!([
+                {"level":"info", "status":"ignored", "lane":"LR-7", "reason":"stale"},
+                {"level":"info", "status":"ignored", "lane":"LR-7", "reason":"another reason"}
+            ])
+        );
+        let back: Recipe = serde_json::from_slice(&serde_json::to_vec(&recipe).unwrap()).unwrap();
+        assert_eq!(entries(&back), entries(&recipe));
+        assert_eq!(entries(&back)["CA"].len(), 2);
+        assert_eq!(entries(&back)["CA"][0].status, "ignored");
+    }
+
+    #[test]
+    fn ignored_never_clobbers_foreign_shapes() {
+        for foreign in [serde_json::json!([1]), serde_json::json!({"CA":"foreign"})] {
+            let mut recipe = Recipe::default();
+            recipe.unknown.insert(KEY.into(), foreign.clone());
+            let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                push_ignored(&mut recipe, "CA", "LR-7", "stale");
+            }))
+            .is_err();
+            assert_eq!(panicked, cfg!(debug_assertions));
+            assert_eq!(recipe.unknown[KEY], foreign);
+        }
+    }
+
     fn entry(lane: &str, field: &str, reason: &str) -> Entry {
         Entry {
             level: "info".into(),

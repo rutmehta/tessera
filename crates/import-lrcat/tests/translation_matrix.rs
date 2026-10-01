@@ -352,3 +352,30 @@ fn matrix_guard_rejects_the_fixture_row_against_the_unconverted_parser() {
     let error = check_rows(APPROXIMATE_ROW, &lua_import).unwrap_err();
     assert!(error.contains("not retained"), "{error}");
 }
+
+#[test]
+fn lr7e_ignored_notes_do_not_count_as_approximate() {
+    let lane = |key: &str, value: &str| {
+        let (mut recipe, warnings) = synthetic_lane(FULL)(key, value)?;
+        recipe.unknown.get_mut(diagnostics::KEY).unwrap()[key][0]["status"] = "ignored".into();
+        Ok((recipe, warnings))
+    };
+    let error = check_rows(APPROXIMATE_ROW, &lane).unwrap_err();
+    assert!(error.contains("no info diagnostics entry"), "{error}");
+}
+
+#[test]
+fn lr7e_translated_row_can_carry_an_ignored_note() {
+    let lane = |key: &str, value: &str| {
+        let (mut recipe, warnings) = synthetic_lane(Lane {
+            retain: false,
+            ..FULL
+        })(key, value)?;
+        recipe.unknown.get_mut(diagnostics::KEY).unwrap()[key][0]["status"] = "ignored".into();
+        Ok((recipe, warnings))
+    };
+    let row = APPROXIMATE_ROW.replace("approximate", "translated");
+    let (counts, _) = check_rows(&row, &lane).unwrap();
+    assert_eq!(counts.translated, 1);
+    assert_eq!(counts.approximate, 0);
+}
