@@ -214,9 +214,10 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         }
     }
     if !source.is_empty() {
-        recipe
-            .unknown
-            .insert("lrcat_develop_source".into(), source.into());
+        recipe.unknown.insert(
+            "lrcat_develop_source".into(),
+            json!({"shape": "xmp-fragments", "properties": source}),
+        );
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
     recipe.validate()?;

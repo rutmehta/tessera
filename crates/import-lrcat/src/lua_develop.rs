@@ -17,7 +17,8 @@
 //! XMP row produce the same recipe through one translation path. The generated
 //! packet is not source data and is not retained. Pending structures, Upright,
 //! extended curves and unmapped keys unconditionally retain their exact value
-//! literals in `recipe.unknown["lrcat_develop_source"]`, keyed by Adobe name.
+//! literals in `recipe.unknown["lrcat_develop_source"].properties`, keyed by Adobe name
+//! under the `lua-values` shape tag.
 //! Unknown/unrenderable keys additionally keep ordered, tagged source entries
 //! in `lrcat_develop_lua_entries`; ordinary string keys retain the legacy
 //! `lrcat_develop_lua` lookup. Positional entries have a separate literal fallback.
@@ -731,9 +732,10 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         }
     }
     if !source.is_empty() {
-        recipe
-            .unknown
-            .insert("lrcat_develop_source".into(), Value::Object(source));
+        recipe.unknown.insert(
+            "lrcat_develop_source".into(),
+            serde_json::json!({"shape": "lua-values", "properties": source}),
+        );
     }
     if !kept.is_empty() {
         recipe

@@ -6,8 +6,8 @@ mod common;
 use engine_api::id::Digest;
 
 const N: i64 = 2_000;
-/// Re-pinned after unconditional retention; exact per-key tests cover source spelling.
-const GOLDEN: &str = "fcbb457c63eba5adc6256d8c64874a91a5a9408abb4bf46cb692cfe36ce5415a";
+/// Re-pinned for tagged retained-source envelopes; exact per-key tests cover source spelling.
+const GOLDEN: &str = "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();

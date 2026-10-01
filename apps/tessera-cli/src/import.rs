@@ -284,7 +284,7 @@ fn apply_with_publish(
         let _ = std::fs::remove_dir(dest);
         return Err(error);
     }
-    sync_directory(parent)?;
+    std::fs::File::open(parent)?.sync_all()?;
     Ok(json!({"dest":dest,"images":images,"report":plan.report}))
 }
 

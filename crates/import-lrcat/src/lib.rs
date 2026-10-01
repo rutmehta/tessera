@@ -137,8 +137,8 @@ fn first_by<'a>(rows: &'a [SourceRow], key: &str) -> HashMap<i64, &'a SourceRow>
     out
 }
 
-/// Harmless unknown-key notes and the named extended-curve limitation are
-/// grouped by message; actionable and unedited notes stay individual. One
+/// All notes are grouped by message except unedited-image and duplicate-ID
+/// last-write-wins notes, which stay individual. One
 /// occurrence stays `image <id>: <message>`; more become
 /// `<n> images (first: image <id>): <message>` (n counts images, not lines).
 #[derive(Default)]
@@ -149,8 +149,8 @@ struct ImageReport {
 impl ImageReport {
     fn push(&mut self, image: i64, message: String) {
         if message.contains("imported as unedited")
-            || (!message.contains("unknown Lua develop key")
-                && message != lua_develop::EXTENDED_TONE_CURVE_NOTE)
+            || message == "duplicate Adobe_images id; last-write-wins"
+            || message == "duplicate develop image id; last-write-wins"
         {
             self.entries.push((message, 1, image, image));
             return;
@@ -1193,12 +1193,13 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
             .and_then(|r| text(r, "__oversized_develop"))
             .unwrap_or_default();
         notes.push(format!(
-            "develop settings not imported ({reason}); imported as unedited"
+            "edits failed to import: develop settings not imported ({reason}); imported as unedited"
         ));
         let mut recipe = Recipe::default();
         recipe.unknown.insert(
             "lrcat_develop_source".into(),
             serde_json::json!({
+                "shape": "cell-descriptor",
                 "truncated": cell["status"] == "omitted", "cell": cell,
                 "processVersion": p.rows.develop.as_ref().and_then(|r| text(r, "processVersion"))
             }),
@@ -1227,18 +1228,18 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
             Err(e) => {
                 let reason = e.to_string().replace(&format!("image {id}: "), "");
                 notes.push(format!(
-                    "develop settings not imported ({reason}); imported as unedited, source preserved"
+                    "edits failed to import: develop settings not imported ({reason}); imported as unedited, source preserved"
                 ));
                 let mut recipe = Recipe::default();
                 recipe.unknown.insert(
                     "lrcat_develop_source".into(),
-                    serde_json::json!({"text": source, "processVersion": process_version}),
+                    serde_json::json!({"shape": "raw-text", "text": source, "processVersion": process_version}),
                 );
                 recipe
             }
         }
     } else {
-        notes.push("no develop settings; imported as unedited".into());
+        notes.push("never developed (no develop settings); imported as unedited".into());
         Recipe::default()
     };
     recipe.image_id = Some(image_id);

@@ -374,7 +374,7 @@ fn pending_sources_are_exact_even_when_inactive_or_identity() {
         assert_eq!(
             r.unknown
                 .get("lrcat_develop_source")
-                .and_then(|s| s.get(key)),
+                .and_then(|s| s["properties"].get(key)),
             Some(&json!(value)),
             "{key}"
         );
@@ -384,7 +384,10 @@ fn pending_sources_are_exact_even_when_inactive_or_identity() {
                 .all(|w| !w.contains("retained in original XMP"))
         );
         let (nil, _) = lua_develop::parse(&format!("s = {{ {key} = nil }}"), "15.4").unwrap();
-        assert_eq!(nil.unknown["lrcat_develop_source"][key], "nil");
+        assert_eq!(
+            nil.unknown["lrcat_develop_source"]["properties"][key],
+            "nil"
+        );
         let fragment = if key == "LensBlur" {
             "<crs:LensBlur crs:Active='False' crs:BlurAmount='30' crs:FocalRange='0 0 100 100'/>"
                 .to_string()
@@ -395,7 +398,10 @@ fn pending_sources_are_exact_even_when_inactive_or_identity() {
             "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'>{fragment}</rdf:Description></rdf:RDF>"
         );
         let (r, _) = import_lrcat::develop(1, &xmp, "15.4").unwrap();
-        assert_eq!(r.unknown["lrcat_develop_source"][key], fragment);
+        assert_eq!(
+            r.unknown["lrcat_develop_source"]["properties"][key],
+            fragment
+        );
     }
 }
 
@@ -443,7 +449,7 @@ fn xmp_extended_identity_is_silent_and_edits_use_named_limitation() {
         );
         let (r, notes) = import_lrcat::develop(1, &packet, "15.4").unwrap();
         assert_eq!(
-            r.unknown["lrcat_develop_source"]["ExtendedToneCurvePV2012"],
+            r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"],
             fragment
         );
         assert_eq!(notes.len(), count, "{notes:?}");
@@ -516,7 +522,7 @@ fn xmp_source_fragments_preserve_attribute_spelling() {
     );
     let (recipe, _) = import_lrcat::develop(1, &packet, "15.4").unwrap();
     assert_eq!(
-        recipe.unknown["lrcat_develop_source"]["UprightVersion"],
+        recipe.unknown["lrcat_develop_source"]["properties"]["UprightVersion"],
         fragment
     );
 }
