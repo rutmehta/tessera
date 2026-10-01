@@ -5,6 +5,7 @@ import TesseraCore
 final class ProfileSwitchBackend: DocumentBackend, @unchecked Sendable {
     let base = StubDocumentBackend()
     var profile: Data?
+    var profileReadError: String?
     func id() -> String { base.id() }
     func info() throws -> DocumentSummary { try base.info() }
     func layers() throws -> [LayerRecord] { try base.layers() }
@@ -54,7 +55,10 @@ final class ProfileSwitchBackend: DocumentBackend, @unchecked Sendable {
     func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws { try base.attachSurface(iosurfaceId: iosurfaceId, width: width, height: height) }
     func setViewport(level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double) throws { try base.setViewport(level: level, x: x, y: y, width: width, height: height, zoom: zoom) }
     func setDisplayHeadroom(headroom: Float) throws { try base.setDisplayHeadroom(headroom: headroom) }
-    func displayProfileICC() throws -> Data? { profile }
+    func displayProfileICC() throws -> Data? {
+        if let profileReadError { throw DocumentError.invalid(profileReadError) }
+        return profile
+    }
     func refresh() throws { try base.refresh() }
     func detachSurfaces() { base.detachSurfaces() }
     func save() throws { try base.save() }
