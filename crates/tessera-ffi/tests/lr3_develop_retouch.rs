@@ -377,3 +377,121 @@ fn pixel_and_file_export_use_registered_retouch_or_error() {
     let hdr_pixels = image::open(hdr_path).unwrap().to_rgb16();
     assert!(hdr_pixels.get_pixel(32, 40)[0] > hdr_pixels.get_pixel(10, 40)[0]);
 }
+
+#[test]
+fn develop_admission_preserves_all_retouch_for_render_or_error() {
+    for heal in [false, true] {
+        let s = settings(heal);
+        assert_eq!(tessera_ffi::renderable(&s).locals.retouch, s.locals.retouch);
+    }
+    let mut s = settings(false);
+    s.locals.retouch[0].kind = RetouchKind::Remove { model: None };
+    assert_eq!(tessera_ffi::renderable(&s).locals.retouch, s.locals.retouch);
+    s.locals.retouch[0].enabled = false;
+    assert_eq!(tessera_ffi::renderable(&s).locals.retouch, s.locals.retouch);
+}
+
+#[test]
+fn library_preview_renders_retouch_and_cache_cannot_hide_missing_renderer() {
+    use previews::{Codec, Jpeg, Level, PreviewStore};
+    let dir = tempfile::tempdir().unwrap();
+    let pixels = image();
+    let source = export::ExportImage {
+        source: RenderSource::Rgb(&pixels),
+        name: "synthetic",
+        sequence: 1,
+        date: "",
+        metadata: None,
+    };
+    let path = export::export_one(
+        &source,
+        &Default::default(),
+        &export::ExportSettings {
+            format: export::Format::Dng,
+            output_dir: dir.path().into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let cache = dir.path().join("cache");
+    let store = PreviewStore::new(&cache, 1 << 20)
+        .unwrap()
+        .with_retouch_renderer(Arc::new(brush::render_retouch));
+    let baseline = store
+        .from_raw_settings(&path, 128, &DevelopSettings::default(), [0; 32])
+        .unwrap();
+    let baseline = Jpeg
+        .decode(&store.get(&baseline, Level::Full).unwrap())
+        .unwrap();
+    let edited = store
+        .from_raw_settings(&path, 128, &settings(false), [1; 32])
+        .unwrap();
+    let edited = Jpeg
+        .decode(&store.get(&edited, Level::Full).unwrap())
+        .unwrap();
+    assert!(edited.get_pixel(32, 40)[0] > baseline.get_pixel(32, 40)[0] + 20);
+    let unregistered = PreviewStore::new(&cache, 1 << 20).unwrap();
+    let error = unregistered
+        .from_raw_settings(&path, 128, &settings(false), [1; 32])
+        .unwrap_err();
+    assert!(
+        matches!(error, previews::PreviewError::Render(engine_api::EngineError::InvalidArgument { name, .. }) if name=="retouch")
+    );
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn session_detail_preview_keeps_clone_source_outside_the_window() {
+    use tessera_ffi::{Engine, ImageQuery, surface::Surface};
+    let dir = tempfile::tempdir().unwrap();
+    let photos = dir.path().join("photos");
+    std::fs::create_dir(&photos).unwrap();
+    image::RgbImage::from_fn(512, 80, |x, _| {
+        image::Rgb([if x >= 256 { 220 } else { 30 }; 3])
+    })
+    .save(photos.join("synthetic.jpg"))
+    .unwrap();
+    let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let id = engine.list_images(ImageQuery::default()).unwrap()[0]
+        .id
+        .clone();
+    let session = engine.clone().open_develop_session(id).unwrap();
+    // Keep both comparisons on the full-source retouch path. The legacy RGB
+    // detail-window path otherwise expects CFA metadata.
+    let mut disabled = settings(false).locals.retouch;
+    disabled[0].enabled = false;
+    session
+        .set_settings(
+            serde_json::json!({"locals":{"retouch":disabled}}).to_string(),
+            false,
+        )
+        .unwrap();
+    let surface =
+        Surface::lookup(tessera_ffi::surface::testing::create_rgba8(16, 16), 16, 16).unwrap();
+    session
+        .render_detail_preview(surface.id(), 16, 16, 0.25, 0.5)
+        .unwrap();
+    let before = surface
+        .with_pixels(|px, stride| px[8 * stride + 8 * 4])
+        .unwrap();
+    session
+        .set_settings(
+            serde_json::json!({"locals":{"retouch":settings(false).locals.retouch}}).to_string(),
+            false,
+        )
+        .unwrap();
+    session
+        .render_detail_preview(surface.id(), 16, 16, 0.25, 0.5)
+        .unwrap();
+    let after = surface
+        .with_pixels(|px, stride| px[8 * stride + 8 * 4])
+        .unwrap();
+    assert!(
+        after > before + 20,
+        "clone source outside the 32px margin must remain available: {before} -> {after}"
+    );
+    session.close().unwrap();
+}

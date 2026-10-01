@@ -86,6 +86,7 @@ impl Codec for Jpeg {
 }
 
 pub struct PreviewStore {
+    retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
     disk: std::sync::Arc<disk::Disk>,
     renders: std::sync::atomic::AtomicU64,
     source_work: std::sync::atomic::AtomicU64,
@@ -96,12 +97,27 @@ impl PreviewStore {
     pub fn new(root: impl AsRef<Path>, cap_bytes: u64) -> Result<Self> {
         fs::create_dir_all(root.as_ref())?;
         Ok(Self {
+            retouch: None,
             root: fs::canonicalize(root.as_ref())?,
             disk: disk::Disk::shared(root.as_ref(), cap_bytes)?,
             renders: std::sync::atomic::AtomicU64::new(0),
             source_work: std::sync::atomic::AtomicU64::new(0),
             cap: cap_bytes,
         })
+    }
+    /// Supply the engine-owned retouch implementation for edited source previews.
+    pub fn with_retouch_renderer(
+        mut self,
+        renderer: std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>,
+    ) -> Self {
+        self.retouch = Some(renderer);
+        self
+    }
+    fn render_context(&self) -> pipeline_cpu::LensContext<'static> {
+        pipeline_cpu::LensContext {
+            retouch: self.retouch.clone(),
+            ..Default::default()
+        }
     }
     fn path(&self, key: &PreviewKey, level: Level) -> PathBuf {
         self.root
