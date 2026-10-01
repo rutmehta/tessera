@@ -861,12 +861,32 @@ fn stacked_camera_raw_detail_follows_canvas_level() {
     let aid = applied.layers().unwrap()[0].id;
     s.convert_for_smart_filters(id).unwrap();
     zero.convert_for_smart_filters(zid).unwrap();
+    applied.convert_for_smart_filters(aid).unwrap();
     for exposure in [0.1, 0.2] {
         s.apply_filter(id, local_json(exposure)).unwrap();
         zero.apply_filter(zid, local_json_without_detail(exposure))
             .unwrap();
         applied.apply_filter(aid, local_json(exposure)).unwrap();
     }
+    // Apply a smart stack, then use the independent exact-output path as the
+    // reference. Two destructive U8 Applies would clamp/quantize between
+    // stages, unlike the floating-point intermediates of a smart stack.
+    let reference = dir.path().join("stack-applied-export.png");
+    applied
+        .export_flat(
+            reference.to_string_lossy().into_owned(),
+            ExportFormat::Png,
+            90,
+            ExportColor::Document,
+        )
+        .unwrap();
+    let applied_pixels: Vec<f32> = image::open(reference)
+        .unwrap()
+        .to_rgba8()
+        .as_raw()
+        .iter()
+        .map(|v| f32::from(*v) / 255.0)
+        .collect();
     let saved = s
         .smart_filters(id)
         .unwrap()
@@ -897,7 +917,7 @@ fn stacked_camera_raw_detail_follows_canvas_level() {
             assert!(diff > 0.02, "100% keeps detail");
             let d = max_diff(
                 &crop(&canvas, 256, 64, 48, 128, 96),
-                &crop(&live(&applied, 0), 256, 64, 48, 128, 96),
+                &crop(&applied_pixels, 256, 64, 48, 128, 96),
             );
             println!("B5-34 L0 vs Apply: {d}");
             assert!(d <= 2.5 / 255.0);
@@ -924,7 +944,7 @@ fn stacked_camera_raw_detail_follows_canvas_level() {
         .smart_filter_detail(id, 1, local_json(0.2), 64, 48, 128, 96)
         .unwrap();
     assert_eq!(detail.level, 0);
-    let exact = crop(&live(&applied, 0), 256, 64, 48, 128, 96);
+    let exact = crop(&applied_pixels, 256, 64, 48, 128, 96);
     let d = max_diff(&pane(&detail), &exact);
     println!("B5-34 zoomed-out 1:1 pane vs Apply: {d}");
     assert!(d <= 2.5 / 255.0);

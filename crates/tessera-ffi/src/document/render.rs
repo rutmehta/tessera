@@ -1045,6 +1045,8 @@ fn present_frame(
         if !src.is_empty() {
             let _pressure = Pressure::begin(PressureKind::Render);
             // Smart filters baked and a filter preview shown (WP B5-05).
+            // Pass the resolved canvas level: all Camera Raw stages omit detail
+            // above level 0, including saved stacks without an active edit (B5-34).
             let t = Instant::now();
             let doc: Arc<Document> =
                 super::filtering::presented(shared, &snapshot, level, src).unwrap_or(snapshot);

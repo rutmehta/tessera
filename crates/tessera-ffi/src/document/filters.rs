@@ -304,18 +304,15 @@ fn without_detail_effects(spec: &Spec) -> Result<Spec> {
     Spec::from_value(&serde_json::json!({"id": CAMERA_RAW, "params": params}))
 }
 
-impl StackEdit {
-    /// The edit a preview at pyramid `level` evaluates: below level 0 the
-    /// edited Camera Raw Filter omits its detail effects.
-    fn at_preview_level(self, level: u8) -> Result<Self> {
-        if level == 0 {
-            return Ok(self);
+/// Presentation-only policy for the whole stack. Stored recipes, Apply,
+/// export and the detail pane continue to evaluate the original nodes.
+fn at_preview_level(mut nodes: Vec<Node>, level: u8) -> Result<Vec<Node>> {
+    if level > 0 {
+        for node in &mut nodes {
+            node.spec = without_detail_effects(&node.spec)?;
         }
-        Ok(match self {
-            Self::Append(s) => Self::Append(without_detail_effects(&s)?),
-            Self::Replace(i, s) => Self::Replace(i, without_detail_effects(&s)?),
-        })
     }
+    Ok(nodes)
 }
 // B5-18b end
 
@@ -1600,6 +1597,8 @@ struct BakeJob {
     base: Arc<DocState>,
     layer: u64,
     level: u8,
+    /// Canvas presentation level, even when an adapter requires evaluation at level 0.
+    canvas_level: u8,
     /// Level-0 region to refine (level 0 only).
     region: Option<Rect>,
 }
@@ -2134,7 +2133,9 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                 let result = find(&p.base, p.layer)
                     .map_err(|e| e.to_string())
                     .and_then(|layer| {
-                        let nodes = edited_stack(layer, &p.edit).map_err(|e| e.to_string())?;
+                        let nodes = edited_stack(layer, &p.edit)
+                            .and_then(|nodes| at_preview_level(nodes, p.level))
+                            .map_err(|e| e.to_string())?;
                         let img = filtered_with_cancel(
                             &q,
                             &comp,
@@ -2207,7 +2208,7 @@ fn bake(
     let LayerKind::SmartObject(so) = &layer.kind else {
         return Ok(None);
     };
-    let nodes = nodes_of(so)?;
+    let nodes = at_preview_level(nodes_of(so)?, b.canvas_level)?;
     let canvas = b.base.canvas;
     let previous = {
         let i = q.lock();
@@ -2501,6 +2502,19 @@ fn bake_key(l: &Layer) -> String {
     }
 }
 
+/// Camera Raw presentation is level-specific: a finer bake includes detail
+/// (and can contain level-0 refinements) that must not leak into a zoomed-out
+/// frame. Other stacks retain their existing finer-level cache reuse.
+fn canvas_bake_key(l: &Layer, level: u8) -> String {
+    let mut key = bake_key(l);
+    if let LayerKind::SmartObject(so) = &l.kind
+        && so.filters.iter().any(|f| f.enabled && f.name == CAMERA_RAW)
+    {
+        key.push_str(&format!("|camera-raw-level:{level}"));
+    }
+    key
+}
+
 /// The level-0 region a level-0 bake refines for a view of `view` (level 0):
 /// the view plus a margin, snapped to 512-pixel blocks so small pans reuse it.
 fn fine_region(view: Rect, canvas: Extent) -> Rect {
@@ -2558,12 +2572,14 @@ pub(crate) fn presented(
     // B5-12: geometric transform stacks are rendered by the session renderer.
     let sos: Vec<&Layer> = sos.into_iter().filter(|l| !compositor_stack(l)).collect();
     let mut i = fs.q.lock();
-    i.bake_jobs
-        .retain(|id, job| sos.iter().any(|l| l.id.0 == *id && bake_key(l) == job.key));
+    i.bake_jobs.retain(|id, job| {
+        sos.iter()
+            .any(|l| l.id.0 == *id && canvas_bake_key(l, level) == job.key)
+    });
     if let Some(active) = &i.running_bake
         && !sos
             .iter()
-            .any(|l| l.id.0 == active.layer && bake_key(l) == active.key)
+            .any(|l| l.id.0 == active.layer && canvas_bake_key(l, level) == active.key)
     {
         active.cancel.cancel();
     }
@@ -2586,12 +2602,12 @@ pub(crate) fn presented(
             key.push_str(&format!(
                 "{id}:g:{:p}:{};",
                 Arc::as_ptr(&so_arc(l)),
-                bake_key(l)
+                canvas_bake_key(l, level)
             ));
             subs.push((id, nl));
             continue;
         }
-        let bk = bake_key(l);
+        let bk = canvas_bake_key(l, level);
         let wanted_region = (level == 0).then(|| fine_region(view.to_level0(level), state.canvas));
         let entry = i.bakes.get(&id);
         let fresh = entry.is_some_and(|b| b.key == bk);
@@ -2616,6 +2632,7 @@ pub(crate) fn presented(
                 base: state.clone(),
                 layer: id,
                 level: job_level,
+                canvas_level: level,
                 region: if exact {
                     None
                 } else {
@@ -2856,14 +2873,8 @@ impl DocumentSession {
             let (level, r) = preview_plan(&st, &nodes, region);
             (s, level, r, nodes)
         };
-        // B5-18b: below 100 % a Camera Raw preview omits its detail effects.
-        let (edit, nodes) = if level > 0 {
-            let edit = edit.at_preview_level(level)?;
-            let nodes = edited_stack(find(&base, layer)?, &edit)?;
-            (edit, nodes)
-        } else {
-            (edit, nodes)
-        };
+        // B5-34: every Camera Raw stage follows the submitted level.
+        let nodes = at_preview_level(nodes, level)?;
         let fs = &self.shared.filters;
         // B5-15 (P19): shown by the resident renderer, on the render thread's
         // next frame (no worker job, no CPU pixels).
@@ -4250,6 +4261,7 @@ mod request_cancellation_tests {
             base: Arc::new(DocState::new(Extent::new(3, 2), compositor::Depth::F32)),
             layer: 1,
             level: 0,
+            canvas_level: 0,
             region: None,
         }
     }
