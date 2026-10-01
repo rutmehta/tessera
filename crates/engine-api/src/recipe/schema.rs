@@ -197,6 +197,45 @@ mod v4_feature_predicates {
             .unwrap()
     }
 
+    #[test]
+    fn lr2d_monochrome_bumps_only_when_enabled() {
+        assert_bumped_only_when_present("monochrome", |r| {
+            r.settings.color.monochrome = Some(crate::recipe::settings::MonochromeSettings {
+                enabled: true,
+                ..Default::default()
+            });
+        });
+        let mut recipe = Recipe::default();
+        recipe.settings.color.monochrome = Some(Default::default());
+        recipe.settings.color.monochrome.as_mut().unwrap().mixer.red = 25.;
+        assert_eq!(required_schema_version(&recipe), 3);
+        assert_eq!(written_version(&recipe.to_json().unwrap()), 3);
+    }
+
+    #[test]
+    fn lr2d_curves_extended_bumps_only_when_present() {
+        assert_bumped_only_when_present("curves_extended", |r| {
+            r.settings.tone.curves_extended = Some(Default::default());
+        });
+    }
+
+    #[test]
+    fn lr2d_legacy_pv2010_bumps_only_when_present() {
+        assert_bumped_only_when_present("legacy_pv2010", |r| {
+            r.settings.tone.legacy_pv2010 = Some(Default::default());
+        });
+    }
+
+    #[test]
+    fn lr2d_schema_bump_is_sticky_after_feature_removal() {
+        let mut recipe = Recipe::default();
+        recipe.settings.tone.curves_extended = Some(Default::default());
+        let mut reloaded = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
+        reloaded.settings.tone.curves_extended = None;
+        assert_eq!(required_schema_version(&reloaded), 3);
+        assert_eq!(written_version(&reloaded.to_json().unwrap()), 4);
+    }
+
     const TEST_FEATURE: &str = "lr_schema_test_feature";
     const TEST_PREDICATES: &[FeaturePredicate] =
         &[(TEST_FEATURE, |r| r.unknown.contains_key(TEST_FEATURE))];

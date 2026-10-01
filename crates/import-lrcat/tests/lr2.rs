@@ -179,7 +179,7 @@ fn monochrome_recipe_roundtrip_preserves_history_and_disabled_mixer() {
 fn monochrome_diagnoses_adobe_fidelity_without_user_warning() {
     let (r, warnings) = parse("s = { ConvertToGrayscale=true }", "15.4").unwrap();
     assert!(warnings.is_empty());
-    assert!(r.unknown.contains_key("lrcat_develop_diagnostics"));
+    assert!(!import_lrcat::diagnostics::entries(&r).is_empty());
 }
 
 #[test]

@@ -36,15 +36,17 @@ fn lr2c_approximation_is_info_only_and_source_is_exact() {
         let (r, w) = parse(&format!("s={{{key}={value}}}"), pv).unwrap();
         assert!(w.is_empty(), "{key}: {w:?}");
         assert_eq!(r.unknown["lrcat_develop_source"]["properties"][key], value);
+        let entries = import_lrcat::diagnostics::entries(&r);
         assert!(
-            r.unknown["lrcat_develop_diagnostics"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|d| d["key"] == key
-                    && d["level"] == "info"
-                    && d["message"].as_str().unwrap().starts_with("approximate: "))
+            entries
+                .get(key)
+                .is_some_and(|entries| entries.iter().any(|d| d.level == "info"
+                    && d.status == "approximate"
+                    && d.lane == "LR-2"
+                    && !d.reason.is_empty())),
+            "{key}: {entries:?}"
         );
+        assert!(!r.unknown.contains_key("lrcat_develop_diagnostics"));
     }
 }
 

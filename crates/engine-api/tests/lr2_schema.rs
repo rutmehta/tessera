@@ -1,26 +1,27 @@
 use engine_api::recipe::{
+    required_schema_version,
     settings::{LegacyPv2010, MonochromeSettings, ToneCurves},
-    DevelopSettings,
+    DevelopSettings, Recipe,
 };
 
 #[test]
 fn lr2c_schema_predicate_only_requires_v4_for_used_lane_fields() {
-    let mut s = DevelopSettings::default();
-    assert_eq!(s.required_schema_version_lr2(), 3);
-    s.tone.exposure = 1.;
-    assert_eq!(s.required_schema_version_lr2(), 3);
-    s.color.monochrome = Some(MonochromeSettings::default());
-    assert_eq!(s.required_schema_version_lr2(), 3);
-    s.color.monochrome.as_mut().unwrap().enabled = true;
-    assert_eq!(s.required_schema_version_lr2(), 4);
-    s.color.monochrome = None;
-    s.tone.legacy_pv2010 = Some(LegacyPv2010::default());
-    assert_eq!(s.required_schema_version_lr2(), 4);
-    s.tone.legacy_pv2010 = None;
-    s.tone.curves_extended = Some(ToneCurves::default());
-    assert_eq!(s.required_schema_version_lr2(), 4);
-    s.tone.curves_extended = None;
-    assert_eq!(s.required_schema_version_lr2(), 3);
+    let mut r = Recipe::default();
+    assert_eq!(required_schema_version(&r), 3);
+    r.settings.tone.exposure = 1.;
+    assert_eq!(required_schema_version(&r), 3);
+    r.settings.color.monochrome = Some(MonochromeSettings::default());
+    assert_eq!(required_schema_version(&r), 3);
+    r.settings.color.monochrome.as_mut().unwrap().enabled = true;
+    assert_eq!(required_schema_version(&r), 4);
+    r.settings.color.monochrome = None;
+    r.settings.tone.legacy_pv2010 = Some(LegacyPv2010::default());
+    assert_eq!(required_schema_version(&r), 4);
+    r.settings.tone.legacy_pv2010 = None;
+    r.settings.tone.curves_extended = Some(ToneCurves::default());
+    assert_eq!(required_schema_version(&r), 4);
+    r.settings.tone.curves_extended = None;
+    assert_eq!(required_schema_version(&r), 3);
 }
 
 #[test]
