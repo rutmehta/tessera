@@ -307,4 +307,100 @@ mod perf1_tests {
             }
         }
     }
+
+    fn nested_overlay_document(color: [f32; 3], left: u32) -> Document {
+        // Two output tiles and a styled child inside a styled isolated group.
+        // Both documents intentionally share persisted IDs/revisions; only
+        // Document::new's runtime namespace distinguishes their contexts.
+        let extent = Extent::new(257, 3);
+        let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
+        raster
+            .edit_region(crate::geom::Rect::of_extent(extent), 1, |x, y, p| {
+                *p = if x >= left && y == 1 {
+                    [1.0; 4]
+                } else {
+                    [0.0; 4]
+                };
+            })
+            .unwrap();
+        let mut child = Layer::new("nested styled child", LayerKind::Pixel(raster));
+        child.id = engine_api::id::LayerId(2);
+        child.props.fill_opacity = 0.0;
+        child.props.styles.effects = vec![styles::StyleEffect::ColorOverlay(styles::Overlay {
+            fill: crate::document::Fill::Solid { color },
+            ..Default::default()
+        })];
+        let mut group = Layer::new(
+            "styled isolated parent",
+            LayerKind::Group {
+                mode: GroupMode::Isolated,
+                children: vec![Arc::new(child)],
+            },
+        );
+        group.id = engine_api::id::LayerId(1);
+        group.props.styles.effects = vec![styles::StyleEffect::ColorOverlay(styles::Overlay {
+            fill: crate::document::Fill::Solid {
+                color: [0.0, 0.0, 1.0],
+            },
+            opacity: 0.5,
+            ..Default::default()
+        })];
+        let mut state = DocState::new(extent, Depth::F32);
+        state.rev = 7;
+        state.root.push(Arc::new(group));
+        Document::new(state)
+    }
+
+    fn assert_nested_overlay_pixels(pixels: &[f32], left: usize, color: [f32; 3]) {
+        assert_eq!(pixels.len(), 257 * 3 * 4);
+        // Opaque child overlay followed by half-opacity blue parent overlay.
+        // All expected values are dyadic, with transparent black elsewhere.
+        for y in 0..3 {
+            for x in 0..257 {
+                let expected = if x >= left && y == 1 {
+                    [color[0] * 0.5, color[1] * 0.5, color[2] * 0.5 + 0.5, 1.0]
+                } else {
+                    [0.0; 4]
+                };
+                for c in 0..4 {
+                    assert_eq!(
+                        pixels[(y * 257 + x) * 4 + c].to_bits(),
+                        expected[c].to_bits(),
+                        "nested pixel ({x},{y}) channel {c}, left={left}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn nested_styled_group_matches_independent_overlay_oracle() {
+        let doc = nested_overlay_document([1.0, 0.0, 0.0], 1);
+        let (_, pixels) = Compositor::new(8 << 20).render_level_rgba(&doc, 0).unwrap();
+        assert_nested_overlay_pixels(&pixels, 1, [1.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn nested_styles_do_not_reuse_another_documents_same_ids_and_revision() {
+        let first = nested_overlay_document([1.0, 0.0, 0.0], 1);
+        let second = nested_overlay_document([0.0, 1.0, 0.0], 128);
+        assert_ne!(first.key(), second.key());
+        assert_eq!(first.state().rev, second.state().rev);
+        assert_eq!(first.state().root[0].id, second.state().root[0].id);
+        assert_eq!(
+            first.state().root[0].children().unwrap()[0].id,
+            second.state().root[0].children().unwrap()[0].id
+        );
+        let compositor = Compositor::new(8 << 20);
+        for (doc, left, color) in [
+            (&first, 1, [1.0, 0.0, 0.0]),
+            (&second, 128, [0.0, 1.0, 0.0]),
+            (&first, 1, [1.0, 0.0, 0.0]),
+        ] {
+            // Keep the same compositor and its caches across A/B/A. Clearing
+            // between documents would conceal an incorrectly shared entry.
+            let (_, pixels) = compositor.render_level_rgba(doc, 0).unwrap();
+            assert_nested_overlay_pixels(&pixels, left, color);
+        }
+    }
 }
