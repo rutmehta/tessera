@@ -29,7 +29,7 @@ fn lr3_spot_coordinates_offsets_and_units() {
         assert_eq!(strokes[0].points, vec![[0.25, 0.5, 1.0]]);
         assert_eq!(strokes[0].radius, 0.0625);
         assert_eq!(strokes[0].feather, 50.0);
-        assert!(!r.unknown.contains_key("lrcat_develop_source"));
+        assert!(r.unknown.contains_key("lrcat_develop_source"));
     }
 }
 
@@ -44,7 +44,7 @@ fn lr3_legacy_string_heal_and_empty_alias() {
             source_offset: [0.5, 0.0]
         }
     );
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn lr3_brush_dabs_and_source_anchor() {
         panic!()
     };
     assert_eq!(strokes[0].points, vec![[0.25, 0.5, 1.0], [0.3, 0.6, 1.0]]);
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn lr3_xmp_attributes_and_legacy_items() {
     let (r, _) = develop(1, xml, "15.4").unwrap();
     assert_eq!(r.settings.locals.retouch.len(), 1);
     assert_eq!(r.settings.locals.retouch[0].opacity, 50.0);
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]
@@ -118,5 +118,36 @@ fn lr3_xmp_inherited_namespace_prefix_is_not_semantic() {
     let (r, _) = develop(1, xml, "15.4").unwrap();
     assert_eq!(r.settings.locals.retouch.len(), 1);
     r.validate().unwrap();
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
+}
+
+#[test]
+fn lr3d_import_is_one_history_entry_and_approximate_without_warnings() {
+    for key in ["RetouchAreas", "RetouchInfo"] {
+        let raw = format!("{{ {SPOT} }}");
+        let (r, warnings) = develop(1, &format!("s = {{ {key} = {raw} }}"), "15.4").unwrap();
+        assert_eq!(r.history.entries.len(), 1);
+        assert!(matches!(r.history.entries[0].meta.author, engine_api::recipe::history::Author::Import { .. }));
+        r.validate().unwrap();
+        assert_eq!(r.unknown["lrcat_develop_source"]["properties"][key], raw);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let entries = r.unknown["lrcat_translation_diagnostics"][key].as_array().unwrap();
+        assert!(entries.iter().any(|e| e["level"] == "info" && e["status"] == "approximate" && e["field"] == "/settings/locals/retouch"));
+        assert_eq!(serde_json::to_value(&r).unwrap()["schema_version"], 4);
+    }
+}
+
+#[test]
+fn lr3d_provenance_and_circle_are_approximate_but_center_value_is_retained() {
+    for extra in ["Seed=12, MaskDigest='synthetic',", ""] {
+        let spot = SPOT.replace("centerX=", &format!("{extra} centerX="));
+        let (r, warnings) = develop(1, &format!("s = {{RetouchAreas = {{ {spot} }} }}"), "15.4").unwrap();
+        assert_eq!(r.settings.locals.retouch.len(), 1);
+        assert!(warnings.is_empty());
+    }
+    let (r, _) = develop(1, "s = {RetouchAreas={{SpotType='clone', SourceX=0.75, SourceY=0.5, Masks={{What='Mask/Circle', CenterX=0.25, CenterY=0.5, Radius=0.0625}}}}}", "15.4").unwrap();
+    assert_eq!(r.settings.locals.retouch.len(), 1);
+    let spot = SPOT.replace("centerX=", "CenterValue=0.3, centerX=");
+    let (r, _) = develop(1, &format!("s = {{RetouchAreas = {{ {spot} }} }}"), "15.4").unwrap();
+    assert!(r.settings.locals.retouch.is_empty());
 }

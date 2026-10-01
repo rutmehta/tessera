@@ -260,6 +260,11 @@ fn gpu_retouch_routes_through_cpu_stage() {
             .zip(&baseline)
             .any(|(a, b)| a.samples::<f32>().unwrap() != b.samples::<f32>().unwrap())
     );
+    let cpu = Renderer::new(Default::default()).with_retouch_renderer(Arc::new(brush::render_retouch));
+    let expected = cpu.render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear).unwrap();
+    for (a,b) in got.iter().zip(&expected) {
+        assert_eq!(a.samples::<f32>().unwrap(), b.samples::<f32>().unwrap());
+    }
     let i = got[0].layout().index(0, 32, 40).unwrap();
     assert!(got[0].samples::<f32>().unwrap()[i] > baseline[0].samples::<f32>().unwrap()[i] + 0.1);
     fn reject(
@@ -494,4 +499,57 @@ fn session_detail_preview_keeps_clone_source_outside_the_window() {
         "clone source outside the 32px margin must remain available: {before} -> {after}"
     );
     session.close().unwrap();
+}
+
+#[test]
+fn lr3d_retouch_precedes_tone_and_local_adjustments() {
+    use engine_api::recipe::mask::{LocalAdjustment, LocalParams};
+    let input = image();
+    let mut s = settings(false);
+    s.detail.sharpening.amount = 0.0;
+    s.detail.noise_reduction.color = 0.0;
+    s.tone.contrast = 35.0;
+    s.locals.adjustments.push(LocalAdjustment {
+        components: vec![MaskComponent::new(MaskKind::Radial {
+            center: [0.25, 0.5], radii: [0.24, 1.0], angle: 0.0, feather: 0.0,
+        })],
+        params: LocalParams { exposure: 1.0, ..Default::default() },
+        ..Default::default()
+    });
+    // Source is already scene linear and default WB is identity. Retouch first,
+    // then run the independent public Develop pipeline without spots.
+    let corrected = direct_kernel(&input, false);
+    let mut no_spots = s.clone();
+    no_spots.locals.retouch.clear();
+    let expected = render_linear_scaled(&no_spots, &RenderSource::Rgb(&corrected), 1).unwrap();
+    let context = pipeline_cpu::LensContext { retouch: Some(Arc::new(brush::render_retouch)), ..Default::default() };
+    let actual = pipeline_cpu::render_linear_scaled_with_lens(&s, &RenderSource::Rgb(&input), 1, &context).unwrap();
+    assert_bits(&actual, &expected);
+    let raw = image_core::RawImage::from_rgb(engine_api::id::ImageId(88), image_core::RgbSource::from_linear_rec2020(input).unwrap()).unwrap();
+    let renderer = image_core::Renderer::new(Default::default()).with_retouch_renderer(Arc::new(brush::render_retouch));
+    let actual = renderer.render_rgb_linear(&raw, 0, &s, &engine_api::jobs::CancellationToken::new()).unwrap();
+    assert_bits(&actual, &expected);
+}
+
+#[test]
+fn lr3d_duplicate_strokes_form_one_union_mask() {
+    let input = image();
+    let mut s = settings(false);
+    let mut once = input.planes().to_vec();
+    brush::render_retouch(128,80,&mut once,&s.locals.retouch).unwrap();
+    let RetouchTarget::Area { components } = &mut s.locals.retouch[0].target else { panic!() };
+    let MaskKind::Brush { strokes } = &mut components[0].kind else { panic!() };
+    strokes.push(strokes[0].clone());
+    let mut twice = input.planes().to_vec();
+    brush::render_retouch(128,80,&mut twice,&s.locals.retouch).unwrap();
+    assert_eq!(once, twice, "one spot must not compound 50% opacity into 75%");
+}
+
+#[test]
+fn lr3d_scaled_render_invokes_retouch_at_target_resolution() {
+    let context = pipeline_cpu::LensContext { retouch: Some(Arc::new(|w,h,p: &mut [Vec<f32>], spots: &[RetouchOperation]| {
+        assert_eq!((w,h), (32,20));
+        brush::render_retouch(w,h,p,spots)
+    })), ..Default::default() };
+    pipeline_cpu::render_linear_scaled_with_lens(&settings(false), &RenderSource::Rgb(&image()), 4, &context).unwrap();
 }
