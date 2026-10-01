@@ -256,7 +256,7 @@ public struct DocViewportPlan: Equatable, Sendable {
     public init(level: UInt8, width: UInt32, height: UInt32) { self.level = level; self.width = width; self.height = height }
 }
 
-/// A presented frame (FFI `DocFrameInfo`). Surfaces are RGBA8, sRGB-encoded, **straight
+/// A presented frame (FFI `DocFrameInfo`). Surfaces are RGBA8, document-encoded, **straight
 /// (unpremultiplied) alpha**; transparent areas stay transparent and the app draws the checkerboard.
 public struct DocFrame: Equatable, Sendable {
     /// Surface written (0 when none is attached).
@@ -441,7 +441,7 @@ public extension DocumentBackend {
     func displayProfileICC() throws -> Data? { nil }
 }
 
-/// The IOSurfaces document mode shares with a backend: RGBA8 ('RGBA'), straight alpha, sRGB-encoded.
+/// The IOSurfaces document mode shares with a backend: RGBA8 ('RGBA'), straight alpha, document-encoded.
 public enum DocumentSurfaces {
     public static let pixelFormat: UInt32 = 0x5247_4241
 

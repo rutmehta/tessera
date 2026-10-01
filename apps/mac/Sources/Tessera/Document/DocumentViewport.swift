@@ -7,10 +7,10 @@ import TesseraCore
 
 /// Presents document composites: a `CAMetalLayer` (RGBA16F) sampling the backend's RGBA8
 /// straight-alpha IOSurfaces over a checkerboard drawn here. The surfaces hold the document's own
-/// encoded samples. sRGB documents: the loupe's EDR configuration (extended linear sRGB,
-/// `wantsExtendedDynamicRangeContent`), surfaces decoded by `rgba8Unorm_srgb`. Other profiles (B5-30):
-/// surfaces sampled as `rgba8Unorm`, composited in the document's encoding and the layer tagged with
-/// the document profile, so Core Animation converts to the display (no per-pixel work here). Frames cover a canvas rectangle at a
+/// encoded samples. sRGB-like transfer curves use hardware sRGB decoding and a layer tagged with the
+/// document's linearized primaries (B5-30c), keeping interpolation and alpha blending in linear light.
+/// Built-in sRGB retains the loupe's extended-linear EDR configuration. Other TRCs retain encoded
+/// sampling/compositing as a documented limitation. Frames cover a canvas rectangle at a
 /// pyramid level; the shader maps every drawable pixel to the canvas through the current zoom and
 /// pan, so a frame keeps lining up while the next one renders.
 @MainActor
@@ -60,8 +60,8 @@ final class DocumentRenderer {
         if (r.z > 0.0 && c.x >= r.x && c.y >= r.y && c.x < r.x + r.z && c.y < r.y + r.w) {
             float2 size = float2(tex.get_width(), tex.get_height());
             float2 uv = min((c - r.xy) / r.zw * u.uvScale, u.uvScale - 0.5 / size);
-            // Straight alpha, composited over the checkerboard in the layer's space (linear sRGB via the
-            // `_srgb` format, or the document profile's own encoding).
+            // Straight alpha in the layer space: linear document primaries after hardware sRGB
+            // decode, or encoded document components for unsupported transfer curves.
             half4 s = u.nearest > 0.5 ? tex.sample(near, uv) : tex.sample(lin, uv);
             col = mix(col, s.rgb, s.a);
         }
@@ -258,18 +258,18 @@ final class DocumentViewportView: NSView {
     /// Test seams: the layer's colour space and EDR flag, and the pixel format surfaces are sampled as.
     var layerColorSpace: CGColorSpace? { metalLayer?.colorspace }
     var layerWantsEDR: Bool { metalLayer?.wantsExtendedDynamicRangeContent ?? false }
-    var surfacePixelFormat: MTLPixelFormat { displayColor.isSRGB ? .rgba8Unorm_srgb : .rgba8Unorm }
+    var surfacePixelFormat: MTLPixelFormat { displayColor.decodesSRGB ? .rgba8Unorm_srgb : .rgba8Unorm }
     var ringSurfaces: [IOSurfaceRef] { ring.values.map(\.surface) }
 
     /// B5-30: the document profile changed (or a document was attached): re-tag the layer and surfaces.
     func displayColorDidChange() {
         let next = controller?.displayColor ?? .srgb
-        let formatChanged = next.isSRGB != displayColor.isSRGB
+        let formatChanged = next.decodesSRGB != displayColor.decodesSRGB
         displayColor = next
         if let l = metalLayer {
             // sRGB keeps the EDR layer exactly as before. Canvas values never exceed 1 (8-bit surfaces, SDR
             // theme colours), so a document-profile layer loses nothing without EDR.
-            l.colorspace = next.isSRGB ? CGColorSpace(name: CGColorSpace.extendedLinearSRGB) : next.space
+            l.colorspace = next.layerSpace
             l.wantsExtendedDynamicRangeContent = next.isSRGB
         }
         for (id, entry) in ring {
@@ -378,8 +378,12 @@ final class DocumentViewportView: NSView {
                            convert: (CGColor, CGColorSpace) -> CGColor? = {
                                $0.converted(to: $1, intent: .defaultIntent, options: nil)
                            }, diagnostic: (String) -> Void = { NSLog("%@", $0) }) -> SIMD4<Float> {
-        if !displayColor.isSRGB,
-           let d = convert(c.cgColor, displayColor.space)?.components, d.count >= 3 {
+        if !displayColor.isSRGB {
+            guard let d = convert(c.cgColor, displayColor.layerSpace)?.components, d.count >= 3,
+                  d.prefix(3).allSatisfy({ $0.isFinite }) else {
+                diagnostic("Display: theme colour conversion failed; using document-space black")
+                return SIMD4(0, 0, 0, 1)
+            }
             return SIMD4(Float(d[0]), Float(d[1]), Float(d[2]), 1)
         }
         let s = c.usingColorSpace(.sRGB) ?? c

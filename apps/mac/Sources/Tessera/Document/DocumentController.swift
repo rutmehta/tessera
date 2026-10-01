@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import Observation
 import TesseraCore
 
@@ -10,10 +11,12 @@ final class DocumentController: Identifiable {
     let backend: any DocumentBackend
     let id: String
     private(set) var info: DocumentSummary {
-        didSet { if info.profileName != oldValue.profileName { refreshDisplayColor() } }
+        didSet { refreshDisplayColor() }
     }
     /// B5-30: the colour space the canvas and the detail panes tag the document's samples with.
     @ObservationIgnored private(set) var displayColor = DocumentDisplayColor.srgb
+    /// Names are not identities: profile files and undo states can share a description.
+    @ObservationIgnored private var displayProfileDigest: SHA256.Digest?
     private(set) var layers: [LayerRecord] = []
     private(set) var outline = DocumentOutline()
     /// Selected layers; the last is the primary one (Properties, blend mode, opacity).
@@ -72,6 +75,11 @@ final class DocumentController: Identifiable {
             icc = nil
             report?("Display: \(error.localizedDescription)")
         }
+        // Distinguish an absent profile from an invalid empty ICC. Re-read on model/history refresh,
+        // but only resolve the TRC and re-tag retained surfaces when the bytes actually change.
+        let digest = SHA256.hash(data: Data([icc == nil ? 0 : 1]) + (icc ?? Data()))
+        guard digest != displayProfileDigest else { return }
+        displayProfileDigest = digest
         displayColor = DocumentDisplayColor.resolve(icc: icc, name: info.profileName)
         if let d = displayColor.diagnostic {
             NSLog("%@", d)
