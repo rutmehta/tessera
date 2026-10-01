@@ -9,6 +9,95 @@ import TesseraFFI
 /// white balance, amount, re-edit parse, refusals) and the sheet model against the engine (preview without
 /// history, OK as one node, cancel, smart filter append and re-edit, the selection rule).
 final class DocumentCameraRawTests: XCTestCase {
+    /// A synthesized 24 MP document; count actual sheet submissions, including release callbacks.
+    @MainActor func testSliderSubmissionsAreLatestWins24MP() async throws {
+        let engine = try Engine.open(appSupportDir: try temp().appendingPathComponent("support").path)
+        let backend = EngineDocumentBackend(session: try engine.newDocument(width: 6000, height: 4000, depth: .u8, profile: nil))
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        doc.selection = [try XCTUnwrap(doc.layers.first).id]
+        let cr = DocumentCameraRaw()
+        cr.open(doc)
+        let sheet = try XCTUnwrap(cr.sheet)
+        var submitted: [Double] = []
+        sheet.previewSubmitter = { json, _ in
+            submitted.append(try XCTUnwrap(CameraRawDraft(filterJson: json)).value(CameraRawControls.exposure))
+            let first = submitted.count == 1
+            try await Task.sleep(for: .milliseconds(first ? 250 : 20))
+            return first ? 7 : 2
+        }
+        let start = Date()
+        // A stream of release callbacks must obey the same bound as drag callbacks.
+        for tick in 1...60 { sheet.set(CameraRawControls.exposure, Double(tick) / 20, final: true) }
+        sheet.set(CameraRawControls.exposure, 3, final: true)
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertNotEqual(sheet.previewLevel, 7, "a superseded result must not land")
+        try await Task.sleep(for: .milliseconds(300))
+        print("B5-41 24MP ticks=60 submits=\(submitted.count) elapsed=\(Date().timeIntervalSince(start)) final=\(submitted.last ?? -1)")
+        XCTAssertLessThanOrEqual(submitted.count, 3)
+        XCTAssertEqual(submitted.last, 3)
+        XCTAssertEqual(sheet.draft.value(CameraRawControls.exposure), 3)
+        XCTAssertEqual(sheet.previewLevel, 2)
+        sheet.cancel()
+    }
+
+    @MainActor func testTimedEngineSliderSubmissions24MP() async throws {
+        let engine = try Engine.open(appSupportDir: try temp().appendingPathComponent("support").path)
+        let backend = EngineDocumentBackend(session: try engine.newDocument(width: 6000, height: 4000, depth: .u8, profile: nil))
+        let layer = try XCTUnwrap(try backend.layers().first).id
+        _ = try backend.fillSelection(layer: layer, fill: .color(ToolColor(r: 0.4, g: 0.4, b: 0.4)), opacity: 1)
+        try backend.setViewport(level: 2, x: 0, y: 0, width: 1500, height: 1000, zoom: 0.25)
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        doc.selection = [layer]
+        let cr = DocumentCameraRaw()
+        cr.open(doc)
+        let sheet = try XCTUnwrap(cr.sheet)
+        var submitted: [Double] = []
+        sheet.previewSubmitter = { json, region in
+            submitted.append(try XCTUnwrap(CameraRawDraft(filterJson: json)).value(CameraRawControls.exposure))
+            try backend.previewFilter(layer: layer, filterJson: json, region: region)
+            return try backend.filterPreviewLevel(layer: layer, smartIndex: nil, filterJson: json)
+        }
+        for release in [true, false] {
+            submitted = []
+            let start = Date()
+            for tick in 1...60 {
+                sheet.set(CameraRawControls.exposure, Double(tick) / 20, final: release)
+            }
+            sheet.set(CameraRawControls.exposure, 3, final: true)
+            let inputSeconds = Date().timeIntervalSince(start)
+            try await Task.sleep(for: .milliseconds(600))
+            print("B5-41 engine24MP releaseCallbacks=\(release) ticks=60 submits=\(submitted.count) inputSeconds=\(inputSeconds) elapsed=\(Date().timeIntervalSince(start)) final=\(submitted.last ?? -1)")
+            XCTAssertLessThanOrEqual(submitted.count, 3)
+            XCTAssertEqual(submitted.last, 3)
+        }
+        sheet.cancel()
+    }
+
+    @MainActor func testCancelDropsPendingSliderSubmissionAndLateError() async throws {
+        let (doc, _) = try greyDocument()
+        defer { doc.close() }
+        let cr = DocumentCameraRaw()
+        cr.open(doc)
+        let sheet = try XCTUnwrap(cr.sheet)
+        var submits = 0
+        sheet.previewSubmitter = { _, _ in
+            submits += 1
+            try await Task.sleep(for: .milliseconds(150))
+            throw DocumentError.invalid("superseded preview")
+        }
+        sheet.setAmount(20, final: true)
+        await Task.yield()
+        sheet.setAmount(37, final: false)
+        sheet.setAmount(37, final: true)
+        sheet.cancel()
+        try await Task.sleep(for: .milliseconds(400))
+        XCTAssertLessThanOrEqual(submits, 1)
+        XCTAssertNil(sheet.error)
+        XCTAssertEqual(sheet.amountPercent, 37)
+    }
+
     // MARK: Draft
 
     private func params(_ draft: CameraRawDraft) throws -> [String: Any] {

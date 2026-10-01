@@ -1,0 +1,25 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.26s)
+Test Suite 'Selected tests' started at 2026-10-01 10:47:07.220.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 10:47:07.221.
+Test Suite 'DocumentCameraRawTests' started at 2026-10-01 10:47:07.221.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testCancelDropsPendingSliderSubmissionAndLateError]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-41/apps/mac/Tests/TesseraCoreTests/DocumentCameraRawTests.swift:97: error: -[TesseraCoreTests.DocumentCameraRawTests testCancelDropsPendingSliderSubmissionAndLateError] : XCTAssertNil failed: "superseded preview"
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testCancelDropsPendingSliderSubmissionAndLateError]' failed (1.226 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testTimedEngineSliderSubmissions24MP]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-41/apps/mac/Tests/TesseraCoreTests/DocumentCameraRawTests.swift:72: error: -[TesseraCoreTests.DocumentCameraRawTests testTimedEngineSliderSubmissions24MP] : XCTAssertLessThanOrEqual failed: ("60") is greater than ("3")
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testTimedEngineSliderSubmissions24MP]' failed (1.500 seconds).
+Test Suite 'DocumentCameraRawTests' failed at 2026-10-01 10:47:09.947.
+	 Executed 2 tests, with 2 failures (0 unexpected) in 2.726 (2.726) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 10:47:09.947.
+	 Executed 2 tests, with 2 failures (0 unexpected) in 2.726 (2.727) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 10:47:09.947.
+	 Executed 2 tests, with 2 failures (0 unexpected) in 2.726 (2.727) seconds
+B5-41 engine24MP releaseCallbacks=true ticks=60 submits=60 inputSeconds=0.006390929222106934 elapsed=0.6178239583969116 final=3.0
+B5-41 engine24MP releaseCallbacks=false ticks=60 submits=1 inputSeconds=0.010084033012390137 elapsed=0.64444899559021 final=3.0
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

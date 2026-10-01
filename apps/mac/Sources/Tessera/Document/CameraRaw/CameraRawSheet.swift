@@ -101,6 +101,8 @@ final class CameraRawSheetModel: Identifiable {
     @ObservationIgnored private let backend: (any DocumentFiltersBackend)?
     /// Saved stages remain fixed while this sheet previews its append/replacement.
     private let otherStagesHaveDetailEffects: Bool
+    /// Submission seam for exercising a slow backend without changing the engine.
+    @ObservationIgnored var previewSubmitter: (@MainActor (String, CanvasRect?) async throws -> UInt8)?
     @ObservationIgnored private var previewTask: Task<Void, Never>?
     @ObservationIgnored private var detailGate = LatestRequestBuffer<String>()
     @ObservationIgnored private var detailPixels = CGSize(width: 320, height: 320)
@@ -199,12 +201,18 @@ final class CameraRawSheetModel: Identifiable {
         do {
             if showBefore {
                 try backend.clearPreview()
+            } else if let previewSubmitter {
+                let json = draft.filterJson, region = doc.lastFrame?.canvasRect
+                Task { @MainActor in
+                    do { previewLevel = Int(try await previewSubmitter(json, region)) }
+                    catch { self.error = error.localizedDescription }
+                }
             } else if let i = smartIndex {
                 try backend.previewSmartFilter(layer: layer.id, index: i, filterJson: draft.filterJson, region: doc.lastFrame?.canvasRect)
             } else {
                 try backend.previewFilter(layer: layer.id, filterJson: draft.filterJson, region: doc.lastFrame?.canvasRect)
             }
-            if !showBefore {
+            if !showBefore, previewSubmitter == nil {
                 // Same viewport as the submit just above (both on the main thread): the level it renders at.
                 previewLevel = Int(try backend.filterPreviewLevel(layer: layer.id, smartIndex: smartIndex,
                                                                   filterJson: draft.filterJson))
