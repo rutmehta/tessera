@@ -1,0 +1,7 @@
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' passed (4.785 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 4.785 (4.785) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 4.785 (4.785) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 4.785 (4.787) seconds
+TESSERA_FILTER_PERF: evaluated 20 ms export-event bound for 15 events
+Exit: 0

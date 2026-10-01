@@ -293,3 +293,67 @@ Commits are on top of `1c27da8e` on `wp/B5-47`, without rebasing.
 - All three B5-47c commits carry the requested co-author trailer. Local commits
   only; no Rust, Cargo.lock, board.json, rebase, push, installation, or GUI launch.
   The existing P16 whole-main-thread <8 ms target remains OPEN.
+
+
+## B5-47d export timing opt-in correction
+
+Commits are on top of `fb4990d6` on `wp/B5-47`, without rebasing.
+`844660cd` (`fix(B5-47d):`) restores the 18 MP smart-filter export test's
+entire per-event <20 ms loop to the existing `TESSERA_FILTER_PERF` opt-in.
+This supersedes B5-47b's default named-span policy documented above. Both named
+export events and whole-runloop spans now require the opt-in; B5-33's setup,
+progress, and completion <100 ms assertions remain always on. All deterministic
+checks, including successful export, HUD presence, dimensions, snapshot worker
+isolation, and progress coalescing, are unchanged. Export timing remains scoped
+to export events, excluding earlier control-baseline events.
+
+### Default and opt-in test evidence
+
+The same release test binary was exercised in both modes, with
+`TESSERA_EXPORT_BASELINES` unset. Each run executed one test with zero failures
+and exited **0**:
+
+```sh
+cd apps/mac
+env -u TESSERA_FILTER_PERF -u TESSERA_EXPORT_BASELINES \
+  swift test -c release -Xswiftc -enable-testing \
+  --filter DocumentExportFlatTests/testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress
+env -u TESSERA_EXPORT_BASELINES TESSERA_FILTER_PERF=1 \
+  swift test -c release -Xswiftc -enable-testing --skip-build \
+  --filter DocumentExportFlatTests/testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress
+```
+
+- Default: `TESSERA_FILTER_PERF unset: skipped 20 ms export-event bound`.
+  The branch containing the per-event assertions was not evaluated.
+  See `evidence/b5-47d-default.log`.
+- Opt-in: `TESSERA_FILTER_PERF: evaluated 20 ms export-event bound for 15 events`.
+  The diagnostic is emitted after the assertion loop.
+  See `evidence/b5-47d-opt-in.log`.
+
+### Both required gates
+
+With `TESSERA_FILTER_PERF` and `TESSERA_EXPORT_BASELINES` unset, the prescribed
+serial FFI + Swift gate command was run from the worktree root:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-47
+cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
+```
+
+Exit **0**, **SWIFT GATE OK**: **904 XCTest tests, 3 skipped, zero failures**,
+plus **5 Swift Testing tests passed**. See `evidence/b5-47d-swift-gate.log`.
+The separate release product gate then ran from the worktree root:
+
+```sh
+cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+```
+
+Exit **0**, `Build of product 'Tessera' complete! (593.98s)`.
+See `evidence/b5-47d-strict-release.log`.
+Full local logs are `/tmp/B5-47d-default.log`, `/tmp/B5-47d-opt-in.log`,
+`/tmp/B5-47d-swift-gate.log`, and `/tmp/B5-47d-strict-release.log`.
+
+The fix and docs commits both carry the requested Claude Opus 5.5 co-author
+trailer. Local only; no Rust, board, Cargo.lock, rebase, push, installation, or
+manual GUI work. The existing P16 whole-main-thread <8 ms target remains OPEN.
