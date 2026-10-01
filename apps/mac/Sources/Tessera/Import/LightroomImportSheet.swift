@@ -33,7 +33,8 @@ struct LightroomImportSheet: View {
                     case .summary: SummaryStep(importer: importer)
                     case .mapping: MappingStep(importer: importer)
                     case .fidelity: FidelityStep(importer: importer)
-                    case .report: ReportStep(importer: importer)
+                    case .report: ReportStep(report: importer.report, reportURL: importer.reportURL,
+                                             reportMarkdown: importer.reportMarkdown, fidelity: importer.fidelityResult)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -473,10 +474,13 @@ private struct FidelityPair: View {
 
 // MARK: Report
 
-private struct ReportStep: View {
-    let importer: LightroomImportController
+struct ReportStep: View {
+    let report: LrcatReport?
+    let reportURL: URL?
+    let reportMarkdown: String?
+    var fidelity: LrcatFidelity? = nil
     var body: some View {
-        if let r = importer.report {
+        if let r = report {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Space.m) {
                     Label(r.cancelled ? "Import cancelled. Resume to continue where it stopped; finished photos are skipped."
@@ -506,12 +510,12 @@ private struct ReportStep: View {
                             }
                         }
                     }
-                    if let url = importer.reportURL {
+                    if let url = reportURL {
                         Text("Full report: \(url.path)").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                             .textSelection(.enabled)
                             .accessibilityIdentifier("lrimport-report-path")
                     }
-                    if let md = importer.reportMarkdown {
+                    if let md = reportMarkdown {
                         DisclosureGroup("import-report.md") {
                             Text(md).font(Theme.Fonts.captionMono).textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
