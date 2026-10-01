@@ -18,7 +18,7 @@ use rusqlite::{Connection, OpenFlags, types::ValueRef};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     path::{Path, PathBuf},
 };
 
@@ -115,6 +115,62 @@ fn required_id(row: &SourceRow, key: &str) -> EngineResult<i64> {
 fn required_text(row: &SourceRow, key: &str) -> EngineResult<String> {
     text(row, key).ok_or_else(|| decode(format!("missing column {key}")))
 }
+/// Rows grouped by an integer column, each group in source (rowid) order.
+/// Built once so per-image lookups are O(1) instead of a scan per image.
+fn group_by<'a>(rows: &'a [SourceRow], key: &str) -> HashMap<i64, Vec<&'a SourceRow>> {
+    let mut out: HashMap<i64, Vec<&SourceRow>> = HashMap::new();
+    for r in rows {
+        if let Some(k) = number(r, key) {
+            out.entry(k).or_default().push(r);
+        }
+    }
+    out
+}
+/// The first row for each value of an integer column (what `find` returned).
+fn first_by<'a>(rows: &'a [SourceRow], key: &str) -> HashMap<i64, &'a SourceRow> {
+    let mut out = HashMap::new();
+    for r in rows {
+        if let Some(k) = number(r, key) {
+            out.entry(k).or_insert(r);
+        }
+    }
+    out
+}
+
+/// Per-image report entries grouped by message, in first-seen order: one
+/// occurrence stays `image <id>: <message>`; more become
+/// `<n> images (first: image <id>): <message>` (n counts images, not lines).
+#[derive(Default)]
+struct ImageReport {
+    entries: Vec<(String, usize, i64, i64)>,
+    index: HashMap<String, usize>,
+}
+impl ImageReport {
+    fn push(&mut self, image: i64, message: String) {
+        match self.index.get(&message) {
+            Some(&i) => {
+                let (_, count, _, last) = &mut self.entries[i];
+                if *last != image {
+                    *count += 1;
+                    *last = image;
+                }
+            }
+            None => {
+                self.index.insert(message.clone(), self.entries.len());
+                self.entries.push((message, 1, image, image));
+            }
+        }
+    }
+    fn finish(self) -> impl Iterator<Item = String> {
+        self.entries
+            .into_iter()
+            .map(|(message, count, first, _)| match count {
+                1 => format!("image {first}: {message}"),
+                n => format!("{n} images (first: image {first}): {message}"),
+            })
+    }
+}
+
 pub(crate) fn rows(
     c: &Connection,
     table: &str,
@@ -141,11 +197,27 @@ pub(crate) fn rows(
         .prepare(&format!("SELECT * FROM \"{table}\" ORDER BY rowid"))
         .map_err(decode)?;
     let names: Vec<String> = stmt.column_names().iter().map(|n| n.to_string()).collect();
+    let mut oversized = Vec::new();
+    let mut index = 0usize;
     let mapped = stmt
         .query_map([], |row| {
+            index += 1;
             let mut result = BTreeMap::new();
             for (i, name) in names.iter().enumerate() {
-                let value = match row.get_ref(i)? {
+                let cell = row.get_ref(i)?;
+                // Measured on SQLite's borrowed cell, before anything is copied.
+                let len = match cell {
+                    ValueRef::Text(b) | ValueRef::Blob(b) => b.len(),
+                    _ => 0,
+                };
+                if len > MAX_CELL_BYTES {
+                    oversized.push(format!(
+                        "{table} row {index}: column {name} is {len} bytes, over the {MAX_CELL_BYTES}-byte cell limit; not loaded"
+                    ));
+                    result.insert(name.clone(), Value::Null);
+                    continue;
+                }
+                let value = match cell {
                     ValueRef::Null => Value::Null,
                     ValueRef::Integer(n) => n.into(),
                     ValueRef::Real(n) => Value::from(n),
@@ -157,7 +229,9 @@ pub(crate) fn rows(
             Ok(result)
         })
         .map_err(decode)?;
-    mapped.collect::<Result<Vec<_>, _>>().map_err(decode)
+    let loaded = mapped.collect::<Result<Vec<_>, _>>().map_err(decode)?;
+    report.extend(oversized);
+    Ok(loaded)
 }
 
 fn sidecar(path: &Path, suffix: &str) -> PathBuf {
@@ -241,21 +315,25 @@ fn keyword_tree(
     synonyms: &[SourceRow],
     report: &mut Vec<String>,
 ) -> EngineResult<Vec<Keyword>> {
+    struct Tree<'a> {
+        by_id: HashMap<i64, &'a SourceRow>,
+        children: HashMap<Option<i64>, Vec<&'a SourceRow>>,
+        synonyms: HashMap<i64, Vec<&'a SourceRow>>,
+    }
     fn build(
         id: i64,
-        rows: &[SourceRow],
-        synonyms: &[SourceRow],
+        tree: &Tree,
         seen: &mut BTreeSet<i64>,
         report: &mut Vec<String>,
     ) -> EngineResult<Vec<Keyword>> {
         if !seen.insert(id) {
             return Err(decode("keyword hierarchy cycle or duplicate id"));
         }
-        let r = rows
-            .iter()
-            .find(|r| number(r, "id_local") == Some(id))
+        let r = tree
+            .by_id
+            .get(&id)
             .ok_or_else(|| decode("missing keyword"))?;
-        let children = children(Some(id), rows, synonyms, seen, report)?;
+        let children = children(Some(id), tree, seen, report)?;
         let Some(name) = text(r, "name") else {
             report.push(format!(
                 "keyword {id} has no name; skipped (its children moved up a level)"
@@ -265,9 +343,11 @@ fn keyword_tree(
         Ok(vec![Keyword {
             id,
             name,
-            synonyms: synonyms
-                .iter()
-                .filter(|r| number(r, "keyword") == Some(id))
+            synonyms: tree
+                .synonyms
+                .get(&id)
+                .into_iter()
+                .flatten()
                 .filter_map(|r| text(r, "name"))
                 .collect(),
             children,
@@ -275,23 +355,30 @@ fn keyword_tree(
     }
     fn children(
         parent: Option<i64>,
-        rows: &[SourceRow],
-        synonyms: &[SourceRow],
+        tree: &Tree,
         seen: &mut BTreeSet<i64>,
         report: &mut Vec<String>,
     ) -> EngineResult<Vec<Keyword>> {
         let mut out = vec![];
-        for child in rows
-            .iter()
-            .filter(|r| number(r, "parent").filter(|p| *p != 0) == parent)
-        {
+        for child in tree.children.get(&parent).into_iter().flatten() {
             let id = required_id(child, "id_local")?;
             if parent.is_none() && text(child, "name").is_none() {
                 continue; // unnamed roots are handled by the caller
             }
-            out.extend(build(id, rows, synonyms, seen, report)?);
+            out.extend(build(id, tree, seen, report)?);
         }
         Ok(out)
+    }
+    let mut tree = Tree {
+        by_id: first_by(rows, "id_local"),
+        children: HashMap::new(),
+        synonyms: group_by(synonyms, "keyword"),
+    };
+    for r in rows {
+        tree.children
+            .entry(number(r, "parent").filter(|p| *p != 0))
+            .or_default()
+            .push(r);
     }
     let mut seen = BTreeSet::new();
     let mut roots = vec![];
@@ -310,9 +397,9 @@ fn keyword_tree(
                 "keyword {id} is a second unnamed root keyword; its children were imported at the top level"
             ));
         }
-        roots.extend(children(Some(id), rows, synonyms, &mut seen, report)?);
+        roots.extend(children(Some(id), &tree, &mut seen, report)?);
     }
-    roots.extend(children(None, rows, synonyms, &mut seen, report)?);
+    roots.extend(children(None, &tree, &mut seen, report)?);
     if seen.len() != rows.len() {
         return Err(decode("keyword hierarchy has missing parents or cycles"));
     }
@@ -372,14 +459,16 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         let stack_rows = optional(table)?;
         let mut members = optional(links)?;
         members.sort_by_key(|r| number(r, "position").unwrap_or(0));
+        let members = group_by(&members, "stack");
         for r in stack_rows {
             let id = required_id(&r, "id_local")?;
             stacks.push(Stack {
                 id,
                 scope: table.into(),
                 images: members
-                    .iter()
-                    .filter(|m| number(m, "stack") == Some(id))
+                    .get(&id)
+                    .into_iter()
+                    .flatten()
                     .filter_map(|m| number(m, "image"))
                     .collect(),
                 source: r,
@@ -400,10 +489,9 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             people.insert(name);
         }
     }
+    let keywords_by_id = first_by(&keywords, "id_local");
     for r in &keyword_faces {
-        if let Some(k) = keywords
-            .iter()
-            .find(|k| number(k, "id_local") == number(r, "keyword"))
+        if let Some(k) = number(r, "keyword").and_then(|id| keywords_by_id.get(&id))
             && let Some(name) = text(k, "name")
         {
             people.insert(name);
@@ -422,6 +510,8 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             digest.0[..16].try_into().expect("16 bytes"),
         ))
     };
+    let contents_by_collection = group_by(&contents, "collection");
+    let images_by_collection = group_by(&collection_images, "collection");
     for row in &collections {
         let id = required_id(row, "id_local")?;
         let parent = number(row, "parent").filter(|p| *p != 0);
@@ -443,9 +533,10 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             format!("Untitled {id}")
         });
         if kind.contains("smart") {
-            let Some(raw) = contents
-                .iter()
-                .filter(|r| number(r, "collection") == Some(id))
+            let Some(raw) = contents_by_collection
+                .get(&id)
+                .into_iter()
+                .flatten()
                 .find_map(|r| text(r, "content").filter(|s| s.contains('{')))
             else {
                 report.push(format!("smart collection {id} has no rules; skipped"));
@@ -484,9 +575,10 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
                     id,
                     name,
                     parent,
-                    images: collection_images
-                        .iter()
-                        .filter(|r| number(r, "collection") == Some(id))
+                    images: images_by_collection
+                        .get(&id)
+                        .into_iter()
+                        .flatten()
                         .filter_map(|r| number(r, "image"))
                         .map(image_id)
                         .collect(),
@@ -495,6 +587,20 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             );
         }
     }
+    // Index every per-image table once (B5-29c): the loop below used to scan
+    // each table per image, which made import quadratic in the image count.
+    let images_by_id = first_by(&images, "id_local");
+    let files_by_id = first_by(&files, "id_local");
+    let folders_by_id = first_by(&folders, "id_local");
+    let roots_by_id = first_by(&roots, "id_local");
+    let develops_by_image = first_by(&develops, "image");
+    let history_by_image = group_by(&history, "image");
+    let snapshots_by_image = group_by(&snapshots, "image");
+    let faces_by_image = group_by(&faces, "image");
+    let gps_by_image = first_by(&gps, "image");
+    let keywords_by_image = group_by(&keyword_images, "image");
+    let collections_by_image = group_by(&collection_images, "image");
+    let mut image_report = ImageReport::default();
     let mut result = vec![];
     for image in &images {
         let id = required_id(image, "id_local")?;
@@ -502,23 +608,20 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         let file_id = number(image, "rootFile")
             .or_else(|| {
                 master_image
-                    .and_then(|m| images.iter().find(|r| number(r, "id_local") == Some(m)))
+                    .and_then(|m| images_by_id.get(&m))
                     .and_then(|m| number(m, "rootFile"))
             })
             .ok_or_else(|| decode(format!("image {id} missing rootFile")))?;
-        let file = files
-            .iter()
-            .find(|r| number(r, "id_local") == Some(file_id))
+        let file = files_by_id
+            .get(&file_id)
             .ok_or_else(|| decode(format!("image {id} references missing file {file_id}")))?;
         let folder_id = required_id(file, "folder")?;
-        let folder = folders
-            .iter()
-            .find(|r| number(r, "id_local") == Some(folder_id))
+        let folder = folders_by_id
+            .get(&folder_id)
             .ok_or_else(|| decode(format!("missing folder {folder_id}")))?;
         let root_id = required_id(folder, "rootFolder")?;
-        let root = roots
-            .iter()
-            .find(|r| number(r, "id_local") == Some(root_id))
+        let root = roots_by_id
+            .get(&root_id)
             .ok_or_else(|| decode(format!("missing root {root_id}")))?;
         let base = required_text(file, "baseName")?;
         let ext = text(file, "extension").unwrap_or_default();
@@ -541,32 +644,58 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         };
         // Lightroom leaves an empty develop row (NULL process version) for
         // images that were never developed.
-        let mut recipe = if let Some(row) = develops
-            .iter()
-            .find(|r| number(r, "image") == Some(id))
-            .filter(|r| text(r, "text").is_some_and(|t| !t.trim().is_empty()))
-        {
-            let (recipe, warnings) = develop(
-                id,
-                &required_text(row, "text")?,
-                &required_text(row, "processVersion")?,
-            )?;
-            report.extend(warnings.into_iter().map(|w| format!("image {id}: {w}")));
-            recipe
+        let develop_text = develops_by_image
+            .get(&id)
+            .and_then(|r| text(r, "text"))
+            .filter(|t| !t.trim().is_empty());
+        let mut recipe = if let Some(source) = develop_text {
+            let process_version = develops_by_image
+                .get(&id)
+                .and_then(|r| text(r, "processVersion"));
+            let decoded = match &process_version {
+                Some(pv) => develop(id, &source, pv),
+                None => Err(decode("develop settings have no process version")),
+            };
+            match decoded {
+                Ok((recipe, warnings)) => {
+                    for w in warnings {
+                        image_report.push(id, w);
+                    }
+                    recipe
+                }
+                // One bad row degrades that image only: unedited, reported,
+                // and the source kept verbatim in the recipe.
+                Err(e) => {
+                    let reason = e.to_string().replace(&format!("image {id}: "), "");
+                    image_report.push(
+                        id,
+                        format!(
+                            "develop settings not imported ({reason}); imported as unedited, source preserved"
+                        ),
+                    );
+                    let mut recipe = Recipe::default();
+                    recipe.unknown.insert(
+                        "lrcat_develop_source".into(),
+                        serde_json::json!({"text": source, "processVersion": process_version}),
+                    );
+                    recipe
+                }
+            }
         } else {
             Recipe::default()
         };
         recipe.image_id = Some(image_id(id));
         let selection = selection(image);
         recipe.selection = selection.clone();
-        let source_rows = |all: &[SourceRow]| {
-            all.iter()
-                .filter(|r| number(r, "image") == Some(id))
-                .cloned()
+        let source_rows = |all: &HashMap<i64, Vec<&SourceRow>>| {
+            all.get(&id)
+                .into_iter()
+                .flatten()
+                .map(|r| (*r).clone())
                 .collect::<Vec<_>>()
         };
-        let history = source_rows(&history);
-        let snapshots = source_rows(&snapshots);
+        let history = source_rows(&history_by_image);
+        let snapshots = source_rows(&snapshots_by_image);
         // Preserve source edit timelines without inventing replayable patches for
         // undocumented per-release history encodings.
         recipe
@@ -576,15 +705,12 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             .unknown
             .insert("lrcat_snapshots".into(), serde_json::to_value(&snapshots)?);
         recipe.validate()?;
-        let gps = gps
-            .iter()
-            .find(|r| number(r, "image") == Some(id))
-            .and_then(|r| {
-                Some([
-                    r.get("gpsLatitude")?.as_f64()?,
-                    r.get("gpsLongitude")?.as_f64()?,
-                ])
-            });
+        let gps = gps_by_image.get(&id).and_then(|r| {
+            Some([
+                r.get("gpsLatitude")?.as_f64()?,
+                r.get("gpsLongitude")?.as_f64()?,
+            ])
+        });
         result.push(ImportedImage {
             catalog_id: id,
             path,
@@ -595,18 +721,20 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             capture_time: text(image, "captureTime"),
             recipe,
             selection,
-            keywords: keyword_images
-                .iter()
-                .filter(|r| number(r, "image") == Some(id))
+            keywords: keywords_by_image
+                .get(&id)
+                .into_iter()
+                .flatten()
                 .filter_map(|r| number(r, "tag"))
                 .collect(),
-            collections: collection_images
-                .iter()
-                .filter(|r| number(r, "image") == Some(id))
+            collections: collections_by_image
+                .get(&id)
+                .into_iter()
+                .flatten()
                 .filter_map(|r| number(r, "collection"))
                 .collect(),
             gps,
-            faces: source_rows(&faces),
+            faces: source_rows(&faces_by_image),
             history,
             snapshots,
             rating: number(image, "rating"),
@@ -614,6 +742,7 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             color_label: text(image, "colorLabels").filter(|s| !s.is_empty()),
         });
     }
+    report.extend(image_report.finish());
     result.sort_by_key(|r| r.catalog_id);
     Ok(ImportPlan {
         schema_version,

@@ -501,19 +501,28 @@ fn unsupported(plan: &ImportPlan) -> Vec<LrcatIssue> {
         .iter()
         .map(|i| (i.catalog_id, i.display_name.as_str()))
         .collect();
-    let mut groups: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    let mut groups: BTreeMap<(String, String), (usize, Vec<String>)> = BTreeMap::new();
     for line in &plan.report {
-        let (category, reason, example) = match line
+        // Develop entries are `image <id>: <reason>` or, grouped by the
+        // importer, `<n> images (first: image <id>): <reason>`.
+        let develop = line
             .strip_prefix("image ")
             .and_then(|rest| rest.split_once(": "))
-        {
-            Some((id, reason)) => (
+            .map(|(id, reason)| (1, id, reason))
+            .or_else(|| {
+                let (n, rest) = line.split_once(" images (first: image ")?;
+                let (id, reason) = rest.split_once("): ")?;
+                Some((n.parse().ok()?, id, reason))
+            });
+        let (category, reason, example, n) = match develop {
+            Some((n, id, reason)) => (
                 "Develop settings",
                 reason.to_owned(),
                 id.parse::<i64>()
                     .ok()
                     .and_then(|id| name_of.get(&id).map(|s| s.to_string()))
                     .unwrap_or_else(|| format!("image {id}")),
+                n,
             ),
             None => match line.strip_prefix("missing table ") {
                 // Optional tables absent in older catalogs: one informational line.
@@ -521,19 +530,18 @@ fn unsupported(plan: &ImportPlan) -> Vec<LrcatIssue> {
                     "Catalog",
                     "optional tables are not in this catalog (older Lightroom version); nothing to import from them".to_owned(),
                     table.to_owned(),
+                    1,
                 ),
-                None => ("Catalog", line.clone(), String::new()),
+                None => ("Catalog", line.clone(), String::new(), 1),
             },
         };
-        groups
-            .entry((category.into(), reason))
-            .or_default()
-            .push(example);
+        let group = groups.entry((category.into(), reason)).or_default();
+        group.0 += n;
+        group.1.push(example);
     }
     let mut out: Vec<LrcatIssue> = groups
         .into_iter()
-        .map(|((category, reason), examples)| {
-            let n = examples.len();
+        .map(|((category, reason), (n, examples))| {
             let examples = examples.into_iter().filter(|e| !e.is_empty()).collect();
             issue(&category, reason, n, examples)
         })
