@@ -199,6 +199,7 @@ impl Core {
     /// Refresh one original after its sidecars changed, without discovering or
     /// reading siblings. The same indexing transaction and change triggers as a
     /// folder scan apply, but the walk is rooted at the admitted file itself.
+    /// Explicit originals also accept `.raw`, which folder discovery omits.
     pub fn scan_file(
         &mut self,
         path: impl AsRef<Path>,
@@ -245,7 +246,14 @@ impl Core {
             .into_iter()
         {
             let entry = entry?;
-            if !entry.file_type().is_file() || !is_image(entry.path()) {
+            // A catalog may explicitly reference a generic .raw original.
+            // Preserve ordinary folder discovery's existing extension policy.
+            let explicit_raw = only_file.is_some()
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("raw"));
+            if !entry.file_type().is_file() || !(is_image(entry.path()) || explicit_raw) {
                 continue;
             }
             let path = entry.path();
@@ -872,6 +880,26 @@ mod tests {
     use super::Core as Index;
     use super::*;
     use std::time::Instant;
+    #[test]
+    fn explicit_catalog_raw_file_is_indexed_without_expanding_folder_discovery() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("catalog.raw");
+        std::fs::write(&raw, b"fixture original").unwrap();
+        let mut index = Index::open(dir.path().join("index.db")).unwrap();
+        assert_eq!(
+            index
+                .scan(dir.path(), &NoopSidecarReader, &NoopMetadataProvider)
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            index
+                .scan_file(&raw, &NoopSidecarReader, &NoopMetadataProvider)
+                .unwrap(),
+            1
+        );
+    }
+
     #[test]
     fn embedded_tiff_camera_is_searchable_without_quotes() {
         let dir = tempfile::tempdir().unwrap();

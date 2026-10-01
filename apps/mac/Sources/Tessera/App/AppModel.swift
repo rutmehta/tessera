@@ -552,7 +552,7 @@ final class AppModel {
             self?.showLightroomImport = false
             DispatchQueue.main.async { self?.showLightroomImport = true }
         }
-        lightroomImport.openLibrary = { [weak self] folder, message in self?.openFolder(folder, message: message) }
+        lightroomImport.openLibrary = { [weak self] folder, message in self?.openFolder(folder, message: message, alreadyIndexed: true) }
         installOutputHandlers()
     }
 
@@ -604,7 +604,7 @@ final class AppModel {
     }
 
     /// `then` runs after the load (success or failure; the tether session restores its view on reloads).
-    func openFolder(_ url: URL, message: String? = nil, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
+    func openFolder(_ url: URL, message: String? = nil, alreadyIndexed: Bool = false, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
         guard !developRecovery.hasActiveReservations(excluding: navigationCloseGateID) else {
             statusMessage = "Wait for the current photo operation before opening another folder"
             then?(self, false)
@@ -618,7 +618,7 @@ final class AppModel {
         guard currentFolderRequestID == requestID else { return }
         navigateAfterDevelopSave(folderRequestID: requestID) { [weak self] in
             guard let self, self.currentFolderRequestID == requestID else { return }
-            self.commitOpenFolder(url, message: message, requestID: requestID)
+            self.commitOpenFolder(url, message: message, alreadyIndexed: alreadyIndexed, requestID: requestID)
         }
     }
 
@@ -628,11 +628,11 @@ final class AppModel {
         callback?(self, loaded)
     }
 
-    private func commitOpenFolder(_ url: URL, message: String?, requestID: UUID) {
+    private func commitOpenFolder(_ url: URL, message: String?, alreadyIndexed: Bool, requestID: UUID) {
         if isPhotoEditing || isReviewing { commitReturnToLibrary(grid: false) }
-        // The open folder again (a catalog import into it, reopening it): rescan in the
-        // background and apply the changes in place, keeping history, filters and selection.
-        if let lib = engineLibrary, let folder = lib.folder, !isLoading,
+        // Reopening the current folder rescans in place. Catalog import has already
+        // indexed its references and must never enter this recursive scan path.
+        if !alreadyIndexed, let lib = engineLibrary, let folder = lib.folder, !isLoading,
            !lib.isReadOnly, folder.path == url.path {
             rescan(lib, message: message, requestID: requestID) { [weak self] _, loaded in
                 self?.finishFolderRequest(requestID, loaded: loaded)
@@ -650,6 +650,7 @@ final class AppModel {
             let result = Result<(any PhotoLibrary, CullController.InitialSnapshot), Error> {
                 let library: any PhotoLibrary = useStub
                     ? try StubLibrary.scan(folder: url)
+                    : alreadyIndexed ? try EngineLibrary.openIndexed(folder: url, basketTarget: target)
                     : try EngineLibrary.open(folder: url, basketTarget: target)
                 return (library, CullController.prepare(library))
             }

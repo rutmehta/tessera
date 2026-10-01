@@ -1197,29 +1197,31 @@ impl LrcatImport {
         state.library_merged = true;
         state.write(&state_file)?;
 
-        // Index the photo folders so the import shows up without a manual rescan.
-        let mut scan_roots: Vec<PathBuf> = Vec::new();
-        for r in &resolved {
-            if r.outcome == Outcome::Import && !scan_roots.iter().any(|s| r.folder.starts_with(s)) {
-                scan_roots.retain(|s| !s.starts_with(&r.folder));
-                scan_roots.push(r.folder.clone());
-            }
-        }
-        let scan_total = scan_roots.len() as u32;
-        for (n, folder) in scan_roots.iter().enumerate() {
+        // Resolve maps each catalog path through its selected root. Never walk
+        // those roots: they can be a whole Pictures folder containing other work.
+        // Include originals whose edits were skipped, but not virtual duplicates.
+        let scan_paths: BTreeSet<PathBuf> = resolved
+            .iter()
+            .filter(|r| !matches!(r.outcome, Outcome::Missing | Outcome::VirtualCopy))
+            .filter_map(|r| r.path.canonicalize().ok())
+            .filter(|p| p.is_file())
+            .collect();
+        let scan_total = scan_paths.len() as u32;
+        for (n, path) in scan_paths.iter().enumerate() {
             if self.cancel.load(Ordering::SeqCst) {
-                break; // Sidecars and library are complete; the app rescans on open.
+                report.cancelled = true; // Resume completes the remaining file scans.
+                break;
             }
             progress.phase(
                 LrcatPhase::Indexing,
                 n as u32,
                 scan_total,
-                &folder.to_string_lossy(),
+                &path.to_string_lossy(),
             );
             let mut c = self.engine.lock()?;
             report.indexed +=
                 c.index
-                    .scan(folder, &catalog::Sidecars, &catalog::EmbeddedMetadata)?
+                    .scan_file(path, &catalog::Sidecars, &catalog::EmbeddedMetadata)?
                     as u32;
         }
         self.engine

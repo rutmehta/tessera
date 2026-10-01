@@ -11,6 +11,19 @@ import TesseraFFI
 /// M2-28: catalog changes (new frames, imports, rescans, deletes) reach the open library in
 /// place: selection, undo history and active filters survive, and views update without a reload.
 final class IncrementalLibraryTests: XCTestCase {
+    func testImportedLibraryOpensWithoutDiscoveringUnrelatedPhotos() throws {
+        let temp = try scratch()
+        let folder = temp.appendingPathComponent("photos")
+        let support = temp.appendingPathComponent("support")
+        try photos(["catalog.jpg"], in: folder)
+        _ = try EngineLibrary.open(folder: folder, appSupport: support)
+        try photos(["unrelated.jpg"], in: folder)
+        let imported = try EngineLibrary.openIndexed(folder: folder, appSupport: support)
+        XCTAssertEqual(imported.items.count, 1)
+        let normal = try EngineLibrary.open(folder: folder, appSupport: support)
+        XCTAssertEqual(normal.items.count, 2)
+    }
+
     private func scratch() throws -> URL {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent("incremental-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)

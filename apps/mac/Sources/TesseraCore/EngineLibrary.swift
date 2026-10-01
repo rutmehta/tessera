@@ -173,14 +173,26 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
     /// Blocking (index scan, sidecar reconciliation, preview hashing): call off the main actor.
     public static func scan(folder: URL, appSupport: URL? = nil,
                             basketTarget: String = defaultBasketTarget) throws -> EngineLibrary {
+        try loadOriginals(folder: folder, appSupport: appSupport, basketTarget: basketTarget, scan: true)
+    }
+
+    /// Opens the index populated by catalog import without discovering unrelated files.
+    public static func openIndexed(folder: URL, appSupport: URL? = nil,
+                                   basketTarget: String = defaultBasketTarget) throws -> EngineLibrary {
+        try loadOriginals(folder: folder, appSupport: appSupport, basketTarget: basketTarget, scan: false)
+    }
+
+    private static func loadOriginals(folder: URL, appSupport: URL?, basketTarget: String,
+                                      scan: Bool) throws -> EngineLibrary {
         let start = Date()
         let fm = FileManager.default
         let support = appSupport ?? defaultSupportDirectory
         let engine = try Engine.open(appSupportDir: support.path)
         let previewEvents = PreviewEvents()
         engine.setEventListener(listener: previewEvents)
-        let handle = try engine.indexFolder(path: folder.path)
-        let session = try engine.openCullSession(folder: handle.path)
+        let path = scan ? try engine.indexFolder(path: folder.path).path
+                        : folder.resolvingSymlinksInPath().path
+        let session = try engine.openCullSession(folder: path)
         try session.setBasketTarget(name: basketTarget)
         let sequence = try session.changeSequence()
         let rows = try session.images()
@@ -191,7 +203,7 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
         for group in layout { ids.append(contentsOf: group.images) }
         let statuses = try session.derivedStatuses(imageIds: ids)
         // List the canonical folder: contentsOfDirectory refuses a symlink to a directory.
-        let canonical = URL(fileURLWithPath: handle.path, isDirectory: true)
+        let canonical = URL(fileURLWithPath: path, isDirectory: true)
         let subfolders = try fm.contentsOfDirectory(at: canonical, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true && $0.lastPathComponent != ".edits" }
             .sorted { $0.path < $1.path }
