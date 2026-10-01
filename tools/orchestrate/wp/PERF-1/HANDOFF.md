@@ -6,6 +6,8 @@ Status: **minimal RED test scaffolding authored, UNRUN; implementation not start
 
 Confirmed source finding: output-tile style emission repeatedly constructs full-canvas source/effect planes. The report's 14MP / 83s measurement is loaded diagnostic evidence, not a controlled baseline or a measurement taken by this lane.
 
+Context review: see [CONTEXT-REVIEW.md](CONTEXT-REVIEW.md). Live text/shape dispatch reaches emit_styles through render_live_scene and must forward the future pass; current pixel/group tests do not prove styled-text export coverage. Overbudget negative-key bookkeeping and subtree admission suppression are optional policy choices, not pixel-correctness prerequisites. Counters measure calls, not successful completions.
+
 Selected scope: full-level, frame-local bounded source/effect reuse, serial styled traversal, recursive-safe cache access without locks across source rendering, actual allocated/padded tile payload accounting, and serial uncached overbudget fallback preserving accepted inputs. Preserve exact DocRef namespaces and verify nested same-ID document separation. Direct tile calls and app-side paths are unchanged in initial scope.
 
 Evidence and gates:
