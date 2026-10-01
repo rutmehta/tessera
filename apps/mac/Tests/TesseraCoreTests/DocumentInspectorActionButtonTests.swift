@@ -113,7 +113,7 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
         window.contentView = host
         window.setContentSize(bounds.size)
         host.frame = bounds
-        defer { window.orderOut(nil); window.contentView = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         window.orderBack(nil)
         await LayoutProbeHarness.settleAsync(host)
         func actions(_ view: NSView) -> [DocumentInspectorNativeActionButton] {

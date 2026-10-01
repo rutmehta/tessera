@@ -25,10 +25,7 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
 
     override func tearDown() async throws {
         for window in windows {
-            window.orderOut(nil)
-            window.contentViewController = nil
-            window.contentView = nil
-            window.close()
+            LayoutProbeHarness.dispose(window)
         }
         windows = []
         priorState?.assertOwnersUnchanged()

@@ -133,7 +133,7 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
         let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 200, height: 40),
                               styleMask: .titled, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        defer { window.contentView = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         let view = DocumentHistoryHeightControl(frame: window.contentView!.bounds)
         window.contentView?.addSubview(view)
         let initial = Double(DocumentInspector.historyDefault)
@@ -216,14 +216,14 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
             return root.subviews.lazy.compactMap { find($0) }.first
         }
         let (window, host) = hostInspector()
-        defer { window.orderOut(nil); window.contentViewController = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         assertContentBounds(window, host)
         let control = try XCTUnwrap(find(host), "must expose native actions in the actual inspector")
         XCTAssertTrue(control.increase.isEnabled, "sized inspector must permit increasing the default History height")
         _ = control.increase.accessibilityPerformPress()
         XCTAssertEqual(defaults.double(forKey: heightKey), initial + Double(Theme.Height.row))
         let (restoredWindow, restoredHost) = hostInspector()
-        defer { restoredWindow.orderOut(nil); restoredWindow.contentViewController = nil; restoredWindow.close() }
+        defer { LayoutProbeHarness.dispose(restoredWindow) }
         assertContentBounds(restoredWindow, restoredHost)
         let restored = try XCTUnwrap(find(restoredHost))
         XCTAssertEqual(restored.readout.accessibilityValue(), String(format: "%.0f pt", initial + Double(Theme.Height.row)))

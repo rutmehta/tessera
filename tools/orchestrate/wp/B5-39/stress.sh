@@ -3,7 +3,8 @@
 set -uo pipefail
 export PATH="$HOME/.cargo/bin:$PATH"
 root="$(git rev-parse --show-toplevel)"
-evidence="$root/tools/orchestrate/wp/B5-39/evidence"
+evidence="$root/tools/orchestrate/wp/B5-39/evidence/reconciled"
+mkdir -p "$evidence"
 export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/B5-39-layout-stress"
 filter='LayoutProbeHarnessTests|ShellLayoutTests|DocumentInspectorLayoutTests|MasksPanelLayoutTests|DocumentHistoryHeightControlTests|DocumentHistoryKeyboardTraversalTests|AgentReviewLayoutTests|PeopleLayoutTests|DocumentInspectorActionButtonTests|DocumentDitherCheckboxTests|LayoutContractTests'
 stop="$evidence/stress.stop"

@@ -20,6 +20,7 @@ final class PeopleLayoutTests: XCTestCase {
         let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 600),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         let host = NSHostingView(rootView: LayoutProbeHarness.root(ContentView(model: model)))
+        defer { LayoutProbeHarness.dispose(window) }
         window.contentView = host
         window.orderBack(nil)
         LayoutProbeHarness.settle(host)
@@ -36,7 +37,6 @@ final class PeopleLayoutTests: XCTestCase {
         XCTAssertLessThanOrEqual(frame.maxY, host.bounds.maxY + 1, "detail must not expand the content beyond the window")
         XCTAssert(ShellLayoutAudit.containmentViolations(in: host).isEmpty,
                   ShellLayoutAudit.containmentViolations(in: host).joined(separator: "\n"))
-        window.orderOut(nil)
     }
 }
 

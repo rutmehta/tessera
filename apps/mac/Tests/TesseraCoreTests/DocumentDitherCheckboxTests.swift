@@ -48,7 +48,7 @@ final class DocumentDitherCheckboxTests: XCTestCase {
         let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 240, height: 80),
                               styleMask: [.titled], backing: .buffered, defer: true)
         window.isReleasedWhenClosed = false
-        defer { window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         for hosted in [false, true] {
             if hosted {
                 window.contentView?.addSubview(native)
@@ -157,7 +157,7 @@ final class DocumentDitherCheckboxTests: XCTestCase {
         window.contentView = host
         window.setContentSize(bounds.size)
         host.frame = bounds
-        defer { window.orderOut(nil); window.contentView = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         window.orderBack(nil)
         await LayoutProbeHarness.settleAsync(host)
         func checkboxes(_ view: NSView) -> [DocumentDitherNativeCheckbox] {

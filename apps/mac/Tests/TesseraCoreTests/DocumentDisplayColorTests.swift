@@ -57,7 +57,7 @@ final class DocumentDisplayColorTests: XCTestCase {
 
     /// A viewport in an off-screen window (never ordered front), attached to `doc`.
     private func viewport(_ doc: DocumentController) -> DocumentViewportView {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 200), styleMask: [.titled],
+        let w = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 320, height: 200), styleMask: [.titled],
                          backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
         window = w

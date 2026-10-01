@@ -63,7 +63,6 @@ enum LayoutProbeHarness {
         return bitmap
     }
 
-
     static func root<V: View>(_ view: V) -> some View {
         prepare()
         return view.transaction { transaction in
@@ -79,6 +78,7 @@ enum LayoutProbeHarness {
                        backing: NSWindow.BackingStoreType, defer flag: Bool) -> NSWindow {
         prepare()
         let window = NSWindow(contentRect: contentRect, styleMask: styleMask, backing: backing, defer: flag)
+        window.isReleasedWhenClosed = false
         window.animationBehavior = .none
         return window
     }

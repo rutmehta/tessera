@@ -11,7 +11,7 @@ final class LayoutProbeHarnessTests: XCTestCase {
         window.isReleasedWhenClosed = false
         window.contentView = root
         window.orderBack(nil)
-        defer { window.orderOut(nil); window.contentView = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         let child = NSView(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
         root.addSubview(child)
         var delivered = false

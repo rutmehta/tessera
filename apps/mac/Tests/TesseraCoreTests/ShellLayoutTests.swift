@@ -36,7 +36,7 @@ final class ShellLayoutTests: XCTestCase {
         let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
                               styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        defer { window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         let progress = TrackedProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
         progress.usesThreadedAnimation = true
         window.contentView?.addSubview(progress)
