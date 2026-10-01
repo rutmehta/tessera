@@ -20825,6 +20825,12 @@ public struct LrcatReport: Equatable, Hashable {
     public var virtualCopies: UInt32
     public var skipped: [LrcatSkip]
     public var unsupported: [LrcatIssue]
+    /**
+     * Approximate translations of the photos written or resumed (information,
+     * not warnings): one entry per Adobe key, `category` = the key, `count` =
+     * photos, `reason` = the first photo's reason, `examples` = up to five paths.
+     */
+    public var approximate: [LrcatIssue]
     public var albums: UInt32
     public var albumGroups: UInt32
     public var smartAlbums: UInt32
@@ -20849,7 +20855,12 @@ public struct LrcatReport: Equatable, Hashable {
          */resumed: UInt32, 
         /**
          * Virtual copies preserved in the import bundle only.
-         */virtualCopies: UInt32, skipped: [LrcatSkip], unsupported: [LrcatIssue], albums: UInt32, albumGroups: UInt32, smartAlbums: UInt32, keywords: UInt32, 
+         */virtualCopies: UInt32, skipped: [LrcatSkip], unsupported: [LrcatIssue], 
+        /**
+         * Approximate translations of the photos written or resumed (information,
+         * not warnings): one entry per Adobe key, `category` = the key, `count` =
+         * photos, `reason` = the first photo's reason, `examples` = up to five paths.
+         */approximate: [LrcatIssue], albums: UInt32, albumGroups: UInt32, smartAlbums: UInt32, keywords: UInt32, 
         /**
          * Selection of the imported photos.
          */selection: LrcatSelectionCounts, libraryPath: String, bundlePath: String, indexed: UInt32, seconds: Double) {
@@ -20860,6 +20871,7 @@ public struct LrcatReport: Equatable, Hashable {
         self.virtualCopies = virtualCopies
         self.skipped = skipped
         self.unsupported = unsupported
+        self.approximate = approximate
         self.albums = albums
         self.albumGroups = albumGroups
         self.smartAlbums = smartAlbums
@@ -20894,6 +20906,7 @@ public struct FfiConverterTypeLrcatReport: FfiConverterRustBuffer {
                 virtualCopies: FfiConverterUInt32.read(from: &buf), 
                 skipped: FfiConverterSequenceTypeLrcatSkip.read(from: &buf), 
                 unsupported: FfiConverterSequenceTypeLrcatIssue.read(from: &buf), 
+                approximate: FfiConverterSequenceTypeLrcatIssue.read(from: &buf), 
                 albums: FfiConverterUInt32.read(from: &buf), 
                 albumGroups: FfiConverterUInt32.read(from: &buf), 
                 smartAlbums: FfiConverterUInt32.read(from: &buf), 
@@ -20914,6 +20927,7 @@ public struct FfiConverterTypeLrcatReport: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.virtualCopies, into: &buf)
         FfiConverterSequenceTypeLrcatSkip.write(value.skipped, into: &buf)
         FfiConverterSequenceTypeLrcatIssue.write(value.unsupported, into: &buf)
+        FfiConverterSequenceTypeLrcatIssue.write(value.approximate, into: &buf)
         FfiConverterUInt32.write(value.albums, into: &buf)
         FfiConverterUInt32.write(value.albumGroups, into: &buf)
         FfiConverterUInt32.write(value.smartAlbums, into: &buf)
