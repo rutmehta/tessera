@@ -1126,6 +1126,103 @@ impl Default for Grain {
     }
 }
 
+/// Approximate Adobe controls. Units and interpretation are documented in LR-6/HANDOFF.md.
+/// Missing controls have no effect on the native operator.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AdobeLensBlur {
+    /// Version. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Active. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+    /// Focal range. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focal_range: Option<[f32; 4]>,
+    /// Bokeh shape. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bokeh_shape: Option<f32>,
+    /// Bokeh shape detail. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bokeh_shape_detail: Option<f32>,
+    /// Highlights boost. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highlights_boost: Option<f32>,
+    /// Highlights threshold. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highlights_threshold: Option<f32>,
+    /// Cat eye amount. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cat_eye_amount: Option<f32>,
+    /// Cat eye scale. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cat_eye_scale: Option<f32>,
+    /// Bokeh aspect. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bokeh_aspect: Option<f32>,
+    /// Bokeh rotation. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bokeh_rotation: Option<f32>,
+    /// Spherical aberration. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spherical_aberration: Option<f32>,
+    /// Focal range source. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focal_range_source: Option<f32>,
+    /// Sampled area. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampled_area: Option<String>,
+    /// Sampled range. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampled_range: Option<String>,
+    /// Subject range. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_range: Option<String>,
+}
+
+/// Opaque Adobe resource identities, never paths or raster payloads.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LensBlurDepth {
+    /// Depth source. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub depth_source: Option<String>,
+    /// Base raw depth table. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_raw_depth_table: Option<String>,
+    /// Base raw depth input digest. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_raw_depth_input_digest: Option<String>,
+    /// Base raw depth version. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_raw_depth_version: Option<String>,
+    /// Base layered depth table. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_layered_depth_table: Option<String>,
+    /// Base layered depth input digest. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_layered_depth_input_digest: Option<String>,
+    /// Base layered depth version. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_layered_depth_version: Option<String>,
+    /// Base highlight guide table. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_highlight_guide_table: Option<String>,
+    /// Base highlight guide input digest. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_highlight_guide_input_digest: Option<String>,
+    /// Base highlight guide version. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_highlight_guide_version: Option<String>,
+    /// Content key in mask-store; inverse depth, one means near.
+    /// Mask key. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mask_key: Option<[u8; 32]>,
+    /// True until resource resolution or regeneration succeeds.
+    pub regenerate: bool,
+}
+
 /// Depth-based lens blur.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -1138,6 +1235,12 @@ pub struct LensBlur {
     pub bokeh: String,
     /// Depth model used.
     pub depth_model: Option<ModelRef>,
+    /// Adobe. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adobe: Option<AdobeLensBlur>,
+    /// Depth. See the LR-6 approximation contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub depth: Option<LensBlurDepth>,
 }
 
 impl Default for LensBlur {
@@ -1147,6 +1250,8 @@ impl Default for LensBlur {
             focus_range: [0.0, 0.1],
             bokeh: "circle".into(),
             depth_model: None,
+            adobe: None,
+            depth: None,
         }
     }
 }

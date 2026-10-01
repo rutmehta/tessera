@@ -524,6 +524,17 @@ impl Recipe {
         Ok(())
     }
 
+    /// Persist non-user-facing translation information without warning escalation.
+    pub fn record_translation_info(&mut self, key: &str, message: &str) {
+        let records = self
+            .unknown
+            .entry("lrcat_translation_diagnostics".into())
+            .or_insert_with(|| serde_json::json!([]));
+        if let Some(records) = records.as_array_mut() {
+            records.push(serde_json::json!({"level":"info", "key":key, "message":message}));
+        }
+    }
+
     /// Parses a recipe document (any schema version; newer ones load
     /// best-effort). Older documents are migrated on load (schema 1 profile
     /// id strings become profile structs) and marked as the current schema.

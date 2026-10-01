@@ -176,7 +176,7 @@ pub(crate) fn parse_inner(
         if let Some(previous) = accepted.insert((p.namespace, p.name), i) {
             removed.push(properties[previous].range.clone());
         }
-        if key.is_none() {
+        if key.is_none() && p.name != "DepthMapInfo" {
             diagnostics.push((qualified, p.raw, "unsupported property".into()));
         } else if key == Some(CrsKey::ProcessVersion) {
             match ProcessVersion::from_crs(p.raw) {
@@ -297,6 +297,9 @@ pub(crate) fn parse_inner(
             "lrcat_develop_source".into(),
             json!({"shape": "xmp-fragments", "properties": source}),
         );
+    }
+    if !verified_native {
+        approximate_depth(&mut recipe, &properties, &mut warnings)?;
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
     if apply_lr2 {
@@ -451,6 +454,88 @@ fn normalize_legacy_masks(text: &str) -> EngineResult<String> {
     Ok(result)
 }
 
+/// Info records are persisted independently of the user-facing warnings vector.
+fn approximate_depth(
+    recipe: &mut Recipe,
+    properties: &[Property<'_>],
+    warnings: &mut Vec<String>,
+) -> EngineResult<()> {
+    use engine_api::recipe::settings::{LensBlur, LensBlurDepth};
+    let mut info = Vec::new();
+    let mut settings = recipe.settings.clone();
+    for p in properties.iter().filter(|p| p.namespace == CRS) {
+        if p.name == "LensBlur" {
+            info.push(
+                json!({"level":"info", "key":"LensBlur", "message": LENS_BLUR_APPROXIMATION}),
+            );
+        }
+        if p.name != "DepthMapInfo" {
+            continue;
+        }
+        let mut depth = LensBlurDepth {
+            regenerate: true,
+            ..Default::default()
+        };
+        if let Some(n) = p.node {
+            let n = n
+                .children()
+                .find(|c| c.has_tag_name((RDF, "Description")))
+                .unwrap_or(n);
+            let value = |name| {
+                n.attribute((CRS, name)).map(str::to_string).or_else(|| {
+                    n.children()
+                        .find(|c| c.has_tag_name((CRS, name)))
+                        .and_then(|c| c.text())
+                        .map(str::to_string)
+                })
+            };
+            depth.depth_source = value("DepthSource");
+            depth.base_raw_depth_table = value("BaseRawDepthTable");
+            depth.base_raw_depth_input_digest = value("BaseRawDepthInputDigest");
+            depth.base_raw_depth_version = value("BaseRawDepthVersion");
+            depth.base_layered_depth_table = value("BaseLayeredDepthTable");
+            depth.base_layered_depth_input_digest = value("BaseLayeredDepthInputDigest");
+            depth.base_layered_depth_version = value("BaseLayeredDepthVersion");
+            depth.base_highlight_guide_table = value("BaseHighlightGuideTable");
+            depth.base_highlight_guide_input_digest = value("BaseHighlightGuideInputDigest");
+            depth.base_highlight_guide_version = value("BaseHighlightGuideVersion");
+        }
+        settings
+            .effects
+            .lens_blur
+            .get_or_insert_with(|| LensBlur {
+                amount: 0.,
+                ..Default::default()
+            })
+            .depth = Some(depth);
+        warnings.retain(|w| !w.starts_with("crs:DepthMapInfo:"));
+        recipe.unknown.remove("crs:DepthMapInfo");
+        info.push(json!({"level":"info", "key":"DepthMapInfo", "message": "approximate: DepthSource is opaque provenance; BaseRawDepthTable and BaseLayeredDepthTable are opaque resolver IDs (layered preferred); InputDigest and Version are association/provenance only; BaseHighlightGuideTable is a guide, never depth. Encoding, calibration and direction unverified; regenerated depth pending via image-core ml-depth unless resource resolves."}));
+    }
+    if let Some(blur) = &mut settings.effects.lens_blur {
+        if blur.amount > 0. && blur.depth.is_none() && !info.is_empty() {
+            blur.depth = Some(LensBlurDepth {
+                regenerate: true,
+                ..Default::default()
+            });
+        }
+        if blur.depth.as_ref().is_some_and(|d| d.regenerate) {
+            info.push(json!({"level":"info", "key":"DepthMapInfo", "message":"regenerated depth: pending; no decoded Adobe resource supplied; image-core provider performs opt-in regeneration"}));
+        }
+    }
+    if settings != recipe.settings {
+        recipe.edit(Default::default(), |s| *s = settings)?;
+    }
+    if !info.is_empty() {
+        recipe
+            .unknown
+            .insert("lrcat_translation_diagnostics".into(), json!(info));
+    }
+    Ok(())
+}
+
+const LENS_BLUR_APPROXIMATION: &str = "approximate: Active gates the effect; BlurAmount is percent radius. FocalRange is four percent near-to-far endpoints: outer endpoints saturate blur, inner endpoints delimit sharp focus. BokehShape 0/1/2/3/4 maps circle/bubble/5-blade/ring/cat-eye; other values fall back to circle. BokehShapeDetail is percent radial pupil weighting; BokehAspect is signed percent log2 axis stretch; BokehRotation is degrees; HighlightsBoost is percent gain; HighlightsThreshold is percent scene-linear luminance; CatEyeAmount is percent clipping multiplied by CatEyeScale/100; SphericalAberration is signed percent radial pupil weighting. Version, FocalRangeSource, SampledArea, SampledRange and SubjectRange are selection provenance; explicit FocalRange remains authoritative. All numeric units, enum ordering, transfer functions and selection encodings are unverified Adobe conventions; exact source retained.";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -460,11 +545,22 @@ mod tests {
             r#"xmlns:a="http://ns.adobe.com/exif/1.0/aux/" crs:ProcessVersion="15.4" crs:CameraProfile="Adobe Color" crs:CameraProfileDigest="ABC" crs:LensProfileEnable="1" crs:LensProfileSetup="Custom" crs:LensProfileName="My lens" crs:LensProfileFilename="lens.lcp" crs:LensProfileDigest="DEF" a:EnhanceDenoiseAlreadyApplied="True" a:EnhanceDenoiseVersion="7" a:EnhanceDenoiseLumaAmount="50""#,
             r#"<crs:LensBlur crs:Active="True" crs:BlurAmount="27"/>"#,
         );
-        let expected = sidecar::XmpPacket::parse(&source)
+        let mut expected = sidecar::XmpPacket::parse(&source)
             .unwrap()
             .to_recipe()
             .unwrap();
         let (actual, warnings) = parse(&source, "15.4").unwrap();
+        expected
+            .recipe
+            .settings
+            .effects
+            .lens_blur
+            .as_mut()
+            .unwrap()
+            .depth = Some(engine_api::recipe::settings::LensBlurDepth {
+            regenerate: true,
+            ..Default::default()
+        });
         assert_eq!(actual.settings, expected.recipe.settings);
         assert_eq!(actual.provenance, expected.recipe.provenance);
         assert_eq!(warnings, expected.warnings);
