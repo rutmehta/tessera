@@ -634,7 +634,7 @@ final class DocumentWorkspace {
     private(set) var flatExports: [FlatExportTask] = []
     @ObservationIgnored private let flatExportGroup = DispatchGroup()
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
-    @ObservationIgnored private var exportAccessory: FlatExportProgressView?
+    @ObservationIgnored private var exportAccessories: [FlatExportProgressView] = []
     // Diagnostic injection: exercise the real progress UI in an unordered test window.
     @ObservationIgnored var exportWindow: NSWindow?
     @ObservationIgnored var exportTrace = PerformanceTrace.shared
@@ -677,6 +677,9 @@ final class DocumentWorkspace {
             cancel = { flag.set() }
         }
         let task = FlatExportTask(fileName: url.lastPathComponent, documentTitle: doc.title, cancel: cancel)
+        // Capture the exporting document's host once. A later main-window change must not
+        // move its progress UI. The explicit fallback is only for unordered diagnostic hosts.
+        task.progressHost = doc.viewport ?? exportWindow?.contentView
         flatExports.append(task)
         observeTermination()
         updateExportAccessory()
@@ -758,24 +761,24 @@ final class DocumentWorkspace {
     /// contentLayoutRect, resizes the document viewport, and schedules another expensive render/layout.
     /// This native overlay never changes the window, canvas, or hosting view's sizing constraints.
     private func updateExportAccessory() {
-        if flatExports.isEmpty {
-            exportAccessory?.removeFromSuperview()
-            exportAccessory = nil
-            return
+        for hud in exportAccessories {
+            let tasks = flatExports.filter { $0.progressHost != nil && $0.progressHost === hud.superview }
+            if tasks.isEmpty { hud.removeFromSuperview() }
         }
-        guard let parent = (exportWindow ?? window)?.contentView else { return }
-        let bar = exportAccessory ?? FlatExportProgressView(workspace: self)
-        if bar.superview !== parent {
-            bar.removeFromSuperview()
-            parent.addSubview(bar, positioned: .above, relativeTo: nil)
+        exportAccessories.removeAll { $0.superview == nil }
+        for task in flatExports {
+            guard let parent = task.progressHost else { continue }
+            let hud: FlatExportProgressView
+            if let existing = exportAccessories.first(where: { $0.superview === parent }) {
+                hud = existing
+            } else {
+                hud = FlatExportProgressView(workspace: self)
+                parent.addSubview(hud, positioned: .above, relativeTo: nil)
+                exportAccessories.append(hud)
+            }
+            hud.update(flatExports.filter { $0.progressHost === parent })
+            hud.placeInViewport()
         }
-        bar.update(flatExports)
-        let height = FlatExportProgressView.rowHeight * CGFloat(flatExports.count)
-        bar.autoresizingMask = [.width, parent.isFlipped ? .maxYMargin : .minYMargin]
-        bar.frame = NSRect(x: parent.bounds.minX,
-                           y: parent.isFlipped ? parent.bounds.minY : parent.bounds.maxY - height,
-                           width: parent.bounds.width, height: height)
-        exportAccessory = bar
     }
 
     // MARK: Closing
@@ -928,6 +931,7 @@ final class FlatExportTask: Identifiable {
     let id = UUID()
     let fileName: String
     let documentTitle: String
+    @ObservationIgnored weak var progressHost: NSView?
     private(set) var fraction: Double = 0
     private(set) var phase = "Preparing"
     private(set) var cancelling = false
@@ -961,20 +965,30 @@ private final class CancelBox: @unchecked Sendable {
     func set() { lock.withLock { value = true } }
 }
 
-/// Native progress over the top of the content, below the titlebar. Manual layout deliberately
+/// Native lower-right viewport HUD, above the zoom chip. Manual layout deliberately
 /// cannot invalidate the hosting view's size or re-evaluate the document's SwiftUI graph.
 @MainActor
 private final class FlatExportProgressView: NSView {
-    static let rowHeight: CGFloat = 32
+    static let rowHeight: CGFloat = 64
     private weak var workspace: DocumentWorkspace?
     private var rows: [UUID: Row] = [:]
     private var order: [UUID] = []
     override var isFlipped: Bool { true }
-    override var isOpaque: Bool { true }
+    // Consume events on the HUD background instead of forwarding edits to the viewport.
+    override func mouseDown(with event: NSEvent) {}
+    override func mouseUp(with event: NSEvent) {}
+    override func mouseDragged(with event: NSEvent) {}
+    override func rightMouseDown(with event: NSEvent) {}
+    override func otherMouseDown(with event: NSEvent) {}
+    override func scrollWheel(with event: NSEvent) {}
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     init(workspace: DocumentWorkspace) {
         self.workspace = workspace
         super.init(frame: .zero)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel("Document exports")
         setAccessibilityIdentifier("document-export-progress")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -994,6 +1008,19 @@ private final class FlatExportProgressView: NSView {
         arrangeRows()
     }
 
+    func placeInViewport() {
+        guard let parent = superview else { return }
+        let inset = Theme.Space.m
+        let width = min(400, max(0, parent.bounds.width - 2 * inset))
+        let height = Self.rowHeight * CGFloat(order.count)
+        // Leave the transient zoom chip's bottom-center lane clear.
+        let bottom = Theme.Space.l + Theme.Height.large + Theme.Space.m
+        autoresizingMask = [.minXMargin, parent.isFlipped ? .minYMargin : .maxYMargin]
+        frame = NSRect(x: parent.bounds.maxX - inset - width,
+                       y: parent.isFlipped ? parent.bounds.maxY - bottom - height : parent.bounds.minY + bottom,
+                       width: width, height: height)
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         arrangeRows()
@@ -1007,11 +1034,13 @@ private final class FlatExportProgressView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        Theme.Palette.panel.setFill()
-        bounds.fill()
-        Theme.Palette.hairline.setFill()
-        NSRect(x: 0, y: bounds.maxY - Theme.Space.hairline,
-               width: bounds.width, height: Theme.Space.hairline).fill()
+        let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: Theme.Space.hairline, dy: Theme.Space.hairline),
+                                 xRadius: Theme.Radius.card, yRadius: Theme.Radius.card)
+        Theme.Palette.hud.setFill()
+        shape.fill()
+        Theme.Palette.hairline.setStroke()
+        shape.lineWidth = Theme.Space.hairline
+        shape.stroke()
     }
 
     private final class Row: NSView {
@@ -1040,6 +1069,7 @@ private final class FlatExportProgressView: NSView {
             progress.style = .bar
             progress.controlSize = .small
             progress.setAccessibilityLabel("Export progress for \(task.fileName)")
+            cancel.setAccessibilityLabel("Cancel export of \(task.fileName)")
             cancel.bezelStyle = .rounded
             cancel.controlSize = .small
             cancel.target = self
@@ -1061,19 +1091,14 @@ private final class FlatExportProgressView: NSView {
         override func setFrameSize(_ newSize: NSSize) {
             super.setFrameSize(newSize)
             let gap = Theme.Space.s, inset = Theme.Space.m
-            let available = max(0, bounds.width - 2 * inset - 3 * gap)
+            let available = max(0, bounds.width - 2 * inset)
             let buttonWidth = min(64, available)
-            let phaseWidth = min(170, max(0, available - buttonWidth))
-            let progressWidth = min(260, max(0, (available - buttonWidth - phaseWidth) * 0.45))
-            let nameWidth = max(0, available - buttonWidth - phaseWidth - progressWidth)
-            var x = inset
-            name.frame = NSRect(x: x, y: 7, width: nameWidth, height: 20)
-            x += nameWidth + gap
-            progress.frame = NSRect(x: x, y: 9, width: progressWidth, height: 14)
-            x += progressWidth + gap
-            phase.frame = NSRect(x: x, y: 8, width: phaseWidth, height: 18)
-            x += phaseWidth + gap
-            cancel.frame = NSRect(x: x, y: 4, width: buttonWidth, height: 24)
+            name.frame = NSRect(x: inset, y: 6, width: max(0, available - buttonWidth - gap), height: 20)
+            cancel.frame = NSRect(x: bounds.width - inset - buttonWidth, y: 4, width: buttonWidth, height: 24)
+            let phaseWidth = min(170, available * 0.55)
+            let progressWidth = max(0, available - phaseWidth - gap)
+            progress.frame = NSRect(x: inset, y: 38, width: progressWidth, height: 14)
+            phase.frame = NSRect(x: inset + progressWidth + gap, y: 34, width: phaseWidth, height: 20)
         }
 
         @objc private func cancelExport() {

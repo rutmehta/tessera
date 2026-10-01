@@ -638,7 +638,7 @@ public final class DocumentFlatExport: @unchecked Sendable {
     /// A `cancel()` seen at a checkpoint makes it throw and leaves the destination as it was; one that arrives
     /// after the last checkpoint cannot stop the write, and `run` returns normally with the file in place.
     public func run(progress: @escaping @Sendable (Double, String) -> Void) throws {
-        precondition(!Thread.isMainThread, "Export Flat rendering, encoding and writing must run off main")
+        assert(!Thread.isMainThread, "Export Flat rendering, encoding and writing must run off main")
         try bridged { try job.run(listener: ProgressRelay(progress)) }
     }
 
