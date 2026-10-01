@@ -117,7 +117,7 @@ fn codec_foreign_structures_are_not_misrepresented() {
         ),
         (
             CrsKey::LensBlur,
-            "<crs:LensBlur crs:Active=\"True\" crs:FocalRange=\"-48 32 64 144\"/>",
+            "<crs:LensBlur crs:Active=\"True\" crs:FocalRange=\"80 60 20 10\"/>",
         ),
         (
             CrsKey::LensBlur,
@@ -137,4 +137,21 @@ fn codec_empty_legacy_alias_does_not_clear_retouch() {
         + "<crs:RetouchInfo><rdf:Seq/></crs:RetouchInfo>";
     let tree = xml::Tree::parse(&xml::packet(&body)).unwrap();
     assert_eq!(structures::decode(CrsKey::RetouchInfo, &tree).unwrap(), v);
+}
+
+#[test]
+fn approximate_lens_controls_and_depth_reference_roundtrip_in_native_xmp() {
+    let mut recipe = Recipe::default();
+    recipe.edit(Default::default(), |s| {
+        s.effects.lens_blur = Some(serde_json::from_value(json!({
+            "amount":37., "focus_range":[0.2,0.6], "bokeh":"circle",
+            "adobe":{"active":true,"version":"1","focal_range":[0.1,0.2,0.6,0.8],"highlights_boost":25.,"bokeh_aspect":10.,"sampled_area":"  0.2 0.3  "},
+            "depth":{"base_raw_depth_table":"opaque & <id>","mask_key":vec![1;32],"regenerate":false}
+        })).unwrap());
+    }).unwrap();
+    let packet =
+        XmpPacket::from_recipe(&recipe, &Metadata::default(), &MarkPreset::lightroom()).unwrap();
+    let imported = packet.to_recipe().unwrap();
+    assert!(imported.warnings.is_empty());
+    assert_eq!(imported.recipe.settings, recipe.settings);
 }
