@@ -210,3 +210,66 @@ fn metrics_count_full_resolution_and_face_crop_uses_native_pixels() {
         image::imageops::crop_imm(&full, 205, 3, 205, 6).to_image()
     );
 }
+
+#[test]
+fn retouch_is_registered_for_mcp_rgb_and_graph_previews() {
+    use engine_api::{
+        id::RetouchId,
+        recipe::{
+            MaskComponent, MaskKind,
+            mask::{BrushStroke, RetouchKind, RetouchOperation, RetouchTarget},
+        },
+    };
+    let plane = (0..80)
+        .flat_map(|_| (0..128).map(|x| if x >= 64 { 0.8 } else { 0.1 }))
+        .collect();
+    let pixels = Image::new(128, 80, vec![plane; 3]).unwrap();
+    let cache = PreviewCache::default();
+    let rgb_id = ImageId(71);
+    let graph_id = ImageId(72);
+    cache.sources.lock().unwrap().insert(
+        rgb_id,
+        Arc::new(Decoded::Rgb {
+            full: pixels.clone(),
+            preview: pixels.clone(),
+        }),
+    );
+    let raw = RawImage::from_rgb(
+        graph_id,
+        image_core::RgbSource::from_linear_rec2020(pixels).unwrap(),
+    )
+    .unwrap();
+    cache
+        .sources
+        .lock()
+        .unwrap()
+        .insert(graph_id, Arc::new(Decoded::Raw(raw)));
+    let mut recipe = Recipe::default();
+    recipe.settings.locals.retouch.push(RetouchOperation {
+        id: RetouchId(1),
+        kind: RetouchKind::Clone {
+            source_offset: [0.5, 0.0],
+        },
+        target: RetouchTarget::Area {
+            components: vec![MaskComponent::new(MaskKind::Brush {
+                strokes: vec![BrushStroke {
+                    points: vec![[0.25, 0.5, 1.0]],
+                    radius: 0.0625,
+                    ..Default::default()
+                }],
+            })],
+        },
+        opacity: 50.0,
+        feather: 0.0,
+        enabled: true,
+    });
+    let path = Path::new("synthetic-cached.png");
+    for id in [rgb_id, graph_id] {
+        let before = cache.linear(id, path, &Recipe::default()).unwrap();
+        let after = cache.linear(id, path, &recipe).unwrap();
+        assert!(after.planes()[0][40 * 128 + 32] > before.planes()[0][40 * 128 + 32] + 0.1);
+        let before = cache.display(id, path, &Recipe::default(), None).unwrap();
+        let after = cache.display(id, path, &recipe, None).unwrap();
+        assert!(after.get_pixel(32, 40)[0] > before.get_pixel(32, 40)[0] + 20);
+    }
+}

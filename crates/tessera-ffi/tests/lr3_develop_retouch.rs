@@ -1,0 +1,379 @@
+//! LR-3b: supported heal/clone recipes must reach the Develop CPU renderer.
+use engine_api::{
+    id::RetouchId,
+    recipe::{
+        DevelopSettings, MaskComponent, MaskKind,
+        mask::{BrushStroke, RetouchKind, RetouchOperation, RetouchTarget},
+    },
+};
+use pipeline_cpu::{Image, RenderSource, render_linear_scaled};
+use std::sync::Arc;
+
+#[test]
+fn heal_and_clone_spots_render_through_develop_cpu() {
+    let plane: Vec<f32> = (0..80)
+        .flat_map(|_| (0..128).map(|x| if x >= 64 { 0.8 } else { 0.1 }))
+        .collect();
+    let image = Image::new(128, 80, vec![plane; 3]).unwrap();
+    let mut settings = DevelopSettings::default();
+    let baseline = render_linear_scaled(&settings, &RenderSource::Rgb(&image), 1).unwrap();
+    settings.locals.retouch = [
+        RetouchKind::Clone {
+            source_offset: [0.5, 0.0],
+        },
+        RetouchKind::Heal {
+            source_offset: [0.5, 0.0],
+        },
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(i, kind)| RetouchOperation {
+        id: RetouchId(i as u32),
+        kind,
+        target: RetouchTarget::Area {
+            components: vec![MaskComponent::new(MaskKind::Brush {
+                strokes: vec![BrushStroke {
+                    points: vec![[0.25, 0.3 + i as f32 * 0.4, 1.0]],
+                    radius: 0.0625,
+                    feather: 50.0,
+                    ..BrushStroke::default()
+                }],
+            })],
+        },
+        opacity: 50.0,
+        feather: 0.0,
+        enabled: true,
+    })
+    .collect();
+    let context = pipeline_cpu::LensContext {
+        retouch: Some(Arc::new(brush::render_retouch)),
+        ..Default::default()
+    };
+    let rendered = pipeline_cpu::render_linear_scaled_with_lens(
+        &settings,
+        &RenderSource::Rgb(&image),
+        1,
+        &context,
+    )
+    .expect("Develop CPU must render supported heal and clone spots");
+    assert_eq!((rendered.width(), rendered.height()), (128, 80));
+    // A successful return that silently drops retouch must also fail this test.
+    assert!(rendered.planes()[0][24 * 128 + 32] > baseline.planes()[0][24 * 128 + 32] + 0.1);
+}
+
+fn settings(heal: bool) -> DevelopSettings {
+    let mut s = DevelopSettings::default();
+    s.locals.retouch = vec![RetouchOperation {
+        id: RetouchId(1),
+        kind: if heal {
+            RetouchKind::Heal {
+                source_offset: [0.5, 0.0],
+            }
+        } else {
+            RetouchKind::Clone {
+                source_offset: [0.5, 0.0],
+            }
+        },
+        target: RetouchTarget::Area {
+            components: vec![MaskComponent::new(MaskKind::Brush {
+                strokes: vec![BrushStroke {
+                    points: vec![[0.25, 0.5, 1.0]],
+                    radius: 0.0625,
+                    feather: 50.0,
+                    ..Default::default()
+                }],
+            })],
+        },
+        opacity: 50.0,
+        feather: 0.0,
+        enabled: true,
+    }];
+    s
+}
+fn image() -> Image {
+    let plane: Vec<f32> = (0..80)
+        .flat_map(|y| {
+            (0..128).map(move |x| {
+                if x >= 64 {
+                    0.4 + ((x * y) % 17) as f32 * 0.025
+                } else {
+                    0.1
+                }
+            })
+        })
+        .collect();
+    Image::new(
+        128,
+        80,
+        (0..3)
+            .map(|c| plane.iter().map(|v| v * (1.0 + c as f32 * 0.2)).collect())
+            .collect(),
+    )
+    .unwrap()
+}
+fn direct_kernel(base: &Image, heal: bool) -> Image {
+    use brush::{Brush, CloneSource, InputPoint, PaintMode, Stroke, Tip};
+    use compositor::{Depth, Raster, Rect};
+    let extent = engine_api::tile::Extent::new(128, 80);
+    let rect = Rect::of_extent(extent);
+    let mut raster = Raster::new(extent, 3, Depth::F32, 0.0);
+    raster
+        .edit_region(rect, 1, |x, y, p| {
+            let i = y as usize * 128 + x as usize;
+            *p = [
+                base.planes()[0][i],
+                base.planes()[1][i],
+                base.planes()[2][i],
+                1.0,
+            ];
+        })
+        .unwrap();
+    let source = CloneSource {
+        offset: [64.0, 0.0],
+        source: None,
+    };
+    let mut stroke = Stroke::new(
+        Brush {
+            size: 16.0,
+            opacity: 0.5,
+            flow: 1.0,
+            tip: Tip::round(0.5),
+            mode: if heal {
+                PaintMode::Heal(source)
+            } else {
+                PaintMode::Clone(source)
+            },
+            ..Default::default()
+        },
+        &raster,
+        1,
+    )
+    .unwrap();
+    stroke
+        .add_point(InputPoint::at(32.0, 40.0).pressure(1.0))
+        .unwrap();
+    stroke.finish().unwrap();
+    stroke.apply(&mut raster, rect, 2).unwrap();
+    let planes = (0..3)
+        .map(|c| {
+            (0..80)
+                .flat_map(|y| (0..128).map(move |x| (x, y)))
+                .map(|(x, y)| raster.pixel(x, y)[c])
+                .collect()
+        })
+        .collect();
+    Image::new(128, 80, planes).unwrap()
+}
+fn assert_bits(a: &Image, b: &Image) {
+    assert_eq!(
+        (a.width(), a.height(), a.planes().len()),
+        (b.width(), b.height(), b.planes().len())
+    );
+    for (a, b) in a.planes().iter().flatten().zip(b.planes().iter().flatten()) {
+        assert_eq!(a.to_bits(), b.to_bits());
+    }
+}
+#[test]
+fn develop_matches_direct_clone_and_heal_kernels_bit_for_bit() {
+    let image = image();
+    let baseline =
+        render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&image), 1).unwrap();
+    for heal in [false, true] {
+        let expected = direct_kernel(&baseline, heal);
+        let context = pipeline_cpu::LensContext {
+            retouch: Some(Arc::new(brush::render_retouch)),
+            ..Default::default()
+        };
+        let actual = pipeline_cpu::render_linear_scaled_with_lens(
+            &settings(heal),
+            &RenderSource::Rgb(&image),
+            1,
+            &context,
+        )
+        .unwrap();
+        assert_bits(&actual, &expected);
+        assert!(
+            actual.planes()[0]
+                .iter()
+                .zip(&baseline.planes()[0])
+                .any(|(a, b)| a.to_bits() != b.to_bits()),
+            "kernel must change pixels, heal={heal}"
+        );
+    }
+}
+#[test]
+fn develop_graph_registers_renderer_and_invalidates_retouch_memo() {
+    use image_core::{RawImage, Renderer, RgbSource};
+    let raw = RawImage::from_rgb(
+        engine_api::id::ImageId(42),
+        RgbSource::from_linear_rec2020(image()).unwrap(),
+    )
+    .unwrap();
+    let renderer =
+        Renderer::new(Default::default()).with_retouch_renderer(Arc::new(brush::render_retouch));
+    let token = engine_api::jobs::CancellationToken::new();
+    let baseline = renderer
+        .render_rgb_linear(&raw, 0, &DevelopSettings::default(), &token)
+        .unwrap();
+    for heal in [false, true] {
+        let actual = renderer
+            .render_rgb_linear(&raw, 0, &settings(heal), &token)
+            .unwrap();
+        assert_bits(&actual, &direct_kernel(&baseline, heal));
+    }
+    let error = Renderer::new(Default::default())
+        .render_rgb_linear(&raw, 0, &settings(false), &token)
+        .unwrap_err();
+    assert!(matches!(error,engine_api::EngineError::InvalidArgument{name,..} if name=="retouch"));
+}
+#[test]
+#[cfg(target_os = "macos")]
+fn gpu_retouch_routes_through_cpu_stage() {
+    use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RgbSource, TileCache};
+    let raw = RawImage::from_rgb(
+        engine_api::id::ImageId(43),
+        RgbSource::from_linear_rec2020(image()).unwrap(),
+    )
+    .unwrap();
+    let gpu = Arc::new(pipeline_gpu::GpuStageOp::new(Arc::new(
+        pipeline_gpu::GpuContext::new().unwrap(),
+    )));
+    let renderer = Renderer::with_ops(gpu, Arc::new(TileCache::new(16 << 20)), Default::default())
+        .with_retouch_renderer(Arc::new(brush::render_retouch));
+    let s = settings(false);
+    assert!(!renderer.can_render_resident(&raw, &s).unwrap());
+    let rect = PixelRect::full(raw.active_extent());
+    let baseline = renderer
+        .render_region_as(
+            &raw,
+            &DevelopSettings::default(),
+            0,
+            rect,
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let got = renderer
+        .render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    assert!(
+        got.iter()
+            .zip(&baseline)
+            .any(|(a, b)| a.samples::<f32>().unwrap() != b.samples::<f32>().unwrap())
+    );
+    let i = got[0].layout().index(0, 32, 40).unwrap();
+    assert!(got[0].samples::<f32>().unwrap()[i] > baseline[0].samples::<f32>().unwrap()[i] + 0.1);
+    fn reject(
+        _: u32,
+        _: u32,
+        _: &mut [Vec<f32>],
+        _: &[RetouchOperation],
+    ) -> engine_api::EngineResult<()> {
+        Err(engine_api::EngineError::invalid(
+            "retouch-test",
+            "injected kernel failure",
+        ))
+    }
+    let renderer = renderer.with_retouch_renderer(Arc::new(reject));
+    let error = renderer
+        .render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap_err();
+    assert!(
+        matches!(error, engine_api::EngineError::InvalidArgument { name, .. } if name == "retouch-test")
+    );
+}
+
+#[test]
+fn unsupported_retouch_is_an_error_and_disabled_spots_are_identity() {
+    let image = image();
+    let context = pipeline_cpu::LensContext {
+        retouch: Some(Arc::new(brush::render_retouch)),
+        ..Default::default()
+    };
+    let mut s = settings(false);
+    s.locals.retouch[0].kind = RetouchKind::Remove { model: None };
+    assert!(
+        pipeline_cpu::render_linear_scaled_with_lens(&s, &RenderSource::Rgb(&image), 1, &context)
+            .is_err()
+    );
+    s.locals.retouch[0].enabled = false;
+    let actual =
+        pipeline_cpu::render_linear_scaled_with_lens(&s, &RenderSource::Rgb(&image), 1, &context)
+            .unwrap();
+    let expected =
+        render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&image), 1).unwrap();
+    assert_bits(&actual, &expected);
+    assert!(render_linear_scaled(&s, &RenderSource::Rgb(&image), 1).is_err());
+}
+
+#[test]
+fn pixel_and_file_export_use_registered_retouch_or_error() {
+    use engine_api::{
+        id::ImageId,
+        jobs::CancellationToken,
+        recipe::{EditMeta, Recipe},
+    };
+    let pixels = image();
+    let image = export::ExportImage {
+        source: RenderSource::Rgb(&pixels),
+        name: "synthetic",
+        sequence: 1,
+        date: "",
+        metadata: None,
+    };
+    let mut recipe = Recipe::new(ImageId(45));
+    recipe
+        .edit(EditMeta::user("synthetic clone", 0), |s| {
+            *s = settings(false)
+        })
+        .unwrap();
+    let request = export::RenderRequest {
+        color_space: export::ColorSpace::Srgb,
+        resize: export::Resize::None,
+        sharpen_for: export::SharpenFor::None,
+        scale: 1,
+    };
+    let cancel = CancellationToken::new();
+    assert!(export::render_pixels(&image, &recipe, &request, &cancel, None).is_err());
+    let rendered = export::render_pixels_with_retouch(
+        &image,
+        &recipe,
+        &request,
+        &cancel,
+        None,
+        Some(Arc::new(brush::render_retouch)),
+    )
+    .unwrap();
+    let baseline =
+        export::render_pixels(&image, &Recipe::new(ImageId(45)), &request, &cancel, None).unwrap();
+    assert!(rendered.get_pixel(32, 40)[0] > baseline.get_pixel(32, 40)[0] + 0.1);
+    let dir = tempfile::tempdir().unwrap();
+    let mut options = export::ExportSettings {
+        format: export::Format::Png,
+        output_dir: dir.path().into(),
+        ..Default::default()
+    };
+    assert!(
+        export::render_one_cancellable(&image, &recipe, &options, &cancel, None, None).is_err()
+    );
+    options.retouch = Some(Arc::new(brush::render_retouch));
+    let rendered =
+        export::render_one_cancellable(&image, &recipe, &options, &cancel, None, None).unwrap();
+    assert!(!rendered.used_gpu());
+    let path = rendered.finish(&cancel).unwrap();
+    let saved = image::open(path).unwrap().to_rgb8();
+    assert!(saved.get_pixel(32, 40)[0] > (baseline.get_pixel(32, 40)[0] * 255.0) as u8 + 20);
+    options.hdr = Some(export::HdrTransfer::Pq);
+    options.color_space = export::ColorSpace::Rec2020;
+    options.naming = "{name}-hdr-{seq}".into();
+    options.retouch = None;
+    assert!(
+        export::render_one_cancellable(&image, &recipe, &options, &cancel, None, None).is_err()
+    );
+    options.retouch = Some(Arc::new(brush::render_retouch));
+    let hdr =
+        export::render_one_cancellable(&image, &recipe, &options, &cancel, None, None).unwrap();
+    assert!(!hdr.used_gpu());
+    let hdr_path = hdr.finish(&cancel).unwrap();
+    let hdr_pixels = image::open(hdr_path).unwrap().to_rgb16();
+    assert!(hdr_pixels.get_pixel(32, 40)[0] > hdr_pixels.get_pixel(10, 40)[0]);
+}
