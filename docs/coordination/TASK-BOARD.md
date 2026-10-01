@@ -2,7 +2,7 @@
 
 ## Codex performance lanes — 2026-10-01
 
-Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. LR-2 `SOURCE-PLAN.md` is committed on the style branch and records the new brief `1a6f01e5` grayscale/PV2010 gaps; Adobe presence does not prove active counters, and the raw-map contract landed through main `0c6ab1c7`; source reconciliation is preserved at `8d61adce` on the style branch. Integrated KEY_MAP is201 (58 passthrough), superseding LR-0's199/56 snapshot; corrected LR-0 matrix review remains pending. PERF-2/3 source design is also committed on the style branch. No peer receipt for LR status/result has been verified.
+Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. LR-2 `SOURCE-PLAN.md` is committed on the style branch and records the new brief `1a6f01e5` grayscale/PV2010 gaps; Adobe presence does not prove active counters, and the raw-map contract landed through main `0c6ab1c7`; source reconciliation is preserved at `8d61adce` on the style branch. Integrated KEY_MAP is201 (58 passthrough), superseding LR-0's199/56 snapshot; dated LR-0 addendum at `7f0590b7` independently reconciles the counts and status amendments; coordinator matrix approval remains pending. PERF-2/3 source design is also committed on the style branch. No peer receipt for LR status/result has been verified.
 
 | Lane | Owner | State | Verified evidence / next action |
 | --- | --- | --- | --- |
@@ -13,6 +13,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 | PERF-3 vector drag | Codex A | Source design committed on style branch | Preserve pixel parity and dashed-stroke fallback; no runtime result. |
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
+
+### LR-0 current-source reconciliation — 2026-10-01 10:51 UTC heartbeat
+
+Source-only addendum `7f0590b7` on `codex/perf-1-styles` preserves the original `5bce045e` matrix and records current main `2164d370`:201 unique mappings,143 CrsKey declarations,58 passthrough names,zero missing CrsKey. Astra and parent independently recounted source. Only UprightFourSegmentsCount/UprightTransformCount were added; ExtendedToneCurveName2012 is explicitly handled outside KEY_MAP with four curve names. Tagged lexical retention and identity-aware grouped diagnostics are reconciled, without claiming rendered translation or approval. No relevant dependency diff since0c6ab1c7. Required coordinator approval and Adobe semantic/representation gates remain open. External Swift PID5361 remains active; no Codex runtime launch. Mailbox zero pending,75 receipts,six historical in-progress,16 expired,zero invalid; no peer receipt or duplicate wakeup.
 
 ### External integration reconciliation — 2026-10-01 09:36 UTC heartbeat
 
