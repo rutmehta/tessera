@@ -1382,3 +1382,49 @@ impl<W: std::io::Write> PlanJson<W> {
         Ok(self.out)
     }
 }
+
+#[cfg(test)]
+mod report_tests {
+    use super::ImageReport;
+
+    #[test]
+    fn lrcat_report_groups_all_but_unedited_and_duplicate_ids() {
+        let individual = [
+            "never developed; imported as unedited",
+            "edits failed to import (invalid Lua); imported as unedited",
+            "duplicate Adobe_images id; last-write-wins",
+            "duplicate develop image id; last-write-wins",
+        ];
+        let grouped = [
+            "Future: unknown Lua develop key; source preserved",
+            super::lua_develop::EXTENDED_TONE_CURVE_NOTE,
+            "crs:Future: unsupported property; source preserved",
+            "legacy Adobe PV1/2: best-effort translation; rendering fidelity is not guaranteed",
+            "a future harmless note",
+        ];
+        let mut report = ImageReport::default();
+        for id in [10, 20] {
+            for note in individual.iter().chain(grouped.iter()) {
+                report.push(id, (*note).into());
+            }
+            // Repeated diagnostics within an image count that image once.
+            report.push(id, grouped[2].into());
+        }
+        let entries: Vec<_> = report.finish().collect();
+        assert_eq!(entries.len(), 13);
+        for note in individual {
+            for id in [10, 20] {
+                assert!(entries.contains(&format!("image {id}: {note}")));
+            }
+        }
+        for note in grouped {
+            assert!(entries.contains(&format!("2 images (first: image 10): {note}")));
+        }
+        let mut singleton = ImageReport::default();
+        singleton.push(30, "harmless singleton".into());
+        assert_eq!(
+            singleton.finish().collect::<Vec<_>>(),
+            ["image 30: harmless singleton"]
+        );
+    }
+}

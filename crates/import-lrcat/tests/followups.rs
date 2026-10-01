@@ -253,6 +253,10 @@ fn oversized_cells_are_not_loaded() {
     let kept = r.unknown["lrcat_develop_source"]["text"].as_str().unwrap();
     assert!(!kept.is_empty() && kept.len() <= 64 * 1024);
     assert!(huge.starts_with(kept));
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["shape"],
+        "cell-descriptor"
+    );
     assert_eq!(r.unknown["lrcat_develop_source"]["truncated"], true);
     assert_eq!(
         r.unknown["lrcat_develop_source"]["cell"]["status"],
@@ -514,5 +518,42 @@ fn xmp_source_fragments_preserve_attribute_spelling() {
     assert_eq!(
         recipe.unknown["lrcat_develop_source"]["UprightVersion"],
         fragment
+    );
+}
+
+#[test]
+fn retained_source_shapes_and_unedited_reasons_are_distinct() {
+    let (r, _) = lua_develop::parse("s = { shape = 'original', LensBlur = nil }", "15.4").unwrap();
+    assert_eq!(r.unknown["lrcat_develop_source"]["shape"], "lua-values");
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["properties"]["shape"],
+        "'original'"
+    );
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["properties"]["LensBlur"],
+        "nil"
+    );
+    let xmp = "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/' crs:Future='opaque'/></rdf:RDF>";
+    let (r, _) = import_lrcat::develop(1, xmp, "15.4").unwrap();
+    assert_eq!(r.unknown["lrcat_develop_source"]["shape"], "xmp-fragments");
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["properties"]["Future"],
+        "crs:Future='opaque'"
+    );
+    let (ids, plan) = import_with(&[(None, None), (Some("garbage"), Some("15.4"))]);
+    assert!(
+        plan.report
+            .iter()
+            .any(|n| n.starts_with(&format!("image {}:", ids[0])) && n.contains("never developed"))
+    );
+    assert!(
+        plan.report
+            .iter()
+            .any(|n| n.starts_with(&format!("image {}:", ids[1]))
+                && n.contains("edits failed to import"))
+    );
+    assert_eq!(
+        recipe(&plan, ids[1]).unknown["lrcat_develop_source"]["shape"],
+        "raw-text"
     );
 }
