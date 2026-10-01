@@ -26,7 +26,10 @@ atomic serde `library.json` document. No sidecars are written by inspection.
   0–255 coordinates. Supported mask geometry and AI mask kinds are translated.
   Unknown keys, unsupported structures/resources and invalid values are retained
   in `Recipe.unknown` with diagnostics, not silently discarded. Mask XML is
-  retained even when translation succeeds. PV1/2 imports carry a warning.
+  retained for legacy flat groups and any partly understood payload. LR-4 removes
+  the per-key source only for audited, completely consumed new parametric shapes;
+  see [the LR-4 contract](../../docs/coordination/LR-4-PARAMETRIC-MASKS.md).
+  PV1/2 imports carry a warning.
 - Historical steps and snapshots are preserved as complete source rows on each
   image and in recipe extension fields. They are not falsely represented as
   replayable native edits. Faces retain region/cluster columns and keyword-face

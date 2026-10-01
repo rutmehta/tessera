@@ -1,0 +1,195 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 3.23s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/import_lrcat-ac0f88abd2cb7ec9)
+
+running 20 tests
+test lua::tests::parses_nested_lightroom_data ... ok
+test lua::tests::parses_rule ... ok
+test lua::tests::rejects_excessive_nesting_and_truncation_without_panicking ... ok
+test lua::tests::rejects_malformed_or_executable_input ... ok
+test lua::tests::scalar_forms_preserve_types ... ok
+test previews::tests::container_round_trip_and_truncation ... ok
+test previews::tests::jpeg_header_parsing ... ok
+test report_tests::lrcat_report_groups_all_but_unedited_and_duplicate_ids ... ok
+test xmp::tests::catalog_version_fallback_disagreement_and_native_hash ... ok
+test xmp::tests::curves_and_unsupported_payloads_are_not_dropped ... ok
+test xmp::tests::duplicate_properties_preserve_the_superseded_value ... ok
+test xmp::tests::foreign_namespace_and_opaque_structures_are_retained_not_applied ... ok
+test xmp::tests::invalid_scalars_and_curves_are_preserved_without_poisoning_settings ... ok
+test xmp::tests::malformed_duplicate_does_not_erase_previous_valid_choice ... ok
+test xmp::tests::mask_groups_translate_supported_geometry_and_retain_source ... ok
+test xmp::tests::native_structures_and_renamed_namespaces_use_shared_codec ... ok
+test xmp::tests::process_versions_and_legacy_warning ... ok
+test xmp::tests::scalar_attributes_use_mappings_and_history ... ok
+test xmp::tests::shared_codec_imports_namespaced_profiles_aux_and_lens_blur ... ok
+test xmp::tests::unsupported_mask_prevents_partial_group_application ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/followups.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/followups-09d9c14cd614f748)
+
+running 16 tests
+test bad_develop_rows_degrade_to_unedited_with_source_retained ... ok
+test develop_rows_are_ordered_and_orphans_and_null_ids_do_not_block ... ok
+test duplicate_reports_follow_image_id_order_not_sqlite_row_order ... ok
+test every_unedited_image_is_individually_reported ... ok
+test extended_tone_curves_are_one_named_limitation ... ok
+test identity_master_with_edited_channel_still_warns ... ok
+test lua_rows_retain_only_unknown_key_source ... ok
+test numeric_and_string_unknown_keys_cannot_collide ... ok
+test oversized_cells_are_not_loaded ... ok
+test oversized_history_is_omitted_explicitly_and_null_stays_null ... ok
+test pending_sources_are_exact_even_when_inactive_or_identity ... ok
+test report_entries_are_grouped_per_message ... ok
+test retained_source_shapes_and_unedited_reasons_are_distinct ... ok
+test upright_counts_are_ordinary_crs_properties ... ok
+test xmp_extended_identity_is_silent_and_edits_use_named_limitation ... ok
+test xmp_source_fragments_preserve_attribute_spelling ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.73s
+
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/golden-efbefade07d8a759)
+
+running 2 tests
+test streaming_matches_import_and_plan_json_is_byte_identical ... ok
+test synthetic_catalog_output_including_retained_source ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.64s
+
+     Running tests/import.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/import-1bd7ca3b30ea5856)
+
+running 5 tests
+test all_selection_mappings_and_reject_precedence ... ok
+test committed_wal_and_lock_are_copied_without_touching_source ... ok
+test extra_columns_and_empty_folders_are_supported ... ok
+test missing_table_is_a_named_engine_error ... ok
+test synthetic_catalog_plan ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+     Running tests/lr4_adobe_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_adobe_shapes-c8ee84596d5076cb)
+
+running 3 tests
+test lr4_adobe_aggregate_and_range_mask_spelling ... ok
+test lr4_unrenderable_local_params_are_not_source_promoted ... ok
+test lr4_unverified_type_and_feather_keep_exact_source ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lr4_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_compat-2b99f3c757ca366c)
+
+running 1 test
+test legacy_44_synthetic_groups_remain_byte_identical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/lr4_invalid_geometry.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_invalid_geometry-6ca7793a749e8a2f)
+
+running 1 test
+test lr4_unrenderable_geometry_and_amount_keep_source ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lr4_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_masks-1373d77d42114499)
+
+running 9 tests
+test lr4_component_range_keeps_both_inversions ... ok
+test lr4_disabled_component_maps_without_losing_geometry ... ok
+test lr4_explicit_luminance_and_depth_bounds_translate ... ok
+test lr4_group_range_intersects_the_whole_union ... ok
+test lr4_ignored_or_duplicate_fields_never_lose_source ... ok
+test lr4_nested_group_preserves_order_and_operators ... ok
+test lr4_nil_untranslated_mask_key_still_has_exact_source ... ok
+test lr4_opaque_brush_color_and_image_are_retained_atomically ... ok
+test lr4_unknown_fields_and_types_keep_exact_source ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/lr4_mixed_range.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_mixed_range-6c0020c76c68d493)
+
+running 1 test
+test lr4_unused_range_family_fields_remain_retained ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lua_develop.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lua_develop-0ad46f315a39bdd7)
+
+running 10 tests
+test catalog_with_lua_develop_rows_imports ... ok
+test deep_nesting_is_rejected_without_overflowing_the_stack ... ok
+test format_is_detected_by_the_first_token ... ok
+test lua_escapes_decode ... ok
+test malformed_literals_are_decode_errors_naming_the_image ... ok
+test mapping_table_is_one_to_one_and_covers_every_crs_key ... ok
+test oversized_input_is_rejected_before_parsing ... ok
+test structured_values_map_like_their_xmp_form ... ok
+test the_same_edit_as_xmp_and_as_lua_yields_an_identical_recipe ... ok
+test unknown_keys_are_reported_and_the_source_is_retained ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.40s
+
+     Running tests/make_fixture.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/make_fixture-1d06d386615916f6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/oversized_memory.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/oversized_memory-0ca2b4d185975948)
+
+running 1 test
+test oversized_sqlite_cells_are_streamed_without_full_cell_allocations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+
+     Running tests/real_catalog_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/real_catalog_shapes-1aed9a9c51b5c1e4)
+
+running 6 tests
+test collection_rows_with_missing_or_unknown_fields_degrade ... ok
+test empty_develop_row_imports_as_unedited ... ok
+test second_unnamed_root_keyword_is_reported ... ok
+test unnamed_non_root_keyword_is_skipped_with_a_diagnostic ... ok
+test unnamed_root_keyword_is_the_tree_root ... ok
+test untranslatable_smart_collection_is_reported_not_fatal ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.63s
+
+     Running tests/scale.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/scale-7fa92e963af99175)
+
+running 1 test
+test streaming_import_memory_is_flat_and_time_bounded ... ignored, timing and allocation bounds are for release builds
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/smart_rating.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_rating-078ecf803b63dd78)
+
+running 1 test
+test all_star_thresholds_operators_ranges_and_flags ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+   Doc-tests import_lrcat
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+real 70.66
+user 61.21
+sys 3.05
+           309559296  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              594974  page reclaims
+               11813  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                  17  signals received
+               10235  voluntary context switches
+               80552  involuntary context switches
+          1918870872  instructions retired
+           682050242  cycles elapsed
+            90538632  peak memory footprint
