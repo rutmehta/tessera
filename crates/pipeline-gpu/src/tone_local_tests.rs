@@ -283,13 +283,82 @@ fn presence_zero_delta_vs_one_ulp_matches_cpu_below_floor() {
         pending: Vec::new(),
     };
     let result = job.pass(6, 0, &[&src, &guide, &fine, &mid, &mid]);
-    let actual = job.read(&result).unwrap()[1];
-    let gap = (0..3)
-        .map(|c| (actual[c] - cpu.planes()[c][0]).abs())
-        .fold(0_f32, f32::max);
-    eprintln!(
-        "zero/one-ulp presence: L={lum}, z={z}, ulp={ulp}, CPU={:?}, GPU={actual:?}, gap={gap}",
-        cpu.planes()
+    let local = job.read(&result).unwrap()[1];
+    // Invoke the resident shader's real recombination helper too. The test entry
+    // supplies the same controlled bands; no gain formula is copied into tests.
+    let source = format!(
+        "{}\n{}",
+        include_str!("presence.wgsl"),
+        r#"
+@compute @workgroup_size(1)
+fn regression() {
+    let z = bitcast<f32>(p[14u]);
+    let up = bitcast<f32>(p[14u] + 1u);
+    let down = bitcast<f32>(p[14u] - 1u);
+    let v = vec3<f32>(src[0], src[1], src[2]);
+    outa[0] = vec4<f32>(presence_from(v, z, down, up, up, z, z), 0.0);
+}
+"#
     );
-    assert!(gap <= 0.01, "zero-delta bypass discontinuity: {gap}");
+    let module = ctx
+        .device
+        .create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("resident presence rounding regression"),
+            source: wgpu::ShaderSource::Wgsl(source.into()),
+        });
+    let pipeline = ctx
+        .device
+        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: None,
+            layout: None,
+            module: &module,
+            entry_point: Some("regression"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+    let mut params = [0_u32; 15];
+    params[12] = 1_f32.to_bits();
+    params[14] = z.to_bits();
+    let params = ctx
+        .device
+        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&params),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+    let result = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+        label: None,
+        size: 48,
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+    let entries =
+        [(0, &src), (4, &result), (8, &params)].map(|(binding, buffer)| wgpu::BindGroupEntry {
+            binding,
+            resource: buffer.as_entire_binding(),
+        });
+    let group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: &pipeline.get_bind_group_layout(0),
+        entries: &entries,
+    });
+    {
+        let mut pass = job.encoder.begin_compute_pass(&Default::default());
+        pass.set_pipeline(&pipeline);
+        pass.set_bind_group(0, &group, &[]);
+        pass.dispatch_workgroups(1, 1, 1);
+    }
+    let resident = job.read(&result).unwrap()[0];
+    let mut worst = 0_f32;
+    for (path, actual) in [("local", local), ("resident", resident)] {
+        let gap = (0..3)
+            .map(|c| (actual[c] - cpu.planes()[c][0]).abs())
+            .fold(0_f32, f32::max);
+        eprintln!(
+            "zero/one-ulp presence {path}: L={lum}, z={z}, ulp={ulp}, CPU={:?}, GPU={actual:?}, gap={gap}",
+            cpu.planes()
+        );
+        worst = worst.max(gap);
+    }
+    assert!(worst <= 0.01, "zero-delta bypass discontinuity: {worst}");
 }
