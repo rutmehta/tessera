@@ -1,0 +1,53 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-01 09:42:45.741.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 09:42:45.742.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 09:42:45.742.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' passed (0.167 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' passed (0.026 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' passed (0.046 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' passed (0.097 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts]' passed (0.024 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' passed (2.596 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' passed (0.073 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' passed (0.082 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' passed (0.030 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' passed (0.041 seconds).
+Test Suite 'DocumentExportFlatTests' passed at 2026-10-01 09:42:48.937.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 3.194 (3.195) seconds
+Test Suite 'DocumentToolsTests' started at 2026-10-01 09:42:48.937.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testHUDDragMapsToSizeAndHardness]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testHUDDragMapsToSizeAndHardness]' passed (0.000 seconds).
+Test Suite 'DocumentToolsTests' passed at 2026-10-01 09:42:48.937.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'ShellLayoutTests' started at 2026-10-01 09:42:48.937.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDAttachesToExportingDocumentWindow]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDAttachesToExportingDocumentWindow]' passed (1.530 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize]' passed (6.856 seconds).
+Test Suite 'ShellLayoutTests' passed at 2026-10-01 09:42:57.324.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 8.387 (8.387) seconds
+Test Suite 'ThemeLintTests' started at 2026-10-01 09:42:57.324.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' started.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.306 seconds).
+Test Suite 'ThemeLintTests' passed at 2026-10-01 09:42:57.630.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.306 (0.306) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 09:42:57.630.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 11.887 (11.888) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 09:42:57.630.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 11.887 (11.889) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -441,14 +441,18 @@ final class MainThreadSpans: @unchecked Sendable {
     private var began = CFAbsoluteTimeGetCurrent()
     private var spans: [Double] = []
     private let label: String
+    private let trace: PerformanceTrace
 
-    init(label: String = "fixture") { self.label = label }
+    init(label: String = "fixture", trace: PerformanceTrace = .shared) {
+        self.label = label
+        self.trace = trace
+    }
 
     private func appendSpan(_ now: Double) {
         let duration = (now - began) * 1000
         spans.append(duration)
         if duration > 8 {
-            PerformanceTrace.shared.record("export_flat_main_busy: " + label, durationMs: duration)
+            trace.record("export_flat_main_busy: " + label, durationMs: duration)
         }
     }
 

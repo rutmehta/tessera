@@ -307,13 +307,15 @@ final class DocumentExportFlatTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(200))
         let trace = PerformanceTrace(enabled: true)
         ws.exportTrace = trace
-        let spans = MainThreadSpans()
+        let spans = MainThreadSpans(trace: trace)
         var outcome: FlatExportTask.Outcome?
         spans.start()
         let output = dir.appendingPathComponent("smart.png")
-        XCTAssertNotNil(ws.startExportFlat(doc, ExportFlatSettings(), to: output) { outcome = $0 })
+        let task = ws.startExportFlat(doc, ExportFlatSettings(), to: output) { outcome = $0 }
+        let hud = window.contentView?.subviews.last
         let finished = await waitFor(300) { outcome != nil }
         let busy = spans.stop()
+        XCTAssertNotNil(task)
         XCTAssertTrue(finished)
         XCTAssertEqual(outcome, .exported)
         XCTAssertTrue(FileManager.default.fileExists(atPath: output.path))
@@ -334,6 +336,13 @@ final class DocumentExportFlatTests: XCTestCase {
         }
         if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
             try await Task.detached { try trace.write(to: URL(fileURLWithPath: path)) }.value
+            var rows: [String] = []
+            func visit(_ view: NSView, depth: Int) {
+                rows.append(String(repeating: "  ", count: depth) + String(describing: type(of: view)))
+                for child in view.subviews { visit(child, depth: depth + 1) }
+            }
+            if let hud { visit(hud, depth: 0) }
+            try rows.joined(separator: "\n").write(toFile: path + ".views.txt", atomically: true, encoding: .utf8)
         }
     }
 

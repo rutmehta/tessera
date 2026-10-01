@@ -1152,6 +1152,40 @@ private final class FlatExportProgressView: NSView {
         shape.stroke()
     }
 
+    /// A custom cell keeps NSButton's tracking, keyboard and AX behavior, while
+    /// drawing the small HUD bezel without macOS 26's hosted AppKitButton graph.
+    private final class CancelCell: NSButtonCell {
+        override func drawBezel(withFrame frame: NSRect, in controlView: NSView) {
+            let path = NSBezierPath(roundedRect: frame.insetBy(dx: Theme.Space.hairline, dy: Theme.Space.hairline),
+                                    xRadius: Theme.Radius.control, yRadius: Theme.Radius.control)
+            Theme.Palette.raised.setFill()
+            path.fill()
+            if isHighlighted {
+                Theme.Palette.pressed.setFill()
+                path.fill()
+            }
+            Theme.Palette.hairlineStrong.setStroke()
+            path.lineWidth = Theme.Space.hairline
+            path.stroke()
+        }
+
+        override func drawInterior(withFrame frame: NSRect, in controlView: NSView) {
+            // NSButtonCell's default titleRectForBounds also consults a hosted
+            // sizing view on macOS 26, even when the bezel is custom drawn.
+            let font = Theme.NSFonts.label
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            paragraph.lineBreakMode = .byTruncatingTail
+            let height = ceil(font.ascender - font.descender)
+            let rect = NSRect(x: frame.minX + Theme.Space.xs, y: frame.midY - height / 2,
+                              width: max(0, frame.width - 2 * Theme.Space.xs), height: height)
+            (title as NSString).draw(in: rect, withAttributes: [
+                .font: font, .paragraphStyle: paragraph,
+                .foregroundColor: isEnabled ? Theme.Palette.textPrimary : Theme.Palette.textTertiary,
+            ])
+        }
+    }
+
     private final class Row: NSView {
         private let name = NSTextField(labelWithString: "")
         private let phase = NSTextField(labelWithString: "")
@@ -1176,6 +1210,9 @@ private final class FlatExportProgressView: NSView {
             progress.maxValue = 1
             progress.style = .bar
             progress.controlSize = .small
+            cancel.cell = CancelCell(textCell: "Cancel")
+            cancel.setButtonType(.momentaryPushIn)
+            cancel.isBordered = true
             cancel.bezelStyle = .rounded
             cancel.controlSize = .small
             cancel.target = self
