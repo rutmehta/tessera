@@ -1069,7 +1069,7 @@ final class FlatExportProgressPublisher: @unchecked Sendable {
 /// Native lower-right viewport HUD, above the zoom chip. Manual layout deliberately
 /// cannot invalidate the hosting view's size or re-evaluate the document's SwiftUI graph.
 @MainActor
-private final class FlatExportProgressView: NSView {
+final class FlatExportProgressView: NSView {
     static let rowHeight: CGFloat = 64
     private weak var workspace: DocumentWorkspace?
     private var rows: [UUID: Row] = [:]
