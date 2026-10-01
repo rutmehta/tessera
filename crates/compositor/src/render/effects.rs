@@ -403,4 +403,67 @@ mod perf1_tests {
             assert_nested_overlay_pixels(&pixels, left, color);
         }
     }
+
+    #[test]
+    fn same_pass_smart_children_keep_identical_ids_in_distinct_contexts() {
+        use crate::document::SmartObject;
+        use crate::geom::Affine;
+        use engine_api::id::LayerId;
+
+        let first = nested_overlay_document([1.0, 0.0, 0.0], 1);
+        let second = nested_overlay_document([0.0, 1.0, 0.0], 128);
+        let first_child = SmartObject::new(first.state().as_ref().clone(), Affine::IDENTITY);
+        let second_child = SmartObject::new(second.state().as_ref().clone(), Affine::IDENTITY);
+        // smart_tile constructs child DocRefs from these namespaces, not from
+        // the top-level Document keys used by the earlier A/B/A regression.
+        assert_ne!(first_child.key, second_child.key);
+        assert_eq!(first_child.state.rev, second_child.state.rev);
+        let first_group = &first_child.state.root[0];
+        let second_group = &second_child.state.root[0];
+        assert_eq!(first_group.id, second_group.id);
+        assert_eq!(first_group.props_rev, second_group.props_rev);
+        assert_eq!(first_group.content_rev, second_group.content_rev);
+        let first_leaf = &first_group.children().unwrap()[0];
+        let second_leaf = &second_group.children().unwrap()[0];
+        assert_eq!(first_leaf.id, second_leaf.id);
+        assert_eq!(first_leaf.props_rev, second_leaf.props_rev);
+        assert_eq!(first_leaf.content_rev, second_leaf.content_rev);
+
+        let mut bottom = Layer::new("first child context", LayerKind::SmartObject(first_child));
+        bottom.id = LayerId(10);
+        let mut top = Layer::new("second child context", LayerKind::SmartObject(second_child));
+        top.id = LayerId(11);
+        let extent = Extent::new(257, 3);
+        let mut parent_state = DocState::new(extent, Depth::F32);
+        parent_state.root = vec![Arc::new(bottom), Arc::new(top)];
+        let parent = Document::new(parent_state);
+        // One full-level render contains both smart-object namespaces and
+        // their nested styles. Identity transforms sample exact pixel centres.
+        let (actual_extent, pixels) = Compositor::new(8 << 20)
+            .render_level_rgba(&parent, 0)
+            .unwrap();
+        assert_eq!(actual_extent, extent);
+        assert_eq!(pixels.len(), 257 * 3 * 4);
+        for y in 0..3 {
+            for x in 0..257 {
+                // Opaque red+half-blue bottom survives where the top is clear;
+                // opaque green+half-blue top replaces it starting at x=128.
+                // This independent oracle is not another compositor render.
+                let expected: [f32; 4] = if y != 1 || x == 0 {
+                    [0.0; 4]
+                } else if x < 128 {
+                    [0.5, 0.0, 0.5, 1.0]
+                } else {
+                    [0.0, 0.5, 0.5, 1.0]
+                };
+                for c in 0..4 {
+                    assert_eq!(
+                        pixels[(y * 257 + x) * 4 + c].to_bits(),
+                        expected[c].to_bits(),
+                        "same-pass child contexts: pixel ({x},{y}) channel {c}"
+                    );
+                }
+            }
+        }
+    }
 }
