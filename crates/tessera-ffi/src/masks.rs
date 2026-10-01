@@ -1967,6 +1967,31 @@ mod tests {
     }
 
     #[test]
+    fn lr4c_brush_painting_does_not_pick_disabled_brush() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120,80,40])).save(photos.join("synthetic.png")).unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine.index_folder(photos.to_string_lossy().into_owned()).unwrap();
+        let id = engine.list_images(crate::ImageQuery::default()).unwrap().remove(0).id;
+        let session = engine.open_develop_session(id).unwrap();
+        {
+            let mut st = session.shared.edit_lock().unwrap();
+            st.live.locals.adjustments = serde_json::from_value(serde_json::json!([{"id":17,"components":[{"kind":"brush","strokes":[],"enabled":false}]}])).unwrap();
+        }
+        session.begin_brush_stroke(Some(17), BrushSettings { radius:0.1, feather:0., flow:100., erase:false }).unwrap();
+        {
+            let st = session.shared.lock().unwrap();
+            let g = &st.live.locals.adjustments[0];
+            assert_eq!(g.components.len(), 2);
+            assert!(!g.components[0].enabled);
+            assert!(g.components[1].enabled);
+            assert!(matches!(&g.components[0].kind, MaskKind::Brush { strokes } if strokes.is_empty()));
+        }
+        session.close().unwrap();
+    }
+    #[test]
     fn lr4c_group_info_distinguishes_disabled_and_nested_components() {
         let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[
             {"kind":"brush","strokes":[],"enabled":false},

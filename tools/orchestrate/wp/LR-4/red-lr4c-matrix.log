@@ -1,0 +1,27 @@
+    Blocking waiting for file lock on build directory
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 1m 58s
+     Running tests/translation_matrix.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/translation_matrix-79fbae369799d641)
+
+running 1 test
+test lr4c_matrix_accepts_source_retained_approximation ... FAILED
+
+failures:
+
+---- lr4c_matrix_accepts_source_retained_approximation stdout ----
+
+thread 'lr4c_matrix_accepts_source_retained_approximation' (55071727) panicked at crates/import-lrcat/tests/translation_matrix.rs:106:5:
+assertion failed: check_matrix(&matrix.replace(old, new)).is_ok()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4c_matrix_accepts_source_retained_approximation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test translation_matrix`

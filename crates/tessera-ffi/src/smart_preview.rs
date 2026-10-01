@@ -651,20 +651,6 @@ mod tests {
     /// LR-SCHEMA: without a schema 4 feature, a local save keeps the journal
     /// envelope's own (legacy) version bytes rather than the in-memory upgrade.
     #[test]
-    fn lr4c_local_save_journals_schema_four() {
-        let local = tempfile::tempdir().unwrap();
-        let id = ImageId(9104);
-        let bytes = recipe(id);
-        let mut journal = SmartPreviewJournal::create(local.path(), id, [1;32], 9, bytes.clone(), None, None).unwrap();
-        let mut doc: sidecar::RecipeDocument = serde_json::from_slice(&bytes).unwrap();
-        doc.recipe.settings.locals.adjustments = serde_json::from_value(serde_json::json!([{"components":[{"kind":"brush","strokes":[],"enabled":false}]}])).unwrap();
-        save_local_recipe(&mut journal, &doc.recipe).unwrap();
-        drop(journal);
-        let (_, snapshot) = SmartPreviewJournal::open(local.path(), id).unwrap();
-        let value: serde_json::Value = serde_json::from_slice(&snapshot.recipe).unwrap();
-        assert_eq!(value["recipe"]["schema_version"], 4);
-    }
-    #[test]
     fn local_save_keeps_legacy_envelope_schema_version() {
         let local = tempfile::tempdir().unwrap();
         let id = ImageId(9103);

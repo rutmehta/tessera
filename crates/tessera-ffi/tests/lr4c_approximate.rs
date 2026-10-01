@@ -36,7 +36,7 @@ fn lr4c_dab_commands_translate_to_individual_stamps_and_render() {
         let image = pipeline_cpu::Image::new(4,1,vec![vec![0.2;4];3]).unwrap();
         let alpha = pipeline_cpu::masks::rasterize(&image,&g,Default::default()).unwrap();
         assert_eq!(alpha, vec![1.,0.,0.,0.5]);
-        let out = pipeline_cpu::locals::locals_image(&image, &[g], Default::default()).unwrap();
+        let out = pipeline_cpu::locals_image(&image, &[g], Default::default()).unwrap();
         for (got, expected) in out.planes()[0].iter().zip([0.4,0.2,0.2,0.3]) { assert!((got-expected).abs()<1e-6); }
     }
 }
