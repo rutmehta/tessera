@@ -517,6 +517,8 @@ mod tests {
             (3, 2, 0.5),
             (9, 5, 1.25),
             (47, 23, 12.0),
+            (257, 5, 12.0),
+            (513, 7, 12.0),
         ] {
             let src = gaussian_fixture(w, h);
             let original = src.pixels.clone();
