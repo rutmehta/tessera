@@ -1,0 +1,1 @@
+23:10 UTC: main ad93e333 integrates B5-42c. Exact external 3e216188 Swift917/3skip/0fail, strict/drift0. Combined main not independently gated here; actual keyboard separate. Mailbox unchanged; PERF runtime handoff absent.
