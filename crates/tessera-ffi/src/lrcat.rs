@@ -1794,6 +1794,59 @@ mod lrcat_resume_tests {
     use super::*;
 
     #[test]
+    fn report_groups_cap_paths_and_preserve_duplicate_id_notes() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let mut import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let import = Arc::get_mut(&mut import).unwrap();
+        import.plan.report = import
+            .plan
+            .images
+            .iter()
+            .map(|i| format!("image {}: fixture unsupported operator", i.catalog_id))
+            .collect();
+        for id in [101, 102] {
+            import.plan.report.push(format!(
+                "image {id}: duplicate Adobe_images id; last-write-wins"
+            ));
+            import.plan.report.push(format!(
+                "image {id}: duplicate develop image id; last-write-wins"
+            ));
+            import.plan.report.push(format!(
+                "image {id}: invalid settings; imported as unedited"
+            ));
+        }
+        let issues = unsupported(&import.plan, 0);
+        let grouped = issues
+            .iter()
+            .find(|i| i.reason == "fixture unsupported operator")
+            .unwrap();
+        assert_eq!(grouped.count as usize, import.plan.images.len());
+        assert_eq!(grouped.examples.len(), 5);
+        assert!(grouped.examples.iter().all(|p| Path::new(p).is_absolute()));
+        for reason in [
+            "duplicate Adobe_images id",
+            "duplicate develop image id",
+            "imported as unedited",
+        ] {
+            let notes: Vec<_> = issues
+                .iter()
+                .filter(|i| i.reason.contains(reason))
+                .collect();
+            assert_eq!(notes.len(), 2, "{notes:?}");
+            assert!(
+                notes
+                    .iter()
+                    .all(|i| i.count == 1 && i.reason.starts_with("image "))
+            );
+        }
+    }
+
+    #[test]
     fn spool_read_failure_checkpoints_completed_sidecars() {
         struct TruncateSpool(PathBuf);
         impl LrcatProgressListener for TruncateSpool {

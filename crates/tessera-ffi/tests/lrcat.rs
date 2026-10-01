@@ -649,7 +649,10 @@ fn grouped_develop_report_entries_keep_their_image_counts() {
     assert_eq!(issue.category, "Develop settings");
     assert_eq!(issue.count, 3);
     assert_eq!(issue.examples.len(), 1, "{issue:?}");
-    assert!(!issue.examples[0].starts_with("image "), "{issue:?}");
+    assert!(
+        std::path::Path::new(&issue.examples[0]).is_absolute(),
+        "{issue:?}"
+    );
 }
 
 #[test]
