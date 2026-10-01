@@ -1,6 +1,8 @@
 # B5-47 — Layer-only flat-export progress
 
-Implemented on `wp/B5-47`, based on `wp/B5-40` at `062a3927`, without rebasing.
+Originally implemented on `wp/B5-47`, based on `wp/B5-40` at `062a3927`.
+The coordinator replayed the branch onto `e6c3e5da`; B5-47b adds commits on top
+of `bea3e74d`, without rebasing.
 Required gate: **SWIFT GATE OK**. The whole-main-thread **<8 ms target remains OPEN**:
 one final after export reached 14.51 ms, and an earlier after set reached 15.45 ms.
 All changes and commits are local; no push or merge.
@@ -24,10 +26,10 @@ NSProgressIndicator values could schedule downstream native/hosting layout work.
   Backing-scale and appearance changes update layer scale/theme colors separately.
 - The publisher's 100 ms interval, duplicate suppression, latest-wins pending value,
   and immediate finish behavior are unchanged.
-- Export timing bounds, including the older B5-33 100 ms assertions, require
-  `TESSERA_FILTER_PERF`. The default export tests retain deterministic state, AX,
-  geometry, snapshot isolation, and publication/coalescing checks. Control-baseline
-  trace events are excluded from export timing assertions.
+- B5-47b restores the B5-33 setup/progress/completion <100 ms assertions by
+  default. Named export-span <20 ms checks also run by default; only B5-40's
+  whole-runloop `busy.max() <20 ms` bound requires `TESSERA_FILTER_PERF`.
+  Control-baseline trace events are excluded from export timing assertions.
 
 ## Measurement method and limits
 
@@ -159,7 +161,8 @@ Skips remain the existing opt-in generated-library and external Sony RAW cases.
 - All three final `TESSERA_FILTER_PERF=1` runs exited 0. All three BEFORE runs
   failed the opt-in 20 ms bound because export busy maxima exceeded 20 ms; their
   old trace-bound loop also included edit-control events. The final loop correctly
-  scopes export bounds to export events. These timing checks are absent by default.
+  scopes export bounds to export events. That was the original B5-47 opt-in policy; B5-47b restores the default
+  named-span timing checks as described above.
 - No Rust, board.json, Cargo.lock, rebase, merge, push, foreground GUI launch, or
   installation. All commits carry the requested co-author trailer.
 
@@ -182,3 +185,86 @@ binary provenance and final HUD subtrees are tracked. Raw traces and complete FF
 gate logs remain local and ignored. The FFI log added by the RED commit was removed
 from tracking after validation; the local original is preserved. Generated fixture
 catalogs/exports are removed by the existing XCTest teardown.
+
+
+## B5-47b review follow-up
+
+### Replay provenance
+
+The earlier hashes in this document and retained measurement evidence identify the
+original runs. The coordinator replayed those commits; use this mapping to locate
+the equivalent commits in this branch's current ancestry.
+
+| Original hash | Replayed hash |
+|---|---|
+| `3f5b5c1e` | `976a31d4` |
+| `53c071e3` | `d16fabaf` |
+| `f8afa3d7` | `42b593ab` |
+| `7acded28` | `610de9b1` |
+| `4e1d8795` | `bea3e74d` |
+
+### Scope and regression coverage
+
+- S1: Row is an AX group labeled `Export of <fileName>`, containing the three
+  virtual layer elements and native Cancel button. HUD and row hit-testing route
+  screen points to the correct child. Tests start at the unordered window's content
+  view, normalize traversal through `NSAccessibility.unignoredDescendant` and
+  `unignoredChildren`, and check group/HUD identity, labels, values, cancellation,
+  and HUD hit-test results for every text/progress/button element. AppKit root
+  hit-testing on an unordered window returns the window; this offscreen test
+  therefore checks reachability through the root tree and screen-point routing
+  directly through its attached HUD. Cancel's exposed native cell carries the
+  same label as its view.
+- S2: `resize(withOldSuperviewSize:)` re-runs viewport placement. The regression
+  narrows a 700-point host to 260 points during export in both flipped and
+  unflipped hosts, checks containment and row width, and requires no progress tick
+  or export completion to repair placement.
+- S3: The B5-33 <100 ms checks run by default again. Only the B5-40 whole-runloop
+  `busy.max() <20 ms` bound remains opt-in.
+- P16 whole-main-thread <8 ms attribution remains **OPEN**. Quiet-host runs and
+  Time Profiler attribution are outside this follow-up; no new claim is made.
+
+### Offscreen appearance evidence
+
+`testOffscreenFixtureExportAppearance` starts a real 1600 × 1200 solid-fill fixture
+PNG export through `DocumentWorkspace`, captures the attached HUD with
+`bitmapImageRepForCachingDisplay` / `cacheDisplay`, and waits for successful export
+and the resulting file. Both renders run synchronously on main before completion
+can remove the row; the displayed fraction is fixed at 62.5% (`Encoding 63 %`) for
+reproducibility. The window is never ordered or activated. Explicit `aqua` and
+`darkAqua` appearances produce `evidence/hud-light.png` and `evidence/hud-dark.png`.
+The test checks both text frames are inside the row, the name lies above the bar,
+and both text layers explicitly handle the flipped row via `isGeometryFlipped`.
+
+To regenerate the committed PNGs after building:
+
+```sh
+TESSERA_HUD_EVIDENCE="$PWD/tools/orchestrate/wp/B5-47/evidence" \
+  swift test --package-path apps/mac -c release -Xswiftc -enable-testing \
+  --filter FlatExportHUDTests/testOffscreenFixtureExportAppearance
+```
+
+Visual inspection of both PNGs: filename at the top left, Cancel at the top right,
+and upright, readable `Encoding 63 %` alongside the lower bar. No mirrored or
+upside-down glyphs were observed. A decoded-PNG pixel check (800 × 128 pixels)
+found filename ink at y=20–41 and the accent bar at y=86–93 in both appearances,
+confirming the top-origin text/bar placement independently of layer-frame assertions.
+
+### B5-47b validation
+
+- `f257b858` (`test(B5-47b):`): tests-first run produced five expected failures
+  across the three HUD tests: absent AX row group, two spilled-host frames, and
+  two text-layer orientation assertions. See `evidence/b5-47b-red.log`.
+- `df4b5425` (`fix(B5-47b):`): all 16 selected export/HUD tests passed with
+  `TESSERA_FILTER_PERF` unset; zero failures. See `evidence/b5-47b-green.log`.
+  The debug build also passed without new HUD isolation warnings. AX callbacks
+  assert main-actor execution and keep their non-Sendable results local to the
+  synchronous call.
+- Required serial FFI + Swift gate command (with the prescribed PATH and external
+  `CARGO_TARGET_DIR`) exited **0** and printed **SWIFT GATE OK**: **903 XCTest
+  tests, 3 skipped, zero failures**, plus **5 Swift Testing tests passed**.
+  See `evidence/b5-47b-swift-gate.log`; full local output is retained at
+  `/tmp/B5-47b-swift-gate.log`.
+- Both PNGs and this handoff are committed with `docs(B5-47b):`. All three
+  B5-47b commits carry the requested co-author trailer. Local commits only;
+  no Rust, Cargo.lock, board.json, rebase, push, foreground window, or screen capture.
