@@ -751,3 +751,30 @@ fn real_legacy_v1_asset_reopen_and_edit_parity() {
     .unwrap();
     println!("{report}");
 }
+
+#[test]
+fn legacy_ca_lr7b_optional_prefix_survives_persistent_codec() {
+    let (c, m) = fixture(32, 24);
+    let mut settings = DevelopSettings::default();
+    settings.lens.legacy_ca_red = Some(35.);
+    settings.lens.legacy_ca_blue = Some(-25.);
+    let p = CameraLinearProxy::generate(
+        &c,
+        &m,
+        &settings,
+        ProcessVersion::NATIVE_CURRENT,
+        [7; 32],
+        &LensContext::default(),
+    )
+    .unwrap();
+    let bytes = p.encode_persistent(12345).unwrap();
+    let decoded = CameraLinearProxy::decode_persistent(&bytes).unwrap();
+    assert_eq!(bytes, decoded.proxy.encode_persistent(12345).unwrap());
+    assert!(
+        render_linear_scaled(&settings, &RenderSource::CameraLinear(&decoded.proxy), 1).is_ok()
+    );
+    settings.lens.legacy_ca_red = Some(36.);
+    assert!(
+        render_linear_scaled(&settings, &RenderSource::CameraLinear(&decoded.proxy), 1).is_err()
+    );
+}

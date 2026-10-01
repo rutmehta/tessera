@@ -379,8 +379,15 @@ fn resolve_with(
 ) -> EngineResult<ResolvedLens> {
     crate::optics::validate(s)?;
     context.manual_ca.validate()?;
+    // Persistent per-channel coefficients take precedence over transient caller
+    // values. Do not add them: callers may already carry the imported settings.
+    let manual_ca = ManualCaSettings {
+        red_cyan: s.legacy_ca_red.unwrap_or(context.manual_ca.red_cyan),
+        blue_yellow: s.legacy_ca_blue.unwrap_or(context.manual_ca.blue_yellow),
+    };
+    manual_ca.validate()?;
     let mut out = ResolvedLens {
-        manual_ca: context.manual_ca,
+        manual_ca,
         source: CorrectionSource::Manual,
         sample: None,
         embedded: Default::default(),

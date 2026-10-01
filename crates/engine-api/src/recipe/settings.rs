@@ -367,6 +367,13 @@ pub struct LensSettings {
     pub vignetting_scale: f32,
     /// Profile lateral CA scale, `0..=200` (%).
     pub chromatic_aberration_scale: f32,
+    /// Legacy Adobe red/cyan radial alignment, -100..=100. Independent of auto CA.
+    /// CPU source radius scales by 1 + value / 10000; None has no effect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_ca_red: Option<f32>,
+    /// Legacy Adobe blue/yellow radial alignment, with green held fixed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_ca_blue: Option<f32>,
     /// Remove lateral chromatic aberration (auto if no profile).
     pub remove_chromatic_aberration: bool,
     /// Manual distortion, `-100..=100`.
@@ -390,6 +397,8 @@ impl Default for LensSettings {
             distortion_scale: 100.0,
             vignetting_scale: 100.0,
             chromatic_aberration_scale: 100.0,
+            legacy_ca_red: None,
+            legacy_ca_blue: None,
             remove_chromatic_aberration: true,
             manual_distortion: 0.0,
             manual_vignetting: 0.0,

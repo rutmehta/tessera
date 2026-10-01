@@ -1,4 +1,4 @@
-//! Catalog-only Adobe geometry extension. Consume only successfully translated
+//! Catalog-only Adobe geometry and legacy lens extensions. Consume only successfully translated
 //! values; solver metadata, inactive solutions and malformed inputs stay exact.
 use engine_api::{
     EngineResult,
@@ -30,7 +30,11 @@ pub(crate) fn apply<'a>(
                 || key.starts_with("UprightFourSegments")
                 || matches!(
                     *key,
-                    "EnableDistractionRemoval" | "GenerativeRemove" | "GenerativeFill"
+                    "EnableDistractionRemoval"
+                        | "GenerativeRemove"
+                        | "GenerativeFill"
+                        | "ChromaticAberrationR"
+                        | "ChromaticAberrationB"
                 )
         })
         .collect();
@@ -40,6 +44,26 @@ pub(crate) fn apply<'a>(
     let mut upright = recipe.settings.geometry.upright.clone();
     let mut consumed = BTreeSet::new();
     let mut notes = Vec::new();
+    let mut lens = recipe.settings.lens.clone();
+    for (key, target) in [
+        ("ChromaticAberrationR", &mut lens.legacy_ca_red),
+        ("ChromaticAberrationB", &mut lens.legacy_ca_blue),
+    ] {
+        if let Some(raw) = properties.get(key)
+            && let Ok(value) = raw.trim().parse::<f32>()
+            && value.is_finite()
+            && (-100.0..=100.0).contains(&value)
+        {
+            *target = Some(value);
+            consumed.insert(key.to_string());
+        }
+    }
+    if lens != recipe.settings.lens {
+        recipe.edit(
+            EditMeta::user("Import Adobe legacy chromatic aberration", 0),
+            |s| s.lens = lens,
+        )?;
+    }
     let index = match upright.mode {
         UprightMode::Off => 0,
         UprightMode::Auto => 1,

@@ -60,6 +60,8 @@ pub(crate) fn validate(s: &LensSettings) -> EngineResult<()> {
         s.softness_correction,
     ]
     .iter()
+    .chain(s.legacy_ca_red.iter())
+    .chain(s.legacy_ca_blue.iter())
     .chain(s.defringe_purple.hue_range.iter())
     .chain(s.defringe_green.hue_range.iter())
     .any(|v| !v.is_finite())
