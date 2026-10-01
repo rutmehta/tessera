@@ -277,3 +277,25 @@ Candidate gates completed: release **456 passed, 0 failed, 24 ignored,
 fmt **exit 0**. These results apply to the isolated proposed patch, not to
 unchanged production in the branch. Applying it awaits resolution of the
 case-split contradiction above.
+
+### Per-golden conditioning footprint (requested by Machine A review)
+
+Derived from `conditioning/report.json` at 6688d478 (`changed_pixel_evidence[].distance`, Chebyshev distance to the nearest pre-fix seed with 0 < |L| < 1e-3; bound 11).
+
+| Golden | Changed pixels / 4,403 | Max encoded delta | Max distance | Outside predicate |
+| --- | ---: | ---: | ---: | ---: |
+| sRGB, amount 1 | 64 | 0.2069286108 | 8 | 0 |
+| sRGB, amount 0.35 | 63 | 0.0724250674 | 8 | 0 |
+| sRGB, amount 0 | 0 | 0 | n/a | 0 |
+| Display P3, amount 1 | 79 | 0.1983673275 | 8 | 0 |
+| Display P3, amount 0.35 | 79 | 0.0694285631 | 8 | 0 |
+| Display P3, amount 0 | 0 | 0 | n/a | 0 |
+| Adobe RGB, amount 1 | 87 | 0.1996451020 | 8 | 0 |
+| Adobe RGB, amount 0.35 | 85 | 0.0698757768 | 8 | 0 |
+| Adobe RGB, amount 0 | 0 | 0 | n/a | 0 |
+
+No golden moved outside the conditioning footprint. Photographic RAW goldens: 0 changed pixels each.
+
+### ENG-1c outcome (coordinator)
+
+Case (3) of Machine A's ruling: a CPU/GPU formulation mismatch. `tone_local.wgsl` (whole-image GPU tone path used by `fixture_level3_tolerance_per_operator_and_output`) still divided by raw luminance; the single pixel over 1e-4 (index 69,802, (307,113), L = 8.22e-4) is the conditioning seed itself. The validated candidate patch is applied as a production fix: identical `max(abs(L), 1e-3)` floor. After a clean rebuild (`cargo clean -p pipeline-cpu -p pipeline-gpu -p filters`) the fixture passes at the unchanged 1e-4 bound. The fixture's CPU reference is computed at runtime, so no stored reference changed. A transient `white_balance_v2` RAW-open failure in the first full run passed 3/3 when re-run alone; full no-fail-fast run recorded below.
