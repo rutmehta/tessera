@@ -1,7 +1,7 @@
 //! Lossless f32 AI mask rasters, separate from lossy JPEG previews.
 use std::{
     fs,
-    io::{self, Write},
+    io::{self, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -59,6 +59,53 @@ pub struct MaskStore {
     io: Mutex<()>,
 }
 impl MaskStore {
+    /// Per-raster durable storage limit including header and checksum.
+    pub const MAX_PINNED_BYTES: u64 = 256 << 20;
+    /// Atomic replacement changes this payload checksum. A host can invalidate
+    /// a ready in-memory plane without re-reading the raster on every edit.
+    pub fn pinned_revision(&self, key: &[u8; 32]) -> io::Result<[u8; 32]> {
+        let path = self
+            .root
+            .join("pinned")
+            .join(format!("{}.mask", blake3::Hash::from_bytes(*key).to_hex()));
+        let mut file = fs::File::open(path)?;
+        let size = file.metadata()?.len();
+        if !(48..=Self::MAX_PINNED_BYTES).contains(&size) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "invalid pinned mask size",
+            ));
+        }
+        file.seek(SeekFrom::End(-32))?;
+        let mut revision = [0; 32];
+        file.read_exact(&mut revision)?;
+        Ok(revision)
+    }
+
+    /// Remove a durable import slot. Missing slots are harmless.
+    pub fn remove_pinned(&self, key: &[u8; 32]) -> io::Result<()> {
+        let path = self
+            .root
+            .join("pinned")
+            .join(format!("{}.mask", blake3::Hash::from_bytes(*key).to_hex()));
+        match fs::remove_file(path) {
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            result => result,
+        }
+    }
+    /// Durable slots are separate from the inference LRU. Owners must replace
+    /// slots on reimport and remove them with their image record.
+    pub fn put_pinned(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
+        if raster.data.len() as u64 * 4 + 48 > Self::MAX_PINNED_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "imported mask exceeds 256 MiB",
+            ));
+        }
+        let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
+        Self::new(self.root.join("pinned"), u64::MAX)?.put(key, raster)
+    }
+
     pub fn new(root: impl AsRef<Path>, cap: u64) -> io::Result<Self> {
         fs::create_dir_all(root.as_ref())?;
         Ok(Self {
@@ -73,8 +120,16 @@ impl MaskStore {
     }
     pub fn get(&self, key: &[u8; 32]) -> Option<MaskRaster> {
         let _lock = self.io.lock().ok()?;
-        let path = self.path(key);
-        if fs::metadata(&path).ok()?.len() > self.cap {
+        let pinned = self
+            .root
+            .join("pinned")
+            .join(format!("{}.mask", blake3::Hash::from_bytes(*key).to_hex()));
+        let (path, cap) = if pinned.is_file() {
+            (pinned, Self::MAX_PINNED_BYTES)
+        } else {
+            (self.path(key), self.cap)
+        };
+        if fs::metadata(&path).ok()?.len() > cap {
             return None;
         }
         let bytes = fs::read(path).ok()?;
@@ -98,6 +153,12 @@ impl MaskStore {
             .collect();
         MaskRaster::new(width, height, data).ok()
     }
+    /// Durable imported resources live outside the evictable cache budget.
+    /// A separate directory also protects them from other store instances' eviction.
+    pub fn put_pinned(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
+        Self::new(self.root.join("pinned"), u64::MAX)?.put(key, raster)
+    }
+
     pub fn put(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
         let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
         if raster.data.len() as u64 * 4 + 48 > self.cap {

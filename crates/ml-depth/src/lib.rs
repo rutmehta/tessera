@@ -42,6 +42,10 @@ impl DepthMap {
     pub fn store(&self, store: &DepthStore, key: &[u8; 32]) -> Result<()> {
         Ok(store.put(key, &self.0)?)
     }
+    /// Persist imported depth independently of preview-cache eviction.
+    pub fn store_pinned(&self, store: &DepthStore, key: &[u8; 32]) -> Result<()> {
+        Ok(store.put_pinned(key, &self.0)?)
+    }
     pub fn cached(store: &DepthStore, key: &[u8; 32]) -> Option<Self> {
         store.get(key).map(Self)
     }

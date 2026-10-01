@@ -51,6 +51,7 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
             )
         })
     }),
+    ("lens_blur", |r| r.settings.effects.lens_blur.is_some()),
     ("upright_homography", |r| {
         r.settings.geometry.upright.homography.is_some()
     }),
