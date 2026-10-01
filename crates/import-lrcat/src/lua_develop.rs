@@ -14,14 +14,20 @@
 //!
 //! Mapped keys ([`KEY_MAP`]) are rendered into the Adobe XMP shape of the same
 //! setting and decoded by [`crate::xmp::parse`], so a Lua row and the equivalent
-//! XMP row produce the same recipe through one translation path. Keys missing
-//! from the table, or values with no XMP shape, become warnings (plan report
-//! entries) and the whole source literal is kept in
-//! `recipe.unknown["lrcat_develop_lua"]`.
-use std::collections::HashSet;
+//! XMP row produce the same recipe through one translation path. The generated
+//! packet is not source data and is not retained. Keys missing from the table,
+//! or values with no XMP shape, become warnings (plan report entries) and only
+//! their own source text is kept, in `recipe.unknown["lrcat_develop_lua"]`
+//! (an object: Lua key -> source text of its value).
+//!
+//! The extended-range (HDR) tone curve (`ExtendedToneCurvePV2012` and its
+//! Red/Green/Blue/Name siblings) has no slot in the recipe: identity curves
+//! are dropped (they adjust nothing); otherwise one named-limitation warning is
+//! emitted per image and the source of those keys is retained.
+use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
-use serde_json::json;
+use serde_json::{Map, Value};
 
 /// Maximum table nesting (real LrC 15.5 rows nest at most 6 deep).
 pub const MAX_DEPTH: usize = 32;
@@ -262,7 +268,9 @@ pub const KEY_MAP: &[(&str, &str)] = &[
     ("UprightDependentDigest", "UprightDependentDigest"),
     ("UprightFocalLength35mm", "UprightFocalLength35mm"),
     ("UprightFocalMode", "UprightFocalMode"),
+    ("UprightFourSegmentsCount", "UprightFourSegmentsCount"),
     ("UprightPreview", "UprightPreview"),
+    ("UprightTransformCount", "UprightTransformCount"),
     ("UprightTransform_0", "UprightTransform_0"),
     ("UprightTransform_1", "UprightTransform_1"),
     ("UprightTransform_2", "UprightTransform_2"),
@@ -272,6 +280,21 @@ pub const KEY_MAP: &[(&str, &str)] = &[
     ("UprightVersion", "UprightVersion"),
     ("Version", "Version"),
 ];
+
+/// The extended-range (HDR) tone curve keys. Tessera's recipe has no extended
+/// curve (engine_api `ToneCurves` holds rgb/red/green/blue/luminance over
+/// 0..=1 only, and `CrsKey` has no `ExtendedToneCurve*`), so they are a named
+/// limitation rather than mapped onto the standard curves.
+pub const EXTENDED_TONE_CURVE_KEYS: &[&str] = &[
+    "ExtendedToneCurveName2012",
+    "ExtendedToneCurvePV2012",
+    "ExtendedToneCurvePV2012Red",
+    "ExtendedToneCurvePV2012Green",
+    "ExtendedToneCurvePV2012Blue",
+];
+
+/// The one warning emitted for an image whose extended tone curve is not identity.
+pub const EXTENDED_TONE_CURVE_NOTE: &str = "ExtendedToneCurvePV2012 (+Red/Green/Blue): extended-range (HDR) tone curves are not supported by Tessera; not applied, source preserved";
 
 /// A table key: an identifier or `["string"]` (both are string keys in Lua),
 /// or `[number]`.
@@ -308,6 +331,12 @@ fn error(message: impl std::fmt::Display) -> EngineError {
 /// Read one `s = <literal>` develop-settings row (an optional final `;` and
 /// surrounding whitespace are allowed).
 pub fn read(text: &str) -> EngineResult<LuaValue> {
+    read_spanned(text).map(|(value, _)| value)
+}
+
+/// [`read`], plus the source byte range of each keyed field's value in the
+/// outermost table (in field order), so a caller can retain single entries.
+fn read_spanned(text: &str) -> EngineResult<(LuaValue, Vec<Range<usize>>)> {
     if text.len() > MAX_INPUT_BYTES {
         return Err(error(format!(
             "literal is {} bytes; limit is {MAX_INPUT_BYTES}",
@@ -318,6 +347,8 @@ pub fn read(text: &str) -> EngineResult<LuaValue> {
         s: text.as_bytes(),
         pos: 0,
         values: 0,
+        entry: 0,
+        spans: Vec::new(),
     };
     p.ws();
     if p.ident().as_deref() != Some("s") {
@@ -334,13 +365,17 @@ pub fn read(text: &str) -> EngineResult<LuaValue> {
     if p.pos != p.s.len() {
         return Err(p.err("trailing content after the literal"));
     }
-    Ok(value)
+    Ok((value, p.spans))
 }
 
 struct Parser<'a> {
     s: &'a [u8],
     pos: usize,
     values: usize,
+    /// Start of the value of the outermost table's current entry.
+    entry: usize,
+    /// Value source ranges of the outermost table's keyed entries, in field order.
+    spans: Vec<Range<usize>>,
 }
 
 struct Frame {
@@ -421,7 +456,12 @@ impl Parser<'_> {
                     };
                     match pending.take() {
                         None => frame.table.items.push(value),
-                        Some(key) => frame.table.fields.push((key, value)),
+                        Some(key) => {
+                            frame.table.fields.push((key, value));
+                            if stack.len() == 1 {
+                                self.spans.push(self.entry..self.pos);
+                            }
+                        }
                     }
                     self.ws();
                     if !(self.eat(b',') || self.eat(b';')) {
@@ -439,6 +479,10 @@ impl Parser<'_> {
                     continue;
                 }
                 let key = self.key()?;
+                if stack.len() == 1 {
+                    // The value of this entry starts here (after `=`).
+                    self.entry = self.pos;
+                }
                 if let Some(key) = key {
                     let frame = stack.last_mut().expect("inside a table");
                     let n = frame.table.items.len();
@@ -645,38 +689,63 @@ impl Parser<'_> {
 /// Parse a Lua develop row into the recipe [`crate::xmp::parse`] would build
 /// from the same settings written as XMP.
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
-    let LuaValue::Table(table) = read(text)? else {
+    let (LuaValue::Table(table), spans) = read_spanned(text)? else {
         return Err(error("develop settings are not a table"));
     };
-    let (packet, notes) = to_xmp(&table);
+    let (packet, notes, keep) = to_xmp(&table);
     let (mut recipe, mut warnings) = crate::xmp::parse(&packet, process_version)?;
-    if !notes.is_empty() {
+    // The packet was generated from the literal; it is not source data.
+    recipe.unknown.remove("sidecar_xmp");
+    let mut kept = Map::new();
+    if !table.items.is_empty() {
+        // Positional entries have no key to file them under: keep the literal.
+        kept.insert("(positional entries)".into(), Value::from(text));
+    }
+    for i in keep {
+        let (key, _) = &table.fields[i];
+        let name = match key {
+            LuaKey::Str(s) => s.clone(),
+            LuaKey::Num(n) => format!("[{n}]"),
+        };
+        kept.insert(name, Value::from(text[spans[i].clone()].trim()));
+    }
+    if !kept.is_empty() {
         recipe
             .unknown
-            .insert("lrcat_develop_lua".into(), json!(text));
-        warnings.extend(notes);
+            .insert("lrcat_develop_lua".into(), Value::Object(kept));
     }
+    warnings.extend(notes);
     Ok((recipe, warnings))
 }
 
 const CRS_URI: &str = engine_api::recipe::crs::CRS_NAMESPACE;
 const AUX_URI: &str = engine_api::recipe::crs::AUX_NAMESPACE;
 
-/// Render mapped keys as an XMP packet in Adobe's shape. Returns the packet and
-/// one note per key that is unknown or has no XMP shape.
-fn to_xmp(table: &LuaTable) -> (String, Vec<String>) {
+/// Render mapped keys as an XMP packet in Adobe's shape. Returns the packet,
+/// one note per key that is unknown or has no XMP shape, and the indices of
+/// the fields whose source must be retained.
+fn to_xmp(table: &LuaTable) -> (String, Vec<String>, Vec<usize>) {
     let mut notes = Vec::new();
+    let mut keep = Vec::new();
     if !table.items.is_empty() {
         notes.push("positional entries in the develop table; source preserved".into());
     }
+    let (mut extended, mut extended_changes) = (Vec::new(), false);
     let (mut attrs, mut body) = (String::new(), String::new());
-    for (key, value) in &table.fields {
+    for (i, (key, value)) in table.fields.iter().enumerate() {
         let LuaKey::Str(key) = key else {
             notes.push("numeric develop key: unknown Lua develop key; source preserved".into());
+            keep.push(i);
             continue;
         };
+        if EXTENDED_TONE_CURVE_KEYS.contains(&key.as_str()) {
+            extended.push(i);
+            extended_changes |= key != "ExtendedToneCurveName2012" && !is_identity_curve(value);
+            continue;
+        }
         let Some((_, crs)) = KEY_MAP.iter().find(|(lua, _)| lua == key) else {
             notes.push(format!("{key}: unknown Lua develop key; source preserved"));
+            keep.push(i);
             continue;
         };
         let prefix = CrsKey::from_xmp_name(crs).map_or("crs", |k| k.namespace().prefix());
@@ -688,12 +757,35 @@ fn to_xmp(table: &LuaTable) -> (String, Vec<String>) {
         };
         if let Err(reason) = rendered {
             notes.push(format!("{key}: {reason}; source preserved"));
+            keep.push(i);
         }
+    }
+    if extended_changes {
+        notes.push(EXTENDED_TONE_CURVE_NOTE.into());
+        keep.extend(extended);
+        keep.sort_unstable();
     }
     let packet = format!(
         r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:crs="{CRS_URI}" xmlns:aux="{AUX_URI}"{attrs}>{body}</rdf:Description></rdf:RDF></x:xmpmeta>"#
     );
-    (packet, notes)
+    (packet, notes, keep)
+}
+
+/// `nil`, `{}` or a flat list of `x, y` pairs with `x == y` (no adjustment).
+fn is_identity_curve(value: &LuaValue) -> bool {
+    match value {
+        LuaValue::Nil => true,
+        LuaValue::Table(t) if t.fields.is_empty() => {
+            t.items.len().is_multiple_of(2)
+                && t.items.chunks(2).all(|p| match (&p[0], &p[1]) {
+                    (LuaValue::Number(x), LuaValue::Number(y)) => {
+                        x.parse::<f64>().ok() == y.parse::<f64>().ok()
+                    }
+                    _ => false,
+                })
+        }
+        _ => false,
+    }
 }
 
 fn is_ident(s: &str) -> bool {
