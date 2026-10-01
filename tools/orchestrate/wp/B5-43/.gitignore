@@ -1,0 +1,10 @@
+evidence/background/
+evidence/background-live/
+evidence/*driver.log
+evidence/hosted.log
+evidence/hosted-setup-failure.log
+
+evidence/gate-tests.log
+evidence/gate-initial-tests.log
+evidence/gate-final.log
+evidence/cleanup-verification.log

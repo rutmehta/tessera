@@ -1,0 +1,5 @@
+Darwin Ruts-MacBook-Pro.local 25.1.0 Darwin Kernel Version 25.1.0: Mon Oct 20 19:34:05 PDT 2025; root:xnu-12377.41.6~2/RELEASE_ARM64_T6041 arm64
+ProductName:		macOS
+ProductVersion:		26.1
+BuildVersion:		25B78
+445131fc786900e111d4e7ff9fb010ba2dfc2cf5

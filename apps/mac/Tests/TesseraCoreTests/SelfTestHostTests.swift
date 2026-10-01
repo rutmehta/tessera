@@ -1,10 +1,52 @@
 import AppKit
 import XCTest
+import TesseraCore
+import TesseraFFI
 @testable import Tessera
 
 /// B5-selftest-window: which launches get the background self-test host.
 @MainActor
 final class SelfTestHostTests: XCTestCase {
+    func testViewportTargetFitsNonRetinaVisibleFrameAfterMeasuredPanels() {
+        let target = FilterLayoutReproduction.viewportTarget(
+            visibleFrame: NSRect(x: 0, y: 0, width: 3840, height: 2130), scale: 1,
+            hostSize: NSSize(width: 1440, height: 984),
+            viewportSize: NSSize(width: 916, height: 907))
+        XCTAssertEqual(target, NSSize(width: 3316, height: 2053))
+    }
+
+    func testViewportTargetCapsRetinaDisplayAt4K() {
+        let target = FilterLayoutReproduction.viewportTarget(
+            visibleFrame: NSRect(x: 0, y: 0, width: 3000, height: 1600), scale: 2,
+            hostSize: NSSize(width: 1440, height: 984),
+            viewportSize: NSSize(width: 916, height: 907))
+        XCTAssertEqual(target, NSSize(width: 3840, height: 2160))
+    }
+
+    func testLiveDocumentFilterSheetResizeP19() async throws {
+        _ = NSApplication.shared
+        let model = AppModel()
+        let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("B5-43-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let engine = try Engine.open(appSupportDir: scratch.path)
+        model.documents.engine = EngineDocumentEngine.for(engine)
+        model.documents.newDocument(NewDocumentSettings(width: 512, height: 512, depth: .u8, profile: "sRGB IEC61966-2.1"))
+        let doc = try XCTUnwrap(model.documents.current)
+        doc.addAdjustment(.exposure)
+        let window = SelfTestHost.makeWindow(model: model)
+        defer { LayoutProbeHarness.dispose(window) }
+        window.order(.below, relativeTo: 0)
+        try await Task.sleep(for: .seconds(1))
+        let result = await FilterLayoutReproduction.run(model: model, window: window)
+        // Cancel is published asynchronously. Detach the hosting tree only after its sheet
+        // has dismissed so its geometry callbacks cannot pollute later inspector tests.
+        for _ in 0..<100 where window.attachedSheet != nil {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertNil(window.attachedSheet)
+        XCTAssertTrue(result.failures.isEmpty, result.detail)
+    }
+
     func testBackgroundHostResizesWithoutClampingToItsInitialContentSize() {
         _ = NSApplication.shared
         let window = SelfTestHost.makeWindow(model: AppModel())

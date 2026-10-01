@@ -1,0 +1,75 @@
+
+===== hosted-setup-failure.log =====
+Build complete! (274.49s)
+Test Suite 'Selected tests' started at 2026-10-01 10:46:53.994.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 10:46:53.994.
+Test Suite 'SelfTestHostTests' started at 2026-10-01 10:46:53.994.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/Tests/TesseraCoreTests/SelfTestHostTests.swift:23: error: -[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19] : XCTAssertTrue failed - filter sheet or live viewport not attached
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' failed (7.114 seconds).
+Test Suite 'SelfTestHostTests' failed at 2026-10-01 10:47:01.109.
+	 Executed 1 test, with 1 failure (0 unexpected) in 7.114 (7.115) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 10:47:01.109.
+	 Executed 1 test, with 1 failure (0 unexpected) in 7.114 (7.115) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 10:47:01.109.
+	 Executed 1 test, with 1 failure (0 unexpected) in 7.114 (7.116) seconds
+
+===== hosted.log =====
+Build complete! (33.11s)
+Test Suite 'Selected tests' started at 2026-10-01 10:48:44.306.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 10:48:44.307.
+Test Suite 'SelfTestHostTests' started at 2026-10-01 10:48:44.307.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' started.
+filter-layout: document=512x512 backend=Metal (Apple M4 Max) history=1 inspector=true attachedSheet=true initial=(40.0, 0.0, 1440.0, 984.0) scale=2.0
+filter-layout: BEFORE host-points requested=(3840.0, 2160.0) sheet=true
+filter-layout: AFTER host-points frame=(3840.0, 1289.0) viewport=(3316.0, 1212.0) pixels=6632.0x2424.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyFooter": (3556.0, 1257.0, 272.0, 32.0), "historyHeader": (3544.0, 1089.0, 296.0, 32.0), "tabContent": (3544.0, 85.0, 296.0, 1003.0), "tabBar": (3544.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 3240.0, 32.0), "layersFooter": (3544.0, 1060.0, 296.0, 28.0), "historyBody": (3544.0, 1121.0, 296.0, 168.0)]
+filter-layout: BEFORE host-points requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER host-points frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyFooter": (1156.0, 952.0, 272.0, 32.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0), "historyBody": (1144.0, 816.0, 296.0, 168.0)]
+filter-layout: BEFORE viewport-pixels requested=(2444.0, 1157.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(2444.0, 1157.0) viewport=(1920.0, 1080.0) pixels=3840.0x2160.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyFooter": (2160.0, 1125.0, 272.0, 32.0), "historyHeader": (2148.0, 957.0, 296.0, 32.0), "tabContent": (2148.0, 85.0, 296.0, 871.0), "tabBar": (2148.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 1844.0, 32.0), "layersFooter": (2148.0, 928.0, 296.0, 28.0), "historyBody": (2148.0, 989.0, 296.0, 168.0)]
+filter-layout: BEFORE viewport-pixels requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyFooter": (1156.0, 952.0, 272.0, 32.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0), "historyBody": (1144.0, 816.0, 296.0, 168.0)]
+filter-layout: done failures=["host-points host clamped: requested (3840.0, 2160.0), actual (3840.0, 1289.0)"]
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/Tests/TesseraCoreTests/SelfTestHostTests.swift:25: error: -[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19] : XCTAssertTrue failed - host-points host clamped: requested (3840.0, 2160.0), actual (3840.0, 1289.0)
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' failed (6.100 seconds).
+Test Suite 'SelfTestHostTests' failed at 2026-10-01 10:48:50.407.
+	 Executed 1 test, with 1 failure (0 unexpected) in 6.100 (6.100) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 10:48:50.407.
+	 Executed 1 test, with 1 failure (0 unexpected) in 6.100 (6.100) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 10:48:50.407.
+	 Executed 1 test, with 1 failure (0 unexpected) in 6.100 (6.101) seconds
+
+===== background/stderr.log =====
+2026-10-01 10:49:21.021 Tessera[20645:51876068] Sparkle updates not configured for this build
+2026-10-01 10:49:21.814 Tessera[20645:51876068] NSConstraintBasedLayoutLogUnsatisfiable=YES
+selftest-host: host window 47514
+filter-selftest: check library loaded FAIL 
+filter-selftest: done, 1 failure(s)
+
+===== background-live/stderr.log =====
+2026-10-01 10:50:41.896 Tessera[21659:51894264] Sparkle updates not configured for this build
+2026-10-01 10:50:42.670 Tessera[21659:51894264] NSConstraintBasedLayoutLogUnsatisfiable=YES
+selftest-host: host window 47754
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2606, y1: 1734 })
+filter-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+filter-selftest: check filter menu ok
+filter-layout: document=5212x3468 backend=Metal (Apple M4 Max) history=0 inspector=true attachedSheet=true initial=(40.0, 0.0, 1440.0, 984.0) scale=2.0
+filter-layout: BEFORE host-points requested=(3840.0, 2160.0) sheet=true
+filter-layout: AFTER host-points frame=(3840.0, 1289.0) viewport=(3316.0, 1179.0) pixels=6632.0x2358.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyHeader": (3544.0, 1089.0, 296.0, 32.0), "historyBody": (3544.0, 1121.0, 296.0, 168.0), "tabContent": (3544.0, 85.0, 296.0, 1003.0), "historyFooter": (3556.0, 1257.0, 272.0, 32.0), "tabBar": (3544.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 3240.0, 32.0), "layersFooter": (3544.0, 1060.0, 296.0, 28.0)]
+filter-layout: BEFORE host-points requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER host-points frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyHeader": (1144.0, 784.0, 296.0, 32.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "historyFooter": (1156.0, 952.0, 272.0, 32.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0)]
+filter-layout: BEFORE viewport-pixels requested=(2444.0, 1157.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(2444.0, 1157.0) viewport=(1920.0, 1080.0) pixels=3840.0x2160.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyHeader": (2148.0, 957.0, 296.0, 32.0), "historyBody": (2148.0, 989.0, 296.0, 168.0), "tabContent": (2148.0, 85.0, 296.0, 871.0), "historyFooter": (2160.0, 1125.0, 272.0, 32.0), "tabBar": (2148.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 1844.0, 32.0), "layersFooter": (2148.0, 928.0, 296.0, 28.0)]
+filter-layout: BEFORE viewport-pixels requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyHeader": (1144.0, 784.0, 296.0, 32.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "historyFooter": (1156.0, 952.0, 272.0, 32.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0)]
+filter-layout: done failures=["host-points host clamped: requested (3840.0, 2160.0), actual (3840.0, 1289.0)"]
+filter-selftest: check live filter resize FAIL host-points host clamped: requested (3840.0, 2160.0), actual (3840.0, 1289.0)
+filter-selftest: done, 1 failure(s)
