@@ -1,8 +1,72 @@
 # B5-29d: streaming Lightroom import over the FFI
 
-Branch `wp/B5-29d`, rebased onto `wp/B5-29c` at `041456c9`. Local commits only.
+Branch `wp/B5-29d`; review started at `a4b2c72a`, comprising `wp/B5-29c`
+base `3eeeaefc` plus five replayed 29d commits. This review adds commits on top;
+no rebase, push, board edit, or Cargo.lock change.
 
-## Current-base acceptance (2026-10-01)
+## Review fixes and gates (2026-10-01)
+
+The retained-source parity assertions now require `shape = "lua-values"` and
+read `UprightVersion`, `RetouchAreas`, and `ExtendedToneCurvePV2012` under
+`properties`, matching 29c round three (`6be9003b`).
+
+Non-blocking review items:
+
+- **(a) Done:** publish missing retained side files on every apply, including
+  resume with an existing plan and a later session with new oversized cells.
+  Existing identical cells are reused; conflicting bytes at the same relative
+  filename fail explicitly without overwriting the earlier bundle. Regression
+  coverage repairs a deleted cell, publishes a new session's cell, and checks
+  conflict rejection and original-byte preservation.
+- **(b) Done:** a per-photo spool read failure checkpoints completed sidecar
+  writes before returning the error. A fault-injection unit test truncates the
+  spool after the first record has loaded, verifies one durable `done` entry,
+  and verifies that a fresh session resumes it. A simultaneous state-write
+  failure still returns an error; this does not add crash/power-loss durability
+  between the existing 50-photo checkpoints.
+- **(c) Deferred:** inspect still uses omission/prefix descriptors, whereas open
+  externalizes cells and counts the retained bytes. Oversized-cell disk estimates
+  and reason strings can therefore differ. Swift calls open and receives that
+  path's estimate/reasons. Aligning the two needs a shared accounting/reporting
+  contract without making inspect retain the full oversized data.
+- **(d) Deferred:** no aggregate disk cap for retained side files. Ordinary I/O
+  failures are reported; successful externalization can use unrestricted disk
+  space. A cap needs an explicit budget and an observable retention-failure policy.
+- **(e) Deferred:** sidecar recovery references remain bundle-relative `large/...`
+  paths without identifying their owning bundle. Bundle identity/relocation
+  semantics need an explicit representation before changing serialized recipes.
+
+Serial Rust gate results on source commit `2a97e529`, using
+`PATH="$HOME/.cargo/bin:$PATH"` and
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-29d`:
+
+| Command | Result |
+| --- | --- |
+| `cargo test --release -p import-lrcat -p tessera-cli -p tessera-ffi --test lrcat --test lrcat_streaming_parity` | PASS: 7 + 2 tests |
+| Same package set with `--lib lrcat` | PASS: 1 importer + 5 FFI tests |
+| `cargo test --release -p tessera-ffi` | PASS: 541 passed, 28 ignored, 0 failed; includes the allocation gate (116.93 s) and parity tests |
+| `cargo test --release -p import-lrcat` | PASS: 62 passed, 0 failed, 0 ignored; includes scale, golden and retention coverage |
+| `cargo test --release -p tessera-cli --bin tessera import::tests` | PASS: 3 passed |
+| `cargo test --release -p tessera-cli --test import_models` | PASS: 5 passed |
+| `cargo clippy --release --all-targets -p import-lrcat -p tessera-cli -p tessera-ffi -- -D warnings` | PASS |
+| `cargo fmt --all -- --check` | PASS |
+
+The 28 ignored tests remain the suite's default ignored benchmark/exclusive
+fixture tests; none were newly ignored. The first development attempt found
+missing `Arc` clones in test setup, then a regression-test lookup used the
+uncanonicalized fixture path. Both test issues were corrected before the passing
+runs above. The final full FFI run covers the corrected source and tests.
+
+Logs are local at `/tmp/B5-29d-review-*.log` (integration, lib, ffi, importer,
+cli-unit, cli-models, clippy, fmt). All commands exited 0. Upstream LibRaw C/C++
+build scripts emit deprecation warnings; Rust clippy with warnings denied passes.
+No Swift gate, FFI binding regeneration, or real-copy performance run was repeated
+in this Rust-only review.
+
+The real catalog (including the provided copy) was not opened during this review.
+Performance and Swift results below are historical, not current-base acceptance.
+
+## Historical acceptance on 041456c9 (2026-10-01)
 
 Measured the supplied read-only catalog copy after this worktree's builds and
 tests finished, with all roots relocated to absent private temporary folders.
@@ -13,7 +77,7 @@ contents are included. This is a catalog/bundle benchmark, not accessible-origin
 sidecar/indexing throughput. The machine is shared, so external contention is
 not controlled.
 
-| Measurement | Rebased result |
+| Measurement | Historical 041456c9 result |
 | --- | ---: |
 | Inspect | 11.265 s |
 | Inspect process wall, including cleanup | 11.88 s |
@@ -30,7 +94,7 @@ All targets met: inspect < 20 s, open + apply < 60 s, both RSS and footprint
 < 1 GB. Full SHA-256 equality was checked before and after; prefix
 **`eb60e744dbec2547` remains unchanged**. No original catalog or photo was modified.
 
-### Current gates
+### Historical gates on 041456c9
 
 Passed serially with `PATH="$HOME/.cargo/bin:$PATH"` and
 `CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-29d`:
@@ -201,30 +265,28 @@ Passed:
 Builds and test commands run sequentially with the requested external Cargo
 target directory. No GUI launch or screen capture.
 
-## Rebase and local commits
+## Base and local commits
 
-New base: `041456c98a9362b22c7026b01747ad9bf732e263`.
+Current 29c base: `3eeeaefc` (includes round-three source shapes at `6be9003b`).
+Review starting tip: `a4b2c72a`. The five replayed commits actually present are:
 
-Dropped all three old B5-29c durability commits:
+| Current commit | Purpose |
+| --- | --- |
+| `851810a7` | allocation test and measurement driver |
+| `6d589386` | streaming FFI and parity coverage |
+| `0516abc0` | missing-originals measurement guard |
+| `1afa1dcf` | handoff documentation |
+| `a4b2c72a` | lossless source retention and publication |
 
-- `87670d44`: old pre-publication visibility test. Its absent-destination assertion
-  conflicts with 29c's explicit empty reservation contract. The base already tests
-  failed/no-op publication cleanup, empty-reservation recovery and preservation
-  of nonempty destinations; no unique compatible coverage was lost.
-- `b0eb7ab1`: superseded by 29c's plain fsync with EINTR retry, directory syncs,
-  and publication/recovery implementation.
-- `5027d39b`: documentation for the superseded durability implementation.
+The old `041456c9` base and earlier replay hashes are superseded. In particular,
+the body of `a4b2c72a` describes the previous base; the ancestry above is the
+current authority. No history was rewritten during this review.
 
-The only rebase conflict was `apps/tessera-cli/src/import.rs` while replaying
-`87670d44`; resolved by dropping that commit, retaining 29c verbatim. The other
-two superseded commits were explicitly dropped. All four 29d commits replayed:
+Review source commit:
 
-| Original | Rebased | Purpose |
-| --- | --- | --- |
-| `44f23d74` | `42dd56cd` | allocation test and measurement driver |
-| `7ce2ea74` | `96b38c00` | streaming FFI and parity coverage |
-| `7c05895c` | `4f76452d` | missing-originals measurement guard |
-| `1f2be5dc` | `ed8a29ce` | handoff documentation |
+| Commit | Purpose |
+| --- | --- |
+| `2a97e529` | retained-source shape assertions; resume side-file publication and conflict protection; spool-error checkpoint and regression tests |
 
-All commits are local only and carry the requested co-author trailer. No push,
-board edit or Cargo.lock change.
+The following documentation commit records the verified gates and corrected base.
+All new commits are local only and carry the requested co-author trailer.
