@@ -30,6 +30,8 @@ struct TransformOptionsBar: View {
                 MenuPicker(selection: $t.kernel, options: TransformKernel.allCases.map { ($0, $0.title) })
                     .frame(width: Theme.Width.labelWide + Theme.Space.l)
                     .help("Interpolation")
+                    .accessibilityLabel("Interpolation")
+                    .accessibilityIdentifier("document.transform.interpolation")
             }
             Image(systemName: "info.circle")
                 .font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
@@ -53,8 +55,10 @@ struct TransformOptionsBar: View {
             }
             separator
             Button("Reset") { t.resetOperation() }
+                .accessibilityIdentifier("document.transform.reset")
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
             Button("Cancel") { t.cancel() }
+                .accessibilityIdentifier("document.transform.cancel")
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                 .help("Esc")
             Button(s.start.needsConversion ? "Apply…" : "Apply") { t.apply() }
@@ -85,12 +89,14 @@ struct TransformOptionsBar: View {
             .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
             .fixedSize()
             .help("Grid: add splits (the warp does not move)")
+            .accessibilityIdentifier("document.transform.grid")
+            .accessibilityLabel("Warp grid")
         SegmentedPicker(selection: $t.warpSplit, segments: [
             .init(value: .none, title: "", symbol: "hand.point.up.left", help: "Drag points and handles"),
             .init(value: .vertical, title: "", symbol: "rectangle.split.2x1", help: "Split vertically: click the net"),
             .init(value: .horizontal, title: "", symbol: "rectangle.split.1x2", help: "Split horizontally: click the net"),
             .init(value: .cross, title: "", symbol: "rectangle.split.2x2", help: "Split crosswise: click the net (⇧ keeps splitting)"),
-        ], height: Theme.Height.small, fill: false)
+        ], height: Theme.Height.small, fill: false, accessibilityPrefix: "document.transform.warpSplit")
         .fixedSize()
     }
 
@@ -98,13 +104,15 @@ struct TransformOptionsBar: View {
         SegmentedPicker(selection: $t.perspectiveLayout, segments: [
             .init(value: true, title: "Layout", symbol: nil, help: "Fit the planes to the image"),
             .init(value: false, title: "Warp", symbol: nil, help: "Move the planes"),
-        ], height: Theme.Height.small, fill: false)
+        ], height: Theme.Height.small, fill: false, accessibilityPrefix: "document.transform.perspectiveMode")
         .fixedSize()
         .onChange(of: t.perspectiveLayout) { _, _ in t.redraw() }
         Button("Split Vertically") { t.splitPerspective(vertical: true) }
+            .accessibilityIdentifier("document.transform.splitVertical")
             .buttonStyle(.theme(.borderless, height: Theme.Height.small))
             .help("Add a linked plane: the planes share their new edge")
         Button("Split Horizontally") { t.splitPerspective(vertical: false) }
+            .accessibilityIdentifier("document.transform.splitHorizontal")
             .buttonStyle(.theme(.borderless, height: Theme.Height.small))
     }
 
@@ -117,12 +125,12 @@ struct TransformOptionsBar: View {
             .background(TransformFrameProbe(id: "document.transform.puppetMode"))
         SegmentedPicker(selection: Binding(get: { t.puppetDensity }, set: { t.puppetDensity = $0; t.remesh() }),
                         segments: PuppetDensityTag.allCases.map { .init(value: $0, title: $0.title, symbol: nil, help: "Density: \($0.title)") },
-                        height: Theme.Height.small, fill: false)
+                        height: Theme.Height.small, fill: false, accessibilityPrefix: "document.transform.puppetDensity")
             .fixedSize()
         // B5-12b: typed values go to the engine (0…64 px); a refusal keeps the rejected value on show.
         TransformField(title: "Expansion", value: t.puppetExpansionShown, unit: "px", rejected: t.expansionRejected != nil,
                        identifier: "document.transform.expansion") { t.setPuppetExpansion($0) }
-        OptionToggle(title: "Show Mesh", on: Binding(get: { t.showMesh }, set: { t.showMesh = $0; t.redraw() }))
+        OptionToggle(title: "Show Mesh", on: Binding(get: { t.showMesh }, set: { t.showMesh = $0; t.redraw() }), identifier: "document.transform.showMesh")
         TransformField(title: "Rotate", value: t.selectedPinDegrees ?? 0, unit: "°", fractionDigits: 1,
                        identifier: "document.transform.rotate") { t.setSelectedPinDegrees(min(max($0, -360), 360)) }
             .disabled(t.selectedPin == nil)
@@ -148,6 +156,8 @@ struct TransformOptionsBar: View {
                    options: [(UInt64?.none, "Protect: None")] + t.channels.map { (UInt64?.some($0.id), "Protect: \($0.name)") })
             .frame(width: Theme.Width.labelWide + Theme.Space.xxl)
             .help("Protect a saved alpha channel (there is no automatic skin detection)")
+            .accessibilityIdentifier("document.transform.protectChannel")
+            .accessibilityLabel("Protect channel")
     }
 }
 
@@ -221,8 +231,7 @@ private struct TransformFieldCell: NSViewRepresentable {
 
     func makeNSView(context: Context) -> TransformNumberField {
         let f = TransformNumberField()
-        f.setAccessibilityIdentifier(identifier)
-        f.setAccessibilityLabel(title)
+        f.setDocumentAccessibility(identifier: identifier, label: title)
         f.onReturn = { DocumentTransforms.shared.applyAfterFieldCommit() }
         f.onEscape = { DocumentTransforms.shared.cancel() }
         f.focusAfterEditing = { DocumentTransforms.shared.document?.viewport }

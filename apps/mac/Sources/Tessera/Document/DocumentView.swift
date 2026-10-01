@@ -159,7 +159,7 @@ struct DocumentInspector: View {
     private var tabBar: some View {
         SegmentedPicker(selection: $workspace.inspectorTab,
                         segments: DocumentInspectorTab.allCases.map { .init(value: $0, title: $0.title, help: $0.help) },
-                        height: Theme.Height.small)
+                        height: Theme.Height.small, accessibilityPrefix: "document.inspector.tabs")
             .accessibilityLabel("Inspector")
             .accessibilityIdentifier("document.inspector.tabs")
             .padding(.horizontal, Theme.Space.gutter)
@@ -289,6 +289,7 @@ struct DocumentInspector: View {
                 .onEnded { _ in dragBase = nil })
             .onTapGesture(count: 2) { historyRequested = Double(Self.historyDefault) }
             .help("Drag to resize History")
+            .accessibilityLabel("Resize History")
             .accessibilityIdentifier("document.history.resize")
     }
 }
@@ -359,6 +360,7 @@ struct DocumentTabs: View {
             .buttonStyle(.plain)
             .help("New Document… (⌘N)")
             .accessibilityIdentifier("document.tabs.new")
+            .accessibilityLabel("New Document")
         }
         .padding(Theme.Space.xxs)
         .frame(height: Theme.Height.regular)
@@ -401,6 +403,7 @@ private struct DocumentTab: View {
             .opacity(selected || hovering ? 1 : 0)
             .help("Close (⌘W)")
             .accessibilityIdentifier("document.tabs.\(index).close")
+            .accessibilityLabel("Close \(doc.title)")
         }
         .padding(.horizontal, Theme.Space.s)
         .frame(height: Theme.Height.regular - Theme.Space.xs)

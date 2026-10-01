@@ -556,6 +556,37 @@ final class LayerThumbnailLoader {
 /// The outline view: Delete removes the selected layers; everything else goes to the menus.
 @MainActor
 final class LayersOutlineView: NSOutlineView, KeyOwningControl {
+    // Vend the existing row views for realized rows so their modern AX metadata is visible.
+    // AppKit otherwise returns legacy NSOutlineRow proxies which have no identifier or label.
+    override func accessibilityChildren() -> [Any]? {
+        let rows = (super.accessibilityRows() as NSArray?) ?? []
+        return super.accessibilityChildren()?.enumerated().map { index, child in
+            let proxy = child as AnyObject
+            // AppKit's row proxies lack modern getters and are recreated per query.
+            // Keep NSArray bridging (they do not conform to NSAccessibilityRow) and
+            // use their value equality to locate the row in native accessibility order.
+            let position = rows.index(of: proxy)
+            let nativeIndex = position == NSNotFound ? nil : position
+            guard nativeIndex != nil || proxy.accessibilityRole?() == .row else { return child }
+            let number = nativeIndex ?? proxy.accessibilityIndex?() ?? index
+            guard let row = rowView(atRow: number, makeIfNecessary: false) else { return child }
+            let label = view(atColumn: 0, row: number, makeIfNecessary: false)?.accessibilityLabel() ?? "Layer row \(number + 1)"
+            row.setAccessibilityElement(true)
+            row.setAccessibilityRole(.row)
+            row.setAccessibilityParent(self)
+            row.setAccessibilityIdentifier("document.layers.row.\(number)")
+            row.setAccessibilityLabel(label)
+            row.setAccessibilityIndex(number)
+            row.setAccessibilityDisclosureLevel(level(forRow: number))
+            for case let button as NSButton in row.subviews
+                where button.identifier?.rawValue == "NSOutlineViewDisclosureButtonKey" {
+                button.setDocumentAccessibility(identifier: "document.layers.row.\(number).disclosure",
+                                                label: "Expand or collapse " + label)
+            }
+            return row
+        }
+    }
+
     override func keyDown(with event: NSEvent) {
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if (event.keyCode == 51 || event.keyCode == 117), mods.isEmpty,
@@ -569,6 +600,30 @@ final class LayersOutlineView: NSOutlineView, KeyOwningControl {
 
 /// Selection fill: accent-subtle at radius 6 (DESIGN.md §5, list rows).
 final class LayerRowView: NSTableRowView {
+    private var outline: NSOutlineView? { superview as? NSOutlineView }
+
+    override func accessibilityChildren() -> [Any]? {
+        NSAccessibility.unignoredChildren(from: subviews.filter { !$0.isHidden })
+    }
+
+    // The modern row vends the same selection/disclosure operations as AppKit's legacy proxy.
+    override func isAccessibilitySelected() -> Bool { isSelected }
+    override func setAccessibilitySelected(_ selected: Bool) {
+        guard let outline else { return }
+        let index = outline.row(for: self)
+        guard index >= 0 else { return }
+        if selected { outline.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: true) }
+        else { outline.deselectRow(index) }
+    }
+    override func isAccessibilityDisclosed() -> Bool {
+        guard let outline else { return false }
+        return outline.isItemExpanded(outline.item(atRow: outline.row(for: self)))
+    }
+    override func setAccessibilityDisclosed(_ disclosed: Bool) {
+        guard let outline, let item = outline.item(atRow: outline.row(for: self)) else { return }
+        if disclosed { outline.expandItem(item) } else { outline.collapseItem(item) }
+    }
+
     override func drawSelection(in dirtyRect: NSRect) {
         guard selectionHighlightStyle != .none else { return }
         Theme.Palette.accentSubtle.setFill()
@@ -793,12 +848,15 @@ final class LayerRowCell: NSTableCellView, NSTextFieldDelegate {
 
     func setRow(_ row: Int) {
         setAccessibilityIdentifier("document.layers.row.\(row).cell")
-        eye.setAccessibilityIdentifier("document.layers.row.\(row).visibility")
-        name.setAccessibilityIdentifier("document.layers.row.\(row).name")
+        eye.setDocumentAccessibility(identifier: "document.layers.row.\(row).visibility", label: "Show or hide \(name.stringValue)")
+        name.setDocumentAccessibility(identifier: "document.layers.row.\(row).name", label: "Layer name")
         mask.setAccessibilityIdentifier("document.layers.row.\(row).mask")
+        mask.setAccessibilityLabel("Layer mask")
         vectorMask.setAccessibilityIdentifier("document.layers.row.\(row).vectorMask")
-        chain.setAccessibilityIdentifier("document.layers.row.\(row).maskLink")
+        vectorMask.setAccessibilityLabel("Vector mask")
+        chain.setDocumentAccessibility(identifier: "document.layers.row.\(row).maskLink", label: "Link or unlink layer mask")
         thumb.setAccessibilityIdentifier("document.layers.row.\(row).thumbnail")
+        thumb.setAccessibilityLabel("Layer thumbnail")
     }
 
     @objc private func eyeClicked(_ sender: NSButton) {

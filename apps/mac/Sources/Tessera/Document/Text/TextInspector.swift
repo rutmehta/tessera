@@ -53,6 +53,7 @@ struct TextInspector: View {
             }), options: familyOptions(s.family))
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("document.text.family")
+            .accessibilityLabel("Font family")
         }
         row("Style") {
             MenuPicker(selection: Binding(get: { styleKey(s) }, set: { key in
@@ -61,6 +62,7 @@ struct TextInspector: View {
             }), options: styleOptions(s))
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("document.text.style")
+            .accessibilityLabel("Font style")
         }
         slider(label("Size", s.size), Double(s.size?.value ?? first.size), 1...1000, 24, "%.1f px", 0.5, "size") { v, f in
             text.character(document, "Font Size", final: f) { $0.size = Float(v) }
@@ -147,7 +149,7 @@ struct TextInspector: View {
         SegmentedPicker(selection: Binding(get: { p.alignment }, set: { a in
             text.paragraph(document, "Align \(a.title)") { $0.paragraph.alignment = a }
         }), segments: TextParagraphAlignment.allCases.map { .init(value: $0, title: "", symbol: $0.symbol, help: $0.title) },
-                        height: Theme.Height.small)
+                        height: Theme.Height.small, accessibilityPrefix: "document.text.alignment")
         .accessibilityIdentifier("document.text.alignment")
         .padding(.bottom, Theme.Space.xs)
         paraSlider("Left indent", p.leftIndent, "leftIndent") { $0.leftIndent = $1 }
@@ -203,6 +205,7 @@ struct TextInspector: View {
             .onChange(of: model.text) { _, t in sourceText = t }
             .onSubmit { text.replaceSourceText(document, with: sourceText) }
             .accessibilityIdentifier("document.text.source")
+            .accessibilityLabel("Source text")
         Hint("Warped, path and vertical text keep their shape; edit the words here (Return applies).")
     }
 
@@ -210,6 +213,7 @@ struct TextInspector: View {
         HStack(spacing: Theme.Space.s) {
             if editing {
                 Button("Cancel") { text.cancel() }
+                    .accessibilityIdentifier("document.text.cancel")
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                     .help("Esc: discard the typing since the last change")
                 Button("Apply") { text.apply() }
@@ -235,16 +239,19 @@ struct TextOptionsBar: View {
         MenuPicker(selection: $text.family, options: families)
             .frame(width: Theme.Width.labelWide + Theme.Space.xxl)
             .help("Font for new text")
+            .accessibilityLabel("Font for new text")
+            .accessibilityIdentifier("document.option.textFamily")
             .onAppear { text.loadFonts() }
         OptionField(title: "Size", value: Binding(get: { Double(text.size) }, set: { text.size = Float($0) }),
                     range: 1...1000, unit: "px", identifier: "document.option.textSize")
         SegmentedPicker(selection: $text.alignment, segments: TextParagraphAlignment.allCases.map {
             .init(value: $0, title: "", symbol: $0.symbol, help: $0.title)
-        }, height: Theme.Height.small, fill: false)
+        }, height: Theme.Height.small, fill: false, accessibilityPrefix: "document.option.textAlignment")
         .fixedSize()
         if text.isEditing(document) {
             Hairline(vertical: true).frame(height: Theme.Height.small)
             Button("Cancel") { text.cancel() }
+                .accessibilityIdentifier("document.text.optionsCancel")
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                 .help("Esc")
             Button("Apply") { text.apply() }

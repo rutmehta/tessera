@@ -22,6 +22,7 @@ struct PropertiesPanel: View {
                         .font(Theme.Fonts.caption)
                         .onSubmit { document.rename(n.id, to: name) }
                         .accessibilityIdentifier("document.properties.name")
+                        .accessibilityLabel("Layer name")
                 }
                 InfoRow(label: "Kind", value: kindText(n))
                     .accessibilityIdentifier("document.properties.kind")
@@ -75,7 +76,7 @@ struct PropertiesPanel: View {
                                              help: "Children blend straight into the layers below"),
                                        .init(value: LayerGroupMode.isolated, title: "Isolated",
                                              help: "Children composite on their own, then blend with the group's mode")],
-                            height: Theme.Height.small)
+                            height: Theme.Height.small, accessibilityPrefix: "document.properties.groupMode")
                 .accessibilityIdentifier("document.properties.groupMode")
         case .smartObject:
             SubHeader("Transform")
@@ -150,7 +151,7 @@ struct AdjustmentEditor: View {
     private var channelPicker: some View {
         SegmentedPicker(selection: $channel, segments: [
             .init(value: 0, title: "RGB"), .init(value: 1, title: "Red"), .init(value: 2, title: "Green"), .init(value: 3, title: "Blue"),
-        ], height: Theme.Height.small)
+        ], height: Theme.Height.small, accessibilityPrefix: "document.properties.channel")
         .padding(.bottom, Theme.Space.xs)
         .accessibilityIdentifier("document.properties.channel")
     }
@@ -233,7 +234,7 @@ struct AdjustmentEditor: View {
     @ViewBuilder private func mixer(_ m: [[Double]], _ k: [Double], _ mono: Bool) -> some View {
         SegmentedPicker(selection: $mixerRow, segments: [
             .init(value: 0, title: mono ? "Gray" : "Red"), .init(value: 1, title: "Green"), .init(value: 2, title: "Blue"),
-        ], height: Theme.Height.small)
+        ], height: Theme.Height.small, accessibilityPrefix: "document.properties.channelMixer.output")
         .disabled(mono)
         .padding(.bottom, Theme.Space.xs)
         .accessibilityIdentifier("document.properties.channelMixer.output")
@@ -291,7 +292,7 @@ struct FillEditor: View {
         }
         SegmentedPicker(selection: Binding(get: { radial }, set: { apply(sorted, $0, true) }), segments: [
             .init(value: false, title: "Linear"), .init(value: true, title: "Radial"),
-        ], height: Theme.Height.small)
+        ], height: Theme.Height.small, accessibilityPrefix: "document.properties.fill.gradientKind")
         .accessibilityIdentifier("document.properties.fill.gradientKind")
         GradientStopsEditor(stops: sorted, identifier: "document.properties.fill", revision: document.revision) { s, final in
             apply(s, radial, final)

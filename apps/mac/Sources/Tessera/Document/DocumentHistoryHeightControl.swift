@@ -51,9 +51,9 @@ final class DocumentHistoryHeightControl: NSStackView {
             button.toolTip = name
             button.widthAnchor.constraint(equalToConstant: 22).isActive = true
         }
-        decrease.setAccessibilityIdentifier("document.history.height.decrease")
-        increase.setAccessibilityIdentifier("document.history.height.increase")
-        reset.setAccessibilityIdentifier("document.history.height.reset")
+        decrease.setDocumentAccessibility(identifier: "document.history.height.decrease", label: "Decrease History height")
+        increase.setDocumentAccessibility(identifier: "document.history.height.increase", label: "Increase History height")
+        reset.setDocumentAccessibility(identifier: "document.history.height.reset", label: "Reset History height")
         readout.font = Theme.NSFonts.labelNumeric
         readout.alignment = .center
         readout.setAccessibilityLabel("History height")

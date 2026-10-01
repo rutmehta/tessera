@@ -1,0 +1,587 @@
+B5-42 hosted document AX audit — original production code
+Command: swift test -c release -Xswiftc -enable-testing --filter DocumentAccessibilityTests
+4 tests; 512 AX contract failures; no fixture/setup failures.
+
+AX AUDIT window.stack: 68 interactive controls
+AX AUDIT window.properties: 49 interactive controls
+AX AUDIT window.channels: 50 interactive controls
+AX AUDIT channels.rename: 11 interactive controls
+AX AUDIT toolbar: 9 interactive controls
+AX AUDIT inspector.brushes: 17 interactive controls
+AX AUDIT properties.brightness_contrast: 4 interactive controls
+AX AUDIT properties.levels: 10 interactive controls
+AX AUDIT properties.curves: 6 interactive controls
+AX AUDIT properties.exposure: 4 interactive controls
+AX AUDIT properties.vibrance: 3 interactive controls
+AX AUDIT properties.hue_saturation: 5 interactive controls
+AX AUDIT properties.color_balance: 8 interactive controls
+AX AUDIT properties.black_white: 10 interactive controls
+AX AUDIT properties.photo_filter: 6 interactive controls
+AX AUDIT properties.channel_mixer: 9 interactive controls
+AX AUDIT properties.color_lookup: 4 interactive controls
+AX AUDIT properties.invert: 1 interactive controls
+AX AUDIT properties.posterize: 2 interactive controls
+AX AUDIT properties.threshold: 2 interactive controls
+AX AUDIT properties.gradient_map: 12 interactive controls
+AX AUDIT properties.selective_color: 9 interactive controls
+AX AUDIT properties.shadows_highlights: 11 interactive controls
+AX AUDIT properties.hdr_toning: 12 interactive controls
+AX AUDIT properties.desaturate: 1 interactive controls
+AX AUDIT properties.match_color: 7 interactive controls
+AX AUDIT properties.replace_color: 7 interactive controls
+AX AUDIT properties.equalize: 2 interactive controls
+AX AUDIT properties.auto: 7 interactive controls
+AX AUDIT fill.solid: 2 interactive controls
+AX AUDIT fill.gradient: 11 interactive controls
+AX AUDIT fill.pattern: 1 interactive controls
+AX AUDIT properties.group: 3 interactive controls
+AX AUDIT properties.text: 22 interactive controls
+AX AUDIT text.editing: 33 interactive controls
+AX AUDIT options.move: 21 interactive controls
+AX AUDIT options.marquee: 29 interactive controls
+AX AUDIT options.ellipseMarquee: 29 interactive controls
+AX AUDIT options.lasso: 29 interactive controls
+AX AUDIT options.polygonLasso: 29 interactive controls
+AX AUDIT options.magneticLasso: 29 interactive controls
+AX AUDIT options.quickSelect: 29 interactive controls
+AX AUDIT options.wand: 31 interactive controls
+AX AUDIT options.objectSelect: 27 interactive controls
+AX AUDIT options.brush: 33 interactive controls
+AX AUDIT options.eraser: 31 interactive controls
+AX AUDIT options.cloneStamp: 32 interactive controls
+AX AUDIT options.heal: 32 interactive controls
+AX AUDIT options.gradient: 21 interactive controls
+AX AUDIT options.crop: 21 interactive controls
+AX AUDIT options.type: 28 interactive controls
+AX AUDIT options.eyedropper: 24 interactive controls
+AX AUDIT options.hand: 23 interactive controls
+AX AUDIT options.zoom: 21 interactive controls
+AX AUDIT options.rectangleShape: 27 interactive controls
+AX AUDIT options.ellipseShape: 26 interactive controls
+AX AUDIT options.polygonShape: 28 interactive controls
+AX AUDIT options.lineShape: 24 interactive controls
+AX AUDIT options.pen: 26 interactive controls
+AX AUDIT options.pathSelect: 24 interactive controls
+AX AUDIT options.directSelect: 21 interactive controls
+AX AUDIT options.remove: 7 interactive controls
+AX AUDIT options.contentAwareMove: 6 interactive controls
+AX AUDIT properties.shape: 27 interactive controls
+AX AUDIT options.freeTransform: 11 interactive controls
+AX AUDIT transform.warp: 14 interactive controls
+AX AUDIT transform.perspective: 9 interactive controls
+AX AUDIT transform.puppet: 13 interactive controls
+AX AUDIT transform.contentAwareScale: 8 interactive controls
+
+Offending paths (including repeated controls in different states):
+failed - window.stack: window.stack/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/0/AXButton[]{Stack} — missing identifier; label=Stack
+failed - window.stack: window.stack/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/1/AXButton[]{Properties} — missing identifier; label=Properties
+failed - window.stack: window.stack/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/2/AXButton[]{Channels} — missing identifier; label=Channels
+failed - window.stack: window.stack/AXGroup[]{}/2/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - window.stack: window.stack/AXGroup[]{}/2/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/1/AXPopUpButton[document.layers.blendMode]{Go Down} — duplicate interactive identifier
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/0/AXRow[]{} — missing identifier; missing label
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/0/AXRow[]{}/0/AXCell[]{Layer 2, Smart Object, masked}/0/AXButton[]{Hide} — missing identifier; label=Hide
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/0/AXRow[]{}/0/AXCell[]{Layer 2, Smart Object, masked}/1/AXButton[]{Linked} — missing identifier; label=Linked
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/0/AXRow[]{}/0/AXCell[]{Layer 2, Smart Object, masked}/5/AXDisclosureTriangle[]{} — missing identifier; missing label
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/1/AXRow[]{} — missing identifier; missing label
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/1/AXRow[]{}/0/AXCell[]{Smart filter Gaussian Blur}/0/AXButton[]{Disable} — missing identifier; label=Disable
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/1/AXRow[]{}/0/AXCell[]{Smart filter Gaussian Blur}/2/AXButton[]{Blending options} — missing identifier; label=Blending options
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/2/AXRow[]{} — missing identifier; missing label
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/2/AXRow[]{}/0/AXCell[]{Effect Drop Shadow}/0/AXButton[]{Hide} — missing identifier; label=Hide
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/3/AXRow[]{} — missing identifier; missing label
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/3/AXRow[]{}/0/AXCell[]{Group 1, Group}/0/AXButton[]{Hide} — missing identifier; label=Hide
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/3/AXRow[]{}/0/AXCell[]{Group 1, Group}/3/AXDisclosureTriangle[]{} — missing identifier; missing label
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/4/AXRow[]{} — missing identifier; missing label
+failed - window.stack: window.stack/AXGroup[]{}/6/AXGroup[document.inspector.stack]{}/11/AXScrollArea[]{}/0/AXOutline[document.layers]{Layers}/4/AXRow[]{}/0/AXCell[]{Layer 1, Pixel}/0/AXButton[]{Hide} — missing identifier; label=Hide
+failed - window.stack: window.stack/AXGroup[]{}/7/AXGroup[document.history]{}/1/AXButton[]{−} — missing identifier; label=−
+failed - window.stack: window.stack/AXGroup[]{}/7/AXGroup[document.history]{}/3/AXButton[]{+} — missing identifier; label=+
+failed - window.stack: window.stack/AXGroup[]{}/7/AXGroup[document.history]{}/4/AXButton[]{↺} — missing identifier; label=↺
+failed - window.properties: window.properties/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/0/AXButton[]{Stack} — missing identifier; label=Stack
+failed - window.properties: window.properties/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/1/AXButton[]{Properties} — missing identifier; label=Properties
+failed - window.properties: window.properties/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/2/AXButton[]{Channels} — missing identifier; label=Channels
+failed - window.properties: window.properties/AXGroup[]{}/2/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - window.properties: window.properties/AXGroup[]{}/2/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - window.properties: window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - window.properties: window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/19/AXButton[document.colorPanel]{Color} — identifier=document.colorPanel; label=Color
+failed - window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/21/AXColorWell[document.colorPanel]{} — duplicate interactive identifier
+failed - window.properties: window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/21/AXColorWell[document.colorPanel]{} — identifier=document.colorPanel; missing label
+failed - window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/24/AXColorWell[document.colorPanel]{} — duplicate interactive identifier
+failed - window.properties: window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/24/AXColorWell[document.colorPanel]{} — identifier=document.colorPanel; missing label
+failed - window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/26/AXButton[document.colorPanel]{Swap (X)} — duplicate interactive identifier
+failed - window.properties: window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/26/AXButton[document.colorPanel]{Swap (X)} — identifier=document.colorPanel; label=Swap (X)
+failed - window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/27/AXButton[document.colorPanel]{Default (D)} — duplicate interactive identifier
+failed - window.properties: window.properties/AXGroup[]{}/6/AXScrollArea[document.properties]{}/27/AXButton[document.colorPanel]{Default (D)} — identifier=document.colorPanel; label=Default (D)
+failed - window.properties: window.properties/AXGroup[]{}/7/AXGroup[document.history]{}/1/AXButton[]{−} — missing identifier; label=−
+failed - window.properties: window.properties/AXGroup[]{}/7/AXGroup[document.history]{}/3/AXButton[]{+} — missing identifier; label=+
+failed - window.properties: window.properties/AXGroup[]{}/7/AXGroup[document.history]{}/4/AXButton[]{↺} — missing identifier; label=↺
+failed - window.channels: window.channels/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/0/AXButton[]{Stack} — missing identifier; label=Stack
+failed - window.channels: window.channels/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/1/AXButton[]{Properties} — missing identifier; label=Properties
+failed - window.channels: window.channels/AXGroup[]{}/1/AXGroup[document.inspector.tabs]{Inspector}/2/AXButton[]{Channels} — missing identifier; label=Channels
+failed - window.channels: window.channels/AXGroup[]{}/2/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - window.channels: window.channels/AXGroup[]{}/2/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - window.channels: window.channels/AXGroup[]{}/7/AXGroup[document.history]{}/1/AXButton[]{−} — missing identifier; label=−
+failed - window.channels: window.channels/AXGroup[]{}/7/AXGroup[document.history]{}/3/AXButton[]{+} — missing identifier; label=+
+failed - window.channels: window.channels/AXGroup[]{}/7/AXGroup[document.history]{}/4/AXButton[]{↺} — missing identifier; label=↺
+failed - channels.rename: channels.rename/AXGroup[]{}/0/AXScrollArea[document.channels.list]{}/4/AXGroup[document.channels.channel.1]{Alpha 1}/2/AXTextField[document.channels.channel.1.rename]{} — identifier=document.channels.channel.1.rename; missing label
+failed - toolbar: toolbar/AXToolbar[]{}/0/AXButton[]{Hide Sidebar} — missing identifier; label=Hide Sidebar
+failed - toolbar: toolbar/AXToolbar[]{}/0/AXButton[]{Hide Sidebar}/0/AXButton[]{Hide Sidebar} — missing identifier; label=Hide Sidebar
+failed - toolbar: toolbar/AXToolbar[]{}/1/AXButton[]{Library} — missing identifier; label=Library
+failed - toolbar: toolbar/AXToolbar[]{}/1/AXButton[]{Library}/0/AXButton[]{Library} — missing identifier; label=Library
+failed - toolbar: toolbar/AXToolbar[]{}/2/AXButton[]{Open Folder…} — missing identifier; label=Open Folder…
+failed - toolbar: toolbar/AXToolbar[]{}/2/AXButton[]{Open Folder…}/0/AXButton[]{Open Folder…} — missing identifier; label=Open Folder…
+failed - toolbar: toolbar/AXToolbar[]{}/4/AXGroup[]{}/0/AXCheckBox[]{Inspector} — missing identifier; label=Inspector
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/0/AXButton[document.colorPanel]{Color} — identifier=document.colorPanel; label=Color
+failed - inspector.brushes/AXGroup[]{}/2/AXColorWell[document.colorPanel]{} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/2/AXColorWell[document.colorPanel]{} — identifier=document.colorPanel; missing label
+failed - inspector.brushes/AXGroup[]{}/5/AXColorWell[document.colorPanel]{} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/5/AXColorWell[document.colorPanel]{} — identifier=document.colorPanel; missing label
+failed - inspector.brushes/AXGroup[]{}/7/AXButton[document.colorPanel]{Swap (X)} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/7/AXButton[document.colorPanel]{Swap (X)} — identifier=document.colorPanel; label=Swap (X)
+failed - inspector.brushes/AXGroup[]{}/8/AXButton[document.colorPanel]{Default (D)} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/8/AXButton[document.colorPanel]{Default (D)} — identifier=document.colorPanel; label=Default (D)
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/9/AXButton[document.brushes]{Brushes} — identifier=document.brushes; label=Brushes
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/10/AXScrollArea[document.brushes]{}/0/AXOpaqueProviderGroup[]{}/0/AXButton[]{Hard Round} — missing identifier; label=Hard Round
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/10/AXScrollArea[document.brushes]{}/0/AXOpaqueProviderGroup[]{}/1/AXButton[]{Medium Round} — missing identifier; label=Medium Round
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/10/AXScrollArea[document.brushes]{}/0/AXOpaqueProviderGroup[]{}/2/AXButton[]{Soft Round} — missing identifier; label=Soft Round
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/10/AXScrollArea[document.brushes]{}/0/AXOpaqueProviderGroup[]{}/3/AXButton[]{Chalk} — missing identifier; label=Chalk
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/10/AXScrollArea[document.brushes]{}/0/AXOpaqueProviderGroup[]{}/4/AXButton[]{Square} — missing identifier; label=Square
+failed - inspector.brushes/AXGroup[]{}/11/AXButton[document.brushes]{Import Brushes…} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/11/AXButton[document.brushes]{Import Brushes…} — identifier=document.brushes; label=Import Brushes…
+failed - inspector.brushes/AXGroup[]{}/13/AXSlider[document.brushes]{Size} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/13/AXSlider[document.brushes]{Size} — identifier=document.brushes; label=Size
+failed - inspector.brushes/AXGroup[]{}/14/AXSlider[document.brushes]{Hardness} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/14/AXSlider[document.brushes]{Hardness} — identifier=document.brushes; label=Hardness
+failed - inspector.brushes/AXGroup[]{}/15/AXSlider[document.brushes]{Spacing} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/15/AXSlider[document.brushes]{Spacing} — identifier=document.brushes; label=Spacing
+failed - inspector.brushes/AXGroup[]{}/16/AXSlider[document.brushes]{} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/16/AXSlider[document.brushes]{} — identifier=document.brushes; missing label
+failed - inspector.brushes/AXGroup[]{}/17/AXSlider[document.brushes]{Roundness} — duplicate interactive identifier
+failed - inspector.brushes: inspector.brushes/AXGroup[]{}/17/AXSlider[document.brushes]{Roundness} — identifier=document.brushes; label=Roundness
+failed - properties.brightness_contrast: properties.brightness_contrast/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.brightness_contrast: properties.brightness_contrast/AXGroup[]{}/7/AXSlider[document.properties.brightnessContrast.brightness]{} — identifier=document.properties.brightnessContrast.brightness; missing label
+failed - properties.brightness_contrast: properties.brightness_contrast/AXGroup[]{}/8/AXSlider[document.properties.brightnessContrast.contrast]{} — identifier=document.properties.brightnessContrast.contrast; missing label
+failed - properties.levels: properties.levels/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.levels: properties.levels/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/0/AXButton[]{RGB} — missing identifier; label=RGB
+failed - properties.levels: properties.levels/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/1/AXButton[]{Red} — missing identifier; label=Red
+failed - properties.levels: properties.levels/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/2/AXButton[]{Green} — missing identifier; label=Green
+failed - properties.levels: properties.levels/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/3/AXButton[]{Blue} — missing identifier; label=Blue
+failed - properties.levels: properties.levels/AXGroup[]{}/8/AXSlider[document.properties.levels.inBlack]{} — identifier=document.properties.levels.inBlack; missing label
+failed - properties.levels: properties.levels/AXGroup[]{}/11/AXSlider[document.properties.levels.outBlack]{} — identifier=document.properties.levels.outBlack; missing label
+failed - properties.curves: properties.curves/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.curves: properties.curves/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/0/AXButton[]{RGB} — missing identifier; label=RGB
+failed - properties.curves: properties.curves/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/1/AXButton[]{Red} — missing identifier; label=Red
+failed - properties.curves: properties.curves/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/2/AXButton[]{Green} — missing identifier; label=Green
+failed - properties.curves: properties.curves/AXGroup[]{}/7/AXGroup[document.properties.channel]{}/3/AXButton[]{Blue} — missing identifier; label=Blue
+failed - properties.exposure: properties.exposure/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.exposure: properties.exposure/AXGroup[]{}/7/AXSlider[document.properties.exposure.exposure]{} — identifier=document.properties.exposure.exposure; missing label
+failed - properties.exposure: properties.exposure/AXGroup[]{}/8/AXSlider[document.properties.exposure.offset]{} — identifier=document.properties.exposure.offset; missing label
+failed - properties.vibrance: properties.vibrance/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.vibrance: properties.vibrance/AXGroup[]{}/7/AXSlider[document.properties.vibrance.vibrance]{} — identifier=document.properties.vibrance.vibrance; missing label
+failed - properties.vibrance: properties.vibrance/AXGroup[]{}/8/AXSlider[document.properties.vibrance.saturation]{} — identifier=document.properties.vibrance.saturation; missing label
+failed - properties.hue_saturation: properties.hue_saturation/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.hue_saturation: properties.hue_saturation/AXGroup[]{}/7/AXSlider[document.properties.hueSaturation.hue]{} — identifier=document.properties.hueSaturation.hue; missing label
+failed - properties.hue_saturation: properties.hue_saturation/AXGroup[]{}/8/AXSlider[document.properties.hueSaturation.saturation]{} — identifier=document.properties.hueSaturation.saturation; missing label
+failed - properties.hue_saturation: properties.hue_saturation/AXGroup[]{}/9/AXSlider[document.properties.hueSaturation.lightness]{} — identifier=document.properties.hueSaturation.lightness; missing label
+failed - properties.color_balance: properties.color_balance/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.color_balance: properties.color_balance/AXGroup[]{}/7/AXGroup[document.properties.colorBalance.tone]{}/0/AXButton[]{Shadows} — missing identifier; label=Shadows
+failed - properties.color_balance: properties.color_balance/AXGroup[]{}/7/AXGroup[document.properties.colorBalance.tone]{}/1/AXButton[]{Midtones} — missing identifier; label=Midtones
+failed - properties.color_balance: properties.color_balance/AXGroup[]{}/7/AXGroup[document.properties.colorBalance.tone]{}/2/AXButton[]{Highlights} — missing identifier; label=Highlights
+failed - properties.color_balance: properties.color_balance/AXGroup[]{}/8/AXSlider[document.properties.colorBalance.red]{} — identifier=document.properties.colorBalance.red; missing label
+failed - properties.color_balance: properties.color_balance/AXGroup[]{}/9/AXSlider[document.properties.colorBalance.green]{} — identifier=document.properties.colorBalance.green; missing label
+failed - properties.color_balance: properties.color_balance/AXGroup[]{}/10/AXSlider[document.properties.colorBalance.blue]{} — identifier=document.properties.colorBalance.blue; missing label
+failed - properties.black_white: properties.black_white/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.photo_filter: properties.photo_filter/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.photo_filter/AXGroup[]{}/9/AXPopUpButton[document.properties.photoFilter.preset]{Go Down} — duplicate interactive identifier
+failed - properties.photo_filter: properties.photo_filter/AXGroup[]{}/11/AXColorWell[document.properties.photoFilter.color]{} — identifier=document.properties.photoFilter.color; missing label
+failed - properties.channel_mixer: properties.channel_mixer/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.channel_mixer: properties.channel_mixer/AXGroup[]{}/7/AXGroup[document.properties.channelMixer.output]{}/0/AXButton[]{Red} — missing identifier; label=Red
+failed - properties.channel_mixer: properties.channel_mixer/AXGroup[]{}/7/AXGroup[document.properties.channelMixer.output]{}/1/AXButton[]{Green} — missing identifier; label=Green
+failed - properties.channel_mixer: properties.channel_mixer/AXGroup[]{}/7/AXGroup[document.properties.channelMixer.output]{}/2/AXButton[]{Blue} — missing identifier; label=Blue
+failed - properties.channel_mixer: properties.channel_mixer/AXGroup[]{}/9/AXSlider[document.properties.channelMixer.green]{} — identifier=document.properties.channelMixer.green; missing label
+failed - properties.channel_mixer: properties.channel_mixer/AXGroup[]{}/10/AXSlider[document.properties.channelMixer.blue]{} — identifier=document.properties.channelMixer.blue; missing label
+failed - properties.channel_mixer: properties.channel_mixer/AXGroup[]{}/11/AXSlider[document.properties.channelMixer.constant]{} — identifier=document.properties.channelMixer.constant; missing label
+failed - properties.color_lookup: properties.color_lookup/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.color_lookup: properties.color_lookup/AXGroup[]{}/9/AXButton[]{Load 3D LUT…} — missing identifier; label=Load 3D LUT…
+failed - properties.color_lookup: properties.color_lookup/AXGroup[]{}/10/AXButton[]{Reset} — missing identifier; label=Reset
+failed - properties.invert: properties.invert/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.posterize: properties.posterize/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.threshold: properties.threshold/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.gradient_map: properties.gradient_map/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.gradient_map: properties.gradient_map/AXGroup[]{}/8/AXColorWell[document.properties.gradientMap.stop.0.color]{} — identifier=document.properties.gradientMap.stop.0.color; missing label
+failed - properties.gradient_map: properties.gradient_map/AXGroup[]{}/9/AXSlider[document.properties.gradientMap.stop.0.position]{} — identifier=document.properties.gradientMap.stop.0.position; missing label
+failed - properties.gradient_map: properties.gradient_map/AXGroup[]{}/11/AXColorWell[document.properties.gradientMap.stop.1.color]{} — identifier=document.properties.gradientMap.stop.1.color; missing label
+failed - properties.gradient_map/AXGroup[]{}/17/AXPopUpButton[document.properties.gradientMap.method]{Go Down} — duplicate interactive identifier
+failed - properties.selective_color: properties.selective_color/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.selective_color/AXGroup[]{}/9/AXPopUpButton[document.properties.selectiveColor.colors]{Go Down} — duplicate interactive identifier
+failed - properties.selective_color: properties.selective_color/AXGroup[]{}/10/AXSlider[document.properties.selectiveColor.cyan]{} — identifier=document.properties.selectiveColor.cyan; missing label
+failed - properties.selective_color: properties.selective_color/AXGroup[]{}/11/AXSlider[document.properties.selectiveColor.magenta]{} — identifier=document.properties.selectiveColor.magenta; missing label
+failed - properties.selective_color: properties.selective_color/AXGroup[]{}/12/AXSlider[document.properties.selectiveColor.yellow]{} — identifier=document.properties.selectiveColor.yellow; missing label
+failed - properties.selective_color: properties.selective_color/AXGroup[]{}/13/AXSlider[document.properties.selectiveColor.black]{} — identifier=document.properties.selectiveColor.black; missing label
+failed - properties.selective_color: properties.selective_color/AXGroup[]{}/15/AXGroup[document.properties.selectiveColor.method]{}/0/AXButton[]{Relative} — missing identifier; label=Relative
+failed - properties.selective_color: properties.selective_color/AXGroup[]{}/15/AXGroup[document.properties.selectiveColor.method]{}/1/AXButton[]{Absolute} — missing identifier; label=Absolute
+failed - properties.shadows_highlights: properties.shadows_highlights/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.shadows_highlights: properties.shadows_highlights/AXGroup[]{}/8/AXSlider[document.properties.shadowsHighlights.shadowsAmount]{} — identifier=document.properties.shadowsHighlights.shadowsAmount; missing label
+failed - properties.shadows_highlights: properties.shadows_highlights/AXGroup[]{}/12/AXSlider[document.properties.shadowsHighlights.highlightsAmount]{} — identifier=document.properties.shadowsHighlights.highlightsAmount; missing label
+failed - properties.shadows_highlights: properties.shadows_highlights/AXGroup[]{}/16/AXSlider[document.properties.shadowsHighlights.color]{} — identifier=document.properties.shadowsHighlights.color; missing label
+failed - properties.shadows_highlights: properties.shadows_highlights/AXGroup[]{}/17/AXSlider[document.properties.shadowsHighlights.midtone]{} — identifier=document.properties.shadowsHighlights.midtone; missing label
+failed - properties.shadows_highlights: properties.shadows_highlights/AXGroup[]{}/18/AXSlider[document.properties.shadowsHighlights.blackClip]{} — identifier=document.properties.shadowsHighlights.blackClip; missing label
+failed - properties.shadows_highlights: properties.shadows_highlights/AXGroup[]{}/19/AXSlider[document.properties.shadowsHighlights.whiteClip]{} — identifier=document.properties.shadowsHighlights.whiteClip; missing label
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.hdr_toning/AXGroup[]{}/9/AXPopUpButton[document.properties.hdrToning.method]{Go Down} — duplicate interactive identifier
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/12/AXSlider[document.properties.hdrToning.strength]{} — identifier=document.properties.hdrToning.strength; missing label
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/15/AXSlider[document.properties.hdrToning.exposure]{} — identifier=document.properties.hdrToning.exposure; missing label
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/16/AXSlider[document.properties.hdrToning.detail]{} — identifier=document.properties.hdrToning.detail; missing label
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/17/AXSlider[document.properties.hdrToning.shadows]{} — identifier=document.properties.hdrToning.shadows; missing label
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/18/AXSlider[document.properties.hdrToning.highlights]{} — identifier=document.properties.hdrToning.highlights; missing label
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/20/AXSlider[document.properties.hdrToning.vibrance]{} — identifier=document.properties.hdrToning.vibrance; missing label
+failed - properties.hdr_toning: properties.hdr_toning/AXGroup[]{}/21/AXSlider[document.properties.hdrToning.saturation]{} — identifier=document.properties.hdrToning.saturation; missing label
+failed - properties.desaturate: properties.desaturate/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.match_color: properties.match_color/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.match_color/AXGroup[]{}/9/AXPopUpButton[document.properties.matchColor.source]{Go Down} — duplicate interactive identifier
+failed - properties.match_color: properties.match_color/AXGroup[]{}/12/AXSlider[document.properties.matchColor.fade]{} — identifier=document.properties.matchColor.fade; missing label
+failed - properties.replace_color: properties.replace_color/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.replace_color: properties.replace_color/AXGroup[]{}/8/AXColorWell[document.properties.replaceColor.color]{} — identifier=document.properties.replaceColor.color; missing label
+failed - properties.replace_color: properties.replace_color/AXGroup[]{}/12/AXSlider[document.properties.replaceColor.hue]{} — identifier=document.properties.replaceColor.hue; missing label
+failed - properties.replace_color: properties.replace_color/AXGroup[]{}/13/AXSlider[document.properties.replaceColor.saturation]{} — identifier=document.properties.replaceColor.saturation; missing label
+failed - properties.replace_color: properties.replace_color/AXGroup[]{}/14/AXSlider[document.properties.replaceColor.lightness]{} — identifier=document.properties.replaceColor.lightness; missing label
+failed - properties.equalize: properties.equalize/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.auto: properties.auto/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.auto: properties.auto/AXGroup[]{}/7/AXGroup[document.properties.auto.mode]{}/0/AXButton[]{Tone} — missing identifier; label=Tone
+failed - properties.auto: properties.auto/AXGroup[]{}/7/AXGroup[document.properties.auto.mode]{}/1/AXButton[]{Contrast} — missing identifier; label=Contrast
+failed - properties.auto: properties.auto/AXGroup[]{}/7/AXGroup[document.properties.auto.mode]{}/2/AXButton[]{Color} — missing identifier; label=Color
+failed - fill.solid: fill.solid/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - fill.solid: fill.solid/AXGroup[]{}/8/AXColorWell[document.properties.fill.color]{} — identifier=document.properties.fill.color; missing label
+failed - fill.gradient: fill.gradient/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - fill.gradient: fill.gradient/AXGroup[]{}/7/AXGroup[document.properties.fill.gradientKind]{}/0/AXButton[]{Linear} — missing identifier; label=Linear
+failed - fill.gradient: fill.gradient/AXGroup[]{}/7/AXGroup[document.properties.fill.gradientKind]{}/1/AXButton[]{Radial} — missing identifier; label=Radial
+failed - fill.gradient: fill.gradient/AXGroup[]{}/9/AXColorWell[document.properties.fill.stop.0.color]{} — identifier=document.properties.fill.stop.0.color; missing label
+failed - fill.gradient: fill.gradient/AXGroup[]{}/10/AXSlider[document.properties.fill.stop.0.position]{} — identifier=document.properties.fill.stop.0.position; missing label
+failed - fill.gradient: fill.gradient/AXGroup[]{}/12/AXColorWell[document.properties.fill.stop.1.color]{} — identifier=document.properties.fill.stop.1.color; missing label
+failed - fill.pattern: fill.pattern/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.group: properties.group/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.group: properties.group/AXGroup[]{}/7/AXGroup[document.properties.groupMode]{}/0/AXButton[]{Pass Through} — missing identifier; label=Pass Through
+failed - properties.group: properties.group/AXGroup[]{}/7/AXGroup[document.properties.groupMode]{}/1/AXButton[]{Isolated} — missing identifier; label=Isolated
+failed - properties.text: properties.text/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.text/AXGroup[]{}/9/AXPopUpButton[document.text.family]{Go Down} — duplicate interactive identifier
+failed - properties.text/AXGroup[]{}/12/AXPopUpButton[document.text.style]{Go Down} — duplicate interactive identifier
+failed - properties.text: properties.text/AXGroup[]{}/14/AXSlider[document.text.leading]{} — identifier=document.text.leading; missing label
+failed - properties.text: properties.text/AXGroup[]{}/15/AXSlider[document.text.tracking]{} — identifier=document.text.tracking; missing label
+failed - properties.text: properties.text/AXGroup[]{}/16/AXSlider[document.text.baselineShift]{} — identifier=document.text.baselineShift; missing label
+failed - properties.text: properties.text/AXGroup[]{}/18/AXColorWell[document.text.color]{} — identifier=document.text.color; missing label
+failed - properties.text: properties.text/AXGroup[]{}/21/AXGroup[document.text.alignment]{}/0/AXButton[text.alignleft]{Align Left} — identifier=text.alignleft; label=Align Left
+failed - properties.text: properties.text/AXGroup[]{}/21/AXGroup[document.text.alignment]{}/1/AXButton[text.aligncenter]{Align Center} — identifier=text.aligncenter; label=Align Center
+failed - properties.text: properties.text/AXGroup[]{}/21/AXGroup[document.text.alignment]{}/2/AXButton[text.alignright]{Align Right} — identifier=text.alignright; label=Align Right
+failed - properties.text: properties.text/AXGroup[]{}/21/AXGroup[document.text.alignment]{}/3/AXButton[text.justify]{Justify} — identifier=text.justify; label=Justify
+failed - properties.text: properties.text/AXGroup[]{}/22/AXSlider[document.text.leftIndent]{} — identifier=document.text.leftIndent; missing label
+failed - properties.text: properties.text/AXGroup[]{}/23/AXSlider[document.text.rightIndent]{} — identifier=document.text.rightIndent; missing label
+failed - properties.text: properties.text/AXGroup[]{}/24/AXSlider[document.text.firstLineIndent]{} — identifier=document.text.firstLineIndent; missing label
+failed - properties.text: properties.text/AXGroup[]{}/25/AXSlider[document.text.spaceBefore]{} — identifier=document.text.spaceBefore; missing label
+failed - properties.text: properties.text/AXGroup[]{}/26/AXSlider[document.text.spaceAfter]{} — identifier=document.text.spaceAfter; missing label
+failed - text.editing: text.editing/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - text.editing/AXGroup[]{}/9/AXPopUpButton[document.text.family]{Go Down} — duplicate interactive identifier
+failed - text.editing/AXGroup[]{}/12/AXPopUpButton[document.text.style]{Go Down} — duplicate interactive identifier
+failed - text.editing: text.editing/AXGroup[]{}/14/AXSlider[document.text.leading]{} — identifier=document.text.leading; missing label
+failed - text.editing: text.editing/AXGroup[]{}/15/AXSlider[document.text.tracking]{} — identifier=document.text.tracking; missing label
+failed - text.editing: text.editing/AXGroup[]{}/16/AXSlider[document.text.baselineShift]{} — identifier=document.text.baselineShift; missing label
+failed - text.editing: text.editing/AXGroup[]{}/18/AXColorWell[document.text.color]{} — identifier=document.text.color; missing label
+failed - text.editing: text.editing/AXGroup[]{}/22/AXGroup[document.text.alignment]{}/0/AXButton[text.alignleft]{Align Left} — identifier=text.alignleft; label=Align Left
+failed - text.editing: text.editing/AXGroup[]{}/22/AXGroup[document.text.alignment]{}/1/AXButton[text.aligncenter]{Align Center} — identifier=text.aligncenter; label=Align Center
+failed - text.editing: text.editing/AXGroup[]{}/22/AXGroup[document.text.alignment]{}/2/AXButton[text.alignright]{Align Right} — identifier=text.alignright; label=Align Right
+failed - text.editing: text.editing/AXGroup[]{}/22/AXGroup[document.text.alignment]{}/3/AXButton[text.justify]{Justify} — identifier=text.justify; label=Justify
+failed - text.editing: text.editing/AXGroup[]{}/23/AXSlider[document.text.leftIndent]{} — identifier=document.text.leftIndent; missing label
+failed - text.editing: text.editing/AXGroup[]{}/24/AXSlider[document.text.rightIndent]{} — identifier=document.text.rightIndent; missing label
+failed - text.editing: text.editing/AXGroup[]{}/25/AXSlider[document.text.firstLineIndent]{} — identifier=document.text.firstLineIndent; missing label
+failed - text.editing: text.editing/AXGroup[]{}/26/AXSlider[document.text.spaceBefore]{} — identifier=document.text.spaceBefore; missing label
+failed - text.editing: text.editing/AXGroup[]{}/27/AXSlider[document.text.spaceAfter]{} — identifier=document.text.spaceAfter; missing label
+failed - text.editing: text.editing/AXGroup[]{}/32/AXButton[]{Cancel} — missing identifier; label=Cancel
+failed - text.editing: text.editing/AXGroup[]{}/35/AXMenuButton[]{Helvetica} — missing identifier; label=Helvetica
+failed - text.editing: text.editing/AXGroup[]{}/36/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - text.editing: text.editing/AXGroup[]{}/38/AXTextField[document.option.textSize]{} — identifier=document.option.textSize; missing label
+failed - text.editing/AXGroup[]{}/40/AXGroup[]{}/0/AXButton[text.alignleft]{Align Left} — duplicate interactive identifier
+failed - text.editing: text.editing/AXGroup[]{}/40/AXGroup[]{}/0/AXButton[text.alignleft]{Align Left} — identifier=text.alignleft; label=Align Left
+failed - text.editing/AXGroup[]{}/40/AXGroup[]{}/1/AXButton[text.aligncenter]{Align Center} — duplicate interactive identifier
+failed - text.editing: text.editing/AXGroup[]{}/40/AXGroup[]{}/1/AXButton[text.aligncenter]{Align Center} — identifier=text.aligncenter; label=Align Center
+failed - text.editing/AXGroup[]{}/40/AXGroup[]{}/2/AXButton[text.alignright]{Align Right} — duplicate interactive identifier
+failed - text.editing: text.editing/AXGroup[]{}/40/AXGroup[]{}/2/AXButton[text.alignright]{Align Right} — identifier=text.alignright; label=Align Right
+failed - text.editing/AXGroup[]{}/40/AXGroup[]{}/3/AXButton[text.justify]{Justify} — duplicate interactive identifier
+failed - text.editing: text.editing/AXGroup[]{}/40/AXGroup[]{}/3/AXButton[text.justify]{Justify} — identifier=text.justify; label=Justify
+failed - text.editing: text.editing/AXGroup[]{}/41/AXButton[]{Cancel} — missing identifier; label=Cancel
+failed - options.move: options.move/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.move: options.move/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.marquee: options.marquee/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.marquee: options.marquee/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.feather]{} — identifier=document.option.feather; missing label
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXCheckBox[]{Anti-alias} — missing identifier; label=Anti-alias
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.marquee: options.marquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/8/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.feather]{} — identifier=document.option.feather; missing label
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXCheckBox[]{Anti-alias} — missing identifier; label=Anti-alias
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.ellipseMarquee: options.ellipseMarquee/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/8/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.lasso: options.lasso/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.lasso: options.lasso/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.feather]{} — identifier=document.option.feather; missing label
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXCheckBox[]{Anti-alias} — missing identifier; label=Anti-alias
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.lasso: options.lasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/8/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.feather]{} — identifier=document.option.feather; missing label
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXCheckBox[]{Anti-alias} — missing identifier; label=Anti-alias
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/8/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.polygonLasso: options.polygonLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/9/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.feather]{} — identifier=document.option.feather; missing label
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXCheckBox[]{Anti-alias} — missing identifier; label=Anti-alias
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/8/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.magneticLasso: options.magneticLasso/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/9/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.size]{} — identifier=document.option.size; missing label
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXCheckBox[]{Sample All Layers} — missing identifier; label=Sample All Layers
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.quickSelect: options.quickSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/8/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.wand: options.wand/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.wand: options.wand/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.tolerance]{} — identifier=document.option.tolerance; missing label
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXCheckBox[]{Anti-alias} — missing identifier; label=Anti-alias
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXCheckBox[]{Contiguous} — missing identifier; label=Contiguous
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXCheckBox[]{Sample All Layers} — missing identifier; label=Sample All Layers
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/8/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.wand: options.wand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/9/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/0/AXButton[square]{Square} — identifier=square; label=Square
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/1/AXButton[plus.square]{Add} — identifier=plus.square; label=Add
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/2/AXButton[minus.square]{Remove} — identifier=minus.square; label=Remove
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXGroup[]{}/3/AXButton[square.on.square.intersection.dashed]{square.on.square.intersection.dashed} — identifier=square.on.square.intersection.dashed; label=square.on.square.intersection.dashed
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXButton[]{Select Subject} — missing identifier; label=Select Subject
+failed - options.objectSelect: options.objectSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXButton[]{Select and Mask…} — missing identifier; label=Select and Mask…
+failed - options.brush: options.brush/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.brush: options.brush/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXButton[]{40} — missing identifier; label=40
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.size]{} — identifier=document.option.size; missing label
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.hardness]{} — identifier=document.option.hardness; missing label
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/9/AXMenuButton[]{Normal} — missing identifier; label=Normal
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/10/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/12/AXTextField[document.option.opacity]{} — identifier=document.option.opacity; missing label
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/14/AXButton[hand.point.up.left]{Pressure controls opacity} — identifier=hand.point.up.left; label=Pressure controls opacity
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/16/AXTextField[document.option.flow]{} — identifier=document.option.flow; missing label
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/19/AXTextField[document.option.smoothing]{} — identifier=document.option.smoothing; missing label
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/21/AXButton[circle.circle]{Pressure controls size} — identifier=circle.circle; label=Pressure controls size
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/22/AXMenuButton[]{Symmetry} — missing identifier; label=Symmetry
+failed - options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/23/AXPopUpButton[chevron.down]{Go Down} — duplicate interactive identifier
+failed - options.brush: options.brush/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/23/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.eraser: options.eraser/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.eraser: options.eraser/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXButton[]{40} — missing identifier; label=40
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.size]{} — identifier=document.option.size; missing label
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.hardness]{} — identifier=document.option.hardness; missing label
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/10/AXTextField[document.option.opacity]{} — identifier=document.option.opacity; missing label
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/12/AXButton[hand.point.up.left]{Pressure controls opacity} — identifier=hand.point.up.left; label=Pressure controls opacity
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/14/AXTextField[document.option.flow]{} — identifier=document.option.flow; missing label
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/17/AXTextField[document.option.smoothing]{} — identifier=document.option.smoothing; missing label
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/19/AXButton[circle.circle]{Pressure controls size} — identifier=circle.circle; label=Pressure controls size
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/20/AXMenuButton[]{Symmetry} — missing identifier; label=Symmetry
+failed - options.eraser: options.eraser/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/21/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXButton[]{60} — missing identifier; label=60
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.size]{} — identifier=document.option.size; missing label
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.hardness]{} — identifier=document.option.hardness; missing label
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/10/AXTextField[document.option.opacity]{} — identifier=document.option.opacity; missing label
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/12/AXButton[hand.point.up.left]{Pressure controls opacity} — identifier=hand.point.up.left; label=Pressure controls opacity
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/14/AXTextField[document.option.flow]{} — identifier=document.option.flow; missing label
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/17/AXTextField[document.option.smoothing]{} — identifier=document.option.smoothing; missing label
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/19/AXButton[circle.circle]{Pressure controls size} — identifier=circle.circle; label=Pressure controls size
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/20/AXMenuButton[]{Symmetry} — missing identifier; label=Symmetry
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/21/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.cloneStamp: options.cloneStamp/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/22/AXCheckBox[]{Sample All Layers} — missing identifier; label=Sample All Layers
+failed - options.heal: options.heal/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.heal: options.heal/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXButton[]{40} — missing identifier; label=40
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXTextField[document.option.size]{} — identifier=document.option.size; missing label
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.hardness]{} — identifier=document.option.hardness; missing label
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/10/AXTextField[document.option.opacity]{} — identifier=document.option.opacity; missing label
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/12/AXButton[hand.point.up.left]{Pressure controls opacity} — identifier=hand.point.up.left; label=Pressure controls opacity
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/14/AXTextField[document.option.flow]{} — identifier=document.option.flow; missing label
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/17/AXTextField[document.option.smoothing]{} — identifier=document.option.smoothing; missing label
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/19/AXButton[circle.circle]{Pressure controls size} — identifier=circle.circle; label=Pressure controls size
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/20/AXMenuButton[]{Symmetry} — missing identifier; label=Symmetry
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/21/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.heal: options.heal/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/22/AXCheckBox[]{Sample All Layers} — missing identifier; label=Sample All Layers
+failed - options.gradient: options.gradient/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.gradient: options.gradient/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.crop: options.crop/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.crop: options.crop/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.type: options.type/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.type: options.type/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.type: options.type/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXMenuButton[]{Helvetica} — missing identifier; label=Helvetica
+failed - options.type: options.type/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.type: options.type/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXTextField[document.option.textSize]{} — identifier=document.option.textSize; missing label
+failed - options.type: options.type/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXGroup[]{}/0/AXButton[text.alignleft]{Align Left} — identifier=text.alignleft; label=Align Left
+failed - options.type: options.type/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXGroup[]{}/1/AXButton[text.aligncenter]{Align Center} — identifier=text.aligncenter; label=Align Center
+failed - options.type: options.type/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXGroup[]{}/2/AXButton[text.alignright]{Align Right} — identifier=text.alignright; label=Align Right
+failed - options.type: options.type/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXGroup[]{}/3/AXButton[text.justify]{Justify} — identifier=text.justify; label=Justify
+failed - options.eyedropper: options.eyedropper/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.eyedropper: options.eyedropper/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.eyedropper: options.eyedropper/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXMenuButton[]{Point Sample} — missing identifier; label=Point Sample
+failed - options.eyedropper: options.eyedropper/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.eyedropper: options.eyedropper/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXCheckBox[]{Sample All Layers} — missing identifier; label=Sample All Layers
+failed - options.hand: options.hand/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.hand: options.hand/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.hand: options.hand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXButton[]{Fit on Screen} — missing identifier; label=Fit on Screen
+failed - options.hand: options.hand/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXButton[]{100 %} — missing identifier; label=100 %
+failed - options.zoom: options.zoom/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.zoom: options.zoom/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXCheckBox[]{Fill} — missing identifier; label=Fill
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXColorWell[document.option.fillColor]{} — identifier=document.option.fillColor; missing label
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXCheckBox[]{Stroke} — missing identifier; label=Stroke
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXColorWell[document.option.strokeColor]{} — identifier=document.option.strokeColor; missing label
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.width]{} — identifier=document.option.width; missing label
+failed - options.rectangleShape: options.rectangleShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/10/AXTextField[document.option.radius]{} — identifier=document.option.radius; missing label
+failed - options.ellipseShape: options.ellipseShape/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.ellipseShape: options.ellipseShape/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.ellipseShape: options.ellipseShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXCheckBox[]{Fill} — missing identifier; label=Fill
+failed - options.ellipseShape: options.ellipseShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXColorWell[document.option.fillColor]{} — identifier=document.option.fillColor; missing label
+failed - options.ellipseShape: options.ellipseShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXCheckBox[]{Stroke} — missing identifier; label=Stroke
+failed - options.ellipseShape: options.ellipseShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXColorWell[document.option.strokeColor]{} — identifier=document.option.strokeColor; missing label
+failed - options.ellipseShape: options.ellipseShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.width]{} — identifier=document.option.width; missing label
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXCheckBox[]{Fill} — missing identifier; label=Fill
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXColorWell[document.option.fillColor]{} — identifier=document.option.fillColor; missing label
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXCheckBox[]{Stroke} — missing identifier; label=Stroke
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXColorWell[document.option.strokeColor]{} — identifier=document.option.strokeColor; missing label
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.width]{} — identifier=document.option.width; missing label
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/10/AXTextField[document.option.sides]{} — identifier=document.option.sides; missing label
+failed - options.polygonShape: options.polygonShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/11/AXCheckBox[]{Star} — missing identifier; label=Star
+failed - options.lineShape: options.lineShape/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.lineShape: options.lineShape/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.lineShape: options.lineShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXCheckBox[]{Stroke colour} — missing identifier; label=Stroke colour
+failed - options.lineShape: options.lineShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXColorWell[document.option.strokeColor]{} — identifier=document.option.strokeColor; missing label
+failed - options.lineShape: options.lineShape/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXTextField[document.option.weight]{} — identifier=document.option.weight; missing label
+failed - options.pen: options.pen/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.pen: options.pen/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.pen: options.pen/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXCheckBox[]{Fill} — missing identifier; label=Fill
+failed - options.pen: options.pen/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXColorWell[document.option.fillColor]{} — identifier=document.option.fillColor; missing label
+failed - options.pen: options.pen/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXCheckBox[]{Stroke} — missing identifier; label=Stroke
+failed - options.pen: options.pen/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/5/AXColorWell[document.option.strokeColor]{} — identifier=document.option.strokeColor; missing label
+failed - options.pen: options.pen/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/7/AXTextField[document.option.width]{} — identifier=document.option.width; missing label
+failed - options.pathSelect: options.pathSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.pathSelect: options.pathSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.pathSelect: options.pathSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/2/AXCheckBox[]{Move vector mask with shape} — missing identifier; label=Move vector mask with shape
+failed - options.pathSelect: options.pathSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXMenuButton[]{Combine} — missing identifier; label=Combine
+failed - options.pathSelect: options.pathSelect/AXGroup[]{}/1/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/4/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.directSelect: options.directSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/21/AXButton[arrow.left.arrow.right]{Swap colours (X)} — identifier=arrow.left.arrow.right; label=Swap colours (X)
+failed - options.directSelect: options.directSelect/AXGroup[]{}/0/AXGroup[document.tools]{}/22/AXButton[circle.lefthalf.filled]{Default colours (D)} — identifier=circle.lefthalf.filled; label=Default colours (D)
+failed - options.remove: options.remove/AXGroup[]{}/1/AXTextField[document.remove.size]{} — identifier=document.remove.size; missing label
+failed - options.remove: options.remove/AXGroup[]{}/3/AXGroup[document.remove.backend]{}/0/AXButton[]{Auto} — missing identifier; label=Auto
+failed - options.remove: options.remove/AXGroup[]{}/3/AXGroup[document.remove.backend]{}/1/AXButton[]{PatchMatch} — missing identifier; label=PatchMatch
+failed - options.remove: options.remove/AXGroup[]{}/3/AXGroup[document.remove.backend]{}/2/AXButton[]{LaMa} — missing identifier; label=LaMa
+failed - options.remove: options.remove/AXGroup[]{}/5/AXTextField[document.remove.dilation]{} — identifier=document.remove.dilation; missing label
+failed - options.contentAwareMove: options.contentAwareMove/AXGroup[]{}/0/AXGroup[document.cam.mode]{}/0/AXButton[]{Move} — missing identifier; label=Move
+failed - options.contentAwareMove: options.contentAwareMove/AXGroup[]{}/0/AXGroup[document.cam.mode]{}/1/AXButton[]{Extend} — missing identifier; label=Extend
+failed - options.contentAwareMove: options.contentAwareMove/AXGroup[]{}/2/AXTextField[document.cam.structure]{} — identifier=document.cam.structure; missing label
+failed - options.contentAwareMove/AXGroup[]{}/5/AXPopUpButton[document.cam.color]{Go Down} — duplicate interactive identifier
+failed - options.contentAwareMove: options.contentAwareMove/AXGroup[]{}/7/AXTextField[document.cam.seed]{} — identifier=document.cam.seed; missing label
+failed - properties.shape: properties.shape/AXGroup[]{}/1/AXTextField[document.properties.name]{} — identifier=document.properties.name; missing label
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/10/AXGroup[document.shape.fill.kind]{}/0/AXButton[]{None} — missing identifier; label=None
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/10/AXGroup[document.shape.fill.kind]{}/1/AXButton[]{Solid} — missing identifier; label=Solid
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/10/AXGroup[document.shape.fill.kind]{}/2/AXButton[]{Gradient} — missing identifier; label=Gradient
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/12/AXColorWell[document.shape.fill.color]{} — identifier=document.shape.fill.color; missing label
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/14/AXGroup[document.shape.stroke.kind]{}/0/AXButton[]{None} — missing identifier; label=None
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/14/AXGroup[document.shape.stroke.kind]{}/1/AXButton[]{Solid} — missing identifier; label=Solid
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/14/AXGroup[document.shape.stroke.kind]{}/2/AXButton[]{Gradient} — missing identifier; label=Gradient
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/16/AXColorWell[document.shape.stroke.color]{} — identifier=document.shape.stroke.color; missing label
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/19/AXGroup[document.shape.stroke.alignment]{}/0/AXButton[]{Inside} — missing identifier; label=Inside
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/19/AXGroup[document.shape.stroke.alignment]{}/1/AXButton[]{Center} — missing identifier; label=Center
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/19/AXGroup[document.shape.stroke.alignment]{}/2/AXButton[]{Outside} — missing identifier; label=Outside
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/21/AXGroup[document.shape.stroke.cap]{}/0/AXButton[]{Butt} — missing identifier; label=Butt
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/21/AXGroup[document.shape.stroke.cap]{}/1/AXButton[]{Square} — missing identifier; label=Square
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/21/AXGroup[document.shape.stroke.cap]{}/2/AXButton[]{Round} — missing identifier; label=Round
+failed - properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/24/AXPopUpButton[document.shape.stroke.join]{Go Down} — duplicate interactive identifier
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/27/AXTextField[document.shape.stroke.dashes]{} — identifier=document.shape.stroke.dashes; missing label
+failed - properties.shape: properties.shape/AXGroup[]{}/6/AXGroup[document.shape.inspector]{}/30/AXButton[]{From Selection} — missing identifier; label=From Selection
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/3/AXTextField[document.option.x]{} — identifier=document.option.x; missing label
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/6/AXTextField[document.option.y]{} — identifier=document.option.y; missing label
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/9/AXTextField[document.option.w]{} — identifier=document.option.w; missing label
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/12/AXTextField[document.option.h]{} — identifier=document.option.h; missing label
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/15/AXTextField[document.option.angle]{} — identifier=document.option.angle; missing label
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/18/AXTextField[document.option.h skew]{} — identifier=document.option.h skew; missing label
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/21/AXTextField[document.option.v skew]{} — identifier=document.option.v skew; missing label
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/23/AXMenuButton[]{Bicubic} — missing identifier; label=Bicubic
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/24/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - options.freeTransform: options.freeTransform/AXGroup[]{}/0/AXScrollArea[]{}/0/AXGroup[document.optionsBar]{}/25/AXButton[]{Cancel} — missing identifier; label=Cancel
+failed - transform.warp/AXGroup[]{}/1/AXPopUpButton[document.transform.warpPreset]{Go Down} — duplicate interactive identifier
+failed - transform.warp: transform.warp/AXGroup[]{}/3/AXTextField[]{} — missing identifier; missing label
+failed - transform.warp: transform.warp/AXGroup[]{}/5/AXMenuButton[]{Grid} — missing identifier; label=Grid
+failed - transform.warp: transform.warp/AXGroup[]{}/6/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - transform.warp: transform.warp/AXGroup[]{}/7/AXGroup[]{}/0/AXButton[hand.point.up.left]{hand.point.up.left} — identifier=hand.point.up.left; label=hand.point.up.left
+failed - transform.warp: transform.warp/AXGroup[]{}/7/AXGroup[]{}/1/AXButton[rectangle.split.2x1]{rectangle.split.2x1} — identifier=rectangle.split.2x1; label=rectangle.split.2x1
+failed - transform.warp: transform.warp/AXGroup[]{}/7/AXGroup[]{}/2/AXButton[rectangle.split.1x2]{rectangle.split.1x2} — identifier=rectangle.split.1x2; label=rectangle.split.1x2
+failed - transform.warp: transform.warp/AXGroup[]{}/7/AXGroup[]{}/3/AXButton[rectangle.split.2x2]{rectangle.split.2x2} — identifier=rectangle.split.2x2; label=rectangle.split.2x2
+failed - transform.warp: transform.warp/AXGroup[]{}/8/AXMenuButton[]{Bicubic} — missing identifier; label=Bicubic
+failed - transform.warp/AXGroup[]{}/9/AXPopUpButton[chevron.down]{Go Down} — duplicate interactive identifier
+failed - transform.warp: transform.warp/AXGroup[]{}/9/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - transform.warp: transform.warp/AXGroup[]{}/11/AXButton[]{Reset} — missing identifier; label=Reset
+failed - transform.warp: transform.warp/AXGroup[]{}/12/AXButton[]{Cancel} — missing identifier; label=Cancel
+failed - transform.perspective: transform.perspective/AXGroup[]{}/0/AXGroup[]{}/0/AXButton[]{Layout} — missing identifier; label=Layout
+failed - transform.perspective: transform.perspective/AXGroup[]{}/0/AXGroup[]{}/1/AXButton[]{Warp} — missing identifier; label=Warp
+failed - transform.perspective: transform.perspective/AXGroup[]{}/1/AXButton[]{Split Vertically} — missing identifier; label=Split Vertically
+failed - transform.perspective: transform.perspective/AXGroup[]{}/2/AXButton[]{Split Horizontally} — missing identifier; label=Split Horizontally
+failed - transform.perspective: transform.perspective/AXGroup[]{}/3/AXMenuButton[]{Bicubic} — missing identifier; label=Bicubic
+failed - transform.perspective: transform.perspective/AXGroup[]{}/4/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - transform.perspective: transform.perspective/AXGroup[]{}/6/AXButton[]{Reset} — missing identifier; label=Reset
+failed - transform.perspective: transform.perspective/AXGroup[]{}/7/AXButton[]{Cancel} — missing identifier; label=Cancel
+failed - transform.puppet/AXGroup[]{}/1/AXPopUpButton[document.transform.puppetMode]{Go Down} — duplicate interactive identifier
+failed - transform.puppet: transform.puppet/AXGroup[]{}/2/AXGroup[]{}/0/AXButton[]{Sparse} — missing identifier; label=Sparse
+failed - transform.puppet: transform.puppet/AXGroup[]{}/2/AXGroup[]{}/1/AXButton[]{Normal} — missing identifier; label=Normal
+failed - transform.puppet: transform.puppet/AXGroup[]{}/2/AXGroup[]{}/2/AXButton[]{Dense} — missing identifier; label=Dense
+failed - transform.puppet: transform.puppet/AXGroup[]{}/4/AXTextField[]{} — missing identifier; missing label
+failed - transform.puppet: transform.puppet/AXGroup[]{}/6/AXCheckBox[]{Show Mesh} — missing identifier; label=Show Mesh
+failed - transform.puppet: transform.puppet/AXGroup[]{}/8/AXTextField[]{} — missing identifier; missing label
+failed - transform.puppet: transform.puppet/AXGroup[]{}/11/AXMenuButton[]{Bicubic} — missing identifier; label=Bicubic
+failed - transform.puppet: transform.puppet/AXGroup[]{}/12/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - transform.puppet: transform.puppet/AXGroup[]{}/14/AXButton[]{Reset} — missing identifier; label=Reset
+failed - transform.puppet: transform.puppet/AXGroup[]{}/15/AXButton[]{Cancel} — missing identifier; label=Cancel
+failed - transform.contentAwareScale: transform.contentAwareScale/AXGroup[]{}/1/AXTextField[]{} — missing identifier; missing label
+failed - transform.contentAwareScale: transform.contentAwareScale/AXGroup[]{}/4/AXTextField[]{} — missing identifier; missing label
+failed - transform.contentAwareScale: transform.contentAwareScale/AXGroup[]{}/7/AXTextField[]{} — missing identifier; missing label
+failed - transform.contentAwareScale: transform.contentAwareScale/AXGroup[]{}/9/AXMenuButton[]{Protect: None} — missing identifier; label=Protect: None
+failed - transform.contentAwareScale: transform.contentAwareScale/AXGroup[]{}/10/AXPopUpButton[chevron.down]{Go Down} — identifier=chevron.down; label=Go Down
+failed - transform.contentAwareScale: transform.contentAwareScale/AXGroup[]{}/12/AXButton[]{Reset} — missing identifier; label=Reset
+failed - transform.contentAwareScale: transform.contentAwareScale/AXGroup[]{}/13/AXButton[]{Cancel} — missing identifier; label=Cancel
