@@ -1,0 +1,5 @@
+*.trace.json
+ffi.log
+*.full.log
+before-*.trace.json.views.txt
+exploratory-after-*

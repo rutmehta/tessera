@@ -1,0 +1,9 @@
+{
+  "model": "Mac16,5",
+  "logicalCPU": 16,
+  "date": "2026-10-01",
+  "beforeSource": "3f5b5c1e",
+  "implementationSource": "f8afa3d7",
+  "finalMeasurementSource": "7acded28",
+  "mode": "unordered SelfTestHost; release XCTest; no profiler"
+}

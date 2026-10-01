@@ -1,0 +1,8 @@
+Build complete! (127.37s)
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' passed (5.132 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.132 (5.132) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.132 (5.132) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.132 (5.139) seconds
+TESSERA_FILTER_PERF unset: skipped 20 ms export-event bound
+Exit: 0

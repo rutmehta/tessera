@@ -1,0 +1,19 @@
+Build complete! (176.11s)
+Test Suite 'FlatExportHUDTests' started at 2026-10-01 15:48:15.436.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:109: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertEqual failed: ("1") is not equal to ("2")
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:109: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertTrue failed
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:112: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertTrue failed
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:114: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:122: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertTrue failed
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:124: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:130: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertEqual failed: ("1") is not equal to ("2")
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:130: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertTrue failed
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:133: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertTrue failed
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:135: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertEqual failed: ("1") is not equal to ("0")
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel]' failed (2.088 seconds).
+Test Suite 'FlatExportHUDTests' failed at 2026-10-01 15:48:17.524.
+	 Executed 1 test, with 10 failures (0 unexpected) in 2.088 (2.088) seconds
+	 Executed 1 test, with 10 failures (0 unexpected) in 2.088 (2.088) seconds
+	 Executed 1 test, with 10 failures (0 unexpected) in 2.088 (2.092) seconds
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

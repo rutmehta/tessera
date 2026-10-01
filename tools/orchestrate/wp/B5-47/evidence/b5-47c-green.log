@@ -1,0 +1,15 @@
+Build complete! (186.44s)
+Test Suite 'FlatExportHUDTests' started at 2026-10-01 15:51:53.628.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel]' started.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel]' passed (0.528 seconds).
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testOffscreenFixtureExportAppearance]' started.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testOffscreenFixtureExportAppearance]' passed (0.700 seconds).
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testProgressChangesLayersAndAccessibilityWithoutObservationOrLayout]' started.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testProgressChangesLayersAndAccessibilityWithoutObservationOrLayout]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testViewportShrinkRepositionsActiveExport]' started.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testViewportShrinkRepositionsActiveExport]' passed (0.007 seconds).
+Test Suite 'FlatExportHUDTests' passed at 2026-10-01 15:51:54.875.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 1.246 (1.247) seconds
+	 Executed 4 tests, with 0 failures (0 unexpected) in 1.246 (1.247) seconds
+	 Executed 4 tests, with 0 failures (0 unexpected) in 1.246 (1.251) seconds
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

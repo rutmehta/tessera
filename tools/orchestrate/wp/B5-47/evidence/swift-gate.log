@@ -1,0 +1,6 @@
+Compact gate output; full local log: swift-gate.full.log
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+Build complete! (8.74s)
+	 Executed 895 tests, with 3 tests skipped and 0 failures (0 unexpected) in 180.168 (180.241) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.023 seconds.
+SWIFT GATE OK

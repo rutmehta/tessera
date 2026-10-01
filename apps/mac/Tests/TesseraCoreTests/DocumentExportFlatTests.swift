@@ -359,13 +359,15 @@ final class DocumentExportFlatTests: XCTestCase {
             _ = try engine.applyFilter(layer: layer, filterJson: #"{"id":"gaussian_blur","params":{"radius":8}}"#)
             return engine
         }.value
-        let ws = DocumentWorkspace()
+        let measured = ProcessInfo.processInfo.environment["TESSERA_EXPORT_BASELINES"] != nil
+        let model = AppModel()
+        let ws = model.documents
         try ws.install(backend)
         let doc = try XCTUnwrap(ws.current)
         defer { ws.discard(doc) }
         XCTAssertEqual(doc.info.width, 5212)
         XCTAssertEqual(doc.info.height, 3468)
-        let window = NSWindow(contentRect: NSRect(x: 40, y: 40, width: 1000, height: 700),
+        let window = measured ? SelfTestHost.makeWindow(model: model) : NSWindow(contentRect: NSRect(x: 40, y: 40, width: 1000, height: 700),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         defer { window.close() }
@@ -375,14 +377,62 @@ final class DocumentExportFlatTests: XCTestCase {
         let trace = PerformanceTrace(enabled: true)
         ws.exportTrace = trace
         let spans = MainThreadSpans(trace: trace)
+        var controls: [[String: Any]] = []
+        func load1() -> Double {
+            var loads = [Double](repeating: 0, count: 3)
+            _ = getloadavg(&loads, 3)
+            return loads[0]
+        }
+        func sample(_ label: String, _ busy: [Double], _ seconds: Double, _ load: [Double]) -> [String: Any] {
+            let sorted = busy.sorted()
+            return ["scenario": label, "seconds": seconds, "count": busy.count,
+                    "busyMaxMs": busy.max() ?? 0, "busyTotalMs": busy.reduce(0, +),
+                    "busyMsPerSecond": busy.reduce(0, +) / seconds,
+                    "busyP95Ms": sorted.isEmpty ? 0 : sorted[Int(Double(sorted.count - 1) * 0.95)],
+                    "load1": load]
+        }
+        if measured {
+            XCTAssertFalse(window.canBecomeKey)
+            XCTAssertFalse(window.isVisible)
+            // Settle hosted document construction before either control. No foreground window.
+            try await Task.sleep(for: .seconds(3))
+            for editing in [false, true] {
+                let layer = try XCTUnwrap(doc.layers.first?.id)
+                doc.select(layer)
+                let load = load1(), began = Date()
+                spans.start()
+                for tick in 0..<180 {
+                    // The same controller path used by the Layers opacity slider, one commit on release.
+                    if editing { doc.setOpacity(100 - Double(tick % 60), final: tick == 179) }
+                    try await Task.sleep(for: .milliseconds(17))
+                }
+                let busy = spans.stop()
+                controls.append(sample(editing ? "edit" : "idle", busy, Date().timeIntervalSince(began), [load, load1()]))
+                if editing { doc.setOpacity(100, final: true) }
+                try await Task.sleep(for: .seconds(3))
+            }
+        }
         var outcome: FlatExportTask.Outcome?
+        let exportEventOffset = trace.snapshot().events.count
+        let exportLoad = load1(), exportBegan = Date()
         spans.start()
         let output = dir.appendingPathComponent("smart.png")
         let task = ws.startExportFlat(doc, ExportFlatSettings(), to: output) { outcome = $0 }
-        let hud = window.contentView?.subviews.last
+        let hud = task?.progressHost?.subviews.first {
+            $0.accessibilityIdentifier() == "document-export-progress"
+        }
         let finished = await waitFor(300) { outcome != nil }
         let busy = spans.stop()
+        if measured {
+            controls.append(sample("export", busy, Date().timeIntervalSince(exportBegan), [exportLoad, load1()]))
+            if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
+                let data = try JSONSerialization.data(withJSONObject: controls, options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: path + ".baselines.json"))
+            }
+            print("B5-47 BASELINES", controls)
+        }
         XCTAssertNotNil(task)
+        XCTAssertNotNil(hud, "The measured export must have its HUD attached to the captured host")
         XCTAssertTrue(finished)
         XCTAssertEqual(outcome, .exported)
         XCTAssertTrue(FileManager.default.fileExists(atPath: output.path))
@@ -393,7 +443,8 @@ final class DocumentExportFlatTests: XCTestCase {
             XCTAssertLessThan(try XCTUnwrap(busy.max()), 20,
                               "18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound")
         }
-        let events = trace.snapshot().events
+        // Controls share the trace for diagnostics; only export events have export timing bounds.
+        let events = Array(trace.snapshot().events.dropFirst(exportEventOffset))
         let snapshots = events.filter { $0.name == "export_flat_snapshot_start" }
         XCTAssertEqual(snapshots.count, 1)
         XCTAssertTrue(snapshots.allSatisfy { !$0.mainThread }, "The blocking session snapshot must never run on main")
@@ -403,10 +454,16 @@ final class DocumentExportFlatTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(next.time - previous.time, 0.095,
                                         "Progress must coalesce to at most 10 Hz, including phase changes")
         }
+        // Both named export spans and whole-runloop samples use the quiet-host opt-in.
+        // The sibling B5-33 test keeps its loose 100 ms bounds enabled by default.
         if measureTiming {
-            for event in events where event.mainThread && event.durationMs != nil {
+            let timedEvents = events.filter { $0.mainThread && $0.durationMs != nil }
+            for event in timedEvents {
                 XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
             }
+            print("TESSERA_FILTER_PERF: evaluated 20 ms export-event bound for \(timedEvents.count) events")
+        } else {
+            print("TESSERA_FILTER_PERF unset: skipped 20 ms export-event bound")
         }
         if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
             try await Task.detached { try trace.write(to: URL(fileURLWithPath: path)) }.value

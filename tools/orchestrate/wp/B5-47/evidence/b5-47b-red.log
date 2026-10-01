@@ -1,0 +1,102 @@
+[0/1] Planning build
+Building for production...
+[0/6] Write sources
+[2/6] Write swift-version--58304C5D6DBC2206.txt
+[4/7] Compiling Tessera AISettingsView.swift
+[4/8] Write Objects.LinkFileList
+[5/8] Linking Tessera
+[7/9] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/LightroomImportAccessibilityTests.swift:36:30: warning: 'accessibilityAttributeValue' was deprecated in macOS 10.10: Use the NSAccessibility protocol methods instead (see NSAccessibilityProtocols.h) [#DeprecatedDeclaration]
+34 |         // TCC permission or changing the user's system accessibility preferences.
+35 |         let attribute = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+36 |         let previous = NSApp.accessibilityAttributeValue(attribute)
+   |                              `- warning: 'accessibilityAttributeValue' was deprecated in macOS 10.10: Use the NSAccessibility protocol methods instead (see NSAccessibilityProtocols.h) [#DeprecatedDeclaration]
+37 |         NSApp.accessibilitySetValue(true, forAttribute: attribute)
+38 |         defer { NSApp.accessibilitySetValue(previous, forAttribute: attribute) }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/LightroomImportAccessibilityTests.swift:37:15: warning: 'accessibilitySetValue(_:forAttribute:)' was deprecated in macOS 10.10: Use the NSAccessibility protocol methods instead (see NSAccessibilityProtocols.h) [#DeprecatedDeclaration]
+35 |         let attribute = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+36 |         let previous = NSApp.accessibilityAttributeValue(attribute)
+37 |         NSApp.accessibilitySetValue(true, forAttribute: attribute)
+   |               `- warning: 'accessibilitySetValue(_:forAttribute:)' was deprecated in macOS 10.10: Use the NSAccessibility protocol methods instead (see NSAccessibilityProtocols.h) [#DeprecatedDeclaration]
+38 |         defer { NSApp.accessibilitySetValue(previous, forAttribute: attribute) }
+39 |         await LayoutProbeHarness.settleAsync(host)
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/LightroomImportAccessibilityTests.swift:38:23: warning: 'accessibilitySetValue(_:forAttribute:)' was deprecated in macOS 10.10: Use the NSAccessibility protocol methods instead (see NSAccessibilityProtocols.h) [#DeprecatedDeclaration]
+36 |         let previous = NSApp.accessibilityAttributeValue(attribute)
+37 |         NSApp.accessibilitySetValue(true, forAttribute: attribute)
+38 |         defer { NSApp.accessibilitySetValue(previous, forAttribute: attribute) }
+   |                       `- warning: 'accessibilitySetValue(_:forAttribute:)' was deprecated in macOS 10.10: Use the NSAccessibility protocol methods instead (see NSAccessibilityProtocols.h) [#DeprecatedDeclaration]
+39 |         await LayoutProbeHarness.settleAsync(host)
+40 |         let nodes = elements(host)
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[8/10] Compiling TesseraPackageTests runner.swift
+[8/10] Write Objects.LinkFileList
+[9/10] Linking TesseraPackageTests
+Build complete! (188.33s)
+Test Suite 'Selected tests' started at 2026-10-01 11:59:31.184.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 11:59:31.185.
+Test Suite 'FlatExportHUDTests' started at 2026-10-01 11:59:31.185.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testOffscreenFixtureExportAppearance]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:131: error: -[TesseraCoreTests.FlatExportHUDTests testOffscreenFixtureExportAppearance] : XCTAssertTrue failed - Text must compensate for the flipped layer-backed row
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:131: error: -[TesseraCoreTests.FlatExportHUDTests testOffscreenFixtureExportAppearance] : XCTAssertTrue failed - Text must compensate for the flipped layer-backed row
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testOffscreenFixtureExportAppearance]' failed (0.919 seconds).
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testProgressChangesLayersAndAccessibilityWithoutObservationOrLayout]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:60: error: -[TesseraCoreTests.FlatExportHUDTests testProgressChangesLayersAndAccessibilityWithoutObservationOrLayout] : XCTUnwrap failed: expected non-nil value of type "NSAccessibility"
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testProgressChangesLayersAndAccessibilityWithoutObservationOrLayout]' failed (0.005 seconds).
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testViewportShrinkRepositionsActiveExport]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:93: error: -[TesseraCoreTests.FlatExportHUDTests testViewportShrinkRepositionsActiveExport] : XCTAssertTrue failed - HUD spilled after viewport narrowed: (-152.0, 56.0, 400.0, 64.0)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:93: error: -[TesseraCoreTests.FlatExportHUDTests testViewportShrinkRepositionsActiveExport] : XCTAssertTrue failed - HUD spilled after viewport narrowed: (-152.0, 180.0, 400.0, 64.0)
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testViewportShrinkRepositionsActiveExport]' failed (0.003 seconds).
+Test Suite 'FlatExportHUDTests' failed at 2026-10-01 11:59:32.113.
+	 Executed 3 tests, with 5 failures (0 unexpected) in 0.928 (0.928) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 11:59:32.113.
+	 Executed 3 tests, with 5 failures (0 unexpected) in 0.928 (0.928) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 11:59:32.113.
+	 Executed 3 tests, with 5 failures (0 unexpected) in 0.928 (0.929) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
