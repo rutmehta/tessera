@@ -11,8 +11,8 @@ fn lightroom_owned_destinations_reject_direct_writes() {
     for folder in [
         "X.lrdata",
         "Foo.lrcat-data",
-        "Lightroom Catalog Previews",
-        "Smart Previews",
+        "Lightroom Catalog Previews.lrdata",
+        "Catalog Smart Previews.lrdata",
     ] {
         let dir = root.join(folder);
         std::fs::create_dir_all(&dir).unwrap();
@@ -93,7 +93,7 @@ fn xmp_disk_write_is_atomic_and_readable() {
 
 #[cfg(unix)]
 #[test]
-fn lightroom_owned_symlink_and_catalog_directory_reject_writes() {
+fn lightroom_owned_symlink_rejects_writes() {
     let root =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-lightroom-links");
     let _ = std::fs::remove_dir_all(&root);
@@ -102,10 +102,7 @@ fn lightroom_owned_symlink_and_catalog_directory_reject_writes() {
     std::fs::create_dir_all(root.join("catalog/photos")).unwrap();
     std::fs::write(root.join("catalog/X.lrcat"), b"fixture").unwrap();
     let packet = XmpPacket::from_selection(&Default::default(), &MarkPreset::default());
-    for path in [
-        root.join("alias/photo.xmp"),
-        root.join("catalog/photos/photo.xmp"),
-    ] {
+    for path in [root.join("alias/photo.xmp")] {
         assert!(Sidecar::write_xmp(&path, &packet).is_err());
         assert!(!path.exists());
     }
@@ -128,17 +125,71 @@ fn protected_store_path_survives_original_going_offline() {
 }
 
 #[test]
-fn adding_a_catalog_revokes_previously_writable_directory() {
-    let root =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-lightroom-added");
-    let _ = std::fs::remove_dir_all(&root);
+fn catalog_beside_photos_and_preview_substrings_are_writable() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-narrow");
     std::fs::create_dir_all(&root).unwrap();
-    let path = root.join("photo.xmp");
-    let packet = XmpPacket::from_selection(&Default::default(), &MarkPreset::default());
-    Sidecar::write_xmp(&path, &packet).unwrap();
-    let before = std::fs::read(&path).unwrap();
-    std::fs::write(root.join("New.lrcat"), b"fixture").unwrap();
-    assert!(Sidecar::write_xmp(&path, &packet).is_err());
-    assert_eq!(std::fs::read(path).unwrap(), before);
+    std::fs::write(root.join("Catalog.lrcat"), b"fixture").unwrap();
+    for name in [
+        "photo.xmp",
+        "Smart Previews for client/photo.xmp",
+        "catalog.lrdata.backup/photo.xmp",
+    ] {
+        let path = root.join(name);
+        assert!(!Sidecar::is_lightroom_owned(&path));
+        Sidecar::write_xmp(
+            &path,
+            &XmpPacket::from_selection(&Default::default(), &Default::default()),
+        )
+        .unwrap();
+    }
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn protected_edits_survive_parent_rename_in_app_store() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-rename");
+    let _ = std::fs::remove_dir_all(&root);
+    let photo = root.join("Photos/X.lrdata/image.dng");
+    std::fs::create_dir_all(photo.parent().unwrap()).unwrap();
+    std::fs::write(&photo, root.to_string_lossy().as_bytes()).unwrap();
+    let paths = Sidecar::paths(&photo);
+    assert!(!paths.recipe.starts_with(&root), "store must be app-owned");
+    let mut doc = RecipeDocument::default();
+    doc.recipe.settings.tone.exposure = 1.25;
+    Sidecar::write_recipe(&paths.recipe, &doc).unwrap();
+    std::fs::rename(root.join("Photos"), root.join("Photos 1")).unwrap();
+    let moved = Sidecar::paths(root.join("Photos 1/X.lrdata/image.dng"));
+    assert_eq!(Sidecar::read_recipe(&moved.recipe).unwrap(), doc);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn protected_offline_alias_survives_process_restart() {
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-offline-restart");
+    let photo = root.join("X.lrdata/image.dng");
+    if std::env::var_os("TESSERA_TEST_OFFLINE_CHILD").is_some() {
+        let doc = Sidecar::read_recipe(Sidecar::paths(&photo).recipe).unwrap();
+        assert_eq!(doc.recipe.settings.tone.exposure, 1.75);
+        return;
+    }
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(photo.parent().unwrap()).unwrap();
+    std::fs::write(&photo, root.to_string_lossy().as_bytes()).unwrap();
+    let mut doc = RecipeDocument::default();
+    doc.recipe.settings.tone.exposure = 1.75;
+    Sidecar::write_recipe(Sidecar::paths(&photo).recipe, &doc).unwrap();
+    std::fs::remove_file(&photo).unwrap();
+    assert!(
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "protected_offline_alias_survives_process_restart"
+            ])
+            .env("TESSERA_TEST_OFFLINE_CHILD", "1")
+            .status()
+            .unwrap()
+            .success()
+    );
     std::fs::remove_dir_all(root).unwrap();
 }

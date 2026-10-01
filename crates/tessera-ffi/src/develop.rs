@@ -3950,6 +3950,65 @@ mod tests {
     }
 
     #[test]
+    fn protected_develop_save_and_repair_leave_adjacent_xmp_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().join("X.lrdata");
+        std::fs::create_dir(&folder).unwrap();
+        let photo = folder.join("image.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([123, 81, 43]))
+            .save(&photo)
+            .unwrap();
+        let adjacent = photo.with_extension("xmp");
+        let packet = sidecar::XmpPacket::from_selection(&Default::default(), &Default::default());
+        std::fs::write(&adjacent, packet.xml.as_bytes()).unwrap();
+        let before = std::fs::read(&adjacent).unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        engine
+            .index_folder(folder.to_string_lossy().into())
+            .unwrap();
+        let id = engine.list_images(crate::ImageQuery::default()).unwrap()[0]
+            .id
+            .clone();
+        let session = engine.clone().open_develop_session(id).unwrap();
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(session.shared.path.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.8}}"#.into(), false)
+            .unwrap();
+        assert!(session.flush().is_err());
+        session.flush().unwrap();
+        session.close().unwrap();
+        assert_eq!(std::fs::read(adjacent).unwrap(), before);
+        let paths = sidecar::Sidecar::paths(&photo);
+        assert_eq!(
+            sidecar::Sidecar::read_recipe(paths.recipe)
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.8
+        );
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(paths.xmp)
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.8
+        );
+    }
+
+    #[test]
     fn open_develop_editor_does_not_overwrite_foreign_disk_settings() {
         let (_dir, photo, engine, id, session) = tiny_develop_session("owner-conflict.jpg");
         let mut newer: Recipe =

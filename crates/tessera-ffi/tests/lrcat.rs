@@ -691,6 +691,12 @@ fn lightroom_owned_photos_import_without_adjacent_files() {
         let report = s.import.apply(options.clone(), None).unwrap();
         assert_eq!(snapshot(&protected), before, "import modified {folder}");
         assert_eq!(report.imported, 5);
+        let issue = report
+            .unsupported
+            .iter()
+            .find(|i| i.category == "Read-only originals")
+            .unwrap();
+        assert!(!issue.examples.is_empty());
         assert!(
             report
                 .unsupported
@@ -713,7 +719,21 @@ fn lightroom_owned_photos_import_without_adjacent_files() {
         );
         let resumed = s.import.apply(options, None).unwrap();
         assert_eq!(resumed.resumed, 5);
+        assert!(
+            !resumed
+                .unsupported
+                .iter()
+                .any(|i| i.category == "Read-only originals")
+        );
         assert_eq!(snapshot(&protected), before);
+        let adjacent = std::path::Path::new(&row.path).with_extension("xmp");
+        std::fs::write(&adjacent, b"Lightroom owns this packet").unwrap();
+        let before = snapshot(&protected);
+        assert!(
+            sidecar::Sidecar::paths(&row.path)
+                .recipe
+                .starts_with(s._temp.path().join("support").canonicalize().unwrap())
+        );
         let mut edited = recipe;
         edited
             .edit(
@@ -745,6 +765,97 @@ fn lightroom_owned_library_destination_is_rejected_before_creation() {
     let mut options = relocated(&s);
     let protected = s._temp.path().join("X.lrdata/new-library");
     options.library_folder = protected.to_string_lossy().into_owned();
-    assert!(s.import.apply(options, None).is_err());
+    assert!(
+        s.import
+            .apply(options, None)
+            .unwrap_err()
+            .to_string()
+            .contains("library folder")
+    );
     assert!(!s._temp.path().join("X.lrdata").exists());
+}
+
+#[test]
+fn protected_default_library_import_succeeds_without_custom_folder() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("Fixture.lrdata")).unwrap();
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    db.execute(
+        "UPDATE AgLibraryRootFolder SET absolutePath=?",
+        [format!("{}/", fixture.photos.display())],
+    )
+    .unwrap();
+    drop(db);
+    let engine = Engine::open(temp.path().join("support").to_string_lossy().into()).unwrap();
+    let import = engine
+        .open_lrcat(fixture.catalog.to_string_lossy().into())
+        .unwrap();
+    let options = import.default_options();
+    assert!(!sidecar::Sidecar::is_lightroom_owned(
+        &options.library_folder
+    ));
+    let report = import.apply(options, None).unwrap();
+    assert_eq!(report.imported, 5);
+}
+
+#[test]
+fn protected_edit_resolves_after_remount_and_engine_reopen() {
+    let s = setup();
+    let parent = s._temp.path().join("Photos");
+    std::fs::create_dir(&parent).unwrap();
+    let protected = parent.join("X.lrdata");
+    std::fs::rename(&s.fixture.photos, &protected).unwrap();
+    let mut options = s.import.default_options();
+    options.relocations[0].to = protected.to_string_lossy().into();
+    options.library_folder = s._temp.path().join("library").to_string_lossy().into();
+    assert_eq!(s.import.apply(options, None).unwrap().imported, 5);
+    let renamed = s._temp.path().join("Photos 1");
+    std::fs::rename(parent, &renamed).unwrap();
+    let renamed = renamed.canonicalize().unwrap();
+    let engine = Engine::open(s._temp.path().join("support").to_string_lossy().into()).unwrap();
+    engine
+        .index_folder(renamed.to_string_lossy().into())
+        .unwrap();
+    let row = engine
+        .list_images(ImageQuery::default())
+        .unwrap()
+        .into_iter()
+        .find(|i| {
+            i.path.starts_with(renamed.to_str().unwrap()) && i.path.ends_with("ceremony-01.jpg")
+        })
+        .unwrap();
+    let recipe: engine_api::recipe::Recipe =
+        serde_json::from_str(&engine.get_recipe(row.id).unwrap()).unwrap();
+    assert_eq!(recipe.settings.tone.exposure, 0.5);
+}
+
+#[test]
+fn read_only_report_counts_successful_writes_not_failed_candidates() {
+    let s = setup();
+    let protected = s._temp.path().join("X.lrdata");
+    std::fs::rename(&s.fixture.photos, &protected).unwrap();
+    let mut options = s.import.default_options();
+    options.relocations[0].to = protected.to_string_lossy().into();
+    options.library_folder = s._temp.path().join("library").to_string_lossy().into();
+    let failed = snapshot(&protected)
+        .keys()
+        .find(|p| p.ends_with("ceremony-01.jpg"))
+        .cloned()
+        .unwrap();
+    std::fs::write(failed.with_extension("xmp"), b"not valid XMP").unwrap();
+    let report = s.import.apply(options, None).unwrap();
+    assert_eq!(report.imported, 4);
+    let issue = report
+        .unsupported
+        .iter()
+        .find(|i| i.category == "Read-only originals")
+        .unwrap();
+    assert_eq!(issue.count, report.imported);
+    assert!(!issue.examples.is_empty());
+    assert!(
+        !issue
+            .examples
+            .iter()
+            .any(|p| p.ends_with("ceremony-01.jpg"))
+    );
 }

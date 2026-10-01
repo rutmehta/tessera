@@ -397,3 +397,46 @@ fn hdr_preview_and_job_publish_float_dng_index_stack_and_changes() {
     let events = listener.0.lock().unwrap();
     assert_eq!(events.iter().filter(|p| p.stage == "completed").count(), 1);
 }
+
+#[test]
+fn protected_merge_publishes_outside_source() {
+    let (dir, _, _) = fixture();
+    let protected = dir.path().join("Photos.lrdata");
+    std::fs::rename(dir.path().join("photos"), &protected).unwrap();
+    let engine = Engine::open(dir.path().join("merge-support").to_string_lossy().into()).unwrap();
+    engine
+        .index_folder(protected.to_string_lossy().into())
+        .unwrap();
+    let ids: Vec<_> = engine
+        .list_images(ImageQuery::default())
+        .unwrap()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    let output = dir.path().join("chosen-export");
+    engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: ids.clone(),
+            },
+            serde_json::json!({"destination": output, "format":"original"}).to_string(),
+            None,
+            None,
+        )
+        .unwrap();
+    let job = engine
+        .photo_merge(
+            ids,
+            MergeOptions {
+                exposure_values: vec![1., 4.],
+                ..Default::default()
+            },
+            Arc::new(Listener::default()),
+        )
+        .unwrap();
+    let status = job.wait();
+    assert_eq!(status.state, PhotoJobState::Completed, "{status:?}");
+    assert_eq!(status.outputs.len(), 1);
+    assert!(std::path::Path::new(&status.outputs[0].path).starts_with(&output));
+    assert_eq!(std::fs::read_dir(&protected).unwrap().count(), 2);
+}
