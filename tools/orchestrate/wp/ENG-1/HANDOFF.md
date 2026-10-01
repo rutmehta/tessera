@@ -1,8 +1,8 @@
 # ENG-1 — Texture/Clarity conditioning
 
-Branch: `wp/ENG-1-texture-clarity`. Local commits only; M1 is implemented and the required gates are green under Machine A’s ENG-1e ruling below; ENG-4 owns the remaining tone-stage gap. No push, mailbox, board, dependency, lockfile, Swift gate, or app launch.
+Branch: `wp/ENG-1-texture-clarity`. Local commits only; M1 is implemented under Machine A’s ENG-1e ruling. ENG-1f found a new 24 MP absolute-bound failure, so the lane is not fully green; ENG-4 owns the remaining tone-stage gap. No push, mailbox, board, dependency, lockfile, Swift gate, or app launch.
 
-**Current acceptance data is in the ENG-1e section below; preceding lane
+**Current acceptance data is in the ENG-1f section below; preceding lane
 measurements are retained as historical evidence.**
 
 ## Result
@@ -17,7 +17,7 @@ epsilon = 1e-3
 
 The floor is **0.1% of scene-linear Rec.2020 white (1.0)**. It is a separate policy constant from the guided-filter epsilon, despite their equal numeric values. Only the texture/clarity gain recombination changed. Guided filters, tone math, operator ordering, profile curves, sharpening, and import/recipe semantics are unchanged. Nonpositive luminance retains its existing bypass. Above the floor, original arithmetic and the unchanged-log bypass are preserved. Below the floor, the continuous expression is evaluated even for unchanged adjusted log luminance. The final ENG-1d section supersedes historical floor-policy measurements below.
 
-The retained resident-chain scaled bound of 0.002 passes, and its absolute ceiling is tightened from 0.025 to **0.01**. The explicit 24 MP test now asserts **absolute 0.01 over all 72 million RGB samples**, in addition to the original sampled scaled guard, all-pixel finite RGB, and exact alpha. Metal was available; these were real GPU runs, not skips.
+ENG-1e retired the small-fixture resident-chain 0.002 scaled guard under Machine A’s ruling, retained the **0.01 absolute** ceiling, and added a presence-off **<= 0.005 absolute** pin for the tone gap owned by ENG-4. The explicit 24 MP test asserts **absolute 0.01 over all 72 million RGB samples**, all-pixel finite RGB, and exact alpha. Its current ENG-1f measurements and sampled scaled-guard status are recorded below. Metal was available; these were real GPU runs, not skips.
 
 The declined `635f69d8` numerics changes were not cherry-picked or reimplemented. The product changes are confined to four files: `pipeline-cpu/src/tone_extra.rs`, `pipeline-gpu/src/presence.wgsl`, `pipeline-gpu/src/tone_local.wgsl`, and `pipeline-cpu/TONE_M2.md`.
 
@@ -302,7 +302,7 @@ No golden moved outside the conditioning footprint. Photographic RAW goldens: 0 
 
 ### ENG-1c outcome (coordinator)
 
-Case (3) of Machine A's ruling: a CPU/GPU formulation mismatch. `tone_local.wgsl` (whole-image GPU tone path used by `fixture_level3_tolerance_per_operator_and_output`) still divided by raw luminance; the single pixel over 1e-4 (index 69,802, (307,113), L = 8.22e-4) is the conditioning seed itself. The validated candidate patch is applied as a production fix: identical `max(abs(L), 1e-3)` floor. After a clean rebuild (`cargo clean -p pipeline-cpu -p pipeline-gpu -p filters`) the fixture passes at the unchanged 1e-4 bound. The fixture's CPU reference is computed at runtime, so no stored reference changed. A transient `white_balance_v2` RAW-open failure in the first full run passed 3/3 when re-run alone; full no-fail-fast run recorded below.
+Case (3) of Machine A's ruling: a CPU/GPU formulation mismatch. `tone_local.wgsl` (whole-image GPU tone path used by `fixture_level3_tolerance_per_operator_and_output`) still divided by raw luminance; the single pixel over 1e-4 (index 69,802, (307,113), L = 8.22e-4) is the conditioning seed itself. The validated candidate patch is applied as a production fix: identical `max(abs(L), 1e-3)` floor (**historical; superseded by ENG-1d’s continuous recombination formula below**). After a clean rebuild (`cargo clean -p pipeline-cpu -p pipeline-gpu -p filters`) the fixture passes at the unchanged 1e-4 bound. The fixture's CPU reference is computed at runtime, so no stored reference changed. A transient `white_balance_v2` RAW-open failure in the first full run passed 3/3 when re-run alone; full no-fail-fast run recorded below.
 
 ## ENG-1d — continuous recombination and actual-worktree gates (2026-10-01)
 
@@ -344,7 +344,7 @@ so its delta is exactly zero. Controlled GPU guided-band buffers differ by
 one log-luminance ulp (1.1641532e-10); the neighbour range permits it. The local
 production mode-6 shader and resident production `presence_from` helper both
 execute on Metal. The test copies no gain formula; it isolates recombination
-from platform-dependent guided sums and asserts each path against CPU at 0.01.
+from platform-dependent guided sums and originally asserted each path against CPU at 0.01 (tightened to 1e-5 in ENG-1f).
 
 | GPU path | RED gap | GREEN gap |
 | --- | ---: | ---: |
@@ -455,7 +455,7 @@ No test reads the two compressed ENG-1c per-pixel dumps. They were moved out
 of the repository to:
 
 ```text
-/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/
+/Users/rutmehta/tessera-evidence/ENG-1/
 ```
 
 | File | Bytes | SHA-256 |
@@ -536,3 +536,107 @@ Local logs: `/tmp/tessera-eng1e/{clean,test,clippy,fmt,measurements}.log`.
 The subsequent docs commit changes only this handoff. Both ENG-1e commits
 carry the requested Claude Opus 5.5 co-author trailer. No Cargo.lock,
 board.json, dependency, app, or remote changes.
+
+
+## ENG-1f — strict assertions, 24 MP verification, durable archives (2026-10-01)
+
+On top of `356f014d`, without rebasing. **The explicit ignored 24 MP bench
+fails its retained absolute 0.01 guard.** No assertion was weakened and no
+production math, golden, Cargo.lock, board.json, dependency, or app changed.
+
+### Assertion repairs
+
+- Stage isolation restores the original `worst.0 >= bound` failure semantics:
+  equality fails, including at the standalone 5e-6 threshold.
+- The zero/one-ulp presence regression now requires `worst <= 1e-5`. Its
+  maximum includes both local and resident GPU paths, so both must satisfy it.
+
+### Explicit 24 MP Metal run
+
+Ran once with the requested external target and three Cargo/Rayon workers:
+
+```sh
+cargo test -p filters --release --test camera_raw_gpu -- --ignored bench_24mp_cpu_gpu --nocapture
+```
+
+- **Exit 101: 0 passed, 1 failed, 0 ignored, 10 filtered.** This executed on
+  Metal; `GpuContext` requires the Metal backend and this test unwraps creation.
+- CPU: **56.073596542 s**; GPU: **1.975050042 s**, with cold pipelines included
+  and upload/readback excluded. These are diagnostic shared-machine timings.
+- All-pixel maximum absolute RGB gap: **0.01663196**, at pixel **4,999,168**
+  (x=1168, y=833), red; GPU **0.5281682**, CPU **0.51153624**.
+- The original sampled scaled **< 0.002** guard passed for every sampled
+  pixel. It does not sample the worst pixel (`4,999,168 % 997 = 210`). The
+  test did not print a numerical sampled maximum, so none is claimed here.
+- All-pixel finite GPU RGB and bit-exact alpha checks completed successfully;
+  failure occurred at the final **absolute < 0.01** assertion.
+- Machine A’s conditional authorization was to retire a *failing sampled
+  scaled guard* and add the ENG-4 presence-off <= 0.005 pin. That condition
+  did not occur: both existing bench guards remain unchanged, and no new
+  24 MP presence-off result is claimed. The 0.01 absolute failure is an
+  unresolved blocker requiring follow-up; the normal suite ignores this bench.
+
+Log: `/Users/rutmehta/tessera-evidence/ENG-1/eng1f/bench-initial.log`.
+
+### Durable evidence verification
+
+Recomputed SHA-256 from the durable archive for **all ten referenced files**:
+`before-diff.csv.gz`, `after-diff.csv.gz`, and the eight `eng1d/*.log` files
+listed in [VALIDATION-ENG-1d.txt](VALIDATION-ENG-1d.txt). All match their
+recorded hashes exactly. Dump sizes also remain 2,157,613 and 2,157,630 bytes.
+HANDOFF, the validation record, and the local-GPU README/report now point to
+`/Users/rutmehta/tessera-evidence/ENG-1/`; the report explicitly says the dumps
+are archived outside the repo and includes each SHA-256. No other persisted
+report references the removed dumps. `report.py` retains its output filenames
+for future report generation; it does not reference a missing input dump.
+The result summary no longer claims the retired resident scaled bound passes;
+the old ENG-1c formula is explicitly marked superseded by ENG-1d.
+
+
+### Actual-worktree gates
+
+Test commit: `2e6182d0808cf2bbd892a2ea1e9d0fe5b40d9abe`. Commands ran
+in this worktree, with `fixtures/raw` present:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/ENG-1-texture-clarity
+export CARGO_BUILD_JOBS=3
+export RAYON_NUM_THREADS=3
+unset ENG1_CAPTURE PIPELINE_RAW_FIXTURES PIPELINE_GPU_ALL_FIXTURES
+cargo clean --release -p pipeline-cpu -p pipeline-gpu -p filters
+cargo test -p pipeline-cpu -p pipeline-gpu -p filters --release --no-fail-fast
+cargo test -p tessera-ffi --release
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+- Release clean: **exit 0**, 596 files / 1.3 GiB removed.
+- Three-crate release gate: **exit 0; 93 suites; 457 passed, 0 failed,
+  24 ignored, 0 measured, 0 filtered**. `camera_raw_gpu`: 10 passed, 1 ignored.
+  Both repaired assertions pass. `white_balance_v2`: 3/3; RAW stored goldens
+  and level-3 unchanged 1e-4 tolerance pass, with no retry.
+- FFI release gate: **exit 0; 51 suites; 562 passed, 0 failed, 29 ignored,
+  0 measured, 0 filtered**. No retry.
+- Workspace Clippy, all targets with `-D warnings`: **exit 0**. Existing
+  LibRaw native-compiler deprecation messages did not produce a Rust Clippy failure.
+- Fmt check and `git diff --check`: **exit 0**.
+
+The normal gates are green; the explicitly run ignored bench is **not green**.
+No repeated runs or changed thresholds were used to hide the bench failure.
+All current logs are archived outside the repo in
+`/Users/rutmehta/tessera-evidence/ENG-1/eng1f/`:
+
+| File | SHA-256 |
+| --- | --- |
+| bench-initial.log | `804512e637578ed15cdeb463863e6ff8a32e086dd7576ea9c4806c2e3b9ffeb2` |
+| clean.log | `9ed62725cf451299f16b1022711a174cdb727611738253499d2a957c2a595eee` |
+| test.log | `af4bc37de82ad38583ba1fb7f67920298c7868366914b70290ddbb37beafcc98` |
+| ffi.log | `91852357ea8c826ee0b913d5757f2e39d642e02660527743f316473fc18a2bc6` |
+| clippy.log | `83db5b8e4285374dedaf0e600eafa46f3841d42688cff50a10a618e80239ee14` |
+| fmt.log | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| gate-results.json | `79179e1d0c51f26563c1c1b3d35ddd2414ed8d04b6dfb7770d102ab0ca234d40` |
+
+Both ENG-1f commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+The docs commit changes only evidence references and this validation record.
+All work remains local on the existing branch, with no rebase or remote action.

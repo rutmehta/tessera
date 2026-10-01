@@ -30,11 +30,11 @@ Attribution unit tests: 3/3 PASS. Capture re-verification: PASS.
 Status: formula fixed; merge blocked by retained 0.002 scaled guard.
 
 Archived logs and SHA-256:
-c8a7968de5ab8357be24402e578fbc08a0d810840a35c7cdc211cca890e702eb  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/red-both.log
-f437a5005ad6b89b1393e5b7e317f4640d5429f9f592f7f9198d24862bcde39b  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/green-both.log
-41f7e99ac97ce3d5cf8e0b4831a3482430159e8bd2107cca3f8d52219db2cf81  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/clean.log
-b0ecb986c6312b2e74ce68b969784e5c1c88fedce0310321b1da308620b96bdd  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/full.log
-97b295b737e8b39b1c5c25d135ab8b74180cfba1d7b7cc34592d9393fca0c716  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/resident-alone.log
-1b0f2456027ce7c51bac4ee768cd85a5d370acc4858dcd4d0c5a5842838fd3bd  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/clippy.log
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/fmt.log
-4e274108a806e4a864dada42afe79a5cbf91111f2301b482625e50a374675f84  /private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/eng1d/verify.log
+c8a7968de5ab8357be24402e578fbc08a0d810840a35c7cdc211cca890e702eb  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/red-both.log
+f437a5005ad6b89b1393e5b7e317f4640d5429f9f592f7f9198d24862bcde39b  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/green-both.log
+41f7e99ac97ce3d5cf8e0b4831a3482430159e8bd2107cca3f8d52219db2cf81  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/clean.log
+b0ecb986c6312b2e74ce68b969784e5c1c88fedce0310321b1da308620b96bdd  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/full.log
+97b295b737e8b39b1c5c25d135ab8b74180cfba1d7b7cc34592d9393fca0c716  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/resident-alone.log
+1b0f2456027ce7c51bac4ee768cd85a5d370acc4858dcd4d0c5a5842838fd3bd  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/clippy.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/fmt.log
+4e274108a806e4a864dada42afe79a5cbf91111f2301b482625e50a374675f84  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/verify.log

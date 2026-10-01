@@ -44,7 +44,10 @@ retains the **first** seed event, which belongs to the audited input. Global
 rows are raw observations across those evaluations, not an assertion that
 CPU/GPU global statistics are bit-identical.
 
-`before-diff.csv.gz` and `after-diff.csv.gz` contain **every pixel**, including
+- `/Users/rutmehta/tessera-evidence/ENG-1/before-diff.csv.gz` (sha256 `4c5903908684dc77f85f28ffa0362116bbb58f1507208e44b59096f8ed22da26`)
+- `/Users/rutmehta/tessera-evidence/ENG-1/after-diff.csv.gz` (sha256 `7ea5dd9a4feaf3701980c7769678127f8a6915d2d52f18ce99f4d0e98769b718`)
+
+These dumps are archived outside the repo and contain **every pixel**, including
 zero differences, with coordinates and signed GPU-minus-CPU R/G/B differences.
 The latter is the proposed candidate's output. `report.json` records source
 capture hashes, dump hashes, seeds, all failing pixels and predicate results.
@@ -66,7 +69,9 @@ whole-image shader. The proposed patch makes all three use:
 gain = finite(decode(adjusted) / max(abs(lum), 1e-3))
 ```
 
-The positive-luminance and changed-log bypasses remain identical. The floor is
+This historical formula was superseded by ENG-1d’s continuous recombination; see [HANDOFF.md](../../HANDOFF.md).
+
+In this historical candidate, the positive-luminance and changed-log bypasses remain identical. The floor is
 applied to the divisor before division; it is not a clamp on gain. The shaders
 use explicit f32 declarations with no `enable f16`, f16 storage, or f16 branch.
 The adapter advertises shader_f16 capability, but these kernels do not use it.
