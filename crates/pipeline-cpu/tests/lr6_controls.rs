@@ -129,3 +129,30 @@ fn lr6c_native_focus_edits_override_imported_focus() {
     let after = lens_blur(&image, &[0.4; 256], &blur, Default::default()).unwrap();
     assert_ne!(before.planes(), after.planes());
 }
+
+#[test]
+fn lr6c_unclamped_shoulders_give_the_expected_impulse_radius() {
+    let mut samples = vec![0.; 441];
+    samples[220] = 1.;
+    let image = Image::new(21, 21, vec![samples; 3]).unwrap();
+    let blur: LensBlur = serde_json::from_value(json!({
+        "amount":100., "focus_range":[0.32,0.64], "focus_falloff":[0.8,0.8],
+        "adobe":{"focal_range":[-0.48,0.32,0.64,1.44]}
+    }))
+    .unwrap();
+    let rendered = lens_blur(
+        &image,
+        &[0.; 441],
+        &blur,
+        pipeline_cpu::LensBlurOptions {
+            max_radius: 10.25,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    // At depth zero, distance to the sharp interval is 0.32/0.8 = 0.4.
+    // Radius 4.1 includes 49 integer lattice points in the circular pupil.
+    assert!((rendered.planes()[0][220] - 1. / 49.).abs() < 1e-6);
+    assert!(rendered.planes()[0][224] > 0.);
+    assert_eq!(rendered.planes()[0][225], 0.);
+}

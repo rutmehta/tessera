@@ -18,6 +18,7 @@ enum Source {
 pub struct DepthProvider {
     source: Mutex<Source>,
     latest: Mutex<Option<DepthMap>>,
+    store: Option<ml_depth::DepthStore>,
 }
 
 fn error(e: impl std::fmt::Display) -> EngineError {
@@ -31,6 +32,10 @@ impl DepthProvider {
                 CachedDepthEstimator::from_support(support).map_err(error)?,
             ))),
             latest: Mutex::new(None),
+            store: Some(
+                ml_depth::DepthStore::new(support.join("previews/depth-cache"), 256 << 20)
+                    .map_err(error)?,
+            ),
         })
     }
 
@@ -39,7 +44,15 @@ impl DepthProvider {
         Self {
             source: Mutex::new(Source::Ready(depth.clone())),
             latest: Mutex::new(Some(depth)),
+            store: None,
         }
+    }
+
+    /// Use this host-owned mask-store for persisted imported depth references.
+    /// The supplied source remains the fallback for missing/evicted resources.
+    pub fn with_store(mut self, store: ml_depth::DepthStore) -> Self {
+        self.store = Some(store);
+        self
     }
 
     pub fn estimate(&self, image: &Image) -> EngineResult<DepthMap> {
@@ -164,14 +177,34 @@ impl Renderer {
             .depth
             .as_ref()
             .ok_or_else(|| error("depth provider is not installed"))?;
-        provider.validate_model(
-            settings
-                .effects
-                .lens_blur
-                .as_ref()
-                .and_then(|blur| blur.depth_model.as_ref()),
-        )?;
-        let depth = provider.estimate(input)?;
+        let depth = if let Some(store) = &provider.store {
+            // Rendering accepts immutable settings. Resource preparation on this
+            // transient recipe uses the same store/resolver/regeneration path as
+            // explicit host preparation, without adding a history entry.
+            let mut prepared = engine_api::recipe::Recipe {
+                settings: settings.clone(),
+                history: engine_api::recipe::History {
+                    base: settings.clone(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            if settings.effects.lens_blur.is_some() {
+                provider.prepare_lens_blur_depth(&mut prepared, input, store, |_| None)?
+            } else {
+                provider.estimate(input)?
+            }
+        } else {
+            provider.validate_model(
+                settings
+                    .effects
+                    .lens_blur
+                    .as_ref()
+                    .and_then(|blur| blur.depth_model.as_ref()),
+            )?;
+            provider.estimate(input)?
+        };
+        *provider.latest.lock().map_err(error)? = Some(depth.clone());
         if self.depth_visualisation {
             return Image::new(
                 input.width(),
@@ -258,7 +291,7 @@ impl DepthProvider {
         }
         state.mask_key = Some(key);
         state.regenerate = false;
-        recipe.edit(Default::default(), |s| *s = settings)?;
+        recipe.set_lens_blur_depth(state.clone())?;
         // Engine API owns JSON persistence; no raster is serialized here.
         recipe.record_translation_info("DepthMapInfo", if regenerated {
             "regenerated depth: complete via image-core depth provider; relative inverse depth, Adobe calibration unverified"

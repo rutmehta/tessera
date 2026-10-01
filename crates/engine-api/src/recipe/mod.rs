@@ -393,6 +393,34 @@ impl Recipe {
         Ok(id)
     }
 
+    /// Attach resolved Lens Blur resources to the current state without creating
+    /// a user edit. Only cache/provenance data changes; history ids and authors
+    /// remain intact and replay of the current head stays valid.
+    pub fn set_lens_blur_depth(&mut self, depth: settings::LensBlurDepth) -> EngineResult<()> {
+        let mut next = self.settings.clone();
+        let blur = next.effects.lens_blur.as_mut().ok_or_else(|| {
+            EngineError::invalid("lens_blur", "cannot attach depth to disabled Lens Blur")
+        })?;
+        blur.depth = Some(depth);
+        if let Some(head) = self.history.head {
+            let parent = self
+                .history
+                .entry(head)
+                .ok_or_else(|| EngineError::internal("missing history head"))?
+                .parent;
+            let before = self.history.state_at(parent)?;
+            let changes = history::diff(
+                &serde_json::to_value(before)?,
+                &serde_json::to_value(&next)?,
+            );
+            self.history.entries[head.0 as usize - 1].changes = changes;
+        } else {
+            self.history.base = next.clone();
+        }
+        self.settings = next;
+        Ok(())
+    }
+
     /// Moves to `entry` (`None` = base) and rematerializes the settings.
     pub fn checkout(&mut self, entry: Option<HistoryEntryId>) -> EngineResult<()> {
         self.settings = self.history.state_at(entry)?;

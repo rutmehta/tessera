@@ -1231,6 +1231,9 @@ pub struct LensBlur {
     pub amount: f32,
     /// In-focus depth range, normalised `[near, far]`.
     pub focus_range: [f32; 2],
+    /// Near/far ramp widths in normalized depth units. Absent uses native falloff.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus_falloff: Option<[f32; 2]>,
     /// Bokeh shape id.
     pub bokeh: String,
     /// Depth model used.
@@ -1248,6 +1251,7 @@ impl Default for LensBlur {
         Self {
             amount: 50.0,
             focus_range: [0.0, 0.1],
+            focus_falloff: None,
             bokeh: "circle".into(),
             depth_model: None,
             adobe: None,
