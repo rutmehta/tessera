@@ -25,13 +25,11 @@ fn assert_translated(recipe: &Recipe, warnings: &[String]) {
     );
     assert!(warnings.is_empty(), "{warnings:?}");
     assert!(
-        recipe.unknown["lrcat_translation_diagnostics"]
-            .as_array()
-            .unwrap()
+        import_lrcat::diagnostics::entries(recipe)["LensBlur"]
             .iter()
-            .any(|d| d["level"] == "info"
-                && d["key"] == "LensBlur"
-                && d["message"].as_str().unwrap().starts_with("approximate: "))
+            .any(|d| d.level == "info"
+                && d.status == "approximate"
+                && d.reason.starts_with("approximate: "))
     );
     assert_eq!(blur.focus_range, [0.2, 0.6]);
     assert_eq!(
@@ -40,7 +38,7 @@ fn assert_translated(recipe: &Recipe, warnings: &[String]) {
     );
     recipe.validate().unwrap();
     let restored: Recipe = serde_json::from_slice(&serde_json::to_vec(recipe).unwrap()).unwrap();
-    assert_eq!(restored, *recipe);
+    assert_eq!(restored.to_json().unwrap(), recipe.to_json().unwrap());
 }
 
 #[test]
@@ -116,19 +114,13 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         let (recipe, warnings) =
             import_lrcat::develop(1, &format!("s = {{ LensBlur = {raw} }}"), "15.4").unwrap();
         assert!(warnings.is_empty(), "{source_key}: {warnings:?}");
-        let records = recipe.unknown["lrcat_translation_diagnostics"]
-            .as_array()
-            .unwrap();
-        assert_eq!(
-            records
+        let records = import_lrcat::diagnostics::entries(&recipe);
+        assert!(
+            records["LensBlur"]
                 .iter()
-                .filter(|d| d["field"] == source_key
-                    && d["level"] == "info"
-                    && d["message"]
-                        .as_str()
-                        .is_some_and(|s| s.starts_with("approximate: ")))
-                .count(),
-            1,
+                .any(|d| d.field == "/settings/effects/lens_blur"
+                    && d.level == "info"
+                    && d.reason.contains(source_key)),
             "{source_key}"
         );
         let json = serde_json::to_value(&recipe).unwrap();
@@ -141,8 +133,11 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
             raw
         );
         assert_eq!(
-            Recipe::from_json(&recipe.to_json().unwrap()).unwrap(),
-            recipe
+            Recipe::from_json(&recipe.to_json().unwrap())
+                .unwrap()
+                .to_json()
+                .unwrap(),
+            recipe.to_json().unwrap()
         );
     }
     for (source_key, target) in [
@@ -171,19 +166,13 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         )
         .unwrap();
         assert!(warnings.is_empty(), "{source_key}: {warnings:?}");
-        let records = recipe.unknown["lrcat_translation_diagnostics"]
-            .as_array()
-            .unwrap();
-        assert_eq!(
-            records
+        let records = import_lrcat::diagnostics::entries(&recipe);
+        assert!(
+            records["DepthMapInfo"]
                 .iter()
-                .filter(|d| d["field"] == source_key
-                    && d["level"] == "info"
-                    && d["message"]
-                        .as_str()
-                        .is_some_and(|s| s.starts_with("approximate: ")))
-                .count(),
-            1,
+                .any(|d| d.field == "/settings/effects/lens_blur/depth"
+                    && d.level == "info"
+                    && d.reason.contains(source_key)),
             "{source_key}"
         );
         let json = serde_json::to_value(&recipe).unwrap();
@@ -200,8 +189,11 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
             50.
         );
         assert_eq!(
-            Recipe::from_json(&recipe.to_json().unwrap()).unwrap(),
-            recipe
+            Recipe::from_json(&recipe.to_json().unwrap())
+                .unwrap()
+                .to_json()
+                .unwrap(),
+            recipe.to_json().unwrap()
         );
     }
 }
@@ -297,14 +289,8 @@ fn lr6c_inactive_and_depth_only_do_not_enable_blur() {
         .unwrap();
         assert!(recipe.settings.effects.lens_blur.is_none());
         assert!(!recipe.unknown["lrcat_develop_source"]["properties"]["DepthMapInfo"].is_null());
-        let info = recipe.unknown["lrcat_translation_diagnostics"]
-            .as_array()
-            .unwrap();
-        assert!(!info.iter().any(|d| d["key"] == "LensBlur"));
-        assert!(
-            info.iter()
-                .any(|d| d["key"] == "DepthMapInfo" && d["level"] == "info")
-        );
+        assert!(import_lrcat::diagnostics::entries(&recipe).is_empty());
+        assert!(recipe.unknown.contains_key("crs:DepthMapInfo"));
     }
 }
 
@@ -327,21 +313,21 @@ fn lr6c_diagnostics_describe_only_translated_fields() {
         "15.4",
     )
     .unwrap();
-    let info = recipe.unknown["lrcat_translation_diagnostics"]
-        .as_array()
-        .unwrap();
-    let fields: Vec<_> = info
-        .iter()
-        .filter(|d| d["key"] == "LensBlur")
-        .map(|d| d["field"].as_str().unwrap())
-        .collect();
-    assert_eq!(fields, ["Active", "BlurAmount"]);
-    assert!(
-        info.iter()
-            .filter(|d| d["key"] == "LensBlur")
-            .all(|d| d["message"].as_str().unwrap().starts_with("approximate: "))
-    );
+    let info = import_lrcat::diagnostics::entries(&recipe);
+    assert_eq!(info["LensBlur"].len(), 1);
+    assert!(info["LensBlur"][0].reason.contains("BlurAmount"));
+    assert!(!info["LensBlur"][0].reason.contains("Active"));
+    assert!(!info.contains_key("DepthMapInfo"));
     let (off, _) =
         import_lrcat::develop(1, "s = { LensBlur = { Active = false } }", "15.4").unwrap();
     assert!(!off.unknown.contains_key("lrcat_translation_diagnostics"));
+}
+
+#[test]
+fn lr6d_exact_active_boolean_has_no_approximation() {
+    let (r, warnings) =
+        import_lrcat::develop(1, "s = { LensBlur = { Active = true } }", "15.4").unwrap();
+    assert!(r.settings.effects.lens_blur.is_some());
+    assert!(warnings.is_empty());
+    assert!(import_lrcat::diagnostics::entries(&r).is_empty());
 }

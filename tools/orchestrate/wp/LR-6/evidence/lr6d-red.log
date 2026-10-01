@@ -1,0 +1,92 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.33s
+     Running tests/lr6_lens_blur.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/lr6_lens_blur-3c11cbd2c98e8dd3)
+
+running 12 tests
+test lr6c_diagnostics_describe_only_translated_fields ... FAILED
+test lr6_missing_adobe_depth_records_regeneration_in_recipe ... ok
+test lr6_lua_lens_blur_approximates_with_exact_source ... FAILED
+test lr6c_import_has_one_import_authored_history_entry ... ok
+test every_documented_adobe_field_is_present_and_source_is_exact ... FAILED
+test lr6d_exact_active_boolean_has_no_approximation ... ok
+test lr6_xmp_lens_blur_approximates_with_exact_source ... FAILED
+test lr6_export_synthetic_recipe_for_cpu_gate ... FAILED
+test lr6c_inactive_and_depth_only_do_not_enable_blur ... FAILED
+test xmp_depth_attributes_retain_exact_fragment_without_warnings ... ok
+test focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretations ... ok
+test untranslated_inputs_are_byte_identical_to_dcf07355 ... ok
+
+failures:
+
+---- lr6c_diagnostics_describe_only_translated_fields stdout ----
+
+thread 'lr6c_diagnostics_describe_only_translated_fields' (55789836) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:292:20:
+no entry found for key
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- lr6_lua_lens_blur_approximates_with_exact_source stdout ----
+
+thread 'lr6_lua_lens_blur_approximates_with_exact_source' (55789833) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:27:55:
+no entry found for key
+
+---- every_documented_adobe_field_is_present_and_source_is_exact stdout ----
+
+thread 'every_documented_adobe_field_is_present_and_source_is_exact' (55789830) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:113:24:
+no entry found for key
+
+---- lr6_xmp_lens_blur_approximates_with_exact_source stdout ----
+
+thread 'lr6_xmp_lens_blur_approximates_with_exact_source' (55789835) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:27:55:
+no entry found for key
+
+---- lr6_export_synthetic_recipe_for_cpu_gate stdout ----
+
+thread 'lr6_export_synthetic_recipe_for_cpu_gate' (55789832) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:27:55:
+no entry found for key
+
+---- lr6c_inactive_and_depth_only_do_not_enable_blur stdout ----
+
+thread 'lr6c_inactive_and_depth_only_do_not_enable_blur' (55789838) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:268:9:
+assertion failed: recipe.unknown.contains_key("crs:DepthMapInfo")
+
+
+failures:
+    every_documented_adobe_field_is_present_and_source_is_exact
+    lr6_export_synthetic_recipe_for_cpu_gate
+    lr6_lua_lens_blur_approximates_with_exact_source
+    lr6_xmp_lens_blur_approximates_with_exact_source
+    lr6c_diagnostics_describe_only_translated_fields
+    lr6c_inactive_and_depth_only_do_not_enable_blur
+
+test result: FAILED. 6 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr6_lens_blur`
+   Compiling bitflags v2.13.2
+   Compiling rustybuzz v0.20.1
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/typography)
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/engine-api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.27s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/engine_api-a04950064d755bdd)
+
+running 1 test
+test recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present ... FAILED
+
+failures:
+
+---- recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present stdout ----
+
+thread 'recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present' (55800089) panicked at crates/engine-api/src/recipe/schema.rs:129:9:
+lens_blur is not in V4_FEATURE_PREDICATES
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 70 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p engine-api --lib`

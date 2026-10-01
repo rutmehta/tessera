@@ -66,3 +66,17 @@ fn lr2f_synthetic_feature_imports_write_v4() {
         assert_eq!(value["schema_version"], 4);
     }
 }
+
+#[test]
+fn lr6d_active_lens_blur_writes_four_inactive_and_depth_only_stay_three() {
+    for (source, version) in [
+        ("s = { LensBlur = { Active = true, BlurAmount = 37 } }", 4),
+        ("s = { LensBlur = { Active = false } }", 3),
+        ("s = { DepthMapInfo = { DepthSource = 1 } }", 3),
+    ] {
+        let (r, _) = import_lrcat::develop(1, source, "15.4").unwrap();
+        assert_eq!(required_schema_version(&r), version);
+        let saved: serde_json::Value = serde_json::from_slice(&r.to_json().unwrap()).unwrap();
+        assert_eq!(saved["schema_version"], version);
+    }
+}

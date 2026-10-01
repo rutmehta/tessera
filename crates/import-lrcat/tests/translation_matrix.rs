@@ -9,7 +9,9 @@ type Import = dyn Fn(&str, &str) -> Result<(Recipe, Vec<String>), String>;
 
 /// The production synthetic import: one Lua row through `lua_develop::parse`.
 fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
-    let context = if key.starts_with("UprightTransform_") {
+    let context = if key == "DepthMapInfo" {
+        "LensBlur = { Active = true },".into()
+    } else if key.starts_with("UprightTransform_") {
         format!(
             "PerspectiveUpright = {},",
             key.trim_start_matches("UprightTransform_")
@@ -166,6 +168,9 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
                 return Err(format!(
                     "{key}: approximate diagnostics name no entry for field {path}: {notes:?}"
                 ));
+            }
+            if matches!(key, "LensBlur" | "DepthMapInfo") {
+                check_lr6_fields(&recipe, key, path)?;
             }
             counts.approximate += 1;
             continue;
@@ -424,4 +429,108 @@ fn lr7e_translated_row_can_carry_an_ignored_note() {
     let (counts, _) = check_rows(&row, &lane).unwrap();
     assert_eq!(counts.translated, 1);
     assert_eq!(counts.approximate, 0);
+}
+
+fn check_lr6_fields(recipe: &Recipe, key: &str, path: &str) -> Result<(), String> {
+    let source = recipe.unknown["lrcat_develop_source"]["properties"][key]
+        .as_str()
+        .unwrap();
+    let json = serde_json::to_value(recipe).unwrap();
+    for (field, target) in [
+        ("FocalRange", "/focus_falloff"),
+        ("BlurAmount", "/amount"),
+        ("FocalRange", "/focus_range"),
+        ("Version", "/adobe/version"),
+        ("BokehShape", "/adobe/bokeh_shape"),
+        ("BokehShapeDetail", "/adobe/bokeh_shape_detail"),
+        ("HighlightsBoost", "/adobe/highlights_boost"),
+        ("HighlightsThreshold", "/adobe/highlights_threshold"),
+        ("CatEyeAmount", "/adobe/cat_eye_amount"),
+        ("CatEyeScale", "/adobe/cat_eye_scale"),
+        ("BokehAspect", "/adobe/bokeh_aspect"),
+        ("BokehRotation", "/adobe/bokeh_rotation"),
+        ("SphericalAberration", "/adobe/spherical_aberration"),
+        ("FocalRangeSource", "/adobe/focal_range_source"),
+        ("SampledArea", "/adobe/sampled_area"),
+        ("SampledRange", "/adobe/sampled_range"),
+        ("SubjectRange", "/adobe/subject_range"),
+        ("DepthSource", "/depth_source"),
+        ("BaseRawDepthTable", "/base_raw_depth_table"),
+        ("BaseRawDepthInputDigest", "/base_raw_depth_input_digest"),
+        ("BaseRawDepthVersion", "/base_raw_depth_version"),
+        ("BaseLayeredDepthTable", "/base_layered_depth_table"),
+        (
+            "BaseLayeredDepthInputDigest",
+            "/base_layered_depth_input_digest",
+        ),
+        ("BaseLayeredDepthVersion", "/base_layered_depth_version"),
+        ("BaseHighlightGuideTable", "/base_highlight_guide_table"),
+        (
+            "BaseHighlightGuideInputDigest",
+            "/base_highlight_guide_input_digest",
+        ),
+        ("BaseHighlightGuideVersion", "/base_highlight_guide_version"),
+    ] {
+        if !source
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|token| token == field)
+        {
+            continue;
+        }
+        if json
+            .pointer(&format!("{path}{target}"))
+            .is_none_or(|v| v.is_null())
+        {
+            return Err(format!("{key}.{field}: missing translated fields"));
+        }
+        let count = diagnostics::entries(recipe)
+            .get(key)
+            .into_iter()
+            .flatten()
+            .filter(|d| {
+                d.field == path
+                    && d.level == "info"
+                    && d.status == "approximate"
+                    && d.reason.starts_with(&format!("approximate: {field}:"))
+            })
+            .count();
+        if count != 1 {
+            return Err(format!("{key}.{field}: requires one field info reason"));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn lr6d_field_guard_checks_falloff_and_each_reason() {
+    let (r, _) = lua_import(
+        "LensBlur",
+        "{ Active = true, BlurAmount = 37, FocalRange = '10 20 60 80' }",
+    )
+    .unwrap();
+    let path = "/settings/effects/lens_blur";
+    check_lr6_fields(&r, "LensBlur", path).unwrap();
+    let mut missing = r.clone();
+    missing
+        .settings
+        .effects
+        .lens_blur
+        .as_mut()
+        .unwrap()
+        .focus_falloff = None;
+    assert!(
+        check_lr6_fields(&missing, "LensBlur", path)
+            .unwrap_err()
+            .contains("FocalRange")
+    );
+    let mut missing = r.clone();
+    missing.unknown.get_mut(diagnostics::KEY).unwrap()["LensBlur"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|d| !d["reason"].as_str().unwrap().contains("BlurAmount"));
+    assert!(
+        check_lr6_fields(&missing, "LensBlur", path)
+            .unwrap_err()
+            .contains("BlurAmount")
+    );
 }
