@@ -8,12 +8,15 @@
 //! Forward compatibility: every struct is `#[serde(default)]`, so older
 //! documents load into newer builds; unknown top-level members are preserved
 //! verbatim in [`Recipe::unknown`]. A build refuses to *write* a document
-//! whose `schema_version` is newer than [`RECIPE_SCHEMA_VERSION`], so it can
-//! never silently drop fields it does not understand.
+//! whose `schema_version` is newer than it can write
+//! ([`max_writable_schema_version`]), so it can never silently drop fields it
+//! does not understand. Every serialisation writes the version the content
+//! needs ([`schema`]): schema 4 only when a schema 4 feature is used.
 
 pub mod crs;
 pub mod history;
 pub mod mask;
+pub mod schema;
 pub mod selection;
 pub mod settings;
 
@@ -26,6 +29,10 @@ use serde_json::Value;
 pub use crs::{CrsKey, CrsTarget, CrsValueType, XmpNamespace};
 pub use history::{Author, EditMeta, History, HistoryEntry, ParamChange, Snapshot};
 pub use mask::{LocalAdjustment, LocalParams, MaskComponent, MaskKind, RetouchOperation};
+pub use schema::{
+    max_writable_schema_version, required_schema_version, v4_features_used,
+    RECIPE_SCHEMA_VERSION_V4,
+};
 pub use selection::{Decision, Grade, Mark, Selection};
 pub use settings::{CameraProfileRef, DevelopSettings, LensProfileRef, LensProfileSetup};
 
@@ -40,6 +47,9 @@ use crate::stage::{canonical_json, ParamHash, StageId};
 ///   ([`CameraProfileRef`], [`LensProfileRef`]; schema-1 strings still load),
 ///   and [`Recipe::provenance`] was added.
 /// - 3: contracts 1.3. Typed source kind (legacy absence means raw).
+///
+/// Schema 4 ([`RECIPE_SCHEMA_VERSION_V4`]) is conditional: written only for
+/// recipes using a feature listed in [`schema`].
 pub const RECIPE_SCHEMA_VERSION: u32 = 3;
 
 /// Source decoding route. Legacy recipes without this field are raw.
@@ -224,7 +234,10 @@ pub struct IdCounters {
 }
 
 /// The per-image edit document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// `Serialize` is hand-written (below) so every serialisation, including
+/// envelopes that embed a recipe, writes [`schema::written_schema_version`].
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(default)]
 pub struct Recipe {
     /// Schema version of this document.
@@ -266,6 +279,52 @@ impl Default for Recipe {
             provenance: Provenance::default(),
             unknown: BTreeMap::new(),
         }
+    }
+}
+
+impl Serialize for Recipe {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // Same members, order and attributes as the struct; exhaustive
+        // destructuring makes a new field a compile error here.
+        #[derive(Serialize)]
+        struct Wire<'a> {
+            schema_version: u32,
+            image_id: &'a Option<ImageId>,
+            source_kind: &'a SourceKind,
+            process_version: &'a ProcessVersion,
+            settings: &'a DevelopSettings,
+            selection: &'a Selection,
+            history: &'a History,
+            ids: &'a IdCounters,
+            provenance: &'a Provenance,
+            #[serde(flatten)]
+            unknown: &'a BTreeMap<String, Value>,
+        }
+        let Recipe {
+            schema_version: _,
+            image_id,
+            source_kind,
+            process_version,
+            settings,
+            selection,
+            history,
+            ids,
+            provenance,
+            unknown,
+        } = self;
+        Wire {
+            schema_version: schema::written_schema_version(self),
+            image_id,
+            source_kind,
+            process_version,
+            settings,
+            selection,
+            history,
+            ids,
+            provenance,
+            unknown,
+        }
+        .serialize(serializer)
     }
 }
 
@@ -431,16 +490,27 @@ impl Recipe {
         Ok(recipe)
     }
 
-    /// Serializes the document (pretty, stable member order). Fails with
-    /// [`EngineError::SchemaVersion`] for documents from a newer schema.
-    pub fn to_json(&self) -> EngineResult<Vec<u8>> {
-        if self.schema_version > RECIPE_SCHEMA_VERSION {
+    /// Fails with [`EngineError::SchemaVersion`] when this build must not
+    /// write the document: its stored `schema_version` is newer than
+    /// [`max_writable_schema_version`]. Every recipe write calls this (via
+    /// [`Recipe::to_json`] or directly) before serialising.
+    pub fn ensure_writable(&self) -> EngineResult<()> {
+        let supported = max_writable_schema_version();
+        if self.schema_version > supported {
             return Err(EngineError::SchemaVersion {
                 document: "recipe".into(),
                 found: self.schema_version,
-                supported: RECIPE_SCHEMA_VERSION,
+                supported,
             });
         }
+        Ok(())
+    }
+
+    /// Serializes the document (pretty, stable member order), writing the
+    /// schema version its content requires without changing `self`. Fails
+    /// with [`EngineError::SchemaVersion`] for documents from a newer schema.
+    pub fn to_json(&self) -> EngineResult<Vec<u8>> {
+        self.ensure_writable()?;
         Ok(serde_json::to_vec_pretty(self)?)
     }
 }
@@ -502,6 +572,81 @@ mod tests {
             Err(EngineError::SchemaVersion { found: 99, .. })
         ));
     }
+
+    /// LR-SCHEMA pin: a document newer than this build can write loads
+    /// best-effort (known fields default, unknown members preserved, version
+    /// kept) and every checked write refuses it. Raw serde is a projection,
+    /// not a write path, and does not refuse. Written against
+    /// `max_writable_schema_version() + 1`, so it holds before and after the
+    /// first schema 4 feature lands.
+    #[test]
+    fn newer_than_writable_documents_load_but_never_write() {
+        let newer = max_writable_schema_version() + 1;
+        let doc = format!(
+            r#"{{"schema_version":{newer},"settings":{{"tone":{{"exposure":0.5}},"color":{{"point_colors_future":[1]}}}},"lens_blur_future":{{"amount":3,"nested":{{"kept":[1,2]}}}}}}"#
+        );
+        let r = Recipe::from_json(doc.as_bytes()).unwrap();
+        assert_eq!(r.schema_version, newer);
+        assert_eq!(r.settings.tone.exposure, 0.5);
+        assert_eq!(
+            r.settings.tone.contrast,
+            DevelopSettings::default().tone.contrast
+        );
+        assert_eq!(r.image_id, None);
+        assert_eq!(r.unknown["lens_blur_future"]["amount"], 3);
+        assert_eq!(r.unknown["lens_blur_future"]["nested"]["kept"][1], 2);
+        assert_eq!(r.unknown.len(), 1);
+        let supported = max_writable_schema_version();
+        assert!(matches!(
+            r.ensure_writable(),
+            Err(EngineError::SchemaVersion { found, supported: s, .. }) if found == newer && s == supported
+        ));
+        assert!(matches!(
+            r.to_json(),
+            Err(EngineError::SchemaVersion { found, .. }) if found == newer
+        ));
+        let raw: Value = serde_json::to_value(&r).unwrap();
+        assert_eq!(raw["schema_version"], newer);
+    }
+
+    /// LR-SCHEMA: serialisation of existing recipes is byte-identical to
+    /// main at 44db24b2 (digests recorded there, before the schema module).
+    /// A lane whose feature is unused by these cases leaves them unchanged.
+    #[test]
+    fn serialisation_bytes_are_pinned() {
+        let fixture =
+            Recipe::from_json(include_bytes!("../../tests/fixtures/recipe-1.2.json")).unwrap();
+        let mut legacy = sample();
+        legacy.schema_version = 2;
+        let cases: [(&str, Vec<u8>); 6] = [
+            ("default", Recipe::default().to_json().unwrap()),
+            ("sample", sample().to_json().unwrap()),
+            ("sample compact", serde_json::to_vec(&sample()).unwrap()),
+            ("fixture 1.2", fixture.to_json().unwrap()),
+            ("legacy in memory", legacy.to_json().unwrap()),
+            (
+                "partial",
+                Recipe::from_json(br#"{"settings":{"tone":{"exposure":1.0}},"zz":{"a":1},"aa":2}"#)
+                    .unwrap()
+                    .to_json()
+                    .unwrap(),
+            ),
+        ];
+        let got: Vec<String> = cases
+            .iter()
+            .map(|(name, bytes)| format!("{name} {}", Digest::derive("LR-SCHEMA pin", bytes)))
+            .collect();
+        assert_eq!(got, PINNED_SERIALISATION);
+    }
+
+    const PINNED_SERIALISATION: [&str; 6] = [
+        "default 3f57329d481738be98d31b75551713a375640c16500ab43e15c83ba66ad335a7",
+        "sample 91de48b0ab9032ee76e1d850038fc122c28a895e973fce4e40299ea5a962cc5d",
+        "sample compact 283b4a801fae8d8beed93ef13fd6c70a8e5b49767cc0cc0328f6cb722d66f8c4",
+        "fixture 1.2 69a56ca65ca750fd0f6946002095e5e14bebcec60992012c60ec23d57026b18c",
+        "legacy in memory 7c183437c898e517f51131b4529eff27efa7ed1cafec9b0be7fb127f54322094",
+        "partial a71da65418bee6206f05fa874b161a8506e9003005ce82598bb1aa74e4d61bfe",
+    ];
 
     #[test]
     fn hash_covers_render_state_only() {
