@@ -2,16 +2,16 @@
 
 ## Codex performance lanes — 2026-10-01
 
-Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. No peer receipt for LR status/result has been verified.
+Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. LR-2 `SOURCE-PLAN.md` is committed on the style branch and records the new brief `1a6f01e5` grayscale/PV2010 gaps; Adobe presence does not prove active counters, and the raw-map contract remains pending `29c`. PERF-2/3 source design is also committed on the style branch. No peer receipt for LR status/result has been verified.
 
 | Lane | Owner | State | Verified evidence / next action |
 | --- | --- | --- | --- |
-| PERF-1 style export | Codex A / Astra | Source design and RED test preparation | Each output tile recomputes full source/style planes. Plan frame-local bounded reuse with serial styled traversal and uncached fallback for overbudget cases. Independent review requires stable nested context identity. No speedup claimed. |
-| PERF-4 Gaussian | Codex A / Luna | Tests committed; execution held | Test-only commits `177b0883`, `a783c018`, and `7c18288b` add frozen scalar parity, finite checks, sigma-zero and degenerate-dimension cases, pre-cancel behavior, and ignored direct/public 24 MP r12 benchmarks. Timed outputs are isolated and full parity is checked outside timing. No RED/GREEN execution yet. External coordinator `swift-test`/`xctest` holds the compiler lane. |
-| PERF-2/5 Camera Raw and memory | Codex A / Luna source review | Source design | Multiple full-frame conversion buffers identified; report RSS is not live-heap allocation. Coordinate one camera_raw.rs owner; counting-allocator oracles required. |
-| PERF-3 vector drag | Codex A | Source investigation queued | Preserve pixel parity and dashed-stroke fallback; no runtime result. |
+| PERF-1 style export | Codex A / Astra | Test-only `3c74cc40`; runtime held | Two per-operation counters and an analytical overlay are authored and source-reviewed but UNRUN. Each output tile recomputes full source/style planes; frame-local bounded reuse and uncached overbudget fallback remain design. An external batch-16 Swift/Cargo pipeline occupies the shared runtime lane; do not overlap. No speedup claimed. |
+| PERF-4 Gaussian | Codex A / Luna | Candidate `04e481cd`; review-ready, not merged | Focused parity/cancel, full Release filters suite, strict Clippy and fmt pass. Paired 24 MP r12 convolve median ratio 2.2352x (1938.054/867.070 ms). Public apply measured 2180.016→1086.382 ms = 2.0067x, but baseline/final load differs and margin is negligible; not a robust/general whole-apply claim. Exact trials, logs, exits and hashes are in `tools/orchestrate/wp/PERF-4/RESULT.md` and `/Volumes/betterSSD/tessera-validation/perf4/`. |
+| PERF-2/5 Camera Raw and memory | Codex A / Luna source review | Source design committed on style branch | Multiple full-frame conversion buffers identified; report RSS is not live-heap allocation. Coordinate one camera_raw.rs owner; counting-allocator oracles required. |
+| PERF-3 vector drag | Codex A | Source design committed on style branch | Preserve pixel parity and dashed-stroke fallback; no runtime result. |
 
-Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex.
+Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
 ## Coordinator reconciliation — 2026-09-30 06:37 UTC
 
