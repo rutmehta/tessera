@@ -2,7 +2,7 @@
 
 ## Codex performance lanes — 2026-10-01
 
-Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. LR-2 `SOURCE-PLAN.md` is committed on the style branch and records the new brief `1a6f01e5` grayscale/PV2010 gaps; Adobe presence does not prove active counters, and the raw-map contract landed through main `0c6ab1c7`; source reconciliation is in progress. PERF-2/3 source design is also committed on the style branch. No peer receipt for LR status/result has been verified.
+Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. LR-2 `SOURCE-PLAN.md` is committed on the style branch and records the new brief `1a6f01e5` grayscale/PV2010 gaps; Adobe presence does not prove active counters, and the raw-map contract landed through main `0c6ab1c7`; source reconciliation is preserved at `8d61adce` on the style branch. Integrated KEY_MAP is201 (58 passthrough), superseding LR-0's199/56 snapshot; corrected LR-0 matrix review remains pending. PERF-2/3 source design is also committed on the style branch. No peer receipt for LR status/result has been verified.
 
 | Lane | Owner | State | Verified evidence / next action |
 | --- | --- | --- | --- |
@@ -16,7 +16,7 @@ Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; pee
 
 ### Retained-source dependency landed — 2026-10-01 08:40 UTC heartbeat
 
-Main advanced to0c6ab1c7, integrating B5-29c/29d and retained-source parity/resume corrections. External batch20-0c6ab1c7 exits now show Rust/Clippy/fmt/Swift0 and binding drift0; earlier failed attempts remain above/below as historical evidence. Reused idle LR-0 Astra worker for a read-only comparison of the integrated contract against LR-0 inventory/LR-2 source plan; no implementation approval is inferred. External batch21 parent11928/cargo11932 owns compiler/runtime, evidence batch21-3e39eb06; no Codex runtime launch. Mailbox zero pending and no verified runtime handoff. Claude A coordinator discrepancy remains unresolved.
+Main advanced to0c6ab1c7, integrating B5-29c/29d and retained-source parity/resume corrections. External batch20-0c6ab1c7 exits now show Rust/Clippy/fmt/Swift0 and binding drift0; earlier failed attempts remain above/below as historical evidence. Reused LR-0 Astra worker completed read-only comparison, preserved8d61adce: LR-2 plan now uses tagged `.properties` lexical Lua strings, handles descriptor variants and explicitly guards retention eligibility when promoting CrsKey entries. No implementation approval is inferred; Adobe conversion math remains unresolved. External batch21 parent11928/cargo11932 owns compiler/runtime, evidence batch21-3e39eb06; no Codex runtime launch. Mailbox zero pending and no verified runtime handoff. Claude A coordinator discrepancy remains unresolved.
 
 ### External retry reconciliation — 2026-10-01 08:15 UTC heartbeat
 
