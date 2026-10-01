@@ -374,6 +374,8 @@ mod tests {
     /// independent of `gaussian_kernel` and `convolve` so loop changes are
     /// checked against the baseline arithmetic.
     fn baseline_gaussian(src: &Buffer, sigma: f32) -> Vec<[f32; 4]> {
+        // Explicit oracle extension: the documented sigma-zero identity path
+        // avoids the baseline kernel's otherwise undefined 0/0 exponent.
         if sigma == 0.0 {
             return src.pixels.clone();
         }
@@ -478,11 +480,14 @@ mod tests {
                 src.pixels, original,
                 "input mutated for {w}x{h}, sigma={sigma}"
             );
+            if sigma == 0.0 {
+                assert_eq!(actual.pixels, src.pixels, "sigma zero must be identity");
+            }
         }
     }
 
     #[test]
-    fn gaussian_observes_cancellation_at_the_pass_row_boundary() {
+    fn gaussian_returns_cancelled_when_pre_cancelled_before_first_row() {
         let src = gaussian_fixture(7, 5);
         let cancel = AtomicBool::new(true);
         assert!(matches!(
@@ -502,6 +507,17 @@ mod tests {
                     digest ^= u64::from(value.to_bits());
                     digest = digest.wrapping_mul(0x0000_0100_0000_01b3);
                 }
+            }
+        }
+        digest
+    }
+
+    fn buffer_digest(pixels: &[[f32; 4]]) -> u64 {
+        let mut digest = 0xcbf2_9ce4_8422_2325_u64;
+        for pixel in pixels {
+            for value in pixel {
+                digest ^= u64::from(value.to_bits());
+                digest = digest.wrapping_mul(0x0000_0100_0000_01b3);
             }
         }
         digest
@@ -550,17 +566,16 @@ mod tests {
             let output = Effect::Gaussian.apply(&input, &params, &cancel).unwrap();
             let elapsed = start.elapsed();
             let digest = raster_digest(&output);
-            assert_eq!(
-                Some(digest),
-                expected_digest.or(Some(digest)),
-                "output digest changed at trial {trial}"
-            );
+            if let Some(expected) = expected_digest {
+                assert_eq!(digest, expected, "output digest changed at trial {trial}");
+            }
             expected_digest = Some(digest);
             timings.push(elapsed.as_secs_f64() * 1000.0);
             eprintln!(
                 "PERF4 apply trial={trial} wall_ms={:.3} digest={digest:016x}",
                 timings[trial]
             );
+            drop(output);
         }
         timings.sort_by(f64::total_cmp);
         eprintln!("PERF4 apply median_ms={:.3}", timings[1]);
@@ -585,35 +600,63 @@ mod tests {
         let mut optimized_ms = Vec::with_capacity(TRIALS);
 
         for trial in 0..TRIALS {
-            let (expected, actual, baseline_elapsed, optimized_elapsed) = if trial % 2 == 0 {
-                let start = Instant::now();
-                let expected = baseline_gaussian(&src, SIGMA);
-                let baseline_elapsed = start.elapsed();
-                let start = Instant::now();
-                let actual = convolve(&src, &kernel, &cancel).unwrap();
-                let optimized_elapsed = start.elapsed();
-                (expected, actual, baseline_elapsed, optimized_elapsed)
-            } else {
-                let start = Instant::now();
-                let actual = convolve(&src, &kernel, &cancel).unwrap();
-                let optimized_elapsed = start.elapsed();
-                let start = Instant::now();
-                let expected = baseline_gaussian(&src, SIGMA);
-                let baseline_elapsed = start.elapsed();
-                (expected, actual, baseline_elapsed, optimized_elapsed)
-            };
-            assert_close_pixels(
-                &actual.pixels,
-                &expected,
-                &format!("benchmark trial {trial}"),
+            let (baseline_elapsed, baseline_digest, optimized_elapsed, optimized_digest) =
+                if trial % 2 == 0 {
+                    let start = Instant::now();
+                    let expected = baseline_gaussian(&src, SIGMA);
+                    let baseline_elapsed = start.elapsed();
+                    let baseline_digest = buffer_digest(&expected);
+                    drop(expected);
+
+                    let start = Instant::now();
+                    let actual = convolve(&src, &kernel, &cancel).unwrap();
+                    let optimized_elapsed = start.elapsed();
+                    let optimized_digest = buffer_digest(&actual.pixels);
+                    drop(actual);
+                    (
+                        baseline_elapsed,
+                        baseline_digest,
+                        optimized_elapsed,
+                        optimized_digest,
+                    )
+                } else {
+                    let start = Instant::now();
+                    let actual = convolve(&src, &kernel, &cancel).unwrap();
+                    let optimized_elapsed = start.elapsed();
+                    let optimized_digest = buffer_digest(&actual.pixels);
+                    drop(actual);
+
+                    let start = Instant::now();
+                    let expected = baseline_gaussian(&src, SIGMA);
+                    let baseline_elapsed = start.elapsed();
+                    let baseline_digest = buffer_digest(&expected);
+                    drop(expected);
+                    (
+                        baseline_elapsed,
+                        baseline_digest,
+                        optimized_elapsed,
+                        optimized_digest,
+                    )
+                };
+            assert_eq!(
+                optimized_digest, baseline_digest,
+                "trial {trial}: whole-output digest mismatch"
             );
             baseline_ms.push(baseline_elapsed.as_secs_f64() * 1000.0);
             optimized_ms.push(optimized_elapsed.as_secs_f64() * 1000.0);
             eprintln!(
-                "PERF4 trial={trial} baseline_ms={:.3} optimized_ms={:.3}",
-                baseline_ms[trial], optimized_ms[trial]
+                "PERF4 trial={trial} baseline_ms={:.3} optimized_ms={:.3} digest={baseline_digest:016x}",
+                baseline_ms[trial], optimized_ms[trial],
             );
         }
+        // Keep full pixel-by-pixel parity independent from the timed pairs.
+        // The two 384 MiB outputs coexist only here, after all trial timers.
+        let expected = baseline_gaussian(&src, SIGMA);
+        let actual = convolve(&src, &kernel, &cancel).unwrap();
+        assert_close_pixels(&actual.pixels, &expected, "24MP post-timing parity");
+        drop(actual);
+        drop(expected);
+
         baseline_ms.sort_by(f64::total_cmp);
         optimized_ms.sort_by(f64::total_cmp);
         let speedup = baseline_ms[1] / optimized_ms[1];
