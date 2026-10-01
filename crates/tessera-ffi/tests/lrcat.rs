@@ -538,7 +538,43 @@ fn catalog_copy_indexes_eight_accessible_references() {
     let catalog = PathBuf::from(std::env::var("TESSERA_LRCAT_COPY").unwrap());
     assert!(catalog.canonicalize().unwrap().starts_with("/private/tmp"));
     let before = std::fs::read(&catalog).unwrap();
-    let source = import_lrcat::import(&catalog).unwrap();
+    let source =
+        rusqlite::Connection::open_with_flags(&catalog, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let catalog_photos: i64 = source
+        .query_row("SELECT COUNT(*) FROM Adobe_images", [], |r| r.get(0))
+        .unwrap();
+    let mut statement = source
+        .prepare(
+            "SELECT r.absolutePath, d.pathFromRoot, f.baseName, f.extension
+        FROM Adobe_images i JOIN AgLibraryFile f ON i.rootFile=f.id_local
+        JOIN AgLibraryFolder d ON f.folder=d.id_local
+        JOIN AgLibraryRootFolder r ON d.rootFolder=r.id_local
+        WHERE COALESCE(i.masterImage,0)=0",
+        )
+        .unwrap();
+    let paths = statement
+        .query_map([], |r| {
+            let root: String = r.get(0)?;
+            let folder: String = r.get(1)?;
+            let base: String = r.get(2)?;
+            let ext: Option<String> = r.get(3)?;
+            let ext = ext.unwrap_or_default();
+            let name = if ext.is_empty() {
+                base
+            } else {
+                format!("{base}.{ext}")
+            };
+            Ok(PathBuf::from(root).join(folder).join(name))
+        })
+        .unwrap();
+    let accessible: std::collections::BTreeSet<PathBuf> =
+        paths.map(|p| p.unwrap()).filter(|p| p.is_file()).collect();
+    assert_eq!(accessible.len(), 8, "accessible catalog originals changed");
+    println!(
+        "catalog_photos={catalog_photos} accessible={}",
+        accessible.len()
+    );
     let temp = tempfile::tempdir().unwrap();
     let engine = Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
     let import = engine
@@ -546,13 +582,6 @@ fn catalog_copy_indexes_eight_accessible_references() {
         .open_lrcat(catalog.to_string_lossy().into_owned())
         .unwrap();
     let mut options = import.default_options();
-    let mut accessible = std::collections::BTreeSet::new();
-    for image in &source.images {
-        if image.master_image.is_none() && image.path.is_file() {
-            accessible.insert(image.path.clone());
-        }
-    }
-    assert_eq!(accessible.len(), 8, "accessible catalog originals changed");
     // Longest root wins, matching importer relocation semantics.
     options
         .relocations
@@ -585,7 +614,7 @@ fn catalog_copy_indexes_eight_accessible_references() {
     assert_eq!(std::fs::read(catalog).unwrap(), before);
     println!(
         "catalog_photos={} accessible={} imported={} indexed={} missing={} seconds={:.3}",
-        source.images.len(),
+        catalog_photos,
         accessible.len(),
         report.imported,
         report.indexed,
