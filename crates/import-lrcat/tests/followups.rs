@@ -1,7 +1,7 @@
 //! B5-29c follow-ups on the LrC 15.5 Lua develop path: ordinary Upright keys,
 //! bad develop rows degrade instead of aborting, report entries grouped per
-//! message, only unknown-key source retained, the extended tone curve as one
-//! named limitation, and a per-cell size bound applied before rows are kept.
+//! message, unconditional pending-source retention, identity-aware extended
+//! curves, and explicit bounded omission of oversized cells.
 use import_lrcat::{ImportPlan, fixture, import, lua_develop};
 use rusqlite::Connection;
 use serde_json::json;
@@ -45,7 +45,7 @@ fn recipe(plan: &ImportPlan, id: i64) -> &engine_api::recipe::Recipe {
 }
 
 // 1. UprightFourSegmentsCount / UprightTransformCount are ordinary crs
-// properties: no "unknown Lua develop key" entry, no Lua source retention.
+// properties: no "unknown Lua develop key" entry; raw source is retained separately.
 #[test]
 fn upright_counts_are_ordinary_crs_properties() {
     for key in ["UprightFourSegmentsCount", "UprightTransformCount"] {
@@ -145,7 +145,7 @@ fn report_entries_are_grouped_per_message() {
 }
 
 // 4. Lua rows keep neither the whole literal nor a synthesized sidecar_xmp:
-// only the unknown keys' source text is retained.
+// unknown-key lookup coexists with the unconditional pending-source map.
 #[test]
 fn lua_rows_retain_only_unknown_key_source() {
     let (recipe, _) = lua_develop::parse(STRUCTURES, "15.4").unwrap();
@@ -166,7 +166,7 @@ fn lua_rows_retain_only_unknown_key_source() {
             .any(|v| v.as_str().unwrap().contains("Exposure2012 = -0.5")),
         "{kept:?}"
     );
-    // Known-only rows retain nothing extra.
+    // Mapped-only rows need no unknown-key lookup; pending mapped source still stays.
     let (known, warnings) = lua_develop::parse(GLOBAL, "15.4").unwrap();
     assert!(
         !known.unknown.contains_key("lrcat_develop_lua"),
@@ -254,6 +254,15 @@ fn oversized_cells_are_not_loaded() {
     assert!(!kept.is_empty() && kept.len() <= 64 * 1024);
     assert!(huge.starts_with(kept));
     assert_eq!(r.unknown["lrcat_develop_source"]["truncated"], true);
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["cell"]["status"],
+        "omitted"
+    );
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["cell"]["length"],
+        huge.len()
+    );
+    assert_eq!(r.unknown["lrcat_develop_source"]["cell"]["rowid"], 9001);
     assert_eq!(r.settings, engine_api::recipe::Recipe::default().settings);
     assert!(
         plan.report
@@ -324,4 +333,186 @@ fn identity_master_with_edited_channel_still_warns() {
     );
     let (_, notes) = lua_develop::parse("s = { ExtendedToneCurveName2012 = 'Linear', ExtendedToneCurvePV2012 = {0,0,128,128,255,255} }", "15.4").unwrap();
     assert!(notes.iter().all(|n| !n.contains("ExtendedToneCurve")));
+}
+
+#[test]
+fn pending_sources_are_exact_even_when_inactive_or_identity() {
+    let mut cases = vec![
+        (
+            "MaskGroupBasedCorrections",
+            "{ { CorrectionMasks = { { What = 'Mask/Image', Image = 'opaque' } } } }",
+        ),
+        (
+            "LensBlur",
+            "{ Active = false, BlurAmount = 30, FocalRange = '0 0 100 100' }",
+        ),
+        ("RetouchAreas", "{ 'opaque' }"),
+        ("RetouchInfo", "{ 'opaque' }"),
+        ("PointColors", "{ 'opaque' }"),
+        ("ExtendedToneCurveName2012", "'Linear'"),
+        ("ExtendedToneCurvePV2012", "{0, 0, 255, 255}"),
+        ("ExtendedToneCurvePV2012Red", "{0, 0, 255, 255}"),
+        ("ExtendedToneCurvePV2012Green", "{0, 0, 255, 255}"),
+        ("ExtendedToneCurvePV2012Blue", "{0, 0, 255, 255}"),
+        ("UprightFuture", "{ Exact = 'yes' }"),
+    ];
+    cases.extend(
+        lua_develop::KEY_MAP
+            .iter()
+            .filter(|(k, _)| {
+                k.starts_with("Upright") || engine_api::recipe::CrsKey::from_xmp_name(k).is_none()
+            })
+            .map(|(k, _)| (*k, "0")),
+    );
+    for (key, value) in cases {
+        let (r, warnings) =
+            lua_develop::parse(&format!("s = {{ {key} = {value} }}"), "15.4").unwrap();
+        assert_eq!(
+            r.unknown
+                .get("lrcat_develop_source")
+                .and_then(|s| s.get(key)),
+            Some(&json!(value)),
+            "{key}"
+        );
+        assert!(
+            warnings
+                .iter()
+                .all(|w| !w.contains("retained in original XMP"))
+        );
+        let (nil, _) = lua_develop::parse(&format!("s = {{ {key} = nil }}"), "15.4").unwrap();
+        assert_eq!(nil.unknown["lrcat_develop_source"][key], "nil");
+        let fragment = if key == "LensBlur" {
+            "<crs:LensBlur crs:Active='False' crs:BlurAmount='30' crs:FocalRange='0 0 100 100'/>"
+                .to_string()
+        } else {
+            format!("<crs:{key}>opaque &amp; exact</crs:{key}>")
+        };
+        let xmp = format!(
+            "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'>{fragment}</rdf:Description></rdf:RDF>"
+        );
+        let (r, _) = import_lrcat::develop(1, &xmp, "15.4").unwrap();
+        assert_eq!(r.unknown["lrcat_develop_source"][key], fragment);
+    }
+}
+
+#[test]
+fn numeric_and_string_unknown_keys_cannot_collide() {
+    let (r, _) = lua_develop::parse("s = { [1] = 'number', ['[1]'] = 'string', ['(positional entries)'] = 'named', 'positional' }", "15.4").unwrap();
+    assert_eq!(r.unknown["lrcat_develop_lua"]["[1]"], "'string'");
+    assert_eq!(
+        r.unknown["lrcat_develop_lua"]["(positional entries)"],
+        "'named'"
+    );
+    assert_eq!(
+        r.unknown["lrcat_develop_lua_entries"][0]["key"]["number"],
+        "1"
+    );
+    assert_eq!(
+        r.unknown["lrcat_develop_lua_entries"][0]["value"],
+        "'number'"
+    );
+    assert!(
+        r.unknown["lrcat_develop_lua_positional"]
+            .as_str()
+            .unwrap()
+            .contains("'positional'")
+    );
+}
+
+#[test]
+fn xmp_extended_identity_is_silent_and_edits_use_named_limitation() {
+    for (points, count) in [
+        (
+            "<rdf:li>0, 0</rdf:li><rdf:li>128, 128</rdf:li><rdf:li>255, 255</rdf:li>",
+            0,
+        ),
+        (
+            "<rdf:li>0, 0</rdf:li><rdf:li>128, 150</rdf:li><rdf:li>255, 255</rdf:li>",
+            1,
+        ),
+    ] {
+        let fragment = format!(
+            "<crs:ExtendedToneCurvePV2012><rdf:Seq>{points}</rdf:Seq></crs:ExtendedToneCurvePV2012>"
+        );
+        let packet = format!(
+            "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'>{fragment}</rdf:Description></rdf:RDF>"
+        );
+        let (r, notes) = import_lrcat::develop(1, &packet, "15.4").unwrap();
+        assert_eq!(
+            r.unknown["lrcat_develop_source"]["ExtendedToneCurvePV2012"],
+            fragment
+        );
+        assert_eq!(notes.len(), count, "{notes:?}");
+        if count > 0 {
+            assert_eq!(notes[0], lua_develop::EXTENDED_TONE_CURVE_NOTE);
+        }
+    }
+}
+
+#[test]
+fn oversized_history_is_omitted_explicitly_and_null_stays_null() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture::write(dir.path()).unwrap();
+    let c = Connection::open(&f.catalog).unwrap();
+    let bytes = vec![0xff_u8; import_lrcat::MAX_CELL_BYTES + 1];
+    c.execute(
+        "UPDATE Adobe_libraryImageDevelopHistoryStep SET text=?1 WHERE image=30",
+        [&bytes],
+    )
+    .unwrap();
+    c.execute("INSERT INTO Adobe_libraryImageDevelopHistoryStep(id_local,image,text) VALUES(9001,30,NULL)", []).unwrap();
+    let plan = import(&f.catalog).unwrap();
+    let history = &recipe(&plan, 30).unknown["lrcat_history"];
+    let cells: Vec<_> = history
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| &r["text"])
+        .collect();
+    let cell = cells.iter().find(|c| c.is_object()).unwrap();
+    assert_eq!(cell["status"], "omitted");
+    assert_eq!(cell["length"], bytes.len());
+    assert_eq!(cell["prefix"].as_array().unwrap().len(), 64 * 1024);
+    assert!(cells.iter().any(|c| c.is_null()));
+    assert!(plan.report.iter().any(|r| r.contains("image 30:")
+        && r.contains("omitted")
+        && r.contains("recover from source catalog")));
+}
+
+#[test]
+fn duplicate_reports_follow_image_id_order_not_sqlite_row_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture::write(dir.path()).unwrap();
+    let c = Connection::open(&f.catalog).unwrap();
+    c.execute_batch(
+        "DELETE FROM Adobe_imageDevelopSettings;
+        INSERT INTO Adobe_imageDevelopSettings VALUES(31,'garbage','15.4');
+        INSERT INTO Adobe_imageDevelopSettings VALUES(31,'s = { Exposure2012 = 2 }','15.4');
+        INSERT INTO Adobe_imageDevelopSettings VALUES(30,'garbage','15.4');",
+    )
+    .unwrap();
+    let plan = import(&f.catalog).unwrap();
+    let ids: Vec<i64> = plan
+        .report
+        .iter()
+        .filter_map(|s| {
+            s.strip_prefix("image ")
+                .and_then(|s| s.split(':').next())
+                .and_then(|s| s.parse().ok())
+        })
+        .collect();
+    assert!(ids.windows(2).all(|ids| ids[0] <= ids[1]), "{ids:?}");
+}
+
+#[test]
+fn xmp_source_fragments_preserve_attribute_spelling() {
+    let fragment = "camera:UprightVersion = '1 &amp; 2'";
+    let packet = format!(
+        "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:camera='http://ns.adobe.com/camera-raw-settings/1.0/' {fragment}/></rdf:RDF>"
+    );
+    let (recipe, _) = import_lrcat::develop(1, &packet, "15.4").unwrap();
+    assert_eq!(
+        recipe.unknown["lrcat_develop_source"]["UprightVersion"],
+        fragment
+    );
 }

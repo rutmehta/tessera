@@ -1,213 +1,197 @@
-# B5-29c handoff: Lightroom import follow-ups (report, retention, degrade, streaming)
+# B5-29c handoff: Machine A binding contracts, 2026-10-01
 
-Branch `wp/B5-29c` from `origin/main` `10f0a3f7`. Changes: `crates/import-lrcat` (lib, lua_develop, tests),
-`crates/tessera-ffi/src/lrcat.rs` (report parsing only), `apps/tessera-cli/src/import.rs` (streamed `--apply`),
-`apps/tessera-cli/Cargo.toml` (+`libc`, already in the lock). No FFI/Swift API change.
+Branch `wp/B5-29c`. This round is additive on `1f98b17d`; no rebase, history rewrite, push, or board edit.
+Read the independent review after its `tokens used` marker and the complete branch-only commit list.
+The prior `5cba6b63` fix already supplied `apply_with_publish`, individual unedited reporting,
+last-row-wins joins, and Lua identity-curve handling. This round verified those and closes the remaining gaps.
 
-## Items (Machine A's order)
-1. **Upright counts.** `UprightFourSegmentsCount` and `UprightTransformCount` are in `KEY_MAP` as ordinary crs
-   properties. They now go through the XMP path as "unsupported property" (retained per property) instead of
-   "unknown Lua key", which also forced whole-literal retention on every edited row.
-2. **Bad develop rows degrade.** A develop row that fails to decode, or has text but NULL `processVersion`, imports
-   that image as unedited. It gets a report entry (`develop settings not imported (<reason>); imported as
-   unedited, source preserved`) and `recipe.unknown["lrcat_develop_source"] = {text, processVersion}`. The rest of
-   the catalog still imports. Identity/path/keyword-structure errors are still strict.
-3. **Actionable report entries remain individual.** Every image imported as unedited, including empty or
-   absent develop rows, gets `image <id>: <msg>`. Only harmless unknown-Lua-key notes and the explicitly
-   requested named extended-curve limitation use `<n> images (first: image <id>): <msg>`.
-   The FFI summary keeps each unedited image as a distinct issue with its id in the reason and count 1;
-   grouped unknown-key notes still preserve occurrence counts and the first example.
-4. **Retention.** Lua rows no longer keep the generated `sidecar_xmp` packet or the whole literal.
-   `recipe.unknown["lrcat_develop_lua"]` is now an object `Lua key -> value source text`, present only for
-   unknown or unrenderable keys (positional root entries keep the literal under `(positional entries)`).
-   Known-only rows retain nothing extra. XMP rows are unchanged (they keep their own packet as `sidecar_xmp`).
-   Consequence: `sidecar::XmpPacket::from_imported_recipe` requires `sidecar_xmp`, so it can no longer export
-   Lua-row recipes and returns `no source XMP`. There are no production callers today; its existing test
-   covers an XMP-derived recipe. Lua-row export needs a future synthesis path.
-   Codec warnings on Lua rows still say "retained in original XMP"; the data is kept per property
-   (`crs:<Key>` in `recipe.unknown`, same as before), not in a packet.
-5. **Indexing, bounded cells, streaming.** See "Performance". Cells over `MAX_CELL_BYTES` (8 MiB) are measured on
-   SQLite's borrowed cell. Ordinary oversized cells read NULL with a table/SQLite-rowid/column note.
-   Oversized develop text instead enters the normal unedited degrade path, names the image id and SQLite
-   rowid, and retains at most the first 64 KiB (ending at a valid UTF-8 boundary) in
-   `lrcat_develop_source.text`, alongside `processVersion` and `truncated: true`. The full cell is never copied.
-6. **ExtendedToneCurvePV2012 (+Red/Green/Blue/Name2012): not mapped. This is a named limitation.** The recipe has
-   no slot for it: `ToneCurves` holds rgb/red/green/blue/luminance over 0..=1, and `CrsKey` has no
-   `ExtendedToneCurve*`. Per Machine A's update, codec translation belongs to Codex on A, so nothing is mapped
-   here. Each image with a non-identity curve gets one warning, `ExtendedToneCurvePV2012 (+Red/Green/Blue):
-   extended-range (HDR) tone curves are not supported by Tessera; not applied, source preserved`. That gives one
-   grouped report entry, and the source of those keys is retained. Identity master and R/G/B curves do not
-   warn; the name alone is not an edit. An edited channel still warns with an identity master. On this catalog, 718 of 737 rows have the exact two-point identity master curve (`0,0,255,255`),
-   and two more have identity master polylines with intermediate points. Three identity-master rows have
-   an edited color channel. All four curves are identity on 717 rows; the named limitation covers the other
-   20 rows (17 edited masters + 3 channel-only edits). This supersedes the earlier master-only count of 19.
-7. **Why 6ccc6eaa changed a RED expectation (mask-item XMP shape).** The B5-29b RED test
-   `structured_values_map_like_their_xmp_form` wrote the gradient mask item in Adobe's shorthand,
-   `<rdf:li crs:FullX=… crs:What="Mask/Gradient" …/>`, with properties as attributes on `rdf:li`. The Lua
-   renderer writes every keyed-table list item in the generator form, `<rdf:li><rdf:Description …/></rdf:li>`.
-   The two are equivalent RDF, and the codec decodes both to the same mask. Re-running that test at 10f0a3f7 with
-   the RED string shows settings equal and warnings equal. The only difference is
-   `recipe.unknown["crs:MaskGroupBasedCorrections"]`: `xmp::parse` retains each property's raw source substring
-   (`&text[node.range()]`), and `comparable()` strips only `sidecar_xmp`. 6ccc6eaa therefore wrote the expected
-   XMP in the generator's shape, so parity compares translation and not source spelling. The outer correction
-   item already used the generator form in the RED test. Only the inner mask item was shorthand.
+## Contracts
 
-## Recipe stability (golden)
-`tests/common` generates an LrC 15.5-shaped catalog of any size: Lua + XMP + empty develop rows, BLOB history,
-faces, GPS, keywords, collections, stacks and virtual copies. `tests/golden.rs` pins the 2,000-image import to
-the digest that **B5-29b (10f0a3f7) produces with the same generator**. The test was run there and gives the
-same value here, before and after streaming. XMP and empty rows are hashed byte for byte. On Lua rows, the two
-item-4 keys (`sidecar_xmp`, `lrcat_develop_lua`) are removed before hashing. `recipe.image_id` is cleared because
-it derives from the catalog path. A second test checks that `import_each` gives the same images and report as
-`import()`, and that `PlanJson` writes exactly `serde_json::to_vec_pretty(&plan)` (synthetic, fixture and empty
-catalogs). On the real copy, the full `--apply` bundle (21,658 files) is **byte-identical** between the
-index-only build (d66748c3) and the streaming build (sha256 of every file compared).
+1. **Unconditional source retention.** `recipe.unknown["lrcat_develop_source"]` maps Adobe keys to exact
+   Lua value literals, or exact XMP element/attribute fragments for XMP rows. Retention does not depend
+   on decoder warnings or on whether the current value is active. It includes `MaskGroupBasedCorrections`
+   (including nested `Mask/Image`), inactive/active `LensBlur`, `RetouchAreas`, `RetouchInfo`, `PointColors`,
+   every `ExtendedToneCurve*`, every `Upright*`, and unmapped/pending keys. The predicate conservatively
+   retains every key absent from `CrsKey`, including newly added unmapped `KEY_MAP` entries. Parse failures
+   still retain the whole source under `{text, processVersion}` because there is no trustworthy parsed key map.
+   Lua-generated XMP is removed; original XMP packets remain on actual XMP rows. Decoder warnings on Lua rows
+   now say `source preserved per property`, not `retained in original XMP`.
 
-## Original performance baseline (real catalog COPY, read-only; counts only)
-Copy sha256 prefix `eb60e744dbec2547`, unchanged after every run. The original under ~/Pictures was not opened.
-Measured with `/usr/bin/time -l` (peak = maximum resident set size). The machine was shared with other agents'
-builds: load average ran 50-370 during these runs, so wall times are pessimistic.
+   Ordinary unknown string keys remain available in `lrcat_develop_lua`. The authoritative collision-free
+   unknown-key representation is `lrcat_develop_lua_entries`: ordered `{key: {string: ...}|{number: ...}, value}`
+   entries. Numeric `[1]` and string `"[1]"` cannot overwrite each other. Positional-root fallback lives in
+   `lrcat_develop_lua_positional`, separate from an ordinary key literally named `"(positional entries)"`.
 
-| build | inspect wall | inspect peak RSS | apply wall | apply peak RSS | bundle |
-|---|---|---|---|---|---|
-| main 10f0a3f7 (B5-29b) | 137.8 s | 5.09 GB | 353.9 s | 5.10 GB | 3.12 GB |
-| items 1-4 + indexing (d66748c3) | 42.9 s | 4.82 GB | 181.5 s | 6.02 GB | 2.77 GB |
-| **final (streaming)** | **14.2 s** | **0.40 GB** | **20.3 s** | **0.50 GB** | 2.78 GB |
+2. **Oversized cells (>8 MiB).** No oversized cell is represented as genuine NULL. The bounded SQL projection
+   uses `typeof`/`octet_length` to identify large values without loading SQLite overflow pages into a result
+   or sort record. `rusqlite`'s existing dependency enables its `blob` feature; incremental BLOB I/O reads
+   both TEXT and BLOB cells. No new package or lockfile change is needed.
 
-Targets: inspect < 20 s, apply < 60 s, peak < 1 GB: all met. (A lighter-load run of the streaming build gave
-10.8 s and 0.43 GB for inspect, 18.1 s and 0.63 GB for apply.) Before streaming, these were the causes:
-- Quadratic per-image scans (fixed by indexing: 138 s -> 43 s).
-- `Adobe_libraryImageDevelopHistoryStep.text` is a **BLOB** in LrC 15.5 (38 MB). Each byte loaded as a
-  `serde_json::Value` (~32 B), so the history table alone held ~1.4 GB, then was cloned per image twice
-  (`image.history` and `recipe.unknown["lrcat_history"]`).
-- `--apply` built the 1.8 GB pretty `import-plan.json` in memory.
-- `--apply` did a per-file `F_FULLFSYNC` (~5 ms each, ~100 s for 21k recipes, measured).
+   `import_each_with_storage` streams bytes into the private staging bundle at
+   `large/<image-id-or-none>-<table>-<SQLite-rowid>-<hex-column-name>.bin`. Filenames distinguish tables,
+   rows, images and columns, and column encoding prevents path traversal. Side files are synchronized
+   before any referencing recipe can be published. A descriptor records `status: externalized`, `path`
+   relative to the bundle root, byte `length`, `kind`, `table`, `column`, `rowid`, `scan_ordinal`, and
+   `image_id`. It appears in the source row and/or report; oversized current develop text is retained at
+   `lrcat_develop_source.cell` and always produces that image's `imported as unedited` note with recovery path.
 
-How the streaming build works:
-- `import_each(path, begin, visit)` loads only the small tables. Images, develop settings, history, snapshots,
-  faces and EXIF are read side by side `ORDER BY image, rowid` and merged per image.
-- Develop settings are translated in batches of 256 on all cores. Report and visit order are unchanged.
-- `import()` and `inspect()` are built on it. `inspect` counts and drops each image.
-- `--apply` streams: one thread writes `import-plan.json` (`PlanJson`), and 8 threads write recipe files. Each
-  recipe file gets plain `libc::fsync` in `write_staged_recipe`; this does not explicitly flush the drive's
-  cache. After the plan is finished, `File::sync_all()` invokes `fcntl(F_FULLFSYNC)` on Apple targets,
-  requesting the full drive-cache flush before publication. `libc` was added for plain `fsync`, not full flush.
-  Verified against [Rust's Apple fsync implementation](https://doc.rust-lang.org/src/std/sys/fs/unix.rs.html).
-  Recipe
-  bytes and checks are the same as `Sidecar::write_recipe`.
-- `tests/scale.rs` uses a counting global allocator. On the synthetic catalog, Rust peak heap is about 30 MB at
-  2k images and 50 MB at 20k. The test asserts the peak stays flat (< 1.5x + 16 MB) and < 256 MB. Time is
-  bounded loosely; the test runs in release only.
+   Inspect/non-bundle import instead records `status: omitted`, length and a prefix of at most 64 KiB
+   (UTF-8 boundary for text; byte array for BLOB). Recovery names the original catalog table/row/column.
+   Genuine SQL NULL stays NULL. Inspect is explicitly not a lossless bundle. Actual SQLite rowids are
+   labelled `row`; the separate scan counter is labelled `scan_ordinal`/`scan ordinal`, never a fake rowid.
 
-Bundle size barely moved (3.12 -> 2.78 GB). The bulk is **not** `sidecar_xmp` or the literal (item 4 saved
-~0.3 GB). It is the BLOB history serialized as JSON number arrays, pretty-printed one byte per line, in both
-`import-plan.json` and each recipe's `lrcat_history`. Changing that changes the output format, so it is left
-for A (see Follow-ups).
+   The new isolated SQLite allocation regression first failed: a 32 MiB TEXT cell caused a 64 MiB SQLite
+   allocation even though Rust merely borrowed it. Both inspect and externalized apply now pass the
+   <8 MiB largest-allocation assertion, and the 32 MiB external file is checked byte-for-byte with a bounded
+   buffer. CLI integration separately verifies oversized develop TEXT and history BLOB files and references.
 
-## Original report baseline on the real copy
-570,311 entries -> **105**: 77 grouped, 15 single-image, and 13 catalog entries (12 smart collections + 1
-slideshow skipped, as before). That is 568,085 per-image occurrences across 21,615 edited rows.
-- Unknown Lua keys: EnableDistractionRemoval 9,553; FilterList 8,029; AILook 615; Preset 146;
-  CropConstrainAspectRatio 47; RemoveAreas / CustomTint / CustomTemperature 42; plus the rare ones B5-29b listed.
-  UprightFourSegmentsCount / UprightTransformCount are no longer unknown (21,615 each now "unsupported
-  property").
-- Extended tone curve: 1 entry, 737 images.
-- Codec-retained structures are unchanged from B5-29b: masks (Mask/Image 616, radial Flipped 31, translated with
-  fidelity note 44), LensBlur 417, RetouchAreas 330, RetouchInfo 327, PointColors 277.
-- Develop rows: 0 degraded (no bad rows in this catalog), 41 empty rows imported as unedited.
+3. **Degraded images and report order.** Every absent/empty, invalid, missing-process-version or oversized
+   develop row imports as unedited with its own image ID and reason. The existing FFI summary preserves
+   distinct unedited-image issues, each with count 1, and its integration tests pass. Only harmless
+   unknown-Lua-key messages and the explicitly required named extended-curve limitation are grouped.
+   Catalog/oversized-cell diagnostics precede the per-image section. That section is stably ordered by
+   ascending image ID (grouped entries by first image ID), not SQLite row order. Duplicate notices no longer
+   jump ahead of lower-ID image diagnostics; the new ordering regression reproduced `[31,30,...]` before the fix.
 
-## Follow-ups (for A)
-- FFI (`open_lrcat` / `inspect_lrcat`) still calls `import()`, which holds every image with its BLOB history as
-  JSON values. The app path needs the same streaming (or a compact history representation); the CLI targets
-  above do not cover it.
-- History BLOBs in the bundle: storing them as a base64 or UTF-8 string instead of a number array would cut
-  most of the 2.8 GB. This is a plan/recipe format change, so it needs A's call.
-- Codex on A: ExtendedToneCurve*, Mask/Image, LensBlur focal range, RetouchAreas/RetouchInfo, PointColors.
+4. **Duplicate IDs / joins.** `Adobe_images.id_local` duplicates and develop `image` duplicates use the
+   highest SQLite rowid (last-write-wins), with a report entry. Images are deduplicated before recipes are
+   enqueued, so `create_new` cannot fail because of duplicate image IDs. Tests cover out-of-order develop
+   rows, orphan IDs both below and above real IDs, NULL develop image IDs, and duplicate image/apply rows.
+   NULL/invalid identity on an actual image record remains a strict structural error. File/master-image,
+   keyword and collection joins continue to use catalog local IDs.
 
-## Original commits
-`41f64170` RED follow-ups · `340902cc` Lua retention/Upright/extended curve · `d66748c3` indexing, cell bound,
-degrade, grouping · `6e7c448a` RED extended curve always reported · `3c380cfd` fix · `d4098e00` synthetic
-generator + golden · `f84d56a1` streaming · `ffe28ee9` generator lint · this HANDOFF.
+5. **Durability and recovery.** Each recipe is serialized, validated, written with `create_new`, then
+   synchronized by **plain `libc::fsync` on macOS, retrying EINTR**; other platforms use `File::sync_all`.
+   Oversized side files use `File::sync_all`. `Library::write` synchronizes its temporary file, renames it
+   to `library.json`, and synchronizes its directory. After all writer threads drain, the plan's BufWriter
+   is flushed and `File::sync_all` synchronizes `import-plan.json`. On Apple, std `sync_all` is
+   `fcntl(F_FULLFSYNC)`, not plain fsync.
 
-## Original gates
-`cargo test --release -p import-lrcat` (all targets incl. golden + scale), `-p tessera-ffi --test lrcat`,
-`-p tessera-ffi --lib lrcat`, and `-p tessera-cli --test import_models`: pass.
-`cargo clippy --release --all-targets -p import-lrcat -- -D warnings` and `-p tessera-cli -- -D warnings`: clean.
-`cargo fmt --all --check`: clean. `apps/mac/build-ffi.sh`: ok. `tools/orchestrate/swift-gate.sh`: SWIFT GATE OK
-(861 XCTest tests, 3 skipped, 0 failures; 5 swift-testing tests).
+   The CLI then synchronizes `recipes/`, optional `large/`, and the staging root with `sync_directory`
+   (plain `libc::fsync` + EINTR retry on macOS; std elsewhere). It reserves an empty destination directory,
+   renames staging over the reservation on the same filesystem, checks publication, and synchronizes the
+   destination parent. A crash before rename may leave an empty reservation: retry uses nonrecursive
+   `remove_dir` to recover it. Nonempty destinations are never removed/replaced. Tests inject a pre-rename
+   error and a skipped rename, asserting no destination/partial bundle or staging leftovers; another test
+   recovers an empty reservation and confirms retry cannot overwrite a published bundle.
 
-## Machine A review follow-up (2026-10-01)
-Preserved the existing branch history through `324566da`; all review commits are additive and local.
-`6034edef` is the RED regression commit: four importer failures reproduced before fixes (oversized source,
-individual unedited notes, duplicate develop row ordering, identity extended curves). CLI tests also cover
-last-write-wins duplicate image records and injected pre-rename error / skipped rename.
+6. **ExtendedToneCurve.** Identity master/channel polylines emit no limitation entry; names alone do not
+   count as edits. Non-identity master or channel curves emit one named limitation per image, grouped by
+   report aggregation. This is now tested on Lua and XMP rows. Raw source is retained in either case,
+   including identity and nil Lua values. No HDR translation was invented; codec work remains with A.
 
-Duplicate `Adobe_images.id_local` records and duplicate develop `image` records now select the last SQLite
-rowid, with a report entry. Image records are deduplicated before streaming to the writer, so recipes and
-plan agree and duplicate file creation cannot abort apply. Develop rows sort by image/rowid; NULL ids and
-orphan ids do not block later valid rows. Identity/path structure errors otherwise remain strict.
-The publish fault tests assert both absence of the destination and cleanup of the staging directory.
-The golden digest remains pinned to B5-29b; no expected bytes were changed.
+7. **Nits.** Warning wording, true rowid vs scan ordinal, and image-ID report ordering are corrected and
+   documented above. No FFI/Swift API changes.
 
-Review fix: `5cba6b63` (`fix(B5-29c): preserve oversized develop failures and make apply deterministic`).
-Rust verification: 53 importer tests (including 9 review follow-ups, 2 golden tests and the scale test),
-7 FFI `--test lrcat` tests, 4 FFI `--lib lrcat` tests, 4 CLI `import_models` tests, and the CLI publish-failure
-unit test (both injected cases) passed. After the clippy style correction, the 9 follow-ups and 2 golden tests
-were rerun and passed. `cargo clippy --release --all-targets -p import-lrcat -p tessera-cli -p tessera-ffi --
--D warnings` and `cargo fmt --all --check` passed. `apps/mac/build-ffi.sh` completed with unchanged bindings.
+## Full retained-source golden baseline
 
-The first Swift gate run completed 861 XCTest tests (3 skipped) with 9 assertions failing across
-`DocumentHistoryKeyboardTraversalTests.testDocumentSwitchKeepsGlobalHistoryPreferencesAndShowsSelectedDocument`
-and `testInspectorTabSwitchKeepsHeightControlIdentityFocusAndValue`; all 5 Swift Testing tests passed.
-Several other Swift test processes were active on the host. These unchanged UI tests use standard shared
-preferences and short layout waits; contention is a possible cause, not established by this run. No Swift
-code or test expectation was changed to bypass the failures. The final gate retry is recorded below.
+`tests/golden.rs` now hashes every unknown/source entry on every row; it no longer strips Lua keys.
+Only `recipe.image_id`, derived from the absolute temporary catalog path, is normalized to None.
+The 2,000-image synthetic baseline is intentionally re-pinned from
+`32b8574f77399f028e85ef7436f6e77315b0753d7b996792ffd88db7e7c01fa9` (B5-29b translation-only)
+to `fcbb457c63eba5adc6256d8c64874a91a5a9408abb4bf46cb692cfe36ce5415a` (this retention contract).
+The new digest failed against the old pin before being adopted. Per-key tests assert literal source spelling,
+inactive LensBlur, nil/identity retention, XMP fragments, and key-collision behavior independently of the hash.
+Format-parity tests normalize only format-specific source when comparing Lua to XMP; the golden does not.
+Streaming/import parity and exact `PlanJson` serialization checks still pass. Report text is not part of the digest.
 
+## Test-first evidence
 
-### Fresh performance and counts (review fix)
-Read-only catalog COPY only; `/usr/bin/time -l`, release CLI rebuilt from the review fix. SHA-256 prefix
-`eb60e744dbec2547` matched before and after. All three targets still hold.
+- Retention, numeric/string collision and omission descriptor assertions failed before their fixes.
+- Empty-reservation recovery failed before the durability fix; pre-rename failure behavior already passed.
+- XMP identity curves failed with an unsupported-property warning before the named-limitation fix.
+- The initial CLI external-file assertion used an incorrect serialized `unknown` nesting (Recipe flattens it).
+  After correcting that test, disabling bundle storage reproduced the intended RED (`omitted` vs `externalized`),
+  and enabling it passed with exact byte checks for both develop TEXT and history BLOB.
+- The SQLite allocation and duplicate-report-order tests failed before their respective fixes, as above.
+- Previous round's RED coverage (`6034edef`) for individual degradation, last-write-wins and Lua identity
+  curves was retained and verified; no accepted contract was reverted just to match an old expectation.
 
-| operation | wall | peak RSS (bytes) | peak RSS (decimal GB) | target |
+## Historical review context
+
+`6ccc6eaa` changed an older mask parity fixture from attributes on `rdf:li` to an inner
+`rdf:Description`, matching the Lua renderer. Both RDF forms decode to the same settings; raw retained
+XML spelling differs. This round's separate exact-retention tests and full-source golden prevent that
+format-parity normalization from hiding a source-retention regression.
+
+The previous handoff's <20 s inspect / <60 s apply / <1 GB RSS targets remain in force. Its former
+byte-identical-bundle claim and translation-only golden no longer describe this intentionally changed
+retention format. The app's FFI `import()` path still materializes all images; the real-catalog performance
+measurements below cover the streaming CLI. History BLOB JSON arrays remain unchanged, including their
+size cost; a compact history representation is still A's format decision.
+
+## Fresh catalog-copy measurements and verification
+
+Only the supplied read-only catalog COPY was used. The original catalog under `~/Pictures` was not opened.
+Measured with `/usr/bin/time -l`, rebuilt release CLI, serial inspect then apply. SHA-256 prefix
+`eb60e744dbec2547` matched before and after; the full SHA-256 was compared, not just the prefix.
+
+| Operation | Wall seconds | Peak RSS bytes | Peak RSS decimal GB | Targets |
 |---|---:|---:|---:|---|
-| inspect | 13.49 s | 504,053,760 | 0.504 | <20 s, <1 GB |
-| apply | 17.22 s | 622,034,944 | 0.622 | <60 s, <1 GB |
+| inspect | 9.81 | 591,904,768 | 0.592 | PASS |
+| apply | 11.46 | 764,100,608 | 0.764 | PASS |
 
-Apply published 21,656 recipes and 21,658 total bundle files (2,827,345,328 bytes). The report now has
-548,861 entries, including 18 grouped entries, 41 individually listed empty/unedited images, and no degraded
-rows. The extended-curve limitation is one grouped entry covering 20 images. The increase from the original
-105-entry report is intentional: only unknown-Lua-key notes and the explicitly requested extended-curve
-limitation remain grouped. Every other note, including each image requiring action, remains individual.
-An independent read-only curve audit confirms 737 rows with these keys, 720 identity master curves (718
-simple two-point + 2 with intermediate points), and 3 identity-master rows with edited channels. Therefore
-717 rows get no extended-curve warning, and 20 correctly retain it. No catalog names or paths are recorded.
+Targets: inspect <20 s, apply <60 s, each peak <1 GB. All met.
 
-Every published recipe JSON file was parsed, its filename matched against the complete catalog image-id
-set, and library JSON parsed successfully. The task-owned measurement bundle was then removed; the catalog
-copy and source originals were not changed.
+Counts only: 21,656 images; 21,656 recipes; 21,658 bundle files; 2,889,014,776 bundle bytes. Report: 548,861 entries, 18 grouped entries, 41 individually listed unedited images, 0 decode-degraded images, and 0 oversized-cell diagnostics. The grouped non-identity extended-curve limitation covers 20 images.
 
-The second unchanged Swift run passed both History tests but reported one failure in
-`ShellLayoutTests.testShellContainedAtEverySizeStateAndAppearance` (861 tests, 3 skipped; 5 Swift Testing
-tests passed). Other XCTest processes had started during that run. A temporary Foundation-home probe did
-not demonstrate preference-file isolation on this host, so no such override was used for the final rerun.
+Unconditional raw-source entry occurrences (including inactive/empty values, not counts of applied edits):
 
-The third unchanged run finished with 6 assertions failing across 4 existing UI tests (861 tests, 3 skipped;
-5 Swift Testing tests passed). Its preserved log includes a height preference written as 10000 subsequently
-reading 192 while another XCTest process was active. This is consistent with cross-process preference
-interference, without proving causation. A fourth run was queued to wait for 60 seconds with no Swift test runner before starting the same gate.
-External suites kept restarting, so it did not execute and the task-owned wait was cancelled. No test skips,
-assertion changes, or environment overrides were introduced.
+| Adobe source key | Recipe occurrences |
+|---|---:|
+| `MaskGroupBasedCorrections` | 697 |
+| `LensBlur` | 17,133 |
+| `RetouchAreas` | 330 |
+| `RetouchInfo` | 11,543 |
+| `PointColors` | 17,132 |
+| `ExtendedToneCurvePV2012` | 737 |
+| `ExtendedToneCurvePV2012Red` | 737 |
+| `ExtendedToneCurvePV2012Green` | 737 |
+| `ExtendedToneCurvePV2012Blue` | 737 |
+| `UprightFourSegmentsCount` | 21,615 |
+| `UprightTransformCount` | 21,615 |
 
+Validation parsed every real plan image one at a time and compared its recipe to the corresponding recipe
+file. The full distinct catalog-ID set matched the recipe filenames and plan IDs; library JSON and the
+complete report matched the plan. No duplicate plan image or recipe was present. The task-owned bundle
+was removed after successful validation. No real catalog image names, keywords, collections or photo paths
+are recorded here. Synthetic oversized-cell tests cover external storage because this copy has no oversized cells.
 
-### Final review-gate status
-**Rust, golden, clippy, fmt, FFI regeneration, real-copy performance and bundle validation: PASS.**
-**Swift gate: NOT OK / blocked on a coordinated quiet run.** No `SWIFT GATE OK` was obtained for this review
-fix. The third run's exact failure methods were:
-- `DocumentHistoryKeyboardTraversalTests.testExternalPreferenceWriteUpdatesHostedReadout`
-- `DocumentHistoryKeyboardTraversalTests.testInspectorTabSwitchKeepsHeightControlIdentityFocusAndValue`
-- `DocumentHistoryKeyboardTraversalTests.testWindowResizeClampsDisplayWithoutRewritingOversizedRequest`
-- `ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize`
+## Gates
 
-The second run passed both first-run History failures; the failing set changed across three unchanged runs.
-The gate still needs to be rerun with other Swift/XCTest jobs paused. There are no task-owned background
-builds/tests queued or running. All commits are local and additive; `board.json` and `Cargo.lock` are untouched.
+- Requested `cargo test --release -p import-lrcat -p tessera-cli -p tessera-ffi --test lrcat`: PASS (7).
+- Requested `cargo test --release -p import-lrcat -p tessera-cli -p tessera-ffi --lib lrcat`: PASS (4).
+- Broader `cargo test --release -p import-lrcat -p tessera-cli -p tessera-ffi`: PASS, 651 tests passed,
+  28 existing ignored tests, no failures. This includes importer golden/scale, CLI apply and FFI integration.
+- After the clippy-only conditional cleanup, retention/golden/SQLite-memory tests passed again. The final
+  expanded follow-up suite (all unmapped KEY_MAP entries plus exact XMP attribute spelling) passed all 15 tests.
+- `cargo clippy --release --all-targets -p import-lrcat -p tessera-cli -p tessera-ffi -- -D warnings`: PASS.
+- `cargo fmt --all --check`: PASS. `Cargo.lock` and `board.json` unchanged.
+- `cd apps/mac && ./build-ffi.sh`: PASS; generated bindings unchanged.
+- Swift gate: **BLOCKED / NOT OK**. Both unchanged attempts failed the masks window-capture test; the second also reported an
+  unchanged shell-layout assertion failure. No `SWIFT GATE OK` has been obtained. The console session is locked; an unlocked full rerun is required.
+
+The first unchanged Swift attempt reported
+`MasksPanelLayoutTests.testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth`: `screencapture`
+reported "could not create image from window", leaving no valid PNG for ImageIO. Shell/history tests passed.
+The run then stopped making progress after the opt-in Smart Preview skip. A 3-second sample of this
+worktree's XCTest process showed the dispatch soft limit (80) reached throughout, with many AppKit
+`NSAnimation._runBlocking` workers; its physical footprint was 6.0 GB (peak 7.3 GB). After several minutes
+without log progress, only this task's already-failed XCTest process was terminated. The gate correctly
+reported failure; no assertion was changed and no new test was skipped. Full log and sample were retained
+at `/tmp/B5-29c-swift-tests-full.log` and `/tmp/B5-29c-swift-hang.sample.txt` for diagnosis. Other worktrees'
+Swift/XCTest processes were active; that is observed context, not a proven cause of the failure/stall.
+
+The second unchanged attempt reproduced the same masks capture failure and also failed
+`ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize` at line 194:
+`document-960x600-channels-history-open region historyBody not laid out`. Its history tests and the other
+shell-layout tests passed. The already-failed run was stopped. A read-only I/O Registry check reported `CGSSessionScreenIsLocked = true` for the
+on-console session. This supplies a concrete environmental blocker for the window-capture test; an unlocked
+rerun is required before claiming the gate passes. Only this worktree's failed second XCTest process was
+terminated. Its full log is `/tmp/B5-29c-swift-tests2-full.log`; gate output is
+`/tmp/B5-29c-swift-gate2.log`. No Swift source, capture implementation, assertion, preference domain, test skip,
+GUI activation policy or gate script was changed to bypass this. The user was asked to unlock the Mac.
+
+All authorized Rust implementation, verification, real-copy measurement and bundle validation are complete.
+The remaining acceptance step is the unchanged full Swift gate on an unlocked session. Local commits remain
+on top of the reviewed branch; no push, rebase, history rewrite, board update or Cargo.lock edit.

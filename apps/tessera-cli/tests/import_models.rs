@@ -184,3 +184,58 @@ fn duplicate_image_ids_apply_last_write_wins() {
             .any(|e| e.as_str().unwrap().contains("last-write-wins"))
     );
 }
+
+#[test]
+fn oversized_cells_are_externalized_losslessly() {
+    let temp = tempfile::tempdir().unwrap();
+    let catalog = temp.path().join("large.lrcat");
+    let c = make_fixture::make_fixture(&catalog);
+    let huge = format!(
+        "s = {{ CameraProfile = '{}' }}",
+        "x".repeat(import_lrcat::MAX_CELL_BYTES)
+    );
+    c.execute(
+        "UPDATE Adobe_imageDevelopSettings SET text=?1 WHERE image=30",
+        [&huge],
+    )
+    .unwrap();
+    let blob = vec![0xff_u8; import_lrcat::MAX_CELL_BYTES + 7];
+    c.execute(
+        "UPDATE Adobe_libraryImageDevelopHistoryStep SET text=?1 WHERE image=30",
+        [&blob],
+    )
+    .unwrap();
+    drop(c);
+    let dest = temp.path().join("bundle");
+    Command::new(assert_cmd::cargo::cargo_bin!("tessera"))
+        .args(["import", "lrcat"])
+        .arg(&catalog)
+        .arg("--apply")
+        .arg("--dest")
+        .arg(&dest)
+        .arg("--json")
+        .assert()
+        .success();
+    let plan: Value =
+        serde_json::from_slice(&std::fs::read(dest.join("import-plan.json")).unwrap()).unwrap();
+    let image = plan["images"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["catalog_id"] == 30)
+        .unwrap();
+    let cell = &image["recipe"]["lrcat_develop_source"]["cell"];
+    assert_eq!(cell["status"], "externalized");
+    let relative = cell["path"].as_str().unwrap();
+    assert_eq!(std::fs::read(dest.join(relative)).unwrap(), huge.as_bytes());
+    assert!(plan["report"].as_array().unwrap().iter().any(|r| {
+        let s = r.as_str().unwrap();
+        s.contains("image 30") && s.contains(relative) && s.contains("imported as unedited")
+    }));
+    let history = &image["recipe"]["lrcat_history"][0]["text"];
+    assert_eq!(history["status"], "externalized");
+    assert_eq!(
+        std::fs::read(dest.join(history["path"].as_str().unwrap())).unwrap(),
+        blob
+    );
+}

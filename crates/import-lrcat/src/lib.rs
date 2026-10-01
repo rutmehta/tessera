@@ -22,8 +22,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Largest text or blob cell loaded from the catalog. Larger cells are not
-/// copied into memory: the column reads as NULL and the plan report says so.
+/// Largest text or blob cell retained inline. Larger cells carry an explicit
+/// omission descriptor, or a lossless bundle-relative external-storage reference.
 pub const MAX_CELL_BYTES: usize = 8 << 20;
 
 /// Original source rows retained for data whose schema varies across releases.
@@ -169,7 +169,8 @@ impl ImageReport {
             }
         }
     }
-    fn finish(self) -> impl Iterator<Item = String> {
+    fn finish(mut self) -> impl Iterator<Item = String> {
+        self.entries.sort_by_key(|(_, _, first, _)| *first);
         self.entries
             .into_iter()
             .map(|(message, count, first, _)| match count {
@@ -179,47 +180,134 @@ impl ImageReport {
     }
 }
 
-/// One SQLite row as a [`SourceRow`]. Text and blob cells larger than
-/// [`MAX_CELL_BYTES`] are measured on SQLite's borrowed cell, never copied:
-/// ordinary columns read as NULL with a report note. Develop text retains a
-/// bounded prefix and a failure marker for the normal unedited degrade path.
+/// Project oversized cells to a small placeholder plus length/type metadata.
+/// SQLite's octet_length/typeof column opcodes read the record header without
+/// materializing overflow pages. This keeps both result rows and ORDER BY's
+/// sorter bounded; source_row reads the actual bytes via incremental BLOB I/O.
+fn bounded_statement<'c>(
+    c: &'c Connection,
+    table: &str,
+    order: &str,
+) -> rusqlite::Result<rusqlite::Statement<'c>> {
+    let names: Vec<String> = c
+        .prepare(&format!("SELECT * FROM \"{table}\" LIMIT 0"))?
+        .column_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let mut fields = Vec::new();
+    let mut metadata = Vec::new();
+    for (i, name) in names.iter().enumerate() {
+        let quoted = format!("\"{}\"", name.replace('"', "\"\""));
+        let oversized = format!(
+            "typeof({quoted}) IN ('text','blob') AND octet_length({quoted}) > {MAX_CELL_BYTES}"
+        );
+        fields.push(format!(
+            "CASE WHEN {oversized} THEN '' ELSE {quoted} END AS {quoted}"
+        ));
+        metadata.push(format!(
+            "CASE WHEN {oversized} THEN octet_length({quoted}) ELSE 0 END AS __tessera_length_{i}"
+        ));
+        metadata.push(format!("typeof({quoted}) AS __tessera_type_{i}"));
+    }
+    fields.extend(metadata);
+    fields.push("rowid AS __tessera_rowid".into());
+    // Table and ORDER BY expressions are fixed constants in this module.
+    c.prepare(&format!(
+        "SELECT {} FROM \"{table}\" ORDER BY {order}",
+        fields.join(",")
+    ))
+}
+
+/// One bounded SQLite row. Oversized cells are explicit descriptors with either
+/// a bounded prefix (inspect) or a lossless bundle-relative external reference.
 fn source_row(
+    c: &Connection,
     row: &rusqlite::Row,
     names: &[String],
     table: &str,
     index: usize,
     oversized: &mut Vec<String>,
+    storage: Option<&Path>,
 ) -> rusqlite::Result<SourceRow> {
-    let row_id = row.get::<_, i64>("__tessera_rowid").unwrap_or(index as i64);
+    let row_id = row.get::<_, i64>("__tessera_rowid").ok();
+    let position = row_id.map_or_else(|| format!("scan ordinal {index}"), |id| format!("row {id}"));
+    let image = row
+        .get::<_, i64>(if table == "Adobe_images" {
+            "id_local"
+        } else {
+            "image"
+        })
+        .ok();
     let mut result = BTreeMap::new();
-    for (i, name) in names.iter().enumerate() {
-        if name == "__tessera_rowid" {
-            continue;
-        }
+    let column_count = (names.len() - 1) / 3;
+    for (i, name) in names[..column_count].iter().enumerate() {
         let cell = row.get_ref(i)?;
-        let len = match cell {
-            ValueRef::Text(b) | ValueRef::Blob(b) => b.len(),
-            _ => 0,
-        };
+        let len = row.get::<_, i64>(column_count + 2 * i)? as usize;
         if len > MAX_CELL_BYTES {
-            let reason = format!(
-                "{table} row {row_id}: column {name} is {len} bytes, over the {MAX_CELL_BYTES}-byte cell limit"
-            );
-            if table == "Adobe_imageDevelopSettings" && name == "text" {
-                if let ValueRef::Text(bytes) | ValueRef::Blob(bytes) = cell {
-                    let end = std::str::from_utf8(&bytes[..64 * 1024])
-                        .err()
-                        .map_or(64 * 1024, |e| e.valid_up_to());
-                    result.insert(
-                        name.clone(),
-                        String::from_utf8_lossy(&bytes[..end]).into_owned().into(),
-                    );
-                    result.insert("__oversized_develop".into(), reason.into());
-                }
+            use std::io::Read;
+            let kind: String = row.get(column_count + 2 * i + 1)?;
+            let mut blob = c.blob_open(
+                rusqlite::MAIN_DB,
+                table,
+                name.as_str(),
+                row_id.ok_or(rusqlite::Error::InvalidQuery)?,
+                true,
+            )?;
+            let mut descriptor = serde_json::json!({
+                "status": "omitted", "length": len,
+                "table": table, "rowid": row_id, "scan_ordinal": index,
+                "image_id": image, "column": name, "kind": kind
+            });
+            let recovery = if let Some(storage) = storage {
+                // Hex-encode the column name: even a hostile schema cannot escape
+                // the bundle or collide with another column's filename.
+                let column: String = name.as_bytes().iter().map(|b| format!("{b:02x}")).collect();
+                let relative = format!(
+                    "large/{}-{table}-{}-{column}.bin",
+                    image.map_or_else(|| "none".into(), |v| v.to_string()),
+                    row_id.unwrap_or(index as i64)
+                );
+                let mut write = || -> std::io::Result<()> {
+                    std::fs::create_dir_all(storage.join("large"))?;
+                    let mut file = std::fs::File::create_new(storage.join(&relative))?;
+                    // io::copy uses a fixed-size buffer; SQLite reads overflow
+                    // pages incrementally for TEXT as well as BLOB columns.
+                    let copied = std::io::copy(&mut blob, &mut file)?;
+                    if copied != len as u64 {
+                        return Err(std::io::Error::other("oversized cell length changed"));
+                    }
+                    file.sync_all()
+                };
+                write().map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                descriptor["status"] = "externalized".into();
+                descriptor["path"] = relative.clone().into();
+                format!("externalized; recovery path {relative}")
             } else {
-                oversized.push(format!("{reason}; not loaded"));
-                result.insert(name.clone(), Value::Null);
+                let mut prefix_bytes = vec![0; 64 * 1024];
+                blob.read_exact(&mut prefix_bytes)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                descriptor["prefix"] = if kind == "text" {
+                    let end = std::str::from_utf8(&prefix_bytes)
+                        .err()
+                        .map_or(prefix_bytes.len(), |e| e.valid_up_to());
+                    Value::from(String::from_utf8_lossy(&prefix_bytes[..end]).into_owned())
+                } else {
+                    Value::from(prefix_bytes)
+                };
+                format!(
+                    "omitted; recover from source catalog table {table}, {position}, column {name}"
+                )
+            };
+            let reason = format!(
+                "image {}: {table} {position}: column {name} is {len} bytes, over the {MAX_CELL_BYTES}-byte cell limit; {recovery}",
+                image.map_or_else(|| "NULL/unassociated".into(), |v| v.to_string())
+            );
+            oversized.push(reason.clone());
+            if table == "Adobe_imageDevelopSettings" && name == "text" {
+                result.insert("__oversized_develop".into(), reason.into());
             }
+            result.insert(name.clone(), descriptor);
             continue;
         }
         let value = match cell {
@@ -265,26 +353,37 @@ pub(crate) fn rows(
     required: bool,
     report: &mut Vec<String>,
 ) -> EngineResult<Vec<SourceRow>> {
+    rows_with_storage(c, table, required, report, None)
+}
+
+fn rows_with_storage(
+    c: &Connection,
+    table: &str,
+    required: bool,
+    report: &mut Vec<String>,
+    storage: Option<&Path>,
+) -> EngineResult<Vec<SourceRow>> {
     if !present(c, table, required, report)? {
         return Ok(vec![]);
     }
-    all_rows(c, table, report)
+    all_rows(c, table, report, storage)
 }
 
 /// Every row of an existing table, in rowid order.
-fn all_rows(c: &Connection, table: &str, report: &mut Vec<String>) -> EngineResult<Vec<SourceRow>> {
+fn all_rows(
+    c: &Connection,
+    table: &str,
+    report: &mut Vec<String>,
+    storage: Option<&Path>,
+) -> EngineResult<Vec<SourceRow>> {
     // Table names are fixed constants supplied by this module, never user SQL.
-    let mut stmt = c
-        .prepare(&format!(
-            "SELECT *, rowid AS __tessera_rowid FROM \"{table}\" ORDER BY rowid"
-        ))
-        .map_err(decode)?;
+    let mut stmt = bounded_statement(c, table, "rowid").map_err(decode)?;
     let names: Vec<String> = stmt.column_names().iter().map(|n| n.to_string()).collect();
     let mut rows = stmt.query([]).map_err(decode)?;
     let (mut out, mut index) = (Vec::new(), 0);
     while let Some(row) = rows.next().map_err(decode)? {
         index += 1;
-        out.push(source_row(row, &names, table, index, report).map_err(decode)?);
+        out.push(source_row(c, row, &names, table, index, report, storage).map_err(decode)?);
     }
     Ok(out)
 }
@@ -293,6 +392,8 @@ fn all_rows(c: &Connection, table: &str, report: &mut Vec<String>) -> EngineResu
 /// image's rows are taken in one forward pass, so the table is never held in
 /// memory. Rows whose `image` is not an integer never match, as before.
 struct ByImage<'s> {
+    connection: &'s Connection,
+    storage: Option<&'s Path>,
     rows: Option<rusqlite::Rows<'s>>,
     names: Vec<String>,
     table: &'static str,
@@ -308,15 +409,15 @@ impl<'s> ByImage<'s> {
         if !exists {
             return Ok(None);
         }
-        c.prepare(&format!(
-            "SELECT *, rowid AS __tessera_rowid FROM \"{table}\" ORDER BY image, rowid"
-        ))
-        .map(Some)
-        .map_err(decode)
+        bounded_statement(c, table, "image, rowid")
+            .map(Some)
+            .map_err(decode)
     }
     fn new(
+        connection: &'s Connection,
         stmt: Option<&'s mut rusqlite::Statement<'_>>,
         table: &'static str,
+        storage: Option<&'s Path>,
     ) -> EngineResult<Self> {
         let (rows, names) = match stmt {
             Some(stmt) => {
@@ -326,6 +427,8 @@ impl<'s> ByImage<'s> {
             None => (None, vec![]),
         };
         Ok(Self {
+            connection,
+            storage,
             rows,
             names,
             table,
@@ -344,9 +447,17 @@ impl<'s> ByImage<'s> {
             return Ok(None);
         };
         self.index += 1;
-        source_row(row, &self.names, self.table, self.index, oversized)
-            .map(Some)
-            .map_err(decode)
+        source_row(
+            self.connection,
+            row,
+            &self.names,
+            self.table,
+            self.index,
+            oversized,
+            self.storage,
+        )
+        .map(Some)
+        .map_err(decode)
     }
     /// The rows for `image`, in rowid order. Images must be asked in
     /// ascending order; rows for smaller ids (orphans) are skipped.
@@ -593,13 +704,25 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
 pub fn import_each(
     path: impl AsRef<Path>,
     begin: impl FnOnce(&ImportPlan) -> EngineResult<()>,
+    visit: impl FnMut(ImportedImage) -> EngineResult<()>,
+) -> EngineResult<ImportPlan> {
+    import_each_with_storage(path, None, begin, visit)
+}
+
+/// Stream into a private bundle staging directory. Oversized cells are written
+/// losslessly below `storage/large`; references are relative to the bundle root.
+/// The caller owns publication and cleanup of the staging directory.
+pub fn import_each_with_storage(
+    path: impl AsRef<Path>,
+    storage: Option<&Path>,
+    begin: impl FnOnce(&ImportPlan) -> EngineResult<()>,
     mut visit: impl FnMut(ImportedImage) -> EngineResult<()>,
 ) -> EngineResult<ImportPlan> {
     let source = path.as_ref();
     let (_temp, copy) = copied_catalog(source)?;
     let c = open_copy(&copy)?;
     let mut report = vec![];
-    let vars = rows(&c, "Adobe_variablesTable", true, &mut report)?;
+    let vars = rows_with_storage(&c, "Adobe_variablesTable", true, &mut report, storage)?;
     let schema_version = vars
         .iter()
         .find(|r| {
@@ -612,10 +735,10 @@ pub fn import_each(
         })
         .and_then(|r| text(r, "value"))
         .ok_or_else(|| decode("Adobe_variablesTable missing Adobe_DBVersion"))?;
-    let roots = rows(&c, "AgLibraryRootFolder", true, &mut report)?;
-    let folders = rows(&c, "AgLibraryFolder", true, &mut report)?;
+    let roots = rows_with_storage(&c, "AgLibraryRootFolder", true, &mut report, storage)?;
+    let folders = rows_with_storage(&c, "AgLibraryFolder", true, &mut report, storage)?;
     // Only the columns a path needs are kept per file.
-    let mut files = rows(&c, "AgLibraryFile", true, &mut report)?;
+    let mut files = rows_with_storage(&c, "AgLibraryFile", true, &mut report, storage)?;
     for f in &mut files {
         f.retain(|k, _| matches!(k.as_str(), "id_local" | "folder" | "baseName" | "extension"));
     }
@@ -624,9 +747,7 @@ pub fn import_each(
     present(&c, "Adobe_images", true, &mut report)?;
     present(&c, "Adobe_imageDevelopSettings", true, &mut report)?;
     let master_files: HashMap<i64, Option<i64>> = {
-        let mut stmt = c
-            .prepare("SELECT *, rowid AS __tessera_rowid FROM \"Adobe_images\" ORDER BY rowid")
-            .map_err(decode)?;
+        let mut stmt = bounded_statement(&c, "Adobe_images", "rowid").map_err(decode)?;
         let names: Vec<String> = stmt.column_names().iter().map(|n| n.to_string()).collect();
         let (id_col, root_col) = (
             names.iter().position(|n| n == "id_local"),
@@ -650,7 +771,7 @@ pub fn import_each(
         }
         out
     };
-    let mut optional = |name| rows(&c, name, false, &mut report);
+    let mut optional = |name| rows_with_storage(&c, name, false, &mut report, storage);
     let keywords = optional("AgLibraryKeyword")?;
     let synonyms = optional("AgLibraryKeywordSynonym")?;
     let keyword_images = optional("AgLibraryKeywordImage")?;
@@ -667,11 +788,11 @@ pub fn import_each(
     let has_history = streamed("Adobe_libraryImageDevelopHistoryStep")?;
     let has_snapshots = streamed("Adobe_libraryImageDevelopSnapshot")?;
     let has_faces = streamed("AgLibraryFace")?;
-    let mut optional = |name| rows(&c, name, false, &mut report);
+    let mut optional = |name| rows_with_storage(&c, name, false, &mut report, storage);
     let face_clusters = optional("AgLibraryFaceCluster")?;
     let keyword_faces = optional("AgLibraryKeywordFace")?;
     let has_gps = present(&c, "AgHarvestedExifMetadata", false, &mut report)?;
-    let mut optional = |name| rows(&c, name, false, &mut report);
+    let mut optional = |name| rows_with_storage(&c, name, false, &mut report, storage);
     let mut stacks = vec![];
     for (table, links) in [
         ("AgLibraryFolderStack", "AgLibraryFolderStackImage"),
@@ -818,11 +939,8 @@ pub fn import_each(
     let roots_by_id = first_by(&plan.roots, "id_local");
     let keywords_by_image = group_by(&keyword_images, "image");
     let collections_by_image = group_by(&collection_images, "image");
-    let mut image_stmt = c
-        .prepare(
-            "SELECT *, rowid AS __tessera_rowid FROM \"Adobe_images\" ORDER BY id_local, rowid",
-        )
-        .map_err(decode)?;
+    let mut image_stmt =
+        bounded_statement(&c, "Adobe_images", "id_local, rowid").map_err(decode)?;
     let image_names: Vec<String> = image_stmt
         .column_names()
         .iter()
@@ -836,14 +954,26 @@ pub fn import_each(
         ByImage::prepare(&c, "Adobe_libraryImageDevelopSnapshot", has_snapshots)?;
     let mut face_stmt = ByImage::prepare(&c, "AgLibraryFace", has_faces)?;
     let mut gps_stmt = ByImage::prepare(&c, "AgHarvestedExifMetadata", has_gps)?;
-    let mut develops = ByImage::new(develop_stmt.as_mut(), "Adobe_imageDevelopSettings")?;
+    let mut develops = ByImage::new(
+        &c,
+        develop_stmt.as_mut(),
+        "Adobe_imageDevelopSettings",
+        storage,
+    )?;
     let mut history = ByImage::new(
+        &c,
         history_stmt.as_mut(),
         "Adobe_libraryImageDevelopHistoryStep",
+        storage,
     )?;
-    let mut snapshots = ByImage::new(snapshot_stmt.as_mut(), "Adobe_libraryImageDevelopSnapshot")?;
-    let mut faces = ByImage::new(face_stmt.as_mut(), "AgLibraryFace")?;
-    let mut gps = ByImage::new(gps_stmt.as_mut(), "AgHarvestedExifMetadata")?;
+    let mut snapshots = ByImage::new(
+        &c,
+        snapshot_stmt.as_mut(),
+        "Adobe_libraryImageDevelopSnapshot",
+        storage,
+    )?;
+    let mut faces = ByImage::new(&c, face_stmt.as_mut(), "AgLibraryFace", storage)?;
+    let mut gps = ByImage::new(&c, gps_stmt.as_mut(), "AgHarvestedExifMetadata", storage)?;
     let mut image_report = ImageReport::default();
     let mut oversized = vec![];
     let (mut image_index, mut batch) = (0, Vec::<Pending>::with_capacity(BATCH));
@@ -856,11 +986,13 @@ pub fn import_each(
         };
         image_index += 1;
         let image = source_row(
+            &c,
             row,
             &image_names,
             "Adobe_images",
             image_index,
             &mut oversized,
+            storage,
         )
         .map_err(decode)?;
         let id = required_id(&image, "id_local")?;
@@ -1043,32 +1175,47 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
         .rows
         .develop
         .as_ref()
-        .and_then(|r| text(r, "text"))
-        .filter(|t| {
-            !t.trim().is_empty()
-                || p.rows
-                    .develop
-                    .as_ref()
-                    .is_some_and(|r| r.contains_key("__oversized_develop"))
-        });
-    let mut recipe = if let Some(source) = develop_text {
+        .and_then(|r| r.get("text"))
+        .filter(|v| !v.is_object())
+        .and_then(|_| p.rows.develop.as_ref().and_then(|r| text(r, "text")))
+        .filter(|t| !t.trim().is_empty());
+    let oversized_cell = p
+        .rows
+        .develop
+        .as_ref()
+        .and_then(|r| r.get("text"))
+        .filter(|v| v.is_object());
+    let mut recipe = if let Some(cell) = oversized_cell {
+        let reason = p
+            .rows
+            .develop
+            .as_ref()
+            .and_then(|r| text(r, "__oversized_develop"))
+            .unwrap_or_default();
+        notes.push(format!(
+            "develop settings not imported ({reason}); imported as unedited"
+        ));
+        let mut recipe = Recipe::default();
+        recipe.unknown.insert(
+            "lrcat_develop_source".into(),
+            serde_json::json!({
+                "truncated": cell["status"] == "omitted", "cell": cell,
+                "processVersion": p.rows.develop.as_ref().and_then(|r| text(r, "processVersion"))
+            }),
+        );
+        if let Some(prefix) = cell.get("prefix") {
+            recipe.unknown.get_mut("lrcat_develop_source").unwrap()["text"] = prefix.clone();
+        }
+        recipe
+    } else if let Some(source) = develop_text {
         let process_version = p
             .rows
             .develop
             .as_ref()
             .and_then(|r| text(r, "processVersion"));
-        let oversized_reason = p
-            .rows
-            .develop
-            .as_ref()
-            .and_then(|r| text(r, "__oversized_develop"));
-        let decoded = if let Some(reason) = &oversized_reason {
-            Err(decode(reason))
-        } else {
-            match &process_version {
-                Some(pv) => develop(id, &source, pv),
-                None => Err(decode("develop settings have no process version")),
-            }
+        let decoded = match &process_version {
+            Some(pv) => develop(id, &source, pv),
+            None => Err(decode("develop settings have no process version")),
         };
         match decoded {
             Ok((recipe, warnings)) => {
@@ -1087,10 +1234,6 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
                     "lrcat_develop_source".into(),
                     serde_json::json!({"text": source, "processVersion": process_version}),
                 );
-                if oversized_reason.is_some() {
-                    recipe.unknown.get_mut("lrcat_develop_source").unwrap()["truncated"] =
-                        true.into();
-                }
                 recipe
             }
         }

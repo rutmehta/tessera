@@ -79,6 +79,9 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     let mut seen = BTreeMap::<(&str, &str), usize>::new();
     let mut accepted = BTreeMap::<(&str, &str), usize>::new();
     for (i, p) in properties.iter().enumerate() {
+        if p.namespace == CRS && p.name.starts_with("ExtendedToneCurve") {
+            continue;
+        }
         let key = CrsKey::from_xmp(p.namespace, p.name);
         if key.is_none() && p.namespace != CRS {
             continue;
@@ -153,6 +156,15 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     };
     let mut recipe = imported.recipe;
     let mut warnings = imported.warnings;
+    warnings.retain(|w| !w.starts_with("crs:ExtendedToneCurve"));
+    if properties.iter().any(|p| {
+        p.namespace == CRS
+            && p.name.starts_with("ExtendedToneCurve")
+            && p.name != "ExtendedToneCurveName2012"
+            && !identity_extended_property(p)
+    }) {
+        warnings.push(crate::lua_develop::EXTENDED_TONE_CURVE_NOTE.into());
+    }
     // Absent/invalid XMP versions cannot smuggle the default native revision in.
     let valid_xmp_version = accepted
         .get(&(CRS, "ProcessVersion"))
@@ -195,9 +207,42 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
                 .into(),
         );
     }
+    let mut source = serde_json::Map::new();
+    for p in &properties {
+        if p.namespace == CRS && crate::lua_develop::retain_source(p.name) {
+            source.insert(p.name.to_string(), json!(&text[p.range.clone()]));
+        }
+    }
+    if !source.is_empty() {
+        recipe
+            .unknown
+            .insert("lrcat_develop_source".into(), source.into());
+    }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
     recipe.validate()?;
     Ok((recipe, warnings))
+}
+
+fn identity_extended_property(p: &Property<'_>) -> bool {
+    let Some(node) = p.node else {
+        return false;
+    };
+    let numbers: Option<Vec<f64>> = node
+        .descendants()
+        .filter(|n| n.has_tag_name((RDF, "li")))
+        .flat_map(|n| n.text().unwrap_or("").split(','))
+        .map(|s| s.trim().parse().ok())
+        .collect();
+    numbers.is_some_and(|n| {
+        if n.len() < 4 || !n.len().is_multiple_of(2) {
+            return false;
+        }
+        let points = n.as_chunks::<2>().0;
+        points[0][0] == 0.0
+            && points[points.len() - 1][0] == 255.0
+            && points.iter().all(|p| p[0] == p[1])
+            && points.windows(2).all(|p| p[0][0] < p[1][0])
+    })
 }
 
 // Catalog curve validation is stricter than the shared codec's permissive

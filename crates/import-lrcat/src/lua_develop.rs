@@ -15,10 +15,12 @@
 //! Mapped keys ([`KEY_MAP`]) are rendered into the Adobe XMP shape of the same
 //! setting and decoded by [`crate::xmp::parse`], so a Lua row and the equivalent
 //! XMP row produce the same recipe through one translation path. The generated
-//! packet is not source data and is not retained. Keys missing from the table,
-//! or values with no XMP shape, become warnings (plan report entries) and only
-//! their own source text is kept, in `recipe.unknown["lrcat_develop_lua"]`
-//! (an object: Lua key -> source text of its value).
+//! packet is not source data and is not retained. Pending structures, Upright,
+//! extended curves and unmapped keys unconditionally retain their exact value
+//! literals in `recipe.unknown["lrcat_develop_source"]`, keyed by Adobe name.
+//! Unknown/unrenderable keys additionally keep ordered, tagged source entries
+//! in `lrcat_develop_lua_entries`; ordinary string keys retain the legacy
+//! `lrcat_develop_lua` lookup. Positional entries have a separate literal fallback.
 //!
 //! The extended-range (HDR) tone curve (`ExtendedToneCurvePV2012` and its
 //! Red/Green/Blue/Name siblings) is not translated (no recipe slot; codec work
@@ -696,26 +698,74 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     let (mut recipe, mut warnings) = crate::xmp::parse(&packet, process_version)?;
     // The packet was generated from the literal; it is not source data.
     recipe.unknown.remove("sidecar_xmp");
+    // Never derive retention from decoder diagnostics: future translators need
+    // the exact Adobe spelling even for inactive or currently decoded values.
+    recipe.unknown.remove("lrcat_develop_source");
+    let mut source = Map::new();
     let mut kept = Map::new();
+    let mut entries = Vec::new();
     if !table.items.is_empty() {
-        // Positional entries have no key to file them under: keep the literal.
-        kept.insert("(positional entries)".into(), Value::from(text));
+        recipe
+            .unknown
+            .insert("lrcat_develop_lua_positional".into(), Value::from(text));
     }
-    for i in keep {
-        let (key, _) = &table.fields[i];
-        let name = match key {
-            LuaKey::Str(s) => s.clone(),
-            LuaKey::Num(n) => format!("[{n}]"),
-        };
-        kept.insert(name, Value::from(text[spans[i].clone()].trim()));
+    for (i, (key, _)) in table.fields.iter().enumerate() {
+        let raw = Value::from(text[spans[i].clone()].trim());
+        if let LuaKey::Str(name) = key
+            && (retain_source(name) || keep.contains(&i))
+        {
+            source.insert(name.clone(), raw.clone());
+        }
+        if keep.contains(&i) {
+            match key {
+                LuaKey::Str(name) => {
+                    kept.insert(name.clone(), raw.clone());
+                }
+                LuaKey::Num(_) => (),
+            }
+            let key = match key {
+                LuaKey::Str(s) => serde_json::json!({"string": s}),
+                LuaKey::Num(n) => serde_json::json!({"number": n}),
+            };
+            entries.push(serde_json::json!({"key": key, "value": raw}));
+        }
+    }
+    if !source.is_empty() {
+        recipe
+            .unknown
+            .insert("lrcat_develop_source".into(), Value::Object(source));
     }
     if !kept.is_empty() {
         recipe
             .unknown
             .insert("lrcat_develop_lua".into(), Value::Object(kept));
     }
+    if !entries.is_empty() {
+        recipe
+            .unknown
+            .insert("lrcat_develop_lua_entries".into(), Value::Array(entries));
+    }
+    for warning in &mut warnings {
+        *warning = warning.replace("retained in original XMP", "source preserved per property");
+    }
     warnings.extend(notes);
     Ok((recipe, warnings))
+}
+
+/// Retain pending structures and unmapped properties independently of decoder coverage.
+/// Unknown future keys are pending by definition; this also covers additions to KEY_MAP.
+pub(crate) fn retain_source(key: &str) -> bool {
+    key.starts_with("Upright")
+        || key.starts_with("ExtendedToneCurve")
+        || matches!(
+            key,
+            "MaskGroupBasedCorrections"
+                | "LensBlur"
+                | "RetouchAreas"
+                | "RetouchInfo"
+                | "PointColors"
+        )
+        || CrsKey::from_xmp_name(key).is_none()
 }
 
 const CRS_URI: &str = engine_api::recipe::crs::CRS_NAMESPACE;

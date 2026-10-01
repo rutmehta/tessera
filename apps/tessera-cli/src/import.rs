@@ -94,21 +94,44 @@ pub fn fidelity(source: &Path, reference_dir: &Path) -> Result<Value> {
 /// One recipe file of the staged bundle: the bytes and checks of
 /// `sidecar::Sidecar::write_recipe`, with a plain `fsync` (data handed to the
 /// drive) instead of a per-file `F_FULLFSYNC`. The staging directory is
-/// private until it is renamed into place, and [`apply`] issues one
-/// `F_FULLFSYNC` (drive cache flush) after every file is written. Per-file
-/// full flushes cost ~5 ms each (~100 s for 21k recipes).
+/// private until it is renamed into place. After the writers finish, [`apply`]
+/// synchronizes the plan with std `sync_all` (F_FULLFSYNC on Apple), then the
+/// staging directories and, after publication, the destination parent. Avoiding
+/// per-recipe full flushes saves ~5 ms each (~100 s for 21k recipes).
 fn write_staged_recipe(path: &Path, document: &sidecar::RecipeDocument) -> Result<()> {
-    use std::{io::Write, os::fd::AsRawFd};
+    use std::io::Write;
     document.recipe.to_json()?;
     document.recipe.validate()?;
     let bytes = serde_json::to_vec_pretty(document)?;
     let mut file = std::fs::File::create_new(path)?;
     file.write_all(&bytes)?;
-    // SAFETY: fsync on a file descriptor this function owns and keeps open.
-    if unsafe { libc::fsync(file.as_raw_fd()) } != 0 {
-        return Err(std::io::Error::last_os_error().into());
-    }
+    sync_plain(&file)?;
     Ok(())
+}
+
+/// Plain fsync on Apple (std sync_all uses F_FULLFSYNC); retry signals.
+/// Other platforms use the standard library's synchronization implementation.
+fn sync_plain(file: &std::fs::File) -> std::io::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::fd::AsRawFd;
+        loop {
+            // SAFETY: the descriptor is owned by the live File reference.
+            if unsafe { libc::fsync(file.as_raw_fd()) } == 0 {
+                return Ok(());
+            }
+            let error = std::io::Error::last_os_error();
+            if error.kind() != std::io::ErrorKind::Interrupted {
+                return Err(error);
+            }
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    file.sync_all()
+}
+
+fn sync_directory(path: &Path) -> std::io::Result<()> {
+    sync_plain(&std::fs::File::open(path)?)
 }
 
 /// Persist a lossless import bundle, never sidecars beside source originals.
@@ -132,11 +155,16 @@ fn apply_with_publish(
         Begin(Box<import_lrcat::ImportPlan>),
         Image(Box<import_lrcat::ImportedImage>),
     }
-    ensure!(
-        !dest.try_exists()?,
-        "destination already exists: {}",
-        dest.display()
-    );
+    if dest.try_exists()? {
+        // Crash recovery: an empty directory is a reservation, not a bundle.
+        // remove_dir atomically refuses nonempty destinations; never recurse.
+        std::fs::remove_dir(dest).with_context(|| {
+            format!(
+                "destination already exists and is not an empty reservation: {}",
+                dest.display()
+            )
+        })?;
+    }
     let parent = dest
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -204,8 +232,9 @@ fn apply_with_publish(
         let stopped = || engine_api::error::EngineError::Conflict {
             message: "import plan writer stopped".into(),
         };
-        let plan = import_lrcat::import_each(
+        let plan = import_lrcat::import_each_with_storage(
             source,
+            Some(staging.path()),
             |plan| {
                 image_tx
                     .send(Msg::Begin(Box::new(plan.clone())))
@@ -234,10 +263,16 @@ fn apply_with_publish(
         .finish(&plan)?
         .into_inner()
         .map_err(|e| e.into_error())?;
-    // One drive-cache flush covers every file fsynced above.
+    // The plan gets std sync_all (F_FULLFSYNC on Apple).
     file.sync_all()?;
     drop(file);
-    // Exclusive reservation prevents replacing any pre-existing destination.
+    sync_directory(&staging.path().join("recipes"))?;
+    if staging.path().join("large").is_dir() {
+        sync_directory(&staging.path().join("large"))?;
+    }
+    sync_directory(staging.path())?;
+    // Exclusive reservation prevents replacing a concurrent destination.
+    // A crash before rename leaves an empty reservation recovered above.
     std::fs::create_dir(dest).context("reserve import destination")?;
     if let Err(error) = publish(staging.path(), dest).and_then(|()| {
         ensure!(
@@ -249,12 +284,28 @@ fn apply_with_publish(
         let _ = std::fs::remove_dir(dest);
         return Err(error);
     }
+    sync_directory(parent)?;
     Ok(json!({"dest":dest,"images":images,"report":plan.report}))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lrcat_empty_reservation_recovers_but_nonempty_destination_survives() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let dest = temp.path().join("bundle");
+        std::fs::create_dir(&dest).unwrap();
+        apply(&fixture.catalog, &dest).unwrap();
+        let original = std::fs::read(dest.join("import-plan.json")).unwrap();
+        assert!(apply(&fixture.catalog, &dest).is_err());
+        assert_eq!(
+            std::fs::read(dest.join("import-plan.json")).unwrap(),
+            original
+        );
+    }
 
     #[test]
     fn lrcat_failed_publish_leaves_no_destination() {

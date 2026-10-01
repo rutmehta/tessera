@@ -19,6 +19,9 @@ fn xmp(attrs: &str, body: &str) -> String {
 /// The recipe minus the retained source text, which differs by format.
 fn comparable(mut r: engine_api::recipe::Recipe) -> engine_api::recipe::Recipe {
     r.unknown.remove("sidecar_xmp");
+    // Exact Lua literals and exact XMP fragments intentionally differ. The
+    // golden and per-key retention tests hash/assert these without stripping.
+    r.unknown.remove("lrcat_develop_source");
     r
 }
 

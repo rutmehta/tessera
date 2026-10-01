@@ -11,7 +11,7 @@ path = "src/lib.rs"
 library = { path = "../library" }
 engine-api = { path = "../engine-api" }
 sidecar = { path = "../sidecar" }
-rusqlite.workspace = true
+rusqlite = { workspace = true, features = ["blob"] }
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
