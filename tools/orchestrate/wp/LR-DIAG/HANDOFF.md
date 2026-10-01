@@ -12,7 +12,9 @@ Branch `wp/LR-DIAG`, worktree `/Volumes/betterSSD/tessera-worktrees/lr-diag`,
   Failing at RED: 3 diagnostics unit tests, 2 matrix guard tests and the FFI report test. The Swift tests
   were also expected to fail at RED but were not run there.
 - GREEN: `783f6dee21f586acbc9b57571aa9ad8d72244fc8`, `feat(LR-DIAG): shared approximate-diagnostics channel, matrix guard and report group`.
-- Docs: the following `docs(LR-DIAG):` commit (matrix legend and this file).
+- Docs: `a736b810` (matrix legend and first handoff).
+- Review fix: `7626011166f36903cc8bb007c2086328788d115f`, `fix(LR-DIAG): apply review: fail closed on foreign shapes, workspace-wide key scan, field match, AX paths`.
+- The following `docs(LR-DIAG):` commit updates this file. It cannot contain its own hash.
 
 ## API (`crates/import-lrcat/src/diagnostics.rs`)
 
@@ -26,12 +28,17 @@ pub fn entries(recipe: &Recipe) -> BTreeMap<String, Vec<Entry>>;
 The data is stored in `recipe.unknown["lrcat_translation_diagnostics"]`. It is a JSON object keyed by Adobe
 key, and each value is an array of `{"level":"info","status":"approximate","lane":"LR-n","field":"/settings/...","reason":"..."}`.
 `push_approximate` appends an entry and skips an identical one. It creates the object or list when absent and
-never touches another key's list or any other `unknown` member. `entries()` skips malformed entries. A recipe
+never touches another key's list or any other `unknown` member. If the value under the key is not an object, or
+a key's value is not an array (for example a foreign ad-hoc writer such as LR-6's top-level array), it writes
+nothing and leaves that value untouched. Debug builds hit a `debug_assert!`. The matrix guard therefore fails
+closed. `entries()` returns nothing for a wrong-shaped object and skips malformed entries. A recipe
 without diagnostics has no such member, so it serializes byte-identically. The import-lrcat `golden.rs`
 digests and the engine-api tests pass unchanged.
 
-A unit test (`no_other_crate_source_writes_the_key_directly`) fails if any file under
-`crates/import-lrcat/src` other than `diagnostics.rs` contains the key string.
+A unit test (`no_other_source_writes_the_key_directly`) fails if any `.rs` or `.swift` file under any
+`crates/*/src` or `apps/mac/Sources` contains the key string. The one exception is
+`crates/import-lrcat/src/diagnostics.rs`, matched by full path. Tests directories are not scanned. A lane
+branch that still writes the key itself fails this test at merge time.
 
 ## Converting a lane (other branches)
 
@@ -54,12 +61,15 @@ inventory check is separate. The new status is `approximate`, and its requiremen
 - a concrete key and a synthetic value;
 - the JSON pointer exists and differs from an empty row's (`s = {}`) value;
 - the source is in `lrcat_develop_source`;
-- `entries()[key]` has an info/approximate entry;
+- `entries()[key]` has an info/approximate entry whose `field` equals the row's recipe path (the lane is
+  free-form);
+- the value at the path is not JSON null (null also counts as missing for `translated` rows);
 - there are no warnings.
 
 `translated` rows now also fail if they carry a diagnostics entry. The positive case uses a test-only fixture
 row (`Exposure2012 → /settings/tone/exposure`) with a synthetic lane. There is one negative test for each
-dropped condition (field, including a bad path; source; diagnostic; warnings). Further negatives cover a missing
+dropped condition (field, including a bad path; source; diagnostic; warnings; a diagnostic that names another
+field). Further negatives cover a missing
 synthetic value, a translated row carrying a diagnostic, and the fixture row against the unconverted parser.
 The real matrix has no `approximate` rows.
 
@@ -75,26 +85,34 @@ The real matrix has no `approximate` rows.
   `apply` by `note_approximate`.
 - Swift: the report sheet (`ReportStep`) shows a separate "Approximate translations" group using `IssueRow`.
   Its AX identifier is `document.import.report.approximate`, and its value comes from
-  `LightroomImportReport.approximateLines` (`"<Key>: <n> photo(s); e.g. <reason>"`). `import-report.md` gains a
+  `LightroomImportReport.approximateLines` (`"<Key>: <n> photo(s); e.g. <reason>; <path>, <path>"`). This
+  includes the example paths, like the on-screen rows. `import-report.md` gains a
   `## Approximate translations (n)` table, shown only when the list is non-empty.
 - Tests:
   - `lrcat::lrcat_resume_tests::approximate_translations_populate_the_report`: a synthetic approximate import
-    rewrites the spooled records through `push_approximate`, then runs `apply`.
+    rewrites the spooled records through `push_approximate`, then runs `apply`. A second `apply` resumes every
+    photo and produces the same groups, which covers resumed-photo counting.
+  - `approximate_groups_count_every_photo_but_cap_examples_at_five` uses seven photos and checks that the
+    group keeps the first photo's reason.
   - `tests/lrcat.rs`: a plain import has an empty `approximate` list.
   - Swift `testReportMarkdownGroupsApproximateTranslationsPerAdobeKey` checks the markdown.
   - The AX test checks the sheet group and that the group is absent from the warnings.
 - The summary step (pre-import) does not show the group. Only the post-import report does.
 
-## Gates (run sequentially at GREEN `783f6dee`)
+## Gates
 
-| Gate | Exit |
-| --- | --- |
-| `cargo test --locked -p import-lrcat -p tessera-ffi -p engine-api --release` (750 passed, 0 failed, 29 ignored) | 0 |
-| `cargo clippy --locked --workspace --all-targets --release -- -D warnings` | 0 |
-| `cargo fmt --all -- --check` | 0 |
-| `bash tools/orchestrate/swift-gate.sh` (911 XCTest executed, 3 skipped, 0 failures; 5 swift-testing passed) | 0 |
-| `git status --porcelain \| grep -v fixtures/raw \| wc -l` | 0 (after the docs commit) |
-| `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | 0 |
+Each set was run sequentially. Exits at GREEN `783f6dee` / at review fix `76260111`:
+
+| Gate | GREEN | Review fix |
+| --- | --- | --- |
+| `cargo test --locked -p import-lrcat -p tessera-ffi -p engine-api --release` | 0 (750 passed, 0 failed, 29 ignored) | 0 (754 passed, 0 failed, 29 ignored) |
+| `cargo clippy --locked --workspace --all-targets --release -- -D warnings` | 0 | 0 |
+| `cargo fmt --all -- --check` | 0 | 0 |
+| `bash tools/orchestrate/swift-gate.sh` | 0 (911 XCTest, 3 skipped, 0 failures; 5 swift-testing) | 0 (911 XCTest, 3 skipped, 0 failures; 5 swift-testing) |
+| `git status --porcelain \| grep -v fixtures/raw \| wc -l` (after the docs commit) | 0 | 0 |
+| `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | 0 | 0 |
+
+The diagnostics unit tests also pass in a debug build, where the foreign-shape tests catch the `debug_assert!`.
 
 Bindings: `build-ffi.sh` regenerated `TesseraFFI.swift` in RED. The swift gate's rebuild produced no further
 diff. The only linker output is the existing `blake3_neon.o` macOS-version `ld` warning.
