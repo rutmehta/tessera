@@ -28,3 +28,5 @@ Next action: after lane release, compile and execute the authored PERF-1 tests, 
 Commit identity: use `git log -1 --format=%H -- tools/orchestrate/wp/PERF-1` on this branch; parent receives the exact resulting commit hash with this handoff. No merge requested.
 
 Independent review of same-pass fixture 11c318d3 found no source blocker in namespace construction, identity sampling, bottom-first order or analytic dyadic pixels. See SAME-PASS-SOURCE-REVIEW.md. This is a pixel regression, not cache hit/miss evidence; still UNRUN.
+
+Independent review of live-shape fixture fc680629 found no source blocker; LIVE-SHAPE-SOURCE-REVIEW.md distinguishes live_tiles route guard from the source/style operation counters. Still UNRUN. External batch16 finished and main advanced to b1af2436, but batch17 parent72750 now owns runtime. Runtime-slot request ec6a6548-1ecb-430d-a9fe-512d9b2d0efd is published; receipt unverified.
