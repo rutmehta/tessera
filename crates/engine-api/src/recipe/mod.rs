@@ -422,9 +422,10 @@ impl Recipe {
         Ok(())
     }
 
-    /// Attach resolved Lens Blur resources to the current state without creating
-    /// a user edit. Only cache/provenance data changes; history ids and authors
-    /// remain intact and replay of the current head stays valid.
+    /// Attach resolved Lens Blur resources to the current Import entry without
+    /// creating an edit. A user-authored head (or no head) is left untouched;
+    /// callers can still use the prepared raster without persisting its key.
+    /// History ids/authors remain intact and replay of the head stays valid.
     pub fn set_lens_blur_depth(&mut self, depth: settings::LensBlurDepth) -> EngineResult<()> {
         let mut next = self.settings.clone();
         let blur = next.effects.lens_blur.as_mut().ok_or_else(|| {
@@ -432,11 +433,15 @@ impl Recipe {
         })?;
         blur.depth = Some(depth);
         if let Some(head) = self.history.head {
-            let parent = self
+            let entry = self
                 .history
                 .entry(head)
-                .ok_or_else(|| EngineError::internal("missing history head"))?
-                .parent;
+                .ok_or_else(|| EngineError::internal("missing history head"))?;
+            // Resource preparation must not rewrite a user edit or add an undo step.
+            if !matches!(entry.meta.author, Author::Import { .. }) {
+                return Ok(());
+            }
+            let parent = entry.parent;
             let before = self.history.state_at(parent)?;
             let changes = history::diff(
                 &serde_json::to_value(before)?,
@@ -444,7 +449,7 @@ impl Recipe {
             );
             self.history.entries[head.0 as usize - 1].changes = changes;
         } else {
-            self.history.base = next.clone();
+            return Ok(());
         }
         self.settings = next;
         Ok(())
@@ -550,17 +555,6 @@ impl Recipe {
             ));
         }
         Ok(())
-    }
-
-    /// Persist non-user-facing translation information without warning escalation.
-    pub fn record_translation_info(&mut self, key: &str, message: &str) {
-        let records = self
-            .unknown
-            .entry("lrcat_translation_diagnostics".into())
-            .or_insert_with(|| serde_json::json!([]));
-        if let Some(records) = records.as_array_mut() {
-            records.push(serde_json::json!({"level":"info", "key":key, "message":message}));
-        }
     }
 
     /// Parses a recipe document (any schema version; newer ones load

@@ -176,7 +176,9 @@ pub(crate) fn parse_inner(
         if let Some(previous) = accepted.insert((p.namespace, p.name), i) {
             removed.push(properties[previous].range.clone());
         }
-        if key.is_none() && p.name != "DepthMapInfo" {
+        if key.is_none()
+            && !(p.name == "DepthMapInfo" && original.recipe.settings.effects.lens_blur.is_some())
+        {
             diagnostics.push((qualified, p.raw, "unsupported property".into()));
         } else if key == Some(CrsKey::ProcessVersion) {
             match ProcessVersion::from_crs(p.raw) {
@@ -461,7 +463,6 @@ fn approximate_depth(
     warnings: &mut Vec<String>,
 ) -> EngineResult<()> {
     use engine_api::recipe::settings::LensBlurDepth;
-    let mut info = Vec::new();
     let active = recipe.settings.effects.lens_blur.is_some();
     for p in properties.iter().filter(|p| p.namespace == CRS) {
         if !matches!(p.name, "LensBlur" | "DepthMapInfo") {
@@ -486,17 +487,24 @@ fn approximate_depth(
             }
             for (field, reason) in LENS_BLUR_FIELDS {
                 if value(field).is_some() {
-                    info.push(json!({"level":"info", "key":"LensBlur", "field":field, "message":format!("approximate: {reason}; Adobe convention unverified; exact source retained")}));
+                    crate::diagnostics::push_approximate(
+                        recipe,
+                        "LensBlur",
+                        "/settings/effects/lens_blur",
+                        "LR-6",
+                        &format!(
+                            "approximate: {field}: {reason}; Adobe convention unverified; exact source retained"
+                        ),
+                    );
                 }
             }
             continue;
         }
-        warnings.retain(|w| !w.starts_with("crs:DepthMapInfo:"));
-        recipe.unknown.remove("crs:DepthMapInfo");
         if !active {
-            info.push(json!({"level":"info", "key":"DepthMapInfo", "message":"retained source: no active Lens Blur; depth metadata may belong to a depth-range mask"}));
             continue;
         }
+        warnings.retain(|w| !w.starts_with("crs:DepthMapInfo:"));
+        recipe.unknown.remove("crs:DepthMapInfo");
         let mut depth = LensBlurDepth {
             regenerate: true,
             ..Default::default()
@@ -513,36 +521,36 @@ fn approximate_depth(
         depth.base_highlight_guide_version = value("BaseHighlightGuideVersion");
         for (field, reason) in DEPTH_FIELDS {
             if value(field).is_some() {
-                info.push(json!({"level":"info", "key":"DepthMapInfo", "field":field, "message":format!("approximate: {reason}; Adobe encoding/calibration unverified; exact source retained")}));
+                crate::diagnostics::push_approximate(
+                    recipe,
+                    "DepthMapInfo",
+                    "/settings/effects/lens_blur/depth",
+                    "LR-6",
+                    &format!(
+                        "approximate: {field}: {reason}; Adobe encoding/calibration unverified; exact source retained; regenerated depth pending if resource unavailable"
+                    ),
+                );
             }
         }
         recipe.set_lens_blur_depth(depth)?;
     }
-    if active {
-        if recipe
+    if active
+        && recipe
             .settings
             .effects
             .lens_blur
             .as_ref()
             .is_some_and(|b| b.depth.is_none())
-        {
-            recipe.set_lens_blur_depth(LensBlurDepth {
-                regenerate: true,
-                ..Default::default()
-            })?;
-        }
-        info.push(json!({"level":"info", "key":"DepthMapInfo", "message":"regenerated depth: pending; no decoded Adobe resource supplied; image-core provider performs opt-in regeneration"}));
-    }
-    if !info.is_empty() {
-        recipe
-            .unknown
-            .insert("lrcat_translation_diagnostics".into(), json!(info));
+    {
+        recipe.set_lens_blur_depth(LensBlurDepth {
+            regenerate: true,
+            ..Default::default()
+        })?;
     }
     Ok(())
 }
 
 const LENS_BLUR_FIELDS: &[(&str, &str)] = &[
-    ("Active", "true enables Lens Blur"),
     (
         "BlurAmount",
         "percentage of native maximum blur radius; Adobe image-size scaling unknown",

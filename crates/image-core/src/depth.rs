@@ -276,7 +276,7 @@ impl DepthProvider {
             );
             break;
         }
-        let regenerated = imported.is_none();
+        let imported_resource = imported.is_some();
         let depth = match imported {
             Some(depth) => depth,
             None => {
@@ -285,19 +285,17 @@ impl DepthProvider {
             }
         };
         let key = depth.resource_key();
-        depth.store(store, &key).map_err(error)?;
+        if imported_resource {
+            depth.store_pinned(store, &key).map_err(error)?;
+        } else {
+            depth.store(store, &key).map_err(error)?;
+        }
         if DepthMap::cached(store, &key).as_ref() != Some(&depth) {
             return Err(error("depth resource was not retained by mask-store"));
         }
         state.mask_key = Some(key);
         state.regenerate = false;
         recipe.set_lens_blur_depth(state.clone())?;
-        // Engine API owns JSON persistence; no raster is serialized here.
-        recipe.record_translation_info("DepthMapInfo", if regenerated {
-            "regenerated depth: complete via image-core depth provider; relative inverse depth, Adobe calibration unverified"
-        } else {
-            "approximate: imported grayscale PNG/TIFF depth into mask-store; white interpreted as near, calibration/direction unverified"
-        });
         Ok(depth)
     }
 }

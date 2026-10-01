@@ -153,6 +153,12 @@ impl MaskStore {
             .collect();
         MaskRaster::new(width, height, data).ok()
     }
+    /// Durable imported resources live outside the evictable cache budget.
+    /// A separate directory also protects them from other store instances' eviction.
+    pub fn put_pinned(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
+        Self::new(self.root.join("pinned"), u64::MAX)?.put(key, raster)
+    }
+
     pub fn put(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
         let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
         if raster.data.len() as u64 * 4 + 48 > self.cap {
