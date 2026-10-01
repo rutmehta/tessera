@@ -72,10 +72,12 @@ final class MasksPanelLayoutTests: XCTestCase {
                 XCTAssertEqual(bitmap.pixelsHigh, 1440, "\(tag): OCR requires 2 pixels per point")
                 let words = try renderedWords(try XCTUnwrap(bitmap.cgImage))
                 for label in ["Components", "Add", "Subtract", "Intersect"] {
-                    // Vision can join the adjacent menu chevron to the full word as "v".
-                    // Accept that glyph only; never expand a truncated prefix such as "Sub…".
-                    XCTAssertTrue(words.contains(label) || words.contains(label + "v"),
-                                  "\(tag): full label '\(label)' is not painted; recognized \(words.sorted())")
+                    // Vision can join the adjacent menu chevron to the full word as "v", or glue a
+                    // neighbouring bracket/punctuation glyph to the token on some font renderings
+                    // ("(Intersect"). Compare whole words after trimming leading/trailing punctuation;
+                    // never accept a truncated prefix such as "Sub…" or a longer word.
+                    XCTAssertTrue(Self.recognizedWords(words, containFullLabel: label),
+                                  "\(tag): full label '\(label)' is not painted; recognized \(words.sorted()); trimmed \(words.map(Self.trimmedToken).sorted())")
                 }
                 if let captureDirectory = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"] {
                     let directory = URL(fileURLWithPath: captureDirectory)
@@ -102,6 +104,31 @@ final class MasksPanelLayoutTests: XCTestCase {
             (observation.topCandidates(1).first?.string ?? "")
                 .split(whereSeparator: { $0.isWhitespace }).map(String.init)
         })
+    }
+
+    /// Punctuation Vision may glue to a label from an adjacent icon or bracket.
+    private static let edgePunctuation = CharacterSet(charactersIn: "()[].,:;'\"")
+
+    static func trimmedToken(_ token: String) -> String {
+        token.trimmingCharacters(in: edgePunctuation)
+    }
+
+    /// Exact word equality after trimming edge punctuation (and the "v" chevron glyph): "(Intersect"
+    /// and "Intersectv" match "Intersect"; "Intersection", "Inter" and "Sub…" do not.
+    static func recognizedWords(_ words: Set<String>, containFullLabel label: String) -> Bool {
+        words.contains { token in
+            let trimmed = trimmedToken(token)
+            return trimmed == label || trimmed == label + "v"
+        }
+    }
+
+    func testFullLabelMatchingTrimsEdgePunctuationButNotPrefixes() {
+        XCTAssertTrue(Self.recognizedWords(["(Intersect", "+"], containFullLabel: "Intersect"))
+        XCTAssertTrue(Self.recognizedWords(["Subtract)", "Add"], containFullLabel: "Subtract"))
+        XCTAssertTrue(Self.recognizedWords(["Intersectv"], containFullLabel: "Intersect"))
+        XCTAssertFalse(Self.recognizedWords(["Intersection"], containFullLabel: "Intersect"))
+        XCTAssertFalse(Self.recognizedWords(["Inter", "sect"], containFullLabel: "Intersect"))
+        XCTAssertFalse(Self.recognizedWords(["Sub…"], containFullLabel: "Subtract"))
     }
 }
 
