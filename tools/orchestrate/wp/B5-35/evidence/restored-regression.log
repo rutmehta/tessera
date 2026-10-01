@@ -1,0 +1,12 @@
+running 1 test
+composite thumbnail: cold 256.613709ms, after an opacity edit 887.583µs
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag 0: mip counters (44, 350) -> (88, 350)
+drag 1: mip counters (88, 350) -> (132, 350)
+drag 2: mip counters (132, 350) -> (176, 350)
+drag 3: mip counters (176, 350) -> (220, 350)
+drag 4: mip counters (220, 350) -> (264, 350)
+drag ticks: [2.359666ms, 3.823667ms, 1.085209ms, 790.25µs, 2.797666ms]
+test composite_thumbnails_reuse_mips_across_edits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.44s

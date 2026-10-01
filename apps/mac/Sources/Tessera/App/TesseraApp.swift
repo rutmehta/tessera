@@ -60,6 +60,7 @@ struct TesseraApp: App {
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --nonactivating   background audits: accessory policy, no activation, ignores --front
+///                     (with a document self-test flag: SelfTestHost hosts the content in a window behind other apps)
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
 ///   --new-document    (test aid) create a layered document (2400 × 1600; one blank layer on the engine, sample layers
 ///                     on the stub) after launch. Documents use the engine unless --stub-library is given
@@ -181,6 +182,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let test = ToolsSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
             Task { @MainActor in await test.run() }
         }
+        // B5-selftest-window: document self-tests under --nonactivating get a background host window and start directly.
+        SelfTestHost.launch(model: model)
         if args.contains("--front"), !nonactivating {   // never front a background audit
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 MainActor.assumeIsolated { NSApp.windows.first { !($0 is NSPanel) }?.orderFrontRegardless() }
@@ -299,8 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let model = AppModel.shared
-        guard !model.developRecovery.hasUnresolvedSessions,
-              !model.developRecovery.hasActiveReservations else {
+        guard model.developRecovery.allowsTermination else {
             model.statusMessage = "Finish the current photo save or operation before quitting"
             model.mainWindow?.makeKeyAndOrderFront(nil)
             return .terminateCancel
@@ -309,7 +311,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        let recovery = AppModel.shared.developRecovery
-        return !recovery.hasUnresolvedSessions && !recovery.hasActiveReservations
+        AppModel.shared.developRecovery.allowsTermination
     }
 }

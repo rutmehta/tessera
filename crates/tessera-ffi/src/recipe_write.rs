@@ -23,6 +23,9 @@ static GATES: OnceLock<Mutex<GateTable>> = OnceLock::new();
 /// collision between different image extensions.
 fn destination_key(image: &Path) -> Result<PathBuf> {
     let recipe = Sidecar::paths(image).recipe;
+    if Sidecar::is_lightroom_owned(image) {
+        return Ok(Sidecar::resolved_destination(recipe));
+    }
     let edits = recipe
         .parent()
         .ok_or_else(|| failure("recipe has no parent directory"))?;

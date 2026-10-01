@@ -5,7 +5,7 @@ use compositor::{
     raster::Raster,
     render::smart_filters::{FilterContext, SmartFilterEvaluator},
 };
-use engine_api::{EngineError, EngineResult};
+use engine_api::{EngineError, EngineResult, jobs::CancellationToken};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Mutex, OnceLock};
 
@@ -63,6 +63,9 @@ impl SmartFilterEvaluator for CompositorFilters {
                 .mesh
                 .render(input, p.interpolation, &AtomicBool::new(false));
         }
+        if node.name == "adaptive_wide_angle" {
+            return adaptive_wide_angle(input, &node.params, &CancellationToken::new());
+        }
         #[cfg(feature = "camera-raw-filter")]
         if node.name == "camera_raw" {
             return crate::camera_raw::evaluate(input, &node.params, context);
@@ -70,7 +73,114 @@ impl SmartFilterEvaluator for CompositorFilters {
         let (effect, params) = parse_filter(node, Some(input.extent()))?;
         effect.apply_tiled(input, &params, &AtomicBool::new(false))
     }
+
+    /// B5-20b: Adaptive Wide Angle checks `cancel` inside its render; every
+    /// other stage keeps the trait's boundary checks.
+    fn evaluate_with_cancel(
+        &self,
+        input: &Raster,
+        node: &SmartFilter,
+        context: &FilterContext,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Raster> {
+        cancel.check()?;
+        let result = if node.name == "adaptive_wide_angle" {
+            adaptive_wide_angle(input, &node.params, cancel)?
+        } else {
+            self.evaluate(input, node, context)?
+        };
+        cancel.check()?;
+        Ok(result)
+    }
 }
+
+// B5-20 begin: Adaptive Wide Angle smart filter.
+
+/// First key of `value` that `reference` (its typed re-serialization) lacks:
+/// strict params at every depth without changing the transform crate.
+fn unknown_key(value: &serde_json::Value, reference: &serde_json::Value) -> Option<String> {
+    use serde_json::Value::{Array, Object};
+    match (value, reference) {
+        (Object(v), Object(r)) => v.iter().find_map(|(k, x)| match r.get(k) {
+            None => Some(k.clone()),
+            Some(y) => unknown_key(x, y),
+        }),
+        (Array(v), Array(r)) => v.iter().zip(r).find_map(|(x, y)| unknown_key(x, y)),
+        _ => None,
+    }
+}
+
+/// `adaptive_wide_angle`: params are a `transform::adaptive::Adaptive` recipe
+/// whose source and output match the stage input. Solved per evaluation (the
+/// compositor caches stage results) and rendered with the shared CPU
+/// displacement renderer on premultiplied planes, like `transform` stages.
+/// B5-20b: layers over the dense lattice solve on a coarse lattice and sample
+/// at full resolution (`crate::adaptive_lattice`); layers within it keep the
+/// dense path, unchanged.
+fn adaptive_wide_angle(
+    input: &Raster,
+    params: &serde_json::Value,
+    cancel: &CancellationToken,
+) -> EngineResult<Raster> {
+    use compositor::{geom::Rect, raster::Depth};
+    let bad = |m: String| EngineError::invalid("adaptive_wide_angle", m);
+    let recipe: transform::adaptive::Adaptive =
+        serde_json::from_value(params.clone()).map_err(|e| bad(e.to_string()))?;
+    let typed = serde_json::to_value(&recipe).map_err(|e| bad(e.to_string()))?;
+    if let Some(k) = unknown_key(params, &typed) {
+        return Err(bad(format!("unknown field `{k}`")));
+    }
+    let e = input.extent();
+    let (w, h) = (e.width as usize, e.height as usize);
+    if let Some(why) = crate::adaptive_lattice::size_refusal(w, h) {
+        return Err(bad(why));
+    }
+    if [recipe.source_width, recipe.source_height] != [w, h]
+        || [recipe.output_width, recipe.output_height] != [w, h]
+    {
+        return Err(bad(format!(
+            "recipe size {}×{} → {}×{} does not match the {w}×{h} layer",
+            recipe.source_width, recipe.source_height, recipe.output_width, recipe.output_height
+        )));
+    }
+    if let Some(budget) = crate::adaptive_lattice::coarse_budget(w, h) {
+        return crate::adaptive_lattice::evaluate(input, &recipe, budget, cancel);
+    }
+    cancel.check()?;
+    let field = recipe.solve().map_err(|e| bad(e.to_string()))?;
+    let mut planes: [Vec<f32>; 4] = std::array::from_fn(|_| Vec::with_capacity(w * h));
+    for y in 0..e.height {
+        for x in 0..e.width {
+            let p = input.pixel(x, y);
+            for (c, plane) in planes.iter_mut().enumerate() {
+                plane.push(if c == 3 { p[3] } else { p[c] * p[3] });
+            }
+        }
+    }
+    let image = transform::Image::new(w, h, planes).map_err(|e| bad(e.to_string()))?;
+    let op = transform::TransformOp {
+        version: 1,
+        operation: transform::Operation::Displacement(field),
+        kernel: transform::Kernel::Automatic,
+    };
+    let out = op
+        .apply_with_cancel(&image, w, h, 0, cancel)
+        .map_err(|e| match e {
+            transform::Error::Cancelled => EngineError::Cancelled,
+            e => bad(e.to_string()),
+        })?;
+    let mut raster = Raster::new(e, 4, Depth::F32, 0.0);
+    raster.edit_region(Rect::of_extent(e), 1, |x, y, p| {
+        let i = y as usize * w + x as usize;
+        let a = out.planes[3][i];
+        for (c, v) in p.iter_mut().enumerate().take(3) {
+            *v = if a > 0.0 { out.planes[c][i] / a } else { 0.0 };
+        }
+        p[3] = a;
+    })?;
+    Ok(raster)
+}
+// B5-20 end
 
 /// Metadata for the neural menu; this never loads models or accesses the network.
 pub fn neural_catalog() -> Vec<ml_filters::FilterInfo> {

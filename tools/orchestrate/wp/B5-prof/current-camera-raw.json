@@ -1,0 +1,49 @@
+{
+  "commit": "68264c74c365d8e7a4c33ddaecebf934f9305b08",
+  "apply_median_ms": 7230.0,
+  "peak_sampled_rss_mib": 2916.875,
+  "runs": [
+    {
+      "loadavg": "{ 57.56 146.31 405.43 }",
+      "measured_under_load": true,
+      "start": 1790828318.7405078,
+      "name": "camera-raw",
+      "pid": 22958,
+      "exit": 0,
+      "wall_seconds": 104.10895895957947,
+      "peak_rss_mib": 2868.09375,
+      "apply_ms": 7230.0,
+      "selftest_log": "2026-10-01 00:18:39.047 Tessera[22958:46830710] Sparkle updates not configured for this build\nselftest-host: host window 33750\ndocument: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2000, y1: 2000 })\ncamera-raw-selftest: document 4000 \u00d7 4000 px, 16-bit\ncamera-raw-selftest: check detail pane ok\ncamera-raw-selftest: step 1 panel-basic window 40 345 1440 984\ncamera-raw-selftest: step 2 panel-curve window 40 345 1440 984\ncamera-raw-selftest: step 3 panel-hsl window 40 345 1440 984\ncamera-raw-selftest: step 4 panel-color_grading window 40 345 1440 984\ncamera-raw-selftest: step 5 panel-detail window 40 345 1440 984\ncamera-raw-selftest: step 6 panel-effects window 40 345 1440 984\ncamera-raw-selftest: preview/detail after three edits: 0.00 s\ncamera-raw-selftest: check preview records no history ok\ncamera-raw-selftest: step 7 edited-after window 40 345 1440 984\ncamera-raw-selftest: step 8 edited-before window 40 345 1440 984\ncamera-raw-selftest: check cancel closes, no history ok\ncamera-raw-selftest: step 9 cancelled window 40 345 1440 984\ncamera-raw-selftest: step 10 applying window 40 345 1440 984\ncamera-raw-selftest: apply at full resolution: 7.23 s\ncamera-raw-selftest: check apply is one history row ok\ncamera-raw-selftest: step 11 applied window 40 345 1440 984\ncamera-raw-selftest: step 12 undone window 40 345 1440 984\ncamera-raw-selftest: check smart object ok\ncamera-raw-selftest: check smart filter listed ok\ncamera-raw-selftest: step 13 smart-filter window 40 345 1440 984\ncamera-raw-selftest: check re-edit keeps values ok\ncamera-raw-selftest: step 14 smart-reedit window 40 345 1440 984\ncamera-raw-selftest: check re-edit replaces ok\ncamera-raw-selftest: check selection refusal ok\ncamera-raw-selftest: step 15 selection-refused window 40 345 1440 984\ncamera-raw-selftest: done, 0 failure(s)\n",
+      "runner_log": "pid 22958\nkilled 22958\nfront before: \"LSDisplayName\"=\"loginwindow\"\nfront after:  \"LSDisplayName\"=\"loginwindow\"\nselftest-host: host window 33750\ncamera-raw-selftest: done, 0 failure(s)\n",
+      "trace_path": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/camera-raw-1/run.trace"
+    },
+    {
+      "loadavg": "{ 241.60 183.90 391.15 }",
+      "measured_under_load": true,
+      "start": 1790828422.87482,
+      "name": "camera-raw",
+      "pid": 24362,
+      "exit": 0,
+      "wall_seconds": 101.35057711601257,
+      "peak_rss_mib": 2916.875,
+      "apply_ms": 6900.0,
+      "selftest_log": "2026-10-01 00:20:23.071 Tessera[24362:46850390] Sparkle updates not configured for this build\nselftest-host: host window 33758\ndocument: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2000, y1: 2000 })\ncamera-raw-selftest: document 4000 \u00d7 4000 px, 16-bit\ncamera-raw-selftest: check detail pane ok\ncamera-raw-selftest: step 1 panel-basic window 40 345 1440 984\ncamera-raw-selftest: step 2 panel-curve window 40 345 1440 984\ncamera-raw-selftest: step 3 panel-hsl window 40 345 1440 984\ncamera-raw-selftest: step 4 panel-color_grading window 40 345 1440 984\ncamera-raw-selftest: step 5 panel-detail window 40 345 1440 984\ncamera-raw-selftest: step 6 panel-effects window 40 345 1440 984\ncamera-raw-selftest: preview/detail after three edits: 0.00 s\ncamera-raw-selftest: check preview records no history ok\ncamera-raw-selftest: step 7 edited-after window 40 345 1440 984\ncamera-raw-selftest: step 8 edited-before window 40 345 1440 984\ncamera-raw-selftest: check cancel closes, no history ok\ncamera-raw-selftest: step 9 cancelled window 40 345 1440 984\ncamera-raw-selftest: step 10 applying window 40 345 1440 984\ncamera-raw-selftest: apply at full resolution: 6.90 s\ncamera-raw-selftest: check apply is one history row ok\ncamera-raw-selftest: step 11 applied window 40 345 1440 984\ncamera-raw-selftest: step 12 undone window 40 345 1440 984\ncamera-raw-selftest: check smart object ok\ncamera-raw-selftest: check smart filter listed ok\ncamera-raw-selftest: step 13 smart-filter window 40 345 1440 984\ncamera-raw-selftest: check re-edit keeps values ok\ncamera-raw-selftest: step 14 smart-reedit window 40 345 1440 984\ncamera-raw-selftest: check re-edit replaces ok\ncamera-raw-selftest: check selection refusal ok\ncamera-raw-selftest: step 15 selection-refused window 40 345 1440 984\ncamera-raw-selftest: done, 0 failure(s)\n",
+      "runner_log": "pid 24362\nkilled 24362\nfront before: \"LSDisplayName\"=\"loginwindow\"\nfront after:  \"LSDisplayName\"=\"loginwindow\"\nselftest-host: host window 33758\ncamera-raw-selftest: done, 0 failure(s)\n",
+      "trace_path": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/camera-raw-2/run.trace"
+    },
+    {
+      "loadavg": "{ 360.81 242.09 389.75 }",
+      "measured_under_load": true,
+      "start": 1790828524.3144221,
+      "name": "camera-raw",
+      "pid": 25697,
+      "exit": 0,
+      "wall_seconds": 75.14989995956421,
+      "peak_rss_mib": 2871.4375,
+      "apply_ms": 7340.0,
+      "selftest_log": "2026-10-01 00:22:04.594 Tessera[25697:46869227] Sparkle updates not configured for this build\nselftest-host: host window 33766\ndocument: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2000, y1: 2000 })\ncamera-raw-selftest: document 4000 \u00d7 4000 px, 16-bit\ncamera-raw-selftest: check detail pane ok\ncamera-raw-selftest: step 1 panel-basic window 40 345 1440 984\ncamera-raw-selftest: step 2 panel-curve window 40 345 1440 984\ncamera-raw-selftest: step 3 panel-hsl window 40 345 1440 984\ncamera-raw-selftest: step 4 panel-color_grading window 40 345 1440 984\ncamera-raw-selftest: step 5 panel-detail window 40 345 1440 984\ncamera-raw-selftest: step 6 panel-effects window 40 345 1440 984\ncamera-raw-selftest: preview/detail after three edits: 0.00 s\ncamera-raw-selftest: check preview records no history ok\ncamera-raw-selftest: step 7 edited-after window 40 345 1440 984\ncamera-raw-selftest: step 8 edited-before window 40 345 1440 984\ncamera-raw-selftest: check cancel closes, no history ok\ncamera-raw-selftest: step 9 cancelled window 40 345 1440 984\ncamera-raw-selftest: step 10 applying window 40 345 1440 984\ncamera-raw-selftest: apply at full resolution: 7.34 s\ncamera-raw-selftest: check apply is one history row ok\ncamera-raw-selftest: step 11 applied window 40 345 1440 984\ncamera-raw-selftest: step 12 undone window 40 345 1440 984\ncamera-raw-selftest: check smart object ok\ncamera-raw-selftest: check smart filter listed ok\ncamera-raw-selftest: step 13 smart-filter window 40 345 1440 984\ncamera-raw-selftest: check re-edit keeps values ok\ncamera-raw-selftest: step 14 smart-reedit window 40 345 1440 984\ncamera-raw-selftest: check re-edit replaces ok\ncamera-raw-selftest: check selection refusal ok\ncamera-raw-selftest: step 15 selection-refused window 40 345 1440 984\ncamera-raw-selftest: done, 0 failure(s)\n",
+      "runner_log": "pid 25697\nkilled 25697\nfront before: \"LSDisplayName\"=\"loginwindow\"\nfront after:  \"LSDisplayName\"=\"loginwindow\"\nselftest-host: host window 33766\ncamera-raw-selftest: done, 0 failure(s)\n",
+      "trace_path": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/camera-raw-3/run.trace"
+    }
+  ]
+}

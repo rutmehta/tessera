@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import Observation
 import TesseraCore
 
@@ -9,7 +10,13 @@ import TesseraCore
 final class DocumentController: Identifiable {
     let backend: any DocumentBackend
     let id: String
-    private(set) var info: DocumentSummary
+    private(set) var info: DocumentSummary {
+        didSet { refreshDisplayColor() }
+    }
+    /// B5-30: the colour space the canvas and the detail panes tag the document's samples with.
+    @ObservationIgnored private(set) var displayColor = DocumentDisplayColor.srgb
+    /// Names are not identities: profile files and undo states can share a description.
+    @ObservationIgnored private var displayProfileDigest: SHA256.Digest?
     private(set) var layers: [LayerRecord] = []
     private(set) var outline = DocumentOutline()
     /// Selected layers; the last is the primary one (Properties, blend mode, opacity).
@@ -33,7 +40,21 @@ final class DocumentController: Identifiable {
     var zoomChangedAt: Date?
 
     /// Reports a message (the status bar).
-    @ObservationIgnored var report: ((String) -> Void)?
+    @ObservationIgnored var report: ((String) -> Void)? {
+        didSet { deliverPendingDisplayDiagnostic() }
+    }
+    @ObservationIgnored private var pendingDisplayDiagnostic: String?
+
+    /// Defer past the workspace's synchronous “Opened …” message. Keep the warning if the
+    /// callback disappears before delivery; consume it once when a callback is available.
+    private func deliverPendingDisplayDiagnostic() {
+        guard report != nil, pendingDisplayDiagnostic != nil else { return }
+        Task { @MainActor [weak self] in
+            guard let self, let report = self.report, let message = self.pendingDisplayDiagnostic else { return }
+            self.pendingDisplayDiagnostic = nil
+            report(message)
+        }
+    }
     /// The viewport presenting frames of this document.
     @ObservationIgnored weak var viewport: DocumentViewportView?
     /// Viewport state kept per document, so switching tabs keeps each document's zoom and position.
@@ -58,6 +79,38 @@ final class DocumentController: Identifiable {
         reloadModel()
         reloadHistory()
         if let top = outline.children(of: DocumentOutline.root).first { selection = [top] }
+        refreshDisplayColor()
+    }
+
+    /// B5-30: re-reads the document profile (open, Assign / Convert to Profile, undo across them).
+    private func refreshDisplayColor() {
+        let icc: Data?
+        var readDiagnostic: String?
+        do { icc = try backend.displayProfileICC() } catch {
+            icc = nil
+            readDiagnostic = "Display: \(error.localizedDescription)"
+        }
+        // Distinguish an absent profile from an invalid empty ICC. Re-read on model/history refresh,
+        // but only resolve the TRC and re-tag retained surfaces when the bytes actually change.
+        // Failed reads have no ICC bytes: key their fallback by profile name and diagnostic,
+        // separately from successful untagged reads, so recovery resets the warning identity.
+        let identity: Data
+        if let readDiagnostic {
+            identity = Data([2]) + Data((info.profileName ?? "").utf8) + Data([0]) + Data(readDiagnostic.utf8)
+        } else {
+            identity = Data([icc == nil ? 0 : 1]) + (icc ?? Data())
+        }
+        let digest = SHA256.hash(data: identity)
+        guard digest != displayProfileDigest else { return }
+        displayProfileDigest = digest
+        pendingDisplayDiagnostic = nil
+        displayColor = DocumentDisplayColor.resolve(icc: icc, name: info.profileName)
+        if let d = readDiagnostic ?? displayColor.diagnostic {
+            NSLog("%@", d)
+            pendingDisplayDiagnostic = d
+        }
+        deliverPendingDisplayDiagnostic()
+        viewport?.displayColorDidChange()
     }
 
     var title: String { info.title }

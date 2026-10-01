@@ -570,18 +570,30 @@ fn save_render_undo_races_keep_history_and_surfaces_valid() {
     let path = dir.path().join("race.tessera-doc");
     s.save_as(path.to_string_lossy().into_owned()).unwrap();
     let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let saved = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let saver = {
-        let (s, stop, dir) = (s.clone(), stop.clone(), dir.path().to_owned());
+        let (s, stop, saved, dir) = (
+            s.clone(),
+            stop.clone(),
+            saved.clone(),
+            dir.path().to_owned(),
+        );
         std::thread::spawn(move || {
             let mut n = 0;
             while !stop.load(std::sync::atomic::Ordering::Relaxed) {
                 let p = dir.join(format!("race-{}.tessera-doc", n % 3));
                 s.save_as(p.to_string_lossy().into_owned()).unwrap();
                 n += 1;
+                saved.store(n, std::sync::atomic::Ordering::Release);
             }
             n
         })
     };
+    // Under load the edit loop can finish before the saver is scheduled;
+    // start editing only once the saver is demonstrably looping.
+    while saved.load(std::sync::atomic::Ordering::Acquire) == 0 {
+        std::thread::yield_now();
+    }
     let viewer = {
         let (s, stop) = (s.clone(), stop.clone());
         std::thread::spawn(move || {
@@ -670,8 +682,11 @@ fn composite_thumbnails_reuse_mips_across_edits() {
     let e = Extent::new(3072, 2048);
     let (doc, ids) = small_document(e);
     let s = engine.adopt_document(doc, "thumbs".into());
+    let baseline = s.thumbnail_mip_stats();
     let t = Instant::now();
     let first = s.composite_thumbnail(48).unwrap();
+    let cold_stats = s.thumbnail_mip_stats();
+    assert!(cold_stats.1 > baseline.1, "cold thumbnail must build mips");
     let cold = t.elapsed();
     let layer = ids[5].0;
     s.set_opacity(layer, 0.4, false).unwrap();
@@ -680,19 +695,37 @@ fn composite_thumbnails_reuse_mips_across_edits() {
     let warm = t.elapsed();
     assert_ne!(first, second, "an edit renders a new thumbnail");
     eprintln!("composite thumbnail: cold {cold:?}, after an opacity edit {warm:?}");
-    assert!(warm * 4 < cold, "cold {cold:?} vs warm {warm:?}");
+    let warm_stats = s.thumbnail_mip_stats();
+    eprintln!("mip counters: baseline {baseline:?}, cold {cold_stats:?}, warm {warm_stats:?}");
+    assert!(
+        warm_stats.0 > cold_stats.0,
+        "edited thumbnail must hit cached mips"
+    );
+    assert_eq!(warm_stats.1, cold_stats.1, "edit must not rebuild mips");
+    assert!(
+        warm < Duration::from_secs(30),
+        "warm thumbnail took {warm:?}"
+    );
     // A drag shows its live state, warm from the first tick.
     let mut ticks = Vec::new();
     for i in 0..5 {
+        let before = s.thumbnail_mip_stats();
         s.set_opacity(layer, 0.1 * i as f32, true).unwrap();
         let t = Instant::now();
         s.composite_thumbnail(48).unwrap();
         ticks.push(t.elapsed());
+        let after = s.thumbnail_mip_stats();
+        eprintln!("drag {i}: mip counters {before:?} -> {after:?}");
+        if s.info().unwrap().backend != "CPU" {
+            assert!(after.0 > before.0, "drag tick must hit cached mips");
+            assert_eq!(after.1, before.1, "drag tick must not rebuild mips");
+        }
     }
     eprintln!("drag ticks: {ticks:?}");
-    if s.info().unwrap().backend != "CPU" {
-        assert!(ticks.iter().all(|t| *t * 4 < cold), "{ticks:?}");
-    }
+    assert!(
+        ticks.iter().all(|t| *t < Duration::from_secs(30)),
+        "{ticks:?}"
+    );
     s.commit("Opacity".into()).unwrap();
     s.close();
 }

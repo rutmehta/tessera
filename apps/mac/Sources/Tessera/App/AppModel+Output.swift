@@ -155,14 +155,14 @@ extension AppModel {
                                                             report.exported, report.failed, report.cancelled ? "yes" : "no",
                                                             report.seconds, report.destination).utf8))
                 for item in report.items { FileHandle.standardError.write(Data("  \(item.name) → \(item.outputPath ?? item.error ?? "-")\n".utf8)) }
-                if pdf == nil { NSApp.terminate(nil) } else {
+                if pdf == nil { self.quitAfterSelfTest() } else {
                     self.exporter.onFinish = previous
                     self.runOutputSelfTest(exportTo: nil, pdf: pdf)
                 }
             }
             exporter.onFailure = { message in
                 FileHandle.standardError.write(Data("export-selftest: failed: \(message)\n".utf8))
-                NSApp.terminate(nil)
+                self.quitAfterSelfTest()
             }
             exporter.start()
             return
@@ -179,7 +179,7 @@ extension AppModel {
             let pages = printing.pageCount
             printing.run(.pdf(pdf), engine: lib.engine, window: nil) { ok in
                 FileHandle.standardError.write(Data("print-selftest: \(ok ? "ok" : "FAILED"), \(pages) page(s) expected → \(pdf.path)\n".utf8))
-                NSApp.terminate(nil)
+                self.quitAfterSelfTest()
             }
         }
     }

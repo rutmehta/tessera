@@ -647,8 +647,9 @@ fn photomerge_refuses_over_the_pixel_budget_from_headers_before_decoding() {
             p.to_string_lossy().into_owned()
         })
         .collect();
+    // The budget scales with this machine's memory, never above 200 MP.
     let limit = stack_max_megapixels();
-    assert_eq!(limit, 200);
+    assert!((1..=MAX_STACK_MEGAPIXELS).contains(&limit), "{limit}");
     for err in [
         s.photomerge_into_layers(
             files.clone(),
@@ -668,7 +669,10 @@ fn photomerge_refuses_over_the_pixel_budget_from_headers_before_decoding() {
             .unwrap(),
     ] {
         let msg = err.to_string();
-        assert!(msg.contains("limited to 200 megapixels"), "{msg}");
+        assert!(
+            msg.contains(&format!("limited to {limit} megapixels")),
+            "{msg}"
+        );
         assert!(msg.contains("240 megapixels"), "{msg}");
     }
     assert_eq!(history_len(&s), n);
@@ -696,7 +700,12 @@ fn stack_eligibility_refuses_layers_over_the_pixel_budget() {
     let s = e.adopt_document(d, "Huge".into());
     let el = s.stack_eligibility(ids.clone()).unwrap();
     assert!(!el.can_align && !el.can_blend);
-    assert!(el.reason.unwrap().contains("200 megapixels"));
+    let limit = stack_max_megapixels();
+    assert!(
+        el.reason
+            .unwrap()
+            .contains(&format!("limited to {limit} megapixels"))
+    );
     let n = history_len(&s);
     let err = s
         .auto_align_layers(ids.clone(), align(StackAlignMode::Auto))
@@ -920,4 +929,106 @@ fn reposition_is_withheld_while_the_engine_misregisters_it() {
         reposition + 40 < expected,
         "Reposition now spans {reposition} px (expected {expected}): the engine is fixed, re-enable it"
     );
+}
+
+// ───────────────────────────── B5-19b follow-ups ─────────────────────────────
+
+const GIB: u64 = 1 << 30;
+
+#[test]
+fn stack_budget_scales_with_physical_memory_up_to_200_megapixels() {
+    // Half of RAM at about 50 bytes per source pixel, capped at 200 MP.
+    assert_eq!(stack_megapixels_for_memory(None), 200);
+    assert_eq!(stack_megapixels_for_memory(Some(64 * GIB)), 200);
+    assert_eq!(stack_megapixels_for_memory(Some(20 * GIB)), 200);
+    assert_eq!(stack_megapixels_for_memory(Some(16 * GIB)), 171);
+    assert_eq!(stack_megapixels_for_memory(Some(8 * GIB)), 85);
+    assert_eq!(stack_megapixels_for_memory(Some(1 << 20)), 1);
+    assert_eq!(stack_megapixels_for_memory(Some(0)), 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn stack_budget_uses_this_macs_physical_memory() {
+    let out = std::process::Command::new("/usr/sbin/sysctl")
+        .args(["-n", "hw.memsize"])
+        .output()
+        .unwrap();
+    let bytes: u64 = String::from_utf8(out.stdout)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
+    assert_eq!(
+        stack_max_megapixels(),
+        stack_megapixels_for_memory(Some(bytes))
+    );
+}
+
+/// A 16-bit PNG of `pixels` with `icc` embedded.
+fn write_tagged_png(path: &Path, pixels: &[[f32; 3]], icc: &[u8]) {
+    use image::ImageEncoder;
+    let bytes: Vec<u8> = pixels
+        .iter()
+        .flat_map(|p| p.map(|v| (v.clamp(0., 1.) * 65535. + 0.5) as u16))
+        .flat_map(u16::to_ne_bytes)
+        .collect();
+    let mut enc = image::codecs::png::PngEncoder::new(std::fs::File::create(path).unwrap());
+    enc.set_icc_profile(icc.to_vec()).unwrap();
+    enc.write_image(&bytes, W, H, image::ExtendedColorType::Rgb16)
+        .unwrap();
+}
+
+#[test]
+fn photomerge_skips_conversion_when_the_unembedded_target_is_the_same_profile() {
+    let (d, e) = engine();
+    // One copy of the bytes: built-in profiles carry their creation time.
+    let p3 = p3_icc();
+    let files: Vec<String> = [("h-a", crop(0., 0.)), ("h-b", crop(DX, 0.))]
+        .iter()
+        .map(|(name, px)| {
+            let p = d.path().join(format!("{name}.png"));
+            write_tagged_png(&p, px, &p3);
+            p.to_string_lossy().into_owned()
+        })
+        .collect();
+    // A document tagged Display P3 by handle only (no embedded bytes): the
+    // photos are in that very profile, so nothing needs converting.
+    let unembedded = |icc: Vec<u8>, name: &str| {
+        let p = compositor::ColorProfile::from_icc(name, icc);
+        compositor::ColorProfile { icc: None, ..p }
+    };
+    let mut state = DocState::new(Extent::new(W, H), Depth::F32);
+    state.profile = Some(unembedded(p3.clone(), "Display P3"));
+    let s = e.adopt_document(Document::new(state), "Handle only".into());
+    let n = history_len(&s);
+    s.photomerge_into_layers(
+        files.clone(),
+        align(StackAlignMode::Collage),
+        blend(StackBlendMode::Panorama, false),
+        CancelFlag::new(),
+    )
+    .unwrap();
+    assert_eq!(history_len(&s), n + 1);
+    // Unconverted: the P3 values come through as stored.
+    let got = rgb_at(&s, PROBE.0, PROBE.1);
+    let want = crop(0., 0.)[(PROBE.1 * W + PROBE.0) as usize].map(q16);
+    for c in 0..3 {
+        assert!((got[c] - want[c]).abs() < 0.01, "{got:?} vs {want:?}");
+    }
+    // A different profile without bytes still cannot be converted to.
+    let mut state = DocState::new(Extent::new(W, H), Depth::F32);
+    state.profile = Some(unembedded(srgb_icc(), "sRGB IEC61966-2.1"));
+    let s = e.adopt_document(Document::new(state), "sRGB handle only".into());
+    let n = history_len(&s);
+    let err = s
+        .photomerge_into_layers(
+            files,
+            align(StackAlignMode::Collage),
+            blend(StackBlendMode::Panorama, false),
+            CancelFlag::new(),
+        )
+        .unwrap_err();
+    assert!(err.to_string().contains("is not embedded"), "{err}");
+    assert_eq!(history_len(&s), n);
 }

@@ -1,0 +1,33 @@
+{
+  "dropped": 0,
+  "spans": [
+    {
+      "name": "export_flat_setup_end",
+      "mainThread": true,
+      "n": 5,
+      "max_ms": 10.08745830040425,
+      "p95_ms": 10.08745830040425
+    },
+    {
+      "name": "export_flat_progress_end",
+      "mainThread": true,
+      "n": 314,
+      "max_ms": 3.7591250147670507,
+      "p95_ms": 0.9942083852365613
+    },
+    {
+      "name": "export_flat_completion_end",
+      "mainThread": true,
+      "n": 5,
+      "max_ms": 3.921375027857721,
+      "p95_ms": 3.921375027857721
+    },
+    {
+      "name": "export_flat_work_end",
+      "mainThread": false,
+      "n": 5,
+      "max_ms": 102519.00116656907,
+      "p95_ms": 102519.00116656907
+    }
+  ]
+}

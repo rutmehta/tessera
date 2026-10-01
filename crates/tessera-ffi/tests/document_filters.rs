@@ -709,9 +709,10 @@ fn filter_detail_is_a_one_to_one_crop() {
             for y in 0..48usize {
                 for x in 0..64usize {
                     for c in 0..4 {
-                        let want = expected[(((80 + y) * 320 + 100 + x) * 4) + c];
+                        // B5-27: the document's own samples, as the canvas surfaces hold them.
+                        let want = expected[(((80 + y) * 320 + 100 + x) * 4) + c].clamp(0.0, 1.0);
                         let got = px[y * stride + x * 4 + c];
-                        worst = worst.max(got.abs_diff((want.clamp(0.0, 1.0) * 255.0 + 0.5) as u8));
+                        worst = worst.max(got.abs_diff((want * 255.0 + 0.5) as u8));
                     }
                 }
             }

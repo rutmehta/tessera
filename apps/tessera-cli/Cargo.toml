@@ -36,6 +36,7 @@ serde_json.workspace = true
 image = { workspace = true, features = ["png"] }
 tempfile.workspace = true
 ctrlc = "3"
+libc = "0.2"
 
 [dev-dependencies]
 assert_cmd = "2"

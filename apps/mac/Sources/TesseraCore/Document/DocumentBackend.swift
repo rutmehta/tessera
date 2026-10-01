@@ -256,7 +256,7 @@ public struct DocViewportPlan: Equatable, Sendable {
     public init(level: UInt8, width: UInt32, height: UInt32) { self.level = level; self.width = width; self.height = height }
 }
 
-/// A presented frame (FFI `DocFrameInfo`). Surfaces are RGBA8, sRGB-encoded, **straight
+/// A presented frame (FFI `DocFrameInfo`). Surfaces are RGBA8, encoded in the document profile, **straight
 /// (unpremultiplied) alpha**; transparent areas stay transparent and the app draws the checkerboard.
 public struct DocFrame: Equatable, Sendable {
     /// Surface written (0 when none is attached).
@@ -424,6 +424,8 @@ public protocol DocumentBackend: AnyObject, Sendable {
     /// the surfaces, clipped to the level and the surface size; `zoom` (1 = 100 %) is echoed in frames.
     func setViewport(level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double) throws
     func setDisplayHeadroom(headroom: Float) throws
+    /// B5-30: the document profile's ICC bytes for tagging the canvas; nil = sRGB (untagged or built-in sRGB).
+    func displayProfileICC() throws -> Data?
     func refresh() throws
     func detachSurfaces()
 
@@ -435,7 +437,11 @@ public protocol DocumentBackend: AnyObject, Sendable {
     func close()
 }
 
-/// The IOSurfaces document mode shares with a backend: RGBA8 ('RGBA'), straight alpha, sRGB-encoded.
+public extension DocumentBackend {
+    func displayProfileICC() throws -> Data? { nil }
+}
+
+/// The IOSurfaces document mode shares with a backend: RGBA8 ('RGBA'), straight alpha, encoded in the document profile (sRGB when untagged).
 public enum DocumentSurfaces {
     public static let pixelFormat: UInt32 = 0x5247_4241
 

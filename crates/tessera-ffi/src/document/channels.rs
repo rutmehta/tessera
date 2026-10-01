@@ -16,7 +16,7 @@
 //! `load_selection`, `selection_channels`) delegate here; names may repeat, the
 //! id-based calls below tell such channels apart.
 
-use super::{DocumentSession, DocumentUpdate, PaintColor, SelectionOp, Shared};
+use super::{DocumentSession, DocumentUpdate, PaintColor, SelectionOp, Shared, io};
 use crate::{Result, failure, surface::Surface};
 use compositor::{
     DocOp, DocState, Raster,
@@ -237,13 +237,30 @@ impl DocumentSession {
 
     /// Adds `channel` (id allocated) as one history node; returns its id.
     fn add_channel(&self, channel: DocumentChannel, label: &str) -> Result<ChannelUpdate> {
+        self.add_channel_with(channel, Vec::new(), label)
+    }
+
+    /// Adds `channel` (id allocated) and applies `more` after it, all as one
+    /// history node; returns the new channel's id.
+    fn add_channel_with(
+        &self,
+        channel: DocumentChannel,
+        more: Vec<DocOp>,
+        label: &str,
+    ) -> Result<ChannelUpdate> {
         let before: BTreeSet<u64> = self
             .channel_state()?
             .channels
             .iter()
             .map(|c| c.id.0)
             .collect();
-        let update = self.edit(DocOp::AddChannel { channel }, Some(label))?;
+        let add = DocOp::AddChannel { channel };
+        let op = if more.is_empty() {
+            add
+        } else {
+            DocOp::Batch(std::iter::once(add).chain(more).collect())
+        };
+        let update = self.edit(op, Some(label))?;
         let id = self
             .channel_state()?
             .channels
@@ -495,6 +512,56 @@ impl DocumentSession {
             },
             "New Spot Channel",
         )
+    }
+
+    /// Quick Mask on (B5-17d): the selection becomes the new, visible alpha
+    /// channel `name` and the selection is dropped, so strokes into the mask
+    /// are not clipped to it and painting white can grow it. Without a
+    /// selection the channel is all selected (white). One "Quick Mask"
+    /// history node; undo restores the selection.
+    pub fn enter_quick_mask(&self, name: String) -> Result<ChannelUpdate> {
+        let name = check_name(&name)?;
+        let state = self.channel_state()?;
+        let (raster, more) = match state.selection.as_deref() {
+            Some(sel) => (
+                as_selection(sel, false)?,
+                vec![DocOp::SetSelection { selection: None }],
+            ),
+            None => (plane(&state, 1.0), Vec::new()),
+        };
+        let made = self.add_channel_with(
+            DocumentChannel {
+                id: ChannelId(0),
+                name,
+                kind: ChannelKind::Alpha,
+                raster,
+            },
+            more,
+            "Quick Mask",
+        )?;
+        with_side(&self.shared, |s| {
+            s.visible.insert(made.channel_id);
+        });
+        Ok(made)
+    }
+
+    /// Quick Mask off (B5-17d): channel `id` replaces the selection (an
+    /// empty mask deselects) and is deleted, as one "Quick Mask" history
+    /// node. Fails without a node when `id` is unknown.
+    pub fn exit_quick_mask(&self, id: u64) -> Result<DocumentUpdate> {
+        let raster = as_selection(&channel(&*self.channel_state()?, id)?.raster, false)?;
+        let selection = Some(raster).filter(|r| io::selection_bounds(r).is_some());
+        let update = self.edit(
+            DocOp::Batch(vec![
+                DocOp::SetSelection { selection },
+                DocOp::DeleteChannel { id: ChannelId(id) },
+            ]),
+            Some("Quick Mask"),
+        )?;
+        with_side(&self.shared, |s| {
+            s.visible.remove(&id);
+        });
+        Ok(update)
     }
 
     /// Shows or hides channel `id` in the host's preview overlay (session

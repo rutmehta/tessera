@@ -33,7 +33,8 @@ struct LightroomImportSheet: View {
                     case .summary: SummaryStep(importer: importer)
                     case .mapping: MappingStep(importer: importer)
                     case .fidelity: FidelityStep(importer: importer)
-                    case .report: ReportStep(importer: importer)
+                    case .report: ReportStep(report: importer.report, reportURL: importer.reportURL,
+                                             reportMarkdown: importer.reportMarkdown, fidelity: importer.fidelityResult)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -410,7 +411,11 @@ private struct FidelityStep: View {
                         }
                         .padding(Theme.Space.m)
                     }
-                    .accessibilityIdentifier("lrimport-fidelity-grid")
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityAddTraits(.isStaticText)
+                    .accessibilityLabel("Fidelity results")
+                    .accessibilityValue(fidelityDescription(grid.samples))
+                    .accessibilityIdentifier("document.import.report.fidelity")
                 }
             } else if importer.busy != nil {
                 Spacer()
@@ -473,10 +478,14 @@ private struct FidelityPair: View {
 
 // MARK: Report
 
-private struct ReportStep: View {
-    let importer: LightroomImportController
+struct ReportStep: View {
+    let report: LrcatReport?
+    let reportURL: URL?
+    let reportMarkdown: String?
+    var fidelity: LrcatFidelity? = nil
+    @State private var markdownExpanded = true
     var body: some View {
-        if let r = importer.report {
+        if let r = report {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Space.m) {
                     Label(r.cancelled ? "Import cancelled. Resume to continue where it stopped; finished photos are skipped."
@@ -496,25 +505,58 @@ private struct ReportStep: View {
                                   Text("Virtual copies (bundle)").foregroundStyle(Theme.textSecondary); Text("\(r.virtualCopies)") }
                     }
                     .font(Theme.Fonts.labelNumeric)
-                    .accessibilityIdentifier("lrimport-report-counts")
-                    if !r.skipped.isEmpty {
-                        Text("Skipped").font(Theme.Fonts.labelSemibold)
-                        ForEach(Array(r.skipped.enumerated()), id: \.offset) { _, s in
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(s.name).font(Theme.Fonts.captionMedium).frame(width: 200, alignment: .leading)
-                                Text(s.reason).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityAddTraits(.isStaticText)
+                    .accessibilityLabel("Import summary")
+                    .accessibilityValue("Photos written: \(r.imported)\nResumed: \(r.resumed)\nAlbums: \(r.albums)\nAlbum groups: \(r.albumGroups)\nSmart albums: \(r.smartAlbums)\nKeywords: \(r.keywords)\nSkipped: \(r.skipped.count)\nVirtual copies (bundle): \(r.virtualCopies)")
+                    .accessibilityIdentifier("document.import.report.summary")
+                    VStack(alignment: .leading, spacing: Theme.Space.s) {
+                        if !r.skipped.isEmpty {
+                            Text("Skipped").font(Theme.Fonts.labelSemibold)
+                            ForEach(Array(r.skipped.enumerated()), id: \.offset) { _, s in
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(s.name).font(Theme.Fonts.captionMedium).frame(width: 200, alignment: .leading)
+                                    Text(s.reason).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                                }
                             }
                         }
+                        if !r.unsupported.isEmpty {
+                            Text("Not fully supported").font(Theme.Fonts.labelSemibold)
+                            ForEach(Array(r.unsupported.enumerated()), id: \.offset) { _, issue in
+                                IssueRow(issue: issue)
+                            }
+                        }
+                        if r.skipped.isEmpty && r.unsupported.isEmpty {
+                            Text("No warnings.").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                        }
                     }
-                    if let url = importer.reportURL {
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityAddTraits(.isStaticText)
+                    .accessibilityLabel("Import warnings")
+                    .accessibilityValue(warningsDescription(r))
+                    .accessibilityIdentifier("document.import.report.warnings")
+                    if let fidelity {
+                        VStack(alignment: .leading, spacing: Theme.Space.s) {
+                            Text("Fidelity preview (\(fidelity.renderer) renderer)").font(Theme.Fonts.labelSemibold)
+                            Text(fidelityDescription(fidelity.samples))
+                                .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityAddTraits(.isStaticText)
+                        .accessibilityLabel("Fidelity results")
+                        .accessibilityValue("Renderer: \(fidelity.renderer)\n" + fidelityDescription(fidelity.samples))
+                        .accessibilityIdentifier("document.import.report.fidelity")
+                    }
+                    if let url = reportURL {
                         Text("Full report: \(url.path)").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                             .textSelection(.enabled)
                             .accessibilityIdentifier("lrimport-report-path")
                     }
-                    if let md = importer.reportMarkdown {
-                        DisclosureGroup("import-report.md") {
-                            Text(md).font(Theme.Fonts.captionMono).textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                    if let md = reportMarkdown {
+                        DisclosureGroup("import-report.md", isExpanded: $markdownExpanded) {
+                            ImportReportTextArea(markdown: md)
+                                .frame(height: 180)
+                                .frame(maxWidth: .infinity)
                         }
                         .font(Theme.Fonts.caption)
                     }
@@ -523,6 +565,64 @@ private struct ReportStep: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+}
+
+/// Explicit values keep counts and diagnostics readable without depending on SwiftUI's
+/// treatment of Grid/Text children or on the lazy grid's currently materialized cards.
+private func warningsDescription(_ report: LrcatReport) -> String {
+    let skipped = report.skipped.map { "\($0.name): \($0.reason)" }
+    let unsupported = report.unsupported.map {
+        "\($0.category): \($0.reason) (\($0.count)); \($0.examples.joined(separator: ", "))"
+    }
+    let warnings = skipped + unsupported
+    return warnings.isEmpty ? "No warnings." : warnings.joined(separator: "\n")
+}
+
+private func fidelityDescription(_ samples: [LrcatFidelitySample]) -> String {
+    guard !samples.isEmpty else { return "No photo could be compared with a Lightroom preview." }
+    return samples.map { sample in
+        let status: String
+        switch sample.status {
+        case .compared: status = String(format: "compared, mean ΔE %.1f, p95 %.1f", sample.deltaEMean, sample.deltaEP95)
+        case .noPreview: status = "no preview"
+        case .missingOriginal: status = "missing original"
+        case .failed: status = "failed"
+        }
+        return "\(sample.name): \(status)" + (sample.message.isEmpty ? "" : "; \(sample.message)")
+    }.joined(separator: "\n")
+}
+
+/// A native read-only text area supplies AXValue and text-range access while retaining
+/// selection/copy and scrolling for long reports. A disabled TextEditor loses those affordances.
+private struct ImportReportTextArea: NSViewRepresentable {
+    let markdown: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        let text = NSTextView()
+        text.isEditable = false
+        text.isSelectable = true
+        text.isRichText = false
+        text.drawsBackground = false
+        text.font = Theme.NSFonts.captionMono
+        text.textColor = Theme.Palette.textPrimary
+        text.textContainerInset = .zero
+        text.isHorizontallyResizable = false
+        text.isVerticallyResizable = true
+        text.autoresizingMask = [.width]
+        text.textContainer?.widthTracksTextView = true
+        text.setAccessibilityIdentifier("document.import.report.markdown")
+        text.setAccessibilityLabel("Import report markdown")
+        scroll.documentView = text
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let text = scroll.documentView as? NSTextView, text.string != markdown else { return }
+        text.string = markdown
     }
 }
 

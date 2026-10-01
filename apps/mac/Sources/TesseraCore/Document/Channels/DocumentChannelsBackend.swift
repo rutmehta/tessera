@@ -67,6 +67,11 @@ public protocol DocumentChannelsBackend: AnyObject, Sendable {
     /// A grey RGBA8 IOSurface id (white = selected / full ink).
     func channelThumbnail(id: UInt64, maxPx: UInt32) throws -> UInt32
     func setChannelVisible(id: UInt64, visible: Bool) throws
+    /// Quick Mask on (B5-17d): the selection (or, without one, an all-selected plane) becomes a new visible
+    /// alpha channel `name` and the selection is dropped. One "Quick Mask" history node.
+    func enterQuickMask(name: String) throws -> SavedChannelChange
+    /// Quick Mask off (B5-17d): channel `id` becomes the selection and is deleted. One "Quick Mask" node.
+    func exitQuickMask(id: UInt64) throws -> DocumentChange
 }
 
 // MARK: - Panel model
@@ -122,6 +127,22 @@ public struct ChannelRow: Equatable, Sendable, Identifiable {
     public var editable: Bool { channelID != nil }
 }
 
+/// What a Channels panel row click does (`ChannelsPanelModel.click`).
+public struct ChannelRowClick: Equatable, Sendable {
+    /// The row to highlight (`selectedChannel`; nil clears it). Applied only when `retarget`.
+    public var highlight: UInt64?
+    /// The highlight moves to `highlight` and painting is redirected to `paintTarget` (a channel, or nil =
+    /// the layer). False for ⌘-click, which leaves both alone.
+    public var retarget: Bool
+    /// The channel to load as the selection (⌘-click; ⇧ / ⌥ pick the combine op), or nil.
+    public var load: UInt64?
+    public init(highlight: UInt64?, retarget: Bool, load: UInt64?) {
+        self.highlight = highlight; self.retarget = retarget; self.load = load
+    }
+    /// The channel painting goes to after the click (nil = the layer), when `retarget`.
+    public var paintTarget: UInt64? { retarget ? highlight : nil }
+}
+
 public enum ChannelsPanelModel {
     public static let componentTitles = ["Red", "Green", "Blue"]
 
@@ -139,6 +160,17 @@ public enum ChannelsPanelModel {
                                    isQuickMask: r.id == quickMask))
         }
         return rows
+    }
+
+    /// A click on `row` (B5-17d): a plain click highlights a saved channel and paints into it, or, on RGB /
+    /// a colour row, clears the highlight and returns painting to the layer, so the highlight always shows
+    /// the paint target. ⌘-click on a saved channel only loads it as the selection, as in Photoshop: the
+    /// highlight and the paint target are unchanged (B5-23). ⌘ on RGB / a colour row does nothing (nil).
+    public static func click(_ row: ChannelRow, command: Bool) -> ChannelRowClick? {
+        if command {
+            return row.channelID.map { ChannelRowClick(highlight: nil, retarget: false, load: $0) }
+        }
+        return ChannelRowClick(highlight: row.channelID, retarget: true, load: nil)
     }
 
     /// A name not yet used: "Alpha 1", "Alpha 2", … (or "Spot Color 1", …).
@@ -273,18 +305,15 @@ public struct LoadSelectionForm: Equatable, Sendable {
 public enum QuickMask {
     public static let channelName = "Quick Mask"
 
-    /// Returns the temporary channel's id.
-    public static func enter(_ b: any DocumentChannelsBackend, hasSelection: Bool) throws -> SavedChannelChange {
-        let c = hasSelection ? try b.saveSelectionChannel(name: channelName, target: nil, op: .replace)
-            : try b.newAlphaChannel(name: channelName, selected: true)
-        try b.setChannelVisible(id: c.channelID, visible: true)
-        return c
+    /// Like Photoshop, the selection becomes the mask and is dropped, so mask strokes are not clipped to it
+    /// and white paint can grow it (B5-17d). Returns the temporary channel's id.
+    public static func enter(_ b: any DocumentChannelsBackend) throws -> SavedChannelChange {
+        try b.enterQuickMask(name: channelName)
     }
 
     /// Makes channel `id` the selection and removes it. A channel deleted meanwhile just ends the mode.
     public static func exit(_ b: any DocumentChannelsBackend, channel id: UInt64) throws -> DocumentChange? {
         guard try b.documentChannels().contains(where: { $0.id == id }) else { return nil }
-        _ = try b.loadSelectionChannel(id: id, op: .replace, invert: false)
-        return try b.deleteDocumentChannel(id: id)
+        return try b.exitQuickMask(id: id)
     }
 }

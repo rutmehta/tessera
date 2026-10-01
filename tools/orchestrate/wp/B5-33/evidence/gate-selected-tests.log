@@ -1,0 +1,33 @@
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 01:52:07.271.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' passed (0.055 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' passed (0.040 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' passed (0.069 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' passed (0.136 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' passed (0.103 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' passed (0.110 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' passed (0.062 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' passed (0.071 seconds).
+Test Suite 'DocumentExportFlatTests' passed at 2026-10-01 01:52:07.917.
+Test Suite 'SelfTestHostTests' started at 2026-10-01 01:54:28.565.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testArgumentFlagsInBothForms]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testArgumentFlagsInBothForms]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testBackgroundHostResizesWithoutClampingToItsInitialContentSize]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testBackgroundHostResizesWithoutClampingToItsInitialContentSize]' passed (0.304 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testEnvironmentSelfTests]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testEnvironmentSelfTests]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testOtherLaunchesAreNotSelfTests]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testOtherLaunchesAreNotSelfTests]' passed (0.000 seconds).
+Test Suite 'SelfTestHostTests' passed at 2026-10-01 01:54:28.870.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-33/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:194: error: -[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize] : XCTAssertTrue failed - 1 inspector layout failures:
+Test Suite 'ThemeLintTests' started at 2026-10-01 01:56:57.606.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' started.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.422 seconds).
+Test Suite 'ThemeLintTests' passed at 2026-10-01 01:56:58.028.

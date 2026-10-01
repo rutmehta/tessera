@@ -1,0 +1,316 @@
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:36:47: warning: main actor-isolated property 'superview' can not be referenced from a nonisolated context
+ 34 |
+ 35 |         init(_ view: NSView?, timeout: TimeInterval) {
+ 36 |             root = view?.window?.contentView?.superview ?? view
+    |                                               `- warning: main actor-isolated property 'superview' can not be referenced from a nonisolated context
+ 37 |             deadline = ProcessInfo.processInfo.systemUptime + timeout
+ 38 |         }
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:87:59: note: property declared here
+ 85 |
+ 86 | @property (nullable, readonly, unsafe_unretained) NSWindow *window;
+ 87 | @property (nullable, readonly, unsafe_unretained) NSView *superview;
+    |                                                           `- note: property declared here
+ 88 | @property (copy) NSArray<__kindof NSView *> *subviews;
+ 89 | - (BOOL)isDescendantOf:(NSView *)view;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:36:34: warning: main actor-isolated property 'contentView' can not be referenced from a nonisolated context
+ 34 |
+ 35 |         init(_ view: NSView?, timeout: TimeInterval) {
+ 36 |             root = view?.window?.contentView?.superview ?? view
+    |                                  `- warning: main actor-isolated property 'contentView' can not be referenced from a nonisolated context
+ 37 |             deadline = ProcessInfo.processInfo.systemUptime + timeout
+ 38 |         }
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSWindow.h:337:47: note: property declared here
+ 335 | - (void)setTitleWithRepresentedFilename:(NSString *)filename;
+ 336 | @property (getter=isExcludedFromWindowsMenu) BOOL excludedFromWindowsMenu;
+ 337 | @property (nullable, strong) __kindof NSView *contentView;
+     |                                               `- note: property declared here
+ 338 | @property (nullable, weak) id<NSWindowDelegate> delegate;
+ 339 | @property (readonly) NSInteger windowNumber;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:36:26: warning: main actor-isolated property 'window' can not be referenced from a nonisolated context
+ 34 |
+ 35 |         init(_ view: NSView?, timeout: TimeInterval) {
+ 36 |             root = view?.window?.contentView?.superview ?? view
+    |                          `- warning: main actor-isolated property 'window' can not be referenced from a nonisolated context
+ 37 |             deadline = ProcessInfo.processInfo.systemUptime + timeout
+ 38 |         }
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:86:61: note: property declared here
+ 84 | - (nullable instancetype)initWithCoder:(NSCoder *)coder NS_DESIGNATED_INITIALIZER;
+ 85 |
+ 86 | @property (nullable, readonly, unsafe_unretained) NSWindow *window;
+    |                                                             `- note: property declared here
+ 87 | @property (nullable, readonly, unsafe_unretained) NSView *superview;
+ 88 | @property (copy) NSArray<__kindof NSView *> *subviews;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:41:27: warning: main actor-isolated property 'subviews' can not be referenced from a nonisolated context
+ 38 |         }
+ 39 |         var remaining: TimeInterval { deadline - ProcessInfo.processInfo.systemUptime }
+ 40 |         func descendants(_ node: NSView) -> [NSView] {
+    |              `- note: add '@MainActor' to make instance method 'descendants' part of global actor 'MainActor'
+ 41 |             [node] + node.subviews.flatMap { descendants($0) }
+    |                           `- warning: main actor-isolated property 'subviews' can not be referenced from a nonisolated context
+ 42 |         }
+ 43 |         func flush() {
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:88:46: note: property declared here
+ 86 | @property (nullable, readonly, unsafe_unretained) NSWindow *window;
+ 87 | @property (nullable, readonly, unsafe_unretained) NSView *superview;
+ 88 | @property (copy) NSArray<__kindof NSView *> *subviews;
+    |                                              `- note: property declared here
+ 89 | - (BOOL)isDescendantOf:(NSView *)view;
+ 90 | - (nullable NSView *)ancestorSharedWithView:(NSView *)view;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:47:23: warning: call to main actor-isolated instance method 'layoutSubtreeIfNeeded()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 45 |                 context.duration = 0
+ 46 |                 context.allowsImplicitAnimation = false
+ 47 |                 root?.layoutSubtreeIfNeeded()
+    |                       `- warning: call to main actor-isolated instance method 'layoutSubtreeIfNeeded()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 48 |                 root?.displayIfNeeded()
+ 49 |                 root?.window?.displayIfNeeded()
+
+AppKit.NSView.layoutSubtreeIfNeeded:3:24: note: calls to instance method 'layoutSubtreeIfNeeded()' from outside of its actor context are implicitly asynchronous
+1 | class NSView {
+2 | @available(macOS 10.7, *)
+3 |   @MainActor open func layoutSubtreeIfNeeded()}
+  |                        |- note: calls to instance method 'layoutSubtreeIfNeeded()' from outside of its actor context are implicitly asynchronous
+  |                        `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+4 |
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:48:23: warning: call to main actor-isolated instance method 'displayIfNeeded()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 46 |                 context.allowsImplicitAnimation = false
+ 47 |                 root?.layoutSubtreeIfNeeded()
+ 48 |                 root?.displayIfNeeded()
+    |                       `- warning: call to main actor-isolated instance method 'displayIfNeeded()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 49 |                 root?.window?.displayIfNeeded()
+ 50 |             }
+
+AppKit.NSView.displayIfNeeded:2:22: note: calls to instance method 'displayIfNeeded()' from outside of its actor context are implicitly asynchronous
+1 | class NSView {
+2 | @MainActor open func displayIfNeeded()}
+  |                      |- note: calls to instance method 'displayIfNeeded()' from outside of its actor context are implicitly asynchronous
+  |                      `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+3 |
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:49:31: warning: call to main actor-isolated instance method 'displayIfNeeded()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 47 |                 root?.layoutSubtreeIfNeeded()
+ 48 |                 root?.displayIfNeeded()
+ 49 |                 root?.window?.displayIfNeeded()
+    |                               `- warning: call to main actor-isolated instance method 'displayIfNeeded()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 50 |             }
+ 51 |         }
+
+AppKit.NSWindow.displayIfNeeded:2:22: note: calls to instance method 'displayIfNeeded()' from outside of its actor context are implicitly asynchronous
+1 | class NSWindow {
+2 | @MainActor open func displayIfNeeded()}
+  |                      |- note: calls to instance method 'displayIfNeeded()' from outside of its actor context are implicitly asynchronous
+  |                      `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+3 |
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:49:23: warning: main actor-isolated property 'window' can not be referenced from a nonisolated context
+ 47 |                 root?.layoutSubtreeIfNeeded()
+ 48 |                 root?.displayIfNeeded()
+ 49 |                 root?.window?.displayIfNeeded()
+    |                       `- warning: main actor-isolated property 'window' can not be referenced from a nonisolated context
+ 50 |             }
+ 51 |         }
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:86:61: note: property declared here
+ 84 | - (nullable instancetype)initWithCoder:(NSCoder *)coder NS_DESIGNATED_INITIALIZER;
+ 85 |
+ 86 | @property (nullable, readonly, unsafe_unretained) NSWindow *window;
+    |                                                             `- note: property declared here
+ 87 | @property (nullable, readonly, unsafe_unretained) NSView *superview;
+ 88 | @property (copy) NSArray<__kindof NSView *> *subviews;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:55:69: warning: call to main actor-isolated instance method 'convert(_:to:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 53 |             let nodes = root.map { descendants($0) } ?? []
+ 54 |             let frames = nodes.map {
+ 55 |                 ViewFrame(identity: ObjectIdentifier($0), frame: $0.convert($0.bounds, to: root),
+    |                                                                     `- warning: call to main actor-isolated instance method 'convert(_:to:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 56 |                           bounds: $0.bounds, hidden: $0.isHiddenOrHasHiddenAncestor)
+ 57 |             }
+
+AppKit.NSView.convert:2:22: note: calls to instance method 'convert(_:to:)' from outside of its actor context are implicitly asynchronous
+1 | class NSView {
+2 | @MainActor open func convert(_ rect: NSRect, to view: NSView?) -> NSRect}
+  |                      |- note: calls to instance method 'convert(_:to:)' from outside of its actor context are implicitly asynchronous
+  |                      `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+3 |
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:55:80: warning: main actor-isolated property 'bounds' can not be referenced from a nonisolated context
+ 53 |             let nodes = root.map { descendants($0) } ?? []
+ 54 |             let frames = nodes.map {
+ 55 |                 ViewFrame(identity: ObjectIdentifier($0), frame: $0.convert($0.bounds, to: root),
+    |                                                                                `- warning: main actor-isolated property 'bounds' can not be referenced from a nonisolated context
+ 56 |                           bounds: $0.bounds, hidden: $0.isHiddenOrHasHiddenAncestor)
+ 57 |             }
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:139:18: note: property declared here
+137 | - (void)scaleUnitSquareToSize:(NSSize)newUnitSize;
+138 | - (void)rotateByAngle:(CGFloat)angle;
+139 | @property NSRect bounds;
+    |                  `- note: property declared here
+140 |
+141 | @property (getter=isFlipped, readonly) BOOL flipped;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:56:38: warning: main actor-isolated property 'bounds' can not be referenced from a nonisolated context
+ 54 |             let frames = nodes.map {
+ 55 |                 ViewFrame(identity: ObjectIdentifier($0), frame: $0.convert($0.bounds, to: root),
+ 56 |                           bounds: $0.bounds, hidden: $0.isHiddenOrHasHiddenAncestor)
+    |                                      `- warning: main actor-isolated property 'bounds' can not be referenced from a nonisolated context
+ 57 |             }
+ 58 |             let probe = DocumentInspectorProbe.isEnabled ? DocumentInspectorProbe.frames : [:]
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:139:18: note: property declared here
+137 | - (void)scaleUnitSquareToSize:(NSSize)newUnitSize;
+138 | - (void)rotateByAngle:(CGFloat)angle;
+139 | @property NSRect bounds;
+    |                  `- note: property declared here
+140 |
+141 | @property (getter=isFlipped, readonly) BOOL flipped;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:56:57: warning: main actor-isolated property 'isHiddenOrHasHiddenAncestor' can not be referenced from a nonisolated context
+ 54 |             let frames = nodes.map {
+ 55 |                 ViewFrame(identity: ObjectIdentifier($0), frame: $0.convert($0.bounds, to: root),
+ 56 |                           bounds: $0.bounds, hidden: $0.isHiddenOrHasHiddenAncestor)
+    |                                                         `- warning: main actor-isolated property 'isHiddenOrHasHiddenAncestor' can not be referenced from a nonisolated context
+ 57 |             }
+ 58 |             let probe = DocumentInspectorProbe.isEnabled ? DocumentInspectorProbe.frames : [:]
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:93:63: note: property declared here
+ 91 | @property (nullable, readonly, assign) NSView *opaqueAncestor;
+ 92 | @property (getter=isHidden) BOOL hidden;
+ 93 | @property (getter=isHiddenOrHasHiddenAncestor, readonly) BOOL hiddenOrHasHiddenAncestor;
+    |                                                               `- note: property declared here
+ 94 |
+ 95 | - (void)getRectsBeingDrawn:(const NSRect * _Nullable * _Nullable)rects count:(nullable NSInteger *)count;
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:58:48: error: main actor-isolated static property 'isEnabled' can not be referenced from a nonisolated context
+ 50 |             }
+ 51 |         }
+ 52 |         mutating func read(_ measured: [CGRect]) -> Bool {
+    |                       `- note: add '@MainActor' to make instance method 'read' part of global actor 'MainActor'
+ 53 |             let nodes = root.map { descendants($0) } ?? []
+ 54 |             let frames = nodes.map {
+    :
+ 56 |                           bounds: $0.bounds, hidden: $0.isHiddenOrHasHiddenAncestor)
+ 57 |             }
+ 58 |             let probe = DocumentInspectorProbe.isEnabled ? DocumentInspectorProbe.frames : [:]
+    |                                                `- error: main actor-isolated static property 'isEnabled' can not be referenced from a nonisolated context
+ 59 |             let pending = nodes.filter { $0.needsLayout || $0.needsUpdateConstraints }
+ 60 |             let now = ProcessInfo.processInfo.systemUptime
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Sources/Tessera/Document/DocumentView.swift:299:16: note: static property declared here
+297 | @MainActor
+298 | enum DocumentInspectorProbe {
+299 |     static var isEnabled = false
+    |                `- note: static property declared here
+300 |     static var frames: [String: CGRect] = [:]
+301 | }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:58:83: error: main actor-isolated static property 'frames' can not be referenced from a nonisolated context
+ 50 |             }
+ 51 |         }
+ 52 |         mutating func read(_ measured: [CGRect]) -> Bool {
+    |                       `- note: add '@MainActor' to make instance method 'read' part of global actor 'MainActor'
+ 53 |             let nodes = root.map { descendants($0) } ?? []
+ 54 |             let frames = nodes.map {
+    :
+ 56 |                           bounds: $0.bounds, hidden: $0.isHiddenOrHasHiddenAncestor)
+ 57 |             }
+ 58 |             let probe = DocumentInspectorProbe.isEnabled ? DocumentInspectorProbe.frames : [:]
+    |                                                                                   `- error: main actor-isolated static property 'frames' can not be referenced from a nonisolated context
+ 59 |             let pending = nodes.filter { $0.needsLayout || $0.needsUpdateConstraints }
+ 60 |             let now = ProcessInfo.processInfo.systemUptime
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Sources/Tessera/Document/DocumentView.swift:300:16: note: static property declared here
+298 | enum DocumentInspectorProbe {
+299 |     static var isEnabled = false
+300 |     static var frames: [String: CGRect] = [:]
+    |                `- note: static property declared here
+301 | }
+302 |
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:59:45: warning: main actor-isolated property 'needsLayout' can not be referenced from a nonisolated context
+ 57 |             }
+ 58 |             let probe = DocumentInspectorProbe.isEnabled ? DocumentInspectorProbe.frames : [:]
+ 59 |             let pending = nodes.filter { $0.needsLayout || $0.needsUpdateConstraints }
+    |                                             `- warning: main actor-isolated property 'needsLayout' can not be referenced from a nonisolated context
+ 60 |             let now = ProcessInfo.processInfo.systemUptime
+ 61 |             diagnostic = "pending: \(pending.map { String(describing: type(of: $0)) }); measurements: \(String(describing: previousMeasurement)) -> \(measured)"
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSView.h:267:16: note: property declared here
+265 | - (void)layoutSubtreeIfNeeded API_AVAILABLE(macos(10.7));
+266 | - (void)layout API_AVAILABLE(macos(10.7));
+267 | @property BOOL needsLayout API_AVAILABLE(macos(10.7));
+    |                `- note: property declared here
+268 |
+269 | @property CGFloat alphaValue API_AVAILABLE(macos(10.5));
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:59:63: warning: main actor-isolated property 'needsUpdateConstraints' can not be referenced from a nonisolated autoclosure
+ 57 |             }
+ 58 |             let probe = DocumentInspectorProbe.isEnabled ? DocumentInspectorProbe.frames : [:]
+ 59 |             let pending = nodes.filter { $0.needsLayout || $0.needsUpdateConstraints }
+    |                                                               `- warning: main actor-isolated property 'needsUpdateConstraints' can not be referenced from a nonisolated autoclosure
+ 60 |             let now = ProcessInfo.processInfo.systemUptime
+ 61 |             diagnostic = "pending: \(pending.map { String(describing: type(of: $0)) }); measurements: \(String(describing: previousMeasurement)) -> \(measured)"
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSLayoutConstraint.h:267:16: note: property declared here
+265 | - (void)updateConstraintsForSubtreeIfNeeded API_AVAILABLE(macos(10.7));
+266 | - (void)updateConstraints API_AVAILABLE(macos(10.7)) NS_REQUIRES_SUPER;
+267 | @property BOOL needsUpdateConstraints API_AVAILABLE(macos(10.7));
+    |                `- note: property declared here
+268 | @end
+269 |
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+error: fatalError

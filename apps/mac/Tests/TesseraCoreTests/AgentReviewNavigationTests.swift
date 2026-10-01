@@ -230,7 +230,7 @@ final class AgentReviewNavigationTests: XCTestCase {
         model.enterReview()
         let entry = try XCTUnwrap(model.selectedReviewEntry)
         let item = try XCTUnwrap(model.reviewTargetItem)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let router = KeyRouter(model: model)
         func assertEditRejected(file: StaticString = #filePath, line: UInt = #line) {

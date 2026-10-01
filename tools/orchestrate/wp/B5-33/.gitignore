@@ -1,0 +1,3 @@
+# Large local profiles, generated images/catalogs, and build outputs stay on this machine.
+# Selected compact logs and summaries are force-added with the handoff.
+evidence/

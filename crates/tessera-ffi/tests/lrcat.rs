@@ -16,6 +16,7 @@ fn snapshot(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
         for e in std::fs::read_dir(&d).unwrap().flatten() {
             let p = e.path();
             if p.is_dir() {
+                out.insert(p.clone(), Vec::new());
                 stack.push(p);
             } else {
                 out.insert(p.clone(), std::fs::read(&p).unwrap());
@@ -49,7 +50,7 @@ fn setup() -> Setup {
 }
 
 fn relocated(s: &Setup) -> LrcatOptions {
-    let mut options = s.import.default_options();
+    let mut options = s.import.default_options().unwrap();
     let photos = s.fixture.photos.canonicalize().unwrap();
     options.relocations[0].to = photos.to_string_lossy().into_owned();
     options.library_folder = photos.to_string_lossy().into_owned();
@@ -137,7 +138,7 @@ fn inspect_counts_and_unsupported_reasons() {
 fn plan_relocates_maps_selection_and_marks_without_writing() {
     let s = setup();
     let before = snapshot(s.fixture.photos.parent().unwrap());
-    let defaults = s.import.default_options();
+    let defaults = s.import.default_options().unwrap();
     assert_eq!(defaults.library_folder, "/Volumes/Old Drive/Photos");
     assert_eq!(
         defaults
@@ -298,7 +299,7 @@ fn fidelity_sample_compares_with_lightroom_previews() {
     // Without relocation nothing can be rendered.
     let moved = s
         .import
-        .fidelity_sample(s.import.default_options(), 3, 128)
+        .fidelity_sample(s.import.default_options().unwrap(), 3, 128)
         .unwrap();
     assert!(moved.samples.is_empty());
 }
@@ -490,4 +491,437 @@ fn cancel_then_resume_and_existing_edits_are_kept() {
     );
     let doc = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&kept).recipe).unwrap();
     assert_eq!(doc.last_writer.machine_id, "lightroom-import");
+}
+
+#[test]
+fn catalog_import_indexes_only_references_but_open_folder_indexes_everything() {
+    let s = setup();
+    let photos = s.fixture.photos.canonicalize().unwrap();
+    let source = photos.join("2026/wedding/ceremony-01.jpg");
+    // Include siblings and descendants of a catalog folder, plus another root child.
+    for relative in [
+        "2026/wedding/unrelated.jpg",
+        "2026/wedding/extra/nested.jpg",
+        "other/unrelated.jpg",
+    ] {
+        let path = photos.join(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::copy(&source, path).unwrap();
+    }
+    let report = s.import.apply(relocated(&s), None).unwrap();
+    let imported = s.engine.list_images(ImageQuery::default()).unwrap();
+    assert_eq!(
+        imported.len(),
+        5,
+        "unrelated originals must not enter the catalog index"
+    );
+    assert_eq!(report.indexed, 5);
+    assert!(
+        imported
+            .iter()
+            .all(|image| !image.path.contains("unrelated") && !image.path.contains("nested"))
+    );
+    assert_eq!(s.import.apply(relocated(&s), None).unwrap().indexed, 0);
+
+    // Exercise the exact FFI entry point used by normal Open Folder.
+    s.engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let all = s.engine.list_images(ImageQuery::default()).unwrap();
+    assert_eq!(all.len(), 8);
+}
+
+/// Run only against an explicitly supplied catalog COPY. Stage referenced originals
+/// under disposable mapped roots so apply cannot write beside personal originals.
+#[test]
+#[ignore = "requires TESSERA_LRCAT_COPY and eight accessible originals"]
+fn catalog_copy_indexes_eight_accessible_references() {
+    let catalog = PathBuf::from(std::env::var("TESSERA_LRCAT_COPY").unwrap());
+    assert!(catalog.canonicalize().unwrap().starts_with("/private/tmp"));
+    let before = std::fs::read(&catalog).unwrap();
+    let source =
+        rusqlite::Connection::open_with_flags(&catalog, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let catalog_photos: i64 = source
+        .query_row("SELECT COUNT(*) FROM Adobe_images", [], |r| r.get(0))
+        .unwrap();
+    let mut statement = source
+        .prepare(
+            "SELECT r.absolutePath, d.pathFromRoot, f.baseName, f.extension
+        FROM Adobe_images i JOIN AgLibraryFile f ON i.rootFile=f.id_local
+        JOIN AgLibraryFolder d ON f.folder=d.id_local
+        JOIN AgLibraryRootFolder r ON d.rootFolder=r.id_local
+        WHERE COALESCE(i.masterImage,0)=0",
+        )
+        .unwrap();
+    let paths = statement
+        .query_map([], |r| {
+            let root: String = r.get(0)?;
+            let folder: String = r.get(1)?;
+            let base: String = r.get(2)?;
+            let ext: Option<String> = r.get(3)?;
+            let ext = ext.unwrap_or_default();
+            let name = if ext.is_empty() {
+                base
+            } else {
+                format!("{base}.{ext}")
+            };
+            Ok(PathBuf::from(root).join(folder).join(name))
+        })
+        .unwrap();
+    let accessible: std::collections::BTreeSet<PathBuf> =
+        paths.map(|p| p.unwrap()).filter(|p| p.is_file()).collect();
+    assert_eq!(accessible.len(), 8, "accessible catalog originals changed");
+    println!(
+        "catalog_photos={catalog_photos} accessible={}",
+        accessible.len()
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let engine = Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+    let import = engine
+        .clone()
+        .open_lrcat(catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let mut options = import.default_options().unwrap();
+    // Longest root wins, matching importer relocation semantics.
+    options
+        .relocations
+        .sort_by_key(|r| std::cmp::Reverse(r.from.len()));
+    let original_roots = options.relocations.clone();
+    for (n, relocation) in options.relocations.iter_mut().enumerate() {
+        relocation.to = temp
+            .path()
+            .join(format!("root-{n}"))
+            .to_string_lossy()
+            .into_owned();
+        std::fs::create_dir_all(&relocation.to).unwrap();
+    }
+    for path in &accessible {
+        let n = original_roots
+            .iter()
+            .position(|r| path.starts_with(&r.from))
+            .unwrap();
+        let target = Path::new(&options.relocations[n].to)
+            .join(path.strip_prefix(&original_roots[n].from).unwrap());
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::copy(path, target).unwrap();
+    }
+    options.library_folder = temp.path().join("library").to_string_lossy().into_owned();
+    let preview = import.plan(options.clone()).unwrap();
+    assert_eq!(preview.to_import, 8);
+    let report = import.apply(options, None).unwrap();
+    assert_eq!(report.indexed, 8);
+    assert_eq!(engine.list_images(ImageQuery::default()).unwrap().len(), 8);
+    assert_eq!(std::fs::read(catalog).unwrap(), before);
+    println!(
+        "catalog_photos={} accessible={} imported={} indexed={} missing={} seconds={:.3}",
+        catalog_photos,
+        accessible.len(),
+        report.imported,
+        report.indexed,
+        preview.missing,
+        report.seconds
+    );
+}
+
+/// B5-29c: the plan report groups per-image develop warnings ("N images
+/// (first: image ID): reason"); the summary still counts every image and
+/// names the first one as an example.
+#[test]
+fn grouped_develop_report_entries_keep_their_image_counts() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("fx")).unwrap();
+    let c = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    let changed = c
+        .execute(
+            "UPDATE Adobe_imageDevelopSettings SET text='s = { Exposure2012 = 1, GroupedFutureKey = 2 }', processVersion='15.4' WHERE image IN (SELECT image FROM Adobe_imageDevelopSettings ORDER BY image LIMIT 3)",
+            [],
+        )
+        .unwrap();
+    assert_eq!(changed, 3);
+    drop(c);
+    let summary = inspect_lrcat(fixture.catalog.to_string_lossy().into_owned()).unwrap();
+    let issue = summary
+        .unsupported
+        .iter()
+        .find(|i| i.reason.contains("GroupedFutureKey"))
+        .unwrap_or_else(|| panic!("{:#?}", summary.unsupported));
+    assert_eq!(issue.category, "Develop settings");
+    assert_eq!(issue.count, 3);
+    assert_eq!(issue.examples.len(), 1, "{issue:?}");
+    assert!(!issue.examples[0].starts_with("image "), "{issue:?}");
+}
+
+#[test]
+fn unedited_summary_lists_each_image() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("fx")).unwrap();
+    let c = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    c.execute("UPDATE Adobe_imageDevelopSettings SET text='garbage'", [])
+        .unwrap();
+    let summary = inspect_lrcat(fixture.catalog.to_string_lossy().into_owned()).unwrap();
+    let issues: Vec<_> = summary
+        .unsupported
+        .iter()
+        .filter(|i| i.reason.contains("imported as unedited"))
+        .collect();
+    assert_eq!(issues.len(), summary.images as usize);
+    assert!(
+        issues
+            .iter()
+            .all(|i| i.count == 1 && i.reason.contains("image "))
+    );
+}
+
+#[test]
+fn lightroom_owned_photos_import_without_adjacent_files() {
+    for folder in ["X.lrdata", "Foo.lrcat-data"] {
+        let s = setup();
+        let protected = s._temp.path().join(folder);
+        std::fs::rename(&s.fixture.photos, &protected).unwrap();
+        let before = snapshot(&protected);
+        let mut options = s.import.default_options().unwrap();
+        options.relocations[0].to = protected.to_string_lossy().into_owned();
+        options.library_folder = s
+            ._temp
+            .path()
+            .join("library")
+            .to_string_lossy()
+            .into_owned();
+        let report = s.import.apply(options.clone(), None).unwrap();
+        assert_eq!(snapshot(&protected), before, "import modified {folder}");
+        assert_eq!(report.imported, 5);
+        let issue = report
+            .unsupported
+            .iter()
+            .find(|i| i.category == "Read-only originals")
+            .unwrap();
+        assert!(!issue.examples.is_empty());
+        assert!(
+            report
+                .unsupported
+                .iter()
+                .any(|issue| issue.reason.contains("Lightroom")
+                    && issue.reason.contains("sidecar")
+                    && issue.count == 5)
+        );
+        let rows = s.engine.list_images(ImageQuery::default()).unwrap();
+        let row = rows
+            .iter()
+            .find(|r| r.path.ends_with("ceremony-01.jpg"))
+            .unwrap();
+        let recipe: engine_api::recipe::Recipe =
+            serde_json::from_str(&s.engine.get_recipe(row.id.clone()).unwrap()).unwrap();
+        assert_eq!(recipe.settings.tone.exposure, 0.5);
+        assert_eq!(
+            recipe.selection.grade,
+            Some(engine_api::recipe::Grade::Three)
+        );
+        let resumed = s.import.apply(options, None).unwrap();
+        assert_eq!(resumed.resumed, 5);
+        assert!(
+            !resumed
+                .unsupported
+                .iter()
+                .any(|i| i.category == "Read-only originals")
+        );
+        assert_eq!(snapshot(&protected), before);
+        let adjacent = std::path::Path::new(&row.path).with_extension("xmp");
+        std::fs::write(&adjacent, b"Lightroom owns this packet").unwrap();
+        let before = snapshot(&protected);
+        assert!(
+            sidecar::Sidecar::paths(&row.path)
+                .recipe
+                .starts_with(s._temp.path().join("support").canonicalize().unwrap())
+        );
+        let mut edited = recipe;
+        edited
+            .edit(
+                engine_api::recipe::EditMeta::user("Exposure", 1),
+                |settings| {
+                    settings.tone.exposure = 1.25;
+                },
+            )
+            .unwrap();
+        s.engine
+            .set_recipe_json(row.id.clone(), serde_json::to_string(&edited).unwrap())
+            .unwrap();
+        let refreshed = s.engine.list_images(ImageQuery::default()).unwrap();
+        assert_eq!(
+            refreshed
+                .iter()
+                .find(|r| r.id == row.id)
+                .unwrap()
+                .recipe_hash,
+            edited.recipe_hash().to_string()
+        );
+        assert_eq!(snapshot(&protected), before);
+    }
+}
+
+#[test]
+fn lightroom_owned_library_destination_is_rejected_before_creation() {
+    let s = setup();
+    let mut options = relocated(&s);
+    let protected = s._temp.path().join("X.lrdata/new-library");
+    options.library_folder = protected.to_string_lossy().into_owned();
+    assert!(
+        s.import
+            .apply(options, None)
+            .unwrap_err()
+            .to_string()
+            .contains("library folder")
+    );
+    assert!(!s._temp.path().join("X.lrdata").exists());
+}
+
+#[test]
+fn protected_default_library_import_succeeds_without_custom_folder() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("Fixture.lrdata")).unwrap();
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    db.execute(
+        "UPDATE AgLibraryRootFolder SET absolutePath=?",
+        [format!("{}/", fixture.photos.display())],
+    )
+    .unwrap();
+    drop(db);
+    let engine = Engine::open(temp.path().join("support").to_string_lossy().into()).unwrap();
+    let import = engine
+        .open_lrcat(fixture.catalog.to_string_lossy().into())
+        .unwrap();
+    let options = import.default_options().unwrap();
+    assert_eq!(
+        std::path::Path::new(&options.library_folder),
+        temp.path().join("support/Imported Libraries")
+    );
+    assert!(!sidecar::Sidecar::is_lightroom_owned(
+        &options.library_folder
+    ));
+    let report = import.apply(options, None).unwrap();
+    assert_eq!(report.imported, 5);
+}
+
+#[test]
+fn protected_default_library_missing_support_returns_error() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("Fixture.lrdata")).unwrap();
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    db.execute(
+        "UPDATE AgLibraryRootFolder SET absolutePath=?",
+        [format!("{}/", fixture.photos.display())],
+    )
+    .unwrap();
+    drop(db);
+    let support = temp.path().join("support");
+    let engine = Engine::open(support.to_string_lossy().into()).unwrap();
+    let import = engine
+        .open_lrcat(fixture.catalog.to_string_lossy().into())
+        .unwrap();
+    std::fs::remove_dir_all(&support).unwrap();
+    let error = import.default_options().unwrap_err();
+    assert!(error.to_string().contains("app support directory"));
+    assert!(!support.exists());
+}
+
+#[test]
+fn protected_edit_resolves_after_remount_and_engine_reopen() {
+    let s = setup();
+    let parent = s._temp.path().join("Photos");
+    std::fs::create_dir(&parent).unwrap();
+    let protected = parent.join("X.lrdata");
+    std::fs::rename(&s.fixture.photos, &protected).unwrap();
+    let mut options = s.import.default_options().unwrap();
+    options.relocations[0].to = protected.to_string_lossy().into();
+    options.library_folder = s._temp.path().join("library").to_string_lossy().into();
+    assert_eq!(s.import.apply(options, None).unwrap().imported, 5);
+    let renamed = s._temp.path().join("Photos 1");
+    std::fs::rename(parent, &renamed).unwrap();
+    let renamed = renamed.canonicalize().unwrap();
+    let engine = Engine::open(s._temp.path().join("support").to_string_lossy().into()).unwrap();
+    engine
+        .index_folder(renamed.to_string_lossy().into())
+        .unwrap();
+    let row = engine
+        .list_images(ImageQuery::default())
+        .unwrap()
+        .into_iter()
+        .find(|i| {
+            i.path.starts_with(renamed.to_str().unwrap()) && i.path.ends_with("ceremony-01.jpg")
+        })
+        .unwrap();
+    let recipe: engine_api::recipe::Recipe =
+        serde_json::from_str(&engine.get_recipe(row.id).unwrap()).unwrap();
+    assert_eq!(recipe.settings.tone.exposure, 0.5);
+}
+
+#[test]
+fn read_only_report_counts_successful_writes_not_failed_candidates() {
+    let s = setup();
+    let protected = s._temp.path().join("X.lrdata");
+    std::fs::rename(&s.fixture.photos, &protected).unwrap();
+    let mut options = s.import.default_options().unwrap();
+    options.relocations[0].to = protected.to_string_lossy().into();
+    options.library_folder = s._temp.path().join("library").to_string_lossy().into();
+    let failed = snapshot(&protected)
+        .keys()
+        .find(|p| p.ends_with("ceremony-01.jpg"))
+        .cloned()
+        .unwrap();
+    std::fs::write(failed.with_extension("xmp"), b"not valid XMP").unwrap();
+    let report = s.import.apply(options, None).unwrap();
+    assert_eq!(report.imported, 4);
+    let issue = report
+        .unsupported
+        .iter()
+        .find(|i| i.category == "Read-only originals")
+        .unwrap();
+    assert_eq!(issue.count, report.imported);
+    assert!(!issue.examples.is_empty());
+    assert!(
+        !issue
+            .examples
+            .iter()
+            .any(|p| p.ends_with("ceremony-01.jpg"))
+    );
+}
+
+#[test]
+fn streaming_resume_rejects_protected_publication_symlinks() {
+    for child in ["bundle", "large", "import-plan.json"] {
+        let s = setup();
+        let options = relocated(&s);
+        s.import.apply(options.clone(), None).unwrap();
+        let import_root = Path::new(&options.library_folder).join(".tessera-import");
+        let bundle = std::fs::read_dir(&import_root)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let protected = s._temp.path().join("Retained.lrdata");
+        std::fs::create_dir(&protected).unwrap();
+        let destination = if child == "bundle" {
+            bundle.clone()
+        } else {
+            bundle.join(child)
+        };
+        if destination.is_dir() {
+            std::fs::rename(&destination, s._temp.path().join("saved-bundle")).unwrap();
+        } else if destination.exists() {
+            std::fs::remove_file(&destination).unwrap();
+        }
+        let target = if child == "import-plan.json" {
+            let target = protected.join("plan.json");
+            std::fs::write(&target, b"untouched").unwrap();
+            target
+        } else {
+            protected.clone()
+        };
+        std::os::unix::fs::symlink(target, destination).unwrap();
+        let before = snapshot(&protected);
+        let error = s.import.apply(options, None).unwrap_err();
+        assert!(error.to_string().contains("import bundle"), "{error}");
+        assert_eq!(snapshot(&protected), before);
+    }
 }

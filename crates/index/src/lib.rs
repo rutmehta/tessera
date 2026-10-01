@@ -199,6 +199,7 @@ impl Core {
     /// Refresh one original after its sidecars changed, without discovering or
     /// reading siblings. The same indexing transaction and change triggers as a
     /// folder scan apply, but the walk is rooted at the admitted file itself.
+    /// Explicit originals also accept `.raw`, which folder discovery omits.
     pub fn scan_file(
         &mut self,
         path: impl AsRef<Path>,
@@ -245,7 +246,14 @@ impl Core {
             .into_iter()
         {
             let entry = entry?;
-            if !entry.file_type().is_file() || !is_image(entry.path()) {
+            // A catalog may explicitly reference a generic .raw original.
+            // Preserve ordinary folder discovery's existing extension policy.
+            let explicit_raw = only_file.is_some()
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("raw"));
+            if !entry.file_type().is_file() || !(is_image(entry.path()) || explicit_raw) {
                 continue;
             }
             let path = entry.path();
@@ -257,7 +265,7 @@ impl Core {
                 .ok()
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map_or(0, |d| d.as_nanos() as i64);
-            let stamp = sidecar_stamp(path)?;
+            let stamp = sidecar_stamp(path, sidecars.additional_stamp_paths(path))?;
             let old: Option<(i64, i64, String)> = self
                 .conn
                 .query_row(
@@ -580,6 +588,10 @@ fn delete_file_rows(tx: &rusqlite::Transaction, file_id: i64, dry_run: bool) -> 
 
 /// Source for sidecar metadata. Implemented by the sidecar crate later.
 pub trait SidecarReader: Send + Sync {
+    /// App-owned recipe locations must also invalidate the rebuildable index.
+    fn additional_stamp_paths(&self, _path: &Path) -> Vec<std::path::PathBuf> {
+        Vec::new()
+    }
     fn read(&self, path: &Path) -> engine_api::error::EngineResult<SidecarData>;
 }
 /// No-op sidecar reader used until sidecar integration is available.
@@ -619,7 +631,7 @@ pub struct Metadata {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
 }
-fn sidecar_stamp(path: &Path) -> Result<String> {
+fn sidecar_stamp(path: &Path, additional: Vec<std::path::PathBuf>) -> Result<String> {
     let mut appended = path.as_os_str().to_os_string();
     appended.push(".xmp");
     let mut recipe_name = path.file_stem().unwrap_or_default().to_os_string();
@@ -634,7 +646,10 @@ fn sidecar_stamp(path: &Path) -> Result<String> {
         std::path::PathBuf::from(appended),
         path.with_extension("xmp"),
         recipe,
-    ] {
+    ]
+    .into_iter()
+    .chain(additional)
+    {
         match std::fs::read(&p) {
             Ok(bytes) => {
                 hash.update(&[1]);
@@ -873,6 +888,26 @@ mod tests {
     use super::*;
     use std::time::Instant;
     #[test]
+    fn explicit_catalog_raw_file_is_indexed_without_expanding_folder_discovery() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("catalog.raw");
+        std::fs::write(&raw, b"fixture original").unwrap();
+        let mut index = Index::open(dir.path().join("index.db")).unwrap();
+        assert_eq!(
+            index
+                .scan(dir.path(), &NoopSidecarReader, &NoopMetadataProvider)
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            index
+                .scan_file(&raw, &NoopSidecarReader, &NoopMetadataProvider)
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
     fn embedded_tiff_camera_is_searchable_without_quotes() {
         let dir = tempfile::tempdir().unwrap();
         // Little-endian TIFF with a single ASCII Model entry.
@@ -939,7 +974,8 @@ mod tests {
         assert_eq!(i.conn.total_changes(), changes);
         assert_eq!(
             i.conn
-                .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
+                .query_row("SELECT max(version) FROM migration", [], |r| r
+                    .get::<_, u32>(0))
                 .unwrap(),
             9
         );

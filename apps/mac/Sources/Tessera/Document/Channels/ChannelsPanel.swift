@@ -183,12 +183,16 @@ private struct ChannelRowView: View {
         }
     }
 
+    /// The highlight always shows the paint target (B5-17d): RGB / colour rows clear it. ⌘-click only
+    /// loads the channel as the selection and leaves the highlight / target alone (B5-23).
     private func click() {
-        if !NSEvent.modifierFlags.contains(.command) { DocumentTools.shared.targetChannel(row.channelID, in: document) } // B5-17c
-        guard let id = row.channelID else { return }
         let mods = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        channels.selectedChannel = id
-        guard mods.contains(.command) else { return }
+        guard let c = ChannelsPanelModel.click(row, command: mods.contains(.command)) else { return }
+        if c.retarget {
+            DocumentTools.shared.targetChannel(c.paintTarget, in: document) // B5-17c
+            channels.selectedChannel = c.highlight
+        }
+        guard let id = c.load else { return }
         let op: SelectionCombine = mods.contains(.shift) && mods.contains(.option) ? .intersect
             : mods.contains(.shift) ? .add : mods.contains(.option) ? .subtract : .replace
         channels.load(id, op: op)

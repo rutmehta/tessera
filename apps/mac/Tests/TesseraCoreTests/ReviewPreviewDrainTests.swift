@@ -38,7 +38,7 @@ final class ReviewPreviewDrainTests: XCTestCase {
     func testReviewRetriesObservationAfterEarlierPreviewFlightDrains() async throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil,
                       "Uses the local background window server")
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
         let scratch = FileManager.default.temporaryDirectory
             .appendingPathComponent("review-preview-drain-\(UUID())")
         let folder = scratch.appendingPathComponent("photos")

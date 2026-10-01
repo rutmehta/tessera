@@ -489,14 +489,26 @@ struct Signal {
 }
 
 impl Signal {
+    /// B5-22 latest-wins: a draft never cancels the frame in flight. It only
+    /// marks one coalesced frame pending; that frame snapshots the newest
+    /// live state when the worker starts it, right after the current one.
     fn request_frame(&mut self) {
-        if let Some(cancel) = &self.active_frame {
-            cancel.cancel();
-        }
         self.frame = true;
         self.since.get_or_insert_with(Instant::now);
     }
 
+    /// Real invalidation (surface ring replaced or released, session
+    /// stopping): the frame in flight can no longer be published, so its
+    /// work is abandoned. Ownership stays so completion is still rejected.
+    fn cancel_frame(&mut self) {
+        if let Some(cancel) = &self.active_frame {
+            cancel.cancel();
+        }
+    }
+
+    /// The worker starts a frame only after the previous one finished, so
+    /// this cancels nothing in production; it keeps a stray owner from
+    /// publishing if that ever changes.
     fn begin_frame(&mut self) -> Arc<CancellationToken> {
         if let Some(previous) = &self.active_frame {
             previous.cancel();
@@ -521,9 +533,7 @@ impl Signal {
 
     fn stop_frames(&mut self) {
         self.stop = true;
-        if let Some(cancel) = &self.active_frame {
-            cancel.cancel();
-        }
+        self.cancel_frame();
     }
 
     fn pending(&self) -> bool {
@@ -759,6 +769,14 @@ impl Renderer {
         self.cv.notify_all();
     }
 
+    /// Cancels the frame in flight because its surface ring changed
+    /// (`View::generation`); it would be dropped at publication anyway.
+    /// Never waits for the backend. Schedules nothing: callers that still
+    /// have surfaces request the replacement frame.
+    pub(crate) fn invalidate_frame(&self) {
+        self.signal().cancel_frame();
+    }
+
     pub(crate) fn wait_idle(&self) {
         let mut s = self.signal();
         while !s.stop && (s.busy || s.pending()) {
@@ -808,6 +826,18 @@ impl Renderer {
     /// per tick, up to the renderer's 2 GiB budget).
     pub(crate) fn trim_smart_filter_cache(&self) {
         self.trim_filters.store(true, Ordering::Relaxed);
+    }
+
+    pub(crate) fn thumbnail_mip_stats(&self) -> (u64, u64) {
+        let gpu = match &*self.backend.lock().expect("render backend") {
+            Backend::Gpu(g) => g.resident.mip_cache_probe(),
+            _ => (0, 0),
+        };
+        let cpu = self
+            .thumb_comp
+            .get_or_init(|| super::fonts::compositor(128 << 20))
+            .mip_cache_probe();
+        (gpu.0 + cpu.0, gpu.1 + cpu.1)
     }
 
     pub(crate) fn thumbnail_renders(&self) -> u64 {
@@ -860,6 +890,47 @@ fn finalize_frame<T>(
 
 pub(crate) fn worker_loop(shared: Arc<Shared>) {
     let r = &shared.render;
+    run_frames(
+        r,
+        |since, cancel| present_frame(&shared, since, cancel),
+        |result, layers, history| {
+            let Some(listener) = shared.listener() else {
+                return;
+            };
+            if let Some(result) = result {
+                match result {
+                    Ok(Some(info)) => listener.on_frame(info),
+                    Ok(None) => {}
+                    Err(e) => listener.on_render_failed(e.to_string()),
+                }
+            }
+            if !layers.is_empty() {
+                listener.on_layers_changed(layers.into_iter().collect());
+            }
+            if history && let Ok(st) = shared.lock() {
+                let head = st.doc.history().current();
+                drop(st);
+                listener.on_history_changed(head);
+            }
+        },
+    );
+    // Free GPU memory as soon as the session stops.
+    *r.backend.lock().unwrap_or_else(|e| e.into_inner()) = Backend::Stopped;
+    r.thumbs.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    let mut s = r.signal();
+    s.busy = false;
+    r.cv.notify_all();
+}
+
+/// The render thread's scheduling loop until `stop`. `present` renders one
+/// frame (production: [`present_frame`]; tests inject a slow renderer) and
+/// `deliver` receives the accepted result plus the changed rows and history
+/// flag, called without the Signal lock.
+fn run_frames<T>(
+    r: &Renderer,
+    mut present: impl FnMut(Instant, &CancellationToken) -> FrameAttempt<T>,
+    mut deliver: impl FnMut(Option<Result<Option<T>>>, BTreeSet<u64>, bool),
+) {
     loop {
         let (layers, history, since, cancel) = {
             let mut s = r.signal();
@@ -881,7 +952,7 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
             )
         };
         let attempt = if let Some(cancel) = &cancel {
-            present_frame(&shared, since.unwrap_or_else(Instant::now), cancel)
+            present(since.unwrap_or_else(Instant::now), cancel)
         } else {
             FrameAttempt {
                 result: Ok(None),
@@ -892,33 +963,11 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
             .as_ref()
             .is_some_and(|cancel| r.signal().finish_frame(cancel));
         let result = finalize_frame(r, attempt, publish);
-        if let Some(listener) = shared.listener() {
-            if let Some(result) = result {
-                match result {
-                    Ok(Some(info)) => listener.on_frame(info),
-                    Ok(None) => {}
-                    Err(e) => listener.on_render_failed(e.to_string()),
-                }
-            }
-            if !layers.is_empty() {
-                listener.on_layers_changed(layers.into_iter().collect());
-            }
-            if history && let Ok(st) = shared.lock() {
-                let head = st.doc.history().current();
-                drop(st);
-                listener.on_history_changed(head);
-            }
-        }
+        deliver(result, layers, history);
         let mut s = r.signal();
         s.busy = false;
         r.cv.notify_all();
     }
-    // Free GPU memory as soon as the session stops.
-    *r.backend.lock().unwrap_or_else(|e| e.into_inner()) = Backend::Stopped;
-    r.thumbs.lock().unwrap_or_else(|e| e.into_inner()).clear();
-    let mut s = r.signal();
-    s.busy = false;
-    r.cv.notify_all();
 }
 
 // B5-14 begin
@@ -1008,6 +1057,8 @@ fn present_frame(
         if !src.is_empty() {
             let _pressure = Pressure::begin(PressureKind::Render);
             // Smart filters baked and a filter preview shown (WP B5-05).
+            // Pass the resolved canvas level: all Camera Raw stages omit detail
+            // above level 0, including saved stacks without an active edit (B5-34).
             let t = Instant::now();
             let doc: Arc<Document> =
                 super::filtering::presented(shared, &snapshot, level, src).unwrap_or(snapshot);
@@ -1448,7 +1499,7 @@ mod frame_cancellation_tests {
             result: Ok(Some(())),
             record: Some(sample_record()),
         };
-        renderer.request(Vec::new(), false, 0);
+        renderer.invalidate_frame();
         let old_accepted = renderer.signal().finish_frame(&old);
         assert!(!old_accepted);
         assert!(finalize_frame(&renderer, old_attempt, old_accepted).is_none());
@@ -1456,8 +1507,8 @@ mod frame_cancellation_tests {
         let fresh = renderer.signal().begin_frame();
         let fresh_accepted = renderer.signal().finish_frame(&fresh);
         assert!(fresh_accepted);
-        // A request after acceptance cannot retroactively revoke this callback.
-        renderer.request(Vec::new(), false, 0);
+        // Cancellation after acceptance cannot retroactively revoke this callback.
+        renderer.invalidate_frame();
         let fresh_attempt = FrameAttempt {
             result: Ok(Some(())),
             record: Some(sample_record()),
@@ -1482,8 +1533,9 @@ mod frame_cancellation_tests {
         let mut signal = Signal::default();
         let first = signal.begin_frame();
         signal.request_frame();
-        assert!(first.is_cancelled());
+        assert!(!first.is_cancelled(), "drafts never cancel (B5-22)");
         let next = signal.begin_frame();
+        assert!(first.is_cancelled());
         assert!(!signal.finish_frame(&first));
         assert!(Arc::ptr_eq(signal.active_frame.as_ref().unwrap(), &next));
         assert!(!next.is_cancelled());
@@ -1508,7 +1560,7 @@ mod frame_cancellation_tests {
     }
 
     #[test]
-    fn request_cancellation_does_not_wait_for_render_backend_lock() {
+    fn invalidation_does_not_wait_for_render_backend_lock() {
         use std::sync::mpsc;
         let renderer = Arc::new(Renderer::new(None));
         let current = renderer.signal().begin_frame();
@@ -1516,7 +1568,7 @@ mod frame_cancellation_tests {
         let (done_tx, done_rx) = mpsc::channel();
         let other = renderer.clone();
         let worker = std::thread::spawn(move || {
-            other.request(Vec::new(), false, 0);
+            other.invalidate_frame();
             done_tx.send(()).unwrap();
         });
         let completed = done_rx.recv_timeout(Duration::from_secs(5));
@@ -1548,7 +1600,7 @@ mod frame_cancellation_tests {
         surface.with_pixels(|px, _| px.fill(0x5a)).unwrap();
         let mut signal = Signal::default();
         let cancel = signal.begin_frame();
-        signal.request_frame();
+        signal.cancel_frame();
         assert!(
             cpu_present(
                 &compositor,
@@ -1606,5 +1658,240 @@ mod frame_cancellation_tests {
                 }
             })
             .unwrap();
+    }
+
+    // B5-22: latest-wins coalescing. A draft never cancels the frame in
+    // flight; the worker renders the newest state as soon as it completes.
+
+    #[test]
+    fn draft_request_keeps_in_flight_frame_and_coalesces_the_next() {
+        let renderer = Renderer::new(None);
+        let current = renderer.signal().begin_frame();
+        renderer.request(Vec::new(), false, 0);
+        renderer.request(Vec::new(), false, 0);
+        assert!(
+            !current.is_cancelled(),
+            "a new draft must not cancel the frame in flight"
+        );
+        let mut s = renderer.signal();
+        assert!(s.finish_frame(&current), "the in-flight frame publishes");
+        assert!(s.frame, "one coalesced frame stays pending");
+    }
+
+    #[test]
+    fn drafts_faster_than_frame_time_keep_publishing_latest_wins() {
+        use std::thread;
+        const FRAME: Duration = Duration::from_millis(20);
+        const GAP: Duration = Duration::from_millis(4);
+        const DRAFTS: u64 = 100;
+        let renderer = Arc::new(Renderer::new(None));
+        let draft = Arc::new(AtomicU64::new(0));
+        let published = Arc::new(Mutex::new(Vec::<u64>::new()));
+        let worker = {
+            let (renderer, draft, published) = (renderer.clone(), draft.clone(), published.clone());
+            thread::spawn(move || {
+                run_frames(
+                    &renderer,
+                    |_, cancel| {
+                        // Snapshot at frame start, like present_frame.
+                        let seen = draft.load(Ordering::SeqCst);
+                        let deadline = Instant::now() + FRAME;
+                        while Instant::now() < deadline {
+                            if let Err(e) = cancel.check() {
+                                return FrameAttempt {
+                                    result: Err(e.into()),
+                                    record: None,
+                                };
+                            }
+                            thread::sleep(Duration::from_millis(1));
+                        }
+                        FrameAttempt {
+                            result: Ok(Some(seen)),
+                            record: None,
+                        }
+                    },
+                    |result, _, _| {
+                        if let Some(Ok(Some(seen))) = result {
+                            published.lock().unwrap().push(seen);
+                        }
+                    },
+                )
+            })
+        };
+        let started = Instant::now();
+        for i in 1..=DRAFTS {
+            draft.store(i, Ordering::SeqCst);
+            renderer.request(Vec::new(), false, 0);
+            thread::sleep(GAP);
+        }
+        let dragged = started.elapsed();
+        renderer.wait_idle();
+        renderer.stop();
+        worker.join().unwrap();
+        let frames = published.lock().unwrap().clone();
+        // At least one frame per two frame times while drafts stream in.
+        let floor = (dragged.as_millis() / (2 * FRAME.as_millis())).max(2) as usize;
+        assert!(
+            frames.len() >= floor,
+            "frame starvation: {} frames for {DRAFTS} drafts over {dragged:?} (want >= {floor})",
+            frames.len()
+        );
+        assert_eq!(
+            frames.last(),
+            Some(&DRAFTS),
+            "final frame shows the last draft"
+        );
+        assert!(
+            // `<=`: a microsecond race can publish the last draft twice.
+            frames.windows(2).all(|w| w[0] <= w[1]),
+            "frames advance through newer drafts: {frames:?}"
+        );
+    }
+
+    /// Drives the real session paths: a frame is held in flight (the test owns
+    /// the backend lock the worker needs), then `attach_surface` replaces the
+    /// ring and `detach_surfaces` releases it. Each must cancel that frame at
+    /// once. The generation gate alone would also keep it from publishing, so
+    /// the cancellation assertion fails if either path drops `invalidate_frame`.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn ring_replacement_and_detach_cancel_the_in_flight_frame() {
+        use crate::surface::testing::create_rgba8;
+        #[derive(Default)]
+        struct Frames(Mutex<Vec<u32>>);
+        impl super::super::DocumentListener for Frames {
+            fn on_frame(&self, frame: DocFrameInfo) {
+                self.0.lock().unwrap().push(frame.surface_id);
+            }
+            fn on_layers_changed(&self, _: Vec<u64>) {}
+            fn on_history_changed(&self, _: u64) {}
+            fn on_render_failed(&self, _: String) {}
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "t".into());
+        let frames = Arc::new(Frames::default());
+        session.set_listener(Some(frames.clone()));
+        let render = &session.shared.render;
+        let in_flight = || {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                if let Some(cancel) = render.signal().active_frame.clone() {
+                    return cancel;
+                }
+                assert!(Instant::now() < deadline, "frame never started");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        };
+
+        let old = create_rgba8(2, 2);
+        session.attach_surface(old, 2, 2).unwrap();
+        session.wait_idle();
+        assert_eq!(*frames.0.lock().unwrap(), vec![old], "first paint");
+
+        // Ring replaced (a different size) while a frame is in flight.
+        let backend = render.backend.lock().unwrap();
+        session.refresh().unwrap();
+        let held = in_flight();
+        assert!(!held.is_cancelled());
+        let new = create_rgba8(3, 2);
+        session.attach_surface(new, 3, 2).unwrap();
+        let cancelled = held.is_cancelled();
+        drop(backend); // release even on failure so the worker can finish
+        assert!(
+            cancelled,
+            "attach_surface replacing the ring cancels the frame"
+        );
+        session.wait_idle();
+        assert_eq!(
+            *frames.0.lock().unwrap(),
+            vec![old, new],
+            "the cancelled frame never publishes; the new ring gets its own"
+        );
+
+        // Surfaces released while a frame is in flight.
+        let backend = render.backend.lock().unwrap();
+        session.refresh().unwrap();
+        let held = in_flight();
+        assert!(!held.is_cancelled());
+        session.detach_surfaces();
+        let cancelled = held.is_cancelled();
+        drop(backend);
+        assert!(cancelled, "detach_surfaces cancels the frame");
+        session.wait_idle();
+        assert_eq!(
+            *frames.0.lock().unwrap(),
+            vec![old, new],
+            "nothing publishes after detach"
+        );
+        session.close();
+    }
+
+    #[test]
+    fn invalidation_and_stop_still_cancel_the_in_flight_frame_promptly() {
+        use std::sync::mpsc;
+        use std::thread;
+        // A frame that would take a minute unless cancelled.
+        const FRAME: Duration = Duration::from_secs(60);
+        let renderer = Arc::new(Renderer::new(None));
+        let (started_tx, started_rx) = mpsc::channel();
+        let (ended_tx, ended_rx) = mpsc::channel();
+        let published = Arc::new(AtomicU64::new(0));
+        let worker = {
+            let (renderer, published) = (renderer.clone(), published.clone());
+            thread::spawn(move || {
+                run_frames(
+                    &renderer,
+                    |_, cancel| {
+                        started_tx.send(()).unwrap();
+                        let deadline = Instant::now() + FRAME;
+                        let result = loop {
+                            if let Err(e) = cancel.check() {
+                                break Err(e.into());
+                            }
+                            if Instant::now() >= deadline {
+                                break Ok(Some(()));
+                            }
+                            thread::sleep(Duration::from_millis(1));
+                        };
+                        ended_tx.send(()).unwrap();
+                        FrameAttempt {
+                            result,
+                            record: None,
+                        }
+                    },
+                    |result, _, _| {
+                        if result.is_some() {
+                            published.fetch_add(1, Ordering::SeqCst);
+                        }
+                    },
+                )
+            })
+        };
+        let bound = Duration::from_secs(5);
+        // Generation change (ring replaced or released).
+        renderer.request(Vec::new(), false, 0);
+        started_rx.recv_timeout(bound).expect("frame started");
+        renderer.request(Vec::new(), false, 0); // a draft: must not cancel
+        assert!(ended_rx.recv_timeout(Duration::from_millis(50)).is_err());
+        renderer.invalidate_frame();
+        ended_rx
+            .recv_timeout(bound)
+            .expect("invalidation cancels the in-flight frame promptly");
+        // The pending draft frame starts next; closing cancels it.
+        started_rx
+            .recv_timeout(bound)
+            .expect("coalesced frame started");
+        renderer.stop();
+        ended_rx
+            .recv_timeout(bound)
+            .expect("stop cancels the in-flight frame promptly");
+        worker.join().unwrap();
+        assert_eq!(
+            published.load(Ordering::SeqCst),
+            0,
+            "cancelled frames never publish"
+        );
     }
 }

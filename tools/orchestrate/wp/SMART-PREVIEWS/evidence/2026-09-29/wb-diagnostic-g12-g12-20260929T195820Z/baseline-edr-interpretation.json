@@ -1,0 +1,127 @@
+{
+  "contradictions": [],
+  "facts": {
+    "admission": {
+      "admitted": true,
+      "automatic": true,
+      "candidate": false,
+      "custom_resolved_wb": "ad29781dc782736cd84760d8ffc801e03d1be4e4c16e6831f8d864b7078c13cb",
+      "daylight_resolved_wb": "6678d672ecd7301ebf5b3bfdc9a7c899038e3e6719e22da8b644c77ec5bfc962",
+      "first_metal": true,
+      "identical_key": true,
+      "probe": null,
+      "reopen_calibration_transactions": 3,
+      "reopen_cpu_iterations_unobserved": 3,
+      "reopened_metal": true,
+      "second_lookup_hits": 0,
+      "second_measurements": 1,
+      "second_publications": 0
+    },
+    "operators": {
+      "edits": [
+        4,
+        4,
+        4
+      ],
+      "open": 2,
+      "open_calibration": [
+        2,
+        2,
+        2
+      ],
+      "reopen": 4,
+      "reopen_calibration": [
+        4,
+        4,
+        4
+      ]
+    },
+    "post_bind_aborts_recorded": [],
+    "priming": {
+      "bucket": "Detail",
+      "calibration_iterations_requesting": [
+        2
+      ],
+      "hit_keys": 1,
+      "requested_by_calibration": 2,
+      "unprimed_hits": 0
+    },
+    "reach": {
+      "custom": {
+        "chain": [
+          "Detail=Miss",
+          "PaddedWb=Miss",
+          "TileWb=Miss"
+        ],
+        "top": "(Some(TileWb), Miss)"
+      },
+      "daylight_first": {
+        "chain": [
+          "Detail=Hit",
+          "PaddedWb=NotReached",
+          "TileWb=NotReached"
+        ],
+        "top": "(Some(Detail), Hit)"
+      },
+      "daylight_repeat": {
+        "chain": [
+          "Detail=Hit",
+          "PaddedWb=NotReached",
+          "TileWb=NotReached"
+        ],
+        "top": "(Some(Detail), Hit)"
+      }
+    },
+    "runtime": {
+      "auto_metal": {
+        "open": true,
+        "reopen": true
+      },
+      "candidate_ttl_hit": null,
+      "k_per_phase": [
+        {
+          "k": 0,
+          "phase": "open"
+        },
+        {
+          "k": 0,
+          "phase": "reopen"
+        },
+        {
+          "k": 0,
+          "phase": "exposure"
+        },
+        {
+          "k": 0,
+          "phase": "daylight_first"
+        },
+        {
+          "k": 0,
+          "phase": "restore_as_shot"
+        },
+        {
+          "k": 0,
+          "phase": "daylight_repeat"
+        },
+        {
+          "k": 0,
+          "phase": "custom"
+        },
+        {
+          "k": 0,
+          "phase": "restore_original"
+        }
+      ],
+      "mutex_box_bytes": null,
+      "mutex_box_note": "not observable from this harness (no allocator hook); budgeted <= 256 B",
+      "route_custom": "Coarse",
+      "route_first_daylight": "Coarse",
+      "route_repeat": "Coarse"
+    }
+  },
+  "format": "edr",
+  "inconclusive": [],
+  "invariant_violations": [],
+  "note": "diagnostic evidence only; no timing, performance, remedy or merge claim (rev7 §8)",
+  "variant": "baseline"
+}

@@ -121,6 +121,8 @@ const PHOTOS: &[Photo] = &[
         hue: 0.85,
     },
 ];
+/// Lightroom's unnamed keyword root (NULL name, NULL parent).
+pub const KEYWORD_ROOT: i64 = 100;
 /// Virtual copy of image 30 ("Black & White").
 const COPY: i64 = 36;
 
@@ -237,7 +239,8 @@ CREATE TABLE AgLibraryFile(id_local INTEGER PRIMARY KEY, folder INTEGER, baseNam
 CREATE TABLE Adobe_images(id_local INTEGER PRIMARY KEY, rootFile INTEGER, masterImage INTEGER, copyName TEXT, orientation TEXT, captureTime TEXT, pick INTEGER, rating INTEGER, colorLabels TEXT);
 CREATE TABLE Adobe_imageDevelopSettings(image INTEGER, text TEXT, processVersion TEXT);
 CREATE TABLE AgLibraryKeyword(id_local INTEGER PRIMARY KEY, name TEXT, parent INTEGER);
-INSERT INTO AgLibraryKeyword VALUES(1,'Places',NULL),(2,'NYC',1),(3,'People',NULL),(4,'Alice',3),(5,'Trips',NULL),(6,'Paris',5),(7,'Paris',1);
+-- Lightroom always has exactly one unnamed root keyword; top-level keywords are its children.
+INSERT INTO AgLibraryKeyword VALUES(1,'Places',{KEYWORD_ROOT}),(2,'NYC',1),(3,'People',{KEYWORD_ROOT}),(4,'Alice',3),(5,'Trips',{KEYWORD_ROOT}),(6,'Paris',5),(7,'Paris',1),({KEYWORD_ROOT},NULL,NULL);
 CREATE TABLE AgLibraryKeywordSynonym(keyword INTEGER, name TEXT);
 INSERT INTO AgLibraryKeywordSynonym VALUES(2,'New York');
 CREATE TABLE AgLibraryKeywordImage(image INTEGER, tag INTEGER);

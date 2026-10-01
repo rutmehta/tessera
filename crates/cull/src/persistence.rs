@@ -13,6 +13,7 @@ pub(crate) fn optional_bytes(path: &Path) -> EngineResult<Option<Vec<u8>>> {
 }
 
 pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
+    Sidecar::ensure_writable_destination(path)?;
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -30,6 +31,7 @@ pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
     Ok(())
 }
 pub(crate) fn restore(path: &Path, bytes: &Option<Vec<u8>>) -> EngineResult<()> {
+    Sidecar::ensure_destination(path, "restore")?;
     match bytes {
         Some(bytes) => atomic_write(path, bytes),
         None => match fs::remove_file(path) {
@@ -44,7 +46,10 @@ pub(crate) fn load(index: &Index, id: ImageId) -> EngineResult<RecipeDocument> {
     let info = index.image_info(id)?;
     let paths = Sidecar::paths(&info.path);
     if optional_bytes(&paths.recipe)?.is_some() {
-        let document = Sidecar::read_recipe(&paths.recipe)?;
+        let mut document = Sidecar::read_recipe(&paths.recipe)?;
+        if Sidecar::is_lightroom_owned(&info.path) {
+            document.recipe.image_id = Some(id);
+        }
         if document.recipe.image_id.is_some_and(|stored| stored != id) {
             return Err(EngineError::invalid(
                 "image_id",
@@ -102,7 +107,8 @@ pub(crate) fn write_changes(index: &Index, changes: &[Change], forward: bool) ->
                 }
             }
         }
-        if optional_bytes(&paths.xmp)?.is_none()
+        if !Sidecar::is_lightroom_owned(&info.path)
+            && optional_bytes(&paths.xmp)?.is_none()
             && optional_bytes(&info.path.with_extension("xmp"))?.is_some()
         {
             paths.xmp = info.path.with_extension("xmp");
@@ -266,5 +272,26 @@ mod tests {
         assert!(!dir.path().join(".edits").exists());
         assert!(!Sidecar::paths(dir.path().join("one.jpg")).xmp.exists());
         assert_eq!(index.selection(id).unwrap(), old);
+    }
+}
+
+#[cfg(test)]
+mod lightroom_safety_tests {
+    #[test]
+    fn rollback_does_not_write_lightroom_owned_sidecars() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("X.lrdata/photo.xmp");
+        assert!(super::atomic_write(&path, b"new").is_err());
+        assert!(!root.path().join("X.lrdata").exists());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"original").unwrap();
+        assert!(
+            super::restore(&path, &Some(b"replacement".to_vec()))
+                .unwrap_err()
+                .to_string()
+                .contains("restore")
+        );
+        assert!(super::restore(&path, &None).is_err());
+        assert_eq!(std::fs::read(path).unwrap(), b"original");
     }
 }

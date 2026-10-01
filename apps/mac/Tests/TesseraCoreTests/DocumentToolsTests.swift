@@ -435,6 +435,34 @@ final class DocumentToolsTests: XCTestCase {
         doc.close()
     }
 
+    /// B5-17d: Quick Mask entered with a selection drops it, so white painted outside the old selection
+    /// grows the selection on exit.
+    func testQuickMaskWithASelectionGrowsByPainting() throws {
+        let dir = try temp()
+        let e = try Engine.open(appSupportDir: dir.appendingPathComponent("support").path)
+        let doc = try EngineDocumentEngine.for(e).newDocument(width: 256, height: 128, depth: .u8, profile: nil)
+        defer { doc.close() }
+        let t = try XCTUnwrap(doc as? DocumentToolsBackend)
+        let ch = try XCTUnwrap(doc as? DocumentChannelsBackend)
+        let layer = try doc.layers()[0].id
+        _ = try doc.setSelectionRect(x: 0, y: 0, width: 64, height: 128, feather: 0)
+        let q = try QuickMask.enter(ch).channelID
+        XCTAssertNil(try doc.info().selectionBounds)
+        var brush = BrushOptions()
+        brush.size = 12
+        brush.hardness = 1
+        let target = try BrushStrokeTarget.resolve(quickMask: q, channel: nil, layerKind: .pixel, hasMask: false,
+                                                   paintMask: false)
+        try t.beginStroke(layer: layer, target: target, tool: .brush, brush: brush, color: .white)
+        _ = try t.strokePoints((0...4).map { PenSample(x: 150 + Float($0) * 10, y: 64) })
+        _ = try t.endStroke()
+        XCTAssertNotNil(try QuickMask.exit(ch, channel: q))
+        let b = try XCTUnwrap(doc.info().selectionBounds)
+        XCTAssertEqual(b.x, 0, "the old selection is kept")
+        XCTAssertGreaterThanOrEqual(b.x + b.width, 190, "the stroke outside it was added")
+        XCTAssertTrue(try ch.documentChannels().isEmpty)
+    }
+
     func testStubAdoptsTheGeometricSubset() throws {
         let doc = try StubDocumentEngine.shared.newDocument(width: 400, height: 300, depth: .u8, profile: nil)
         let t = try XCTUnwrap(doc as? DocumentToolsBackend)

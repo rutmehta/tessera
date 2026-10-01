@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class PeopleLayoutTests: XCTestCase {
     func testDetailFitsWindowAndKeepsHeaderAtTop() throws {
-        ShellHarness.prepare()   // M2-56: background-safe (never activates, never key)
+        LayoutProbeHarness.prepare()   // M2-56: background-safe (never activates, never key)
         let model = AppModel()
         model.install(StubLibrary.synthetic(count: 40))
         let engine = StubPeopleEngine()
@@ -17,14 +17,13 @@ final class PeopleLayoutTests: XCTestCase {
         model.setSource(.people)
         model.people.openDetail("person")
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 600),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 600),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
-        let host = NSHostingView(rootView: ContentView(model: model))
+        let host = NSHostingView(rootView: LayoutProbeHarness.root(ContentView(model: model)))
+        defer { LayoutProbeHarness.dispose(window) }
         window.contentView = host
         window.orderBack(nil)
-        host.layoutSubtreeIfNeeded()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        host.layoutSubtreeIfNeeded()
+        LayoutProbeHarness.settle(host)
 
         func descendants(_ view: NSView) -> [NSView] {
             [view] + view.subviews.flatMap(descendants)
@@ -38,7 +37,6 @@ final class PeopleLayoutTests: XCTestCase {
         XCTAssertLessThanOrEqual(frame.maxY, host.bounds.maxY + 1, "detail must not expand the content beyond the window")
         XCTAssert(ShellLayoutAudit.containmentViolations(in: host).isEmpty,
                   ShellLayoutAudit.containmentViolations(in: host).joined(separator: "\n"))
-        window.orderOut(nil)
     }
 }
 

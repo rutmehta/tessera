@@ -1408,6 +1408,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "transform",
  "wgpu",
 ]
 
@@ -4981,6 +4982,7 @@ dependencies = [
  "image-core",
  "import-lrcat",
  "index",
+ "libc",
  "library",
  "ml-caption",
  "ml-embed",

@@ -7,7 +7,8 @@
 //! layers; pixel layers for alignment, pixel or aligned layers for blending),
 //! so nothing changes on error; the engine validates again atomically.
 //!
-//! Memory: every stack is limited to [`MAX_STACK_MEGAPIXELS`] in total,
+//! Memory: every stack is limited to [`stack_max_megapixels`] in total (half
+//! of physical memory at ~50 B per pixel, at most [`MAX_STACK_MEGAPIXELS`]),
 //! checked before anything is decoded or copied (Photomerge reads each
 //! file's size from its header). Photomerge takes JPEG / PNG / TIFF files
 //! and library photos only, and converts each photo into the target
@@ -34,20 +35,85 @@ use std::{path::Path, sync::Arc, sync::atomic::AtomicBool};
 /// Most layers or photos one stack takes (`merge::layers`).
 const MAX_STACK: usize = 128;
 
-/// Most pixels one stack takes, in megapixels (all layers or photos
-/// together). Alignment and blending keep several full-resolution float
-/// copies (about 50 bytes per source pixel at peak), so this keeps a stack
-/// near 10 GB: e.g. eight 24 MP or four 48 MP photos.
+/// Most pixels one stack takes on any machine, in megapixels (all layers or
+/// photos together): e.g. eight 24 MP or four 48 MP photos.
 pub const MAX_STACK_MEGAPIXELS: u64 = 200;
-const MAX_STACK_PIXELS: u64 = MAX_STACK_MEGAPIXELS * 1_000_000;
+
+/// Alignment and blending keep several full-resolution float copies: about
+/// 50 bytes per source pixel at peak (200 MP ⇒ ~10 GB).
+const STACK_BYTES_PER_PIXEL: u64 = 50;
+
+/// A stack may use up to this share of physical memory (1 / n).
+const STACK_MEMORY_SHARE: u64 = 2;
 
 /// The error a cancelled Photomerge returns (nothing changed).
 pub const PHOTOMERGE_CANCELLED: &str = "Photomerge was cancelled";
 
-/// `MAX_STACK_MEGAPIXELS`, as a Swift-visible constant.
+/// The stack budget, in whole megapixels, for a machine with
+/// `physical_memory` bytes of RAM (`None`: unknown): half of it at
+/// [`STACK_BYTES_PER_PIXEL`], capped at [`MAX_STACK_MEGAPIXELS`], at least 1.
+pub fn stack_megapixels_for_memory(physical_memory: Option<u64>) -> u64 {
+    physical_memory.map_or(MAX_STACK_MEGAPIXELS, |bytes| {
+        (bytes / STACK_MEMORY_SHARE / STACK_BYTES_PER_PIXEL / 1_000_000)
+            .clamp(1, MAX_STACK_MEGAPIXELS)
+    })
+}
+
+/// Installed RAM in bytes, when the OS says.
+#[cfg(target_os = "macos")]
+fn physical_memory() -> Option<u64> {
+    use std::ffi::{c_char, c_int, c_void};
+    unsafe extern "C" {
+        fn sysctlbyname(
+            name: *const c_char,
+            oldp: *mut c_void,
+            oldlenp: *mut usize,
+            newp: *mut c_void,
+            newlen: usize,
+        ) -> c_int;
+    }
+    let mut bytes = 0u64;
+    let mut len = std::mem::size_of::<u64>();
+    // SAFETY: `hw.memsize` is a u64; `bytes` / `len` describe a writable u64
+    // and nothing is set (`newp` null).
+    let rc = unsafe {
+        sysctlbyname(
+            c"hw.memsize".as_ptr(),
+            (&raw mut bytes).cast(),
+            &raw mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (rc == 0 && len == std::mem::size_of::<u64>() && bytes > 0).then_some(bytes)
+}
+
+/// Installed RAM in bytes, from `/proc/meminfo` where there is one.
+#[cfg(not(target_os = "macos"))]
+fn physical_memory() -> Option<u64> {
+    let info = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let kb = info
+        .lines()
+        .find_map(|l| l.strip_prefix("MemTotal:"))?
+        .trim()
+        .strip_suffix("kB")?
+        .trim()
+        .parse::<u64>()
+        .ok()?;
+    Some(kb * 1024)
+}
+
+/// This machine's stack budget in megapixels (read once).
+fn budget_megapixels() -> u64 {
+    static BUDGET: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+    *BUDGET.get_or_init(|| stack_megapixels_for_memory(physical_memory()))
+}
+
+/// This machine's stack budget in megapixels (all layers or photos of one
+/// stack): [`stack_megapixels_for_memory`] of its physical memory.
 #[uniffi::export]
 pub fn stack_max_megapixels() -> u64 {
-    MAX_STACK_MEGAPIXELS
+    budget_megapixels()
 }
 
 fn megapixels(pixels: u64) -> u64 {
@@ -55,13 +121,52 @@ fn megapixels(pixels: u64) -> u64 {
 }
 
 fn over_budget(what: &str, pixels: u64) -> Option<String> {
-    (pixels > MAX_STACK_PIXELS).then(|| {
+    over(what, pixels, budget_megapixels())
+}
+
+fn over(what: &str, pixels: u64, limit_megapixels: u64) -> Option<String> {
+    (pixels > limit_megapixels.saturating_mul(1_000_000)).then(|| {
         format!(
-            "{what} is limited to {MAX_STACK_MEGAPIXELS} megapixels in total; these have {} \
-             megapixels. Use fewer or smaller images.",
+            "{what} is limited to {limit_megapixels} megapixels in total on this computer; these have \
+             {} megapixels. Use fewer or smaller images.",
             megapixels(pixels)
         )
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_error_names_the_actual_limit() {
+        let msg = over("Photomerge", 90_000_001, 85).unwrap();
+        assert!(msg.contains("limited to 85 megapixels"), "{msg}");
+        assert!(msg.contains("these have 91 megapixels"), "{msg}");
+        assert_eq!(over("Photomerge", 85_000_000, 85), None);
+    }
+
+    #[test]
+    fn profiles_match_by_handle_or_by_bytes_up_to_the_creation_date() {
+        let srgb = io::profile(None).unwrap().unwrap();
+        let bytes = srgb.icc.as_deref().unwrap().clone();
+        let unembedded = ColorProfile {
+            icc: None,
+            ..srgb.clone()
+        };
+        assert!(same_profile(&srgb, &unembedded));
+        let mut later = bytes.clone();
+        later[35] ^= 1; // creation time, seconds
+        let later = ColorProfile::from_icc("sRGB", later);
+        assert_ne!(later.handle, srgb.handle);
+        assert!(same_profile(&srgb, &later));
+        assert!(!same_profile(&unembedded, &later));
+        let mut other = bytes;
+        other[200] ^= 1;
+        assert!(!same_profile(&srgb, &ColorProfile::from_icc("x", other)));
+        let p3 = io::profile(Some("Display P3")).unwrap().unwrap();
+        assert!(!same_profile(&srgb, &p3));
+    }
 }
 
 /// Auto-Align / Photomerge projection ("Layout" in Photoshop). Photoshop's
@@ -386,9 +491,9 @@ impl Source {
             .render_level_rgba_with_cancel(&opened.doc, 0, cancel)?;
         drop(opened);
         let target = target.cloned().unwrap_or_else(|| source.clone());
-        let (from, to) = (icc(&source)?, icc(&target)?);
-        if from != to {
-            io::convert(from, to, &mut rgba)?;
+        // The same profile needs no conversion, embedded or not.
+        if !same_profile(&source, &target) {
+            io::convert(icc(&source)?, icc(&target)?, &mut rgba)?;
         }
         let image = LinearImage {
             width: extent.width as usize,
@@ -412,6 +517,27 @@ fn profile_or_srgb(p: Option<&ColorProfile>) -> Result<ColorProfile> {
         Some(p) => Ok(p.clone()),
         None => Ok(io::profile(None)?.expect("sRGB")),
     }
+}
+
+/// Whether `a` and `b` are one profile: the same handle (digest of the
+/// bytes; enough when either is not embedded), or embedded bytes that differ
+/// only in the header's creation date and profile ID (built-in profiles are
+/// generated with the current time).
+pub(super) fn same_profile(a: &ColorProfile, b: &ColorProfile) -> bool {
+    if a.handle == b.handle {
+        return true;
+    }
+    let (Some(x), Some(y)) = (a.icc.as_deref(), b.icc.as_deref()) else {
+        return false;
+    };
+    const DATE: std::ops::Range<usize> = 24..36;
+    const ID: std::ops::Range<usize> = 84..100;
+    x.len() == y.len()
+        && x.len() >= ID.end
+        && x.iter()
+            .zip(y.iter())
+            .enumerate()
+            .all(|(i, (p, q))| p == q || DATE.contains(&i) || ID.contains(&i))
 }
 
 fn icc(p: &ColorProfile) -> Result<&[u8]> {

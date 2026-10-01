@@ -1,6 +1,7 @@
 //! Raster filters; see README.md for contracts and approximation bounds.
 mod compositor_adapter;
 pub use compositor_adapter::{CompositorFilters, detect_distractions, neural_catalog};
+pub mod adaptive_lattice;
 pub mod adjust;
 pub mod caf;
 #[cfg(feature = "camera-raw-filter")]

@@ -252,7 +252,7 @@ final class LiquifyWorkspaceModel: Identifiable {
         pending.removeAll()
         pendingSince = nil
         inFlight = true
-        let (b, t, brush) = (backend, info.token, brush)
+        let (b, t, brush, color) = (backend, info.token, brush, doc.displayColor)
         // The mesh overlay follows each batch when shown; the freeze tools change the mask overlay.
         let wantMesh = showMesh || (showMask && (tool == .freeze || tool == .thaw))
         queue.async {
@@ -262,7 +262,7 @@ final class LiquifyWorkspaceModel: Identifiable {
                 let m = wantMesh ? try b.liquifyMesh(token: t) : nil
                 return (f, m)
             }
-            let image = (try? r.get()).flatMap { Self.image($0.0) }
+            let image = (try? r.get()).flatMap { Self.image($0.0, color) }
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     self.inFlight = false
@@ -285,11 +285,11 @@ final class LiquifyWorkspaceModel: Identifiable {
     /// A fresh preview (and optionally the mesh), in order after any queued brush work.
     func refresh(mesh wantMesh: Bool) {
         guard !closed else { return }
-        let (b, t, original) = (backend, info.token, showOriginal)
+        let (b, t, original, color) = (backend, info.token, showOriginal, doc.displayColor)
         queue.async {
             let f = Result { try b.previewLiquify(token: t, original: original) }
             let m = wantMesh ? try? b.liquifyMesh(token: t) : nil
-            let image = (try? f.get()).flatMap { Self.image($0) }
+            let image = (try? f.get()).flatMap { Self.image($0, color) }
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     if let image { self.image = image }
@@ -301,8 +301,8 @@ final class LiquifyWorkspaceModel: Identifiable {
         }
     }
 
-    nonisolated static func image(_ f: LiquifyPreviewFrame) -> CGImage? {
-        IOSurfaceLookup(f.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(f.width), height: Int(f.height)) }
+    nonisolated static func image(_ f: LiquifyPreviewFrame, _ color: DocumentDisplayColor) -> CGImage? {
+        IOSurfaceLookup(f.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(f.width), height: Int(f.height), space: color.space) }
     }
 
     /// Waits until queued engine work has run (self-test).

@@ -13,7 +13,7 @@ import XCTest
 @MainActor
 final class ShellLayoutTests: XCTestCase {
     override func setUp() async throws {
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
     }
 
     private func scratch() throws -> URL {
@@ -21,6 +21,29 @@ final class ShellLayoutTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
         return dir
+    }
+
+    func testLayoutHarnessUsesNonblockingAppKitAnimations() {
+        let animation = NSAnimation(duration: 60, animationCurve: .linear)
+        animation.animationBlockingMode = .nonblockingThreaded
+        animation.start()
+        defer { animation.stop() }
+        XCTAssertEqual(animation.animationBlockingMode, .nonblocking,
+                       "AppKit animations in layout tests must not reserve dispatch workers")
+    }
+
+    func testLayoutHarnessUsesTimerDrivenProgressAnimations() {
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { LayoutProbeHarness.dispose(window) }
+        let progress = TrackedProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
+        progress.usesThreadedAnimation = true
+        window.contentView?.addSubview(progress)
+        ShellHarness.settle(window, size: CGSize(width: 960, height: 600))
+        XCTAssertGreaterThan(progress.stops, 0, "An already running worker must be stopped before changing animation mode")
+        XCTAssertFalse(progress.usesThreadedAnimation,
+                       "Many background layout windows must not exhaust dispatch workers with animation threads")
     }
 
     func testShellContainedAtEverySizeStateAndAppearance() throws {
@@ -33,7 +56,7 @@ final class ShellLayoutTests: XCTestCase {
             for dark in [true, false] {
                 for size in ShellHarness.sizes {
                     let (window, host) = ShellHarness.window(model, size: size, dark: dark)
-                    defer { window.orderOut(nil); window.contentViewController = nil }
+                    defer { LayoutProbeHarness.dispose(window) }
                     let tag = "\(state.rawValue)-\(Int(size.width))x\(Int(size.height))-\(dark ? "dark" : "light")"
                     XCTAssertFalse(NSApp.isActive, "the harness never activates")
                     // 1. Root containment: no split / hosting subtree outside the window's content.
@@ -89,6 +112,74 @@ final class ShellLayoutTests: XCTestCase {
         XCTAssert(failures.isEmpty, "\(failures.count) layout failures:\n" + failures.joined(separator: "\n"))
     }
 
+    /// B5-33: a progress HUD must leave editing chrome reachable without resizing the canvas.
+    func testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize() throws {
+        DocumentInspectorProbe.isEnabled = true
+        defer { DocumentInspectorProbe.isEnabled = false }
+        for size in ShellHarness.sizes {
+            let dir = try scratch()
+            let model = try ShellHarness.model(.document, scratch: dir)
+            DocumentInspectorProbe.frames = [:]
+            let (window, host) = ShellHarness.window(model, size: size, dark: true)
+            defer { window.orderOut(nil); window.contentViewController = nil }
+            let ws = model.documents
+            ws.exportWindow = window
+            let doc = try XCTUnwrap(ws.current)
+            let viewport = try XCTUnwrap(doc.viewport)
+            let before = viewport.convert(viewport.bounds, to: host)
+            let contentBefore = window.contentLayoutRect
+            let options = try XCTUnwrap(DocumentInspectorProbe.frames["toolOptions"])
+            let header = try XCTUnwrap(DocumentInspectorProbe.frames["tabBar"])
+            let tag = "\(Int(size.width))x\(Int(size.height))"
+            var tasks: [FlatExportTask] = []
+            for name in ["first.png", "second.png"] {
+                tasks.append(try XCTUnwrap(ws.startExportFlat(doc, ExportFlatSettings(), to: dir.appendingPathComponent(name))))
+                host.layoutSubtreeIfNeeded()
+                let hud = try XCTUnwrap(exportHUD(in: host))
+                let rect = hud.convert(hud.bounds, to: host)
+                XCTAssertFalse(rect.intersects(options), "\(tag) export HUD overlaps tool options bar")
+                XCTAssertFalse(rect.intersects(header), "\(tag) export HUD overlaps inspector header")
+                XCTAssertTrue(before.contains(rect), "\(tag) export HUD must stay inside viewport")
+                XCTAssertEqual(viewport.convert(viewport.bounds, to: host), before, "HUD must not resize viewport")
+                XCTAssertEqual(window.contentLayoutRect, contentBefore)
+                XCTAssertTrue(hud.isAccessibilityElement(), "HUD container must be exposed to AX")
+                let hit = hud.hitTest(NSPoint(x: hud.frame.minX + 2, y: hud.frame.minY + 2))
+                XCTAssertTrue(hit === hud || hit?.isDescendant(of: hud) == true, "HUD owns its clicks")
+                let buttons = nativeViews(hud).compactMap { $0 as? NSButton }
+                XCTAssertEqual(Set(buttons.compactMap { $0.accessibilityLabel() }),
+                               Set(tasks.map { "Cancel export of \($0.fileName)" }))
+            }
+            for task in tasks { ws.cancelExportFlat(task) }
+        }
+    }
+
+    func testExportHUDAttachesToExportingDocumentWindow() throws {
+        let dir = try scratch()
+        let model = try ShellHarness.model(.document, scratch: dir)
+        let (window, host) = ShellHarness.window(model, size: ShellHarness.sizes[1], dark: true)
+        defer { window.orderOut(nil); window.contentViewController = nil }
+        let other = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+                             styleMask: [.titled], backing: .buffered, defer: false)
+        other.isReleasedWhenClosed = false
+        defer { other.close() }
+        let ws = model.documents
+        // The diagnostic fallback must not override the real exporting document's window.
+        ws.exportWindow = other
+        let task = try XCTUnwrap(ws.startExportFlat(try XCTUnwrap(ws.current), ExportFlatSettings(),
+                                                   to: dir.appendingPathComponent("owned.png")))
+        defer { ws.cancelExportFlat(task) }
+        XCTAssertNotNil(exportHUD(in: host), "HUD belongs to the exporting document window")
+        XCTAssertNil(exportHUD(in: try XCTUnwrap(other.contentView)), "HUD must not use another window")
+    }
+
+    private func nativeViews(_ view: NSView) -> [NSView] {
+        [view] + view.subviews.flatMap { nativeViews($0) }
+    }
+
+    private func exportHUD(in view: NSView) -> NSView? {
+        nativeViews(view).first { $0.accessibilityIdentifier() == "document-export-progress" }
+    }
+
     /// WP B5-16: the document window at every size with every inspector sub-tab (Stack · Properties ·
     /// Channels) and History expanded and collapsed, with snapshots and history rows present: root and
     /// column containment, no overlapping actionable siblings, nothing under the toolbar, and the
@@ -122,7 +213,7 @@ final class ShellLayoutTests: XCTestCase {
                     UserDefaults.standard.set(history, forKey: historyKey)
                     DocumentInspectorProbe.frames = [:]
                     let (window, host) = ShellHarness.window(model, size: size, dark: true)
-                    defer { window.orderOut(nil); window.contentViewController = nil }
+                    defer { LayoutProbeHarness.dispose(window) }
                     let tag = "document-\(Int(size.width))x\(Int(size.height))-\(tab.rawValue)-history-\(history ? "open" : "closed")"
                     XCTAssertFalse(NSApp.isActive, "the harness never activates")
                     for v in ShellLayoutAudit.containmentViolations(in: host, columnContent: true) { failures.append("\(tag) containment: \(v)") }
@@ -202,8 +293,8 @@ final class ShellLayoutTests: XCTestCase {
         let model = try ShellHarness.model(.document, scratch: try scratch())
         let ws = model.documents
         func stripWidth(compact: Bool = false) -> CGFloat {
-            NSHostingController(rootView: DocumentTabs(workspace: ws).environment(\.toolbarCompact, compact))
-                .sizeThatFits(in: CGSize(width: 4000, height: 40)).width
+            LayoutProbeHarness.fittingSize(DocumentTabs(workspace: ws).environment(\.toolbarCompact, compact),
+                                           in: CGSize(width: 4000, height: 40)).width
         }
         var widths: [Int: CGFloat] = [1: stripWidth()]
         let compactOne = stripWidth(compact: true)
@@ -223,7 +314,7 @@ final class ShellLayoutTests: XCTestCase {
         XCTAssertEqual(DocumentTabStrip.visible(count: ws.documents.count, current: 0), 0..<3)
         for size in [CGSize(width: 960, height: 600), CGSize(width: 1280, height: 800)] {
             let (window, host) = ShellHarness.window(model, size: size, dark: true)
-            defer { window.orderOut(nil); window.contentViewController = nil }
+            defer { LayoutProbeHarness.dispose(window) }
             XCTAssertEqual(ShellLayoutAudit.containmentViolations(in: host, columnContent: true), [])
             if let captureDir {
                 try ShellHarness.capture(window, to: captureDir.appendingPathComponent("tabs-8-documents-\(Int(size.width))x\(Int(size.height)).png"))
@@ -238,7 +329,7 @@ final class ShellLayoutTests: XCTestCase {
         let saved = ws.inspectorTab
         defer { ws.inspectorTab = saved }
         let (window, _) = ShellHarness.window(model, size: CGSize(width: 1280, height: 800), dark: true)
-        defer { window.orderOut(nil); window.contentViewController = nil }
+        defer { LayoutProbeHarness.dispose(window) }
         let codes: [Character: UInt16] = ["1": 18, "2": 19, "3": 20]
         for tab in [DocumentInspectorTab.properties, .channels, .stack] {
             let c = String(tab.shortcutDigit)
@@ -247,8 +338,17 @@ final class ShellLayoutTests: XCTestCase {
                                                    context: nil, characters: c, charactersIgnoringModifiers: c, isARepeat: false,
                                                    keyCode: codes[tab.shortcutDigit] ?? 0))
             XCTAssertTrue(window.performKeyEquivalent(with: e), "⌃\(c) handled")
-            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            LayoutProbeHarness.settle(window.contentView)
             XCTAssertEqual(ws.inspectorTab, tab, "⌃\(c)")
         }
+    }
+}
+
+@MainActor
+private final class TrackedProgressIndicator: NSProgressIndicator {
+    var stops = 0
+    override func stopAnimation(_ sender: Any?) {
+        stops += 1
+        super.stopAnimation(sender)
     }
 }

@@ -310,14 +310,16 @@ final class FilterSheetModel: Identifiable {
         let gen = detailGeneration
         let (w, h) = (UInt32(detailPixels.width), UInt32(detailPixels.height))
         let x = Int64(detailCenter.x) - Int64(w / 2), y = Int64(detailCenter.y) - Int64(h / 2)
-        let json = settings.json, layer = layer.id
+        let json = settings.json, layer = layer.id, index = smartIndex, color = doc.displayColor
         detailTask = Task { @MainActor [weak self] in
             if debounce { try? await Task.sleep(for: .milliseconds(40)) }
             guard !Task.isCancelled else { return }
             let result = await Task.detached(priority: .userInitiated) { () -> Result<(CGImage?, UInt8), Error> in
                 Result {
-                    let d = try backend.filterDetail(layer: layer, filterJson: json, x: x, y: y, width: w, height: h)
-                    return (IOSurfaceLookup(d.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(d.width), height: Int(d.height)) }, d.level)
+                    // B5-18b: re-editing replaces the saved filter in the pane (no double apply).
+                    let d = try backend.filterDetail(layer: layer, smartIndex: index, filterJson: json, x: x, y: y,
+                                                     width: w, height: h)
+                    return (IOSurfaceLookup(d.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(d.width), height: Int(d.height), space: color.space) }, d.level)
                 }
             }.value
             guard let self, gen == self.detailGeneration else { return }
@@ -331,14 +333,17 @@ final class FilterSheetModel: Identifiable {
         }
     }
 
-    nonisolated static func image(_ s: IOSurfaceRef, width: Int, height: Int) -> CGImage? {
+    /// The pane's CGImage. B5-27: the surface holds the canvas's bytes for the region (the document's own
+    /// encoded samples). B5-30: tagged `space`, the document's display colour space
+    /// (`DocumentController.displayColor`), the same one the canvas tags its surfaces with.
+    nonisolated static func image(_ s: IOSurfaceRef, width: Int, height: Int, space: CGColorSpace) -> CGImage? {
         IOSurfaceLock(s, .readOnly, nil)
         defer { IOSurfaceUnlock(s, .readOnly, nil) }
         let stride = IOSurfaceGetBytesPerRow(s)
         let data = Data(bytes: IOSurfaceGetBaseAddress(s), count: stride * height)
         guard let provider = CGDataProvider(data: data as CFData) else { return nil }
         return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: stride,
-                       space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                       space: space,
                        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
                        provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
     }

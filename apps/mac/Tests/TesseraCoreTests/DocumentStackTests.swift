@@ -126,8 +126,35 @@ final class DocumentStackTests: XCTestCase {
 
     func testLensTogglesNeedCalibration() {
         XCTAssertFalse(StackCommandRules.lensCorrectionAvailable)
-        XCTAssertEqual(UInt64(StackCommandRules.maxMegapixels), stackMaxMegapixels())
+        // The engine's budget scales with this Mac's memory, up to the rules' ceiling.
+        XCTAssertLessThanOrEqual(stackMaxMegapixels(), UInt64(StackCommandRules.maxMegapixels))
+        XCTAssertGreaterThanOrEqual(stackMaxMegapixels(), 1)
         XCTAssertTrue(StackCommandRules.lensCorrectionNote.contains("calibration"))
+    }
+
+    // MARK: Cancel (B5-19b)
+
+    func testRunEndReflectsALateCancel() {
+        XCTAssertEqual(StackCommandRules.end(cancelRequested: false, succeeded: true), .finished)
+        XCTAssertEqual(StackCommandRules.end(cancelRequested: false, succeeded: false), .failed)
+        XCTAssertEqual(StackCommandRules.end(cancelRequested: true, succeeded: false), .cancelled)
+        // The engine finished before it saw the cancel: the result is undone / discarded, never "finished".
+        XCTAssertEqual(StackCommandRules.end(cancelRequested: true, succeeded: true), .cancelledAfterFinishing)
+    }
+
+    func testCancelMessagesNeverSayFinished() {
+        for what in ["Auto-Align Layers", "Auto-Blend Layers", "Photomerge"] {
+            let early = StackCommandRules.cancelledMessage(what, afterFinishing: false, newDocument: false)
+            XCTAssertEqual(early, "\(what) cancelled; nothing changed")
+            let late = StackCommandRules.cancelledMessage(what, afterFinishing: true, newDocument: false)
+            XCTAssertTrue(late.hasPrefix("\(what) cancelled"), late)
+            XCTAssertTrue(late.contains("undone"), late)
+            XCTAssertFalse(late.contains("finished"), late)
+        }
+        let doc = StackCommandRules.cancelledMessage("Photomerge", afterFinishing: true, newDocument: true)
+        XCTAssertTrue(doc.contains("discarded"), doc)
+        XCTAssertFalse(doc.contains("finished"), doc)
+        XCTAssertTrue(StackCommandRules.busyNote.contains("Cancel"), StackCommandRules.busyNote)
     }
 
     // MARK: Stub backend

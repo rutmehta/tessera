@@ -22,7 +22,7 @@ final class KeyFocusTests: XCTestCase {
         model.reviewNavigation.reconcile(queue: queue, generation: UUID())
         model.reviewNavigation.beginRedo()
         model.reviewNavigation.instruction = "Warmer"
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let router = KeyRouter(model: model)
         for (code, character) in [(UInt16(7), "x"), (UInt16(16), "y"), (UInt16(35), "p")] {
@@ -41,7 +41,7 @@ final class KeyFocusTests: XCTestCase {
         let model = AppModel()
         model.loadStubItems(count: 10)
         model.enterReview()
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let field = NSTextField(frame: window.contentView!.bounds)
         window.contentView?.addSubview(field)
@@ -64,7 +64,7 @@ final class KeyFocusTests: XCTestCase {
         let model = AppModel()
         model.loadStubItems(count: 10)
         model.enterPhotoEdit()
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let router = KeyRouter(model: model)
         for (code, character) in [(UInt16(7), "x"), (UInt16(16), "y"), (UInt16(35), "p")] {
@@ -79,7 +79,7 @@ final class KeyFocusTests: XCTestCase {
         let model = AppModel()
         model.loadStubItems(count: 10)
         model.enterPhotoEdit()
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let field = NSTextField(frame: window.contentView!.bounds)
         window.contentView?.addSubview(field)
@@ -89,7 +89,7 @@ final class KeyFocusTests: XCTestCase {
     }
 
     func testFocusedSliderOwnsArrows() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let slider = ValueSlider(frame: window.contentView!.bounds)
         slider.step = 1
@@ -103,7 +103,7 @@ final class KeyFocusTests: XCTestCase {
     func testSearchFieldOwnsCullKeys() {
         let model = AppModel()
         model.loadStubItems(count: 10)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let field = NSSearchField(frame: window.contentView!.bounds)
         window.contentView?.addSubview(field)
@@ -113,7 +113,7 @@ final class KeyFocusTests: XCTestCase {
     }
 
     func testFocusedCurveOwnsArrowsWithoutSelectedPoint() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 300),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 300),
                               styleMask: .titled, backing: .buffered, defer: false)
         let curve = CurveEditorView(frame: window.contentView!.bounds)
         curve.mode = .point
@@ -126,7 +126,7 @@ final class KeyFocusTests: XCTestCase {
         let model = AppModel()
         model.loadStubItems(count: 10)
         model.viewMode = .loupe
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         XCTAssertTrue(KeyRouter(model: model).handle(key(124, "\u{F703}", window: window)))
         XCTAssertNotNil(model.focusedPosition)
@@ -137,7 +137,7 @@ final class KeyFocusTests: XCTestCase {
         model.loadStubItems(count: 10)
         model.viewMode = .loupe
         model.loupeDisclosurePresented = true
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let router = KeyRouter(model: model)
         let originalPosition = model.focusedPosition
@@ -172,7 +172,7 @@ final class KeyFocusTests: XCTestCase {
     }
 
     func testSliderModifiersBoundsAndBlurCommit() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)
         let slider = ValueSlider(frame: window.contentView!.bounds)
         slider.minValue = -10

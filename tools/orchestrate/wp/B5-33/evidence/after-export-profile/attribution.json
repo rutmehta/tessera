@@ -1,0 +1,768 @@
+{
+  "counts": {
+    "all_samples": 1936390,
+    "worker_samples": 1935381,
+    "export_run_worker_samples": 1880,
+    "main_samples": 1009
+  },
+  "main_inclusive": [
+    [
+      "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+      864
+    ],
+    [
+      "-[NSApplication run]",
+      864
+    ],
+    [
+      "runApp<A>(_:)",
+      864
+    ],
+    [
+      "NSApplicationMain",
+      864
+    ],
+    [
+      "ReceiveNextEventCommon",
+      864
+    ],
+    [
+      "static App.main()",
+      864
+    ],
+    [
+      "start",
+      864
+    ],
+    [
+      "_DPSBlockUntilNextEventMatchingListInMode",
+      864
+    ],
+    [
+      "static TesseraApp.$main()",
+      864
+    ],
+    [
+      "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+      864
+    ],
+    [
+      "specialized runApp(_:)",
+      864
+    ],
+    [
+      "_BlockUntilNextEventMatchingListInMode",
+      864
+    ],
+    [
+      "_DPSNextEvent",
+      864
+    ],
+    [
+      "RunCurrentEventLoopInMode",
+      842
+    ],
+    [
+      "_CFRunLoopRunSpecificWithOptions",
+      823
+    ],
+    [
+      "__CFRunLoopRun",
+      690
+    ],
+    [
+      "UC::DriverCore::continueProcessing()",
+      436
+    ],
+    [
+      "CA::Transaction::commit()",
+      415
+    ],
+    [
+      "stepTransactionFlush",
+      408
+    ],
+    [
+      "CA::Transaction::flush_as_runloop_observer(bool)",
+      404
+    ],
+    [
+      "__CFRunLoopDoSources0",
+      361
+    ],
+    [
+      "__CFRunLoopDoSource0",
+      355
+    ],
+    [
+      "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+      355
+    ],
+    [
+      "CA::Transaction::run_commit_handlers(CATransactionPhase)",
+      238
+    ],
+    [
+      "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+      233
+    ],
+    [
+      "<deduplicated_symbol>",
+      190
+    ],
+    [
+      "NSDisplayCycleFlush",
+      179
+    ],
+    [
+      "NSDisplayCycleObserverInvoke",
+      173
+    ],
+    [
+      "__CFRunLoopDoObservers",
+      159
+    ],
+    [
+      "0x19e843f74",
+      156
+    ],
+    [
+      "0x19e843f4c",
+      156
+    ],
+    [
+      "NSPerformVisuallyAtomicChange",
+      154
+    ],
+    [
+      "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+      143
+    ],
+    [
+      "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+      143
+    ],
+    [
+      "completeTaskWithClosure(swift::AsyncContext*, swift::SwiftError*)",
+      143
+    ],
+    [
+      "CA::Layer::display_if_needed(CA::Transaction*)",
+      131
+    ],
+    [
+      "__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__",
+      130
+    ],
+    [
+      "-[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]",
+      129
+    ],
+    [
+      "__NSWindowGetDisplayCycleObserverForLayout_block_invoke",
+      126
+    ],
+    [
+      "__56-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]_block_invoke",
+      122
+    ],
+    [
+      "-[NSView layoutSubtreeIfNeeded]",
+      122
+    ],
+    [
+      "-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]",
+      122
+    ],
+    [
+      "-[NSWindow(NSConstraintBasedLayoutInternal) _layoutViewTree]",
+      120
+    ],
+    [
+      "__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke",
+      96
+    ],
+    [
+      "-[NSView _layoutSubtreeWithOldSize:]",
+      96
+    ],
+    [
+      "AG::Graph::UpdateStack::update()",
+      95
+    ],
+    [
+      "_NSViewLayout",
+      94
+    ],
+    [
+      "___NSViewLayout_block_invoke",
+      94
+    ],
+    [
+      "-[NSViewBackingLayer display]",
+      93
+    ],
+    [
+      "0x19e8084a4",
+      90
+    ],
+    [
+      "0x19e8078e8",
+      90
+    ],
+    [
+      "FilterSelfTest.perf(_:photo:gaussian:)",
+      88
+    ],
+    [
+      "FilterSelfTest.run()",
+      88
+    ],
+    [
+      "closure #1 in closure #1 in closure #2 in static FilterSelfTest.startIfRequested()",
+      88
+    ],
+    [
+      "partial apply for closure #1 in closure #1 in closure #2 in static FilterSelfTest.startIfRequested()",
+      88
+    ],
+    [
+      "__CFRunLoopDoSource1",
+      84
+    ],
+    [
+      "objc_msgSend",
+      84
+    ],
+    [
+      "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE1_PERFORM_FUNCTION__",
+      83
+    ],
+    [
+      "__CFMachPortPerform",
+      83
+    ],
+    [
+      "@objc closure #1 in static NSRunLoop.addObserver(_:)",
+      81
+    ]
+  ],
+  "main_own": [
+    [
+      "objc_msgSend",
+      84
+    ],
+    [
+      "mach_msg2_trap",
+      58
+    ],
+    [
+      "_xzm_xzone_malloc_tiny",
+      27
+    ],
+    [
+      "__proc_info",
+      24
+    ],
+    [
+      "<deduplicated_symbol>",
+      18
+    ],
+    [
+      "_kernelrpc_mach_port_extract_member_trap",
+      16
+    ],
+    [
+      "swift_retain",
+      15
+    ],
+    [
+      "__kdebug_trace64",
+      14
+    ],
+    [
+      "__bsdthread_ctl",
+      14
+    ],
+    [
+      "__workq_kernreturn",
+      13
+    ],
+    [
+      "CF_IS_OBJC",
+      12
+    ],
+    [
+      "objc_retain",
+      11
+    ],
+    [
+      "_NotifyEventLoopObservers",
+      10
+    ],
+    [
+      "AG::Graph::propagate_dirty(AG::AttributeID)",
+      9
+    ],
+    [
+      "AG::Graph::UpdateStack::update()",
+      9
+    ],
+    [
+      "_platform_memset",
+      9
+    ],
+    [
+      "swift_release",
+      8
+    ],
+    [
+      "weak_entry_for_referent",
+      8
+    ],
+    [
+      "__CFRunLoopDoObservers",
+      8
+    ],
+    [
+      "cache_getImp",
+      7
+    ],
+    [
+      "-[__NSArrayM count]",
+      7
+    ],
+    [
+      "CFHash",
+      7
+    ],
+    [
+      "objc_loadWeakRetained",
+      7
+    ],
+    [
+      "CALayerRetain",
+      6
+    ],
+    [
+      "-[__NSArrayM insertObject:atIndex:]",
+      6
+    ],
+    [
+      "std::__1::pair<swift::HashMapElementWrapper<swift::GenericCacheEntry>*, unsigned int> swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::find<swift::MetadataCacheKey>(swift::MetadataCacheKey const&, swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::IndexStorage, unsigned long, swift::HashMapElementWrapper<swift::GenericCacheEntry>*)",
+      5
+    ],
+    [
+      "getMethodNoSuper_nolock(objc_class*, objc_selector*)",
+      5
+    ],
+    [
+      "CA::AttrList::get(unsigned int, _CAValueType, void*) const",
+      5
+    ],
+    [
+      "_objc_autoreleasePoolPush",
+      5
+    ],
+    [
+      "checkForSlug",
+      5
+    ],
+    [
+      "bool objc::DenseMapBase<objc::DenseMap<void const*, objc::ObjcAssociation, objc::DenseMapValueInfo<objc::ObjcAssociation>, objc::DenseMapInfo<void const*>, objc::detail::DenseMapPair<void const*, objc::ObjcAssociation>>, void const*, objc::ObjcAssociation, objc::DenseMapValueInfo<objc::ObjcAssociation>, objc::DenseMapInfo<void const*>, objc::detail::DenseMapPair<void const*, objc::ObjcAssociation>>::LookupBucketFor<void const*>(void const* const&, objc::detail::DenseMapPair<void const*, objc::ObjcAssociation> const*&) const",
+      5
+    ],
+    [
+      "kdebug_is_enabled",
+      5
+    ],
+    [
+      "_kernelrpc_mach_port_insert_member_trap",
+      5
+    ],
+    [
+      "bool objc::DenseMapBase<objc::DenseMap<DisguisedPtr<objc_object const>, unsigned long, (anonymous namespace)::RefcountMapValuePurgeable, objc::DenseMapInfo<DisguisedPtr<objc_object const>>, objc::detail::DenseMapPair<DisguisedPtr<objc_object const>, unsigned long>>, DisguisedPtr<objc_object const>, unsigned long, (anonymous namespace)::RefcountMapValuePurgeable, objc::DenseMapInfo<DisguisedPtr<objc_object const>>, objc::detail::DenseMapPair<DisguisedPtr<objc_object const>, unsigned long>>::LookupBucketFor<DisguisedPtr<objc_object const>>(DisguisedPtr<objc_object const> const&, objc::detail::DenseMapPair<DisguisedPtr<objc_object const>, unsigned long>*&)",
+      5
+    ],
+    [
+      "CA::Layer::collect_animations_(double, double*, CA::Layer::CollectAnimationsData*)",
+      5
+    ],
+    [
+      "mach_absolute_time",
+      5
+    ],
+    [
+      "AG::Subgraph::update(unsigned int)",
+      4
+    ],
+    [
+      "___CFBasicHashFindBucket_Linear",
+      4
+    ],
+    [
+      "-[__NSCFType retain]",
+      4
+    ],
+    [
+      "_xzm_xzone_malloc_from_freelist_chunk",
+      4
+    ]
+  ],
+  "main_export_ui_symbols": [
+    [
+      "partial apply for closure #1 in closure #1 in closure #1 in closure #7 in DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      43
+    ],
+    [
+      "closure #1 in closure #1 in closure #1 in closure #7 in DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      43
+    ],
+    [
+      "closure #5 in DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      43
+    ],
+    [
+      "DocumentWorkspace.updateExportAccessory()",
+      38
+    ],
+    [
+      "FlatExportProgressView.update(_:)",
+      31
+    ],
+    [
+      "FlatExportProgressView.Row.update(_:)",
+      24
+    ],
+    [
+      "-[NSProgressIndicator updateLayer]",
+      17
+    ],
+    [
+      "DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      8
+    ],
+    [
+      "partial apply for closure #6 in DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      6
+    ],
+    [
+      "closure #6 in DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      6
+    ],
+    [
+      "closure #7 in DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      6
+    ],
+    [
+      "partial apply for closure #7 in DocumentWorkspace.startExportFlat(_:_:to:then:)",
+      6
+    ],
+    [
+      "DocumentWorkspace.finishExportFlat(_:_:summary:)",
+      5
+    ],
+    [
+      "DocumentWorkspace.say(_:)",
+      3
+    ],
+    [
+      "DocumentWorkspace.newDocument(_:)",
+      2
+    ],
+    [
+      "FlatExportTask.phase.getter",
+      2
+    ],
+    [
+      "specialized FlatExportTask.access<A>(keyPath:)",
+      2
+    ],
+    [
+      "DocumentWorkspace.window.getter",
+      1
+    ],
+    [
+      "FlatExportProgressView.Row.init(task:workspace:)",
+      1
+    ],
+    [
+      "@objc FlatExportProgressView.Row.setFrameSize(_:)",
+      1
+    ],
+    [
+      "FlatExportProgressView.arrangeRows()",
+      1
+    ]
+  ],
+  "main_display_stacks": [
+    {
+      "samples": 2,
+      "stack": [
+        "OTL::CoverageBitmap::CoversBitmap(unsigned char const*, unsigned long) const",
+        "OTL::GSUB::ApplyLookups(TRunGlue&, int, OTL::GlyphLookups&, SyncState&, void (*)(void*, CFRange, long), void*) const",
+        "TOpenTypeMorph::ShapeGlyphs(SyncState&)",
+        "TShapingEngine::ShapeGlyphs(TRunGlue&, ShapingType, __CFString const*, std::__1::optional<ScriptAndLangSys>*, TCharStream const*)",
+        "CTFontTransformGlyphsWithLanguage",
+        "-[NSCoreTypesetter _NSFastDrawString:length:attributes:paragraphStyle:typesetterBehavior:lineBreakMode:rect:padding:graphicsContext:baselineRendering:usesFontLeading:usesScreenFont:scrollable:syncAlignment:mirrored:boundingRectPointer:baselineOffsetPointer:drawingContext:]",
+        "-[NSCoreTypesetter _stringDrawingCoreTextEngineWithOriginalString:rect:padding:graphicsContext:forceClipping:attributes:stringDrawingOptions:drawingContext:stringDrawingInterface:]",
+        "__NSStringDrawingEngine",
+        "0x19e74a914",
+        "0x19e74adf4",
+        "0x19e843f4c",
+        "0x19e843f74",
+        "0x19e8084e0",
+        "0x19e8090ec",
+        "_NSViewDrawRect",
+        "-[NSView _recursive:displayRectIgnoringOpacity:inContext:stopAtLayerBackedViews:]",
+        "-[NSView(NSLayerKitGlue) _drawViewBackingLayer:inContext:drawingHandler:]",
+        "-[NSViewBackingLayer drawInContext:]",
+        "0x19e867150",
+        "0x19e8680cc",
+        "0x19e90b220",
+        "0x19e9094bc",
+        "-[NSViewBackingLayer display]",
+        "CA::Layer::display_if_needed(CA::Transaction*)",
+        "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+        "CA::Transaction::commit()",
+        "CA::Transaction::flush_as_runloop_observer(bool)",
+        "stepTransactionFlush",
+        "UC::DriverCore::continueProcessing()",
+        "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+        "__CFRunLoopDoSource0",
+        "__CFRunLoopDoSources0",
+        "__CFRunLoopRun",
+        "_CFRunLoopRunSpecificWithOptions",
+        "RunCurrentEventLoopInMode",
+        "ReceiveNextEventCommon",
+        "_BlockUntilNextEventMatchingListInMode",
+        "_DPSBlockUntilNextEventMatchingListInMode",
+        "_DPSNextEvent",
+        "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication run]",
+        "NSApplicationMain",
+        "specialized runApp(_:)",
+        "runApp<A>(_:)",
+        "static App.main()",
+        "static TesseraApp.$main()",
+        "start"
+      ]
+    },
+    {
+      "samples": 2,
+      "stack": [
+        "<deduplicated_symbol>",
+        "OTL::Lookup const* TBaseFont::NthLookup<OTL::GSUB>(OTL::GSUB const&, unsigned int) const",
+        "OTL::GSUB::ApplyLookups(TRunGlue&, int, OTL::GlyphLookups&, SyncState&, void (*)(void*, CFRange, long), void*) const",
+        "TOpenTypeMorph::ShapeGlyphs(SyncState&)",
+        "TShapingEngine::ShapeGlyphs(TRunGlue&, ShapingType, __CFString const*, std::__1::optional<ScriptAndLangSys>*, TCharStream const*)",
+        "CTFontTransformGlyphsWithLanguage",
+        "-[NSCoreTypesetter _NSFastDrawString:length:attributes:paragraphStyle:typesetterBehavior:lineBreakMode:rect:padding:graphicsContext:baselineRendering:usesFontLeading:usesScreenFont:scrollable:syncAlignment:mirrored:boundingRectPointer:baselineOffsetPointer:drawingContext:]",
+        "-[NSCoreTypesetter _stringDrawingCoreTextEngineWithOriginalString:rect:padding:graphicsContext:forceClipping:attributes:stringDrawingOptions:drawingContext:stringDrawingInterface:]",
+        "__NSStringDrawingEngine",
+        "0x19e74a914",
+        "0x19e74adf4",
+        "0x19e843f4c",
+        "0x19e843f74",
+        "0x19e8084e0",
+        "0x19e8090ec",
+        "_NSViewDrawRect",
+        "-[NSView _recursive:displayRectIgnoringOpacity:inContext:stopAtLayerBackedViews:]",
+        "-[NSView(NSLayerKitGlue) _drawViewBackingLayer:inContext:drawingHandler:]",
+        "-[NSViewBackingLayer drawInContext:]",
+        "0x19e867150",
+        "0x19e8680cc",
+        "0x19e90b220",
+        "0x19e9094bc",
+        "-[NSViewBackingLayer display]",
+        "CA::Layer::display_if_needed(CA::Transaction*)",
+        "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+        "CA::Transaction::commit()",
+        "CA::Transaction::flush_as_runloop_observer(bool)",
+        "stepTransactionFlush",
+        "UC::DriverCore::continueProcessing()",
+        "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+        "__CFRunLoopDoSource0",
+        "__CFRunLoopDoSources0",
+        "__CFRunLoopRun",
+        "_CFRunLoopRunSpecificWithOptions",
+        "RunCurrentEventLoopInMode",
+        "ReceiveNextEventCommon",
+        "_BlockUntilNextEventMatchingListInMode",
+        "_DPSBlockUntilNextEventMatchingListInMode",
+        "_DPSNextEvent",
+        "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication run]",
+        "NSApplicationMain",
+        "specialized runApp(_:)",
+        "runApp<A>(_:)",
+        "static App.main()",
+        "static TesseraApp.$main()",
+        "start"
+      ]
+    },
+    {
+      "samples": 1,
+      "stack": [
+        "__CFSearchStringROM",
+        "__CFStringCreateImmutableFunnel3",
+        "-[CUIStructuredThemeStore copyLookupKeySignatureForKey:]",
+        "-[CUICatalog _private_resolvedRenditionKeyFromThemeRef:withBaseKey:scaleFactor:deviceIdiom:deviceSubtype:displayGamut:layoutDirection:sizeClassHorizontal:sizeClassVertical:memoryClass:graphicsClass:graphicsFallBackOrder:deviceSubtypeFallBackOrder:localizationIdentifier:adjustRenditionKeyWithBlock:]",
+        "-[CUICatalog _resolvedRenditionKeyFromThemeRef:withBaseKey:scaleFactor:deviceIdiom:deviceSubtype:displayGamut:layoutDirection:sizeClassHorizontal:sizeClassVertical:memoryClass:graphicsClass:graphicsFallBackOrder:deviceSubtypeFallBackOrder:locale:adjustRenditionKeyWithBlock:]",
+        "-[CUICatalog namedVectorGlyphWithName:scaleFactor:deviceIdiom:layoutDirection:glyphContinuousSize:glyphContinuousWeight:glyphPointSize:appearanceName:locale:]",
+        "-[CUICatalog namedVectorGlyphWithName:scaleFactor:deviceIdiom:layoutDirection:glyphSize:glyphWeight:glyphPointSize:appearanceName:]",
+        "-[CUICatalog(NSAppearanceNamesForVectorGlyph) NS_appearanceNamesForVectorGlyphWithName:]",
+        "-[NSImageSymbolRepProvider _bestRepresentationForImage:hints:]",
+        "-[_NSSimpleLRUCache objectForKey:creationBlock:]",
+        "-[NSImageSymbolRepProvider bestRepresentationForImage:hints:]",
+        "__38-[NSImage bestRepresentationForHints:]_block_invoke",
+        "-[NSImage bestRepresentationForHints:]",
+        "-[NSImage bestRepresentationForRect:context:hints:]",
+        "-[NSImage _usingBestRepresentationForRect:context:hints:body:]",
+        "-[NSImage CGImageForProposedRect:context:hints:]",
+        "-[_NSSimpleImageView updateLayer]",
+        "0x19e843f4c",
+        "0x19e843f74",
+        "0x19e809158",
+        "0x19e809d78",
+        "_NSViewUpdateLayer",
+        "+[NSAppearance _performWithCurrentAppearance:usingBlock:]",
+        "__29-[NSViewBackingLayer display]_block_invoke",
+        "-[NSFocusStack performWithFocusView:inWindow:usingBlock:]",
+        "-[NSViewBackingLayer display]",
+        "CA::Layer::display_if_needed(CA::Transaction*)",
+        "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+        "CA::Transaction::commit()",
+        "CA::Transaction::flush_as_runloop_observer(bool)",
+        "stepTransactionFlush",
+        "UC::DriverCore::continueProcessing()",
+        "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+        "__CFRunLoopDoSource0",
+        "__CFRunLoopDoSources0",
+        "__CFRunLoopRun",
+        "_CFRunLoopRunSpecificWithOptions",
+        "RunCurrentEventLoopInMode",
+        "ReceiveNextEventCommon",
+        "_BlockUntilNextEventMatchingListInMode",
+        "_DPSBlockUntilNextEventMatchingListInMode",
+        "_DPSNextEvent",
+        "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication run]",
+        "NSApplicationMain",
+        "specialized runApp(_:)",
+        "runApp<A>(_:)",
+        "static App.main()",
+        "static TesseraApp.$main()",
+        "start"
+      ]
+    },
+    {
+      "samples": 1,
+      "stack": [
+        "objc_msgSend",
+        "bridgeAnythingNonVerbatimToObjectiveC(swift::OpaqueValue*, swift::TargetMetadata<swift::InProcess> const*, bool)",
+        "_ContiguousArrayStorage._getNonVerbatimBridgingBuffer()",
+        "__SwiftDeferredNSArray.withUnsafeBufferOfObjects<A>(_:)",
+        "@objc __SwiftNativeNSArrayWithContiguousStorage.countByEnumerating(with:objects:count:)",
+        "-[NSArray containsObject:]",
+        "-[NSAppearance bestMatchFromAppearancesWithNames:]",
+        "-[NSCompositeAppearance bestMatchFromAppearancesWithNames:]",
+        "NSAppearance.isDark.getter",
+        "specialized closure #1 in static Theme.Palette.dynamic(dark:light:darkAlpha:lightAlpha:)",
+        "thunk for @escaping @callee_guaranteed (@guaranteed NSAppearance) -> (@owned NSColor)",
+        "-[NSDynamicNamedColor CGColor]",
+        "NSColorSetWithFillAndStroke",
+        "-[NSCoreTypesetter _NSFastDrawString:length:attributes:paragraphStyle:typesetterBehavior:lineBreakMode:rect:padding:graphicsContext:baselineRendering:usesFontLeading:usesScreenFont:scrollable:syncAlignment:mirrored:boundingRectPointer:baselineOffsetPointer:drawingContext:]",
+        "-[NSCoreTypesetter _stringDrawingCoreTextEngineWithOriginalString:rect:padding:graphicsContext:forceClipping:attributes:stringDrawingOptions:drawingContext:stringDrawingInterface:]",
+        "__NSStringDrawingEngine",
+        "specialized ValueSlider.draw(_:)",
+        "ValueSlider.draw(_:)",
+        "0x19e843f4c",
+        "0x19e843f74",
+        "0x19e8084e0",
+        "0x19e8090ec",
+        "_NSViewDrawRect",
+        "-[NSView _recursive:displayRectIgnoringOpacity:inContext:stopAtLayerBackedViews:]",
+        "-[NSView(NSLayerKitGlue) _drawViewBackingLayer:inContext:drawingHandler:]",
+        "-[NSViewBackingLayer drawInContext:]",
+        "0x19e867150",
+        "0x19e8680cc",
+        "0x19e90b220",
+        "0x19e9094bc",
+        "-[NSViewBackingLayer display]",
+        "CA::Layer::display_if_needed(CA::Transaction*)",
+        "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+        "CA::Transaction::commit()",
+        "CA::Transaction::flush_as_runloop_observer(bool)",
+        "stepTransactionFlush",
+        "UC::DriverCore::continueProcessing()",
+        "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+        "__CFRunLoopDoSource0",
+        "__CFRunLoopDoSources0",
+        "__CFRunLoopRun",
+        "_CFRunLoopRunSpecificWithOptions",
+        "RunCurrentEventLoopInMode",
+        "ReceiveNextEventCommon",
+        "_BlockUntilNextEventMatchingListInMode",
+        "_DPSBlockUntilNextEventMatchingListInMode",
+        "_DPSNextEvent",
+        "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication run]",
+        "NSApplicationMain",
+        "specialized runApp(_:)",
+        "runApp<A>(_:)",
+        "static App.main()",
+        "static TesseraApp.$main()",
+        "start"
+      ]
+    },
+    {
+      "samples": 1,
+      "stack": [
+        "static String._unconditionallyBridgeFromObjectiveC(_:)",
+        "0x19e8994e8",
+        "0x19e899778",
+        "0x19e899e10",
+        "-[NSImage CGImageForProposedRect:context:hints:]",
+        "-[_NSSimpleImageView updateLayer]",
+        "0x19e843f4c",
+        "0x19e843f74",
+        "0x19e809158",
+        "0x19e809d78",
+        "_NSViewUpdateLayer",
+        "+[NSAppearance _performWithCurrentAppearance:usingBlock:]",
+        "__29-[NSViewBackingLayer display]_block_invoke",
+        "-[NSFocusStack performWithFocusView:inWindow:usingBlock:]",
+        "-[NSViewBackingLayer display]",
+        "CA::Layer::display_if_needed(CA::Transaction*)",
+        "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+        "CA::Transaction::commit()",
+        "stepIdle",
+        "UC::DriverCore::continueProcessing()",
+        "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+        "__CFRunLoopDoSource0",
+        "__CFRunLoopDoSources0",
+        "__CFRunLoopRun",
+        "_CFRunLoopRunSpecificWithOptions",
+        "RunCurrentEventLoopInMode",
+        "ReceiveNextEventCommon",
+        "_BlockUntilNextEventMatchingListInMode",
+        "_DPSBlockUntilNextEventMatchingListInMode",
+        "_DPSNextEvent",
+        "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+        "-[NSApplication run]",
+        "NSApplicationMain",
+        "specialized runApp(_:)",
+        "runApp<A>(_:)",
+        "static App.main()",
+        "static TesseraApp.$main()",
+        "start"
+      ]
+    }
+  ]
+}

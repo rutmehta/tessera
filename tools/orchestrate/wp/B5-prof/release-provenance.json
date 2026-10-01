@@ -1,0 +1,24 @@
+{
+  "archive_sha256": "a1226065348409c57fe4655cc0cd57dfdafc8d08c68bf50c5e12e3c2233c7f18",
+  "cargo_target_dir": "/Users/rutmehta/.cache/tessera-target/mac-ffi-B5-prof-1a8ed7c2",
+  "commit": "68264c74c365d8e7a4c33ddaecebf934f9305b08",
+  "configuration": "release",
+  "rust_configuration": "release",
+  "schema": 1,
+  "seal": {
+    "metadata_sha256": "50dc2d7541181da80ad3c9daf2e28a1619f91f7b6a65b9015da55238de2db531",
+    "schema": 1,
+    "signed_binary_sha256": "f857d0af3c0aa42520ceae96b8437f33625a2c6ffc0be230a7305332830b57d3"
+  },
+  "build_log": "/private/tmp/b5prof-release-current.log",
+  "build_exit_code": 0,
+  "source_sha256": "3d3ff1a6ed5257ecd3947f8061714abbfcd71a86ce9d256cd09ef47f133ac8a3",
+  "packaged_binary_sha256": "0cbed8d8714ec1b64c2eb66cf1da5f794ed416e370889dd78d5264f4fec96bf2",
+  "linked_binary_sha256": "b4fc494ea8bf1fec6b0dc1cb0888fd2b064a930718f4b66053cd66ae83998f3e",
+  "bindings": {
+    "CTesseraFFI.h": "380eee4ae967b06e481b0018920a565268d4cbd928e95b3954d949242730967b",
+    "CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "TesseraFFI.swift": "91b44af3d1e7707d7c58f26794b6c6340322a623ce411e315928b0cf1ef44ff0"
+  },
+  "swift_description_sha256": "0ef653da72a8c1fd8d778867c11f7599a9429581b627de73020d4a58ac8d53d5"
+}

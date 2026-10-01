@@ -1,0 +1,81 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[4/6] Compiling TesseraPackageTests runner.swift
+[4/6] Write Objects.LinkFileList
+[5/6] Linking TesseraPackageTests
+Build complete! (29.00s)
+Test Suite 'Selected tests' started at 2026-10-01 05:12:22.033.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 05:12:22.034.
+Test Suite 'MasksPanelLayoutTests' started at 2026-10-01 05:12:22.034.
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [16.631375000000002, 0.333, 0.37304200000000004]; GPU [20.960957999999998, 0.567041, 0.747]
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:71: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("288") is not equal to ("576") - masks-components-288-light: OCR requires 2 pixels per point
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:72: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("720") is not equal to ("1440") - masks-components-288-light: OCR requires 2 pixels per point
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:77: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-light: full label 'Subtract' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add", "Amount", "Balance", "Blacks", "Clarity", "Components", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Intersect", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Temp", "Texture", "Tint", "White", "Whites", "mask", "tools", "v", "v)(Subtract", "x", "•"]
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:71: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("288") is not equal to ("576") - masks-components-288-dark: OCR requires 2 pixels per point
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:72: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("720") is not equal to ("1440") - masks-components-288-dark: OCR requires 2 pixels per point
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:71: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("380") is not equal to ("760") - masks-components-380-light: OCR requires 2 pixels per point
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:72: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("720") is not equal to ("1440") - masks-components-380-light: OCR requires 2 pixels per point
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:77: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-380-light: full label 'Add' is not painted; recognized ["(Subtract", "+", "+0", "+0.00", "+0°", "1", "100%", "Addv)", "Amount", "Balance", "Blacks", "Clarity", "Components", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Intersect", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Temp", "Texture", "Tint", "White", "Whites", "mask", "tools", "v", "v]", "x", "•"]
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:77: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-380-light: full label 'Subtract' is not painted; recognized ["(Subtract", "+", "+0", "+0.00", "+0°", "1", "100%", "Addv)", "Amount", "Balance", "Blacks", "Clarity", "Components", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Intersect", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Temp", "Texture", "Tint", "White", "Whites", "mask", "tools", "v", "v]", "x", "•"]
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:71: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("380") is not equal to ("760") - masks-components-380-dark: OCR requires 2 pixels per point
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:72: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertEqual failed: ("720") is not equal to ("1440") - masks-components-380-dark: OCR requires 2 pixels per point
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' failed (1.540 seconds).
+Test Suite 'MasksPanelLayoutTests' failed at 2026-10-01 05:12:23.574.
+	 Executed 1 test, with 11 failures (0 unexpected) in 1.540 (1.540) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 05:12:23.574.
+	 Executed 1 test, with 11 failures (0 unexpected) in 1.540 (1.540) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 05:12:23.574.
+	 Executed 1 test, with 11 failures (0 unexpected) in 1.540 (1.541) seconds
+masks-components-288-light: OCR bitmap 288×720 pixels / 288×720 points; scale=1.0
+masks-components-288-dark: OCR bitmap 288×720 pixels / 288×720 points; scale=1.0
+masks-components-380-light: OCR bitmap 380×720 pixels / 380×720 points; scale=1.0
+masks-components-380-dark: OCR bitmap 380×720 pixels / 380×720 points; scale=1.0
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -219,7 +219,7 @@ struct DocumentHistoryIDMap: Equatable, Sendable {
     mutating func rows(_ items: [DocHistoryItem]) -> [DocHistoryEntry] {
         if let root = items.filter({ $0.parent == nil }).map(\.id).min() { base = root }
         return items.filter { $0.id != base }.map {
-            DocHistoryEntry(id: $0.id, label: CameraRawFilter.displayName($0.label),   // B5-18
+            DocHistoryEntry(id: $0.id, label: $0.label,
                             parent: $0.parent.flatMap { $0 == base ? nil : $0 },
                             isCurrent: $0.isCurrent, author: $0.author)
         }
@@ -472,6 +472,7 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
     // Model reads
 
     public func info() throws -> DocumentSummary { DocumentSummary(try bridged { try session.info() }, history: map) }
+    public func displayProfileICC() throws -> Data? { try bridged { try session.displayProfileIcc() } }
     public func layers() throws -> [LayerRecord] { try bridged { try session.layers() }.map(LayerRecord.init) }
     public func layer(id: DocLayerID) throws -> LayerRecord { LayerRecord(try bridged { try session.layer(id: id) }) }
     public func setSelectedLayers(ids: [DocLayerID]) throws { try bridged { try session.setSelectedLayers(ids: ids) } }
@@ -638,6 +639,7 @@ public final class DocumentFlatExport: @unchecked Sendable {
     /// A `cancel()` seen at a checkpoint makes it throw and leaves the destination as it was; one that arrives
     /// after the last checkpoint cannot stop the write, and `run` returns normally with the file in place.
     public func run(progress: @escaping @Sendable (Double, String) -> Void) throws {
+        assert(!Thread.isMainThread, "Export Flat rendering, encoding and writing must run off main")
         try bridged { try job.run(listener: ProgressRelay(progress)) }
     }
 

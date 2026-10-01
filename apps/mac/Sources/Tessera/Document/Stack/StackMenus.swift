@@ -46,7 +46,11 @@ struct StackSheetsModifier: ViewModifier {
                 case .align: AutoAlignSheet(stack: stack)
                 case .blend: AutoBlendSheet(stack: stack)
                 case .photomerge: PhotomergeSheet(stack: stack, hasDocument: model.documents.current != nil)
-                case .busy(let what): StackBusySheet(title: what, cancel: cancelAction)
+                case .busy(let what):
+                    StackBusySheet(title: what,
+                                   note: what == "Photomerge" ? StackCommandRules.photomergeBusyNote
+                                       : StackCommandRules.busyNote,
+                                   cancel: cancelAction)
                 }
             }
     }
@@ -57,10 +61,12 @@ extension View {
     func stackSheets(_ model: AppModel) -> some View { modifier(StackSheetsModifier(model: model, stack: .shared)) }
 }
 
-/// Indeterminate progress while the engine aligns or blends. Photomerge offers Cancel (honoured while it
-/// reads the photos); Auto-Align / Auto-Blend cannot be interrupted yet, so they show none.
+/// Indeterminate progress while the engine aligns or blends, with Cancel. Photomerge stops at once while it
+/// reads the photos; alignment and blending cannot be interrupted, so a cancel there takes effect when the
+/// engine returns and its result is undone (or the new document discarded).
 struct StackBusySheet: View {
     let title: String
+    let note: String
     let cancel: (() -> Void)?
     @State private var cancelling = false
 
@@ -70,7 +76,7 @@ struct StackBusySheet: View {
                 ProgressView().controlSize(.small)
                 Text("\(title)…").font(Theme.Fonts.body)
             }
-            Text(cancel == nil ? StackCommandRules.busyNote : StackCommandRules.photomergeBusyNote)
+            Text(note)
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let cancel {

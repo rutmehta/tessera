@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class WorkspaceReadyPhotoTests: XCTestCase {
     func testRealRAWDevelopAndMasksRemainReadyAcrossInspectorTabs() async throws {
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
         let scratch = ShellHarness.repoRoot.appendingPathComponent("apps/mac/build/workspace-ready-\(UUID().uuidString)")
         let folder = scratch.appendingPathComponent("raw")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -25,7 +25,7 @@ final class WorkspaceReadyPhotoTests: XCTestCase {
         model.photoInspectorTab = .develop
         let size = CGSize(width: 1440, height: 900)
         let (window, host) = ShellHarness.window(model, size: size, dark: true)
-        defer { window.orderOut(nil); window.contentViewController = nil }
+        defer { LayoutProbeHarness.dispose(window) }
         let deadline = Date().addingTimeInterval(60)
         while Date() < deadline, model.developStatus != .ready || model.develop?.lastFrame?.isFinal != true {
             try await Task.sleep(for: .milliseconds(20))

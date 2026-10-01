@@ -216,6 +216,7 @@ fn adapter_id(id: &str) -> bool {
             | "content_aware_extend"
             | "liquify"
             | "camera_raw"
+            | "adaptive_wide_angle" // B5-20
             | "neural/skin_smoothing"
             | "neural/colorize"
             | "neural/jpeg_artifact_removal"
@@ -223,6 +224,97 @@ fn adapter_id(id: &str) -> bool {
             | "neural/photo_restoration"
     )
 }
+
+// B5-18b begin: the Camera Raw Filter is an adapter the renderer evaluates at
+// any pyramid level and over any region (its input is the image it develops),
+// so previews, the 1:1 detail pane, smart-filter checks and bakes render the
+// view level over the visible region (plus the halo its local operators need)
+// instead of the whole canvas at level 0. Apply stays full resolution.
+const CAMERA_RAW: &str = "camera_raw";
+const CAMERA_RAW_TITLE: &str = "Camera Raw Filter";
+
+/// Adapters rendered at any level and over any region (see `camera_raw_halo`).
+fn level_aware(id: &str) -> bool {
+    id == CAMERA_RAW
+}
+
+/// Pixels the Camera Raw adapter developed (tests and benches: the work a
+/// preview or detail render did).
+static CAMERA_RAW_PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Radius (pixels) the Texture / Clarity guided filters read around a pixel:
+/// two box means of radius 8 plus the extrema clamp of radius 1, rounded up.
+const PRESENCE_HALO: i64 = 24;
+
+/// The halo (pixels of the level it runs on) a Camera Raw Filter needs around
+/// a region, or `None` when its result depends on the whole image: lens
+/// corrections (profile, CA analysis, manual distortion / vignetting,
+/// defringe), Dehaze's global statistics, placed effects (vignette, grain,
+/// lens blur), geometry, local masks, and any raw-only stage left non-default.
+/// Such settings render over the whole canvas of the level, like any other
+/// whole-image filter. Everything else is per-pixel (white balance, tone,
+/// curves, colour, grading) or has a bounded support (Detail's sharpening and
+/// noise reduction, Texture / Clarity).
+fn camera_raw_halo(spec: &Spec) -> Result<Option<i64>> {
+    let v: serde_json::Value = serde_json::from_str(&spec.json).map_err(failure)?;
+    let p = filters::camera_raw::parse(&v["params"])?;
+    let (s, d) = (&p.settings, engine_api::recipe::DevelopSettings::default());
+    let lens = &s.lens;
+    let lens_off = lens.profile == engine_api::recipe::settings::LensProfileSource::None
+        && !lens.remove_chromatic_aberration
+        && lens.manual_distortion == 0.0
+        && lens.manual_vignetting == 0.0
+        && lens.defringe_purple.amount == 0.0
+        && lens.defringe_green.amount == 0.0
+        && lens.softness_correction == 0.0;
+    let local = lens_off
+        && s.tone.dehaze == 0.0
+        && s.effects.vignette.amount == 0.0
+        && s.effects.grain.amount == 0.0
+        && s.effects.lens_blur.is_none()
+        && s.locals == d.locals
+        && s.geometry == d.geometry
+        && s.decode == d.decode
+        && s.linearize == d.linearize
+        && s.denoise == d.denoise
+        && s.demosaic == d.demosaic
+        && s.camera_profile == d.camera_profile;
+    Ok(local.then(|| i64::from(pipeline_cpu::detail_halo(&s.detail)) + PRESENCE_HALO))
+}
+
+/// A Camera Raw Filter without its radius-dependent detail effects
+/// (Sharpening, Noise Reduction, Texture, Clarity); other filters as they are.
+/// Their radii are level-0 pixels, so a preview below 100 % (a smaller
+/// pyramid level) would show them 2-4x too wide: like Camera Raw, the
+/// zoomed-out preview omits them and the sheet says so. The 1:1 pane and
+/// Apply always include them.
+fn without_detail_effects(spec: &Spec) -> Result<Spec> {
+    if spec.id != CAMERA_RAW {
+        return Ok(spec.clone());
+    }
+    let v: serde_json::Value = serde_json::from_str(&spec.json).map_err(failure)?;
+    let mut p = filters::camera_raw::parse(&v["params"])?;
+    let s = &mut p.settings;
+    s.detail.sharpening.amount = 0.0;
+    s.detail.noise_reduction.luminance = 0.0;
+    s.detail.noise_reduction.color = 0.0;
+    s.tone.texture = 0.0;
+    s.tone.clarity = 0.0;
+    let params = serde_json::to_value(&p).map_err(failure)?;
+    Spec::from_value(&serde_json::json!({"id": CAMERA_RAW, "params": params}))
+}
+
+/// Presentation-only policy for the whole stack. Stored recipes, Apply,
+/// export and the detail pane continue to evaluate the original nodes.
+fn at_preview_level(mut nodes: Vec<Node>, level: u8) -> Result<Vec<Node>> {
+    if level > 0 {
+        for node in &mut nodes {
+            node.spec = without_detail_effects(&node.spec)?;
+        }
+    }
+    Ok(nodes)
+}
+// B5-18b end
 
 /// Private evaluation errors remain typed until the native or legacy boundary.
 #[derive(Debug)]
@@ -309,12 +401,18 @@ impl Spec {
             let (effect, params) = self.at(context.level as u8)?;
             return run_effect(effect, &params, img, cancel);
         }
-        if context.level != 0 || img.rect != Rect::of_extent(context.canvas) {
+        // B5-18b: level-aware adapters develop the image they are given.
+        let aware = level_aware(&self.id);
+        if !aware && (context.level != 0 || img.rect != Rect::of_extent(context.canvas)) {
             return Err(failure("retouch filters require the complete level-0 canvas").into());
         }
         effect_checkpoint(cancel)?;
         let v: serde_json::Value = serde_json::from_str(&self.json).map_err(failure)?;
-        let input = raster_from_rgba(context.canvas, compositor::Depth::F32, &img.px, false)?;
+        let extent = Extent::new(img.w() as u32, img.h() as u32);
+        if aware {
+            CAMERA_RAW_PIXELS.fetch_add(extent.area(), Ordering::Relaxed);
+        }
+        let input = raster_from_rgba(extent, compositor::Depth::F32, &img.px, false)?;
         use compositor::render::smart_filters::SmartFilterEvaluator;
         let output = filters::CompositorFilters.evaluate(
             &input,
@@ -379,6 +477,10 @@ impl Spec {
     }
 
     fn name(&self) -> String {
+        // B5-18b: history labels and smart filter rows name the Camera Raw Filter.
+        if self.id == CAMERA_RAW {
+            return CAMERA_RAW_TITLE.to_owned();
+        }
         registry::find(&self.id).map_or_else(|| self.id.clone(), |f| f.name.to_owned())
     }
 
@@ -548,8 +650,12 @@ impl Node {
     }
 }
 
+/// Whether the stack has an adapter that needs the whole level-0 canvas
+/// (B5-18b: not the level-aware Camera Raw Filter).
 fn full_resolution(nodes: &[Node]) -> bool {
-    nodes.iter().any(|n| n.enabled && adapter_id(&n.spec.id))
+    nodes
+        .iter()
+        .any(|n| n.enabled && adapter_id(&n.spec.id) && !level_aware(&n.spec.id))
 }
 
 fn nodes_of(so: &SmartObject) -> Result<Vec<Node>> {
@@ -1197,6 +1303,15 @@ fn run_effect(
 fn stack_halo(nodes: &[Node], level: u8) -> Result<Option<i64>> {
     let mut sum = 0i64;
     for n in nodes.iter().filter(|n| n.enabled) {
+        // B5-18b begin
+        if level_aware(&n.spec.id) {
+            match camera_raw_halo(&n.spec)? {
+                Some(h) => sum += h,
+                None => return Ok(None),
+            }
+            continue;
+        }
+        // B5-18b end
         if adapter_id(&n.spec.id) {
             return Ok(None);
         }
@@ -1482,6 +1597,8 @@ struct BakeJob {
     base: Arc<DocState>,
     layer: u64,
     level: u8,
+    /// Canvas presentation level, even when an adapter requires evaluation at level 0.
+    canvas_level: u8,
     /// Level-0 region to refine (level 0 only).
     region: Option<Rect>,
 }
@@ -1931,6 +2048,18 @@ fn filtered_with_cancel(
     Ok(cur.crop(region))
 }
 
+/// B5-27: a 0…1 document sample to 8 bits as the canvas presents it
+/// (`render::quantize`, the GPU `rgba8unorm` store): the document's own
+/// encoding, no transfer curve and no profile conversion.
+fn canvas_u8(v: f32) -> u8 {
+    let v = if v.is_finite() {
+        v.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    (v * 255.0 + 0.5) as u8
+}
+
 /// The stack a preview evaluates.
 fn edited_stack(layer: &Layer, edit: &StackEdit) -> Result<Vec<Node>> {
     let mut nodes = match &layer.kind {
@@ -2004,7 +2133,9 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                 let result = find(&p.base, p.layer)
                     .map_err(|e| e.to_string())
                     .and_then(|layer| {
-                        let nodes = edited_stack(layer, &p.edit).map_err(|e| e.to_string())?;
+                        let nodes = edited_stack(layer, &p.edit)
+                            .and_then(|nodes| at_preview_level(nodes, p.level))
+                            .map_err(|e| e.to_string())?;
                         let img = filtered_with_cancel(
                             &q,
                             &comp,
@@ -2078,6 +2209,14 @@ fn bake(
         return Ok(None);
     };
     let nodes = nodes_of(so)?;
+    // Match preview_plan: full-resolution adapters keep detail even when
+    // the canvas is zoomed out, so opening/closing the sheet cannot change it.
+    let detail_level = if full_resolution(&nodes) {
+        0
+    } else {
+        b.canvas_level
+    };
+    let nodes = at_preview_level(nodes, detail_level)?;
     let canvas = b.base.canvas;
     let previous = {
         let i = q.lock();
@@ -2371,6 +2510,21 @@ fn bake_key(l: &Layer) -> String {
     }
 }
 
+/// Camera Raw presentation is level-specific: a finer bake includes detail
+/// (and can contain level-0 refinements) that must not leak into a zoomed-out
+/// frame. Full-resolution stacks keep detail at every zoom and, like other
+/// non-Camera-Raw stacks, retain their existing finer-level cache reuse.
+fn canvas_bake_key(l: &Layer, level: u8) -> String {
+    let mut key = bake_key(l);
+    if let LayerKind::SmartObject(so) = &l.kind
+        && so.filters.iter().any(|f| f.enabled && f.name == CAMERA_RAW)
+        && !nodes_of(so).is_ok_and(|nodes| full_resolution(&nodes))
+    {
+        key.push_str(&format!("|camera-raw-level:{level}"));
+    }
+    key
+}
+
 /// The level-0 region a level-0 bake refines for a view of `view` (level 0):
 /// the view plus a margin, snapped to 512-pixel blocks so small pans reuse it.
 fn fine_region(view: Rect, canvas: Extent) -> Rect {
@@ -2428,12 +2582,14 @@ pub(crate) fn presented(
     // B5-12: geometric transform stacks are rendered by the session renderer.
     let sos: Vec<&Layer> = sos.into_iter().filter(|l| !compositor_stack(l)).collect();
     let mut i = fs.q.lock();
-    i.bake_jobs
-        .retain(|id, job| sos.iter().any(|l| l.id.0 == *id && bake_key(l) == job.key));
+    i.bake_jobs.retain(|id, job| {
+        sos.iter()
+            .any(|l| l.id.0 == *id && canvas_bake_key(l, level) == job.key)
+    });
     if let Some(active) = &i.running_bake
         && !sos
             .iter()
-            .any(|l| l.id.0 == active.layer && bake_key(l) == active.key)
+            .any(|l| l.id.0 == active.layer && canvas_bake_key(l, level) == active.key)
     {
         active.cancel.cancel();
     }
@@ -2456,12 +2612,12 @@ pub(crate) fn presented(
             key.push_str(&format!(
                 "{id}:g:{:p}:{};",
                 Arc::as_ptr(&so_arc(l)),
-                bake_key(l)
+                canvas_bake_key(l, level)
             ));
             subs.push((id, nl));
             continue;
         }
-        let bk = bake_key(l);
+        let bk = canvas_bake_key(l, level);
         let wanted_region = (level == 0).then(|| fine_region(view.to_level0(level), state.canvas));
         let entry = i.bakes.get(&id);
         let fresh = entry.is_some_and(|b| b.key == bk);
@@ -2486,6 +2642,7 @@ pub(crate) fn presented(
                 base: state.clone(),
                 layer: id,
                 level: job_level,
+                canvas_level: level,
                 region: if exact {
                     None
                 } else {
@@ -2691,6 +2848,18 @@ fn preview_view(st: &super::State, region: Option<DocRect>) -> (u8, Rect) {
     (level, if r.is_empty() { full } else { r })
 }
 
+/// The level and level region a preview of the edited stack `nodes` renders:
+/// the view's (`preview_view`), or the whole level-0 canvas when an adapter
+/// in the stack needs it. `submit_preview` and `filter_preview_level` both
+/// use it, so the sheet's note and the engine cannot disagree.
+fn preview_plan(st: &super::State, nodes: &[Node], region: Option<DocRect>) -> (u8, Rect) {
+    if full_resolution(nodes) {
+        (0, Rect::of_extent(st.live().state().canvas))
+    } else {
+        preview_view(st, region)
+    }
+}
+
 impl DocumentSession {
     fn filter_target(&self, layer: u64) -> Result<(Arc<DocState>, Option<Arc<Raster>>)> {
         let st = self.shared.lock()?;
@@ -2711,13 +2880,11 @@ impl DocumentSession {
             let s = st.live().state().clone();
             let l = find(&s, layer)?;
             let nodes = edited_stack(l, &edit)?;
-            let (level, r) = if full_resolution(&nodes) {
-                (0, Rect::of_extent(s.canvas))
-            } else {
-                preview_view(&st, region)
-            };
+            let (level, r) = preview_plan(&st, &nodes, region);
             (s, level, r, nodes)
         };
+        // B5-34: every Camera Raw stage follows the submitted level.
+        let nodes = at_preview_level(nodes, level)?;
         let fs = &self.shared.filters;
         // B5-15 (P19): shown by the resident renderer, on the render thread's
         // next frame (no worker job, no CPU pixels).
@@ -2960,6 +3127,22 @@ impl DocumentSession {
                 Rect::of_extent(s.canvas),
                 cancel,
             )?;
+        } else if nodes.iter().any(|n| n.enabled && level_aware(&n.spec.id)) {
+            // B5-18b: the Camera Raw Filter (settings, document profile and
+            // renderer) is checked on a small level, not the whole canvas.
+            let level = (0..super::render::MAX_VIEW_LEVEL)
+                .find(|&lv| s.canvas.at_level(lv).area() <= 262_144)
+                .unwrap_or(super::render::MAX_VIEW_LEVEL - 1);
+            filtered(
+                &self.shared.filters.q,
+                &self.shared.filters.comp,
+                &s,
+                l,
+                &nodes,
+                level,
+                Rect::of_extent(s.canvas.at_level(level)),
+                cancel,
+            )?;
         }
         let mut nl = l.clone();
         if let LayerKind::SmartObject(so) = &mut nl.kind {
@@ -3018,6 +3201,28 @@ impl DocumentSession {
     ) -> Result<()> {
         let spec = Spec::parse(&filter_json)?;
         self.submit_preview(layer, StackEdit::Replace(index as usize, spec), region)
+    }
+
+    /// The pyramid level a `preview_filter` (or, with `smart_index`,
+    /// `preview_smart_filter`) of `filter_json` on `layer` would render at
+    /// with the current viewport. B5-18b: above 0 a Camera Raw preview omits
+    /// its detail effects (the sheet says so).
+    pub fn filter_preview_level(
+        &self,
+        layer: u64,
+        smart_index: Option<u32>,
+        filter_json: String,
+    ) -> Result<u8> {
+        let spec = Spec::parse(&filter_json)?;
+        let edit = match smart_index {
+            Some(i) => StackEdit::Replace(i as usize, spec),
+            None => StackEdit::Append(spec),
+        };
+        let st = self.shared.lock()?;
+        st.open()?;
+        let s = st.live().state().clone();
+        let nodes = edited_stack(find(&s, layer)?, &edit)?;
+        Ok(preview_plan(&st, &nodes, None).0)
     }
 
     /// Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)
@@ -3080,6 +3285,9 @@ impl DocumentSession {
     /// smart filters) over `width × height` level-0 pixels at `(x, y)`,
     /// written into an RGBA8 IOSurface (straight alpha) the session retains
     /// until the next call: the filter dialog's 1:1 detail pane. Blocking.
+    /// B5-27: the pane holds the same bytes the canvas surfaces would for
+    /// that region (the document's own samples in its working profile, sRGB
+    /// or Display P3 alike), so the host draws it exactly as the canvas.
     pub fn filter_detail(
         &self,
         layer: u64,
@@ -3090,12 +3298,50 @@ impl DocumentSession {
         height: u32,
     ) -> Result<FilterDetail> {
         let spec = Spec::parse(&filter_json)?;
+        self.detail(layer, StackEdit::Append(spec), x, y, width, height)
+    }
+
+    /// B5-18b: like `filter_detail`, re-editing smart filter `index` of a
+    /// smart object (the edited filter replaces it instead of stacking on top).
+    #[allow(clippy::too_many_arguments)]
+    pub fn smart_filter_detail(
+        &self,
+        layer: u64,
+        index: u32,
+        filter_json: String,
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    ) -> Result<FilterDetail> {
+        let spec = Spec::parse(&filter_json)?;
+        self.detail(
+            layer,
+            StackEdit::Replace(index as usize, spec),
+            x,
+            y,
+            width,
+            height,
+        )
+    }
+}
+
+impl DocumentSession {
+    fn detail(
+        &self,
+        layer: u64,
+        edit: StackEdit,
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    ) -> Result<FilterDetail> {
         if width == 0 || height == 0 || width > 4096 || height > 4096 {
             return Err(failure("detail size must be 1…4096 pixels"));
         }
         let (base, _) = self.filter_target(layer)?;
         let l = find(&base, layer)?;
-        let nodes = edited_stack(l, &StackEdit::Append(spec))?;
+        let nodes = edited_stack(l, &edit)?;
         let r0 = Rect::new(x, y, x + i64::from(width), y + i64::from(height));
         // Whole-image filters are filtered on a level of at most ~4 MP.
         let level = if !full_resolution(&nodes) && stack_halo(&nodes, 0)?.is_none() {
@@ -3135,8 +3381,11 @@ impl DocumentSession {
                         } else {
                             [0.0; 4]
                         };
+                        // B5-27: the canvas's bytes, not re-encoded to sRGB
+                        // (that brightened every pane and could not follow
+                        // a Display P3 document's encoding).
                         for c in 0..4 {
-                            px[o + c] = (p[c].clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
+                            px[o + c] = canvas_u8(p[c]);
                         }
                     }
                 }
@@ -3151,7 +3400,10 @@ impl DocumentSession {
             level,
         })
     }
+}
 
+#[uniffi::export]
+impl DocumentSession {
     /// Applies `filter_json` to `layer` as one history node (labelled with
     /// the filter's name). Pixel layers are filtered at full resolution
     /// inside the selection (all of it without one); smart objects get the
@@ -3768,6 +4020,13 @@ fn max_id(l: &Layer) -> u64 {
 
 /// Test and bench support (not exported over UniFFI).
 impl DocumentSession {
+    /// B5-18b: pixels the Camera Raw adapter has developed in this process
+    /// (previews, detail panes, checks, bakes and applies).
+    #[doc(hidden)]
+    pub fn camera_raw_pixels_developed(&self) -> u64 {
+        CAMERA_RAW_PIXELS.load(Ordering::Relaxed)
+    }
+
     /// B5-15: `false` bakes every smart filter on the CPU (the route before
     /// P19), `true` restores the GPU route where it applies.
     #[doc(hidden)]
@@ -4006,12 +4265,95 @@ mod request_cancellation_tests {
         assert!(!fresh.is_cancelled());
     }
 
+    #[test]
+    fn camera_raw_canvas_key_tracks_effective_level_and_enabled_state() {
+        let (_, mut layer, _) = fixture();
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        let camera = Node::new(
+            Spec::parse(r#"{"id":"camera_raw","params":{"settings":{},"amount":0.35}}"#).unwrap(),
+        )
+        .store();
+        so.filters = vec![camera];
+        let active0 = canvas_bake_key(&layer, 0);
+        let active2 = canvas_bake_key(&layer, 2);
+        assert_ne!(active0, active2);
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        so.filters[0].enabled = false;
+        assert_eq!(canvas_bake_key(&layer, 0), canvas_bake_key(&layer, 2));
+        assert_ne!(active2, canvas_bake_key(&layer, 2));
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        so.filters[0].enabled = true;
+        assert_eq!(active2, canvas_bake_key(&layer, 2));
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        let mesh = filters::liquify::Mesh::new(3, 2, 2).unwrap();
+        so.filters.push(
+            Node::new(
+                Spec::from_value(&serde_json::json!({
+                    "id":"liquify", "params":{"mesh":mesh,"interpolation":"bilinear"}
+                }))
+                .unwrap(),
+            )
+            .store(),
+        );
+        assert_eq!(
+            canvas_bake_key(&layer, 0),
+            canvas_bake_key(&layer, 2),
+            "full-resolution Camera Raw stacks reuse the unstripped bake across zoom levels"
+        );
+    }
+
+    #[test]
+    fn camera_raw_stage_mask_survives_detail_stripping_at_l1() {
+        let mut node = Node::new(
+            Spec::parse(
+                r#"{"id":"camera_raw","params":{
+            "settings":{"tone":{"exposure":0.3,"texture":40,"clarity":30},
+            "detail":{"sharpening":{"amount":60},"noise_reduction":{"luminance":20,"color":25}}},
+            "amount":0.35}}"#,
+            )
+            .unwrap(),
+        );
+        node.mask_png = Some("stored-mask-png".into());
+        node.opacity = 0.6;
+        node.blend = BlendMode::Multiply;
+        let saved = node.store();
+        let stripped = at_preview_level(vec![Node::of(&saved).unwrap()], 1).unwrap();
+        let out = &stripped[0];
+        assert_eq!(out.mask_png, node.mask_png);
+        assert_eq!(out.opacity, node.opacity);
+        assert_eq!(out.blend, node.blend);
+        assert_eq!(out.enabled, node.enabled);
+        let value: serde_json::Value = serde_json::from_str(&out.spec.json).unwrap();
+        let params = filters::camera_raw::parse(&value["params"]).unwrap();
+        assert_eq!(params.amount, 0.35);
+        assert_eq!(params.settings.tone.exposure, 0.3);
+        assert_eq!(params.settings.tone.texture, 0.0);
+        assert_eq!(params.settings.tone.clarity, 0.0);
+        assert_eq!(params.settings.detail.sharpening.amount, 0.0);
+        assert_eq!(params.settings.detail.noise_reduction.luminance, 0.0);
+        assert_eq!(params.settings.detail.noise_reduction.color, 0.0);
+        assert_eq!(Node::of(&saved).unwrap().spec.json, node.spec.json);
+        assert_eq!(
+            at_preview_level(vec![node.clone()], 0).unwrap()[0].key(),
+            node.key()
+        );
+    }
+
     fn bake_job(key: &str) -> BakeJob {
         BakeJob {
             key: key.into(),
             base: Arc::new(DocState::new(Extent::new(3, 2), compositor::Depth::F32)),
             layer: 1,
             level: 0,
+            canvas_level: 0,
             region: None,
         }
     }

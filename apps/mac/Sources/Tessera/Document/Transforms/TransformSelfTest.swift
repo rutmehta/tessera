@@ -20,11 +20,6 @@ final class TransformSelfTest {
     private var failures = 0
     private var t: DocumentTransforms { .shared }
     private static var started = false
-    private static var auditWindow: NSWindow?
-    private final class AuditWindow: NSWindow {
-        override var canBecomeKey: Bool { false }
-        override var canBecomeMain: Bool { false }
-    }
 
     static func startIfRequested(_ workspace: DocumentWorkspace) {
         guard !started else { return }
@@ -36,20 +31,8 @@ final class TransformSelfTest {
             path = args[i + 1]
         } else { return }
         started = true
-        // `--nonactivating` (accessory policy) may not instantiate the SwiftUI window scene: host the real
-        // content in a window that never becomes key or main, ordered behind other apps. A window, not
-        // BackgroundAuditWindow's panel: AppKit does not count panels, so closing the Apply alert's sheet
-        // (step 381) would be "the last window closed" and quit the app mid-run.
-        if args.contains("--nonactivating"), !NSApp.windows.contains(where: { !($0 is NSPanel) && $0.isVisible }) {
-            let w = AuditWindow(contentRect: NSRect(x: 40, y: 40, width: 1440, height: 900), styleMask: [.titled, .resizable],
-                                backing: .buffered, defer: false)
-            w.isReleasedWhenClosed = false
-            w.title = "Tessera transform self-test"
-            w.contentView = NSHostingView(rootView: ContentView(model: workspace.app ?? AppModel.shared)
-                .frame(minWidth: 960, minHeight: 600))
-            w.order(.below, relativeTo: 0)
-            auditWindow = w
-        }
+        // `--nonactivating`: `SelfTestHost` hosts the content in a background window and starts this run.
+        SelfTestHost.ensureWindow(model: workspace.app ?? AppModel.shared)
         DocumentTransforms.shared.workspace = workspace
         let test = TransformSelfTest(workspace: workspace, dir: URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
         Task { @MainActor in await test.run() }
@@ -62,7 +45,12 @@ final class TransformSelfTest {
 
     // MARK: Plumbing
 
-    private func log(_ s: String) { FileHandle.standardError.write(Data("transform-selftest: \(s)\n".utf8)) }
+    /// A line starting "FAIL" (an early exit: no library, no document, …) counts as a failure, so the
+    /// closing `done, <n> failure(s)` is never a silent 0 for a run that did not happen.
+    private func log(_ s: String) {
+        if s.hasPrefix("FAIL") { failures += 1 }
+        FileHandle.standardError.write(Data("transform-selftest: \(s)\n".utf8))
+    }
 
     private func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
         if !ok { failures += 1 }

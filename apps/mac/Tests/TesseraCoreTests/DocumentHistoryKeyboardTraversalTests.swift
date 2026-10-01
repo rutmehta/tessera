@@ -20,15 +20,12 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
 
     override func setUp() async throws {
         priorState = GlobalState()
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
     }
 
     override func tearDown() async throws {
         for window in windows {
-            window.orderOut(nil)
-            window.contentViewController = nil
-            window.contentView = nil
-            window.close()
+            LayoutProbeHarness.dispose(window)
         }
         windows = []
         priorState?.assertOwnersUnchanged()
@@ -82,16 +79,14 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
     }
 
     private func settle(_ view: NSView) {
-        view.layoutSubtreeIfNeeded()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.25))
-        view.layoutSubtreeIfNeeded()
+        LayoutProbeHarness.settle(view)
     }
 
     /// The fixture-bounds recipe: size after attachment, order back, settle.
     private func hostInspector(_ workspace: DocumentWorkspace,
                                size: NSSize = NSSize(width: 288, height: 848)) -> (NSWindow, NSView) {
-        let controller = NSHostingController(rootView: DocumentInspector(workspace: workspace))
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+        let controller = NSHostingController(rootView: LayoutProbeHarness.root(DocumentInspector(workspace: workspace)))
+        let window = LayoutProbeHarness.window(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: .titled, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         windows.append(window)
@@ -111,7 +106,7 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
 
     private func standalone(requested: Double, column: CGFloat,
                             onChange: @escaping (Double) -> Void = { _ in }) -> (NSWindow, DocumentHistoryHeightControl) {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 40),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 200, height: 40),
                               styleMask: .titled, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         windows.append(window)

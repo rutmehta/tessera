@@ -149,7 +149,7 @@ final class RetouchSelfTest {
         }
         _ = await wait(20) { doc.lastFrame != nil }
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.depth.title), \(doc.info.backend)")
-        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { return finish() }
+        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { log("FAIL no pixel layer"); return finish() }
         doc.select(photo)
         let (W, H) = (Double(doc.info.width), Double(doc.info.height))
         r.refreshModels()
@@ -196,7 +196,7 @@ final class RetouchSelfTest {
         await mark("reopened")
         guard let layer = doc2.layers.first(where: { $0.kind == .pixel })?.id, let tools = doc2.backend as? any DocumentToolsBackend,
               let v2 = doc2.viewport else {
-            return finish()
+            log("FAIL reopened document has no pixel layer / viewport"); return finish()
         }
         doc2.select(layer)
 

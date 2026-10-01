@@ -40,7 +40,7 @@ final class DocumentVectorVerifyFixesTests: XCTestCase {
         model = AppModel()
         try model.documents.install(EngineDocumentBackend(session: try engine.newDocument(width: 1200, height: 800, depth: .u8, profile: nil)))
         doc = try XCTUnwrap(model.documents.current)
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600), styleMask: [.titled, .resizable],
+        window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600), styleMask: [.titled, .resizable],
                           backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         viewport = DocumentViewportView(frame: window.contentView!.bounds)

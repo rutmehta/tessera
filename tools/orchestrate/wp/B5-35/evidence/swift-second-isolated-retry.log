@@ -1,0 +1,43 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.40s)
+Test Suite 'Selected tests' started at 2026-10-01 01:41:32.901.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 01:41:32.902.
+Test Suite 'MasksPanelLayoutTests' started at 2026-10-01 01:41:32.902.
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [28.23775, 0.432541, 0.426291]; GPU [60.056041, 1.826959, 1.655208]
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' passed (6.806 seconds).
+Test Suite 'MasksPanelLayoutTests' passed at 2026-10-01 01:41:39.709.
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.806 (6.806) seconds
+Test Suite 'SmartPreviewThumbnailTests' started at 2026-10-01 01:41:39.709.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testCancelledRetryWaitTerminatesWithoutAnotherNativeCall]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testCancelledRetryWaitTerminatesWithoutAnotherNativeCall]' passed (0.015 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testExplicitRoleChoosesExactlyOneAPIAndNeverFallsBack]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testExplicitRoleChoosesExactlyOneAPIAndNeverFallsBack]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testInvalidatedProxyWorkerCannotRepopulateCacheOrDeliverOldResult]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testInvalidatedProxyWorkerCannotRepopulateCacheOrDeliverOldResult]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalCacheCannotSatisfySameImageProxyRequest]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalCacheCannotSatisfySameImageProxyRequest]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalErrorsRemainTerminalWithoutRetry]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testOriginalErrorsRemainTerminalWithoutRetry]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPendingProxyUsesBufferedReadyEventAndKeepsSource]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPendingProxyUsesBufferedReadyEventAndKeepsSource]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPersistentProxyFailureHasBoundedCallsAndNoPendingPlaceholderFlight]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testPersistentProxyFailureHasBoundedCallsAndNoPendingPlaceholderFlight]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testReconnectDropsProxyFlightAndDoesNotShareOriginalCache]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testReconnectDropsProxyFlightAndDoesNotShareOriginalCache]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testSupersessionDuringRetrySuppressesOldRetryAndDeliversReplacement]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testSupersessionDuringRetrySuppressesOldRetryAndDeliversReplacement]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testTransientProxyErrorRetriesWithinSameFlightThenDelivers]' started.
+Test Case '-[TesseraCoreTests.SmartPreviewThumbnailTests testTransientProxyErrorRetriesWithinSameFlightThenDelivers]' passed (0.005 seconds).
+Test Suite 'SmartPreviewThumbnailTests' passed at 2026-10-01 01:41:39.780.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.070 (0.071) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 01:41:39.780.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 6.876 (6.878) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 01:41:39.780.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 6.876 (6.879) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -8,8 +8,10 @@ import UniformTypeIdentifiers
 /// Edit ▸ Auto-Align Layers…, Edit ▸ Auto-Blend Layers… and File ▸ Automate ▸ Photomerge… (WP B5-19).
 /// Menu enablement follows the Layers selection (`StackCommandRules`); the sheets collect options; each
 /// run is one blocking engine call off the main thread (one history node) with an indeterminate busy
-/// sheet. Photomerge's busy sheet has Cancel (honoured while the photos are read, before anything
-/// changes); the engine has no cancellation point inside alignment or blending yet.
+/// sheet and Cancel. Photomerge honours it while the photos are read, before anything changes; the engine
+/// has no cancellation point inside alignment or blending yet, so a cancel that arrives there takes effect
+/// when the engine returns: the committed step is undone (or the new document discarded), like
+/// DocumentRetouch does for a discarded job that succeeded, and the status never says "finished".
 @MainActor @Observable
 final class DocumentStack {
     static let shared = DocumentStack()
@@ -34,14 +36,16 @@ final class DocumentStack {
     var photomerge = PhotomergeForm()
     /// The running operation's title.
     private(set) var busy: String?
-    /// The running Photomerge's cancel flag (nil for Auto-Align / Auto-Blend, which cannot stop).
+    /// The running operation's cancel flag. Photomerge's engine call reads it; for Auto-Align / Auto-Blend
+    /// only this controller does (their result is undone when the engine returns).
     @ObservationIgnored private(set) var cancelFlag: CancelFlag?
     /// Whether the busy sheet offers Cancel.
     var canCancel: Bool { cancelFlag != nil }
 
     func cancelBusy() {
-        cancelFlag?.cancel()
-        say("Cancelling Photomerge…")
+        guard let cancelFlag, let busy else { return }
+        cancelFlag.cancel()
+        say("Cancelling \(busy)…")
     }
 
     private init() {}
@@ -143,7 +147,8 @@ final class DocumentStack {
     // MARK: Running
 
     /// Runs `body` off the main thread under the busy sheet, then refreshes the document.
-    private func perform(_ doc: DocumentController, _ what: String, cancel: CancelFlag? = nil,
+    /// A cancel that arrives after the engine committed undoes that history node.
+    private func perform(_ doc: DocumentController, _ what: String, cancel: CancelFlag = CancelFlag(),
                          _ body: @escaping @Sendable () throws -> DocumentChange) {
         busy = what
         cancelFlag = cancel
@@ -154,12 +159,20 @@ final class DocumentStack {
             self.busy = nil
             self.cancelFlag = nil
             if case .busy = self.sheet { self.sheet = nil }
-            if cancel?.isCancelled() == true, case .failure = result {
-                self.say(StackCommandRules.photomergeCancelled); return
-            }
-            if doc.run(what, { try result.get() }) != nil {
+            let succeeded = if case .success = result { true } else { false }
+            switch StackCommandRules.end(cancelRequested: cancel.isCancelled(), succeeded: succeeded) {
+            case .cancelled:
+                self.say(StackCommandRules.cancelledMessage(what, afterFinishing: false, newDocument: false))
+            case .cancelledAfterFinishing:
+                // The engine committed before it saw the cancel: undo that step (DocumentRetouch's pattern).
+                guard doc.run("Undo cancelled \(what)", { try doc.backend.undo() }) != nil else { return }
                 DocumentTools.shared.refreshOutline(doc)
-                self.say("\(what) finished")
+                self.say(StackCommandRules.cancelledMessage(what, afterFinishing: true, newDocument: false))
+            case .finished, .failed:
+                if doc.run(what, { try result.get() }) != nil {
+                    DocumentTools.shared.refreshOutline(doc)
+                    self.say("\(what) finished")
+                }
             }
         }
     }
@@ -210,8 +223,16 @@ final class DocumentStack {
             self.busy = nil
             self.cancelFlag = nil
             if case .busy = self.sheet { self.sheet = nil }
-            if cancel.isCancelled(), case .failure = result {
-                self.say(StackCommandRules.photomergeCancelled); return
+            let succeeded = if case .success = result { true } else { false }
+            switch StackCommandRules.end(cancelRequested: cancel.isCancelled(), succeeded: succeeded) {
+            case .cancelled:
+                self.say(StackCommandRules.cancelledMessage("Photomerge", afterFinishing: false, newDocument: false))
+                return
+            case .cancelledAfterFinishing:
+                if case .success(let backend) = result { backend.close() }
+                self.say(StackCommandRules.cancelledMessage("Photomerge", afterFinishing: true, newDocument: true))
+                return
+            case .finished, .failed: break
             }
             switch result {
             case .success(let backend):

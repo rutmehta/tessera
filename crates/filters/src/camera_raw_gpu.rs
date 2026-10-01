@@ -1,4 +1,6 @@
-//! GPU-only Develop on straight document-linear RGBA.
+//! GPU-only Develop on straight document RGBA (samples encoded in the
+//! document profile's transfer curve; decoded and re-encoded in the bridge
+//! with the same sampled curve as the CPU path).
 //!
 //! Capability is deliberately conservative: lens auto-calibration/CA estimation
 //! still requires CPU pixels. Default Auto lens settings are declined. Select
@@ -10,7 +12,7 @@
 //!
 //! Texture, Clarity, Dehaze statistics and procedural local adjustments run on
 //! GPU buffers without a host pixel boundary.
-use crate::camera_raw::{parse, profile_matrices};
+use crate::camera_raw::{TRANSFER_LUT_SIZE, parse, profile_curves, profile_matrices};
 use compositor::render::smart_filters::FilterContext;
 use engine_api::{
     EngineError,
@@ -43,7 +45,9 @@ pub fn supports(value: &serde_json::Value) -> EngineResult<bool> {
 /// Develop caller-owned, tight interleaved straight RGBA, on the same Metal
 /// device/queue. Input must be STORAGE and remain immutable until queue work
 /// completes. Returns independent STORAGE|COPY_SRC|COPY_DST interleaved RGBA.
-/// Matrices operate on signed/HDR linear RGB; alpha never enters Develop.
+/// The bridge decodes the profile TRC before the forward matrix and encodes
+/// after the inverse; amount blends encoded samples. Matrices operate on
+/// signed/HDR linear RGB; alpha never enters Develop.
 /// The actual filter extent is level zero (context.level is not a second mip).
 /// No uploads/downloads of pixels, f16 checkpoints, or CPU operator fallbacks.
 /// Resident finish currently waits; the final interleave is queue-ordered.
@@ -60,6 +64,7 @@ pub fn evaluate(
         return Err(EngineError::Unsupported { what: "camera_raw resident lens/geometry (including Auto lens analysis); use CPU evaluator".into() });
     }
     let (forward, backward) = profile_matrices(context)?;
+    let curves = profile_curves(context)?;
     let bytes = extent
         .area()
         .checked_mul(16)
@@ -119,10 +124,21 @@ pub fn evaluate(
             0,
             output_extent.width,
             output_extent.height,
-            0,
-            0,
+            u32::from(!curves.is_identity()),
+            TRANSFER_LUT_SIZE as u32,
         ]),
         usage: wgpu::BufferUsages::UNIFORM,
+    });
+    // The identity binds one unused word: the shader reads it only when enabled.
+    let table: &[f32] = if curves.is_identity() {
+        &[0.]
+    } else {
+        curves.table()
+    };
+    let transfer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("camera raw transfer curves"),
+        contents: bytemuck::cast_slice(table),
+        usage: wgpu::BufferUsages::STORAGE,
     });
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("camera raw RGBA bridge"),
@@ -138,9 +154,15 @@ pub fn evaluate(
             cache: None,
         });
         let buffers: Vec<(u32, &Buffer)> = if entry == "unpack" {
-            vec![(0, input), (1, rgb), (3, &constants)]
+            vec![(0, input), (1, rgb), (3, &constants), (4, &transfer)]
         } else {
-            vec![(0, input), (1, rgb), (2, &output), (3, &constants)]
+            vec![
+                (0, input),
+                (1, rgb),
+                (2, &output),
+                (3, &constants),
+                (4, &transfer),
+            ]
         };
         let entries: Vec<_> = buffers
             .iter()
@@ -303,17 +325,64 @@ pub fn evaluate(
 
 const BRIDGE: &str = r#"
 struct Params { width: u32, height: u32, amount: f32, pad: u32,
-                developed_width: u32, developed_height: u32, pad2: u32, pad3: u32 }
+                developed_width: u32, developed_height: u32, curves: u32, size: u32 }
 @group(0) @binding(0) var<storage, read> rgba: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> rgb: array<f32>;
 @group(0) @binding(2) var<storage, read_write> result: array<vec4<f32>>;
 @group(0) @binding(3) var<uniform> p: Params;
+@group(0) @binding(4) var<storage, read> lut: array<f32>;
+// Mirrors camera_raw::decode_channel / encode_channel exactly (B5-28).
+fn decode_positive(base: u32, v: f32) -> f32 {
+    let last = p.size - 1u;
+    let x = v * f32(last);
+    if x >= f32(last) {
+        return lut[base + last] + (x - f32(last)) * (lut[base + last] - lut[base + last - 1u]);
+    }
+    let i = u32(x);
+    return lut[base + i] + (x - f32(i)) * (lut[base + i + 1u] - lut[base + i]);
+}
+fn decode(c: u32, v: f32) -> f32 {
+    let base = c * p.size;
+    if v < 0.0 { return 2.0 * lut[base] - decode_positive(base, -v); }
+    return decode_positive(base, v);
+}
+fn encode_positive(base: u32, y: f32) -> f32 {
+    let last = p.size - 1u;
+    if y >= lut[base + last] {
+        return 1.0 + (y - lut[base + last]) / ((lut[base + last] - lut[base + last - 1u]) * f32(last));
+    }
+    var lo = 0u;
+    var hi = last;
+    loop {
+        if hi - lo <= 1u { break; }
+        let mid = (lo + hi) / 2u;
+        if lut[base + mid] <= y { lo = mid; } else { hi = mid; }
+    }
+    let span = lut[base + lo + 1u] - lut[base + lo];
+    var f = 0.0;
+    if span > 0.0 { f = (y - lut[base + lo]) / span; }
+    return (f32(lo) + f) / f32(last);
+}
+fn encode(c: u32, y: f32) -> f32 {
+    let base = c * p.size;
+    if y < lut[base] { return -encode_positive(base, 2.0 * lut[base] - y); }
+    return encode_positive(base, y);
+}
+fn decode3(v: vec3<f32>) -> vec3<f32> {
+    if p.curves == 0u { return v; }
+    return vec3<f32>(decode(0u, v.x), decode(1u, v.y), decode(2u, v.z));
+}
+fn encode3(v: vec3<f32>) -> vec3<f32> {
+    if p.curves == 0u { return v; }
+    return vec3<f32>(encode(0u, v.x), encode(1u, v.y), encode(2u, v.z));
+}
 @compute @workgroup_size(16,16)
 fn unpack(@builtin(global_invocation_id) id: vec3<u32>) {
     if id.x >= p.width || id.y >= p.height { return; }
     let i = id.y * p.width + id.x;
     let n = p.width * p.height;
-    rgb[i] = rgba[i].r; rgb[n+i] = rgba[i].g; rgb[2u*n+i] = rgba[i].b;
+    let linear = decode3(rgba[i].rgb);
+    rgb[i] = linear.x; rgb[n+i] = linear.y; rgb[2u*n+i] = linear.z;
 }
 @compute @workgroup_size(16,16)
 fn pack(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -328,6 +397,8 @@ fn pack(@builtin(global_invocation_id) id: vec3<u32>) {
         let count = p.developed_width * p.developed_height;
         developed = vec3<f32>(rgb[j], rgb[count+j], rgb[2u*count+j]);
     }
-    result[i] = vec4<f32>(before.rgb + p.amount * (developed - before.rgb), before.a);
+    // Re-encode, then blend encoded samples (amount is the filter's opacity).
+    let encoded = encode3(developed);
+    result[i] = vec4<f32>(before.rgb + p.amount * (encoded - before.rgb), before.a);
 }
 "#;

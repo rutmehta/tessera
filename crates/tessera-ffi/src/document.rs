@@ -117,9 +117,17 @@ mod stack;
 pub use stack::{
     MAX_STACK_MEGAPIXELS, PHOTOMERGE_CANCELLED, StackAlignMode, StackAlignOptions, StackBlendMode,
     StackBlendOptions, StackEligibility, StackLensCorrection, default_stack_align_options,
-    default_stack_blend_options, stack_max_megapixels,
+    default_stack_blend_options, stack_max_megapixels, stack_megapixels_for_memory,
 };
 // B5-19 end
+// B5-20 begin: Filter ▸ Adaptive Wide Angle (the `adaptive_wide_angle` smart filter).
+#[path = "document/adaptive.rs"]
+mod adaptive;
+pub use adaptive::{
+    ADAPTIVE_WIDE_ANGLE_ID, AdaptiveWideAngleInfo, AdaptiveWideAnglePreview,
+    adaptive_wide_angle_curve,
+};
+// B5-20 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
@@ -2032,12 +2040,17 @@ impl DocumentSession {
         if view.surfaces.len() >= 3 {
             view.surfaces.remove(0);
         }
-        if view.surfaces.len() < before {
+        let replaced = view.surfaces.len() < before;
+        if replaced {
             view.generation += 1; // B5-14: frames for the replaced ring are dropped
         }
         let first = view.surfaces.is_empty();
         view.surfaces.push(surface);
-        if first {
+        if replaced {
+            // B5-22: a real invalidation; the frame in flight cannot publish.
+            self.shared.render.invalidate_frame();
+        }
+        if first || replaced {
             let epoch = st.epoch;
             self.shared.render.request(Vec::new(), false, epoch);
         }
@@ -2111,6 +2124,7 @@ impl DocumentSession {
             st.view.surfaces.clear();
             st.view.next = 0;
             st.view.generation += 1; // B5-14
+            self.shared.render.invalidate_frame(); // B5-22
         }
     }
 
@@ -2415,6 +2429,14 @@ impl DocumentSession {
     #[doc(hidden)]
     pub fn document_state(&self) -> Result<Arc<DocState>> {
         Ok(self.shared.lock()?.live().state().clone())
+    }
+
+    /// Enable instance-local test diagnostics: cumulative (mip hits, mip rebuilds).
+    /// Includes resident and persistent CPU thumbnail caches. Call before rendering
+    /// to establish a baseline. Not exported over UniFFI.
+    #[doc(hidden)]
+    pub fn thumbnail_mip_stats(&self) -> (u64, u64) {
+        self.shared.render.thumbnail_mip_stats()
     }
 
     /// Thumbnails rendered so far (cache misses).

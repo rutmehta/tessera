@@ -161,7 +161,7 @@ final class DocumentLiquifyTests: XCTestCase {
         let f = try l.previewLiquify(token: info.token, original: false)
         XCTAssertEqual(f.width, 96)
         XCTAssertNotNil(IOSurfaceLookup(f.surfaceId), "a live IOSurface")
-        XCTAssertNotNil(LiquifyWorkspaceModel.image(f))
+        XCTAssertNotNil(LiquifyWorkspaceModel.image(f, .srgb))
         let o = try l.previewLiquify(token: info.token, original: true)
         XCTAssertTrue(o.original)
         XCTAssertEqual(try doc.historyItems().count, before, "workspace edits add no history")

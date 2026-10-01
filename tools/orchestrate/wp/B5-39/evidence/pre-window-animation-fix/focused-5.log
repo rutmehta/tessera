@@ -1,0 +1,155 @@
+Test Suite 'Selected tests' started at 2026-10-01 03:02:32.633.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 03:02:32.635.
+Test Suite 'AgentReviewLayoutTests' started at 2026-10-01 03:02:32.635.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' started.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' passed (14.539 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [19.103959, 0.963, 1.0432919999999999]; GPU [34.426875, 1.536458, 3.687959]
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview]' passed (1.429 seconds).
+Test Suite 'AgentReviewLayoutTests' passed at 2026-10-01 03:02:48.603.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 15.968 (15.968) seconds
+Test Suite 'DocumentDitherCheckboxTests' started at 2026-10-01 03:02:48.603.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testActualEditorCheckboxPreservesLookupFieldsAndUndo]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testActualEditorCheckboxPreservesLookupFieldsAndUndo]' passed (0.170 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testDismantleReleasesCallbackOwnerWithControlAlive]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testDismantleReleasesCallbackOwnerWithControlAlive]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testNativeCheckboxMetadataValueAndNativeFocusPolicy]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testNativeCheckboxMetadataValueAndNativeFocusPolicy]' passed (0.017 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testOnlySpaceIsLocallyActivatedNotReturnOrTraversal]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testOnlySpaceIsLocallyActivatedNotReturnOrTraversal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testRefreshDoesNotPublishAndUsesLatestCallbackThenDismantles]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testRefreshDoesNotPublishAndUsesLatestCallbackThenDismantles]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testSpaceTogglesSynchronouslyOnceAndRepeatDoesNotToggle]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testSpaceTogglesSynchronouslyOnceAndRepeatDoesNotToggle]' passed (0.000 seconds).
+Test Suite 'DocumentDitherCheckboxTests' passed at 2026-10-01 03:02:48.792.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.189 (0.189) seconds
+Test Suite 'DocumentHistoryHeightControlTests' started at 2026-10-01 03:02:48.792.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' passed (0.406 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' passed (0.015 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' passed (0.004 seconds).
+Test Suite 'DocumentHistoryHeightControlTests' passed at 2026-10-01 03:02:49.235.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.442 (0.443) seconds
+Test Suite 'DocumentHistoryKeyboardTraversalTests' started at 2026-10-01 03:02:49.235.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testCollapseWithFocusedHeightButtonSettlesFocusOnLiveView]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testCollapseWithFocusedHeightButtonSettlesFocusOnLiveView]' passed (0.411 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testDocumentSwitchKeepsGlobalHistoryPreferencesAndShowsSelectedDocument]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testDocumentSwitchKeepsGlobalHistoryPreferencesAndShowsSelectedDocument]' passed (0.495 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testExternalPreferenceWriteUpdatesHostedReadout]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testExternalPreferenceWriteUpdatesHostedReadout]' passed (0.406 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testHostedInspectorKeyViewLoopReachesAllEnabledHistoryButtons]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testHostedInspectorKeyViewLoopReachesAllEnabledHistoryButtons]' passed (0.173 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testInspectorTabSwitchKeepsHeightControlIdentityFocusAndValue]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testInspectorTabSwitchKeepsHeightControlIdentityFocusAndValue]' passed (0.478 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testReadoutFitsWidestValueWithNumericLabelToken]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testReadoutFitsWidestValueWithNumericLabelToken]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabSkipsDisabledButtonsAtEachClamp]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabSkipsDisabledButtonsAtEachClamp]' passed (0.096 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabTraversesNativeHeightButtonsInOrderSkippingReadout]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabTraversesNativeHeightButtonsInOrderSkippingReadout]' passed (0.041 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testToolLetterOverFocusedHistoryButtonSelectsToolNotText]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testToolLetterOverFocusedHistoryButtonSelectsToolNotText]' passed (0.055 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testWindowResizeClampsDisplayWithoutRewritingOversizedRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testWindowResizeClampsDisplayWithoutRewritingOversizedRequest]' passed (0.387 seconds).
+Test Suite 'DocumentHistoryKeyboardTraversalTests' passed at 2026-10-01 03:02:51.784.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 2.548 (2.549) seconds
+Test Suite 'DocumentInspectorActionButtonTests' started at 2026-10-01 03:02:51.784.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testActualColorLookupEditorInstallsNativeActionsAndDisabledReset]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testActualColorLookupEditorInstallsNativeActionsAndDisabledReset]' passed (0.110 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testDismantleReleasesActionOwnerWhileNativeControlRemainsAlive]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testDismantleReleasesActionOwnerWhileNativeControlRemainsAlive]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testNativeActionHasExplicitKeyboardOwnershipAndPreservesMetadata]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testNativeActionHasExplicitKeyboardOwnershipAndPreservesMetadata]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testOnlyUnmodifiedNativeActivationKeysAreOwnedLocally]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testOnlyUnmodifiedNativeActivationKeysAreOwnedLocally]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testReuseRefreshesActionAndDisabledOrDismantledCannotInvoke]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testReuseRefreshesActionAndDisabledOrDismantledCannotInvoke]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testSpaceReturnAndKeypadActivateOnceWithoutRepeat]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testSpaceReturnAndKeypadActivateOnceWithoutRepeat]' passed (0.000 seconds).
+Test Suite 'DocumentInspectorActionButtonTests' passed at 2026-10-01 03:02:51.897.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.112 (0.113) seconds
+Test Suite 'DocumentInspectorLayoutTests' started at 2026-10-01 03:02:51.897.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testColumnBudgetAt1440AndAdjacentWidths]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testColumnBudgetAt1440AndAdjacentWidths]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths]' passed (19.394 seconds).
+Test Suite 'DocumentInspectorLayoutTests' passed at 2026-10-01 03:03:11.291.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 19.394 (19.394) seconds
+Test Suite 'LayoutContractTests' started at 2026-10-01 03:03:11.291.
+Test Case '-[TesseraCoreTests.LayoutContractTests testAppDirDefaultsAreIsolatedFromTheSharedDomain]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testAppDirDefaultsAreIsolatedFromTheSharedDomain]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testColorWheelPuckStaysInsideAtFullSaturation]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testColorWheelPuckStaysInsideAtFullSaturation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testCompareCaptionAndBadgeShareOnePartition]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testCompareCaptionAndBadgeShareOnePartition]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testCurveEndKnotsStayInsideTheView]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testCurveEndKnotsStayInsideTheView]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testFlowRowOffersOversizedItemsTheRowWidth]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testFlowRowOffersOversizedItemsTheRowWidth]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testKeywordChipRowStaysInsideTheInspector]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testKeywordChipRowStaysInsideTheInspector]' passed (0.037 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testShellBudgetYieldOrder]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testShellBudgetYieldOrder]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testSidebarHiddenBadgeGivesItsWidthBack]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testSidebarHiddenBadgeGivesItsWidthBack]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testSoftProofRowFitsTheMinimumInspector]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testSoftProofRowFitsTheMinimumInspector]' passed (0.029 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testStatusBarFitsANarrowDetailWithLongStrings]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testStatusBarFitsANarrowDetailWithLongStrings]' passed (0.032 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testThemeMenuTruncatesInsteadOfOverflowing]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testThemeMenuTruncatesInsteadOfOverflowing]' passed (0.041 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderDrawsWithoutOverflowAt80Points]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderDrawsWithoutOverflowAt80Points]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderRingPaintsInsideTheThumb]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderRingPaintsInsideTheThumb]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderTitleAndValueNeverTouch]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderTitleAndValueNeverTouch]' passed (0.000 seconds).
+Test Suite 'LayoutContractTests' passed at 2026-10-01 03:03:11.443.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.151 (0.152) seconds
+Test Suite 'LayoutProbeHarnessTests' started at 2026-10-01 03:03:11.443.
+Test Case '-[TesseraCoreTests.LayoutProbeHarnessTests testUnstableMeasurementFailsAtTheBound]' started.
+XCTExpectFailure: matcher accepted Assertion Failure at LayoutProbeHarnessTests.swift:35: failed - Layout did not settle within 0.03s; pending: ["NSView"]; measurements: Optional([(5.0, 0.0, 1.0, 1.0)]) -> [(6.0, 0.0, 1.0, 1.0)]
+LayoutProbeHarnessTests.swift:35: Expected failure in -[TesseraCoreTests.LayoutProbeHarnessTests testUnstableMeasurementFailsAtTheBound]: failed - Layout did not settle within 0.03s; pending: ["NSView"]; measurements: Optional([(5.0, 0.0, 1.0, 1.0)]) -> [(6.0, 0.0, 1.0, 1.0)]Reason: (A continuously changing probe must fail instead of accepting transient geometry)
+Test Case '-[TesseraCoreTests.LayoutProbeHarnessTests testUnstableMeasurementFailsAtTheBound]' passed (0.031 seconds).
+Test Case '-[TesseraCoreTests.LayoutProbeHarnessTests testWaitsForDeferredGeometryAndFlushesItsLayout]' started.
+Test Case '-[TesseraCoreTests.LayoutProbeHarnessTests testWaitsForDeferredGeometryAndFlushesItsLayout]' passed (0.104 seconds).
+Test Suite 'LayoutProbeHarnessTests' passed at 2026-10-01 03:03:11.578.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.135 (0.135) seconds
+Test Suite 'MasksPanelLayoutTests' started at 2026-10-01 03:03:11.578.
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [17.164167000000003, 0.361167, 0.48575]; GPU [22.434458, 0.819083, 0.75875]
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' passed (1.305 seconds).
+Test Suite 'MasksPanelLayoutTests' passed at 2026-10-01 03:03:12.884.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.305 (1.305) seconds
+Test Suite 'PeopleLayoutTests' started at 2026-10-01 03:03:12.884.
+Test Case '-[TesseraCoreTests.PeopleLayoutTests testDetailFitsWindowAndKeepsHeaderAtTop]' started.
+Test Case '-[TesseraCoreTests.PeopleLayoutTests testDetailFitsWindowAndKeepsHeaderAtTop]' passed (0.404 seconds).
+Test Suite 'PeopleLayoutTests' passed at 2026-10-01 03:03:13.288.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.404 (0.404) seconds
+Test Suite 'ShellLayoutTests' started at 2026-10-01 03:03:13.288.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (13.635 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (1.279 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (1.188 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (22.974 seconds).
+Test Suite 'ShellLayoutTests' passed at 2026-10-01 03:03:52.365.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 39.077 (39.077) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 03:03:52.365.
+	 Executed 54 tests, with 0 failures (0 unexpected) in 79.724 (79.730) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 03:03:52.365.
+	 Executed 54 tests, with 0 failures (0 unexpected) in 79.724 (79.732) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

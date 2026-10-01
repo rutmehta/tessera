@@ -5,9 +5,12 @@ import QuartzCore
 import SwiftUI
 import TesseraCore
 
-/// Presents document composites: a `CAMetalLayer` in the EDR configuration of the loupe
-/// (RGBA16F, extended linear, `wantsExtendedDynamicRangeContent`) sampling the backend's RGBA8
-/// straight-alpha IOSurfaces over a checkerboard drawn here. Frames cover a canvas rectangle at a
+/// Presents document composites: a `CAMetalLayer` (RGBA16F) sampling the backend's RGBA8
+/// straight-alpha IOSurfaces over a checkerboard drawn here. The surfaces hold the document's own
+/// encoded samples. sRGB-like transfer curves use hardware sRGB decoding and a layer tagged with the
+/// document's linearized primaries (B5-30c), keeping interpolation and alpha blending in linear light.
+/// Built-in sRGB retains the loupe's extended-linear EDR configuration. Other TRCs retain encoded
+/// sampling/compositing as a documented limitation. Frames cover a canvas rectangle at a
 /// pyramid level; the shader maps every drawable pixel to the canvas through the current zoom and
 /// pan, so a frame keeps lining up while the next one renders.
 @MainActor
@@ -57,7 +60,8 @@ final class DocumentRenderer {
         if (r.z > 0.0 && c.x >= r.x && c.y >= r.y && c.x < r.x + r.z && c.y < r.y + r.w) {
             float2 size = float2(tex.get_width(), tex.get_height());
             float2 uv = min((c - r.xy) / r.zw * u.uvScale, u.uvScale - 0.5 / size);
-            // Straight alpha, sRGB-decoded by the texture format: composite over the checkerboard.
+            // Straight alpha in the layer space: linear document primaries after hardware sRGB
+            // decode, or encoded document components for unsupported transfer curves.
             half4 s = u.nearest > 0.5 ? tex.sample(near, uv) : tex.sample(lin, uv);
             col = mix(col, s.rgb, s.a);
         }
@@ -94,8 +98,8 @@ final class DocumentRenderer {
         nearest = n
     }
 
-    func texture(for surface: IOSurfaceRef) -> MTLTexture? {
-        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm_srgb, width: IOSurfaceGetWidth(surface),
+    func texture(for surface: IOSurfaceRef, format: MTLPixelFormat) -> MTLTexture? {
+        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: IOSurfaceGetWidth(surface),
                                                             height: IOSurfaceGetHeight(surface), mipmapped: false)
         desc.usage = .shaderRead
         desc.storageMode = device.hasUnifiedMemory ? .shared : .managed
@@ -106,11 +110,19 @@ final class DocumentRenderer {
         let size = layer.drawableSize
         guard size.width >= 1, size.height >= 1, let drawable = layer.nextDrawable(),
               let cmd = queue.makeCommandBuffer() else { return }
+        guard encode(to: drawable.texture, commandBuffer: cmd, texture: texture, uniforms: uniforms) else { return }
+        cmd.present(drawable)
+        cmd.commit()
+    }
+
+    /// Shared render pass for drawable presentation and offscreen pixel verification.
+    @discardableResult
+    func encode(to target: MTLTexture, commandBuffer cmd: MTLCommandBuffer, texture: MTLTexture?, uniforms: Uniforms) -> Bool {
         let pass = MTLRenderPassDescriptor()
-        pass.colorAttachments[0].texture = drawable.texture
+        pass.colorAttachments[0].texture = target
         pass.colorAttachments[0].loadAction = .dontCare
         pass.colorAttachments[0].storeAction = .store
-        guard let enc = cmd.makeRenderCommandEncoder(descriptor: pass), let tex = texture ?? placeholder else { return }
+        guard let enc = cmd.makeRenderCommandEncoder(descriptor: pass), let tex = texture ?? placeholder else { return false }
         var u = uniforms
         enc.setRenderPipelineState(pipeline)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 0)
@@ -119,8 +131,7 @@ final class DocumentRenderer {
         enc.setFragmentSamplerState(nearest, index: 1)
         enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         enc.endEncoding()
-        cmd.present(drawable)
-        cmd.commit()
+        return true
     }
 
     private lazy var placeholder: MTLTexture? = {
@@ -215,6 +226,7 @@ final class DocumentViewportView: NSView {
         ringSize = (0, 0)
         current = nil
         lastPushed = nil
+        displayColorDidChange()   // B5-30: the new document's colour space (sRGB without one)
         guard let doc else { ants.rect = nil; toolOverlay.updateAnimation(); render(); return }
         doc.viewport = self
         doc.onFrame = { [weak self, weak doc] f in
@@ -255,6 +267,35 @@ final class DocumentViewportView: NSView {
     }
 
     var retainedSurfaceCount: Int { ring.count }
+
+    /// B5-30: the colour space the canvas presents the document's samples in (the controller's).
+    private(set) var displayColor = DocumentDisplayColor.srgb
+    /// Test seams: the layer's colour space and EDR flag, and the pixel format surfaces are sampled as.
+    var layerColorSpace: CGColorSpace? { metalLayer?.colorspace }
+    var layerWantsEDR: Bool { metalLayer?.wantsExtendedDynamicRangeContent ?? false }
+    var surfacePixelFormat: MTLPixelFormat { displayColor.decodesSRGB ? .rgba8Unorm_srgb : .rgba8Unorm }
+    var ringSurfaces: [IOSurfaceRef] { ring.values.map(\.surface) }
+
+    /// B5-30: the document profile changed (or a document was attached): re-tag the layer and surfaces.
+    func displayColorDidChange() {
+        let next = controller?.displayColor ?? .srgb
+        let formatChanged = next.decodesSRGB != displayColor.decodesSRGB
+        displayColor = next
+        if let l = metalLayer {
+            // sRGB keeps the EDR layer exactly as before. Canvas values never exceed 1 (8-bit surfaces, SDR
+            // theme colours), so a document-profile layer loses nothing without EDR.
+            l.colorspace = next.layerSpace
+            l.wantsExtendedDynamicRangeContent = next.isSRGB
+        }
+        for (id, entry) in ring {
+            next.tag(entry.surface)
+            if formatChanged { ring[id] = (entry.surface, renderer?.texture(for: entry.surface, format: surfacePixelFormat)) }
+        }
+        if formatChanged, let (info, _) = current {
+            current = ring[info.surfaceId]?.texture.map { (info, $0) }
+        }
+        render()
+    }
 
     func detachFromWorkspace() {
         attach(nil)
@@ -314,7 +355,8 @@ final class DocumentViewportView: NSView {
             var next: [UInt32: (IOSurfaceRef, MTLTexture?)] = [:]
             for _ in 0..<3 {
                 guard let s = DocumentSurfaces.make(width: Int(w), height: Int(h)) else { continue }
-                next[IOSurfaceGetID(s)] = (s, renderer?.texture(for: s))
+                displayColor.tag(s)
+                next[IOSurfaceGetID(s)] = (s, renderer?.texture(for: s, format: surfacePixelFormat))
             }
             // Release the old ring first (B5-01: a different size replaces the ring; detaching makes it
             // explicit). The frame on screen keeps its texture until the new ring's first frame arrives.
@@ -347,18 +389,34 @@ final class DocumentViewportView: NSView {
         render()
     }
 
+    /// Convert theme colours into the layer's component space. Conversion is injectable for failure coverage.
+    static func themeColor(_ c: NSColor, displayColor: DocumentDisplayColor,
+                           convert: (CGColor, CGColorSpace) -> CGColor? = {
+                               $0.converted(to: $1, intent: .defaultIntent, options: nil)
+                           }, diagnostic: (String) -> Void = { NSLog("%@", $0) }) -> SIMD4<Float> {
+        if !displayColor.isSRGB {
+            guard let d = convert(c.cgColor, displayColor.layerSpace)?.components, d.count >= 3,
+                  d.prefix(3).allSatisfy({ $0.isFinite }) else {
+                diagnostic("Display: theme colour conversion failed; using document-space black")
+                return SIMD4(0, 0, 0, 1)
+            }
+            return SIMD4(Float(d[0]), Float(d[1]), Float(d[2]), 1)
+        }
+        let s = c.usingColorSpace(.sRGB) ?? c
+        let lin = { (v: CGFloat) -> Float in
+            let x = Float(v)
+            return x <= 0.04045 ? x / 12.92 : powf((x + 0.055) / 1.055, 2.4)
+        }
+        return SIMD4(lin(s.redComponent), lin(s.greenComponent), lin(s.blueComponent), 1)
+    }
+
     func render() {
         guard let renderer, let metalLayer, window != nil else { return }
         let appearance = effectiveAppearance
         func linear(_ c: NSColor) -> SIMD4<Float> {
             var out = SIMD4<Float>(0, 0, 0, 1)
             appearance.performAsCurrentDrawingAppearance {
-                let s = c.usingColorSpace(.sRGB) ?? c
-                let lin = { (v: CGFloat) -> Float in
-                    let x = Float(v)
-                    return x <= 0.04045 ? x / 12.92 : powf((x + 0.055) / 1.055, 2.4)
-                }
-                out = SIMD4(lin(s.redComponent), lin(s.greenComponent), lin(s.blueComponent), 1)
+                out = Self.themeColor(c, displayColor: displayColor)
             }
             return out
         }
