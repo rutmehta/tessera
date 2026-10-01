@@ -358,6 +358,10 @@ final class AdaptiveWideAngleWorkspaceModel: Identifiable {
 
     func ok() {
         guard busy == nil, !closed else { return }
+        // Supersede slider work before applying: an older trace/preview must not clear
+        // the final apply error if it completes after the job.
+        gate.invalidate()
+        traceGate.invalidate()
         let (b, t, d, doc, title, tracer) = (backend, info.token, draft, doc, title, tracer)
         // OK while a re-trace is pending: trace the final camera inside the render job (off the main thread).
         let stale = curvesStale
