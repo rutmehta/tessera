@@ -1,4 +1,5 @@
 import AppKit
+import ObjectiveC
 import CoreGraphics
 import ImageIO
 import SwiftUI
@@ -32,11 +33,22 @@ enum ShellHarness {
 
     /// Never become the active app: no Dock icon, no focus change for the person at the Mac.
     static func prepare() {
+        _ = installNonblockingAnimations
         precondition(AppDefaultsIsolation.installForLaunch(
             arguments: ["TesseraTests", "--app-dir", defaultsDirectory.path], environment: [:]) != nil,
             "The layout harness requires an isolated preferences store")
         NSApplication.shared.setActivationPolicy(.prohibited)
     }
+
+    // SwiftUI also creates NSAnimation instances that are not NSProgressIndicator descendants.
+    // Each nonblockingThreaded instance reserves a dispatch worker on macOS 26. The layout suite
+    // creates enough transient hosts to exhaust that pool. Keep animation on the main run loop
+    // in this test process, installed once before any harness windows are created.
+    private static let installNonblockingAnimations: Void = {
+        let original = class_getInstanceMethod(NSAnimation.self, NSSelectorFromString("startAnimation"))!
+        let replacement = class_getInstanceMethod(NSAnimation.self, #selector(NSAnimation.tesseraLayoutStart))!
+        method_exchangeImplementations(original, replacement)
+    }()
 
     /// A model in `state`: 24 generated JPEGs on the engine, the RAW fixtures on the engine, or the
     /// stub layered document (sample layers) over a stub library.
@@ -219,5 +231,12 @@ enum ShellHarness {
         let dest = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
         CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary)
         XCTAssertTrue(CGImageDestinationFinalize(dest))
+    }
+}
+
+private extension NSAnimation {
+    @objc dynamic func tesseraLayoutStart() {
+        animationBlockingMode = .nonblocking
+        tesseraLayoutStart() // Original implementation after the test-only exchange.
     }
 }
