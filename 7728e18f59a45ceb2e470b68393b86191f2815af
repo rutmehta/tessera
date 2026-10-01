@@ -1,0 +1,1 @@
+23:35 UTC: LR-DIAG merged427ab116, chain docs7e6b6820. Exact external62b9a89b Rust/Clippy/fmt/Swift916/3skip/0fail/drift/strict pass. Combined main not independently gated here; LR translation conditions remain. Mailbox unchanged, external runtime active, PERF handoff absent.
