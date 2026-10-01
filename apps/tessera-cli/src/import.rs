@@ -119,6 +119,14 @@ fn write_staged_recipe(path: &Path, document: &sidecar::RecipeDocument) -> Resul
 /// recipe files by a small pool, so the whole plan is never in memory. Output
 /// bytes are the same as serializing the full plan.
 pub fn apply(source: &Path, dest: &Path) -> Result<Value> {
+    apply_with_publish(source, dest, |from, to| Ok(std::fs::rename(from, to)?))
+}
+
+fn apply_with_publish(
+    source: &Path,
+    dest: &Path,
+    publish: impl FnOnce(&Path, &Path) -> Result<()>,
+) -> Result<Value> {
     use std::sync::{Mutex, mpsc};
     enum Msg {
         Begin(Box<import_lrcat::ImportPlan>),
@@ -231,9 +239,15 @@ pub fn apply(source: &Path, dest: &Path) -> Result<Value> {
     drop(file);
     // Exclusive reservation prevents replacing any pre-existing destination.
     std::fs::create_dir(dest).context("reserve import destination")?;
-    if let Err(error) = std::fs::rename(staging.path(), dest) {
+    if let Err(error) = publish(staging.path(), dest).and_then(|()| {
+        ensure!(
+            !staging.path().exists() && dest.join("import-plan.json").is_file(),
+            "staging directory was not published"
+        );
+        Ok(())
+    }) {
         let _ = std::fs::remove_dir(dest);
-        return Err(error.into());
+        return Err(error);
     }
     Ok(json!({"dest":dest,"images":images,"report":plan.report}))
 }
@@ -249,7 +263,11 @@ mod tests {
             let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
             let dest = temp.path().join("bundle");
             let result = apply_with_publish(&fixture.catalog, &dest, |_, _| {
-                if skip { Ok(()) } else { anyhow::bail!("injected pre-rename error") }
+                if skip {
+                    Ok(())
+                } else {
+                    anyhow::bail!("injected pre-rename error")
+                }
             });
             assert!(result.is_err());
             assert!(!dest.exists());

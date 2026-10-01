@@ -202,7 +202,9 @@ fn extended_tone_curves_are_one_named_limitation() {
             .filter(|w| w.contains("ExtendedToneCurve"))
             .collect();
         assert_eq!(ext.len(), usize::from(text == edited), "{warnings:?}");
-        if text == identity { continue; }
+        if text == identity {
+            continue;
+        }
         assert!(ext[0].contains("not supported"), "{}", ext[0]);
         assert!(!ext[0].contains("unknown Lua develop key"), "{}", ext[0]);
         let kept = recipe.unknown["lrcat_develop_lua"].as_object().unwrap();
@@ -211,7 +213,11 @@ fn extended_tone_curves_are_one_named_limitation() {
         assert!(recipe.settings.tone.curves.rgb.0.is_empty());
     }
     // Several images: one grouped report entry.
-    let (ids, plan) = import_with(&[(Some(edited), Some("15.4")), (Some(edited), Some("15.4")), (Some(identity), Some("15.4"))]);
+    let (ids, plan) = import_with(&[
+        (Some(edited), Some("15.4")),
+        (Some(edited), Some("15.4")),
+        (Some(identity), Some("15.4")),
+    ]);
     let entries: Vec<_> = plan
         .report
         .iter()
@@ -233,7 +239,16 @@ fn oversized_cells_are_not_loaded() {
         "s = {{ CameraProfile = \"{}\" }}",
         "x".repeat(import_lrcat::MAX_CELL_BYTES)
     );
-    let (ids, plan) = import_with(&[(Some(&huge), Some("15.4"))]);
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture::write(dir.path()).unwrap();
+    let c = Connection::open(&f.catalog).unwrap();
+    c.execute(
+        "UPDATE Adobe_imageDevelopSettings SET rowid=9001, text=?1 WHERE image=30",
+        [&huge],
+    )
+    .unwrap();
+    let ids = [30];
+    let plan = import(&f.catalog).unwrap();
     let r = recipe(&plan, ids[0]);
     let kept = r.unknown["lrcat_develop_source"]["text"].as_str().unwrap();
     assert!(!kept.is_empty() && kept.len() <= 64 * 1024);
@@ -243,7 +258,10 @@ fn oversized_cells_are_not_loaded() {
     assert!(
         plan.report
             .iter()
-            .any(|e| e.starts_with(&format!("image {}: ", ids[0])) && e.contains("row 1") && e.contains("limit") && e.contains("imported as unedited")),
+            .any(|e| e.starts_with(&format!("image {}: ", ids[0]))
+                && e.contains("row 9001:")
+                && e.contains("limit")
+                && e.contains("imported as unedited")),
         "{:#?}",
         plan.report
     );
@@ -251,9 +269,21 @@ fn oversized_cells_are_not_loaded() {
 
 #[test]
 fn every_unedited_image_is_individually_reported() {
-    let (ids, plan) = import_with(&[(Some("garbage"), Some("15.4")), (Some("garbage"), Some("15.4")), (None, None), (None, None)]);
+    let (ids, plan) = import_with(&[
+        (Some("garbage"), Some("15.4")),
+        (Some("garbage"), Some("15.4")),
+        (None, None),
+        (None, None),
+    ]);
     for id in ids {
-        assert!(plan.report.iter().any(|e| e.starts_with(&format!("image {id}: ")) && e.contains("imported as unedited")), "{:?}", plan.report);
+        assert!(
+            plan.report
+                .iter()
+                .any(|e| e.starts_with(&format!("image {id}: "))
+                    && e.contains("imported as unedited")),
+            "{:?}",
+            plan.report
+        );
     }
 }
 
@@ -262,15 +292,36 @@ fn develop_rows_are_ordered_and_orphans_and_null_ids_do_not_block() {
     let dir = tempfile::tempdir().unwrap();
     let f = fixture::write(dir.path()).unwrap();
     let c = Connection::open(&f.catalog).unwrap();
-    c.execute_batch("DELETE FROM Adobe_imageDevelopSettings;
+    c.execute_batch(
+        "DELETE FROM Adobe_imageDevelopSettings;
         INSERT INTO Adobe_imageDevelopSettings VALUES(31, 's = { Exposure2012 = 2 }', '15.4');
         INSERT INTO Adobe_imageDevelopSettings VALUES(NULL, 'garbage', '15.4');
         INSERT INTO Adobe_imageDevelopSettings VALUES(-1, 'garbage', '15.4');
         INSERT INTO Adobe_imageDevelopSettings VALUES(999999, 'garbage', '15.4');
         INSERT INTO Adobe_imageDevelopSettings VALUES(30, 's = { Exposure2012 = 1 }', '15.4');
-        INSERT INTO Adobe_imageDevelopSettings VALUES(30, 's = { Exposure2012 = 3 }', '15.4');").unwrap();
+        INSERT INTO Adobe_imageDevelopSettings VALUES(30, 's = { Exposure2012 = 3 }', '15.4');",
+    )
+    .unwrap();
     let plan = import(&f.catalog).unwrap();
     assert_eq!(recipe(&plan, 30).settings.tone.exposure, 3.0);
     assert_eq!(recipe(&plan, 31).settings.tone.exposure, 2.0);
-    assert!(plan.report.iter().any(|e| e.contains("image 30") && e.contains("last-write-wins")));
+    assert!(
+        plan.report
+            .iter()
+            .any(|e| e.contains("image 30") && e.contains("last-write-wins"))
+    );
+}
+
+#[test]
+fn identity_master_with_edited_channel_still_warns() {
+    let (_, notes) = lua_develop::parse("s = { ExtendedToneCurveName2012 = 'Linear', ExtendedToneCurvePV2012 = {0,0,255,255}, ExtendedToneCurvePV2012Red = {0,0,128,150,255,255} }", "15.4").unwrap();
+    assert_eq!(
+        notes
+            .iter()
+            .filter(|n| n.contains("ExtendedToneCurve"))
+            .count(),
+        1
+    );
+    let (_, notes) = lua_develop::parse("s = { ExtendedToneCurveName2012 = 'Linear', ExtendedToneCurvePV2012 = {0,0,128,128,255,255} }", "15.4").unwrap();
+    assert!(notes.iter().all(|n| !n.contains("ExtendedToneCurve")));
 }

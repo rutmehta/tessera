@@ -144,15 +144,43 @@ fn duplicate_image_ids_apply_last_write_wins() {
     let temp = tempfile::tempdir().unwrap();
     let catalog = temp.path().join("duplicate.lrcat");
     let c = make_fixture::make_fixture(&catalog);
-    c.execute_batch("INSERT INTO Adobe_images SELECT * FROM Adobe_images WHERE id_local=30;
-        UPDATE Adobe_images SET rating=1 WHERE rowid=(SELECT MAX(rowid) FROM Adobe_images);").unwrap();
+    c.execute_batch(
+        "INSERT INTO Adobe_images SELECT * FROM Adobe_images WHERE id_local=30;
+        UPDATE Adobe_images SET rating=1 WHERE rowid=(SELECT MAX(rowid) FROM Adobe_images);",
+    )
+    .unwrap();
     drop(c);
     let dest = temp.path().join("bundle");
     Command::new(assert_cmd::cargo::cargo_bin!("tessera"))
-        .args(["import", "lrcat"]).arg(&catalog).arg("--apply").arg("--dest").arg(&dest).arg("--json").assert().success();
-    let plan: Value = serde_json::from_slice(&std::fs::read(dest.join("import-plan.json")).unwrap()).unwrap();
+        .args(["import", "lrcat"])
+        .arg(&catalog)
+        .arg("--apply")
+        .arg("--dest")
+        .arg(&dest)
+        .arg("--json")
+        .assert()
+        .success();
+    let plan: Value =
+        serde_json::from_slice(&std::fs::read(dest.join("import-plan.json")).unwrap()).unwrap();
     let images = plan["images"].as_array().unwrap();
     assert_eq!(images.len(), 3);
-    assert_eq!(images.iter().find(|i| i["catalog_id"] == 30).unwrap()["rating"], 1);
-    assert!(plan["report"].as_array().unwrap().iter().any(|e| e.as_str().unwrap().contains("last-write-wins")));
+    assert_eq!(
+        images.iter().find(|i| i["catalog_id"] == 30).unwrap()["rating"],
+        1
+    );
+    for image in images {
+        let path = dest
+            .join("recipes")
+            .join(format!("{}.json", image["catalog_id"]));
+        let document: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(document["recipe"], image["recipe"]);
+    }
+    assert_eq!(std::fs::read_dir(dest.join("recipes")).unwrap().count(), 3);
+    assert!(
+        plan["report"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e.as_str().unwrap().contains("last-write-wins"))
+    );
 }

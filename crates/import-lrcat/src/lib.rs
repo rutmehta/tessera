@@ -137,7 +137,8 @@ fn first_by<'a>(rows: &'a [SourceRow], key: &str) -> HashMap<i64, &'a SourceRow>
     out
 }
 
-/// Per-image report entries grouped by message, in first-seen order: one
+/// Harmless unknown-key notes and the named extended-curve limitation are
+/// grouped by message; actionable and unedited notes stay individual. One
 /// occurrence stays `image <id>: <message>`; more become
 /// `<n> images (first: image <id>): <message>` (n counts images, not lines).
 #[derive(Default)]
@@ -147,6 +148,13 @@ struct ImageReport {
 }
 impl ImageReport {
     fn push(&mut self, image: i64, message: String) {
+        if message.contains("imported as unedited")
+            || (!message.contains("unknown Lua develop key")
+                && message != lua_develop::EXTENDED_TONE_CURVE_NOTE)
+        {
+            self.entries.push((message, 1, image, image));
+            return;
+        }
         match self.index.get(&message) {
             Some(&i) => {
                 let (_, count, _, last) = &mut self.entries[i];
@@ -173,7 +181,8 @@ impl ImageReport {
 
 /// One SQLite row as a [`SourceRow`]. Text and blob cells larger than
 /// [`MAX_CELL_BYTES`] are measured on SQLite's borrowed cell, never copied:
-/// the column reads as NULL and a note goes to `oversized`.
+/// ordinary columns read as NULL with a report note. Develop text retains a
+/// bounded prefix and a failure marker for the normal unedited degrade path.
 fn source_row(
     row: &rusqlite::Row,
     names: &[String],
@@ -181,18 +190,36 @@ fn source_row(
     index: usize,
     oversized: &mut Vec<String>,
 ) -> rusqlite::Result<SourceRow> {
+    let row_id = row.get::<_, i64>("__tessera_rowid").unwrap_or(index as i64);
     let mut result = BTreeMap::new();
     for (i, name) in names.iter().enumerate() {
+        if name == "__tessera_rowid" {
+            continue;
+        }
         let cell = row.get_ref(i)?;
         let len = match cell {
             ValueRef::Text(b) | ValueRef::Blob(b) => b.len(),
             _ => 0,
         };
         if len > MAX_CELL_BYTES {
-            oversized.push(format!(
-                "{table} row {index}: column {name} is {len} bytes, over the {MAX_CELL_BYTES}-byte cell limit; not loaded"
-            ));
-            result.insert(name.clone(), Value::Null);
+            let reason = format!(
+                "{table} row {row_id}: column {name} is {len} bytes, over the {MAX_CELL_BYTES}-byte cell limit"
+            );
+            if table == "Adobe_imageDevelopSettings" && name == "text" {
+                if let ValueRef::Text(bytes) | ValueRef::Blob(bytes) = cell {
+                    let end = std::str::from_utf8(&bytes[..64 * 1024])
+                        .err()
+                        .map_or(64 * 1024, |e| e.valid_up_to());
+                    result.insert(
+                        name.clone(),
+                        String::from_utf8_lossy(&bytes[..end]).into_owned().into(),
+                    );
+                    result.insert("__oversized_develop".into(), reason.into());
+                }
+            } else {
+                oversized.push(format!("{reason}; not loaded"));
+                result.insert(name.clone(), Value::Null);
+            }
             continue;
         }
         let value = match cell {
@@ -248,7 +275,9 @@ pub(crate) fn rows(
 fn all_rows(c: &Connection, table: &str, report: &mut Vec<String>) -> EngineResult<Vec<SourceRow>> {
     // Table names are fixed constants supplied by this module, never user SQL.
     let mut stmt = c
-        .prepare(&format!("SELECT * FROM \"{table}\" ORDER BY rowid"))
+        .prepare(&format!(
+            "SELECT *, rowid AS __tessera_rowid FROM \"{table}\" ORDER BY rowid"
+        ))
         .map_err(decode)?;
     let names: Vec<String> = stmt.column_names().iter().map(|n| n.to_string()).collect();
     let mut rows = stmt.query([]).map_err(decode)?;
@@ -279,9 +308,11 @@ impl<'s> ByImage<'s> {
         if !exists {
             return Ok(None);
         }
-        c.prepare(&format!("SELECT * FROM \"{table}\" ORDER BY image, rowid"))
-            .map(Some)
-            .map_err(decode)
+        c.prepare(&format!(
+            "SELECT *, rowid AS __tessera_rowid FROM \"{table}\" ORDER BY image, rowid"
+        ))
+        .map(Some)
+        .map_err(decode)
     }
     fn new(
         stmt: Option<&'s mut rusqlite::Statement<'_>>,
@@ -594,7 +625,7 @@ pub fn import_each(
     present(&c, "Adobe_imageDevelopSettings", true, &mut report)?;
     let master_files: HashMap<i64, Option<i64>> = {
         let mut stmt = c
-            .prepare("SELECT * FROM \"Adobe_images\" ORDER BY rowid")
+            .prepare("SELECT *, rowid AS __tessera_rowid FROM \"Adobe_images\" ORDER BY rowid")
             .map_err(decode)?;
         let names: Vec<String> = stmt.column_names().iter().map(|n| n.to_string()).collect();
         let (id_col, root_col) = (
@@ -614,7 +645,7 @@ pub fn import_each(
             };
             if let Some(id) = get(id_col)? {
                 let root = get(root_col)?;
-                out.entry(id).or_insert(root);
+                out.insert(id, root);
             }
         }
         out
@@ -788,7 +819,9 @@ pub fn import_each(
     let keywords_by_image = group_by(&keyword_images, "image");
     let collections_by_image = group_by(&collection_images, "image");
     let mut image_stmt = c
-        .prepare("SELECT * FROM \"Adobe_images\" ORDER BY id_local, rowid")
+        .prepare(
+            "SELECT *, rowid AS __tessera_rowid FROM \"Adobe_images\" ORDER BY id_local, rowid",
+        )
         .map_err(decode)?;
     let image_names: Vec<String> = image_stmt
         .column_names()
@@ -834,13 +867,25 @@ pub fn import_each(
         // Duplicate image ids (no primary key) all see the same per-image
         // rows, so a batch never ends between two of them.
         let rows = match batch.last() {
-            Some(previous) if previous.id == id => previous.rows.clone(),
+            Some(previous) if previous.id == id => {
+                let rows = previous.rows.clone();
+                batch.pop();
+                image_report.push(id, "duplicate Adobe_images id; last-write-wins".into());
+                rows
+            }
             _ => {
                 if batch.len() >= BATCH {
                     flush(&mut batch, &image_id, &mut image_report, &mut visit)?;
                 }
                 PerImage {
-                    develop: develops.take(id, &mut oversized)?.into_iter().next(),
+                    develop: {
+                        let mut rows = develops.take(id, &mut oversized)?;
+                        if rows.len() > 1 {
+                            image_report
+                                .push(id, "duplicate develop image id; last-write-wins".into());
+                        }
+                        rows.pop()
+                    },
                     history: history.take(id, &mut oversized)?,
                     snapshots: snapshots.take(id, &mut oversized)?,
                     faces: faces.take(id, &mut oversized)?,
@@ -999,16 +1044,31 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
         .develop
         .as_ref()
         .and_then(|r| text(r, "text"))
-        .filter(|t| !t.trim().is_empty());
+        .filter(|t| {
+            !t.trim().is_empty()
+                || p.rows
+                    .develop
+                    .as_ref()
+                    .is_some_and(|r| r.contains_key("__oversized_develop"))
+        });
     let mut recipe = if let Some(source) = develop_text {
         let process_version = p
             .rows
             .develop
             .as_ref()
             .and_then(|r| text(r, "processVersion"));
-        let decoded = match &process_version {
-            Some(pv) => develop(id, &source, pv),
-            None => Err(decode("develop settings have no process version")),
+        let oversized_reason = p
+            .rows
+            .develop
+            .as_ref()
+            .and_then(|r| text(r, "__oversized_develop"));
+        let decoded = if let Some(reason) = &oversized_reason {
+            Err(decode(reason))
+        } else {
+            match &process_version {
+                Some(pv) => develop(id, &source, pv),
+                None => Err(decode("develop settings have no process version")),
+            }
         };
         match decoded {
             Ok((recipe, warnings)) => {
@@ -1027,10 +1087,15 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
                     "lrcat_develop_source".into(),
                     serde_json::json!({"text": source, "processVersion": process_version}),
                 );
+                if oversized_reason.is_some() {
+                    recipe.unknown.get_mut("lrcat_develop_source").unwrap()["truncated"] =
+                        true.into();
+                }
                 recipe
             }
         }
     } else {
+        notes.push("no develop settings; imported as unedited".into());
         Recipe::default()
     };
     recipe.image_id = Some(image_id);

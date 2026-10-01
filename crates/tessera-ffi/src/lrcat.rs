@@ -517,7 +517,7 @@ fn unsupported(plan: &ImportPlan) -> Vec<LrcatIssue> {
         let (category, reason, example, n) = match develop {
             Some((n, id, reason)) => (
                 "Develop settings",
-                reason.to_owned(),
+                if reason.contains("imported as unedited") { format!("image {id}: {reason}") } else { reason.to_owned() },
                 id.parse::<i64>()
                     .ok()
                     .and_then(|id| name_of.get(&id).map(|s| s.to_string()))

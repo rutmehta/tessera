@@ -22,8 +22,8 @@
 //!
 //! The extended-range (HDR) tone curve (`ExtendedToneCurvePV2012` and its
 //! Red/Green/Blue/Name siblings) is not translated (no recipe slot; codec work
-//! is owned elsewhere): one named-limitation warning per image that has any of
-//! them, and the source of those keys is retained.
+//! is owned elsewhere): one named-limitation warning per image with a non-identity
+//! curve, and the source of those keys is retained. Identity curves do not warn.
 use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
@@ -293,7 +293,7 @@ pub const EXTENDED_TONE_CURVE_KEYS: &[&str] = &[
     "ExtendedToneCurvePV2012Blue",
 ];
 
-/// The one warning emitted for an image that has extended tone curve keys.
+/// The one warning emitted for an image with non-identity extended tone curves.
 pub const EXTENDED_TONE_CURVE_NOTE: &str = "ExtendedToneCurvePV2012 (+Red/Green/Blue): extended-range (HDR) tone curves are not supported by Tessera; not applied, source preserved";
 
 /// A table key: an identifier or `["string"]` (both are string keys in Lua),
@@ -721,6 +721,33 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
 const CRS_URI: &str = engine_api::recipe::crs::CRS_NAMESPACE;
 const AUX_URI: &str = engine_api::recipe::crs::AUX_NAMESPACE;
 
+/// Recognize a monotone identity polyline spanning the standard curve domain.
+fn identity_extended_curve(value: &LuaValue) -> bool {
+    match value {
+        LuaValue::Nil => true,
+        LuaValue::Table(t)
+            if t.fields.is_empty() && t.items.len() >= 4 && t.items.len().is_multiple_of(2) =>
+        {
+            let numbers: Option<Vec<f64>> = t
+                .items
+                .iter()
+                .map(|v| match v {
+                    LuaValue::Number(n) => n.parse().ok(),
+                    _ => None,
+                })
+                .collect();
+            numbers.is_some_and(|n| {
+                let points = n.as_chunks::<2>().0;
+                points[0][0] == 0.0
+                    && points[points.len() - 1][0] == 255.0
+                    && points.iter().all(|p| p[0] == p[1])
+                    && points.windows(2).all(|p| p[0][0] < p[1][0])
+            })
+        }
+        _ => false,
+    }
+}
+
 /// Render mapped keys as an XMP packet in Adobe's shape. Returns the packet,
 /// one note per key that is unknown or has no XMP shape, and the indices of
 /// the fields whose source must be retained.
@@ -740,7 +767,8 @@ fn to_xmp(table: &LuaTable) -> (String, Vec<String>, Vec<usize>) {
         };
         if EXTENDED_TONE_CURVE_KEYS.contains(&key.as_str()) {
             extended.push(i);
-            extended_changes |= *value != LuaValue::Nil;
+            extended_changes |=
+                key != "ExtendedToneCurveName2012" && !identity_extended_curve(value);
             continue;
         }
         let Some((_, crs)) = KEY_MAP.iter().find(|(lua, _)| lua == key) else {
