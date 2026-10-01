@@ -1,0 +1,24 @@
+Command: cargo test --locked -p tessera-ffi --test document_viewport viewport_frames_composite_only_the_viewport_plus_halo -- --exact --nocapture --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running tests/document_viewport.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/document_viewport-47c56d9e508019aa)
+
+running 1 test
+test viewport_frames_composite_only_the_viewport_plus_halo ... document: frames on the Viewport path (L0, requested Rect { x0: 684, y0: 484, x1: 4556, y1: 2676 })
+
+thread 'viewport_frames_composite_only_the_viewport_plus_halo' (53308499) panicked at crates/tessera-ffi/tests/document_viewport.rs:222:5:
+assertion `left == right` failed
+  left: Rect { x0: 0, y0: 0, x1: 0, y1: 0 }
+ right: Rect { x0: 672, y0: 480, x1: 4560, y1: 2688 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    viewport_frames_composite_only_the_viewport_plus_halo
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 6.08s
+
+error: test failed, to rerun pass `-p tessera-ffi --test document_viewport`
+
+Exit: 101

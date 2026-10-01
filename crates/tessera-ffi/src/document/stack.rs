@@ -623,8 +623,8 @@ fn photomerge_op(
 impl DocumentSession {
     /// Whether `ids` (Layers panel selection) can be aligned and blended.
     pub fn stack_eligibility(&self, ids: Vec<u64>) -> Result<StackEligibility> {
-        let st = self.shared.lock()?;
-        let s = st.live().state();
+        let st = self.shared.read()?;
+        let s = st.live();
         let align = problem(s, &ids, Stage::Align);
         let blend = problem(s, &ids, Stage::Blend);
         Ok(StackEligibility {

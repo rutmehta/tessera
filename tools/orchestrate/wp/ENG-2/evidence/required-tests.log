@@ -1,0 +1,81 @@
+Command: cargo test --locked -p import-lrcat -p engine-api -p tessera-ffi -- --test-threads=3
+Exit: 101
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/engine_api-6788faad1d84ae17)
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/channels-809e719f3730a588)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/document_filters-7776a5d90dd35e86)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/library_calls.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/library_calls-b2bdb099f2882620)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m532_channels-42411788830281e8)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/people-b067ef10bb59e484)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/pinned_raw.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/pinned_raw-48b7ce7d19e4364b)
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/source_kind.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/source_kind-7f28990b021fb5dc)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/text_vector-f82765daec1ce5c1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/import_lrcat-e51d63d8af903c2c)
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+     Running tests/followups.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/followups-1c7e9f5176daa760)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.63s
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/golden-9477b77bdfc42f31)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.20s
+     Running tests/import.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/import-d64a0f4aa974cc87)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+     Running tests/lua_develop.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/lua_develop-beabd27e2522b179)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.07s
+     Running tests/make_fixture.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/make_fixture-b8ea97211a208a12)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/oversized_memory.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/oversized_memory-e960c0837ff99548)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.38s
+     Running tests/real_catalog_shapes.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/real_catalog_shapes-9a49676de630e35d)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.84s
+     Running tests/scale.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/scale-14b332c2537e1554)
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/smart_rating.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/smart_rating-85de3305363ed7f0)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/tessera_ffi-b4ee34d40c032121)
+test document::publication_tests::eng2_confirm_snapshot_excludes_later_commits_and_includes_prior_commit ... ok
+test document::publication_tests::eng2_export_snapshot_does_not_wait_for_edit_lock ... ok
+test document::publication_tests::eng2_publication_latency ... ignored, latency measurement; run with --ignored --nocapture
+test document::publication_tests::eng2_publication_preserves_mutable_document_cache_namespace ... ok
+test document::publication_tests::eng2_publication_tracks_drafts_history_and_close ... ok
+test document::render::frame_cancellation_tests::eng2_getters_do_not_wait_for_inflight_render ... ok
+test result: ok. 218 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 11.76s
+     Running unittests src/bin/uniffi-bindgen.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/uniffi_bindgen-8302796572227055)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/adjustment_json.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/adjustment_json-4069874f12c00d51)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+     Running tests/api.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/api-403f258f67249efa)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+     Running tests/assist.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/assist-75cb9c49e1940db6)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 96.92s
+     Running tests/changes.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/changes-438de33b91188e49)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.62s
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/develop-ab434c2ebc74b2f6)
+test result: FAILED. 8 passed; 1 failed; 3 ignored; 0 measured; 0 filtered out; finished in 501.82s
+
+
+failures:
+
+---- export_batch_does_not_starve_slider_drag stdout ----
+develop original L2 calibration [first, tone, WB] ms: CPU [24802.10575, 8046.577416, 12656.94875]; GPU [11418.934166, 4.062542, 351.188375]
+slider without export: render p50 3.3 ms p90 11.0 ms max 1507.5 ms
+slider during export: 120 frames in 2.224691292s (79 at L2): render p50 3.4 ms p90 8.0 ms max 44.0 ms; set→frame p50 5.1 ms p90 11.4 ms max 47.3 ms; export 5 images in 48.582559541s, 0 completed during the drag
+
+thread 'export_batch_does_not_starve_slider_drag' (53055157) panicked at crates/tessera-ffi/tests/develop.rs:1198:5:
+drag stays at L2: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    export_batch_does_not_starve_slider_drag
+
+test result: FAILED. 8 passed; 1 failed; 3 ignored; 0 measured; 0 filtered out; finished in 501.82s
+
+error: test failed, to rerun pass `-p tessera-ffi --test develop`

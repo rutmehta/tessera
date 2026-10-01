@@ -603,15 +603,15 @@ impl DocumentSession {
 
     /// The shape source of `layer` (the live draft while one is pending).
     pub fn shape_layer(&self, layer: u64) -> Result<ShapeLayerRecord> {
-        let st = self.shared.lock()?;
-        let s = st.live().state();
+        let st = self.shared.read()?;
+        let s = st.live();
         record_of(s, find(s, layer)?)
     }
 
     /// The document-space vector mask of any layer.
     pub fn vector_mask(&self, layer: u64) -> Result<Option<VectorMaskRecord>> {
-        let st = self.shared.lock()?;
-        find(st.live().state(), layer)?
+        let st = self.shared.read()?;
+        find(st.live(), layer)?
             .vector_mask
             .as_ref()
             .map(mask_record)
@@ -632,7 +632,7 @@ impl DocumentSession {
         if !x.is_finite() || !y.is_finite() || !tolerance.is_finite() {
             return Err(failure("hit test: the point and tolerance must be finite"));
         }
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         fn walk(
             v: &[Arc<Layer>],
             x: f64,
@@ -661,7 +661,7 @@ impl DocumentSession {
             }
             Ok(None)
         }
-        walk(&st.live().state().root, x, y, include_stroke, tolerance)
+        walk(&st.live().root, x, y, include_stroke, tolerance)
     }
 
     /// [`shape_hit_test`](Self::shape_hit_test) of one layer (hidden or not).
@@ -676,8 +676,8 @@ impl DocumentSession {
         if !x.is_finite() || !y.is_finite() || !tolerance.is_finite() {
             return Err(failure("hit test: the point and tolerance must be finite"));
         }
-        let st = self.shared.lock()?;
-        let l = find(st.live().state(), layer)?;
+        let st = self.shared.read()?;
+        let l = find(st.live(), layer)?;
         shape_of(l)?;
         Ok(hit_layer(l, x, y, include_stroke, tolerance)?.map(|h| h.0))
     }

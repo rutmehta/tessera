@@ -2823,14 +2823,17 @@ pub(crate) fn for_output_with(
 // ─────────────────────────────── session calls ───────────────────────────────
 
 /// The level and level region a preview renders for the current view.
-fn preview_view(st: &super::State, region: Option<DocRect>) -> (u8, Rect) {
-    let canvas = st.live().state().canvas;
-    let level = match (st.view.viewport, st.view.surfaces.first()) {
+fn preview_view(
+    canvas: Extent,
+    view: super::render::PreviewView,
+    region: Option<DocRect>,
+) -> (u8, Rect) {
+    let level = match (view.viewport, view.surface_size) {
         (Some(v), _) => v.level,
-        (None, Some(s)) => (0..super::render::MAX_VIEW_LEVEL)
+        (None, Some((width, height))) => (0..super::render::MAX_VIEW_LEVEL)
             .find(|&l| {
                 let e = canvas.at_level(l);
-                e.width <= s.width() && e.height <= s.height()
+                e.width <= width && e.height <= height
             })
             .unwrap_or(super::render::MAX_VIEW_LEVEL - 1),
         // No viewport: a level of at most ~2 MP.
@@ -2852,11 +2855,16 @@ fn preview_view(st: &super::State, region: Option<DocRect>) -> (u8, Rect) {
 /// the view's (`preview_view`), or the whole level-0 canvas when an adapter
 /// in the stack needs it. `submit_preview` and `filter_preview_level` both
 /// use it, so the sheet's note and the engine cannot disagree.
-fn preview_plan(st: &super::State, nodes: &[Node], region: Option<DocRect>) -> (u8, Rect) {
+fn preview_plan(
+    canvas: Extent,
+    view: super::render::PreviewView,
+    nodes: &[Node],
+    region: Option<DocRect>,
+) -> (u8, Rect) {
     if full_resolution(nodes) {
-        (0, Rect::of_extent(st.live().state().canvas))
+        (0, Rect::of_extent(canvas))
     } else {
-        preview_view(st, region)
+        preview_view(canvas, view, region)
     }
 }
 
@@ -2880,7 +2888,8 @@ impl DocumentSession {
             let s = st.live().state().clone();
             let l = find(&s, layer)?;
             let nodes = edited_stack(l, &edit)?;
-            let (level, r) = preview_plan(&st, &nodes, region);
+            let (level, r) =
+                preview_plan(st.live().state().canvas, (&st.view).into(), &nodes, region);
             (s, level, r, nodes)
         };
         // B5-34: every Camera Raw stage follows the submitted level.
@@ -3218,11 +3227,11 @@ impl DocumentSession {
             Some(i) => StackEdit::Replace(i as usize, spec),
             None => StackEdit::Append(spec),
         };
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         st.open()?;
-        let s = st.live().state().clone();
+        let s = st.live().clone();
         let nodes = edited_stack(find(&s, layer)?, &edit)?;
-        Ok(preview_plan(&st, &nodes, None).0)
+        Ok(preview_plan(st.live().canvas, st.view, &nodes, None).0)
     }
 
     /// Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)
@@ -3623,8 +3632,8 @@ impl DocumentSession {
 
     /// The smart filters of a smart object, first applied first.
     pub fn smart_filters(&self, layer: u64) -> Result<Vec<SmartFilterRecord>> {
-        let st = self.shared.lock()?;
-        let s = st.live().state().clone();
+        let st = self.shared.read()?;
+        let s = st.live().clone();
         drop(st);
         let l = find(&s, layer)?;
         let LayerKind::SmartObject(so) = &l.kind else {
@@ -3719,8 +3728,8 @@ impl DocumentSession {
             return Err(failure("max_px must be 1…1024"));
         }
         let (canvas, node) = {
-            let st = self.shared.lock()?;
-            let s = st.live().state();
+            let st = self.shared.read()?;
+            let s = st.live();
             let l = find(s, layer)?;
             let LayerKind::SmartObject(so) = &l.kind else {
                 return Err(failure(format!("layer {layer} is not a smart object")));
@@ -4073,9 +4082,9 @@ impl DocumentSession {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
         loop {
             let pending = {
-                let st = self.shared.lock()?;
-                let full = Rect::of_extent(st.live().state().canvas.at_level(level));
-                presented(&self.shared, st.live(), level, full);
+                let snapshot = self.shared.lock()?.live_shared();
+                let full = Rect::of_extent(snapshot.state().canvas.at_level(level));
+                presented(&self.shared, &snapshot, level, full);
                 let i = self.shared.filters.q.lock();
                 i.busy || i.preview_job.is_some() || !i.bake_jobs.is_empty()
             };
@@ -4089,10 +4098,10 @@ impl DocumentSession {
             }
             self.wait_filters_idle();
         }
-        let st = self.shared.lock()?;
-        let full = Rect::of_extent(st.live().state().canvas.at_level(level));
-        let doc = presented(&self.shared, st.live(), level, full);
-        let d: &Document = doc.as_deref().unwrap_or(st.live());
+        let snapshot = self.shared.lock()?.live_shared();
+        let full = Rect::of_extent(snapshot.state().canvas.at_level(level));
+        let doc = presented(&self.shared, &snapshot, level, full);
+        let d: &Document = doc.as_deref().unwrap_or(&snapshot);
         self.shared.render.read_level(d, level)
     }
 }

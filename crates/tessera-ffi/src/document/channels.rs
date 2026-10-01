@@ -221,9 +221,9 @@ fn plane(state: &DocState, value: f32) -> Raster {
 impl DocumentSession {
     /// The current (live) document state.
     fn channel_state(&self) -> Result<Arc<DocState>> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         st.open()?;
-        Ok(st.live().state().clone())
+        Ok(st.live().clone())
     }
 
     /// The live selection, or an error naming what needed it.

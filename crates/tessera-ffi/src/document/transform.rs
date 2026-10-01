@@ -660,7 +660,7 @@ pub fn warp_subdivide(mesh_json: String, columns: u32, rows: u32) -> Result<Stri
 impl DocumentSession {
     /// Every transform stage of `layer` (none for other layer kinds).
     pub fn transform_stages(&self, layer: u64) -> Result<Vec<TransformStageRecord>> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         let l = find(st.doc.state(), layer)?;
         let LayerKind::SmartObject(so) = &l.kind else {
             return Ok(Vec::new());
@@ -675,7 +675,7 @@ impl DocumentSession {
 
     /// Transform stage `index` of smart object `layer` (committed state).
     pub fn transform_stage(&self, layer: u64, index: u32) -> Result<TransformStageRecord> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         let l = find(st.doc.state(), layer)?;
         let LayerKind::SmartObject(so) = &l.kind else {
             return Err(failure(format!("layer {layer} is not a smart object")));

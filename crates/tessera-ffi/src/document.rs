@@ -783,31 +783,44 @@ pub(crate) struct SourceOps {
 /// and the frame never sees a half-applied edit. Cloning the wrapper shares
 /// the document (use `(*doc).clone()` for an independent copy).
 #[derive(Clone)]
-pub(crate) struct CowDoc(Arc<Document>);
+pub(crate) struct CowDoc {
+    doc: Arc<Document>,
+    /// Invalidates published history metadata even for snapshot naming/pruning,
+    /// which need not change the current DocState or its revision.
+    mutation: u64,
+}
 
 impl CowDoc {
     /// The immutable snapshot the renderer and save work from.
     pub(crate) fn share(&self) -> Arc<Document> {
-        self.0.clone()
+        self.doc.clone()
+    }
+
+    fn stamp(&self) -> (u64, u64) {
+        (self.doc.key(), self.mutation)
     }
 }
 
 impl From<Document> for CowDoc {
     fn from(doc: Document) -> Self {
-        Self(Arc::new(doc))
+        Self {
+            doc: Arc::new(doc),
+            mutation: 0,
+        }
     }
 }
 
 impl std::ops::Deref for CowDoc {
     type Target = Document;
     fn deref(&self) -> &Document {
-        &self.0
+        &self.doc
     }
 }
 
 impl std::ops::DerefMut for CowDoc {
     fn deref_mut(&mut self) -> &mut Document {
-        Arc::make_mut(&mut self.0)
+        self.mutation = self.mutation.wrapping_add(1);
+        Arc::make_mut(&mut self.doc)
     }
 }
 // B5-14 end
@@ -828,11 +841,6 @@ pub(crate) struct State {
     labels: HashMap<u64, String>,
     /// Masks unlinked from their layer (session state).
     unlinked_masks: std::collections::BTreeSet<u64>,
-    /// Exact bounds of the last selection `info` measured.
-    selection_bounds: Option<(
-        std::sync::Weak<compositor::Raster>,
-        Option<compositor::Rect>,
-    )>,
     /// Strokes, transforms, clone source, channels (WP B5-04).
     tools: tools::ToolState,
     // B5-12: the open Warp / Perspective / Puppet / Content-Aware Scale session.
@@ -865,10 +873,119 @@ impl State {
     }
 }
 
+/// Immutable session read view. The live draft is only an Arc<DocState>;
+/// holding this view never holds either the edit lock or the render backend.
+/// Keep the committed document separate from the live interactive draft.
+struct PublishedState {
+    doc: Arc<Document>,
+    live: Arc<DocState>,
+    doc_stamp: (u64, u64),
+    path: Option<PathBuf>,
+    title: String,
+    source_image_id: Option<String>,
+    saved_node: Option<u64>,
+    pending: Vec<Pending>,
+    view: render::PreviewView,
+    selected: Vec<u64>,
+    epoch: u64,
+    labels: HashMap<u64, String>,
+    unlinked_masks: std::collections::BTreeSet<u64>,
+    closed: bool,
+}
+
+impl PublishedState {
+    fn new(st: &State, previous: Option<&Self>) -> Self {
+        // Copy history only after document mutation, not on every viewport,
+        // ring or selection change. Never retain the mutable CowDoc Arc:
+        // that would force a new compositor cache namespace on every edit.
+        let doc_stamp = st.doc.stamp();
+        let doc = previous
+            .filter(|p| p.doc_stamp == doc_stamp)
+            .map_or_else(|| Arc::new((*st.doc).clone()), |p| p.doc.clone());
+        let live = st.live().state().clone();
+        Self {
+            doc,
+            live,
+            doc_stamp,
+            path: st.path.clone(),
+            title: st.title.clone(),
+            source_image_id: st.source_image_id.clone(),
+            saved_node: st.saved_node,
+            pending: st.pending.iter().map(|(key, _)| *key).collect(),
+            view: (&st.view).into(),
+            selected: st.selected.clone(),
+            epoch: st.epoch,
+            labels: st.labels.clone(),
+            unlinked_masks: st.unlinked_masks.clone(),
+            closed: st.closed,
+        }
+    }
+
+    fn live(&self) -> &Arc<DocState> {
+        &self.live
+    }
+    fn dirty(&self) -> bool {
+        self.saved_node != Some(self.doc.history().current()) || !self.pending.is_empty()
+    }
+    fn open(&self) -> Result<()> {
+        if self.closed {
+            Err(failure("document is closed"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Publication is part of unlocking an edit, including early-return paths.
+/// Writers stay serialized until the new view is installed: a snapshot after
+/// a completed commit cannot observe an older publication. A concurrent read
+/// may observe the previous completed edit, never a partially applied edit.
+struct StateGuard<'a> {
+    state: MutexGuard<'a, State>,
+    published: &'a Mutex<Arc<PublishedState>>,
+    changed: bool,
+}
+impl std::ops::Deref for StateGuard<'_> {
+    type Target = State;
+    fn deref(&self) -> &State {
+        &self.state
+    }
+}
+impl std::ops::DerefMut for StateGuard<'_> {
+    fn deref_mut(&mut self) -> &mut State {
+        self.changed = true;
+        &mut self.state
+    }
+}
+impl Drop for StateGuard<'_> {
+    fn drop(&mut self) {
+        if self.changed && !std::thread::panicking() {
+            // Prepare and destroy views OUTSIDE the publication lock. Its only
+            // work is swapping/cloning an Arc; no render, traversal or COW here.
+            let previous = self
+                .published
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
+            let next = Arc::new(PublishedState::new(&self.state, Some(&previous)));
+            let old = std::mem::replace(
+                &mut *self.published.lock().unwrap_or_else(|e| e.into_inner()),
+                next,
+            );
+            drop(old);
+        }
+    }
+}
+
+type SelectionBoundsCache = Option<(std::sync::Weak<Raster>, Option<Rect>)>;
+
 pub(crate) struct Shared {
     id: String,
     engine: Weak<Engine>,
     state: Mutex<State>,
+    published: Mutex<Arc<PublishedState>>,
+    selection_bounds: Mutex<SelectionBoundsCache>,
+    outline: Mutex<tools::OutlineCache>,
     render: render::Renderer,
     listener: Mutex<Option<Arc<dyn DocumentListener>>>,
     /// Filter previews and smart filter bakes (WP B5-05).
@@ -879,8 +996,16 @@ pub(crate) struct Shared {
 }
 
 impl Shared {
-    fn lock(&self) -> Result<MutexGuard<'_, State>> {
-        self.state.lock().map_err(failure)
+    fn lock(&self) -> Result<StateGuard<'_>> {
+        Ok(StateGuard {
+            state: self.state.lock().map_err(failure)?,
+            published: &self.published,
+            changed: false,
+        })
+    }
+
+    fn read(&self) -> Result<Arc<PublishedState>> {
+        Ok(self.published.lock().map_err(failure)?.clone())
     }
 
     fn listener(&self) -> Option<Arc<dyn DocumentListener>> {
@@ -1070,27 +1195,31 @@ impl DocumentSession {
         let saved = (!open.unsaved).then(|| open.doc.history().current());
         let mut labels = HashMap::new();
         labels.insert(open.doc.history().current(), open.origin.to_owned());
+        let state = State {
+            doc: open.doc.into(), // B5-14
+            scratch: None,
+            pending: Vec::new(),
+            path: open.path,
+            title: open.title,
+            source_image_id: open.source_image_id,
+            saved_node: saved,
+            selected: Vec::new(),
+            epoch: 0,
+            labels,
+            unlinked_masks: Default::default(),
+            tools: Default::default(),
+            advanced: Default::default(), // B5-12
+            closed: false,
+            view: Default::default(),
+        };
+        let published = Mutex::new(Arc::new(PublishedState::new(&state, None)));
         let shared = Arc::new(Shared {
             id,
             engine: Arc::downgrade(engine),
-            state: Mutex::new(State {
-                doc: open.doc.into(), // B5-14
-                scratch: None,
-                pending: Vec::new(),
-                path: open.path,
-                title: open.title,
-                source_image_id: open.source_image_id,
-                saved_node: saved,
-                selected: Vec::new(),
-                epoch: 0,
-                labels,
-                unlinked_masks: Default::default(),
-                selection_bounds: None,
-                tools: Default::default(),
-                advanced: Default::default(), // B5-12
-                closed: false,
-                view: Default::default(),
-            }),
+            state: Mutex::new(state),
+            published,
+            selection_bounds: Mutex::new(None),
+            outline: Mutex::new(None),
             render: render::Renderer::new(gpu),
             listener: Mutex::new(None),
             filters: Default::default(),
@@ -1118,7 +1247,7 @@ impl DocumentSession {
     fn shutdown(&self) {
         // Signal copies before waiting for the backend state/render worker.
         self.shared.copies.close();
-        if let Ok(mut st) = self.shared.state.lock() {
+        if let Ok(mut st) = self.shared.lock() {
             st.closed = true;
             st.view.surfaces.clear();
         }
@@ -1348,20 +1477,21 @@ impl DocumentSession {
     }
 
     pub fn info(&self) -> Result<DocumentInfo> {
-        let mut st = self.shared.lock()?;
-        let selection_bounds = match st.live().state().selection.clone() {
+        let st = self.shared.read()?;
+        let mut cached = self.shared.selection_bounds.lock().map_err(failure)?;
+        let selection_bounds = match st.live().selection.clone() {
             None => None,
-            Some(sel) => match &st.selection_bounds {
+            Some(sel) => match &*cached {
                 Some((seen, b)) if seen.upgrade().is_some_and(|s| Arc::ptr_eq(&s, &sel)) => *b,
                 _ => {
                     let b = io::selection_bounds(&sel);
-                    st.selection_bounds = Some((Arc::downgrade(&sel), b));
+                    *cached = Some((Arc::downgrade(&sel), b));
                     b
                 }
             },
         };
-        let doc = st.live();
-        let s = doc.state();
+        drop(cached);
+        let s = st.live();
         let h = st.doc.history();
         let current = h.current();
         let parent = h.nodes().find(|n| n.id == current).and_then(|n| n.parent);
@@ -1396,15 +1526,9 @@ impl DocumentSession {
     /// Every layer, flat in pre-order with siblings top-first (see
     /// [`LayerNode`]). Shows the live state while a drag is pending.
     pub fn layers(&self) -> Result<Vec<LayerNode>> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         let mut out = Vec::new();
-        flatten_nodes(
-            &st.live().state().root,
-            None,
-            0,
-            &st.unlinked_masks,
-            &mut out,
-        );
+        flatten_nodes(&st.live().root, None, 0, &st.unlinked_masks, &mut out);
         Ok(out)
     }
 
@@ -1924,7 +2048,7 @@ impl DocumentSession {
 
     /// Every retained history state in creation order.
     pub fn history_items(&self) -> Result<Vec<DocHistoryItem>> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         let h = st.doc.history();
         Ok(h.nodes()
             .map(|n| DocHistoryItem {
@@ -1968,7 +2092,7 @@ impl DocumentSession {
     pub fn snapshots(&self) -> Result<Vec<String>> {
         Ok(self
             .shared
-            .lock()?
+            .read()?
             .doc
             .history()
             .snapshots()
@@ -1993,7 +2117,7 @@ impl DocumentSession {
 
     /// Bytes of distinct tile buffers held by the retained history.
     pub fn history_memory_bytes(&self) -> Result<u64> {
-        Ok(self.shared.lock()?.doc.history_bytes() as u64)
+        Ok(self.shared.read()?.doc.history_bytes() as u64)
     }
 
     // ─────────────────────────── presentation ───────────────────────────
@@ -2003,7 +2127,7 @@ impl DocumentSession {
     /// canvas is smaller). Zoomed viewports allocate surfaces of their own
     /// size and name the region with `set_viewport`.
     pub fn plan_surface(&self, width: u32, height: u32) -> Result<DocSurfacePlan> {
-        let canvas = self.shared.lock()?.live().state().canvas;
+        let canvas = self.shared.read()?.live().canvas;
         let level = (0..render::MAX_VIEW_LEVEL)
             .rev()
             .find(|&l| {
@@ -2220,9 +2344,9 @@ impl DocumentSession {
     ) -> Result<Arc<DocFlatExport>> {
         io::export_flat_check(format, quality)?;
         let state = {
-            let st = self.shared.lock()?;
+            let st = self.shared.read()?;
             st.open()?;
-            st.live().state().clone()
+            st.live().clone()
         };
         Ok(Arc::new(DocFlatExport {
             state: Mutex::new(Some(state)),
@@ -2428,7 +2552,7 @@ impl DocumentSession {
     /// The live document state (tests compare against the CPU compositor).
     #[doc(hidden)]
     pub fn document_state(&self) -> Result<Arc<DocState>> {
-        Ok(self.shared.lock()?.live().state().clone())
+        Ok(self.shared.read()?.live().clone())
     }
 
     /// Enable instance-local test diagnostics: cumulative (mip hits, mip rebuilds).
@@ -2682,4 +2806,282 @@ where
         }
     }
     Ok(r)
+}
+
+#[cfg(test)]
+mod publication_tests {
+    use super::*;
+
+    /// Synthetic diagnostic; no wall-time assertion on a shared build host.
+    #[test]
+    #[ignore = "latency measurement; run with --ignored --nocapture"]
+    fn eng2_publication_latency() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let _editing = session.shared.lock().unwrap();
+        let mut info = Vec::new();
+        let mut snapshot = Vec::new();
+        for _ in 0..1001 {
+            let start = std::time::Instant::now();
+            std::hint::black_box(session.info().unwrap());
+            info.push(start.elapsed().as_nanos());
+            let start = std::time::Instant::now();
+            std::hint::black_box(
+                session
+                    .begin_export_flat(
+                        "synthetic.png".into(),
+                        ExportFormat::Png,
+                        90,
+                        ExportColor::Srgb,
+                    )
+                    .unwrap(),
+            );
+            snapshot.push(start.elapsed().as_nanos());
+        }
+        for (name, mut samples) in [("info", info), ("snapshot", snapshot)] {
+            samples.remove(0);
+            samples.sort_unstable();
+            eprintln!(
+                "ENG-2 {name} ns: median={} p95={} max={} n={}",
+                samples[500],
+                samples[950],
+                samples[999],
+                samples.len()
+            );
+        }
+    }
+
+    #[test]
+    fn eng2b_unwinding_edit_keeps_pre_edit_publication() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let id = session.layers().unwrap()[0].id;
+        let before = session.document_state().unwrap();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut st = session.shared.lock().unwrap();
+            let mut props = st.doc.state().find(LayerId(id)).unwrap().props.clone();
+            props.opacity = 0.25;
+            st.doc
+                .apply(DocOp::SetProps {
+                    id: LayerId(id),
+                    props,
+                })
+                .unwrap();
+            panic!("injected failure before edit metadata is complete");
+        }));
+        assert!(panic.is_err());
+        assert!(
+            session.shared.lock().is_err(),
+            "edit mutex remains poisoned"
+        );
+        assert!(Arc::ptr_eq(&before, &session.document_state().unwrap()));
+        assert_eq!(session.layer(id).unwrap().opacity, 1.0);
+    }
+
+    #[test]
+    fn eng2b_draft_publication_does_not_retain_historical_states() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let id = session.layers().unwrap()[0].id;
+        session.set_opacity(id, 0.75, true).unwrap();
+        session.wait_idle();
+        let previous = session.shared.read().unwrap();
+        let mut st = session.shared.lock().unwrap();
+        let historical = st.live().state().clone();
+        let mut props = historical.find(LayerId(id)).unwrap().props.clone();
+        props.opacity = 0.25;
+        st.scratch
+            .as_mut()
+            .unwrap()
+            .apply(DocOp::SetProps {
+                id: LayerId(id),
+                props,
+            })
+            .unwrap();
+        let count = Arc::strong_count(&historical);
+        let next = PublishedState::new(&st, Some(&previous));
+        assert_eq!(
+            Arc::strong_count(&historical),
+            count,
+            "publishing a drag tick cloned history (and the Document damage log)"
+        );
+        assert_eq!(next.live().find(LayerId(id)).unwrap().props.opacity, 0.25);
+    }
+
+    #[test]
+    fn eng2_publication_preserves_mutable_document_cache_namespace() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let id = session.layers().unwrap()[0].id;
+        let key = session.shared.lock().unwrap().doc.key();
+        let old = session.shared.read().unwrap();
+        session.set_visible(id, false).unwrap();
+        assert_eq!(session.shared.lock().unwrap().doc.key(), key);
+        assert!(old.doc.state().find(LayerId(id)).unwrap().props.visible);
+        assert!(!session.layer(id).unwrap().visible);
+    }
+
+    #[test]
+    fn eng2_publication_tracks_drafts_history_and_close() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let id = session.layers().unwrap()[0].id;
+        session.set_opacity(id, 0.25, true).unwrap();
+        let draft = session.shared.read().unwrap();
+        assert_eq!(
+            draft.doc.state().find(LayerId(id)).unwrap().props.opacity,
+            1.0
+        );
+        assert_eq!(draft.live().find(LayerId(id)).unwrap().props.opacity, 0.25);
+        session.commit("opacity".into()).unwrap();
+        assert_eq!(
+            session
+                .shared
+                .read()
+                .unwrap()
+                .doc
+                .state()
+                .find(LayerId(id))
+                .unwrap()
+                .props
+                .opacity,
+            0.25
+        );
+        session.undo().unwrap();
+        assert_eq!(session.layer(id).unwrap().opacity, 1.0);
+        session.redo().unwrap();
+        assert_eq!(session.layer(id).unwrap().opacity, 0.25);
+        session.snapshot("named".into()).unwrap();
+        assert_eq!(session.snapshots().unwrap(), vec!["named".to_string()]);
+        session.set_max_states(2).unwrap();
+        assert!(
+            session
+                .history_items()
+                .unwrap()
+                .iter()
+                .any(|n| n.is_current)
+        );
+        session.close();
+        assert!(
+            session
+                .begin_export_flat(
+                    "synthetic.png".into(),
+                    ExportFormat::Png,
+                    90,
+                    ExportColor::Srgb
+                )
+                .is_err()
+        );
+        assert_eq!(draft.live().find(LayerId(id)).unwrap().props.opacity, 0.25);
+    }
+
+    #[test]
+    fn eng2_export_snapshot_does_not_wait_for_edit_lock() {
+        use std::{sync::mpsc, time::Duration};
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let editing = session.shared.lock().unwrap();
+        let other = session.clone();
+        let (tx, rx) = mpsc::channel();
+        let reader = std::thread::spawn(move || {
+            let start = std::time::Instant::now();
+            other.info().unwrap();
+            other.layers().unwrap();
+            other.history_items().unwrap();
+            other.snapshots().unwrap();
+            other.document_state().unwrap();
+            other.document_channels().unwrap();
+            other.layer_style_summaries().unwrap();
+            other.global_light().unwrap();
+            other.display_profile_icc().unwrap();
+            other.selection_outline(0).unwrap();
+            other.plan_surface(3, 2).unwrap();
+
+            let snapshot = other
+                .begin_export_flat(
+                    "synthetic.png".into(),
+                    ExportFormat::Png,
+                    90,
+                    ExportColor::Srgb,
+                )
+                .unwrap();
+            tx.send((snapshot, start.elapsed())).unwrap();
+        });
+        let result = rx.recv_timeout(Duration::from_millis(250));
+        drop(editing);
+        reader.join().unwrap();
+        let (_, elapsed) = result.expect("export snapshot waited for mutable session state");
+        eprintln!("ENG-2 export snapshot: {elapsed:?}");
+    }
+
+    #[test]
+    fn eng2_confirm_snapshot_excludes_later_commits_and_includes_prior_commit() {
+        use std::{sync::mpsc, time::Duration};
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let id = session.layers().unwrap()[0].id;
+        for _ in 0..64 {
+            let (ready_tx, ready_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let (snapshot_tx, snapshot_rx) = mpsc::channel();
+            let writer_session = session.clone();
+            let writer = std::thread::spawn(move || {
+                writer_session.set_opacity(id, 0.75, false).unwrap();
+                let prior = writer_session.document_state().unwrap();
+                writer_session
+                    .history_move(|doc| {
+                        let mut props = doc.state().find(LayerId(id)).unwrap().props.clone();
+                        props.opacity = 0.25;
+                        doc.apply(DocOp::SetProps {
+                            id: LayerId(id),
+                            props,
+                        })?;
+                        // Commit is in progress, after mutation but before publication.
+                        ready_tx.send(prior).unwrap();
+                        release_rx.recv().unwrap();
+                        Ok(true)
+                    })
+                    .unwrap();
+            });
+            let prior = ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let reader_session = session.clone();
+            let reader = std::thread::spawn(move || {
+                let export = reader_session
+                    .begin_export_flat(
+                        "synthetic.png".into(),
+                        ExportFormat::Png,
+                        90,
+                        ExportColor::Srgb,
+                    )
+                    .unwrap();
+                snapshot_tx.send(export).unwrap();
+            });
+            let acquired = snapshot_rx.recv_timeout(Duration::from_millis(250));
+            // Release even on timeout so a lock regression fails without hanging.
+            release_tx.send(()).unwrap();
+            writer.join().unwrap();
+            reader.join().unwrap();
+            let export = acquired.expect("confirm acquisition waited for an in-progress commit");
+            let snapshot = export.state.lock().unwrap();
+            assert!(Arc::ptr_eq(snapshot.as_ref().unwrap(), &prior));
+            assert_eq!(
+                snapshot
+                    .as_ref()
+                    .unwrap()
+                    .find(LayerId(id))
+                    .unwrap()
+                    .props
+                    .opacity,
+                0.75
+            );
+            assert_eq!(session.layer(id).unwrap().opacity, 0.25);
+        }
+    }
 }
