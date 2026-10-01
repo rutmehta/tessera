@@ -37,3 +37,19 @@ fn lr4_extensions_roundtrip_and_older_readers_ignore_them() {
     assert!(old.enabled);
     assert!(old.group.is_none());
 }
+
+#[test]
+fn lr4c_eight_levels_allowed_ninth_rejected() {
+    let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+    for _ in 1..8 {
+        let mut parent = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+        parent.group = Some(vec![c]);
+        c = parent;
+    }
+    let mut g = engine_api::recipe::LocalAdjustment { components: vec![c], ..Default::default() };
+    assert!(g.validate_mask_tree().is_ok());
+    let mut parent = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+    parent.group = Some(g.components);
+    g.components = vec![parent];
+    assert!(g.validate_mask_tree().is_err());
+}

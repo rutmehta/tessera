@@ -754,3 +754,21 @@ fn lr4b_four_bounds_choose_cpu_before_resident_dispatch() {
     settings.locals.adjustments[0].components[0].enabled = false;
     assert!(camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
 }
+
+#[test]
+fn lr4c_nested_group_declined_before_gpu_dispatch() {
+    let mut settings = resident_settings();
+    settings.locals.adjustments = serde_json::from_value(json!([{"components":[{
+        "kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]
+    }]}])).unwrap();
+    assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+}
+#[test]
+fn lr4c_nested_ai_rejected_by_cpu_parser() {
+    let mut settings = resident_settings();
+    settings.locals.adjustments = serde_json::from_value(json!([{"components":[{
+        "kind":"brush","strokes":[],"group":[{"kind":"subject"}]
+    }]}])).unwrap();
+    assert!(matches!(filters::camera_raw::parse(&json!({"settings":settings})),
+        Err(engine_api::EngineError::Unsupported { .. })));
+}

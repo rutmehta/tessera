@@ -459,3 +459,18 @@ fn automatic_transform_kinds_and_three_stage_nested_stack() {
     assert_eq!(renderer.filter_evaluations(), 3);
     assert_eq!(renderer.filter_fallbacks(), 0);
 }
+
+#[test]
+fn lr4c_nested_camera_raw_uses_cpu_fallback_with_identical_pixels() {
+    let gpu = GpuCompositor::new().unwrap();
+    let settings = serde_json::json!({"lens":{"profile":"none","remove_chromatic_aberration":false},
+        "locals":{"adjustments":[{"params":{"exposure":1},"components":[{
+        "kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]}]}]}});
+    let doc = document(vec![filter("camera_raw", serde_json::json!({"settings":settings}))]);
+    let mut cpu = Compositor::new(1 << 20);
+    cpu.set_filter_evaluator(Arc::new(filters::CompositorFilters));
+    let mut renderer = ResidentRenderer::new(&gpu).unwrap();
+    renderer.set_filter_evaluator(Arc::new(filters::CompositorFilters)).unwrap();
+    compare(&doc, &mut renderer, &cpu, 0.0);
+    assert!(renderer.filter_fallbacks() > 0);
+}

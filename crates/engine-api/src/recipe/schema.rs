@@ -246,6 +246,42 @@ mod v4_feature_predicates {
         });
     }
 
+    fn mask_recipe(r: &mut Recipe, component: serde_json::Value) {
+        r.settings.locals.adjustments.push(serde_json::from_value(serde_json::json!({
+            "components": [component]
+        })).unwrap());
+    }
+
+    #[test]
+    fn lr4c_disabled_component_requires_v4() {
+        assert_bumped_only_when_present("mask_component_disabled", |r| mask_recipe(r,
+            serde_json::json!({"kind":"brush","strokes":[],"enabled":false})));
+    }
+    #[test]
+    fn lr4c_nested_group_requires_v4() {
+        assert_bumped_only_when_present("mask_groups", |r| mask_recipe(r,
+            serde_json::json!({"kind":"brush","strokes":[],"group":[]})));
+    }
+    #[test]
+    fn lr4c_luminance_bounds_requires_v4() {
+        assert_bumped_only_when_present("mask_luminance_bounds", |r| mask_recipe(r,
+            serde_json::json!({"kind":"luminance_range","range":[0.2,0.8],"luminance_bounds":[0.1,0.2,0.8,0.9]})));
+    }
+
+    #[test]
+    fn lr4c_disabled_masks_in_retouch_and_history_base_require_v4() {
+        for path in ["/settings", "/history/base"] {
+            let mut value = serde_json::to_value(Recipe::default()).unwrap();
+            value.pointer_mut(path).unwrap()["locals"]["retouch"] = serde_json::json!([{
+                "id":0,"kind":{"kind":"heal","source_offset":[0,0]},
+                "target":{"kind":"area","components":[{"kind":"brush","strokes":[],"enabled":false}]}
+            }]);
+            let r: Recipe = serde_json::from_value(value).unwrap();
+            assert_eq!(required_schema_version(&r), 4, "{path}");
+        }
+
+    }
+
     const TEST_FEATURE: &str = "lr_schema_test_feature";
     const TEST_PREDICATES: &[FeaturePredicate] =
         &[(TEST_FEATURE, |r| r.unknown.contains_key(TEST_FEATURE))];

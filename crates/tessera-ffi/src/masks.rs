@@ -1967,6 +1967,27 @@ mod tests {
     }
 
     #[test]
+    fn lr4c_group_info_distinguishes_disabled_and_nested_components() {
+        let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[
+            {"kind":"brush","strokes":[],"enabled":false},
+            {"kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]}
+        ]})).unwrap();
+        let info = group_info(&g, &HashMap::new());
+        assert!(!info.components[0].rendered);
+        assert_eq!(info.components[1].title, "Group");
+        assert!(info.components[1].definition_json.contains("group"));
+    }
+    #[test]
+    fn lr4c_bad_nested_child_preserves_valid_sibling() {
+        let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[
+            {"kind":"brush","strokes":[],"group":[
+                {"kind":"linear","start":[0,0],"end":[1,0]},
+                {"kind":"color_range","samples":[],"amount":10}]}]})).unwrap();
+        let sanitized = renderable_group(&g);
+        assert_eq!(sanitized.components.len(), 1);
+        assert_eq!(sanitized.components[0].group.as_ref().unwrap().len(), 1);
+    }
+    #[test]
     fn completed_ai_mask_job_does_not_revive_closed_session() {
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
