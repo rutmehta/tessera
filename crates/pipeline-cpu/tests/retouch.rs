@@ -152,3 +152,88 @@ fn lr3d_retouch_invalidates_detail_checkpoint() {
         Some(engine_api::stage::StageId::Detail)
     );
 }
+
+#[test]
+fn lr3e_scaled_spot_preserves_pixels_outside_support() {
+    use std::sync::Arc;
+    let (w, h) = (257, 193);
+    let image = Image::new(
+        w,
+        h,
+        vec![
+            (0..w * h)
+                .map(|i| 0.1 + ((i * 73 % 997) as f32 / 1300.))
+                .collect();
+            3
+        ],
+    )
+    .unwrap();
+    let mut s = DevelopSettings::default();
+    s.tone.contrast = 23.;
+    s.tone.clarity = 17.;
+    s.tone.texture = 11.;
+    s.color.vibrance = 21.;
+    for scale in [2, 4] {
+        let context = pipeline_cpu::LensContext {
+            retouch: Some(Arc::new(
+                move |rw: u32, rh: u32, planes: &mut [Vec<f32>], _: &[RetouchOperation]| {
+                    assert_eq!((rw, rh), (w.div_ceil(scale), h.div_ceil(scale)));
+                    for p in planes {
+                        for y in rh / 2 - 1..=rh / 2 + 1 {
+                            for x in rw / 2 - 1..=rw / 2 + 1 {
+                                p[(y * rw + x) as usize] = 0.9;
+                            }
+                        }
+                    }
+                    Ok(())
+                },
+            )),
+            ..Default::default()
+        };
+        let baseline = pipeline_cpu::render_linear_scaled_with_lens(
+            &s,
+            &RenderSource::Rgb(&image),
+            scale,
+            &context,
+        )
+        .unwrap();
+        let mut edited = s.clone();
+        edited.locals.retouch.push(RetouchOperation {
+            id: RetouchId(1),
+            kind: RetouchKind::Clone {
+                source_offset: [0.2, 0.],
+            },
+            target: RetouchTarget::Area { components: vec![] },
+            opacity: 100.,
+            feather: 0.,
+            enabled: true,
+        });
+        let actual = pipeline_cpu::render_linear_scaled_with_lens(
+            &edited,
+            &RenderSource::Rgb(&image),
+            scale,
+            &context,
+        )
+        .unwrap();
+        let mut changed = false;
+        let mut checked = 0;
+        for (a, b) in actual.planes().iter().zip(baseline.planes()) {
+            for y in 0..actual.height() {
+                for x in 0..actual.width() {
+                    let i = (y * actual.width() + x) as usize;
+                    changed |= a[i].to_bits() != b[i].to_bits();
+                    // 3x3 target-level support, plus 32 input pixels for the
+                    // downstream Detail/presence filter halo and one sampling cell.
+                    let margin = 2 + 32_u32.div_ceil(scale);
+                    if x.abs_diff(actual.width() / 2) > margin
+                        || y.abs_diff(actual.height() / 2) > margin
+                    {
+                        assert_eq!(a[i].to_bits(), b[i].to_bits(), "scale {scale} ({x},{y})");
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        assert!(changed && checked > 1000);
+    }
+}

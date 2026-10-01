@@ -435,6 +435,16 @@ mod v4_feature_predicates {
     }
 
     #[test]
+    fn retouch_in_history_base_bumps_only_when_present() {
+        assert_bumped_only_when_present("retouch", |r| {
+            r.history.base.locals.retouch.push(serde_json::from_value(serde_json::json!({
+                "id":1,"kind":{"kind":"clone","source_offset":[0.5,0.0]},
+                "target":{"kind":"area","components":[]},"opacity":50.0,"feather":0.0,"enabled":true
+            })).unwrap());
+        });
+    }
+
+    #[test]
     fn writable_max_follows_the_list() {
         let expected = if V4_FEATURE_PREDICATES.is_empty() {
             RECIPE_SCHEMA_VERSION
