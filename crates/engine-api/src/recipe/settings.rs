@@ -1116,6 +1116,36 @@ pub struct Upright {
     pub mode: UprightMode,
     /// Guides for [`UprightMode::Guided`].
     pub guides: Vec<GuideLine>,
+    /// Saved source-to-output projective map in unit image coordinates [0, 1].
+    /// Applied before manual transform/crop; ignored while mode is Off.
+    /// Omitted when absent to preserve pre-existing recipe serialization/hashes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub homography: Option<[[f64; 3]; 3]>,
+}
+
+impl Upright {
+    /// Reject nonfinite/singular maps and projective poles across the source frame.
+    pub fn valid_homography(h: &[[f64; 3]; 3]) -> bool {
+        if h.iter().flatten().any(|v| !v.is_finite()) {
+            return false;
+        }
+        let scale = h.iter().flatten().fold(0f64, |a, v| a.max(v.abs()));
+        if scale == 0. {
+            return false;
+        }
+        let h = h.map(|row| row.map(|v| v / scale));
+        let det = h[0][0] * (h[1][1] * h[2][2] - h[1][2] * h[2][1])
+            - h[0][1] * (h[1][0] * h[2][2] - h[1][2] * h[2][0])
+            + h[0][2] * (h[1][0] * h[2][1] - h[1][1] * h[2][0]);
+        let denominators = [
+            h[2][2],
+            h[2][0] + h[2][2],
+            h[2][1] + h[2][2],
+            h[2][0] + h[2][1] + h[2][2],
+        ];
+        det.abs() > 1e-12
+            && (denominators.iter().all(|d| *d > 1e-12) || denominators.iter().all(|d| *d < -1e-12))
+    }
 }
 
 /// Composed geometry: orientation, distortion (from lens), Upright, transform

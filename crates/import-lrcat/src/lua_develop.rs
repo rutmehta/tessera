@@ -751,6 +751,22 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         *warning = warning.replace("retained in original XMP", "source preserved per property");
     }
     warnings.extend(notes);
+    crate::geometry::apply(
+        &mut recipe,
+        &mut warnings,
+        table.fields.iter().filter_map(|(key, value)| {
+            let LuaKey::Str(key) = key else {
+                return None;
+            };
+            let value = match value {
+                LuaValue::String(s) | LuaValue::Number(s) => s.as_str(),
+                LuaValue::Bool(true) => "True",
+                LuaValue::Bool(false) => "False",
+                _ => return None,
+            };
+            Some((key.as_str(), value))
+        }),
+    )?;
     Ok((recipe, warnings))
 }
 

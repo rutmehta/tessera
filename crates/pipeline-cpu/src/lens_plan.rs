@@ -483,6 +483,7 @@ impl ResolvedLens {
             || s.defringe_purple.amount != 0.
             || s.defringe_green.amount != 0.
             || (analyzed.is_none()
+                && g.upright.homography.is_none()
                 && !matches!(g.upright.mode, UprightMode::Off | UprightMode::Guided))
             || g.orientation != 1
             || g.constrain_crop
@@ -552,6 +553,8 @@ impl ResolvedLens {
         let lens_active = self.geometry_active(&common);
         let upright = if let Some(upright) = analyzed {
             upright
+        } else if let Some(saved) = crate::upright::saved_inverse(g)? {
+            saved
         } else if g.upright.mode == UprightMode::Guided {
             crate::upright::guided_inverse(frame[0], frame[1], g, &|p, c| {
                 Some(self.map(p, c, &common))

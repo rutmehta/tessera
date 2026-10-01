@@ -220,6 +220,14 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         );
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
+    crate::geometry::apply(
+        &mut recipe,
+        &mut warnings,
+        properties
+            .iter()
+            .filter(|p| p.namespace == CRS)
+            .map(|p| (p.name, p.raw)),
+    )?;
     recipe.validate()?;
     Ok((recipe, warnings))
 }
