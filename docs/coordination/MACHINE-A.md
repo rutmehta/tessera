@@ -1,3 +1,10 @@
+## Batch 13: Lightroom Classic catalog import fixes — 2026-09-30
+
+Main 8b53ac35 = 1d74771b + wp/B5-29b 6ccc6eaa (B5-29 + B5-29b). Rut's real LrC 15.5.1 catalog (21,656 images; worked on a private sha-recorded copy only, nothing catalog-derived committed) previously failed `--inspect` on the unnamed keyword root, then on Lua-literal develop settings. B5-29: unnamed root not emitted; other unnamed keywords/NULL-name collections degrade with report entries; group kind imported as album group; empty develop rows unedited; unreadable smart-collection rules skipped. B5-29b: data-only iterative Lua table-literal reader (4 MiB / nesting 32 / 500k values; no evaluation), 199-entry 1:1 key map re-emitted as Adobe-shaped XMP through the unchanged xmp parser. Independent review APPROVE (parser safety, XMP escaping, no catalog data committed). On the copy: inspect and apply exit 0; 21,615 Lua rows decoded, 41 empty.
+Gates on exact tree: import-lrcat + tessera-ffi tests, clippy, fmt pass; bindings identical. Process note: the first swift-gate run reported 1 failure (MasksPanelLayoutTests…ReadableAtMinimumWidth) during a 4.3-hour run under extreme machine load, and A's merge step did not check the exit before fast-forwarding; apps/ was byte-identical to main, the test passed 3/3 standalone, and a full swift-gate rerun on the merged tree passed 861/0 in 233 s. Merge stands; A's merge step now verifies all gate exits before merging.
+Codex coordinator resumed on A with a docs-only reconciliation (1d74771b); it is parked pending ownership decision by Rut.
+Follow-ups (B5-29c): index per-image tables (158 s / 5.2 GB), map Upright*Count, degrade bad develop rows, group report entries, drop duplicate literal+XMP retention, ExtendedToneCurvePV2012 mapping decision.
+
 ## Batches 9-12 integrated — 2026-09-29
 
 - 031eaa56 B5-20c: plain smart-object size message for AWA (limit derived from FilterPassLimits, ~33.5 MP).
