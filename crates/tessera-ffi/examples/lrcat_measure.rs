@@ -31,6 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .into_owned();
         }
         let apply = Instant::now();
+        let preview = import.plan(options.clone())?;
+        if preview.to_import != 0
+            || preview.conflicts != 0
+            || preview.missing + preview.virtual_copies != import.summary().images
+        {
+            return Err("measurement requires every master original to be missing".into());
+        }
         let r = import.apply(options, None)?;
         println!(
             "images={} imported={} skipped={} copies={} open_seconds={:.3} apply_seconds={:.3} total_seconds={:.3}",
