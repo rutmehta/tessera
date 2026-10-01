@@ -2,7 +2,7 @@ use engine_api::recipe::settings::{Curve, CurvePoint, LegacyPv2010, ToneCurves};
 use engine_api::recipe::{EditMeta, Recipe};
 
 #[test]
-fn lr2b_optional_tone_fields_roundtrip_without_version_change() {
+fn lr2b_optional_tone_fields_roundtrip_with_conditional_schema_four() {
     let mut r = Recipe::default();
     let before = serde_json::to_value(&r).unwrap();
     assert!(before["settings"]["tone"].get("legacy_pv2010").is_none());
@@ -31,5 +31,7 @@ fn lr2b_optional_tone_fields_roundtrip_without_version_change() {
     assert_eq!(back.process_version, version);
     back.validate().unwrap();
     let after = serde_json::to_value(&back).unwrap();
-    assert_eq!(before["schema_version"], after["schema_version"]);
+    assert_eq!(before["schema_version"], 3);
+    assert_eq!(after["schema_version"], 4);
+    assert_eq!(r.schema_version, 3);
 }

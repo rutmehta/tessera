@@ -44,6 +44,17 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
     ("legacy_ca_blue", |r| {
         r.settings.lens.legacy_ca_blue.is_some()
     }),
+    ("monochrome", |r| {
+        r.settings
+            .color
+            .monochrome
+            .as_ref()
+            .is_some_and(|m| m.enabled)
+    }),
+    ("curves_extended", |r| {
+        r.settings.tone.curves_extended.is_some()
+    }),
+    ("legacy_pv2010", |r| r.settings.tone.legacy_pv2010.is_some()),
 ];
 
 /// Lowest schema version that can represent `recipe` (3 or 4).
@@ -98,7 +109,7 @@ fn active_predicates() -> &'static [FeaturePredicate] {
 #[cfg(test)]
 pub(crate) mod test_override {
     //! Test-only replacement of the predicate list, per test thread, so the
-    //! harness can be proven while the real list stays empty.
+    //! harness can be proven independently of the registered real features.
     use std::cell::Cell;
 
     use super::FeaturePredicate;

@@ -293,16 +293,35 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         warnings.retain(|w| {
             !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
         });
-        let entry = serde_json::json!({"key": key, "level": "info", "message": format!("approximate: {reason}")});
-        let diagnostics = recipe
-            .unknown
-            .entry("lrcat_develop_diagnostics".into())
-            .or_insert_with(|| serde_json::json!([]));
-        if let Some(entries) = diagnostics.as_array_mut()
-            && !entries.contains(&entry)
-        {
-            entries.push(entry);
-        }
+        let field = match key.as_str() {
+            "ConvertToGrayscale" => "/settings/color/monochrome/enabled".to_string(),
+            k if k.starts_with("GrayMixer") => format!(
+                "/settings/color/monochrome/mixer/{}",
+                k.trim_start_matches("GrayMixer").to_ascii_lowercase()
+            ),
+            k if k.starts_with("ExtendedToneCurvePV2012") => {
+                let channel = k
+                    .trim_start_matches("ExtendedToneCurvePV2012")
+                    .to_ascii_lowercase();
+                format!(
+                    "/settings/tone/curves_extended/{}",
+                    if channel.is_empty() { "rgb" } else { &channel }
+                )
+            }
+            k => {
+                let member = match k {
+                    "Exposure" => "exposure",
+                    "Brightness" => "brightness",
+                    "Contrast" => "contrast",
+                    "FillLight" => "fill_light",
+                    "HighlightRecovery" | "Recovery" => "recovery",
+                    "Shadows" | "Blacks" => "blacks",
+                    _ => unreachable!("only translated LR-2 keys have approximation reasons"),
+                };
+                format!("/settings/tone/legacy_pv2010/{member}")
+            }
+        };
+        crate::diagnostics::push_approximate(recipe, key, &field, "LR-2", reason);
     }
     for key in values
         .keys()

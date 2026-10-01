@@ -48,19 +48,6 @@ pub struct DevelopSettings {
 }
 
 impl DevelopSettings {
-    /// LR-2 predicate for the coordinator's shared required-schema helper.
-    /// Until LR-SCHEMA lands, callers register this by taking the maximum.
-    pub fn required_schema_version_lr2(&self) -> u32 {
-        if self.tone.legacy_pv2010.is_some()
-            || self.tone.curves_extended.is_some()
-            || self.color.monochrome.as_ref().is_some_and(|m| m.enabled)
-        {
-            4
-        } else {
-            3
-        }
-    }
-
     /// B&W conversion precedes point curves; other colour adjustments follow.
     pub fn color_before_curves(&self) -> ColorSettings {
         ColorSettings {
