@@ -1,5 +1,7 @@
 # Codex brief — Lightroom Classic edit translation (LR-1 … LR-7)
 
+> **Ownership update 2026-10-01:** Codex on Machine A never started these lanes. Machine B's Codex now owns LR-0..LR-7, ENG-1 and ENG-2 (branches `wp/LR-<n>-<slug>`, `wp/ENG-<n>`), reporting to the Claude A coordinator by direct message. If Codex on Machine A is started later, it must first check `git branch -r | grep -E 'wp/LR-|wp/ENG-'` and take only lanes with no branch yet (Phase 2 PERF lanes are still unassigned), and must not duplicate a lane B has begun.
+
 Owner: Codex coordinator on Machine A (resumed). Issued by the Claude Machine A coordinator on 2026-09-30 at Rut's request. Rut's subscription is expiring: run as many parallel workers as the machine allows and keep going until every lane below is merged or blocked.
 
 ## Goal
