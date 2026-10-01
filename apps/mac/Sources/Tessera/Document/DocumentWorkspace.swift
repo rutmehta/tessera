@@ -672,6 +672,8 @@ final class DocumentWorkspace {
         if let exporter = backend as? DocumentFlatExporting {
             let job: DocumentFlatExport
             do {
+                let snapshotSpan = trace.begin("export_flat_snapshot")
+                defer { trace.end(snapshotSpan) }
                 job = try exporter.beginExportFlat(path: path, format: format, quality: quality, color: color)
             } catch {
                 say("Export Flat: \(error.localizedDescription)")

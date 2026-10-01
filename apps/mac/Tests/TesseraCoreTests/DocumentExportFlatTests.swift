@@ -237,4 +237,69 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertTrue(work.allSatisfy { !$0.mainThread }, "Rendering, encoding and writing must never run on main")
     }
 
+    /// B5-40: the same developed 18 MP RAW + Gaussian smart filter as FilterSelfTest.
+    /// Catches snapshot acquisition on main and a callback storm from tile progress.
+    func testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress() async throws {
+        _ = NSApplication.shared
+        let dir = try temp()
+        let photos = dir.appendingPathComponent("photos")
+        try FileManager.default.createDirectory(at: photos, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: ShellHarness.repoRoot.appendingPathComponent("fixtures/raw/sample.dng"),
+                                        to: photos.appendingPathComponent("sample.dng"))
+        let library = try await Task.detached {
+            try EngineLibrary.scan(folder: photos, appSupport: dir.appendingPathComponent("support"))
+        }.value
+        defer { withExtendedLifetime(library) {} }
+        let image = try XCTUnwrap(library.items.first?.engineImage)
+        let backend = try await Task.detached {
+            let doc = try EngineDocumentEngine.for(library.engine)
+                .openDocumentFromImage(imageId: image.imageID, developed: true)
+            let engine = try XCTUnwrap(doc as? EngineDocumentBackend)
+            let layer = try XCTUnwrap(try engine.layers().first { $0.kind == .pixel }?.id)
+            _ = try engine.convertForSmartFilters(layer: layer)
+            _ = try engine.applyFilter(layer: layer, filterJson: #"{"id":"gaussian_blur","params":{"radius":8}}"#)
+            return engine
+        }.value
+        let ws = DocumentWorkspace()
+        try ws.install(backend)
+        let doc = try XCTUnwrap(ws.current)
+        defer { ws.discard(doc) }
+        XCTAssertEqual(doc.info.width, 5212)
+        XCTAssertEqual(doc.info.height, 3468)
+        let window = NSWindow(contentRect: NSRect(x: 40, y: 40, width: 1000, height: 700),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        ws.exportWindow = window
+        window.contentView?.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        let trace = PerformanceTrace(enabled: true)
+        ws.exportTrace = trace
+        let spans = MainThreadSpans()
+        var outcome: FlatExportTask.Outcome?
+        spans.start()
+        let output = dir.appendingPathComponent("smart.png")
+        XCTAssertNotNil(ws.startExportFlat(doc, ExportFlatSettings(), to: output) { outcome = $0 })
+        let finished = await waitFor(300) { outcome != nil }
+        let busy = spans.stop()
+        XCTAssertTrue(finished)
+        XCTAssertEqual(outcome, .exported)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: output.path))
+        XCTAssertLessThan(try XCTUnwrap(busy.max()), 20,
+                          "18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound")
+        let events = trace.snapshot().events
+        let snapshots = events.filter { $0.name == "export_flat_snapshot_start" }
+        XCTAssertEqual(snapshots.count, 1)
+        XCTAssertTrue(snapshots.allSatisfy { !$0.mainThread }, "The blocking session snapshot must never run on main")
+        let progress = events.filter { $0.name == "export_flat_progress_start" }
+        XCTAssertGreaterThan(progress.count, 1, "The real fixture must exercise progress publication")
+        for (previous, next) in zip(progress, progress.dropFirst()) {
+            XCTAssertGreaterThanOrEqual(next.time - previous.time, 0.095,
+                                        "Progress must coalesce to at most 10 Hz, including phase changes")
+        }
+        for event in events where event.mainThread && event.durationMs != nil {
+            XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
+        }
+    }
+
 }
