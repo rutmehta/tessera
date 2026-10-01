@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import QuartzCore
 import SwiftUI
 import TesseraCore
 import TesseraFFI
@@ -719,7 +720,6 @@ final class DocumentWorkspace {
             let span = trace.begin("export_flat_progress")
             defer { trace.end(span) }
             task.update(f, phase)
-            self.updateExportAccessory()
         }
         let progress = FlatExportProgressPublisher(publish: onProgress)
         let onDone: @MainActor @Sendable (Result<Void, any Error>) -> Void = { [weak self, weak task] result in
@@ -760,7 +760,6 @@ final class DocumentWorkspace {
     /// passed its last checkpoint, in which case it completes and is reported as exported.
     func cancelExportFlat(_ task: FlatExportTask) {
         task.cancelNow()
-        updateExportAccessory()
         say("Cancelling export of \(task.fileName)…")
     }
 
@@ -963,18 +962,20 @@ extension ExportSettings.ColorSpace {
 // MARK: - B5-15 background Export Flat state and bar
 
 /// One background Export Flat (DocumentWorkspace.startExportFlat).
-@MainActor @Observable
+@MainActor
 final class FlatExportTask: Identifiable {
     enum Outcome: Equatable { case exported, cancelled, failed(String) }
 
     let id = UUID()
     let fileName: String
     let documentTitle: String
-    @ObservationIgnored weak var progressHost: NSView?
+    weak var progressHost: NSView?
     private(set) var fraction: Double = 0
     private(set) var phase = "Preparing"
     private(set) var cancelling = false
-    @ObservationIgnored private let cancelAction: @Sendable () -> Void
+    private let cancelAction: @Sendable () -> Void
+    // Bound by the native row. A delivery changes layers only, never observable UI state.
+    var progressChanged: (@MainActor () -> Void)?
 
     init(fileName: String, documentTitle: String, cancel: @escaping @Sendable () -> Void) {
         self.fileName = fileName
@@ -986,12 +987,14 @@ final class FlatExportTask: Identifiable {
         guard !cancelling else { return }
         self.fraction = max(self.fraction, fraction)
         self.phase = phase
+        progressChanged?()
     }
 
     func cancelNow() {
         guard !cancelling else { return }
         cancelling = true
         phase = "Cancelling"
+        progressChanged?()
         cancelAction()
     }
 }
@@ -1198,11 +1201,38 @@ final class FlatExportProgressView: NSView {
         }
     }
 
+    /// Virtual AX children supply the same text/progress semantics without native controls.
+    private final class LayerAccessibility: NSAccessibilityElement {
+        weak var owner: NSView?
+        let content: CALayer
+
+        init(owner: NSView, content: CALayer, role: NSAccessibility.Role) {
+            self.owner = owner
+            self.content = content
+            super.init()
+            setAccessibilityRole(role)
+            setAccessibilityParent(owner)
+            setAccessibilityElement(true)
+        }
+
+        override func accessibilityFrame() -> NSRect {
+            // AppKit queries these virtual children on main, just like NSView AX methods.
+            MainActor.assumeIsolated {
+                guard let owner, let window = owner.window else { return .zero }
+                return window.convertToScreen(owner.convert(content.frame, to: nil))
+            }
+        }
+    }
+
     private final class Row: NSView {
-        private let name = NSTextField(labelWithString: "")
-        private let phase = NSTextField(labelWithString: "")
-        private let progress = NSProgressIndicator()
+        private let name = CATextLayer()
+        private let phase = CATextLayer()
+        private let progress = CALayer()
+        private let fill = CALayer()
         private let cancel = NSButton(title: "Cancel", target: nil, action: nil)
+        private lazy var nameAX = LayerAccessibility(owner: self, content: name, role: .staticText)
+        private lazy var phaseAX = LayerAccessibility(owner: self, content: phase, role: .staticText)
+        private lazy var progressAX = LayerAccessibility(owner: self, content: progress, role: .progressIndicator)
         private weak var task: FlatExportTask?
         private weak var workspace: DocumentWorkspace?
         override var isFlipped: Bool { true }
@@ -1210,18 +1240,19 @@ final class FlatExportProgressView: NSView {
         init(workspace: DocumentWorkspace?) {
             self.workspace = workspace
             super.init(frame: .zero)
+            wantsLayer = true
             name.font = Theme.NSFonts.body
-            name.textColor = Theme.Palette.textPrimary
-            name.lineBreakMode = .byTruncatingMiddle
-            name.maximumNumberOfLines = 1
+            name.fontSize = Theme.NSFonts.body.pointSize
+            name.truncationMode = .middle
             phase.font = Theme.NSFonts.labelNumeric
-            phase.textColor = Theme.Palette.textSecondary
-            phase.lineBreakMode = .byTruncatingTail
-            progress.isIndeterminate = false
-            progress.minValue = 0
-            progress.maxValue = 1
-            progress.style = .bar
-            progress.controlSize = .small
+            phase.fontSize = Theme.NSFonts.labelNumeric.pointSize
+            phase.truncationMode = .end
+            for content in [name, phase, progress] { layer?.addSublayer(content) }
+            progress.addSublayer(fill)
+            progress.cornerRadius = Theme.Radius.control
+            progress.masksToBounds = true
+            progressAX.setAccessibilityMinValue(0)
+            progressAX.setAccessibilityMaxValue(1)
             cancel.cell = CancelCell(textCell: "Cancel")
             cancel.setButtonType(.momentaryPushIn)
             cancel.isBordered = true
@@ -1229,27 +1260,86 @@ final class FlatExportProgressView: NSView {
             cancel.controlSize = .small
             cancel.target = self
             cancel.action = #selector(cancelExport)
-            for view in [name, progress, phase, cancel] { addSubview(view) }
+            addSubview(cancel)
+            updateAppearance()
         }
         required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+        override func accessibilityChildren() -> [Any]? { [nameAX, phaseAX, progressAX, cancel] }
+
         func update(_ task: FlatExportTask) {
             if self.task !== task {
+                self.task?.progressChanged = nil
                 self.task = task
-                progress.setAccessibilityLabel("Export progress for \(task.fileName)")
+                task.progressChanged = { [weak self] in self?.publish() }
+                progressAX.setAccessibilityLabel("Export progress for \(task.fileName)")
                 cancel.setAccessibilityLabel("Cancel export of \(task.fileName)")
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                let title = "Exporting \(task.fileName)"
+                name.string = title
+                nameAX.setAccessibilityValue(title)
+                CATransaction.commit()
             }
-            let title = "Exporting \(task.fileName)"
-            if name.stringValue != title { name.stringValue = title }
+            publish()
+        }
+
+        private func publish() {
+            guard let task else { return }
+            let trace = workspace?.exportTrace
+            let span = trace?.begin("export_flat_hud_update")
+            defer { trace?.end(span) }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
             let status = "\(task.phase) \(Int((task.fraction * 100).rounded())) %"
-            if phase.stringValue != status { phase.stringValue = status }
-            if progress.doubleValue != task.fraction { progress.doubleValue = task.fraction }
-            cancel.isEnabled = !task.cancelling
+            if phase.string as? String != status {
+                phase.string = status
+                phaseAX.setAccessibilityValue(status)
+            }
+            fill.frame = CGRect(x: 0, y: 0, width: progress.bounds.width * task.fraction,
+                                height: progress.bounds.height)
+            progressAX.setAccessibilityValue(task.fraction)
+            progressAX.setAccessibilityValueDescription("\(Int((task.fraction * 100).rounded())) %")
+            if cancel.isEnabled == task.cancelling { cancel.isEnabled = !task.cancelling }
+            CATransaction.commit()
+            NSAccessibility.post(element: progressAX, notification: .valueChanged)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            updateAppearance()
+        }
+
+        override func viewDidChangeBackingProperties() {
+            super.viewDidChangeBackingProperties()
+            updateAppearance()
+        }
+
+        override func viewDidChangeEffectiveAppearance() {
+            super.viewDidChangeEffectiveAppearance()
+            updateAppearance()
+        }
+
+        private func updateAppearance() {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+            name.contentsScale = scale
+            phase.contentsScale = scale
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                name.foregroundColor = Theme.Palette.textPrimary.cgColor
+                phase.foregroundColor = Theme.Palette.textSecondary.cgColor
+                progress.backgroundColor = Theme.Palette.hairlineStrong.cgColor
+                fill.backgroundColor = Theme.Palette.accent.cgColor
+            }
+            CATransaction.commit()
         }
 
         override func setFrameSize(_ newSize: NSSize) {
             guard newSize != frame.size else { return }
             super.setFrameSize(newSize)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
             let gap = Theme.Space.s, inset = Theme.Space.m
             let available = max(0, bounds.width - 2 * inset)
             let buttonWidth = min(64, available)
@@ -1257,8 +1347,10 @@ final class FlatExportProgressView: NSView {
             cancel.frame = NSRect(x: bounds.width - inset - buttonWidth, y: 4, width: buttonWidth, height: 24)
             let phaseWidth = min(170, available * 0.55)
             let progressWidth = max(0, available - phaseWidth - gap)
-            progress.frame = NSRect(x: inset, y: 38, width: progressWidth, height: 14)
+            progress.frame = NSRect(x: inset, y: 43, width: progressWidth, height: Theme.Space.xs)
             phase.frame = NSRect(x: inset + progressWidth + gap, y: 34, width: phaseWidth, height: 20)
+            fill.frame = CGRect(x: 0, y: 0, width: progressWidth * (task?.fraction ?? 0), height: progress.bounds.height)
+            CATransaction.commit()
         }
 
         @objc private func cancelExport() {

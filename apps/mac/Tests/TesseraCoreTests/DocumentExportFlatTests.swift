@@ -416,6 +416,7 @@ final class DocumentExportFlatTests: XCTestCase {
             }
         }
         var outcome: FlatExportTask.Outcome?
+        let exportEventOffset = trace.snapshot().events.count
         let exportLoad = load1(), exportBegan = Date()
         spans.start()
         let output = dir.appendingPathComponent("smart.png")
@@ -442,7 +443,8 @@ final class DocumentExportFlatTests: XCTestCase {
             XCTAssertLessThan(try XCTUnwrap(busy.max()), 20,
                               "18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound")
         }
-        let events = trace.snapshot().events
+        // Controls share the trace for diagnostics; only export events have export timing bounds.
+        let events = Array(trace.snapshot().events.dropFirst(exportEventOffset))
         let snapshots = events.filter { $0.name == "export_flat_snapshot_start" }
         XCTAssertEqual(snapshots.count, 1)
         XCTAssertTrue(snapshots.allSatisfy { !$0.mainThread }, "The blocking session snapshot must never run on main")
