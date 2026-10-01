@@ -158,3 +158,47 @@ fn isolated_local_tone_preserves_contracts() {
         }
     }
 }
+
+// Exercise the host-image GPU path below, at, and above the presence floor.
+// Ordinary midtone fixtures do not detect an omitted recombination floor.
+#[test]
+fn local_presence_conditions_near_black_like_cpu() {
+    let ctx = GpuContext::new().unwrap();
+    for scale in [0.0002, 0.001, 0.002] {
+        let input = Image::new(
+            17,
+            19,
+            (0..3)
+                .map(|c| {
+                    (0..17 * 19)
+                        .map(|i| scale * (0.7 + 0.2 * (i as f32 * 0.73 + c as f32).sin()))
+                        .collect()
+                })
+                .collect(),
+        )
+        .unwrap();
+        for (texture, clarity) in [(20., 0.), (0., 15.), (20., 15.), (-100., -100.)] {
+            let s = ToneSettings {
+                texture,
+                clarity,
+                ..Default::default()
+            };
+            let actual = tone_local::run(&ctx, &input, &s).unwrap();
+            let expected = pipeline_cpu::tone_extra_image(&input, &s).unwrap();
+            let diff = actual
+                .planes()
+                .iter()
+                .flatten()
+                .zip(expected.planes().iter().flatten())
+                .map(|(a, b)| {
+                    assert!(a.is_finite() && b.is_finite());
+                    (a - b).abs()
+                })
+                .fold(0.0_f32, f32::max);
+            assert!(
+                diff <= 1e-6,
+                "scale={scale} texture={texture} clarity={clarity}: {diff:e}"
+            );
+        }
+    }
+}

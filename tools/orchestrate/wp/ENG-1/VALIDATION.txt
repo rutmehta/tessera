@@ -1,0 +1,107 @@
+RED full-chain ulp
+one input blue ulp: 17.700655 -> 17.600351, gap=0.10030365
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.22s
+
+RED signed patch
+signed patch one ulp: 6754.5015 -> 6746.49, gap=8.01123
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.00s
+
+RED resident-chain absolute bound
+amount 0: max scaled error 0, max absolute 0
+amount 0.35: max scaled error 0.0011124038, max absolute 0.00716877
+amount 1: max scaled error 0.0011571897, max absolute 0.020483017
+amount 1: max absolute RGB error 0.020483017
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.77s
+
+Rejected 1e-4 floor candidate
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+amount 0: max scaled error 0, max absolute 0
+one input blue ulp: 0.4999993 -> 0.50001234, gap=0.000013023615
+amount 0.35: max scaled error 0.0016628802, max absolute 0.0016628802
+amount 1: max scaled error 0.0047510564, max absolute 0.0047510564
+amount 1: max absolute RGB error (relative above 1) 0.0047510564
+test result: FAILED. 9 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.15s
+
+GREEN final 1e-3 floor targeted chain
+amount 0: max scaled error 0, max absolute 0
+curve=false stage=neutral: max=0.00000029802322 pixel=67701 channel=0 GPU=0.95312476 CPU=0.95312506
+curve=false stage=sharpen: max=0.00000047683716 pixel=40671 channel=0 GPU=1.0189509 CPU=1.0189514
+one input blue ulp: 0.15071067 -> 0.15071583, gap=0.000005155802
+curve=false stage=dehaze: max=0.0000010752119 pixel=67703 channel=0 GPU=-0.0007142257 CPU=-0.0007153009
+amount 0.35: max scaled error 0.0006299019, max absolute 0.0006299019
+curve=false stage=sharpen+dehaze: max=0.00000059604645 pixel=2353 channel=0 GPU=1.0750239 CPU=1.0750245
+amount 1: max scaled error 0.0017997772, max absolute 0.0017997772
+curve=false stage=rich-no-sharpen: max=0.000010728836 pixel=29048 channel=0 GPU=1.2338699 CPU=1.2338806
+curve=false stage=rich-no-dehaze: max=0.000012427568 pixel=39242 channel=2 GPU=0.116170436 CPU=0.11615801
+curve=false stage=rich-no-presence: max=0.000013947487 pixel=29642 channel=2 GPU=0.8162446 CPU=0.81623065
+curve=false stage=rich: max=0.000012516975 pixel=39242 channel=2 GPU=0.11617038 CPU=0.11615786
+curve=true stage=neutral: max=0.0000014156103 pixel=20963 channel=0 GPU=0.042967618 CPU=0.042969033
+curve=true stage=sharpen: max=0.0000018924475 pixel=12872 channel=0 GPU=-0.063237764 CPU=-0.06323587
+curve=true stage=dehaze: max=0.000002404675 pixel=56671 channel=0 GPU=0.008689525 CPU=0.00868712
+curve=true stage=sharpen+dehaze: max=0.0000020116568 pixel=24681 channel=0 GPU=0.04126303 CPU=0.041261017
+curve=true stage=rich-no-sharpen: max=0.000062949955 pixel=2357 channel=0 GPU=0.004182175 CPU=0.004119225
+curve=true stage=rich-no-dehaze: max=0.0017997772 pixel=10703 channel=2 GPU=0.15251045 CPU=0.15071067
+curve=true stage=rich-no-presence: max=0.0043850243 pixel=10703 channel=2 GPU=0.4546297 CPU=0.45024467
+curve=true stage=rich: max=0.0017997772 pixel=10703 channel=2 GPU=0.15251045 CPU=0.15071067
+test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.37s
+
+GREEN 24 MP full scan
+24MP CPU=85.529190459s GPU=1.299781417s (cold pipelines included, upload/readback excluded)
+24MP all-pixel max absolute=0.0064618886, worst=(20760770, 2, 0.112942874, 0.11940476)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 89.04s
+
+Final synthetic Develop golden before/after deltas
+AdobeRgb-None.bin: 4403 pixels, 87 changed, max absolute channel delta 0.19964510202407837
+AdobeRgb-Some(0.0).bin: 4403 pixels, 0 changed, max absolute channel delta 0.0
+AdobeRgb-Some(0.35).bin: 4403 pixels, 85 changed, max absolute channel delta 0.06987577676773071
+DisplayP3-None.bin: 4403 pixels, 79 changed, max absolute channel delta 0.19836732745170593
+DisplayP3-Some(0.0).bin: 4403 pixels, 0 changed, max absolute channel delta 0.0
+DisplayP3-Some(0.35).bin: 4403 pixels, 79 changed, max absolute channel delta 0.06942856311798096
+Srgb-None.bin: 4403 pixels, 64 changed, max absolute channel delta 0.20692861080169678
+Srgb-Some(0.0).bin: 4403 pixels, 0 changed, max absolute channel delta 0.0
+Srgb-Some(0.35).bin: 4403 pixels, 63 changed, max absolute channel delta 0.07242506742477417
+
+Final synthetic golden reference agreement
+AdobeRgb amount None: max encoded error 0.000053480268
+Srgb amount None: max encoded error 0.00004863739
+DisplayP3 amount None: max encoded error 0.00004696846
+AdobeRgb amount Some(0.35): max encoded error 0.000018715858
+DisplayP3 amount Some(0.35): max encoded error 0.000016450882
+Srgb amount Some(0.35): max encoded error 0.000017046928
+AdobeRgb amount Some(0.0): max encoded error 0
+DisplayP3 amount Some(0.0): max encoded error 0
+Srgb amount Some(0.0): max encoded error 0
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.09s
+
+Full five-crate release gate
+golden digest: d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8
+peak heap: inspect 2k 31 MB, inspect 20k 51 MB (38.819533458s), stream 20k 51 MB (45.252138625s)
+signed patch one ulp: 2.6483507 -> 2.648351, gap=0.00000023841858
+skipping pipeline goldens: fixtures/raw is absent
+opcode fixture coverage unavailable: fixtures/raw absent
+skipping: no RAW fixtures
+
+Pre-existing ignored standalone tone diagnostic: explicit rerun FAILED
+near-zero signed tone CPU: max absolute=0.0000184050537388597
+near-zero signed tone GPU: max absolute=0.005117127928857115
+tone cancellation: [("CPU", 1.84050537388597e-5), ("GPU", 0.005117127928857115)]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.07s
+
+Clippy
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 23s
+
+Full gate totals: 114 suites; (passed, failed, ignored, measured, filtered)=(613, 0, 24, 0, 2)
+
+golden-after exit: 0
+
+gates exit: 0
+
+clippy exit: 0
+
+fmt exit: 0
+
+golden-conditioning exit: 0
+
+tone-diagnostic exit: 101
+
+Temporary golden conditioning trace: 6 floor events across 3 profile tests (renderer + filter); 4 distinct float triples, all signed RGB. Y range 0.0004458446..0.00044586882; sum(abs(weight*channel))/Y range 78.20358..78.20788. Example RGB [-0.008250191, -0.022188842, 0.2977606]. Trace code removed; final production source restored byte-for-byte to the fully gated content.

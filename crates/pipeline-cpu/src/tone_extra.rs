@@ -209,6 +209,13 @@ fn range(v: &[f32], w: usize, h: usize, r: usize) -> (Vec<f32>, Vec<f32>) {
     }
     (lo, hi)
 }
+// Scene-linear Rec.2020 luminance (white = 1). Signed RGB from sharpening
+// can nearly cancel in Y; condition the luminance delta at 0.1% of white
+// to bound chroma gain from ordinary f32 differences. Keep this value and
+// formulation identical to presence.wgsl and tone_local.wgsl. Other tone
+// math is unchanged.
+const PRESENCE_LUMA_FLOOR: f32 = 1e-3;
+
 fn presence(data: &mut [f32], w: usize, h: usize, s: &ToneSettings) {
     let n = w * h;
     let y: Vec<_> = (0..n)
@@ -232,10 +239,14 @@ fn presence(data: &mut [f32], w: usize, h: usize, s: &ToneSettings) {
             + s.clarity.clamp(-100.0, 100.0) / 100.0 * weight * (mid[i] - wide[i]);
         // No newly created extrema: removes the bright/dark step-edge lobes.
         let out = (z[i] + delta).clamp(lo[i], hi[i]);
-        if out == z[i] {
+        if y[i] >= PRESENCE_LUMA_FLOOR && out == z[i] {
             continue;
         }
-        let gain = finite(decode(out) / y[i]);
+        let gain = finite(if y[i] >= PRESENCE_LUMA_FLOOR {
+            decode(out) / y[i]
+        } else {
+            1.0 + (decode(out) - y[i]) / PRESENCE_LUMA_FLOOR
+        });
         for c in 0..3 {
             data[c * n + i] = finite(data[c * n + i] * gain);
         }
@@ -479,6 +490,36 @@ mod tests {
         )
         .unwrap()
     }
+    #[test]
+    fn signed_patch_presence_does_not_amplify_one_ulp() {
+        let n = 17 * 17;
+        let center = n / 2;
+        let mut planes = vec![vec![0.18; n]; 3];
+        for (c, v) in [-0.006959494, -0.005868249, 0.097931265]
+            .into_iter()
+            .enumerate()
+        {
+            planes[c][center] = v;
+        }
+        let original = crate::Image::new(17, 17, planes.clone()).unwrap();
+        planes[2][center] = planes[2][center].next_up();
+        let perturbed = crate::Image::new(17, 17, planes).unwrap();
+        let settings = ToneSettings {
+            texture: -100.0,
+            clarity: -100.0,
+            ..Default::default()
+        };
+        let a = tone_extra_image(&original, &settings).unwrap();
+        let b = tone_extra_image(&perturbed, &settings).unwrap();
+        let gap = (a.planes()[2][center] - b.planes()[2][center]).abs();
+        eprintln!(
+            "signed patch one ulp: {} -> {}, gap={gap}",
+            a.planes()[2][center],
+            b.planes()[2][center]
+        );
+        assert!(gap < 0.001, "presence amplified one ulp: {gap}");
+    }
+
     #[test]
     fn whole_image_uses_global_statistics_beyond_tile_extent() {
         let values: Vec<_> = (0..512).map(|x| 0.2 + 0.6 * x as f32 / 511.0).collect();

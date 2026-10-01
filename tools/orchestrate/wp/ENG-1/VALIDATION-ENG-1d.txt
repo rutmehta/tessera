@@ -1,0 +1,40 @@
+ENG-1d actual-worktree validation
+Source/test/golden tip: e7d9cd3cb59b9e7cf46edd45c5ea0929933ecd03
+Base: 5b0871ae; no rebase; local only.
+PATH=$HOME/.cargo/bin:$PATH
+CARGO_TARGET_DIR=$HOME/.cache/tessera-target/ENG-1-texture-clarity
+CARGO_BUILD_JOBS=3 RAYON_NUM_THREADS=3
+fixtures/raw present; ENG1_CAPTURE/PIPELINE_RAW_FIXTURES/PIPELINE_GPU_ALL_FIXTURES unset.
+
+cargo clean -p pipeline-cpu -p pipeline-gpu -p filters
+cargo clean --release -p pipeline-cpu -p pipeline-gpu -p filters
+cargo test -p pipeline-cpu -p pipeline-gpu -p filters --release --no-fail-fast
+EXIT 101: 93 suites, 456 passed, 1 failed, 24 ignored, 0 filtered.
+FAIL: resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha
+0.00458771 < 0.01 absolute, but > 0.002 existing scaled guard.
+Isolated binary repeat: 9 passed, 1 failed, 1 ignored, exit 101; identical gap.
+All stage assertions pass. With presence disabled rich gap = 0.0043850243.
+Level-3 RAW fixture: PASS unchanged 1e-4. RAW stored goldens: PASS.
+white_balance_v2: 3/3 PASS, no LibRaw IO error and no retry.
+
+cargo clippy -p pipeline-cpu -p pipeline-gpu -p filters --all-targets -- -D warnings
+EXIT 0
+cargo fmt --all -- --check
+EXIT 0; git diff --check PASS.
+
+One-ulp test RED both paths: 0.16500479, exit 101.
+GREEN local: 5.9604645e-7; resident: 5.9604645e-8, exit 0.
+Synthetic attribution: 274 changed pixels, max distance 8, radius 11, outside 0.
+Photographic RAW: 5/5 unchanged against both stored PNG and historical capture.
+Attribution unit tests: 3/3 PASS. Capture re-verification: PASS.
+Status: formula fixed; merge blocked by retained 0.002 scaled guard.
+
+Archived logs and SHA-256:
+c8a7968de5ab8357be24402e578fbc08a0d810840a35c7cdc211cca890e702eb  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/red-both.log
+f437a5005ad6b89b1393e5b7e317f4640d5429f9f592f7f9198d24862bcde39b  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/green-both.log
+41f7e99ac97ce3d5cf8e0b4831a3482430159e8bd2107cca3f8d52219db2cf81  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/clean.log
+b0ecb986c6312b2e74ce68b969784e5c1c88fedce0310321b1da308620b96bdd  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/full.log
+97b295b737e8b39b1c5c25d135ab8b74180cfba1d7b7cc34592d9393fca0c716  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/resident-alone.log
+1b0f2456027ce7c51bac4ee768cd85a5d370acc4858dcd4d0c5a5842838fd3bd  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/clippy.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/fmt.log
+4e274108a806e4a864dada42afe79a5cbf91111f2301b482625e50a374675f84  /Users/rutmehta/tessera-evidence/ENG-1/eng1d/verify.log

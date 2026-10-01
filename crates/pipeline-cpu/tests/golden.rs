@@ -83,6 +83,28 @@ fn raw_fixture_goldens() {
         assert_eq!(info.bit_depth, png::BitDepth::Eight);
         let expected = &expected[..info.buffer_size()];
         assert_eq!(expected.len(), rendered.as_raw().len());
+        if let Some(dir) = std::env::var_os("ENG1_CAPTURE") {
+            fs::write(
+                PathBuf::from(dir).join(format!(
+                    "{}.rgb8",
+                    path.file_stem().unwrap().to_string_lossy()
+                )),
+                rendered.as_raw(),
+            )
+            .unwrap();
+        }
+        let changed = expected
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(rendered.as_raw().as_chunks::<3>().0)
+            .filter(|(a, b)| a != b)
+            .count();
+        eprintln!(
+            "{}: changed pixels {changed}/{}",
+            golden.display(),
+            expected.len() / 3
+        );
         let max = expected
             .iter()
             .zip(rendered.as_raw())

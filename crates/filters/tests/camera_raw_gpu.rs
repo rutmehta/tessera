@@ -149,6 +149,32 @@ fn rich_settings() -> DevelopSettings {
     s
 }
 
+// A single input ulp must not become a visible jump after sharpen + presence.
+#[test]
+fn signed_luminance_chain_is_stable_under_one_input_ulp() {
+    let extent = Extent::new(259, 263);
+    let (raster, _) = pixels(extent);
+    let context = FilterContext {
+        profile: None,
+        level: 2,
+        canvas: extent,
+    };
+    let value = json!({"settings": rich_settings()});
+    let original = cpu_reference(&raster, &value, &context).pixel(84, 41)[2];
+    let mut perturbed = raster.clone();
+    perturbed
+        .edit_region(Rect::of_extent(extent), 1, |x, y, p| {
+            if (x, y) == (84, 41) {
+                p[2] = p[2].next_up();
+            }
+        })
+        .unwrap();
+    let changed = cpu_reference(&perturbed, &value, &context).pixel(84, 41)[2];
+    let gap = (changed - original).abs();
+    eprintln!("one input blue ulp: {original} -> {changed}, gap={gap}");
+    assert!(gap < 0.01, "ill-conditioned presence gain: {gap}");
+}
+
 #[test]
 fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
     let gpu = pipeline_gpu::GpuContext::new().unwrap();
@@ -166,56 +192,55 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
             contents: bytemuck::cast_slice(&data),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         });
-    for amount in [0., 0.35, 1.] {
-        let value = json!({"settings": rich_settings(), "amount": amount});
+    for (amount, presence) in [(0., true), (0.35, true), (1., true), (1., false)] {
+        let mut settings = rich_settings();
+        if !presence {
+            settings.tone.texture = 0.;
+            settings.tone.clarity = 0.;
+        }
+        let value = json!({"settings": settings, "amount": amount});
         let cpu = cpu_reference(&raster, &value, &context);
         let output =
             camera_raw_gpu::evaluate(&gpu.device, &gpu.queue, &buffer, extent, &value, &context)
                 .unwrap();
         let actual = readback(&gpu, &output, extent.area() * 16);
-        // B5-28: samples are sRGB-encoded (untagged), so this compares
-        // encoded samples. The decoded (darker) input drives a few rich-chain
-        // outliers far above 1 (one reaches ~17.7 encoded at amount 1); the
-        // resident and CPU operators agree there to ~0.12 % RELATIVE, so the
-        // unchanged 0.002 bound is absolute in [-1, 1] and relative beyond it.
-        // An absolute ceiling of 0.025 (measured 0.0205, at that 17.7 sample)
-        // keeps a large value from hiding a large gap; see B5-28 HANDOFF
-        // follow-up on the bright-value GPU/CPU gap.
-        let mut max_error = 0.0_f32;
+        // ENG-1e: Machine A ruled an absolute 0.01 full-chain bound.
         let mut max_absolute = 0.0_f32;
         for (i, p) in actual.iter().enumerate() {
             let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
             assert_eq!(p[3].to_bits(), data[i][3].to_bits());
             for c in 0..3 {
                 assert!(p[c].is_finite());
-                let scale = expected[c].abs().max(1.);
+                assert!(expected[c].is_finite());
                 let gap = (p[c] - expected[c]).abs();
-                max_error = max_error.max(gap / scale);
                 max_absolute = max_absolute.max(gap);
                 if amount == 0. {
                     assert_eq!(p[c].to_bits(), data[i][c].to_bits());
                 }
             }
         }
-        eprintln!("amount {amount}: max scaled error {max_error}, max absolute {max_absolute}");
+        eprintln!("amount {amount}, presence {presence}: max absolute {max_absolute}");
         assert!(
-            max_error < 0.002,
-            "amount {amount}: max absolute RGB error (relative above 1) {max_error}"
+            max_absolute < 0.01,
+            "amount {amount}, presence {presence}: max absolute RGB error {max_absolute}"
         );
-        assert!(
-            max_absolute < 0.025,
-            "amount {amount}: max absolute RGB error {max_absolute}"
-        );
+        if !presence {
+            // ENG-4 will close the pre-existing tone-stage gap and then restore
+            // the full-chain guard to 0.002 scaled. Pin the no-presence baseline:
+            // 0.0043850243 at pixel 10703, blue; GPU 0.4546297 / CPU 0.45024467
+            // (measured 2026-10-01). This must stay <= 0.005 absolute.
+            assert!(
+                max_absolute <= 0.005,
+                "presence-disabled tone regression: max absolute RGB error {max_absolute}"
+            );
+        }
     }
 }
 
 /// Compare individual stages with identical sRGB primaries and either the
 /// B5-28 transfer curve or its linear twin. Collect all cases before asserting
 /// so a failure still identifies which stage/curve combination first diverges.
-/// Rich-chain maxima are diagnostics pending the A/Codex engine follow-up:
-/// clamp the texture/clarity signed-luminance divisor or run presence before
-/// sharpening. Baseline rich-chain max is 0.0205; 24 MP full-frame max is 6.14.
-/// Existing rich-chain tolerances remain in the resident-chain test.
+/// Every rich-chain stage asserts the conditioned absolute 0.01 bound.
 #[test]
 fn bright_value_stage_isolation_with_and_without_profile_curve() {
     use color_mgmt::{Builtin, Registry};
@@ -303,15 +328,20 @@ fn bright_value_stage_isolation_with_and_without_profile_curve() {
                 worst.0, worst.1, worst.2, worst.3, worst.4
             );
             // Standalone stages meet this bound on unchanged main numerics.
-            // Rich combinations record their maxima without an unmet bound.
-            if !stage.starts_with("rich") && worst.0 >= 5e-6 {
+            // Rich combinations retain the absolute resident-chain ceiling.
+            let bound = if stage.starts_with("rich") {
+                0.01
+            } else {
+                5e-6
+            };
+            if worst.0 >= bound {
                 failures.push(format!("curve={curve} stage={stage}: {worst:?}"));
             }
         }
     }
     assert!(
         failures.is_empty(),
-        "standalone absolute 5e-6 parity failures: {failures:#?}"
+        "stage parity failures (standalone 5e-6, rich 0.01): {failures:#?}"
     );
 }
 
@@ -454,14 +484,14 @@ fn invalid_buffer_and_unsupported_settings_fail_without_dispatch() {
     ));
 }
 
-/// Full-frame error is recorded, not asserted against the unmet 0.01 bound.
-/// Baseline full-frame max: 6.14 (small rich-chain max: 0.0205). A/Codex engine
-/// follow-up: clamp the texture/clarity signed-luminance divisor or evaluate
-/// texture/clarity before sharpening. Preserve main's sampled relative guard.
+/// Bound the existing tone gap and check presence does not increase it.
+/// Keep the original sampled scaled guard as an additional regression check.
+/// Unconditioned presence had a baseline full-frame maximum of 6.14.
 #[test]
 #[ignore = "24MP CPU/GPU timing; run explicitly in release on Metal"]
 fn bench_24mp_cpu_gpu() {
     let gpu = pipeline_gpu::GpuContext::new().unwrap();
+    eprintln!("24MP adapter={:?}", gpu.adapter_info);
     let extent = Extent::new(6000, 4000);
     let (raster, data) = pixels(extent);
     let context = FilterContext {
@@ -469,7 +499,6 @@ fn bench_24mp_cpu_gpu() {
         level: 0,
         canvas: extent,
     };
-    let value = json!({"settings": rich_settings()});
     let buffer = gpu
         .device
         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -481,40 +510,63 @@ fn bench_24mp_cpu_gpu() {
     gpu.device
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
-    let start = std::time::Instant::now();
-    let cpu = cpu_reference(&raster, &value, &context);
-    let cpu_time = start.elapsed();
-    let start = std::time::Instant::now();
-    let output =
-        camera_raw_gpu::evaluate(&gpu.device, &gpu.queue, &buffer, extent, &value, &context)
+    let measure = |presence: &str, settings: DevelopSettings| {
+        let value = json!({"settings": settings});
+        let start = std::time::Instant::now();
+        let cpu = cpu_reference(&raster, &value, &context);
+        let cpu_time = start.elapsed();
+        let start = std::time::Instant::now();
+        let output =
+            camera_raw_gpu::evaluate(&gpu.device, &gpu.queue, &buffer, extent, &value, &context)
+                .unwrap();
+        gpu.device
+            .poll(wgpu::PollType::wait_indefinitely())
             .unwrap();
-    gpu.device
-        .poll(wgpu::PollType::wait_indefinitely())
-        .unwrap();
-    let gpu_time = start.elapsed();
-    eprintln!(
-        "24MP CPU={cpu_time:?} GPU={gpu_time:?} (cold pipelines included, upload/readback excluded)"
-    );
-    let actual = readback(&gpu, &output, extent.area() * 16);
-    let mut max_absolute = 0f32;
-    let mut worst = (0usize, 0usize, 0f32, 0f32);
-    for (i, pixel) in actual.iter().enumerate() {
-        let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
-        assert_eq!(pixel[3].to_bits(), data[i][3].to_bits());
-        for c in 0..3 {
-            assert!(pixel[c].is_finite());
-            let gap = (pixel[c] - expected[c]).abs();
-            if i % 997 == 0 {
-                let scale = expected[c].abs().max(1.);
-                assert!(gap / scale < 0.002, "{i}/{c}: {pixel:?} vs {expected:?}");
-            }
-            if gap > max_absolute {
-                max_absolute = gap;
-                worst = (i, c, pixel[c], expected[c]);
+        let gpu_time = start.elapsed();
+        eprintln!(
+            "24MP presence={presence} CPU={cpu_time:?} GPU={gpu_time:?} (cold pipelines included, upload/readback excluded)"
+        );
+        let actual = readback(&gpu, &output, extent.area() * 16);
+        let mut max_absolute = 0f32;
+        let mut worst = (0usize, 0usize, 0f32, 0f32);
+        for (i, pixel) in actual.iter().enumerate() {
+            let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
+            assert_eq!(pixel[3].to_bits(), data[i][3].to_bits());
+            assert_eq!(expected[3].to_bits(), data[i][3].to_bits());
+            for c in 0..3 {
+                assert!(pixel[c].is_finite());
+                assert!(expected[c].is_finite());
+                let gap = (pixel[c] - expected[c]).abs();
+                if i % 997 == 0 {
+                    let scale = expected[c].abs().max(1.);
+                    assert!(gap / scale < 0.002, "{i}/{c}: {pixel:?} vs {expected:?}");
+                }
+                if gap > max_absolute {
+                    max_absolute = gap;
+                    worst = (i, c, pixel[c], expected[c]);
+                }
             }
         }
-    }
-    eprintln!("24MP all-pixel max absolute={max_absolute}, worst={worst:?}");
+        eprintln!(
+            "24MP presence={presence} all-pixel max absolute={max_absolute}, worst={worst:?}"
+        );
+        max_absolute
+    };
+    let mut settings = rich_settings();
+    settings.tone.texture = 0.;
+    settings.tone.clarity = 0.;
+    let presence_off = measure("off", settings);
+    // ENG-4 owns the pre-existing tone gap: 0.016636014 at pixel 4,999,168 red
+    // (GPU 0.5281837 / CPU 0.5115477). ENG-4 restores the 0.01 absolute bound.
+    assert!(
+        presence_off <= 0.02,
+        "24MP presence-off RGB error {presence_off}"
+    );
+    let presence_on = measure("on", rich_settings());
+    assert!(
+        presence_on <= presence_off + 1e-4,
+        "24MP presence-on RGB error {presence_on} exceeds presence-off {presence_off} + 1e-4"
+    );
 }
 
 fn resident_settings() -> DevelopSettings {

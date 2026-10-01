@@ -1,0 +1,93 @@
+{
+  "bound": 0.0001,
+  "support_radius": 11,
+  "seeds": [
+    {
+      "pixel": 69802,
+      "pre_fix_luminance": 0.0008220475865527987,
+      "bits": "3a577eae"
+    }
+  ],
+  "pre_fix_dehaze_globals": [
+    [
+      "3e853d17",
+      "3e77107b",
+      "3e54bd79",
+      "3f800000"
+    ],
+    [
+      "3e853d17",
+      "3e771075",
+      "3e54bd80",
+      "3f800000"
+    ],
+    [
+      "3e853d17",
+      "3e77107b",
+      "3e54bd79",
+      "3f800000"
+    ],
+    [
+      "3e853d17",
+      "3e771075",
+      "3e54bd80",
+      "3f800000"
+    ]
+  ],
+  "before": {
+    "width": 615,
+    "height": 410,
+    "pixels": 252150,
+    "max_absolute_delta": 0.00028468528762459755,
+    "pixels_above_1e_4": 1,
+    "failing_pixels": [
+      {
+        "pixel": 69802,
+        "x": 307,
+        "y": 113,
+        "input_rgb": [
+          9.84098733169958e-05,
+          0.0009789062896743417,
+          0.002234348561614752
+        ],
+        "cpu_rgb": [
+          5.793571472167969e-05,
+          0.0005763024091720581,
+          0.0013154298067092896
+        ],
+        "gpu_rgb": [
+          7.048177212709561e-05,
+          0.0007010477711446583,
+          0.001600115094333887
+        ],
+        "max_absolute_delta": 0.00028468528762459755,
+        "nearest_seed_distance": 0,
+        "predicate": true
+      }
+    ],
+    "outside_predicate": [],
+    "capture_sha256": {
+      "cpu.f32": "333ecb434a68bd6fcd5f7582605de3ea881bbc652ab82fc24b25ef6757e322f3",
+      "gpu.f32": "584684ed12a5ea4b669e34307c36bcae46c8fa3484979ec10fef358b9504b836",
+      "input.f32": "8136098fcb7bf7dc05fb747ff4382c73a8b8d2971bf57071f84ab7f09e6fb018"
+    },
+    "diff_file": "archived outside the repo at /Users/rutmehta/tessera-evidence/ENG-1/before-diff.csv.gz (sha256 4c5903908684dc77f85f28ffa0362116bbb58f1507208e44b59096f8ed22da26)",
+    "diff_sha256": "4c5903908684dc77f85f28ffa0362116bbb58f1507208e44b59096f8ed22da26"
+  },
+  "after": {
+    "width": 615,
+    "height": 410,
+    "pixels": 252150,
+    "max_absolute_delta": 7.748603820800781e-07,
+    "pixels_above_1e_4": 0,
+    "failing_pixels": [],
+    "outside_predicate": [],
+    "capture_sha256": {
+      "cpu.f32": "333ecb434a68bd6fcd5f7582605de3ea881bbc652ab82fc24b25ef6757e322f3",
+      "gpu.f32": "ad7f14a514556ca20a7c8aea8cf1e77b1c1c29bb5e149dfa5cb81cf4d19cf133",
+      "input.f32": "8136098fcb7bf7dc05fb747ff4382c73a8b8d2971bf57071f84ab7f09e6fb018"
+    },
+    "diff_file": "archived outside the repo at /Users/rutmehta/tessera-evidence/ENG-1/after-diff.csv.gz (sha256 7ea5dd9a4feaf3701980c7769678127f8a6915d2d52f18ce99f4d0e98769b718)",
+    "diff_sha256": "7ea5dd9a4feaf3701980c7769678127f8a6915d2d52f18ce99f4d0e98769b718"
+  }
+}

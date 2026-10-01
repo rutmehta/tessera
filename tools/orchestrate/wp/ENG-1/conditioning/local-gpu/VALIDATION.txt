@@ -1,0 +1,39 @@
+ENG-1c; Apple M4 Max / Metal; local investigation and disposable candidate.
+Starting HEAD: 6688d478; test-first commit: 8a418fa2.
+PATH includes ~/.cargo/bin; CARGO_BUILD_JOBS=3; RAYON_NUM_THREADS=3.
+CARGO_TARGET_DIR=~/.cache/tessera-target/ENG-1-texture-clarity.
+Clean --release performed before comparing source trees.
+
+UNMODIFIED PRODUCTION:
+fixture_level3_tolerance_per_operator_and_output: FAIL (exit 101)
+image Tone: 2.846853e-4 (bound unchanged at 1e-4)
+local_presence_conditions_near_black_like_cpu: FAIL (exit 101)
+scale=0.0002 texture=20 clarity=0: 1.5453927e-4 (bound 1e-6)
+
+PRE-FLOOR CPU TRACE (isolated checkout):
+fixture_level3_tolerance_per_operator_and_output: PASS (exit 0)
+1 passed, 0 failed, 5 filtered.
+
+CANDIDATE SHADER FIX (isolated checkout, not applied to branch):
+fixture_level3_tolerance_per_operator_and_output: PASS (exit 0)
+1 passed, 0 failed, 5 filtered.
+Tone max error: 7.748604e-7.
+
+CANDIDATE FULL RELEASE GATE:
+cargo test --locked -p pipeline-cpu -p pipeline-gpu -p filters --release
+exit 0; 93 suites; 456 passed, 0 failed, 24 ignored, 0 filtered.
+Includes the new regression, original fixture, and photographic RAW goldens.
+
+CANDIDATE CLIPPY:
+cargo clippy --locked --all-targets -p pipeline-cpu -p pipeline-gpu -p filters -- -D warnings
+exit 0.
+
+CANDIDATE FMT:
+cargo fmt --all -- --check
+exit 0.
+
+REPORT CHECKS:
+Python scripts compile; both gzip files independently reread and verified
+against their JSON hashes, pixel counts, maximum deltas and failing indices.
+git apply --check candidate.patch: exit 0.
+git diff --check: exit 0.
