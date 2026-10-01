@@ -74,6 +74,38 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["kept.tif", "support"])
     }
 
+    func testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts() async throws {
+        let dir = try temp()
+        let backend = try engineDocument(dir)
+        let output = dir.appendingPathComponent("reserved.png")
+        let request = try backend.prepareExportFlat(path: output.path, format: .png, quality: 90, color: .srgb)
+        backend.close()
+        // Deliberately start the worker only after close, avoiding a scheduling-dependent test.
+        try await Task.detached { try request.snapshot().run { _, _ in } }.value
+        let source = try XCTUnwrap(CGImageSourceCreateWithURL(output as CFURL, nil))
+        XCTAssertEqual(CGImageSourceCreateImageAtIndex(source, 0, nil)?.width, 1600)
+        XCTAssertThrowsError(try backend.prepareExportFlat(path: output.path, format: .png, quality: 90, color: .srgb))
+    }
+
+    func testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination() async throws {
+        let dir = try temp()
+        let backend = try engineDocument(dir)
+        let output = dir.appendingPathComponent("kept.png")
+        let original = Data("previous".utf8)
+        try original.write(to: output)
+        let request = try backend.prepareExportFlat(path: output.path, format: .png, quality: 90, color: .srgb)
+        request.cancel()
+        backend.close()
+        let job = try await Task.detached { try request.snapshot() }.value
+        XCTAssertTrue(job.isCancelled)
+        do {
+            try await Task.detached { try job.run { _, _ in } }.value
+            XCTFail("Cancel before snapshot must prevent the write")
+        } catch {}
+        XCTAssertEqual(try Data(contentsOf: output), original)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["kept.png", "support"])
+    }
+
     private func waitFor(_ timeout: Double = 60, _ condition: () -> Bool) async -> Bool {
         let end = Date().addingTimeInterval(timeout)
         while !condition() {
@@ -299,6 +331,9 @@ final class DocumentExportFlatTests: XCTestCase {
         }
         for event in events where event.mainThread && event.durationMs != nil {
             XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
+        }
+        if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
+            try await Task.detached { try trace.write(to: URL(fileURLWithPath: path)) }.value
         }
     }
 
