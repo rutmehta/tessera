@@ -190,3 +190,15 @@ fn pipeline_all_mask_kinds() {
         roundtrip(c);
     }
 }
+
+#[test]
+fn lr4_optional_tree_and_disabled_fields_roundtrip() {
+    direct(json!({"kind":"brush","strokes":[],"enabled":false,"group":[
+        {"kind":"linear","start":[0.,0.],"end":[1.,0.],"enabled":false},
+        {"kind":"brush","strokes":[],"group":[
+            {"kind":"depth","range":[0.2,0.7],"feather":0.,"model":null,"combine":"intersect"},
+            {"kind":"color_range","samples":[[0.5,0.,0.]],"amount":10.},
+            {"kind":"brush","strokes":[{"points":[[0.5,0.5,1.]],"radius":0.1,"flow":100.,"feather":0.,"erase":false}]}
+        ]}
+    ]}));
+}

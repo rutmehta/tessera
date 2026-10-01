@@ -53,7 +53,7 @@ fn lr4_explicit_luminance_and_depth_bounds_translate() {
         let v = serde_json::to_value(&r.settings.locals.adjustments[0]).unwrap();
         assert_eq!(v["components"][0]["kind"], kind);
         assert_eq!(v["components"][0]["range"], json!([0.25, 0.75]));
-        assert!(r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_null());
+        assert!(r.unknown.get("lrcat_develop_source").and_then(|v| v.get("properties")).and_then(|v| v.get("MaskGroupBasedCorrections")).is_none());
     }
 }
 #[test]
@@ -67,4 +67,19 @@ fn lr4_group_range_intersects_the_whole_union() {
     let v = serde_json::to_value(&r.settings.locals.adjustments[0]).unwrap();
     assert_eq!(v["components"][1]["combine"], "intersect");
     assert_eq!(v["components"][1]["kind"], "luminance_range");
+}
+
+#[test]
+fn lr4_component_range_keeps_both_inversions() {
+    let (r, _) = lua_develop::parse(&row(r#"{ What = "Mask/Range", MaskInverted = true, CorrectionRangeMask = { LumMin = 0.25, LumMax = 0.75, Invert = true } }"#), "15.4").unwrap();
+    let v = serde_json::to_value(&r.settings.locals.adjustments[0]).unwrap();
+    assert_eq!(v["components"][0]["invert"], false);
+}
+#[test]
+fn lr4_unknown_fields_and_types_keep_exact_source() {
+    for field in ["FutureField = 42", "Type = 9", "LumRange = \"opaque\""] {
+        let lua = row(&format!(r#"{{ What = "Mask/Range", CorrectionRangeMask = {{ LumMin = 0.25, LumMax = 0.75, {field} }} }}"#));
+        let (r, _) = lua_develop::parse(&lua, "15.4").unwrap();
+        assert!(r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].as_str().unwrap().contains(field));
+    }
 }

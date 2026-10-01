@@ -37,3 +37,24 @@ fn lr4_nested_intersection_then_subtraction_and_inversion() {
     let copy: LocalAdjustment = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(copy, g);
 }
+
+#[test]
+fn lr4_all_disabled_stays_empty_even_when_group_inverted() {
+    let g: LocalAdjustment = serde_json::from_value(json!({"invert":true,"components":[
+        {"kind":"depth","range":[0.,1.],"enabled":false}
+    ]})).unwrap();
+    let i = Image::new(2, 1, vec![vec![0.25;2];3]).unwrap();
+    assert_eq!(rasterize(&i, &g, MaskOptions::default()).unwrap(), vec![0.,0.]);
+}
+#[test]
+fn lr4_limits_nested_recursion_before_allocating_planes() {
+    let mut c = engine_api::recipe::mask::MaskComponent::new(engine_api::recipe::mask::MaskKind::Brush { strokes: vec![] });
+    for _ in 0..65 {
+        let mut wrapper = engine_api::recipe::mask::MaskComponent::new(engine_api::recipe::mask::MaskKind::Brush { strokes: vec![] });
+        wrapper.group = Some(vec![c]);
+        c = wrapper;
+    }
+    let g = LocalAdjustment { components:vec![c], ..Default::default() };
+    let i = Image::new(2, 1, vec![vec![0.25;2];3]).unwrap();
+    assert!(rasterize(&i, &g, MaskOptions::default()).is_err());
+}
