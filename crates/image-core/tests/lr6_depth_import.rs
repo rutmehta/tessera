@@ -27,16 +27,24 @@ fn input() -> Image {
 fn recipe() -> Recipe {
     let mut recipe = Recipe::default();
     recipe
-        .edit(Default::default(), |s| {
-            s.effects.lens_blur = Some(LensBlur {
-                depth: Some(LensBlurDepth {
-                    base_raw_depth_table: Some("opaque-table".into()),
-                    regenerate: true,
-                    ..Default::default()
-                }),
+        .edit(
+            engine_api::recipe::EditMeta {
+                author: engine_api::recipe::Author::Import {
+                    source: "synthetic".into(),
+                },
                 ..Default::default()
-            })
-        })
+            },
+            |s| {
+                s.effects.lens_blur = Some(LensBlur {
+                    depth: Some(LensBlurDepth {
+                        base_raw_depth_table: Some("opaque-table".into()),
+                        regenerate: true,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+            },
+        )
         .unwrap();
     recipe
 }
@@ -143,11 +151,6 @@ fn corrupt_missing_and_wrong_extent_resources_regenerate_without_models() {
                 .as_ref()
                 .unwrap()
                 .regenerate
-        );
-        assert!(
-            String::from_utf8(recipe.to_json().unwrap())
-                .unwrap()
-                .contains("regenerated depth: complete")
         );
         recipe.validate().unwrap();
     }
@@ -267,4 +270,46 @@ fn lr6c_renderer_reads_persisted_depth_without_estimating() {
         .apply_depth_effects(&input(), &restored.settings)
         .unwrap();
     assert_eq!(actual.planes(), expected.planes());
+}
+
+#[test]
+fn lr6d_user_history_is_not_rewritten_by_depth_preparation() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = DepthStore::new(tmp.path(), 100000).unwrap();
+    let mut r = recipe();
+    r.edit(engine_api::recipe::EditMeta::user("exposure", 1), |s| {
+        s.tone.exposure = 1.
+    })
+    .unwrap();
+    let before = r.clone();
+    provider()
+        .prepare_lens_blur_depth(&mut r, &input(), &store, |_| None)
+        .unwrap();
+    assert_eq!(r, before);
+    r.validate().unwrap();
+}
+
+#[test]
+fn lr6d_imported_depth_survives_cache_eviction_and_reopen() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = DepthStore::new(tmp.path(), 1100).unwrap();
+    let mut r = recipe();
+    let raster = image::GrayImage::from_pixel(16, 16, image::Luma([128]));
+    let mut bytes = Cursor::new(Vec::new());
+    image::DynamicImage::ImageLuma8(raster)
+        .write_to(&mut bytes, image::ImageFormat::Png)
+        .unwrap();
+    let depth = provider()
+        .prepare_lens_blur_depth(&mut r, &input(), &store, |_| Some(bytes.get_ref().clone()))
+        .unwrap();
+    let key = depth.resource_key();
+    for i in 0..3 {
+        DepthMap::from_normalized_inverse(16, 16, vec![i as f32 / 3.; 256])
+            .unwrap()
+            .store(&store, &[i; 32])
+            .unwrap();
+    }
+    drop(store);
+    let store = DepthStore::new(tmp.path(), 1100).unwrap();
+    assert_eq!(DepthMap::cached(&store, &key), Some(depth));
 }

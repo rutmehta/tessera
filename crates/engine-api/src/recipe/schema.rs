@@ -287,6 +287,23 @@ mod v4_feature_predicates {
         });
     }
 
+    #[test]
+    fn lens_blur_requires_v4_only_when_present() {
+        assert_bumped_only_when_present("lens_blur", |r| {
+            r.settings.effects.lens_blur = Some(Default::default());
+        });
+        for field in ["focus_falloff", "adobe", "depth"] {
+            assert_bumped_only_when_present("lens_blur", |r| {
+                let value = match field {
+                    "focus_falloff" => serde_json::json!([0.1, 0.2]),
+                    _ => serde_json::json!({}),
+                };
+                r.settings.effects.lens_blur =
+                    Some(serde_json::from_value(serde_json::json!({field: value})).unwrap());
+            });
+        }
+    }
+
     fn written_version(bytes: &[u8]) -> u64 {
         serde_json::from_slice::<Value>(bytes).unwrap()["schema_version"]
             .as_u64()
