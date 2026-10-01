@@ -1,3 +1,6 @@
+> Current conversion handoff: [LR-2d](HANDOFF-D.md), rebased onto LR-DIAG.
+> The historical LR-2b details below are superseded by LR-2c and LR-2d where noted.
+
 # LR-2b — Machine B handoff
 
 Branch: `wp/LR-2-tone-curves`. Successor of LR-2 at `26e5cb8a`, with no rebase.

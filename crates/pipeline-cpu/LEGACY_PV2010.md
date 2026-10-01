@@ -45,8 +45,9 @@ operators or an Adobe pixel-parity claim.**
 | blacks | Approximate: Uses the public DNG baseline shadow ramp with ShadowScale and Stage3Gain assumed one. Camera-specific values are not carried into this tone block, and the SDK does not establish PV2010 parity. |
 
 Every represented legacy key retains its exact original literal/fragment in
-`lrcat_develop_source`. A per-key `lrcat_develop_diagnostics` entry has level
-`info` and a message beginning `approximate: `; there are zero approximation
+`lrcat_develop_source`. The shared `import_lrcat::diagnostics::push_approximate`
+helper records a per-key info/approximate entry with lane `LR-2`, the matrix
+recipe path, and the reason; readers use `diagnostics::entries()`. There are zero approximation
 warnings in the import report. Stale legacy keys on modern-process images stay
 untranslated. No real catalog or image is a calibration source.
 

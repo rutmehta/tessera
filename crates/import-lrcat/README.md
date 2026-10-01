@@ -192,7 +192,10 @@ main's original recipe bytes and 2,000-row golden digest.
   a bounded midtone operator, not an exposure offset.
 - All active LR-2 mappings are `approximate`: the recipe contains numeric fields,
   exact source remains in `lrcat_develop_source`, and
-  `lrcat_develop_diagnostics` contains `{key, level:"info", message:"approximate: <reason>"}`.
+  the shared `diagnostics::push_approximate` helper records an entry with
+  `level:"info"`, `status:"approximate"`, `lane:"LR-2"`, the matrix recipe path,
+  and the reason. Readers use `diagnostics::entries()`; the report shows a
+  separate "Approximate translations" group.
   Approximation emits **zero user-facing warnings**. Public Adobe documentation
   supports the control meanings but does not establish calibrated render parity.
   See [the reference specification](../pipeline-cpu/LEGACY_PV2010.md).
