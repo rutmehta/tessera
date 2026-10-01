@@ -113,3 +113,37 @@ fn lr4b_ambiguous_new_shapes_are_not_partially_translated() {
         assert!(r.unknown.contains_key("lrcat_develop_source"));
     }
 }
+
+#[test]
+fn lr4b_untranslated_extensions_keep_the_prior_empty_recipe() {
+    // Before LR-4b these entire keys failed atomically. A newly understood leaf
+    // must not change that recipe if another field still prevents translation.
+    for (mask, correction) in [
+        (
+            r#"What="Mask/RangeMask",Future=7,CorrectionRangeMask={Type=2,LumRange="0 0.25 0.5 1"}"#,
+            "",
+        ),
+        (
+            r#"What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0 0.25 0.5 1",Future=7}"#,
+            "",
+        ),
+        (
+            r#"What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0 0.25 0.5 1"}"#,
+            "Future=7,",
+        ),
+        (
+            r#"What="Mask/CircularGradient",Left=0.25,Right=0.75,Top=0,Bottom=1,Flipped=false,Future=7"#,
+            "",
+        ),
+    ] {
+        let row = format!(
+            r#"s={{MaskGroupBasedCorrections={{{{{correction}CorrectionMasks={{{{{mask}}}}}}}}}}}"#
+        );
+        let r = lua_develop::parse(&row, "15.4").unwrap().0;
+        assert!(
+            r.settings.locals.adjustments.is_empty(),
+            "{mask}, {correction}"
+        );
+        assert!(r.unknown.contains_key("lrcat_develop_source"));
+    }
+}
