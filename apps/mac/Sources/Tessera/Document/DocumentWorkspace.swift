@@ -1216,10 +1216,13 @@ final class FlatExportProgressView: NSView {
         }
 
         override func accessibilityFrame() -> NSRect {
+            guard let owner else { return .zero }
+            let frame = content.frame
             // AppKit queries these virtual children on main, just like NSView AX methods.
-            MainActor.assumeIsolated {
-                guard let owner, let window = owner.window else { return .zero }
-                return window.convertToScreen(owner.convert(content.frame, to: nil))
+            // Capture the actor-isolated view and value, not the non-Sendable AX element.
+            return MainActor.assumeIsolated {
+                guard let window = owner.window else { return .zero }
+                return window.convertToScreen(owner.convert(frame, to: nil))
             }
         }
     }
