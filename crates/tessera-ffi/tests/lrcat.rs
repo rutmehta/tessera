@@ -491,3 +491,31 @@ fn cancel_then_resume_and_existing_edits_are_kept() {
     let doc = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&kept).recipe).unwrap();
     assert_eq!(doc.last_writer.machine_id, "lightroom-import");
 }
+
+/// B5-29c: the plan report groups per-image develop warnings ("N images
+/// (first: image ID): reason"); the summary still counts every image and
+/// names the first one as an example.
+#[test]
+fn grouped_develop_report_entries_keep_their_image_counts() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("fx")).unwrap();
+    let c = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    let changed = c
+        .execute(
+            "UPDATE Adobe_imageDevelopSettings SET text='s = { Exposure2012 = 1, GroupedFutureKey = 2 }', processVersion='15.4' WHERE image IN (SELECT image FROM Adobe_imageDevelopSettings ORDER BY image LIMIT 3)",
+            [],
+        )
+        .unwrap();
+    assert_eq!(changed, 3);
+    drop(c);
+    let summary = inspect_lrcat(fixture.catalog.to_string_lossy().into_owned()).unwrap();
+    let issue = summary
+        .unsupported
+        .iter()
+        .find(|i| i.reason.contains("GroupedFutureKey"))
+        .unwrap_or_else(|| panic!("{:#?}", summary.unsupported));
+    assert_eq!(issue.category, "Develop settings");
+    assert_eq!(issue.count, 3);
+    assert_eq!(issue.examples.len(), 1, "{issue:?}");
+    assert!(!issue.examples[0].starts_with("image "), "{issue:?}");
+}

@@ -22,6 +22,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Largest text or blob cell loaded from the catalog. Larger cells are not
+/// copied into memory: the column reads as NULL and the plan report says so.
+pub const MAX_CELL_BYTES: usize = 8 << 20;
+
 /// Original source rows retained for data whose schema varies across releases.
 pub type SourceRow = BTreeMap<String, Value>;
 

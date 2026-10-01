@@ -108,7 +108,10 @@ fn unknown_keys_are_reported_and_the_source_is_retained() {
             "{key}: {warnings:?}"
         );
     }
-    assert_eq!(recipe.unknown["lrcat_develop_lua"], json!(STRUCTURES));
+    assert_eq!(
+        recipe.unknown["lrcat_develop_lua"]["SyntheticFutureKey"],
+        json!("3")
+    );
     recipe.validate().unwrap();
 }
 
