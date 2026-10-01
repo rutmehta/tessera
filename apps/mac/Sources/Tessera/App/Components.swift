@@ -132,6 +132,7 @@ struct ThemeMenuStyle: MenuStyle {
                 .imageScale(.small)
                 .foregroundStyle(Theme.textTertiary)
                 .allowsHitTesting(false)
+                .accessibilityHidden(true)
                 .fixedSize()
         }
         .font(height <= Theme.Height.small ? Theme.Fonts.caption : Theme.Fonts.label)
@@ -200,6 +201,7 @@ struct SegmentedPicker<Value: Hashable>: View {
     var height: CGFloat = Theme.Height.regular
     /// Stretch segments to fill the width (inspector) or hug the titles (toolbars, sheets).
     var fill = true
+    var accessibilityPrefix: String? = nil
     @Environment(\.isEnabled) private var enabled
 
     var body: some View {
@@ -226,6 +228,8 @@ struct SegmentedPicker<Value: Hashable>: View {
                 }
                 .buttonStyle(.plain)
                 .help(s.help ?? s.title)
+                .accessibilityLabel(s.title.isEmpty ? (s.help ?? "") : s.title)
+                .accessibilityIdentifierIfPresent(accessibilityPrefix.map { "\($0).\(i)" })
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
@@ -304,9 +308,11 @@ struct PanelSection<Content: View>: View {
     @ViewBuilder var content: Content
     @AppStorage private var expanded: Bool
     @State private var hovering = false
+    private let headerIdentifier: String?
 
-    init(_ title: String, expanded: Bool = true, @ViewBuilder content: () -> Content) {
+    init(_ title: String, expanded: Bool = true, headerIdentifier: String? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
+        self.headerIdentifier = headerIdentifier
         self.content = content()
         _expanded = AppStorage(wrappedValue: expanded, "InspectorPanel." + title)
     }
@@ -333,6 +339,7 @@ struct PanelSection<Content: View>: View {
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
             .accessibilityLabel(title)
+            .accessibilityIdentifierIfPresent(headerIdentifier)
             .accessibilityValue(expanded ? "expanded" : "collapsed")
             if expanded {
                 content
@@ -538,5 +545,13 @@ struct EmptyStateContent<Actions: View>: View {
             HStack(spacing: Theme.Space.s) { actions }.padding(.top, Theme.Space.s)
         }
         .padding(Theme.Space.xxl)
+    }
+}
+
+// An omitted identifier leaves shared controls outside document mode unchanged.
+extension View {
+    @ViewBuilder
+    func accessibilityIdentifierIfPresent(_ identifier: String?) -> some View {
+        if let identifier { accessibilityIdentifier(identifier) } else { self }
     }
 }

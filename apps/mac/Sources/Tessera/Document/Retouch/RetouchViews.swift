@@ -37,8 +37,10 @@ struct RemoveOptionsBar: View {
             Text(review.summary).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).fixedSize()
                 .accessibilityIdentifier("document.remove.review.summary")
             Button("All") { retouch.setAllSuggestions(true) }
+                .accessibilityIdentifier("document.remove.review.all")
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
             Button("None") { retouch.setAllSuggestions(false) }
+                .accessibilityIdentifier("document.remove.review.none")
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
             Text("Click a box to keep it · geometric suggestions, not person segmentation")
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
@@ -59,7 +61,7 @@ struct RemoveOptionsBar: View {
                         range: 1...2000, unit: "px", identifier: "document.remove.size")
             SegmentedPicker(selection: $retouch.options.engine, segments: RemoveEngine.allCases.map {
                 .init(value: $0, title: $0.title, help: $0.help)
-            }, height: Theme.Height.small, fill: false)
+            }, height: Theme.Height.small, fill: false, accessibilityPrefix: "document.remove.backend")
             .fixedSize()
             .accessibilityIdentifier("document.remove.backend")
             if retouch.options.engine != .patchMatch {
@@ -272,7 +274,7 @@ struct NeuralFiltersSheet: View {
                                 segments: NeuralOutput.allCases.filter { model.state.allowed($0) }.map {
                                     .init(value: $0, title: $0.title)
                                 },
-                                height: Theme.Height.small, fill: false)
+                                height: Theme.Height.small, fill: false, accessibilityPrefix: "document.neural.output")
                     .fixedSize()
                     .accessibilityIdentifier("document.neural.output")
                 ForEach(NeuralOutput.allCases.filter { !model.state.allowed($0) }) { o in

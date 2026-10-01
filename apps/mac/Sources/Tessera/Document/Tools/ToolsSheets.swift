@@ -60,7 +60,7 @@ struct RefineEdgeSheet: View {
                 }
                 OptionToggle(title: "Smart Radius", on: Binding(get: { tools.refine.smartRadius }, set: { v in
                     set({ $0.smartRadius = v }, final: true)
-                }))
+                }), identifier: "document.refine.smartRadius")
                 SubHeader("Global Refinements")
                 SheetSlider(title: "Smooth", value: Double(tools.refine.smooth), range: 0...100, format: "%.0f px") { v, f in
                     set({ $0.smooth = Float(v) }, final: f)

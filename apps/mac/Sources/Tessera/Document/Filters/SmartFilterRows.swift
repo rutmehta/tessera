@@ -183,10 +183,10 @@ final class SmartFilterRowCell: NSTableCellView {
         mask.image = image
         let base = "document.layers.smartFilter.\(item.layer).\(r.index)"
         setAccessibilityIdentifier(base)
-        eye.setAccessibilityIdentifier("\(base).visibility")
+        eye.setDocumentAccessibility(identifier: "\(base).visibility", label: "Show or hide " + name.stringValue)
         mask.setAccessibilityIdentifier("\(base).mask")
         name.setAccessibilityIdentifier("\(base).name")
-        self.blending.setAccessibilityIdentifier("\(base).blending")
+        self.blending.setDocumentAccessibility(identifier: "\(base).blending", label: "Smart filter blending options")
         setAccessibilityLabel("Smart filter \(r.name)\(r.enabled ? "" : ", off")")
         toolTip = "Double-click to edit \(r.name)"
     }

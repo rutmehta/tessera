@@ -41,6 +41,7 @@ struct DocumentHistoryPanel: View {
                                     .accessibilityIdentifier("document.history.snapshot.\(i).restore")
                             }
                             .frame(height: Theme.Height.row)
+                            .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("document.history.snapshot.\(i)")
                         }
                     }

@@ -69,6 +69,7 @@ struct ChannelsPanel: View {
                 .menuStyle(IconMenuStyle())
                 .help("New alpha or spot channel")
                 .accessibilityIdentifier("document.channels.add")
+                .accessibilityLabel("New channel")
             IconButton(symbol: "trash", help: "Delete the highlighted channel") {
                 if let selected { channels.delete(selected) }
             }
@@ -112,6 +113,7 @@ private struct ChannelRowView: View {
                     .onAppear { draft = row.title; editing = true }
                     .onChange(of: editing) { if !$1 { commitRename() } }
                     .accessibilityIdentifier("document.channels.\(row.id).rename")
+                    .accessibilityLabel("Channel name")
             } else {
                 Text(row.title)
                     .font(Theme.Fonts.label)

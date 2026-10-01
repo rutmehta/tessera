@@ -18,7 +18,7 @@ final class DocumentAccessibilityTests: XCTestCase {
     private func audit(_ root: AnyObject, scenario: String) -> Int {
         var seen = Set<ObjectIdentifier>()
         var count = 0
-        var identifiers = Set<String>()
+        var identifiers: [String: String] = [:]
         var roles = Set<String>()
         func walk(_ node: AnyObject, path: String) {
             guard seen.insert(ObjectIdentifier(node)).inserted else { return }
@@ -27,11 +27,16 @@ final class DocumentAccessibilityTests: XCTestCase {
             func legacy(_ name: String) -> Any? {
                 node.accessibilityAttributeValue?(NSAccessibility.Attribute(rawValue: name))
             }
-            let role = node.accessibilityRole?()?.rawValue ?? legacy("AXRole") as? String ?? "unknown"
-            let id = node.accessibilityIdentifier?() ?? legacy("AXIdentifier") as? String ?? ""
+            let modernRole = node.accessibilityRole?()?.rawValue
+            let role = (modernRole == "AXUnknown" ? nil : modernRole) ?? legacy("AXRole") as? String ?? "unknown"
+            // AppKit's exported cell element uses metadata installed on its control view.
+            // Direct legacy cell getters do not merge that metadata as the AX server does.
+            let owner = (node as? NSCell)?.controlView
+            let id = [node.accessibilityIdentifier?(), legacy("AXIdentifier") as? String, owner?.accessibilityIdentifier()]
+                .compactMap { $0 }.first { !$0.isEmpty } ?? ""
             // AXTitle is the accessible name of standard AppKit/SwiftUI buttons;
             // AXLabel is used by custom controls. Values/placeholders/help are not names.
-            let label = [node.accessibilityLabel?(), legacy("AXDescription") as? String, node.accessibilityTitle?(), legacy("AXTitle") as? String]
+            let label = [node.accessibilityLabel?(), owner?.accessibilityLabel(), legacy("AXDescription") as? String, node.accessibilityTitle?(), legacy("AXTitle") as? String]
                 .compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? ""
             let here = "\(path)/\(role)[\(id)]{\(label)}"
             // Scrollbar arrows/thumbs are AppKit implementation details, not document controls.
@@ -40,7 +45,16 @@ final class DocumentAccessibilityTests: XCTestCase {
             let hasPress = node.accessibilityActionNames?().contains(.press) ?? false
             if interactive.contains(role) || hasPress {
                 count += 1
-                if !id.isEmpty, !identifiers.insert(id).inserted { XCTFail("\(here) — duplicate interactive identifier") }
+                // A native toolbar item and its hosted child can describe the same control.
+                // Sibling controls must still have distinct identifiers.
+                if !id.isEmpty {
+                    if let first = identifiers[id], scenario != "toolbar" || !path.hasPrefix(first + "/") {
+                        XCTFail("\(here) — duplicate interactive identifier")
+                    } else if identifiers[id] == nil { identifiers[id] = here }
+                }
+                if ProcessInfo.processInfo.environment["TESSERA_AX_MAP"] == "1" {
+                    print("AX MAP \(id)\t\(label)")
+                }
                 if id.range(of: #"^document\.[^.\s]+\.[^\s]+$"#, options: .regularExpression) == nil || label.isEmpty {
                     XCTFail("\(scenario): \(here) — \(id.isEmpty ? "missing identifier" : "identifier=" + id); \(label.isEmpty ? "missing label" : "label=" + label)")
                 }
@@ -53,12 +67,18 @@ final class DocumentAccessibilityTests: XCTestCase {
         if scenario == "window.stack" {
             XCTAssertTrue(roles.contains("AXRow"), "Layers rows must be reached through the AX tree")
             XCTAssertTrue(roles.contains("AXDisclosureTriangle"), "Layer row actions must be reached")
+            XCTAssertNotNil(identifiers["document.layers.row.0.visibility"], "Layer visibility action must be reached")
+            XCTAssertNotNil(identifiers["document.layers.row.0.maskLink"], "Layer mask link action must be reached")
+            XCTAssertTrue(identifiers.keys.contains { $0.hasPrefix("document.layers.smartFilter.") && $0.hasSuffix(".blending") },
+                          "Smart filter blending action must be reached")
+            XCTAssertTrue(identifiers.keys.contains { $0.hasPrefix("document.layers.effect.") && $0.hasSuffix(".visibility") },
+                          "Layer effect visibility action must be reached")
         }
         print("AX AUDIT \(scenario): \(count) interactive controls")
         return count
     }
 
-    private func host<V: View>(_ view: V, scenario: String) async {
+    private func host<V: View>(_ view: V, scenario: String, check: (NSView) -> Void = { _ in }) async {
         let bounds = NSRect(x: 0, y: 0, width: 1500, height: 1800)
         let host = NSHostingView(rootView: LayoutProbeHarness.root(view))
         let window = LayoutProbeHarness.window(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
@@ -80,6 +100,7 @@ final class DocumentAccessibilityTests: XCTestCase {
         XCTAssertFalse(window.isKeyWindow)
         XCTAssertFalse(NSApp.isActive)
         XCTAssertGreaterThan(audit(host, scenario: scenario), 0, "\(scenario): empty control tree")
+        check(host)
     }
 
     private func fixture() throws -> AppModel {
@@ -94,7 +115,15 @@ final class DocumentAccessibilityTests: XCTestCase {
         DocumentChannels.shared.attach(model.documents)
         DocumentText.shared.attach(model.documents)
         DocumentVector.shared.attach(model.documents)
-        for name in ["History", "Color", "Brushes"] { UserDefaults.standard.set(true, forKey: "InspectorPanel." + name) }
+        for name in ["History", "Color", "Brushes"] {
+            let key = "InspectorPanel." + name
+            let previous = UserDefaults.standard.object(forKey: key)
+            UserDefaults.standard.set(true, forKey: key)
+            addTeardownBlock {
+                if let previous { UserDefaults.standard.set(previous, forKey: key) }
+                else { UserDefaults.standard.removeObject(forKey: key) }
+            }
+        }
         return model
     }
 
@@ -221,6 +250,35 @@ final class DocumentAccessibilityTests: XCTestCase {
             await host(HStack { TransformOptionsBar(document: doc, t: transforms) }, scenario: "transform.\(tag.rawValue)")
             transforms.cancel()
             await transforms.idle()
+        }
+    }
+
+    func testNativeOutlineAXActionsKeepSelectionAndDisclosure() async throws {
+        let model = try fixture()
+        let doc = try XCTUnwrap(model.documents.current)
+        doc.addLayer(.group(mode: .passThrough))
+        doc.addLayer(.pixel)
+        await host(LayersPanel(document: doc), scenario: "layers.actions") { root in
+            func find(_ view: NSView) -> NSOutlineView? {
+                if let outline = view as? NSOutlineView { return outline }
+                return view.subviews.lazy.compactMap(find).first
+            }
+            guard let outline = find(root) else { return XCTFail("Missing Layers outline") }
+            let rows = outline.accessibilityChildren()?.compactMap { $0 as? LayerRowView } ?? []
+            XCTAssertEqual(rows.count, outline.numberOfRows)
+            guard let row = rows.first else { return XCTFail("Missing accessible row") }
+            outline.deselectAll(nil)
+            row.setAccessibilitySelected(true)
+            XCTAssertTrue(outline.isRowSelected(outline.row(for: row)))
+            row.setAccessibilitySelected(false)
+            XCTAssertFalse(outline.isRowSelected(outline.row(for: row)))
+            guard let group = rows.first(where: { outline.isExpandable(outline.item(atRow: outline.row(for: $0))) }) else {
+                return XCTFail("Missing expandable row")
+            }
+            group.setAccessibilityDisclosed(false)
+            XCTAssertFalse(outline.isItemExpanded(outline.item(atRow: outline.row(for: group))))
+            group.setAccessibilityDisclosed(true)
+            XCTAssertTrue(outline.isItemExpanded(outline.item(atRow: outline.row(for: group))))
         }
     }
 

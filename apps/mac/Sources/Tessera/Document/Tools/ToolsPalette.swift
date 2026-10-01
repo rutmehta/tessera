@@ -68,15 +68,22 @@ struct ColorSwatches: View {
                     .offset(x: Theme.Space.s, y: Theme.Space.s)
                     .onTapGesture { ColorPanelBridge.shared.edit(tools.colors.background) { tools.colors.background = $0 } }
                     .help("Background colour \(tools.colors.background.hex)")
+                    .accessibilityLabel("Background colour")
+                    .accessibilityIdentifier("document.colors.background")
                 swatch(tools.colors.foreground)
                     .onTapGesture { ColorPanelBridge.shared.edit(tools.colors.foreground) { tools.colors.foreground = $0 } }
                     .help("Foreground colour \(tools.colors.foreground.hex)")
+                    .accessibilityLabel("Foreground colour")
+                    .accessibilityIdentifier("document.colors.foreground")
             }
             .frame(width: Theme.Height.large, height: Theme.Height.large, alignment: .topLeading)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("document.colors")
             HStack(spacing: 0) {
                 IconButton(symbol: "arrow.left.arrow.right", help: "Swap colours (X)", size: Theme.Height.small) { tools.colors.swap() }
+                    .accessibilityIdentifier("document.colors.swap")
                 IconButton(symbol: "circle.lefthalf.filled", help: "Default colours (D)", size: Theme.Height.small) { tools.colors.reset() }
+                    .accessibilityIdentifier("document.colors.default")
             }
         }
     }
@@ -135,6 +142,7 @@ struct OptionField: View {
                 .frame(width: width)
                 .labelsHidden()
                 .accessibilityIdentifier(identifier ?? "document.option.\(title.lowercased())")
+                .accessibilityLabel(title)
             if !unit.isEmpty { Text(unit).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary) }
         }
         .fixedSize()
@@ -145,9 +153,12 @@ struct OptionField: View {
 struct OptionToggle: View {
     let title: String
     @Binding var on: Bool
+    let identifier: String
 
     var body: some View {
         Toggle(title, isOn: $on)
+            .accessibilityIdentifier(identifier)
+            .accessibilityLabel(title)
             .toggleStyle(.checkbox)
             .controlSize(.small)
             .font(Theme.Fonts.caption)
@@ -230,26 +241,26 @@ struct ToolOptionsBar: View {
     @ViewBuilder private var selectionOptions: some View {
         SegmentedPicker(selection: $tools.selectionMode, segments: SelectionCombine.allCases.map {
             .init(value: $0, title: "", symbol: $0.symbol, help: $0.title + ($0 == .add ? " (⇧)" : $0 == .subtract ? " (⌥)" : $0 == .intersect ? " (⇧⌥)" : ""))
-        }, height: Theme.Height.small, fill: false)
+        }, height: Theme.Height.small, fill: false, accessibilityPrefix: "document.option.selectionMode")
         .fixedSize()
         separator
         switch document.tool {
         case .wand:
             OptionField(title: "Tolerance", value: Binding(get: { Double(tools.tolerance) }, set: { tools.tolerance = Float($0) }),
                         range: 0...255)
-            OptionToggle(title: "Anti-alias", on: $tools.antialias)
-            OptionToggle(title: "Contiguous", on: $tools.contiguous)
-            OptionToggle(title: "Sample All Layers", on: $tools.sampleAllLayers)
+            OptionToggle(title: "Anti-alias", on: $tools.antialias, identifier: "document.option.antialias")
+            OptionToggle(title: "Contiguous", on: $tools.contiguous, identifier: "document.option.contiguous")
+            OptionToggle(title: "Sample All Layers", on: $tools.sampleAllLayers, identifier: "document.option.sampleAllLayers")
         case .quickSelect:
             OptionField(title: "Size", value: Binding(get: { Double(tools.quickSize) }, set: { tools.quickSize = Float($0) }),
                         range: 1...2000, unit: "px")
-            OptionToggle(title: "Sample All Layers", on: $tools.sampleAllLayers)
+            OptionToggle(title: "Sample All Layers", on: $tools.sampleAllLayers, identifier: "document.option.sampleAllLayers")
         case .objectSelect:
             Text("Click an object").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
         default:
             OptionField(title: "Feather", value: Binding(get: { Double(tools.feather) }, set: { tools.feather = Float($0) }),
                         range: 0...250, unit: "px", fractionDigits: 1)
-            OptionToggle(title: "Anti-alias", on: $tools.antialias)
+            OptionToggle(title: "Anti-alias", on: $tools.antialias, identifier: "document.option.antialias")
             if document.tool == .polygonLasso || document.tool == .magneticLasso {
                 Text("Click points · double-click or Return closes · Esc cancels")
                     .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
@@ -257,8 +268,10 @@ struct ToolOptionsBar: View {
         }
         separator
         Button("Select Subject") { tools.selectSubject() }
+            .accessibilityIdentifier("document.option.selectSubject")
             .buttonStyle(.theme(.borderless, height: Theme.Height.small))
         Button("Select and Mask…") { tools.sheet = .refineEdge }
+            .accessibilityIdentifier("document.option.selectAndMask")
             .buttonStyle(.theme(.borderless, height: Theme.Height.small))
             .disabled(document.marquee == nil)
     }
@@ -271,14 +284,18 @@ struct ToolOptionsBar: View {
             MenuPicker(selection: brushBlend, options: DocBlendMode.allCases.map { ($0.backendName, $0.title) })
                 .frame(width: Theme.Width.labelWide + Theme.Space.xxl)
                 .help("Mode")
+                .accessibilityLabel("Brush blend mode")
+                .accessibilityIdentifier("document.option.blendMode")
         }
         OptionField(title: "Opacity", value: brushField(\.opacity, scale: 100), range: 1...100, unit: "%")
         IconButton(symbol: "hand.point.up.left", help: "Pressure controls opacity", on: tools.currentBrush.pressureOpacity,
                    size: Theme.Height.small) { var b = tools.currentBrush; b.pressureOpacity.toggle(); tools.currentBrush = b }
+            .accessibilityIdentifier("document.option.pressureOpacity")
         OptionField(title: "Flow", value: brushField(\.flow, scale: 100), range: 1...100, unit: "%")
         OptionField(title: "Smoothing", value: brushField(\.smoothing), range: 0...200, unit: "px")
         IconButton(symbol: "circle.circle", help: "Pressure controls size", on: tools.currentBrush.pressureSize,
                    size: Theme.Height.small) { var b = tools.currentBrush; b.pressureSize.toggle(); tools.currentBrush = b }
+            .accessibilityIdentifier("document.option.pressureSize")
         Menu {
             Picker("Symmetry", selection: brushSymmetry) {
                 ForEach(BrushSymmetry.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -290,13 +307,15 @@ struct ToolOptionsBar: View {
         .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
         .fixedSize()
         .help("Paint Symmetry: \(tools.currentBrush.symmetry.title)")
+        .accessibilityIdentifier("document.option.symmetry")
+        .accessibilityLabel("Paint symmetry")
         if document.tool == .cloneStamp || document.tool == .heal {
-            OptionToggle(title: "Sample All Layers", on: brushFlag(\.sampleAllLayers))
+            OptionToggle(title: "Sample All Layers", on: brushFlag(\.sampleAllLayers), identifier: "document.option.sampleAllLayers")
             Text(tools.cloneSource == nil ? "⌥-click sets the source" : "Aligned").font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.textTertiary).fixedSize()
         }
         if document.primary?.hasMask == true, document.primary?.kind == .pixel {
-            OptionToggle(title: "Paint Mask", on: $tools.paintMask)
+            OptionToggle(title: "Paint Mask", on: $tools.paintMask, identifier: "document.option.paintMask")
         }
     }
 
@@ -323,14 +342,17 @@ struct ToolOptionsBar: View {
         OptionField(title: "Angle", value: Binding(get: { t?.angle ?? 0 }, set: { v in tools.updateTransform { $0.angle = v } }),
                     range: -180...180, unit: "°", fractionDigits: 1)
         OptionField(title: "H skew", value: Binding(get: { t?.skewX ?? 0 }, set: { v in tools.updateTransform { $0.skewX = v } }),
-                    range: -89...89, unit: "°", fractionDigits: 1)
+                    range: -89...89, unit: "°", fractionDigits: 1, identifier: "document.option.hSkew")
         OptionField(title: "V skew", value: Binding(get: { t?.skewY ?? 0 }, set: { v in tools.updateTransform { $0.skewY = v } }),
-                    range: -89...89, unit: "°", fractionDigits: 1)
+                    range: -89...89, unit: "°", fractionDigits: 1, identifier: "document.option.vSkew")
         MenuPicker(selection: $tools.transformInterpolation, options: ResampleMode.allCases.map { ($0, $0.title) })
             .frame(width: Theme.Width.labelWide + Theme.Space.l)
             .help("Interpolation")
+            .accessibilityLabel("Interpolation")
+            .accessibilityIdentifier("document.transform.interpolation")
         separator
         Button("Cancel") { tools.cancelTransform() }
+            .accessibilityIdentifier("document.transform.cancel")
             .buttonStyle(.theme(.borderless, height: Theme.Height.small))
             .help("Esc")
         Button("Commit") { tools.commitTransform() }
@@ -344,14 +366,18 @@ struct ToolOptionsBar: View {
         case .eyedropper:
             MenuPicker(selection: $tools.eyedropperRadius, options: [(UInt32(0), "Point Sample"), (1, "3 by 3 Average"), (2, "5 by 5 Average")])
                 .frame(width: Theme.Width.labelWide + Theme.Space.xl)
-            OptionToggle(title: "Sample All Layers", on: $tools.eyedropperAllLayers)
+                .accessibilityIdentifier("document.option.eyedropperRadius")
+                .accessibilityLabel("Sample size")
+            OptionToggle(title: "Sample All Layers", on: $tools.eyedropperAllLayers, identifier: "document.option.sampleAllLayers")
             Text("⌥-click sets the background colour").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
         case .move:
             Text("Drag to move the selected layers · ⌘T Free Transform").font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.textTertiary).fixedSize()
         case .hand:
             Button("Fit on Screen") { document.viewport?.zoomToFit() }.buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                .accessibilityIdentifier("document.option.zoomFit")
             Button("100 %") { document.viewport?.zoomActual() }.buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                .accessibilityIdentifier("document.option.zoomActual")
         case .zoom:
             Text("Click zooms in · ⌥-click zooms out").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
         case .gradient:
@@ -385,6 +411,8 @@ struct BrushPresetButton: View {
         }
         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
         .help("Brush presets")
+        .accessibilityLabel("Brush presets")
+        .accessibilityIdentifier("document.option.brushPresets")
         .popover(isPresented: $open, arrowEdge: .bottom) {
             BrushesList(tools: tools)
                 .frame(width: Theme.Width.inspectorMin)

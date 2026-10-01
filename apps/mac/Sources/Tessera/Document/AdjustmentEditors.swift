@@ -122,7 +122,7 @@ struct ExtendedAdjustmentEditor: View {
         SegmentedPicker(selection: Binding(get: { range }, set: { state.colorBalanceRange[id] = $0 }),
                         segments: [.init(value: 0, title: "Shadows"), .init(value: 1, title: "Midtones"),
                                    .init(value: 2, title: "Highlights")],
-                        height: Theme.Height.small)
+                        height: Theme.Height.small, accessibilityPrefix: "document.properties.colorBalance.tone")
             .padding(.bottom, Theme.Space.xs)
             .accessibilityIdentifier("document.properties.colorBalance.tone")
         let values = m[range]
@@ -233,7 +233,7 @@ struct ExtendedAdjustmentEditor: View {
         labeled("Method") {
             SegmentedPicker(selection: Binding(get: { absolute }, set: { set(.selectiveColor(colors: colors, absolute: $0), true) }),
                             segments: [.init(value: false, title: "Relative"), .init(value: true, title: "Absolute")],
-                            height: Theme.Height.small)
+                            height: Theme.Height.small, accessibilityPrefix: "document.properties.selectiveColor.method")
                 .accessibilityIdentifier("document.properties.selectiveColor.method")
         }
     }
@@ -256,7 +256,7 @@ struct ExtendedAdjustmentEditor: View {
             n.mode = mode
             set(document.analyzed(.auto(n), samples: samples()), true)
         }), segments: AutoModeModel.allCases.map { .init(value: $0, title: $0.title.replacingOccurrences(of: "Auto ", with: "")) },
-                        height: Theme.Height.small)
+                        height: Theme.Height.small, accessibilityPrefix: "document.properties.auto.mode")
             .padding(.bottom, Theme.Space.xs)
             .accessibilityIdentifier("document.properties.auto.mode")
         // M5-32: the clips are persisted fields (`shadow_clip` / `highlight_clip`); a change re-analyses on release.

@@ -97,6 +97,7 @@ struct LayersPanel: View {
                 .opacity(Theme.Opacity.disabled)
                 .help(Self.filterHelp)
                 .accessibilityIdentifier("document.layers.filter")
+                    .accessibilityLabel("Filter layers")
             } else {
                 Menu {
                     Button("Filter Layers…") {}.disabled(true)
@@ -105,6 +106,7 @@ struct LayersPanel: View {
                     .menuStyle(IconMenuStyle())
                     .help(Self.filterHelp)
                     .accessibilityIdentifier("document.layers.filter")
+                    .accessibilityLabel("Filter layers")
             }
         }
     }
@@ -128,6 +130,7 @@ struct LayersPanel: View {
                 .menuStyle(IconMenuStyle())
                 .help("New layer, group or fill layer")
                 .accessibilityIdentifier("document.layers.add")
+                .accessibilityLabel("New layer, group or fill layer")
             IconButton(symbol: "circle.rectangle.filled.pattern.diagonalline", help: "Add a layer mask (reveal all; from the selection when there is one)") {
                 document.addMask(document.marquee != nil ? .fromSelection : .revealAll)
             }
@@ -144,6 +147,7 @@ struct LayersPanel: View {
                 .menuStyle(IconMenuStyle())
                 .help("New adjustment layer")
                 .accessibilityIdentifier("document.layers.addAdjustment")
+                .accessibilityLabel("New adjustment layer")
             LayerStyleFooterButton(document: document)   // B5-07
             Spacer(minLength: 0)
             IconButton(symbol: "folder.badge.plus", help: "Group the selected layers (⌘G)") { document.groupSelection() }
@@ -185,5 +189,6 @@ struct BlendModeMenu: View {
         .disabled(node == nil)
         .help("Blend mode")
         .accessibilityIdentifier("document.layers.blendMode")
+        .accessibilityLabel("Blend mode")
     }
 }
