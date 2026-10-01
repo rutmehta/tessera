@@ -32,5 +32,7 @@ fn lr4c_neutral_mask_value_keeps_the_legacy_flat_envelope() {
     let (r, _) = lua_develop::parse(row, "15.4").unwrap();
     assert_eq!(r.settings.locals.adjustments.len(), 1);
     assert!(!r.unknown.contains_key("lrcat_develop_diagnostics"));
-    assert!(r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_string());
+    assert!(
+        r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_string()
+    );
 }

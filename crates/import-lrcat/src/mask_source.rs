@@ -237,7 +237,6 @@ pub(crate) fn audited_approximation(root: Node<'_, '_>) -> bool {
             "MaskSyncID",
             "MaskName",
             "MaskVersion",
-            "MaskValue",
             "Midpoint",
             "Roundness",
             "CorrectionID",
@@ -247,6 +246,13 @@ pub(crate) fn audited_approximation(root: Node<'_, '_>) -> bool {
         ]
         .iter()
         .any(|key| n.has_tag_name((CRS, *key)) || n.attribute((CRS, *key)).is_some())
+            // Neutral MaskValue=1 was already present in legacy flat shapes.
+            // Accept it in the audit, but do not change their retained envelope
+            // solely because that no-op metadata is present.
+            || (n.has_tag_name((CRS, "MaskValue"))
+                .then(|| n.text()).flatten()
+                .or_else(|| n.attribute((CRS, "MaskValue"))))
+                .is_some_and(|v| v.trim().parse::<f64>().ok() != Some(1.0))
             || n.has_tag_name((CRS, "MaskActive"))
                 && matches!(n.text(), Some("False" | "false" | "0"))
             || n.attribute((CRS, "MaskActive"))
