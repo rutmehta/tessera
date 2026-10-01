@@ -523,7 +523,7 @@ fn profile_or_srgb(p: Option<&ColorProfile>) -> Result<ColorProfile> {
 /// bytes; enough when either is not embedded), or embedded bytes that differ
 /// only in the header's creation date and profile ID (built-in profiles are
 /// generated with the current time).
-fn same_profile(a: &ColorProfile, b: &ColorProfile) -> bool {
+pub(super) fn same_profile(a: &ColorProfile, b: &ColorProfile) -> bool {
     if a.handle == b.handle {
         return true;
     }

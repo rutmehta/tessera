@@ -248,14 +248,14 @@ final class CameraRawSheetModel: Identifiable {
         guard let backend else { return }
         let (w, h) = (UInt32(detailPixels.width), UInt32(detailPixels.height))
         let x = Int64(detailCenter.x) - Int64(w / 2), y = Int64(detailCenter.y) - Int64(h / 2)
-        let layer = layer.id, json = request.value, index = smartIndex
+        let layer = layer.id, json = request.value, index = smartIndex, color = doc.displayColor
         Task { @MainActor [weak self] in
             let result = await Task.detached(priority: .userInitiated) { () -> Result<(CGImage?, UInt8), Error> in
                 Result {
                     // B5-18b: re-editing replaces the saved filter in the pane (no double apply).
                     let d = try backend.filterDetail(layer: layer, smartIndex: index, filterJson: json, x: x, y: y,
                                                      width: w, height: h)
-                    return (IOSurfaceLookup(d.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(d.width), height: Int(d.height)) },
+                    return (IOSurfaceLookup(d.surfaceId).flatMap { FilterSheetModel.image($0, width: Int(d.width), height: Int(d.height), space: color.space) },
                             d.level)
                 }
             }.value

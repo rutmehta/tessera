@@ -4937,6 +4937,12 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func smartFilters(layer: UInt64) throws  -> [SmartFilterRecord]
     
     /**
+     * B5-30: the document profile's ICC bytes for tagging the canvas, or
+     * `None` for sRGB (see [`display_icc`]). No pixel work.
+     */
+    func displayProfileIcc() throws  -> Data?
+    
+    /**
      * Opens the Liquify workspace on `layer` (a pixel layer, or a smart
      * object: a new Liquify smart filter, or with `stage_index` the existing
      * Liquify smart filter to re-edit). Closes this document's previous
@@ -7069,6 +7075,19 @@ open func smartFilters(layer: UInt64)throws  -> [SmartFilterRecord]  {
     uniffi_tessera_ffi_fn_method_documentsession_smart_filters(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * B5-30: the document profile's ICC bytes for tagging the canvas, or
+     * `None` for sRGB (see [`display_icc`]). No pixel work.
+     */
+open func displayProfileIcc()throws  -> Data?  {
+    return try  FfiConverterOptionData.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_display_profile_icc(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -37655,6 +37674,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filters() != 21975) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_display_profile_icc() != 44559) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_begin_liquify() != 51475) {

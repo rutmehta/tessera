@@ -472,6 +472,7 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
     // Model reads
 
     public func info() throws -> DocumentSummary { DocumentSummary(try bridged { try session.info() }, history: map) }
+    public func displayProfileICC() throws -> Data? { try bridged { try session.displayProfileIcc() } }
     public func layers() throws -> [LayerRecord] { try bridged { try session.layers() }.map(LayerRecord.init) }
     public func layer(id: DocLayerID) throws -> LayerRecord { LayerRecord(try bridged { try session.layer(id: id) }) }
     public func setSelectedLayers(ids: [DocLayerID]) throws { try bridged { try session.setSelectedLayers(ids: ids) } }

@@ -29,7 +29,7 @@ final class DocumentInspectorLayoutTests: XCTestCase {
     /// wider content, which is how the 1440-pt defect hid.
     private func measured(_ model: AppModel, _ doc: DocumentController, width: CGFloat) -> [(String, CGFloat)] {
         func fit<V: View>(_ v: V) -> CGFloat {
-            NSHostingController(rootView: v).sizeThatFits(in: CGSize(width: width, height: 20000)).width
+            LayoutProbeHarness.fittingSize(v, in: CGSize(width: width, height: 20000)).width
         }
         return [
             ("inspector", fit(DocumentInspector(workspace: model.documents))),

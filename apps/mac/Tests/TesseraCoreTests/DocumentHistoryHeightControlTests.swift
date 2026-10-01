@@ -10,7 +10,7 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
 
     override func setUp() async throws {
         priorState = GlobalState()
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
     }
 
     override func tearDown() async throws {
@@ -130,10 +130,10 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
     }
 
     func testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions() throws {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 40),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 200, height: 40),
                               styleMask: .titled, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        defer { window.contentView = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         let view = DocumentHistoryHeightControl(frame: window.contentView!.bounds)
         window.contentView?.addSubview(view)
         let initial = Double(DocumentInspector.historyDefault)
@@ -191,8 +191,8 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
         XCTAssertNotNil(workspace.current)
         let contentSize = NSSize(width: 288, height: 848)
         func hostInspector() -> (NSWindow, NSView) {
-            let controller = NSHostingController(rootView: DocumentInspector(workspace: workspace))
-            let window = NSWindow(contentRect: NSRect(origin: .zero, size: contentSize),
+            let controller = NSHostingController(rootView: LayoutProbeHarness.root(DocumentInspector(workspace: workspace)))
+            let window = LayoutProbeHarness.window(contentRect: NSRect(origin: .zero, size: contentSize),
                                   styleMask: .titled, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.contentViewController = controller
@@ -202,11 +202,7 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
             window.setContentSize(contentSize)
             controller.view.frame = NSRect(origin: .zero, size: contentSize)
             window.orderBack(nil)
-            controller.view.layoutSubtreeIfNeeded()
-            // Use the existing harness's event-loop settling convention, only on
-            // the inspector host. No Document viewport or shared attachment.
-            RunLoop.main.run(until: Date().addingTimeInterval(0.25))
-            controller.view.layoutSubtreeIfNeeded()
+            LayoutProbeHarness.settle(controller.view)
             return (window, controller.view)
         }
         func assertContentBounds(_ window: NSWindow, _ host: NSView) {
@@ -220,14 +216,14 @@ final class DocumentHistoryHeightControlTests: XCTestCase {
             return root.subviews.lazy.compactMap { find($0) }.first
         }
         let (window, host) = hostInspector()
-        defer { window.orderOut(nil); window.contentViewController = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         assertContentBounds(window, host)
         let control = try XCTUnwrap(find(host), "must expose native actions in the actual inspector")
         XCTAssertTrue(control.increase.isEnabled, "sized inspector must permit increasing the default History height")
         _ = control.increase.accessibilityPerformPress()
         XCTAssertEqual(defaults.double(forKey: heightKey), initial + Double(Theme.Height.row))
         let (restoredWindow, restoredHost) = hostInspector()
-        defer { restoredWindow.orderOut(nil); restoredWindow.contentViewController = nil; restoredWindow.close() }
+        defer { LayoutProbeHarness.dispose(restoredWindow) }
         assertContentBounds(restoredWindow, restoredHost)
         let restored = try XCTUnwrap(find(restoredHost))
         XCTAssertEqual(restored.readout.accessibilityValue(), String(format: "%.0f pt", initial + Double(Theme.Height.row)))

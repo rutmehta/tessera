@@ -1,0 +1,7 @@
+Base: 73461d02ba3180c7112996ac2ca841d64c3759a3
+Scope: tests and tools/orchestrate/wp/B5-39 only.
+Product sources, Rust, Cargo.lock and board.json match the base.
+One direct NSWindow constructor remains, in LayoutProbeHarness.swift.
+All 34 test construction sites delegate to the factory.
+Existing assertion and tolerance lines unchanged.
+git diff --check: passed.

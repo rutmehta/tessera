@@ -1,0 +1,181 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (0.44s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.10.0 (1.02s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.10.0
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache (0.59s)
+Building for production...
+[0/12] /Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/.build/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+[11/15] Compiling Tessera AISettingsView.swift
+[11/15] Write Objects.LinkFileList
+[12/15] Linking Tessera
+[14/16] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[15/17] Compiling TesseraPackageTests runner.swift
+[15/17] Write Objects.LinkFileList
+[16/17] Linking TesseraPackageTests
+Build complete! (230.77s)
+Test Suite 'Selected tests' started at 2026-10-01 02:40:03.220.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 02:40:03.220.
+Test Suite 'AgentReviewLayoutTests' started at 2026-10-01 02:40:03.220.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' started.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' passed (9.999 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [17.249625, 0.405333, 0.395959]; GPU [22.7265, 0.6808339999999999, 0.8482090000000001]
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testRowsOnlyRecipeAndFileUpdateReloadsCurrentReviewPreview]' passed (0.959 seconds).
+Test Suite 'AgentReviewLayoutTests' passed at 2026-10-01 02:40:14.178.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 10.957 (10.958) seconds
+Test Suite 'DocumentDitherCheckboxTests' started at 2026-10-01 02:40:14.178.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testActualEditorCheckboxPreservesLookupFieldsAndUndo]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testActualEditorCheckboxPreservesLookupFieldsAndUndo]' passed (0.127 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testDismantleReleasesCallbackOwnerWithControlAlive]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testDismantleReleasesCallbackOwnerWithControlAlive]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testNativeCheckboxMetadataValueAndNativeFocusPolicy]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testNativeCheckboxMetadataValueAndNativeFocusPolicy]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testOnlySpaceIsLocallyActivatedNotReturnOrTraversal]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testOnlySpaceIsLocallyActivatedNotReturnOrTraversal]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testRefreshDoesNotPublishAndUsesLatestCallbackThenDismantles]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testRefreshDoesNotPublishAndUsesLatestCallbackThenDismantles]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testSpaceTogglesSynchronouslyOnceAndRepeatDoesNotToggle]' started.
+Test Case '-[TesseraCoreTests.DocumentDitherCheckboxTests testSpaceTogglesSynchronouslyOnceAndRepeatDoesNotToggle]' passed (0.000 seconds).
+Test Suite 'DocumentDitherCheckboxTests' passed at 2026-10-01 02:40:14.313.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.135 (0.135) seconds
+Test Suite 'DocumentHistoryHeightControlTests' started at 2026-10-01 02:40:14.313.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActionsUseDisplayedClampButLayoutDoesNotRewriteSavedRequest]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testActualInspectorAXActionWritesExistingPreferenceAndRestoresOnRecreation]' passed (0.302 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testConfigureRefreshesCallbackWithoutPublishingAndTeardownStopsActions]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testFocusedButtonsOwnSpaceAndReturnAndSendTheirActions]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testGlobalStateRestoresExistingOwnersAndPreferenceValues]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryHeightControlTests testNativeAXPressActionsChangeHeightAndExposeCurrentValue]' passed (0.003 seconds).
+Test Suite 'DocumentHistoryHeightControlTests' passed at 2026-10-01 02:40:14.636.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.322 (0.323) seconds
+Test Suite 'DocumentHistoryKeyboardTraversalTests' started at 2026-10-01 02:40:14.636.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testCollapseWithFocusedHeightButtonSettlesFocusOnLiveView]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testCollapseWithFocusedHeightButtonSettlesFocusOnLiveView]' passed (0.296 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testDocumentSwitchKeepsGlobalHistoryPreferencesAndShowsSelectedDocument]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testDocumentSwitchKeepsGlobalHistoryPreferencesAndShowsSelectedDocument]' passed (0.397 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testExternalPreferenceWriteUpdatesHostedReadout]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testExternalPreferenceWriteUpdatesHostedReadout]' passed (0.294 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testHostedInspectorKeyViewLoopReachesAllEnabledHistoryButtons]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testHostedInspectorKeyViewLoopReachesAllEnabledHistoryButtons]' passed (0.150 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testInspectorTabSwitchKeepsHeightControlIdentityFocusAndValue]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testInspectorTabSwitchKeepsHeightControlIdentityFocusAndValue]' passed (0.422 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testReadoutFitsWidestValueWithNumericLabelToken]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testReadoutFitsWidestValueWithNumericLabelToken]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabSkipsDisabledButtonsAtEachClamp]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabSkipsDisabledButtonsAtEachClamp]' passed (0.046 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabTraversesNativeHeightButtonsInOrderSkippingReadout]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testTabTraversesNativeHeightButtonsInOrderSkippingReadout]' passed (0.017 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testToolLetterOverFocusedHistoryButtonSelectsToolNotText]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testToolLetterOverFocusedHistoryButtonSelectsToolNotText]' passed (0.018 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testWindowResizeClampsDisplayWithoutRewritingOversizedRequest]' started.
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testWindowResizeClampsDisplayWithoutRewritingOversizedRequest]' passed (0.331 seconds).
+Test Suite 'DocumentHistoryKeyboardTraversalTests' passed at 2026-10-01 02:40:16.613.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 1.976 (1.977) seconds
+Test Suite 'DocumentInspectorActionButtonTests' started at 2026-10-01 02:40:16.613.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testActualColorLookupEditorInstallsNativeActionsAndDisabledReset]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testActualColorLookupEditorInstallsNativeActionsAndDisabledReset]' passed (0.108 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testDismantleReleasesActionOwnerWhileNativeControlRemainsAlive]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testDismantleReleasesActionOwnerWhileNativeControlRemainsAlive]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testNativeActionHasExplicitKeyboardOwnershipAndPreservesMetadata]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testNativeActionHasExplicitKeyboardOwnershipAndPreservesMetadata]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testOnlyUnmodifiedNativeActivationKeysAreOwnedLocally]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testOnlyUnmodifiedNativeActivationKeysAreOwnedLocally]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testReuseRefreshesActionAndDisabledOrDismantledCannotInvoke]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testReuseRefreshesActionAndDisabledOrDismantledCannotInvoke]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testSpaceReturnAndKeypadActivateOnceWithoutRepeat]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorActionButtonTests testSpaceReturnAndKeypadActivateOnceWithoutRepeat]' passed (0.000 seconds).
+Test Suite 'DocumentInspectorActionButtonTests' passed at 2026-10-01 02:40:16.723.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.109 (0.109) seconds
+Test Suite 'DocumentInspectorLayoutTests' started at 2026-10-01 02:40:16.723.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testColumnBudgetAt1440AndAdjacentWidths]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testColumnBudgetAt1440AndAdjacentWidths]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<DocumentInspector, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<PropertiesPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<ToolInspectorSections, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<LayersPanel, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<ChannelsPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<DocumentHistoryPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<DocumentInspector, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<PropertiesPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<ToolInspectorSections, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<LayersPanel, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<ChannelsPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<DocumentHistoryPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<DocumentInspector, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<PropertiesPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<ToolInspectorSections, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<LayersPanel, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<ChannelsPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<DocumentHistoryPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<DocumentInspector, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<PropertiesPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<ToolInspectorSections, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<LayersPanel, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<ChannelsPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<DocumentHistoryPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<DocumentInspector, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<PropertiesPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<ToolInspectorSections, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<LayersPanel, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<ChannelsPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<PanelSection<DocumentHistoryPanel>, _TransactionModifier>>)
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-39/apps/mac/Tests/TesseraCoreTests/LayoutProbeHarness.swift:80: error: -[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths] : failed - Hosted layout did not settle within 2.0s (NSHostingView<ModifiedContent<DocumentInspector, _TransactionModifier>>)
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

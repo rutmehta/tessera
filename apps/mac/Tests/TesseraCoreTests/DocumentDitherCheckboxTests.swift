@@ -45,10 +45,10 @@ final class DocumentDitherCheckboxTests: XCTestCase {
         XCTAssertEqual(box.accessibilityRole(), native.accessibilityRole())
         XCTAssertEqual(box.isAccessibilityElement(), native.isAccessibilityElement())
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 240, height: 80),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 240, height: 80),
                               styleMask: [.titled], backing: .buffered, defer: true)
         window.isReleasedWhenClosed = false
-        defer { window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         for hosted in [false, true] {
             if hosted {
                 window.contentView?.addSubview(native)
@@ -139,7 +139,7 @@ final class DocumentDitherCheckboxTests: XCTestCase {
     func testActualEditorCheckboxPreservesLookupFieldsAndUndo() async throws {
         let priorPolicy = NSApplication.shared.activationPolicy()
         defer { _ = NSApplication.shared.setActivationPolicy(priorPolicy) }
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
         let workspace = DocumentWorkspace()
         workspace.engine = StubDocumentEngine()
         workspace.newDocument(workspace.newSettings)
@@ -152,16 +152,14 @@ final class DocumentDitherCheckboxTests: XCTestCase {
         let bounds = NSRect(x: 0, y: 0, width: 288, height: 848)
         let host = NSHostingView(rootView: PropertiesPanel(document: document)
             .frame(width: bounds.width, height: bounds.height, alignment: .topLeading))
-        let window = NSWindow(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
+        let window = LayoutProbeHarness.window(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
         window.setContentSize(bounds.size)
         host.frame = bounds
-        defer { window.orderOut(nil); window.contentView = nil; window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         window.orderBack(nil)
-        host.layoutSubtreeIfNeeded()
-        await Task.yield()
-        host.layoutSubtreeIfNeeded()
+        await LayoutProbeHarness.settleAsync(host)
         func checkboxes(_ view: NSView) -> [DocumentDitherNativeCheckbox] {
             if let box = view as? DocumentDitherNativeCheckbox { return [box] }
             return view.subviews.flatMap { checkboxes($0) }

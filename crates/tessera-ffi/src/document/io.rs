@@ -1,7 +1,9 @@
 //! Opening (native, PSD/PSB, flat images, library images), saving, flat
 //! export, and the raster-producing edits (merge down, flatten, selections).
 
-use super::{DocumentSaveAsResult, Opened, find, render::composite_raster, tile_from_f32};
+use super::{
+    DocumentSaveAsResult, DocumentSession, Opened, find, render::composite_raster, tile_from_f32,
+};
 use crate::{Engine, Result, catalog, failure, parse_id};
 use compositor::{
     BlendMode, ColorProfile, DocOp, DocState, Document, Knockout, Layer, LayerId, LayerKind,
@@ -923,6 +925,68 @@ pub(crate) fn flatten_op(s: &DocState) -> Result<DocOp> {
         layer: bg,
     });
     Ok(DocOp::Batch(ops))
+}
+
+// ─────────────────────────────── display ───────────────────────────────
+
+/// B5-30: the ICC bytes the canvas should tag its 8-bit surfaces with, so
+/// macOS colour-manages the document's own encoded samples to the display.
+/// `None` means sRGB: an untagged document, or one tagged with the built-in
+/// sRGB profile, whatever its creation date (the canvas keeps its sRGB path).
+/// A profile that is not embedded is also `None` (shown as sRGB, as before).
+pub(crate) fn display_icc(profile: Option<&ColorProfile>) -> Result<Option<Vec<u8>>> {
+    let Some(p) = profile else {
+        return Ok(None);
+    };
+    let srgb = self::profile(None)?.ok_or_else(|| failure("no sRGB profile"))?;
+    if super::stack::same_profile(p, &srgb) {
+        return Ok(None);
+    }
+    // Not embedded: only the handle is known, and the built-ins are generated
+    // with the current date, so they cannot be matched reliably; sRGB, as before.
+    Ok(p.icc.as_deref().cloned())
+}
+
+#[uniffi::export]
+impl DocumentSession {
+    /// B5-30: the document profile's ICC bytes for tagging the canvas, or
+    /// `None` for sRGB (see [`display_icc`]). No pixel work.
+    pub fn display_profile_icc(&self) -> Result<Option<Vec<u8>>> {
+        let st = self.shared.lock()?;
+        display_icc(st.live().state().profile.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod display_tests {
+    use super::*;
+
+    #[test]
+    fn srgb_and_untagged_documents_keep_the_srgb_canvas() {
+        assert_eq!(display_icc(None).unwrap(), None);
+        let srgb = profile(None).unwrap().unwrap();
+        assert_eq!(display_icc(Some(&srgb)).unwrap(), None);
+        // The built-in sRGB of another day (creation date differs) is still sRGB.
+        let mut later = srgb.icc.as_deref().unwrap().clone();
+        later[35] ^= 1;
+        let later = ColorProfile::from_icc("sRGB", later);
+        assert_eq!(display_icc(Some(&later)).unwrap(), None);
+    }
+
+    #[test]
+    fn a_p3_document_hands_over_its_own_icc_bytes() {
+        let p3 = profile(Some("Display P3")).unwrap().unwrap();
+        let bytes = p3.icc.as_deref().unwrap().clone();
+        assert_eq!(display_icc(Some(&p3)).unwrap(), Some(bytes));
+        // Not embedded: nothing to tag with (sRGB, as before).
+        let unembedded = ColorProfile { icc: None, ..p3 };
+        assert_eq!(display_icc(Some(&unembedded)).unwrap(), None);
+        let adobe = profile(Some("Adobe RGB")).unwrap().unwrap();
+        assert_eq!(
+            display_icc(Some(&adobe)).unwrap().as_deref(),
+            adobe.icc.as_deref().map(Vec::as_slice)
+        );
+    }
 }
 
 #[cfg(test)]
