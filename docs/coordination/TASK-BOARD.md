@@ -19,6 +19,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### External Lightroom report integration — 2026-10-01 16:13 UTC heartbeat
+
+Main `7b5a22ac` incorporates B5-46 tested integration `f2acd7da`; the only difference between tested tree and main is the LR/ENG ownership brief. In-app reports retain per-image duplicate/unedited entries, warning examples expose up to five full catalog paths, import steps show independently reset/throttled ETA, and fidelity failures remain visible even without compared samples. External `/Volumes/betterSSD/tessera-validation/batch28-f2acd7da/exits.txt` records Rust/Clippy/fmt/Swift/strict0 and bindings drift0; gate log903 XCTest cases/3skipped/0failures. This is external fixture/gate evidence, not Codex runtime or real-catalog/GUI acceptance. LR remains B-owned; A's handoff receipt is still unverified. No duplicate wakeup or runtime job launched.
+
 ### External shortcut and self-test integration — 2026-10-01 15:42 UTC heartbeat
 
 Main `e6c3e5da` integrates B5-44 through `908b570c` and B5-45. New Layer and Auto Color shortcuts are scoped to document mode, removing Library collisions; shortcut integrity enumeration is added. Library/Develop self-tests use SelfTestHost with explicit early-exit failure handling. External exact-tree `/Volumes/betterSSD/tessera-validation/batch27-e6c3e5da/exits.txt`: swift-gate0, bindings drift0, strict0; log900 XCTest cases/3skipped/0failures. B-side handoffs report focused shortcut and background-host checks; Codex did not execute these runtime gates. ENG-2 draft source is unaffected (changes are app/docs/tools). Another external compiler is active; exclusive-runtime handoff still unverified. No new mailbox requests/receipts.
