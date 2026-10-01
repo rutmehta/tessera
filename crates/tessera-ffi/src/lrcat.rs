@@ -1151,24 +1151,40 @@ impl LrcatImport {
         let bundle = bundle_dir(&library_folder, &self.catalog);
         std::fs::create_dir_all(&bundle)?;
         let plan_file = bundle.join("import-plan.json");
-        if !plan_file.exists() {
-            // Publish every lossless source cell before publishing its references.
-            // Keep the private copies for retries and independent record reads.
-            let large = self.storage.path().join("large");
-            if large.is_dir() {
-                let destination = bundle.join("large");
-                std::fs::create_dir_all(&destination)?;
-                for entry in std::fs::read_dir(large)? {
-                    let entry = entry?;
-                    let mut temporary = tempfile::NamedTempFile::new_in(&destination)?;
-                    std::io::copy(&mut std::fs::File::open(entry.path())?, &mut temporary)?;
-                    temporary.as_file().sync_all()?;
-                    temporary
-                        .persist(destination.join(entry.file_name()))
-                        .map_err(|e| failure(e.error))?;
+        // Publish every lossless source cell before publishing its references.
+        // Resume may use records from a later session with new source cells.
+        // Keep the private copies for retries and independent record reads.
+        let large = self.storage.path().join("large");
+        if large.is_dir() {
+            let destination = bundle.join("large");
+            std::fs::create_dir_all(&destination)?;
+            for entry in std::fs::read_dir(large)? {
+                let entry = entry?;
+                let target = destination.join(entry.file_name());
+                if target.exists() {
+                    let digest = |path: &Path| -> std::io::Result<blake3::Hash> {
+                        let mut hash = blake3::Hasher::new();
+                        std::io::copy(&mut std::fs::File::open(path)?, &mut hash)?;
+                        Ok(hash.finalize())
+                    };
+                    if digest(&entry.path())? != digest(&target)? {
+                        return Err(failure(
+                            "retained source cell conflicts with existing import bundle; use a new library folder",
+                        ));
+                    }
+                    continue;
                 }
-                std::fs::File::open(&destination)?.sync_all()?;
+                let mut temporary = tempfile::NamedTempFile::new_in(&destination)?;
+                std::io::copy(&mut std::fs::File::open(entry.path())?, &mut temporary)?;
+                temporary.as_file().sync_all()?;
+                temporary
+                    .persist_noclobber(&target)
+                    .map_err(|e| failure(e.error))?;
             }
+            std::fs::File::open(&destination)?.sync_all()?;
+            std::fs::File::open(&bundle)?.sync_all()?;
+        }
+        if !plan_file.exists() {
             let mut temporary = tempfile::NamedTempFile::new_in(&bundle)?;
             let mut source = self.spool.reopen()?;
             std::io::copy(&mut source, &mut temporary)?;
@@ -1249,7 +1265,14 @@ impl LrcatImport {
                 report.cancelled = true;
                 break;
             }
-            let image = self.read_image(r.index)?;
+            let image = match self.read_image(r.index) {
+                Ok(image) => image,
+                Err(error) => {
+                    // Preserve successful sidecar writes since the last batch checkpoint.
+                    state.write(&state_file)?;
+                    return Err(error);
+                }
+            };
             progress.tick(
                 LrcatPhase::WritingEdits,
                 n as u32,
@@ -1700,5 +1723,63 @@ impl Progress {
         if due {
             self.phase(phase, done, total, current);
         }
+    }
+}
+
+#[cfg(test)]
+mod lrcat_resume_tests {
+    use super::*;
+
+    #[test]
+    fn spool_read_failure_checkpoints_completed_sidecars() {
+        struct TruncateSpool(PathBuf);
+        impl LrcatProgressListener for TruncateSpool {
+            fn on_progress(&self, progress: LrcatProgress) {
+                if progress.phase == LrcatPhase::WritingEdits && progress.done == 0 {
+                    // The first record is already loaded; the next read must fail.
+                    std::fs::OpenOptions::new()
+                        .write(true)
+                        .open(&self.0)
+                        .unwrap()
+                        .set_len(0)
+                        .unwrap();
+                }
+            }
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let import = engine
+            .clone()
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options();
+        options.relocations[0].to = fixture
+            .photos
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let library = temp.path().join("library");
+        options.library_folder = library.to_string_lossy().into_owned();
+        let result = import.apply(
+            options.clone(),
+            Some(Arc::new(TruncateSpool(import.spool.path().to_owned()))),
+        );
+        assert!(result.is_err());
+        let state = State::read(&bundle_dir(&library, &import.catalog).join("state.json"));
+        assert_eq!(
+            state.done.len(),
+            1,
+            "completed write must survive a spool read failure"
+        );
+        assert!(!state.library_merged);
+        let retry = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let report = retry.apply(options, None).unwrap();
+        assert_eq!(report.resumed, 1);
+        assert!(report.imported > 0);
     }
 }
