@@ -98,3 +98,18 @@ fn lr4b_unsupported_payloads_retain_exact_lua() {
         );
     }
 }
+
+#[test]
+fn lr4b_ambiguous_new_shapes_are_not_partially_translated() {
+    for fields in [
+        r#"LumRange="0 0.2 0.8 1",LumMin=0.1"#,
+        r#"LumRange="0 0.2 0.8 1",DepthMin=0.1"#,
+        r#"LumRange="0 0.2 0.8 1",PointModels={"0.2 0.3 0.4 0.5 0.5 0"}"#,
+        r#"Type=3,LumRange="0 0.2 0.8 1""#,
+        r#"LumRange="0 0.8 0.2 1""#,
+    ] {
+        let (r,_)=lua_develop::parse(&format!(r#"s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{What="Mask/RangeMask",CorrectionRangeMask={{{fields}}}}}}}}}}}}}"#),"15.4").unwrap();
+        assert!(r.settings.locals.adjustments.is_empty(), "{fields}");
+        assert!(r.unknown.contains_key("lrcat_develop_source"));
+    }
+}

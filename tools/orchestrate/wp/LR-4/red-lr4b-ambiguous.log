@@ -1,0 +1,22 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 1.22s
+     Running tests/lr4b_forms.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4b_forms-135bae9c09596048)
+
+running 1 test
+test lr4b_ambiguous_new_shapes_are_not_partially_translated ... FAILED
+
+failures:
+
+---- lr4b_ambiguous_new_shapes_are_not_partially_translated stdout ----
+
+thread 'lr4b_ambiguous_new_shapes_are_not_partially_translated' (53949489) panicked at crates/import-lrcat/tests/lr4b_forms.rs:112:9:
+LumRange="0 0.2 0.8 1",LumMin=0.1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4b_ambiguous_new_shapes_are_not_partially_translated
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4b_forms`
