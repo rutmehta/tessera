@@ -1,10 +1,30 @@
 import AppKit
 import XCTest
+import TesseraCore
+import TesseraFFI
 @testable import Tessera
 
 /// B5-selftest-window: which launches get the background self-test host.
 @MainActor
 final class SelfTestHostTests: XCTestCase {
+    func testLiveDocumentFilterSheetResizeP19() async throws {
+        _ = NSApplication.shared
+        let model = AppModel()
+        let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("B5-43-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let engine = try Engine.open(appSupportDir: scratch.path)
+        model.documents.engine = EngineDocumentEngine.for(engine)
+        model.documents.newDocument(NewDocumentSettings(width: 512, height: 512, depth: .u8, profile: "sRGB IEC61966-2.1"))
+        let doc = try XCTUnwrap(model.documents.current)
+        doc.addAdjustment(.exposure)
+        let window = SelfTestHost.makeWindow(model: model)
+        defer { window.close() }
+        window.order(.below, relativeTo: 0)
+        try await Task.sleep(for: .seconds(1))
+        let failures = await FilterLayoutReproduction.run(model: model, window: window)
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "; "))
+    }
+
     func testBackgroundHostResizesWithoutClampingToItsInitialContentSize() {
         _ = NSApplication.shared
         let window = SelfTestHost.makeWindow(model: AppModel())

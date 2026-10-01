@@ -129,6 +129,12 @@ final class FilterSelfTest {
         check("filter menu", FilterCatalogEntry.grouped(catalogue).map(\.group) == FilterCatalogEntry.groupOrder,
               "\(catalogue.map(\.group))")
         guard let gaussian = catalogue.first(where: { $0.id == "gaussian_blur" }) else { check("Gaussian Blur available", false); return finish() }
+        if ProcessInfo.processInfo.environment["TESSERA_FILTER_LAYOUT_REPRO"] == "1" {
+            guard let window = model.mainWindow else { check("layout host exists", false); return finish() }
+            let failures = await FilterLayoutReproduction.run(model: model, window: window)
+            check("live filter resize", failures.isEmpty, failures.joined(separator: "; "))
+            return finish()
+        }
         if perfMode { await perf(doc, photo: photo, gaussian: gaussian); return finish() }   // B5-15
 
         // 1. Gaussian Blur dialog: preview latency over a radius drag.
