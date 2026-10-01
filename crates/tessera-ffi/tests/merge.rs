@@ -425,7 +425,16 @@ fn protected_merge_publishes_outside_source() {
         )
         .unwrap();
     let output = output.canonicalize().unwrap();
+    let unrelated = output.join("unrelated.jpg");
+    image::RgbImage::from_pixel(2, 2, image::Rgb([24, 36, 48]))
+        .save(&unrelated)
+        .unwrap();
+    let db = rusqlite::Connection::open(dir.path().join("merge-support/index.sqlite")).unwrap();
+    let roots_before: i64 = db
+        .query_row("SELECT count(*) FROM root", [], |r| r.get(0))
+        .unwrap();
     let job = engine
+        .clone()
         .photo_merge(
             ids,
             MergeOptions {
@@ -440,4 +449,17 @@ fn protected_merge_publishes_outside_source() {
     assert_eq!(status.outputs.len(), 1);
     assert!(std::path::Path::new(&status.outputs[0].path).starts_with(&output));
     assert_eq!(std::fs::read_dir(&protected).unwrap().count(), 2);
+    assert_eq!(
+        engine.list_images(ImageQuery::default()).unwrap().len(),
+        3,
+        "only the new DNG is admitted"
+    );
+    let roots_after: i64 = db
+        .query_row("SELECT count(*) FROM root", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        roots_after, roots_before,
+        "export folder is not a library root"
+    );
+    assert!(unrelated.exists());
 }

@@ -206,3 +206,55 @@ fn protected_offline_alias_survives_process_restart() {
     );
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn protected_rewrite_preserves_recipe_and_realiases_new_content() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-rewrite");
+    let _ = std::fs::remove_dir_all(&root);
+    let photo = root.join("X.lrdata/image.dng");
+    let support = root.join("support");
+    std::fs::create_dir_all(photo.parent().unwrap()).unwrap();
+    Sidecar::register_store(&photo.parent().unwrap().canonicalize().unwrap(), &support);
+    std::fs::write(&photo, b"original preview").unwrap();
+    let original = Sidecar::paths(&photo);
+    let mut doc = RecipeDocument::default();
+    doc.recipe
+        .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+            s.tone.exposure = 1.25
+        })
+        .unwrap();
+    Sidecar::write_recipe(&original.recipe, &doc).unwrap();
+    std::fs::write(&photo, b"regenerated preview with metadata").unwrap();
+    let rewritten = Sidecar::paths(&photo);
+    assert_eq!(Sidecar::read_recipe(&rewritten.recipe).unwrap(), doc);
+    assert_eq!(
+        rewritten, original,
+        "keep the authoritative recipe destination stable"
+    );
+    Sidecar::write_recipe(&rewritten.recipe, &doc).unwrap();
+    let hash = blake3::hash(b"regenerated preview with metadata")
+        .to_hex()
+        .to_string();
+    let alias = support
+        .join(".edits/lightroom/content")
+        .join(format!("{hash}.json"));
+    let key: String = serde_json::from_slice(&std::fs::read(alias).unwrap()).unwrap();
+    assert_eq!(key, original.recipe.file_stem().unwrap().to_str().unwrap());
+    let path_key = blake3::hash(photo.canonicalize().unwrap().as_os_str().as_encoded_bytes())
+        .to_hex()
+        .to_string();
+    let path_alias = support
+        .join(".edits/lightroom/paths")
+        .join(format!("{path_key}.json"));
+    assert_eq!(
+        serde_json::from_slice::<String>(&std::fs::read(path_alias).unwrap()).unwrap(),
+        hash
+    );
+    let moved = photo.with_file_name("renamed.dng");
+    std::fs::rename(&photo, &moved).unwrap();
+    assert_eq!(
+        Sidecar::read_recipe(Sidecar::paths(&moved).recipe).unwrap(),
+        doc
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}

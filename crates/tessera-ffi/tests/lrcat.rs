@@ -791,6 +791,10 @@ fn protected_default_library_import_succeeds_without_custom_folder() {
         .open_lrcat(fixture.catalog.to_string_lossy().into())
         .unwrap();
     let options = import.default_options();
+    assert_eq!(
+        std::path::Path::new(&options.library_folder),
+        temp.path().join("support/Imported Libraries")
+    );
     assert!(!sidecar::Sidecar::is_lightroom_owned(
         &options.library_folder
     ));
