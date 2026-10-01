@@ -57,9 +57,10 @@ Tag-name/structure evidence: https://raw.githubusercontent.com/exiftool/exiftool
 Standalone XMP and catalog imports share the geometry decoder. Selected
 `UprightTransform_1..5`, center/focal metadata and complete four-segment sets are
 **approximate**, as are `ChromaticAberrationR/B` for Adobe PV1/2. The exact source
-fragment is in `unknown.lrcat_develop_source.properties`; per-key
-`unknown.translation_diagnostics` entries use level `info` and messages beginning
-`approximate: `. These mappings produce zero user-facing warnings. Invalid inputs
+fragment is in `unknown.lrcat_develop_source.properties` when geometry was decoded.
+The decoder returns per-key info data; the catalog adapter calls the shared
+`import_lrcat::diagnostics::push_approximate` helper with reasons beginning
+`approximate: `. Sidecar writes no diagnostics bucket. These mappings produce zero user-facing warnings. Invalid inputs
 still receive warnings and remain retained. Zero CA and stale PV2012+ CA values
 remain source-only and add no history edit.
 
@@ -72,6 +73,6 @@ Import converts it to the recipe's unit frame and tags the solution's Upright mo
 Export writes canonical CRS keys for changed values, retains unchanged original
 fragments, and uses `ts:GeometryLens` bound to the existing CRS ExportHash to
 round-trip the optional native fields and mode tag exactly (including native
-process recipes). A CRS edit invalidates that companion. No format/version bump.
+process recipes). A CRS edit invalidates that companion. Feature-bearing recipes serialize as schema 4; ordinary recipes stay schema 3.
 Import records a single `Author::Import` history edit. Cloud removal/fill still
 reports “requires Adobe cloud; not translatable”.

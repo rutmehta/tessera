@@ -17,10 +17,6 @@ the coordinator should review these assignments before implementation.
 - `unsupported-diagnostic`: unsupported source yields a diagnostic and is kept.
   Diagnostics depend on shape/value: nil Lua values may skip codec warnings;
   identity extended curves and their names are retained without warnings.
-- `approximate`: recipe fields are populated, exact source remains in
-  `lrcat_develop_source`, and `translation_diagnostics` records an info-level
-  `approximate: <reason>` message. No user-facing warnings for that mapping.
-  Unverified Adobe conventions must use this status.
 - `translated`: the valid synthetic example populates an existing field without
   per-key retained source/diagnostics. This does not assert pixel parity for Adobe.
 - `approximate`: the valid synthetic example populates the recipe path (its value
@@ -46,8 +42,8 @@ JSON pointer exists. Approximate rows require an exact retained literal, an
 info-level `approximate: ` diagnostic, and zero warnings. It also checks inventory coverage against KEY_MAP and named
 extended curves. A negative control proves that falsely claiming PointColors is
 translated fails. Test-only fixture rows prove the `approximate` checks, one
-negative per condition (field, source, diagnostic, warnings); no real row is
-`approximate` until a lane converts. Add representative structured fixtures when promoting a
+negative per condition (field, source, diagnostic, warnings); LR-7 rows are
+`approximate` until their Adobe convention is verified. Add representative structured fixtures when promoting a
 structure; a scalar or empty payload is not proof of full structure coverage.
 
 | Adobe key | Existing recipe path or missing field | Lane | Status | Synthetic Lua value |

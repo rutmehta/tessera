@@ -155,7 +155,7 @@ a rendered TIFF export preserves their appearance. Source stays retained.
 
 The earlier LR-7/LR-7b translation descriptions are superseded for saved Upright
 and legacy CA: these are **approximate**, with exact source retained under
-`lrcat_develop_source` and info-level `translation_diagnostics` (`approximate: ...`),
+`lrcat_develop_source` and info-level `lrcat_translation_diagnostics` (`approximate: ...`),
 not user-facing warnings. No Adobe-rendered/public DNG+XMP reference has verified
 matrix direction/layout, center/focal frame, or CA sign/units. Center/focal
 metadata now defines the assumed normalized frame documented in sidecar/UNMAPPED.md.

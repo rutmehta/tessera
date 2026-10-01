@@ -390,3 +390,173 @@ for valid mapped values. Exact source is available for a later verified decoder.
 `upright_lr7_compat.rs` fingerprints will need re-baselining after LR-2 lands;
 this lane does not pre-empt that change. Source-only unsupported properties and
 malformed inputs can still have their own diagnostics.
+
+## LR-7d — diagnostics/schema integration and review conditions (2026-10-01)
+
+This addendum supersedes LR-7c's private diagnostics bucket, history-reset behavior,
+and unconditional schema-3 serialization. The Adobe coordinate and CA conventions
+remain unverified; no Adobe pixel-parity claim has been added.
+
+### Base and commit sequence
+
+- Started at `4eacf725225712f302863ae2908eddcf8b75bf55`.
+- Authorized rebase: `git fetch origin && git rebase origin/wp/LR-DIAG`, onto
+  `38684d9bdb34f6f6b9178f8589a839f68cb23832`. The first fetch encountered a
+  concurrent remote-ref update; retry succeeded. All nine original lane commits
+  were replayed without squashing.
+- LR-SCHEMA merge `02ae8196` is an ancestor. LR-DIAG's final helper, field-matching
+  matrix guard, and report channel are present. The two conflicts in
+  `translation_matrix.rs` retained LR-DIAG's guard; LR-7 context was then
+  restored without weakening it. Every base matrix row is preserved.
+- RED: `cb05baa9f952c309296581593ccbcfd09c7f62de`.
+- Implementation: `2abae0bab9d17900ae8c17b300fe8f697509bf29`.
+- The following `docs(LR-7d):` commit appends this handoff and evidence. It
+  cannot contain its own hash; the final lane summary reports that hash.
+- `origin/main` was `e558c5df` initially and remote main advanced to
+  `ad93e333` (batch 39) during the gates. A final read-only fetch verified that
+  LR-2c still is not on main. This lane stays on the coordinator's explicitly
+  authorized diagnostics base; its remote head remains `38684d9b`.
+  LR-2c (`c2df1958`) exists on another branch but is not on origin/main or this
+  base. The `global.lua` fingerprint remains unchanged and its LR-2c rebaseline
+  is pending coordinator integration.
+
+### Review conditions closed
+
+1. **C1 / default standalone XMP:** the exact-source bucket is inserted only
+   after a geometry/CA approximation was actually decoded, not merely because
+   ACR's default center/focal keys were present. Synthetic Upright-Off ACR XMP
+   has no catalog-source bucket and a fixed BLAKE3 serialized-recipe fingerprint:
+   `bd82c6ac0009c1f11342a8d837117c3c6f598591f43feb7096b1217d8cca0dbb`.
+   The original XMP remains available for source-preserving export.
+2. **C2 / immutable history:** the public geometry decoder rejects a recipe
+   with existing history before changing the recipe or warnings. It never
+   clears or rewrites history and no longer chooses a label. Standalone XMP
+   records once after geometry and the native companion; catalog XMP and Lua
+   use an uncommitted shared-codec decode, run the hooks, then record once.
+   The existing caller label/source (`Import XMP` / `xmp`) is preserved.
+   Tests pin one replayable entry for composed tone, CA, and Upright imports,
+   as well as a byte-for-byte unchanged user-edited recipe on rejection.
+   LR-2c's additional hooks still require integration on the coordinator's tree.
+3. **LR-DIAG conversion:** sidecar returns
+   `Vec<ApproximateEntry { adobe_key, field, reason }>`; it writes no diagnostics
+   key. The catalog adapter alone calls
+   `import_lrcat::diagnostics::push_approximate` for each entry. Tests read through
+   `diagnostics::entries`. No shim or ad-hoc channel remains. Valid approximations
+   retain exact source, use the matrix's exact recipe path, and produce no warnings.
+   The shared helper deduplicates repeated Lua/XMP decoding.
+4. **Stale CA:** nonzero Adobe PV2012+ legacy coefficients remain inactive and
+   retained, and now emit info with `ignored (PV2012+)` in the shared channel,
+   as specifically requested by review. Zero coefficients emit no approximation
+   entry and create no history edit.
+5. **Renderer/FFI:** the resident fallback test now also requires a nonzero
+   pixel difference from the same render with both CA fields absent. The new
+   synthetic PNG FFI test first verifies a saved matrix and mode tag are present,
+   changes mode through `DevelopSession::set_settings`, then verifies both are
+   cleared and the requested mode is active.
+
+### LR-SCHEMA first-lane checklist
+
+- Registered four predicates: `upright_homography`,
+  `upright_homography_mode`, `legacy_ca_red`, `legacy_ca_blue`, each with its own
+  `assert_bumped_only_when_present` test. `RECIPE_SCHEMA_VERSION` stays **3**;
+  feature-bearing recipes write **4**, lifting the writable maximum to 4.
+- The import fixture + 300-image schema test now independently checks the four
+  feature fields and expects 3 or 4 accordingly. Three synthetic feature imports
+  separately prove schema 4. Existing bundled/common golden fixtures use none of
+  these features; the existing catalog digest and all four compatibility
+  fingerprints pass unchanged, so no unrelated digest was re-pinned.
+- Sidecar and merge round-trip tests now exercise a real CA feature, assert the
+  loaded version is 4, and compare content with the in-memory version normalized.
+- Added the FFI journal test proving `save_local_recipe` persists schema 4 in
+  the envelope for a feature-bearing recipe. The existing no-feature legacy
+  envelope test remains the counterpart.
+- Sticky bumps, pinned-RAW ceiling, write refusal above max, and the documented
+  pre-v4 FFI read limitation retain LR-SCHEMA's behavior.
+
+### RED/GREEN audit
+
+- The initial focused RED run observed **eight failures**: four absent predicate
+  registrations, missing PV2012+ info, default-XMP bucket pollution, user-history
+  rejection, and standalone import author preservation. The FFI RED run separately
+  observed the schema-4 journal failure.
+- The hook-order regression already passed at RED. The FFI mode-change test
+  also passed before this implementation; it covers LR-7c's existing behavior.
+  The CA/no-CA assertion is additional coverage of existing rendering, not a
+  claimed newly failing test.
+- GREEN added first-lane round-trip/schema coverage, pinned the default-XMP
+  fingerprint, and strengthened the FFI test's setup/presence assertions.
+  These additions were not all separately observed failing.
+- One intermediate broad run used the initial uncommitted decode before its
+  premature `Recipe::validate` call was removed. It failed with
+  `settings do not match history head`, was stopped, and is not final evidence.
+  The corrected decoder validates after the caller records the transaction.
+- **LR-7c process correction requested by Machine A:** GREEN adjusted the RED test
+  setup and added four tests that were never seen failing. Earlier RED/GREEN
+  wording must not be read as claiming that every LR-7c regression was observed
+  failing before its implementation.
+
+
+### Final gates and measured timing
+
+Environment: PATH includes `$HOME/.cargo/bin`;
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-7-upright`,
+`CARGO_BUILD_JOBS=3`, `RAYON_NUM_THREADS=3`. Rust gate test concurrency is 3.
+
+Before the final build, ran `cargo clean -p engine-api -p import-lrcat -p sidecar
+-p merge -p pipeline-cpu -p image-core -p tessera-ffi -p pipeline-gpu`:
+112,028 files / 34.9 GiB removed. The first unfiltered debug attempt passed the
+engine-api and image-core unit targets but was interrupted during the long
+image-core fixture-extremes test. It is **not** a completed gate. The same full
+eight-crate gate was then completed in release, with no command-line skips.
+This also enabled the release-only 20,000-image import scale test, which passed.
+No test threshold was changed.
+
+| Gate | Result |
+| --- | --- |
+| Full eight-crate `cargo test --locked --release ... --no-fail-fast -- --test-threads=3`, including all tessera-ffi targets | **PASS**, exit 0; **1340 passed, 0 failed, 48 ignored**, 210 target summaries |
+| Eight-crate `cargo clippy --locked ... --all-targets -- -D warnings` | **PASS**, exit 0 |
+| `cargo fmt --all -- --check` and `git diff --check` | **PASS** |
+| `apps/mac/build-ffi.sh` | **PASS**, arm64 archive; regenerated bindings unchanged |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**; 912 XCTest, 3 skipped, 0 failures; 5 Swift Testing tests passed |
+| `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | **PASS**, exit 0, 279.92 s |
+
+The eight crates are engine-api, import-lrcat, sidecar, merge, pipeline-cpu,
+image-core, pipeline-gpu, and tessera-ffi. The full gate includes the shared
+diagnostics writer scan, all matrix negative controls, report aggregation and
+resume tests, the FFI mode-change regression, and schema-4 journal serialization.
+
+**Timing repeats:** used the exact test binaries produced by the clean release
+gate, first with 3 test threads and then serially (1), with output enabled.
+This avoids rebuilding a different artifact between timing measurements.
+
+| Check | 3-thread repeat | Serial repeat |
+| --- | --- | --- |
+| Liquify 20 MP brush+preview p95, unchanged limit <250 ms | **15.5 ms**, all 15 module tests passed | **23.2 ms**, target passed |
+| Interactive drag frame delivery | **39 frames / 222.8915 ms** burst, final L1 | **39 frames / 209.207625 ms** burst, final L1 |
+| Slider while export is active | **120 frames / 2.424813 s**, set-to-frame p90 **5.6 ms** | **120 frames / 2.193971 s**, set-to-frame p90 **4.3 ms** |
+
+All three timing tests also passed in the full gate. Its successful test output
+was captured by Rust's harness, so the numeric values above are from the explicit
+measured repeats, not invented full-gate measurements. A first frame-repeat
+selector matched sidecar's same-named `develop` binary and selected zero tests;
+that attempt is excluded. The corrected repeats ran both tessera-ffi starvation
+tests and passed. No latency or frame-delivery threshold was relaxed. These are
+release measurements; they do not retroactively turn LR-7c's debug p95 failures
+into passes.
+
+**Coverage limits:** the 48 Rust ignores are unchanged opt-in tests, not added
+filters. Each name/reason is listed in [LR-7d-evidence.md](LR-7d-evidence.md).
+They include large/manual performance runs, fixture/weight/exclusive-lane
+qualifications, the explicit real-catalog acceptance test (not run), and the
+pre-existing signed-luminance reference-bound follow-up. The three Swift skips
+are the opt-in 20k-file library measurement and two Smart Preview acceptance
+tests requiring `TESSERA_SMART_PREVIEW_RAW`; both opt-in environment variables
+were unset. No real catalog was opened, no GUI app was launched, and every new
+fixture/test input is synthetic. Existing standard-suite fixture tests ran.
+
+The final branch-wide whitespace check also trimmed inherited blank EOF lines
+from four older evidence logs; their substantive output is unchanged.
+No dependency, Cargo.lock or board.json change. No push or remote write.
+The coordinator-owned untracked `LR-RULINGS-FROM-A.md` is left untouched.
+The remaining integration action is LR-2c's `global.lua` rebaseline and merged
+hook-order qualification after LR-2c actually lands.

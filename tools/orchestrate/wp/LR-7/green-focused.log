@@ -775,4 +775,3 @@ test invalid_stored_matrix_is_rejected ... ok
 test stored_upright_matrix_bypasses_image_analysis ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
-
