@@ -84,7 +84,7 @@ fn ffi_streaming_memory_is_bounded() {
             .open_lrcat(large.to_string_lossy().into_owned())
             .unwrap();
         assert_eq!(import.summary(), summary);
-        let mut options = import.default_options();
+        let mut options = import.default_options().unwrap();
         options.library_folder = temp.path().join("library").to_string_lossy().into_owned();
         for r in &mut options.relocations {
             r.to = temp.path().join("absent").to_string_lossy().into_owned();

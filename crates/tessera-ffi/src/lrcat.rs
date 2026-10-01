@@ -940,25 +940,31 @@ impl LrcatImport {
 
     /// Identity relocations, identity mark names (every label in the catalog)
     /// and the photos' common folder as the library folder.
-    pub fn default_options(&self) -> LrcatOptions {
+    pub fn default_options(&self) -> Result<LrcatOptions> {
         let roots = root_paths(&self.plan);
-        let library = common_ancestor(&roots)
+        let library = match common_ancestor(&roots)
             .filter(|p| p.components().count() > 1)
             .or_else(|| self.catalog.parent().map(Path::to_path_buf))
             .filter(|p| !Sidecar::is_lightroom_owned(p))
-            .unwrap_or_else(|| {
-                self.engine
-                    .support_dir()
-                    .expect("engine support directory")
-                    .join("Imported Libraries")
-            });
+        {
+            Some(library) => library,
+            None => {
+                let support = self.engine.support_dir()?;
+                if !support.is_dir() {
+                    return Err(failure(
+                        "app support directory is missing or is not a directory",
+                    ));
+                }
+                support.join("Imported Libraries")
+            }
+        };
         let labels: BTreeSet<&str> = self
             .plan
             .images
             .iter()
             .filter_map(|i| i.color_label.as_deref())
             .collect();
-        LrcatOptions {
+        Ok(LrcatOptions {
             library_folder: display_path(&library),
             relocations: roots
                 .iter()
@@ -975,7 +981,7 @@ impl LrcatImport {
                 })
                 .collect(),
             overwrite_existing_edits: false,
-        }
+        })
     }
 
     /// What `apply` would do with these options. Reads the disk; writes nothing.
@@ -1811,7 +1817,7 @@ mod lrcat_resume_tests {
             .clone()
             .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
             .unwrap();
-        let mut options = import.default_options();
+        let mut options = import.default_options().unwrap();
         options.relocations[0].to = fixture
             .photos
             .canonicalize()

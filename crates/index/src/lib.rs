@@ -124,11 +124,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 10 {
+        if version > 9 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 10,
+                supported: 9,
             }
             .into());
         }
@@ -183,9 +183,6 @@ impl Core {
                 "../migrations/009_people_medoid_invalidation.sql"
             ))?;
         }
-        if missing(10)? {
-            conn.execute_batch(include_str!("../migrations/010_explicit_file_folders.sql"))?;
-        }
         Ok(Self { conn })
     }
 
@@ -238,25 +235,11 @@ impl Core {
             );
         }
         let root_s = root.to_string_lossy().into_owned();
-        // An explicitly admitted file does not opt its containing directory
-        // into folder discovery. Only an explicit folder scan creates a root.
-        let root_id: Option<i64> = if only_file.is_none() {
+        self.conn
+            .execute("INSERT OR IGNORE INTO root(path) VALUES(?)", [&root_s])?;
+        let root_id: i64 =
             self.conn
-                .execute("INSERT OR IGNORE INTO root(path) VALUES(?)", [&root_s])?;
-            let id = self
-                .conn
-                .query_row("SELECT id FROM root WHERE path=?", [&root_s], |r| {
-                    r.get::<_, i64>(0)
-                })?;
-            let prefix = format!("{}/", root_s.trim_end_matches('/'));
-            self.conn.execute(
-                "UPDATE folder SET root_id=? WHERE root_id IS NULL AND (path=? OR substr(path,1,length(?))=?)",
-                params![id, root_s, prefix, prefix],
-            )?;
-            Some(id)
-        } else {
-            None
-        };
+                .query_row("SELECT id FROM root WHERE path=?", [&root_s], |r| r.get(0))?;
         let mut changed = 0;
         for entry in WalkDir::new(only_file.unwrap_or(root))
             .follow_links(false)
@@ -925,106 +908,6 @@ mod tests {
     }
 
     #[test]
-    fn explicit_file_does_not_create_root_and_later_folder_scan_adopts_it() {
-        let dir = tempfile::tempdir().unwrap();
-        let photo = dir.path().join("one.raw");
-        std::fs::write(&photo, b"fixture").unwrap();
-        let mut index = Index::open(dir.path().join("index.db")).unwrap();
-        index
-            .scan_file(&photo, &NoopSidecarReader, &NoopMetadataProvider)
-            .unwrap();
-        assert_eq!(
-            index
-                .conn
-                .query_row("SELECT count(*) FROM root", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            0
-        );
-        index
-            .scan(dir.path(), &NoopSidecarReader, &NoopMetadataProvider)
-            .unwrap();
-        assert_eq!(
-            index
-                .conn
-                .query_row(
-                    "SELECT count(*) FROM folder WHERE root_id IS NOT NULL",
-                    [],
-                    |r| r.get::<_, i64>(0)
-                )
-                .unwrap(),
-            1
-        );
-        assert_eq!(
-            index
-                .conn
-                .query_row("SELECT count(*) FROM file", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-    }
-
-    #[test]
-    fn explicit_file_after_legacy_folder_migration_preserves_rows_and_foreign_keys() {
-        let dir = tempfile::tempdir().unwrap();
-        let db = dir.path().join("index.db");
-        let original = dir.path().join("original.jpg");
-        std::fs::write(&original, b"fixture").unwrap();
-        let mut index = Index::open(&db).unwrap();
-        index
-            .scan(dir.path(), &NoopSidecarReader, &NoopMetadataProvider)
-            .unwrap();
-        // Recreate the version-9 NOT NULL schema with real dependent rows.
-        index.conn.execute_batch("PRAGMA foreign_keys=OFF;
-            BEGIN;
-            CREATE TABLE folder_old(id INTEGER PRIMARY KEY, root_id INTEGER NOT NULL REFERENCES root(id), path TEXT NOT NULL UNIQUE);
-            INSERT INTO folder_old SELECT * FROM folder;
-            DROP TABLE folder;
-            ALTER TABLE folder_old RENAME TO folder;
-            DELETE FROM migration WHERE version > 9;
-            COMMIT;").unwrap();
-        drop(index);
-        let mut index = Index::open(&db).unwrap();
-        let exports = dir.path().join("exports");
-        std::fs::create_dir(&exports).unwrap();
-        let output = exports.join("output.dng");
-        std::fs::write(&output, b"fixture").unwrap();
-        index
-            .scan_file(&output, &NoopSidecarReader, &NoopMetadataProvider)
-            .unwrap();
-        assert_eq!(
-            index
-                .conn
-                .query_row("SELECT count(*) FROM root", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-        assert_eq!(
-            index
-                .conn
-                .query_row("SELECT count(*) FROM image", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            2
-        );
-        assert_eq!(
-            index
-                .conn
-                .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| r
-                    .get::<_, i64>(
-                    0
-                ))
-                .unwrap(),
-            0
-        );
-        assert_eq!(
-            index
-                .conn
-                .query_row("PRAGMA foreign_keys", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-    }
-
-    #[test]
     fn embedded_tiff_camera_is_searchable_without_quotes() {
         let dir = tempfile::tempdir().unwrap();
         // Little-endian TIFF with a single ASCII Model entry.
@@ -1091,9 +974,10 @@ mod tests {
         assert_eq!(i.conn.total_changes(), changes);
         assert_eq!(
             i.conn
-                .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
+                .query_row("SELECT max(version) FROM migration", [], |r| r
+                    .get::<_, u32>(0))
                 .unwrap(),
-            10
+            9
         );
     }
     #[test]
@@ -1136,7 +1020,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 10);
+        assert_eq!(tables, 9);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

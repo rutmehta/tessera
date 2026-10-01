@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let engine = Engine::open(temp.path().join("support").to_string_lossy().into_owned())?;
         let import = engine.open_lrcat(path)?;
         let opened = start.elapsed();
-        let mut options = import.default_options();
+        let mut options = import.default_options()?;
         options.library_folder = temp.path().join("library").to_string_lossy().into_owned();
         for (i, r) in options.relocations.iter_mut().enumerate() {
             r.to = temp

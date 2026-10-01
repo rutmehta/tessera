@@ -429,10 +429,6 @@ fn protected_merge_publishes_outside_source() {
     image::RgbImage::from_pixel(2, 2, image::Rgb([24, 36, 48]))
         .save(&unrelated)
         .unwrap();
-    let db = rusqlite::Connection::open(dir.path().join("merge-support/index.sqlite")).unwrap();
-    let roots_before: i64 = db
-        .query_row("SELECT count(*) FROM root", [], |r| r.get(0))
-        .unwrap();
     let job = engine
         .clone()
         .photo_merge(
@@ -453,13 +449,6 @@ fn protected_merge_publishes_outside_source() {
         engine.list_images(ImageQuery::default()).unwrap().len(),
         3,
         "only the new DNG is admitted"
-    );
-    let roots_after: i64 = db
-        .query_row("SELECT count(*) FROM root", [], |r| r.get(0))
-        .unwrap();
-    assert_eq!(
-        roots_after, roots_before,
-        "export folder is not a library root"
     );
     assert!(unrelated.exists());
 }

@@ -50,7 +50,7 @@ fn setup() -> Setup {
 }
 
 fn relocated(s: &Setup) -> LrcatOptions {
-    let mut options = s.import.default_options();
+    let mut options = s.import.default_options().unwrap();
     let photos = s.fixture.photos.canonicalize().unwrap();
     options.relocations[0].to = photos.to_string_lossy().into_owned();
     options.library_folder = photos.to_string_lossy().into_owned();
@@ -138,7 +138,7 @@ fn inspect_counts_and_unsupported_reasons() {
 fn plan_relocates_maps_selection_and_marks_without_writing() {
     let s = setup();
     let before = snapshot(s.fixture.photos.parent().unwrap());
-    let defaults = s.import.default_options();
+    let defaults = s.import.default_options().unwrap();
     assert_eq!(defaults.library_folder, "/Volumes/Old Drive/Photos");
     assert_eq!(
         defaults
@@ -299,7 +299,7 @@ fn fidelity_sample_compares_with_lightroom_previews() {
     // Without relocation nothing can be rendered.
     let moved = s
         .import
-        .fidelity_sample(s.import.default_options(), 3, 128)
+        .fidelity_sample(s.import.default_options().unwrap(), 3, 128)
         .unwrap();
     assert!(moved.samples.is_empty());
 }
@@ -582,7 +582,7 @@ fn catalog_copy_indexes_eight_accessible_references() {
         .clone()
         .open_lrcat(catalog.to_string_lossy().into_owned())
         .unwrap();
-    let mut options = import.default_options();
+    let mut options = import.default_options().unwrap();
     // Longest root wins, matching importer relocation semantics.
     options
         .relocations
@@ -680,7 +680,7 @@ fn lightroom_owned_photos_import_without_adjacent_files() {
         let protected = s._temp.path().join(folder);
         std::fs::rename(&s.fixture.photos, &protected).unwrap();
         let before = snapshot(&protected);
-        let mut options = s.import.default_options();
+        let mut options = s.import.default_options().unwrap();
         options.relocations[0].to = protected.to_string_lossy().into_owned();
         options.library_folder = s
             ._temp
@@ -790,7 +790,7 @@ fn protected_default_library_import_succeeds_without_custom_folder() {
     let import = engine
         .open_lrcat(fixture.catalog.to_string_lossy().into())
         .unwrap();
-    let options = import.default_options();
+    let options = import.default_options().unwrap();
     assert_eq!(
         std::path::Path::new(&options.library_folder),
         temp.path().join("support/Imported Libraries")
@@ -803,13 +803,35 @@ fn protected_default_library_import_succeeds_without_custom_folder() {
 }
 
 #[test]
+fn protected_default_library_missing_support_returns_error() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("Fixture.lrdata")).unwrap();
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    db.execute(
+        "UPDATE AgLibraryRootFolder SET absolutePath=?",
+        [format!("{}/", fixture.photos.display())],
+    )
+    .unwrap();
+    drop(db);
+    let support = temp.path().join("support");
+    let engine = Engine::open(support.to_string_lossy().into()).unwrap();
+    let import = engine
+        .open_lrcat(fixture.catalog.to_string_lossy().into())
+        .unwrap();
+    std::fs::remove_dir_all(&support).unwrap();
+    let error = import.default_options().unwrap_err();
+    assert!(error.to_string().contains("app support directory"));
+    assert!(!support.exists());
+}
+
+#[test]
 fn protected_edit_resolves_after_remount_and_engine_reopen() {
     let s = setup();
     let parent = s._temp.path().join("Photos");
     std::fs::create_dir(&parent).unwrap();
     let protected = parent.join("X.lrdata");
     std::fs::rename(&s.fixture.photos, &protected).unwrap();
-    let mut options = s.import.default_options();
+    let mut options = s.import.default_options().unwrap();
     options.relocations[0].to = protected.to_string_lossy().into();
     options.library_folder = s._temp.path().join("library").to_string_lossy().into();
     assert_eq!(s.import.apply(options, None).unwrap().imported, 5);
@@ -838,7 +860,7 @@ fn read_only_report_counts_successful_writes_not_failed_candidates() {
     let s = setup();
     let protected = s._temp.path().join("X.lrdata");
     std::fs::rename(&s.fixture.photos, &protected).unwrap();
-    let mut options = s.import.default_options();
+    let mut options = s.import.default_options().unwrap();
     options.relocations[0].to = protected.to_string_lossy().into();
     options.library_folder = s._temp.path().join("library").to_string_lossy().into();
     let failed = snapshot(&protected)
