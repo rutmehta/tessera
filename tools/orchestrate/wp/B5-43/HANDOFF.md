@@ -117,3 +117,56 @@ No Rust source changes: crate-specific Rust test/clippy/fmt gates do not apply.
 - The docs commit contains this handoff and compact evidence.
 
 All commit messages end with the requested co-author trailer. Machine A owns integration.
+
+## B5-43b — display-aware viewport target (2026-10-01)
+
+Machine A's 3840×2160 non-Retina display has a 3840×2130-point visible frame.
+The original exact-4K diagnostic incorrectly failed when that frame could not
+accommodate 2160 viewport pixels plus chrome. This follow-up corrects the
+diagnostic only; **P19 remains unreproduced/open**.
+
+The shared reproduction now measures the attached host frame minus the live
+viewport bounds to obtain chrome/panel overhead, subtracts it from the host
+screen's visible frame, and converts the remainder with the backing scale.
+It requests the per-axis minimum of 3840×2160 and those achievable pixels.
+Whole-pixel capacity is rounded down. It checks exact achieved viewport pixels
+and exact restoration of both the original host and viewport sizes. The literal
+oversized host-points probe remains observational.
+
+An unreachable 4K target produces an informational result note:
+`N/A: 4K not reachable on this display (achievable WxH)`.
+The background filter self-test includes this note in its successful check label
+because its existing check helper omits detail text on success. Notes do not
+count as failures. Exception-handler installation/restoration and layout-logging
+arming are unchanged.
+
+### Tests-first and verification
+
+- `effeb150` — `test(B5-43b):` extracts the existing fixed target unchanged and
+  adds injected geometry tests. The 3840×2130 @1× case with measured 524×77-point
+  overhead failed as expected: actual 3840×2160 versus expected 3316×2053.
+  A sufficiently large @2× display retains the exact 3840×2160 target.
+- `ff54555c` — `fix(B5-43b):` implements achievable sizing, exact checks, and
+  successful N/A result reporting.
+- The required FFI + Swift gate command passed cleanly: **SWIFT GATE OK**,
+  **894 XCTest tests, 3 skipped, 0 failures** (191.307 seconds), plus
+  **5 Swift Testing tests passed**.
+- Final-source standalone `SelfTestHostTests` ran twice: **7 tests, 0 failures**
+  on each run. Earlier standalone runs also passed twice.
+- This host's measured achievable viewport was **3064×2424 pixels**; it requested
+  and reached **3064×2160 pixels**, then restored the **1440×984-point host** and
+  **916×907-point viewport**. The result contained the explicit N/A note.
+  Every observed resize kept the sheet attached and key/main false.
+- One earlier gate invocation was invalidated by an edit during its debug build
+  (`input file was modified during the build`). Its own process tree was stopped;
+  the clean full command above was rerun with source fixed. Other jobs were untouched.
+
+Compact RED/GREEN evidence is in `evidence/B5-43b-verification.log`. Raw logs are
+local under `/tmp/B5-43b-*.log`. The physical Machine A display was simulated by
+injected geometry, not exercised here. No packaged background app rerun was
+performed; its shared diagnostic is exercised by hosted XCTest, and its result
+label path compiled in the gate.
+
+These commits are local on `wp/B5-43`, directly above `41da8502`, without rebase.
+No Rust source, `board.json`, or `Cargo.lock` changes. No foreground GUI launch.
+All follow-up commit messages end with the requested co-author trailer.

@@ -1,0 +1,27 @@
+
+=== red ===
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/Tests/TesseraCoreTests/SelfTestHostTests.swift:15: error: -[TesseraCoreTests.SelfTestHostTests testViewportTargetFitsNonRetinaVisibleFrameAfterMeasuredPanels] : XCTAssertEqual failed: ("(3840.0, 2160.0)") is not equal to ("(3316.0, 2053.0)")
+	 Executed 2 tests, with 1 failure (0 unexpected) in 0.602 (0.602) seconds
+	 Executed 2 tests, with 1 failure (0 unexpected) in 0.602 (0.602) seconds
+	 Executed 2 tests, with 1 failure (0 unexpected) in 0.602 (0.603) seconds
+
+=== final-standalone-1 ===
+filter-layout: AFTER viewport-pixels frame=(2056.0, 1157.0) viewport=(1532.0, 1080.0) pixels=3064.0x2160.0 sheet=true key=false main=false
+filter-layout: AFTER viewport-pixels frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: done failures=[] notes=["N/A: 4K not reachable on this display (achievable 3064x2424)"]
+	 Executed 7 tests, with 0 failures (0 unexpected) in 7.316 (7.317) seconds
+	 Executed 7 tests, with 0 failures (0 unexpected) in 7.316 (7.317) seconds
+	 Executed 7 tests, with 0 failures (0 unexpected) in 7.316 (7.318) seconds
+
+=== final-standalone-2 ===
+filter-layout: AFTER viewport-pixels frame=(2056.0, 1157.0) viewport=(1532.0, 1080.0) pixels=3064.0x2160.0 sheet=true key=false main=false
+filter-layout: AFTER viewport-pixels frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: done failures=[] notes=["N/A: 4K not reachable on this display (achievable 3064x2424)"]
+	 Executed 7 tests, with 0 failures (0 unexpected) in 7.194 (7.195) seconds
+	 Executed 7 tests, with 0 failures (0 unexpected) in 7.194 (7.195) seconds
+	 Executed 7 tests, with 0 failures (0 unexpected) in 7.194 (7.195) seconds
+
+=== gate-final ===
+	 Executed 894 tests, with 3 tests skipped and 0 failures (0 unexpected) in 191.307 (191.383) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.024 seconds.
+SWIFT GATE OK
