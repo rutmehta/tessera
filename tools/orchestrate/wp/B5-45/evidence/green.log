@@ -1,0 +1,16 @@
+Build complete! (137.90s)
+Test Suite 'SelfTestHostTests' started at 2026-10-01 10:51:02.074.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testArgumentFlagsInBothForms]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testArgumentFlagsInBothForms]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testBackgroundHostResizesWithoutClampingToItsInitialContentSize]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testBackgroundHostResizesWithoutClampingToItsInitialContentSize]' passed (3.229 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testEnvironmentSelfTests]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testEnvironmentSelfTests]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testOtherLaunchesAreNotSelfTests]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testOtherLaunchesAreNotSelfTests]' passed (0.000 seconds).
+Test Suite 'SelfTestHostTests' passed at 2026-10-01 10:51:05.304.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 3.229 (3.230) seconds
+	 Executed 5 tests, with 0 failures (0 unexpected) in 3.229 (3.230) seconds
+	 Executed 5 tests, with 0 failures (0 unexpected) in 3.229 (3.231) seconds

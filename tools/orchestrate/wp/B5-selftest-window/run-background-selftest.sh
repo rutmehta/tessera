@@ -1,12 +1,12 @@
 #!/bin/bash
-# Runs one in-app document self-test in the background: `open -g -n` plus `--nonactivating`, so the app is never
+# Runs one in-app self-test in the background: `open -g -n` plus `--nonactivating`, so the app is never
 # activated and no window is made key or ordered front (SelfTestHost hosts the content in a window behind every
 # other app). Captures only its own window when the test asks (`<name>.req` files or `step <n>-<name> window-id <id>`
 # lines, answered with `ack-<nn>`), checks the frontmost app did not change, then quits only its own PID.
 #
 # usage: run-background-selftest.sh <name> [extra app args…]
 #   name: transform | vector | channel-paint | camera-raw | retouch | filter | styles | tools | document |
-#         liquify | channels | text | stack | adaptive-wide-angle
+#         liquify | channels | text | stack | adaptive-wide-angle | develop | develop-panels | hdr | masks
 # env:   APP (default: this worktree's apps/mac/build/Tessera.app), SP (scratch dir), TIMEOUT (s, default 900),
 #        FOLDER (library folder; default: a copy of sample.dng for the tests that need a RAW)
 set -u
@@ -17,8 +17,12 @@ SP=${SP:-${TMPDIR:-/tmp}/tessera-bg-selftest/$NAME}
 rm -rf "$SP"; mkdir -p "$SP/app" "$SP/folder" "$SP/test"
 LOG=$SP/selftest.log; : > "$LOG"
 FIX=$ROOT/fixtures/raw/sample.dng
-ENV=(); ARGS=()
+ENV=(); ARGS=(); LIBRARY_TEST=false
 case $NAME in
+  develop|develop-panels|hdr|masks)
+    LIBRARY_TEST=true
+    ARGS=("--$NAME-selftest")
+    [ -z "${FOLDER:-}" ] && cp "$FIX" "$SP/folder/";;
   transform|vector|channel-paint|liquify) ARGS=("--$NAME-selftest=$SP/test");;
   camera-raw|retouch|filter|styles|tools|document|adaptive-wide-angle)
     ARGS=("--$NAME-selftest" "$SP/test")
@@ -35,6 +39,7 @@ echo "pid $PID"
 acked=""
 end=$(( $(date +%s) + ${TIMEOUT:-900} ))
 while kill -0 "$PID" 2>/dev/null && [ "$(date +%s)" -lt "$end" ]; do
+  if ! $LIBRARY_TEST; then
   for req in "$SP"/test/*.req; do
     [ -e "$req" ] || continue
     n=$(basename "$req" .req); wid=$(cat "$req"); rm -f "$req"
@@ -46,12 +51,26 @@ while kill -0 "$PID" 2>/dev/null && [ "$(date +%s)" -lt "$end" ]; do
     screencapture -x -o -l "$wid" "$SP/test/step-$n-$step.png" 2>>"$SP/capture.err"
     touch "$SP/test/ack-$(printf %02d "$((10#$n))")"; acked="$acked $n"
   done < <(sed -n 's/^[a-z-]*selftest: step \([0-9]*\)-\([^ ]*\) window-id \([0-9]*\)$/\1 \2 \3/p' "$LOG")
-  grep -qE "^[a-z-]*selftest: done" "$LOG" && break
+  fi
+  if $LIBRARY_TEST; then
+    grep -qE "^$NAME-selftest: done," "$LOG" && break
+  else
+    grep -qE "^[a-z-]*selftest: done" "$LOG" && break
+  fi
   sleep 0.3
 done
 sleep 3
 if kill -0 "$PID" 2>/dev/null; then kill "$PID"; sleep 1; kill -9 "$PID" 2>/dev/null; echo "killed $PID"; fi
 FRONT_AFTER=$(lsappinfo info -only name "$(lsappinfo front)")
 echo "front before: $FRONT_BEFORE"; echo "front after:  $FRONT_AFTER"
-grep -E "selftest-host|selftest: (check .*FAIL|FAIL|done)" "$LOG"
-grep -qE "^[a-z-]*selftest: done, 0 failure" "$LOG" && [ "$FRONT_BEFORE" = "$FRONT_AFTER" ]
+if $LIBRARY_TEST; then
+  grep -E "selftest-host|$NAME-selftest" "$LOG"
+  if ! grep -qx "$NAME-selftest: done, 0 failures" "$LOG" || grep -q "$NAME-selftest: FAIL" "$LOG"; then
+    echo "$NAME-selftest: FAIL missing successful completion (early exit, timeout, or failed check)"
+    exit 1
+  fi
+else
+  grep -E "selftest-host|selftest: (check .*FAIL|FAIL|done)" "$LOG"
+  grep -qE "^[a-z-]*selftest: done, 0 failure" "$LOG" || exit 1
+fi
+[ "$FRONT_BEFORE" = "$FRONT_AFTER" ]

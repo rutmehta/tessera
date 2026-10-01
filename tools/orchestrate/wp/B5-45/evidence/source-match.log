@@ -1,0 +1,5 @@
+Packaged commit: 931930584a36e93ee3de7b020dff2e06b3db9158 (fix present as working-tree changes at build time)
+Verified committed source SHA256: c95b5154068afe53ebecc76979f2f63b7a2250199bacd328b7f35f32f965368d
+Verified packaged binary SHA256: 4faa4914a05c17fecde1e541de2cbab01ba1091925533831aa98f7d0cdca8057
+Source manifest, generated bindings and FFI archive match after fix commit.
+Full provenance verify after committing reports commit mismatch; source and binary checks above pass.

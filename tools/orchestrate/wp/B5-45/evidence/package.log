@@ -1,0 +1,8 @@
+build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc: replacing existing signature
+build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc: replacing existing signature
+build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate: replacing existing signature
+build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app: replacing existing signature
+build/Tessera.app/Contents/Frameworks/Sparkle.framework: replacing existing signature
+build/Tessera.app: replacing existing signature
+Verified release 931930584a36e93ee3de7b020dff2e06b3db9158: build/Tessera.app
+Built /Users/rutmehta/Developer/lightroom/.worktrees/B5-45/apps/mac/build/Tessera.app

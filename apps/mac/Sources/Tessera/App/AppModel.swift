@@ -2535,13 +2535,17 @@ final class AppModel {
     private func runDevelopSelfTest(_ controller: DevelopController) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1.5))   // first paint settles
-            guard let self, self.develop === controller else { return }
+            guard let self, self.develop === controller else {
+                SelfTestHost.logLibraryResult("develop-selftest", "FAIL controller lost before test")
+                SelfTestHost.finishLibraryTest("develop-selftest", failures: 1)
+                return
+            }
             self.selfTestFrames = []
             let id = controller.itemID
             let steps = ProcessInfo.processInfo.arguments.contains("--timing-selftest") ? 120 : 60
             for i in 0...steps {
                 self.setAdjustment(.exposure, 1.5 * Double(i) / Double(steps), final: i == steps, for: id)
-                if ProcessInfo.processInfo.arguments.contains("--timing-selftest") {
+                if SelfTestHost.isBackground || ProcessInfo.processInfo.arguments.contains("--timing-selftest") {
                     controller.flushPending() // background windows may pause their display link
                 }
                 try? await Task.sleep(for: .milliseconds(16))
@@ -2551,7 +2555,11 @@ final class AppModel {
             let frames = self.selfTestFrames ?? []
             self.selfTestFrames = nil
             let drag = frames.filter { $0.dirtyStage == "Tone" }.map(\.renderMs).sorted()
-            guard !drag.isEmpty else { FileHandle.standardError.write(Data("develop-selftest: no frames\n".utf8)); return }
+            guard !drag.isEmpty else {
+                SelfTestHost.logLibraryResult("develop-selftest", "FAIL no tone frames")
+                SelfTestHost.finishLibraryTest("develop-selftest", failures: 1)
+                return
+            }
             let q = { (p: Double) in drag[Int(Double(drag.count - 1) * p)] }
             let level = frames.last.map { "L\($0.level)" } ?? "?"
             let line = String(format: "develop-selftest: %d tone frames at %@, engine sink median %.1f ms, p90 %.1f ms, max %.1f ms (not app input-to-display); backend %@; residency unavailable; history: %@",
@@ -2559,6 +2567,7 @@ final class AppModel {
                               controller.history.headLabel ?? "-")
             FileHandle.standardError.write(Data((line + "\n").utf8))
             self.statusMessage = line
+            SelfTestHost.finishLibraryTest("develop-selftest", failures: 0)
         }
     }
 
@@ -2569,7 +2578,11 @@ final class AppModel {
     private func runHDRSelfTest(_ controller: DevelopController) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1.5))   // first paint settles
-            guard let self, self.develop === controller else { return }
+            guard let self, self.develop === controller else {
+                SelfTestHost.logLibraryResult("hdr-selftest", "FAIL controller lost before test")
+                SelfTestHost.finishLibraryTest("hdr-selftest", failures: 1)
+                return
+            }
             let say = { (line: String) in
                 FileHandle.standardError.write(Data((line + "\n").utf8))
                 self.statusMessage = line
@@ -2581,6 +2594,10 @@ final class AppModel {
                 say(String(format: "hdr-selftest: %@; ring %@; HDR stays in the recipe (hdr=%@), loupe SDR",
                            p.readout, controller.surfacesAreFloat ? "RGBA16F" : "RGBA8",
                            controller.hdrEnabled ? "on" : "off"))
+                let validFallback = controller.hdrEnabled && !controller.surfacesAreFloat
+                say(validFallback ? "hdr-selftest: N/A EDR float rendering on SDR presentation; SDR fallback verified"
+                    : "hdr-selftest: FAIL invalid SDR fallback")
+                SelfTestHost.finishLibraryTest("hdr-selftest", failures: validFallback ? 0 : 1)
                 return
             }
             self.selfTestFrames = []
@@ -2588,6 +2605,7 @@ final class AppModel {
             let control = HDRControls.headroom(maxStops: maxStops)
             for i in 0...30 {
                 DevelopTools.shared.set(control, maxStops * Double(i) / 30, final: i == 30)
+                if SelfTestHost.isBackground { controller.flushPending() }
                 try? await Task.sleep(for: .milliseconds(16))
             }
             try? await Task.sleep(for: .seconds(1))
@@ -2596,7 +2614,9 @@ final class AppModel {
             self.selfTestFrames = nil
             let times = frames.map(\.renderMs).sorted()
             guard let last = frames.last, let surface = controller.surface(last.surfaceID), !times.isEmpty else {
-                say("hdr-selftest: no frames"); return
+                say("hdr-selftest: FAIL no frames")
+                SelfTestHost.finishLibraryTest("hdr-selftest", failures: 1)
+                return
             }
             let q = { (x: Double) in times[Int(Double(times.count - 1) * x)] }
             // Peak linear value of the float frame (values above 1.0 are EDR headroom).
@@ -2617,6 +2637,8 @@ final class AppModel {
             say(String(format: "hdr-selftest: %@; ring %@; engine headroom %.1f×; frame peak %.2f; %d headroom frames at L%d, render median %.1f ms, p90 %.1f ms, max %.1f ms; backend %@; history: %@",
                        controller.presentation.readout, float ? "RGBA16F" : "RGBA8", engine, peak, times.count,
                        last.level, q(0.5), q(0.9), q(1), controller.info.backend, controller.history.headLabel ?? "-"))
+            if !float { say("hdr-selftest: FAIL expected float surface") }
+            SelfTestHost.finishLibraryTest("hdr-selftest", failures: float ? 0 : 1)
         }
     }
 

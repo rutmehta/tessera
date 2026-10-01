@@ -1,0 +1,8 @@
+pid 44098
+killed 44098
+front before: "LSDisplayName"="loginwindow"
+front after:  "LSDisplayName"="loginwindow"
+selftest-host: host window 48804
+develop-panels-selftest: N/A key-window keyboard routing (never-key host; controller paths exercised)
+develop-panels-selftest engine sink time (not app input-to-display): tone curve 40 frames L1 median 3.3 ms p90 3.9 ms; hsl 38 frames L1/L2 median 4.3 ms p90 11.9 ms; grading 39 frames L1/L2 median 4.1 ms p90 9.5 ms; detail 31 frames L1/L2/L3/L4 median 14.8 ms p90 35.8 ms; vignette 21 frames L1/L2/L3/L4 median 2.5 ms p90 6.0 ms; grain 39 frames L1 median 4.2 ms p90 8.1 ms; backend Metal (Apple M4 Max); residency unavailable
+develop-panels-selftest: done, 0 failures

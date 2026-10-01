@@ -1,0 +1,8 @@
+pid 44758
+killed 44758
+front before: "LSDisplayName"="loginwindow"
+front after:  "LSDisplayName"="loginwindow"
+selftest-host: host window 48810
+masks-selftest: N/A key-window keyboard routing (never-key host; controller paths exercised)
+masks-selftest: linear gradient 3 frames L1/L3 median 30.9 ms p90 30.9 ms; local exposure 39 frames L1/L4 median 10.8 ms p90 11.2 ms; brush 40 frames L1/L4 median 11.6 ms p90 12.3 ms; brush saturation 10 frames L4/L5 median 8.7 ms p90 18.7 ms; masks 2; backend Metal (Apple M4 Max)
+masks-selftest: done, 0 failures

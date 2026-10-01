@@ -29,6 +29,14 @@ final class SelfTestHostTests: XCTestCase {
         XCTAssertTrue(SelfTestHost.requested(["Tessera", "--transform-selftest=/tmp/x"], environment: [:]))
     }
 
+    func testLibraryDevelopFlagsRequestBackgroundHost() {
+        for flag in ["--develop-selftest", "--develop-panels-selftest", "--hdr-selftest", "--masks-selftest"] {
+            XCTAssertTrue(SelfTestHost.requested(["Tessera", "--nonactivating", flag], environment: [:]), flag)
+            XCTAssertFalse(SelfTestHost.requested(["Tessera", flag + "-hold"], environment: [:]), flag)
+            XCTAssertFalse(SelfTestHost.requested(["Tessera", flag + "=/tmp/x"], environment: [:]), flag)
+        }
+    }
+
     func testEnvironmentSelfTests() {
         XCTAssertTrue(SelfTestHost.requested(["Tessera"], environment: ["TESSERA_CHANNELS_SELFTEST": "/tmp/x"]))
         XCTAssertTrue(SelfTestHost.requested(["Tessera"], environment: ["TESSERA_STACK_SELFTEST": "/tmp/x"]))
