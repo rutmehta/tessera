@@ -1,3 +1,110 @@
+# B5-29c re-review follow-up, 2026-10-01
+
+This section supersedes the historical handoff below. Work is additive on reviewed `041456c9`,
+on branch `wp/B5-29c`; no rebase, history rewrite, push, board edit, or lockfile change.
+
+## B2 report rule
+
+Keep separate per-image entries **only** for messages containing `imported as unedited` and the
+exact duplicate-image/develop-ID `last-write-wins` notices. Group every other image note by message,
+including unsupported CRS properties, decoder limitations, and future harmless notes. Repeated
+messages render as count plus first image ID; singleton messages retain the existing image-ID form.
+Repeated diagnostics within one image count that image once. Stable first-image ordering is preserved.
+Memory for harmless image diagnostics now follows distinct message count, not image count; the required
+unedited-image and duplicate-ID lists can still grow with the number of affected images.
+
+The unit test feeds two images every note class (plus an intra-image repeated unsupported note) and
+asserts 13 entries, exact grouped counts/first IDs, individual exceptions, and singleton shape. Before
+the fix it produced 18 entries and failed. New shape tests also failed before implementation.
+
+## Cheap recommendations included
+
+- After publishing by rename, the destination parent now uses `File::sync_all` (full flush on macOS),
+  replacing the plain-fsync directory helper for this final publication boundary.
+- `lrcat_develop_source` now has explicit shapes. Parsed maps use
+  `{shape: "lua-values" | "xmp-fragments", properties: {AdobeKey: exactSource}}`.
+  The envelope avoids collisions with real Adobe keys named `shape` or `properties`.
+  Oversized source uses `{shape: "cell-descriptor", cell, truncated, processVersion, text?}`;
+  `cell.status` still distinguishes externalized and omitted. Existing parse-failure whole text is a
+  fourth shape, `{shape: "raw-text", text, processVersion}`. Exact source values are unchanged.
+- Empty develop settings now say `never developed (no develop settings)`; nonempty failed/oversized
+  imports say `edits failed to import` with their existing detailed reason. Both keep an individual
+  `imported as unedited` report entry.
+- **Export limitation:** `XmpPacket::from_imported_recipe` requires retained `sidecar_xmp` and returns
+  `no source XMP` for Lua-row recipes because synthesized XMP is intentionally removed. These source
+  tags do not add Lua-to-XMP export support.
+- **FFI/in-app limitation on this branch:** `open_lrcat` still calls `import_lrcat::import`, materializes
+  images, and records oversized cells as `omitted` with a bounded prefix/recovery descriptor. It does
+  not use bundle side files. B5-29d may add app-path side files; CLI results below do not establish app
+  performance or lossless oversized app import.
+
+## Golden and commits
+
+- RED: `adc415fc` — `test(B5-29c): cover report grouping and retained-source shapes`.
+- Fix: `6be9003b` — `fix(B5-29c): bound harmless reports and tag retained sources`.
+- Documentation follows in a separate `docs(B5-29c):` commit.
+
+The full-source golden first failed with the tagged envelope, then was intentionally re-pinned from
+`fcbb457c63eba5adc6256d8c64874a91a5a9408abb4bf46cb692cfe36ce5415a` to
+`d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8`.
+This is solely the retained-source shape change; no source stripping was added to the golden.
+Per-key exact literal/fragment assertions now look inside `properties`; they still verify original bytes.
+Streaming/import and PlanJson serialization parity also pass.
+
+## Fresh catalog-copy measurements (counts only)
+
+Used only the supplied scratchpad `lrimport/cat.lrcat` COPY, read-only. Never opened the original under
+`~/Pictures`. Full SHA-256 matched before and after, with prefix `eb60e744dbec2547`.
+Standalone release CLI rebuilt before `/usr/bin/time -l` measurements; inspect and apply ran serially.
+
+| Operation | Prior round wall s | New wall s | Prior peak RSS bytes | New peak RSS bytes |
+|---|---:|---:|---:|---:|
+| inspect | 9.81 | 9.78 | 591,904,768 | 536,821,760 |
+| apply | 11.46 | 11.13 | 764,100,608 | 647,823,360 |
+
+Both pass inspect <20 s / apply <60 s / peak <1 GB. These are single-run measurements, not statistical
+speedup claims. Prior values and the baseline report count are from the prior run recorded below.
+
+Report **548,861 → 146 entries**. Of the new entries, 77 are repeated-message groups (previously 18),
+15 are harmless single-image notes, 13 are catalog-level notes, and 41 are individually listed unedited
+images. Thus 105 non-unedited entries plus 41 individual unedited entries. All 41 say never developed;
+0 failed-edit imports and 0 duplicate-ID notes. There are 21,656 images and recipes, 21,615 `lua-values`
+source envelopes, 21,658 bundle files, and 2,849,688,999 bundle bytes.
+
+Validation streamed every plan image, compared each recipe to its recipe file, checked distinct IDs
+against all recipe filenames, matched the library to the plan, and matched the full report to
+`--apply --json`. All passed. No image names, keywords, collections, or original photo paths are recorded.
+The task-owned temporary bundle is removed after validation; counts, timings, and gate logs are retained.
+
+## Gates for this follow-up
+
+- Requested release `--test lrcat`: PASS (7 tests).
+- Requested release `--lib lrcat`: PASS (new importer grouping regression plus 4 FFI tests).
+- Broader release suite for import-lrcat, tessera-cli, tessera-ffi: PASS, **654 passed, 28 ignored, 0 failed**.
+- `cargo clippy --release --all-targets -p import-lrcat -p tessera-cli -p tessera-ffi -- -D warnings`: PASS.
+- `cargo fmt --all --check`: PASS.
+- `cd apps/mac && ./build-ffi.sh`: PASS; generated Swift/header/modulemap unchanged.
+- `tools/orchestrate/swift-gate.sh`: **FAILED / INCOMPLETE**, exit 1. Swift build passed.
+  `MasksPanelLayoutTests.testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth` failed at
+  `MasksPanelLayoutTests.swift:88`: `screencapture` could not create an image from the window, followed
+  by `XCTUnwrap` of a nil `CGImageSourceRef`. The console session was verified locked before and during
+  the run. All four shell-layout tests passed this time; no additional assertion failure was recorded.
+  After the existing opt-in Smart Preview skip, the test process stopped logging for over two minutes
+  and fell to 0% CPU. A 3-second sample showed 6.0 GB physical footprint (7.2 GB peak) and blocking
+  AppKit animation workers. Only this worktree's exact XCTest PID 7569 was terminated after verifying
+  its full executable/bundle path, existing failure, and >120 seconds without log output. The gate then
+  reported failure. This is not a completed Swift suite and no `SWIFT GATE OK` was obtained.
+  An unlocked full rerun remains required; no Swift source, assertion, skip, UI activation policy, or
+  gate implementation was changed. Full output and sample are retained as
+  `/tmp/B5-29c-rereview-swift-full.log` and `/tmp/B5-29c-rereview-swift.sample.txt`.
+
+Logs for this follow-up use `/tmp/B5-29c-rereview-*` (Rust tests, clippy, formatting, CLI build,
+measurements/counts, before/after SHA-256, FFI build, and Swift gate).
+
+---
+
+# Historical handoff before this re-review
+
 # B5-29c handoff: Machine A binding contracts, 2026-10-01
 
 Branch `wp/B5-29c`. This round is additive on `1f98b17d`; no rebase, history rewrite, push, or board edit.
