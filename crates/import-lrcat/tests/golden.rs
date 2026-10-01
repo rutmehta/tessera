@@ -6,8 +6,9 @@ mod common;
 use engine_api::id::Digest;
 
 const N: i64 = 2_000;
-/// Re-pinned for tagged retained-source envelopes; exact per-key tests cover source spelling.
-const GOLDEN: &str = "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8";
+/// LR-2 translates ConvertToGrayscale=false in 1,200 synthetic rows; source-only
+/// inputs remain byte-identical (tools/orchestrate/wp/LR-2/compat.sh).
+const GOLDEN: &str = "ad814642116dda65cf0a49494eee8a5cf034c2d3151cb8c35c69975f8cfd661a";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();

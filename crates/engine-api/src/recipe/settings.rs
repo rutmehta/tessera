@@ -866,10 +866,23 @@ pub struct LutSettings {
     pub amount: f32,
 }
 
+/// Catalog B&W conversion. Mixer amounts use the existing eight hue bands.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MonochromeSettings {
+    /// Apply B&W conversion before ordinary color adjustments.
+    pub enabled: bool,
+    /// Hue-dependent luminance shifts, -100..=100. Retained while disabled.
+    pub mixer: HueBands,
+}
+
 /// Global colour.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ColorSettings {
+    /// Optional B&W conversion; omitted for byte-compatible older recipes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monochrome: Option<MonochromeSettings>,
     /// Vibrance, `-100..=100`.
     pub vibrance: f32,
     /// Saturation, `-100..=100`.

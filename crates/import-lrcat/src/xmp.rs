@@ -1,4 +1,5 @@
-//! Lightroom catalog XMP adapter. All recipe translation belongs to sidecar.
+//! Lightroom catalog XMP adapter. Core CRS translation belongs to sidecar;
+//! catalog-specific LR-2 additions run after exact source retention.
 use engine_api::{
     EngineError, EngineResult,
     recipe::{CrsKey, CrsValueType, ProcessVersion, Recipe},
@@ -238,6 +239,8 @@ pub(crate) fn parse_unrecorded(
             .filter(|p| p.namespace == CRS)
             .map(|p| (p.name, p.raw)),
     )?;
+    crate::lr2::xmp(&doc, &mut recipe, &mut warnings)?;
+    recipe.validate()?;
     Ok((recipe, warnings))
 }
 

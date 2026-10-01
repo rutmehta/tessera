@@ -358,7 +358,9 @@ fn pending_sources_are_exact_even_when_inactive_or_identity() {
         lua_develop::KEY_MAP
             .iter()
             .filter(|(k, _)| {
-                (k.starts_with("Upright") || engine_api::recipe::CrsKey::from_xmp_name(k).is_none()) && *k != "ConvertToGrayscale" && !k.starts_with("GrayMixer")
+                (k.starts_with("Upright") || engine_api::recipe::CrsKey::from_xmp_name(k).is_none())
+                    && *k != "ConvertToGrayscale"
+                    && !k.starts_with("GrayMixer")
             })
             .map(|(k, _)| (*k, "0")),
     );
@@ -442,10 +444,14 @@ fn xmp_extended_identity_is_silent_and_edits_use_named_limitation() {
             "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'>{fragment}</rdf:Description></rdf:RDF>"
         );
         let (r, notes) = import_lrcat::develop(1, &packet, "15.4").unwrap();
-        if count > 0 { assert_eq!(
-            r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"],
-            fragment
-        ); } else { assert!(r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"].is_null()); }
+        if count > 0 {
+            assert_eq!(
+                r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"],
+                fragment
+            );
+        } else {
+            assert!(!r.unknown.contains_key("lrcat_develop_source"));
+        }
         assert_eq!(notes.len(), count, "{notes:?}");
         if count > 0 {
             assert_eq!(notes[0], lua_develop::EXTENDED_TONE_CURVE_NOTE);

@@ -33,7 +33,18 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
     ] {
         finite(&[w.hue, w.saturation, w.luminance])?;
     }
-    if s == &ColorSettings::default() {
+    if let Some(gray) = &s.monochrome {
+        let b = &gray.mixer;
+        finite(&[
+            b.red, b.orange, b.yellow, b.green, b.aqua, b.blue, b.purple, b.magenta,
+        ])?;
+        if gray.enabled {
+            crate::map_rgb(tile, |rgb| grayscale(rgb, &gray.mixer))?;
+        }
+    }
+    let mut ordinary = s.clone();
+    ordinary.monochrome = None;
+    if ordinary == ColorSettings::default() {
         return Ok(());
     }
     crate::map_rgb(tile, |rgb| {
@@ -69,6 +80,43 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
         }
         from_lab(lab)
     })
+}
+
+/// Deterministic B&W approximation: linear Rec.2020 Y, modulated by the
+/// eight Adobe-named hue bands. Neutral colors are not affected by the mixer.
+/// Adobe's profile-dependent B&W algorithm is not replicated here.
+fn grayscale(rgb: [f32; 3], mixer: &engine_api::recipe::settings::HueBands) -> [f32; 3] {
+    let [r, g, b] = rgb;
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let span = max - min;
+    let y = 0.2627 * r + 0.6780 * g + 0.0593 * b;
+    if span <= 1e-7 || max <= 1e-7 {
+        return [y; 3];
+    }
+    let hue = (if max == r {
+        (g - b) / span
+    } else if max == g {
+        (b - r) / span + 2.
+    } else {
+        (r - g) / span + 4.
+    } * 60.)
+        .rem_euclid(360.);
+    const CENTERS: [f32; 9] = [0., 30., 60., 120., 180., 240., 270., 300., 360.];
+    let values = [
+        mixer.red,
+        mixer.orange,
+        mixer.yellow,
+        mixer.green,
+        mixer.aqua,
+        mixer.blue,
+        mixer.purple,
+        mixer.magenta,
+    ];
+    let i = (0..8).find(|&i| hue <= CENTERS[i + 1]).unwrap_or(7);
+    let t = (hue - CENTERS[i]) / (CENTERS[i + 1] - CENTERS[i]);
+    let amount = unit(values[i]) * (1. - t) + unit(values[(i + 1) % 8]) * t;
+    [y * (1. + amount * (span / max).clamp(0., 1.)); 3]
 }
 
 fn finite(values: &[f32]) -> EngineResult<()> {

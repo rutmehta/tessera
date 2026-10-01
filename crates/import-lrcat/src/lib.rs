@@ -4,6 +4,7 @@ pub mod diagnostics;
 #[cfg(feature = "fixture")]
 pub mod fixture;
 mod geometry;
+mod lr2;
 pub mod lua;
 pub mod lua_develop;
 pub mod previews;

@@ -24,9 +24,9 @@
 //! `lrcat_develop_lua` lookup. Positional entries have a separate literal fallback.
 //!
 //! The extended-range (HDR) tone curve (`ExtendedToneCurvePV2012` and its
-//! Red/Green/Blue/Name siblings) is not translated (no recipe slot; codec work
-//! is owned elsewhere): one named-limitation warning per image with a non-identity
-//! curve, and the source of those keys is retained. Identity curves do not warn.
+//! Red/Green/Blue/Name siblings) is retained by the adapter. The additive LR-2
+//! pass then translates renderable 0..255 curves and removes their pending source;
+//! genuinely extended-domain/invalid curves keep the named limitation and source.
 use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
@@ -767,6 +767,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             Some((key.as_str(), value))
         }),
     )?;
+    crate::lr2::lua(&table, &mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
     Ok((recipe, warnings))
