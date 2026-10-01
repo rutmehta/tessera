@@ -16,6 +16,7 @@ fn snapshot(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
         for e in std::fs::read_dir(&d).unwrap().flatten() {
             let p = e.path();
             if p.is_dir() {
+                out.insert(p.clone(), Vec::new());
                 stack.push(p);
             } else {
                 out.insert(p.clone(), std::fs::read(&p).unwrap());
@@ -670,4 +671,80 @@ fn unedited_summary_lists_each_image() {
             .iter()
             .all(|i| i.count == 1 && i.reason.contains("image "))
     );
+}
+
+#[test]
+fn lightroom_owned_photos_import_without_adjacent_files() {
+    for folder in ["X.lrdata", "Foo.lrcat-data"] {
+        let s = setup();
+        let protected = s._temp.path().join(folder);
+        std::fs::rename(&s.fixture.photos, &protected).unwrap();
+        let before = snapshot(&protected);
+        let mut options = s.import.default_options();
+        options.relocations[0].to = protected.to_string_lossy().into_owned();
+        options.library_folder = s
+            ._temp
+            .path()
+            .join("library")
+            .to_string_lossy()
+            .into_owned();
+        let report = s.import.apply(options.clone(), None).unwrap();
+        assert_eq!(snapshot(&protected), before, "import modified {folder}");
+        assert_eq!(report.imported, 5);
+        assert!(
+            report
+                .unsupported
+                .iter()
+                .any(|issue| issue.reason.contains("Lightroom")
+                    && issue.reason.contains("sidecar")
+                    && issue.count == 5)
+        );
+        let rows = s.engine.list_images(ImageQuery::default()).unwrap();
+        let row = rows
+            .iter()
+            .find(|r| r.path.ends_with("ceremony-01.jpg"))
+            .unwrap();
+        let recipe: engine_api::recipe::Recipe =
+            serde_json::from_str(&s.engine.get_recipe(row.id.clone()).unwrap()).unwrap();
+        assert_eq!(recipe.settings.tone.exposure, 0.5);
+        assert_eq!(
+            recipe.selection.grade,
+            Some(engine_api::recipe::Grade::Three)
+        );
+        let resumed = s.import.apply(options, None).unwrap();
+        assert_eq!(resumed.resumed, 5);
+        assert_eq!(snapshot(&protected), before);
+        let mut edited = recipe;
+        edited
+            .edit(
+                engine_api::recipe::EditMeta::user("Exposure", 1),
+                |settings| {
+                    settings.tone.exposure = 1.25;
+                },
+            )
+            .unwrap();
+        s.engine
+            .set_recipe_json(row.id.clone(), serde_json::to_string(&edited).unwrap())
+            .unwrap();
+        let refreshed = s.engine.list_images(ImageQuery::default()).unwrap();
+        assert_eq!(
+            refreshed
+                .iter()
+                .find(|r| r.id == row.id)
+                .unwrap()
+                .recipe_hash,
+            edited.recipe_hash().to_string()
+        );
+        assert_eq!(snapshot(&protected), before);
+    }
+}
+
+#[test]
+fn lightroom_owned_library_destination_is_rejected_before_creation() {
+    let s = setup();
+    let mut options = relocated(&s);
+    let protected = s._temp.path().join("X.lrdata/new-library");
+    options.library_folder = protected.to_string_lossy().into_owned();
+    assert!(s.import.apply(options, None).is_err());
+    assert!(!s._temp.path().join("X.lrdata").exists());
 }

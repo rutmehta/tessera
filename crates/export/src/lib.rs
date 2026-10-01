@@ -1193,3 +1193,46 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod lightroom_safety_tests {
+    use super::*;
+
+    #[test]
+    fn original_export_never_creates_files_in_lightroom_owned_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source.nef");
+        fs::write(&source, b"original raw bytes").unwrap();
+        let protected = root.path().join("X.lrdata");
+        fs::create_dir(&protected).unwrap();
+        let destination = protected.join("copy.nef");
+        fs::create_dir_all(Sidecar::paths(&destination).xmp.parent().unwrap()).unwrap();
+        assert!(
+            export_original(&source, &destination, None, None, &CancellationToken::new()).is_err()
+        );
+        assert_eq!(fs::read_dir(protected).unwrap().count(), 0);
+        assert_eq!(fs::read(source).unwrap(), b"original raw bytes");
+    }
+
+    #[test]
+    fn rendered_export_rejects_lightroom_owned_directory_before_creation() {
+        let root = tempfile::tempdir().unwrap();
+        let protected = root.path().join("Foo.lrcat-data");
+        let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();
+        let image = ExportImage {
+            source: RenderSource::Rgb(&pixels),
+            name: "photo",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let settings = ExportSettings {
+            output_dir: protected.clone(),
+            format: Format::Png,
+            metadata: Metadata::None,
+            ..Default::default()
+        };
+        assert!(export_one(&image, &Recipe::default(), &settings).is_err());
+        assert!(!protected.exists());
+    }
+}

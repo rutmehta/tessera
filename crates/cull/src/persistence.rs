@@ -268,3 +268,19 @@ mod tests {
         assert_eq!(index.selection(id).unwrap(), old);
     }
 }
+
+#[cfg(test)]
+mod lightroom_safety_tests {
+    #[test]
+    fn rollback_does_not_write_lightroom_owned_sidecars() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("X.lrdata/photo.xmp");
+        assert!(super::atomic_write(&path, b"new").is_err());
+        assert!(!root.path().join("X.lrdata").exists());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"original").unwrap();
+        assert!(super::restore(&path, &Some(b"replacement".to_vec())).is_err());
+        assert!(super::restore(&path, &None).is_err());
+        assert_eq!(std::fs::read(path).unwrap(), b"original");
+    }
+}

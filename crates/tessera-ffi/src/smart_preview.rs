@@ -867,3 +867,18 @@ mod recovery_tests {
         assert!(journal.snapshot().unwrap().dirty);
     }
 }
+
+#[cfg(test)]
+mod lightroom_safety_tests {
+    #[test]
+    fn raw_sync_writer_preserves_lightroom_owned_files() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("X.lrdata");
+        std::fs::create_dir(&folder).unwrap();
+        let path = folder.join("photo.xmp");
+        std::fs::write(&path, b"original").unwrap();
+        assert!(super::atomic_local(&path, b"replacement").is_err());
+        assert_eq!(std::fs::read(path).unwrap(), b"original");
+        assert_eq!(std::fs::read_dir(folder).unwrap().count(), 1);
+    }
+}
