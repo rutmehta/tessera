@@ -14,6 +14,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### External retry reconciliation — 2026-10-01 08:15 UTC heartbeat
+
+Batch20 `7501d410` Rust gate exited101: `ffi_retains_develop_sources_and_publishes_oversized_cells` failed at lrcat_streaming_parity.rs187 (Null versus expected string151388160). Clippy/fmt exited0; this does not qualify the failed Rust gate. Existing Claude coordinator now runs `batch20-0c6ab1c7`, parent94293/cargo94297; no outcome verified. Retained-source integration remains unaccepted from this evidence, Codex LR implementation remains gated, and no duplicate repair/runtime is launched. Mailbox and coordinator discrepancy are unchanged.
+
 ### External gate failure and retry — 2026-10-01 08:05 UTC heartbeat
 
 Batch20 `d56218a6` failed: Rust101/Clippy101/fmt1/Swift gate2; binding drift0 does not make this passing. Rust log identifies an unclosed delimiter in `crates/tessera-ffi/tests/lrcat.rs` (function starting537/println615); Swift preflight reports missing fixtures/raw. The existing Claude A coordinator already owns a retry at `7501d410`, parent86203/cargo86209, evidence `batch20-7501d410`; no retry outcome verified. Codex does not duplicate its repair or runtime. Main555e4999 and the outstanding coordination blocker remain unchanged.
