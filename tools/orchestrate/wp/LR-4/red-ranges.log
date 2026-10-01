@@ -1,0 +1,36 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.26s
+     Running tests/lr4_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_masks-29efd1a2ee513bd2)
+
+running 5 tests
+test lr4_group_range_intersects_the_whole_union ... FAILED
+test lr4_disabled_component_maps_without_losing_geometry ... ok
+test lr4_explicit_luminance_and_depth_bounds_translate ... FAILED
+test lr4_nested_group_preserves_order_and_operators ... ok
+test lr4_opaque_brush_color_and_image_are_retained_atomically ... ok
+
+failures:
+
+---- lr4_group_range_intersects_the_whole_union stdout ----
+
+thread 'lr4_group_range_intersects_the_whole_union' (52806168) panicked at crates/import-lrcat/tests/lr4_masks.rs:66:5:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- lr4_explicit_luminance_and_depth_bounds_translate stdout ----
+
+thread 'lr4_explicit_luminance_and_depth_bounds_translate' (52806167) panicked at crates/import-lrcat/tests/lr4_masks.rs:52:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+
+
+failures:
+    lr4_explicit_luminance_and_depth_bounds_translate
+    lr4_group_range_intersects_the_whole_union
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4_masks`

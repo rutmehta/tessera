@@ -44,3 +44,27 @@ fn lr4_opaque_brush_color_and_image_are_retained_atomically() {
         assert!(!w.is_empty());
     }
 }
+
+#[test]
+fn lr4_explicit_luminance_and_depth_bounds_translate() {
+    for (fields, kind) in [("LumMin = 0.25, LumMax = 0.75, LumFeather = 0", "luminance_range"), ("DepthMin = 0.25, DepthMax = 0.75, DepthFeather = 0", "depth")] {
+        let (r, _) = lua_develop::parse(&row(&format!(r#"{{ What = "Mask/Range", CorrectionRangeMask = {{ {fields} }} }}"#)), "15.4").unwrap();
+        assert_eq!(r.settings.locals.adjustments.len(), 1);
+        let v = serde_json::to_value(&r.settings.locals.adjustments[0]).unwrap();
+        assert_eq!(v["components"][0]["kind"], kind);
+        assert_eq!(v["components"][0]["range"], json!([0.25, 0.75]));
+        assert!(r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_null());
+    }
+}
+#[test]
+fn lr4_group_range_intersects_the_whole_union() {
+    let lua = r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = {{ LocalExposure2012 = 1,
+        CorrectionMasks = {{ What = "Mask/Gradient", FullX = 0, FullY = 0, ZeroX = 1, ZeroY = 0 }},
+        CorrectionRangeMask = { LumMin = 0.25, LumMax = 0.75, LumFeather = 0 }
+    }} }"#;
+    let (r, _) = lua_develop::parse(lua, "15.4").unwrap();
+    assert_eq!(r.settings.locals.adjustments.len(), 1);
+    let v = serde_json::to_value(&r.settings.locals.adjustments[0]).unwrap();
+    assert_eq!(v["components"][1]["combine"], "intersect");
+    assert_eq!(v["components"][1]["kind"], "luminance_range");
+}
