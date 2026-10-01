@@ -1,0 +1,27 @@
+    Blocking waiting for file lock on build directory
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 35.33s
+     Running tests/lr4c_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4c_metadata-2c979c4490500830)
+
+running 1 test
+test lr4c_documented_keys_each_admit_a_renderable_approximation ... FAILED
+
+failures:
+
+---- lr4c_documented_keys_each_admit_a_renderable_approximation stdout ----
+
+thread 'lr4c_documented_keys_each_admit_a_renderable_approximation' (55366432) panicked at crates/import-lrcat/tests/lr4c_metadata.rs:17:9:
+MaskSyncID="invented" : ["crs:MaskGroupBasedCorrections: mask source retained; Adobe metadata/raster fidelity is not guaranteed; source preserved"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4c_documented_keys_each_admit_a_renderable_approximation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4c_metadata`

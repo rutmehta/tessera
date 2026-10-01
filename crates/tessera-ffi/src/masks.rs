@@ -1967,6 +1967,23 @@ mod tests {
     }
 
     #[test]
+    fn lr4c_luminance_picker_fully_selects_the_sampled_tone() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([64,64,64])).save(photos.join("gray.png")).unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine.index_folder(photos.to_string_lossy().into_owned()).unwrap();
+        let id = engine.list_images(crate::ImageQuery::default()).unwrap().remove(0).id;
+        let session = engine.clone().open_develop_session(id).unwrap();
+        let rgb = session.sample_prelocal(0.5,0.5).unwrap();
+        session.add_range_mask(None, RangeKind::Luminance, 0.5,0.5, MaskCombineMode::Add).unwrap();
+        let group = session.shared.lock().unwrap().live.locals.adjustments[0].clone();
+        let image = pipeline_cpu::Image::new(1,1,rgb.map(|v|vec![v]).to_vec()).unwrap();
+        assert_eq!(pipeline_cpu::masks::rasterize(&image,&group,Default::default()).unwrap(), vec![1.]);
+        session.close().unwrap();
+    }
+    #[test]
     fn lr4c_brush_painting_does_not_pick_disabled_brush() {
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
