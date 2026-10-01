@@ -20,6 +20,7 @@ struct DocumentView: View {
                 HStack(alignment: .top, spacing: Theme.Space.s) {
                     ToolsPalette(document: doc, tools: DocumentTools.shared)
                     ToolOptionsBar(document: doc, tools: DocumentTools.shared)
+                        .inspectorProbe("toolOptions")
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(Theme.Space.m)
