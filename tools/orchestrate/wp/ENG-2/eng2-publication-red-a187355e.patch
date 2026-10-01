@@ -1,0 +1,132 @@
+--- a/crates/tessera-ffi/src/document.rs
++++ b/crates/tessera-ffi/src/document.rs
+@@ -2683,3 +2683,129 @@
+     }
+     Ok(r)
+ }
++
++#[cfg(all(test, target_os = "macos"))]
++mod publication_tests {
++    use super::*;
++    use std::sync::mpsc::{self, RecvTimeoutError};
++    use std::time::{Duration, Instant};
++
++    type Reader = fn(&DocumentSession, u64) -> Result<()>;
++
++    // Private test only: no FFI hooks, render requests, surfaces or file export.
++    // A lock held after a completed mutation is a stable publication boundary.
++    #[test]
++    fn published_session_readers_do_not_wait_for_writer_state() {
++        let dir = tempfile::tempdir().unwrap();
++        let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned())
++            .unwrap();
++        let session = engine.clone().new_document(8, 8, DocDepth::U8, None).unwrap();
++        let layer = session.layers().unwrap()[0].id;
++        session.rename_layer(layer, "Committed".into()).unwrap();
++        session.snapshot("Baseline".into()).unwrap();
++        session.set_selected_layers(vec![layer]).unwrap();
++        session.wait_idle();
++
++        let readers: &[(&str, Reader)] = &[
++            ("info", |s, _| s.info().map(|_| ())),
++            ("layers", |s, _| s.layers().map(|_| ())),
++            ("layer", |s, id| s.layer(id).map(|_| ())),
++            ("history_items", |s, _| s.history_items().map(|_| ())),
++            ("snapshots", |s, _| s.snapshots().map(|_| ())),
++            ("history_memory_bytes", |s, _| s.history_memory_bytes().map(|_| ())),
++            ("plan_surface", |s, _| s.plan_surface(8, 8).map(|_| ())),
++            ("document_state", |s, _| s.document_state().map(|_| ())),
++            ("document_channels", |s, _| s.document_channels().map(|_| ())),
++            ("selection_channels", |s, _| s.selection_channels().map(|_| ())),
++            ("selection_outline", |s, _| s.selection_outline(0).map(|_| ())),
++            ("smart_filters", |s, id| s.smart_filters(id).map(|_| ())),
++            ("layer_styles_json", |s, id| s.layer_styles_json(id).map(|_| ())),
++            ("layer_style_summaries", |s, _| s.layer_style_summaries().map(|_| ())),
++            ("global_light", |s, _| s.global_light().map(|_| ())),
++            ("vector_mask", |s, id| s.vector_mask(id).map(|_| ())),
++            ("transform_stages", |s, id| s.transform_stages(id).map(|_| ())),
++            ("advanced_transform_open", |s, _| { let _ = s.advanced_transform_open(); Ok(()) }),
++            // A wrong layer kind should return promptly, too.
++            ("text_layer_error", |s, id| match s.text_layer(id) {
++                Err(_) => Ok(()),
++                Ok(_) => Err(failure("pixel layer unexpectedly accepted as text")),
++            }),
++            ("shape_layer_error", |s, id| match s.shape_layer(id) {
++                Err(_) => Ok(()),
++                Ok(_) => Err(failure("pixel layer unexpectedly accepted as shape")),
++            }),
++            ("begin_export_flat", |s, _| {
++                let export = s.begin_export_flat(
++                    "not-written.png".into(), ExportFormat::Png, 90, ExportColor::Document,
++                )?;
++                // Read the handle's private snapshot, not the session again.
++                let state = export.state.lock().map_err(failure)?;
++                let captured = state.as_ref().ok_or_else(|| failure("missing export snapshot"))?;
++                if captured.root[0].props.name != "Committed" {
++                    return Err(failure("export did not capture the completed edit"));
++                }
++                Ok(())
++            }),
++        ];
++        let names = readers.iter().map(|(name, _)| *name).collect::<Vec<_>>();
++        // Each worker sends once. Capacity equals worker count so teardown
++        // never depends on the receiver draining successful or late results.
++        let (done_tx, done_rx) = mpsc::sync_channel(readers.len());
++        let held = session.shared.state.lock().unwrap();
++        let mut workers = Vec::with_capacity(readers.len());
++        for &(name, read) in readers {
++            let session = session.clone();
++            let done_tx = done_tx.clone();
++            workers.push((name, std::thread::spawn(move || {
++                let result = read(&session, layer).map_err(|e| e.to_string());
++                let _ = done_tx.send((name, result));
++            })));
++        }
++        drop(done_tx);
++        // This is a generous deadlock watchdog, not a latency benchmark.
++        // No sleeps or assertions occur while the writer guard is held.
++        let deadline = Instant::now() + Duration::from_secs(5);
++        let mut completed = Vec::new();
++        let mut errors = Vec::new();
++        while completed.len() < readers.len() {
++            match done_rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
++                Ok((name, result)) => {
++                    completed.push(name);
++                    if let Err(error) = result { errors.push(format!("{name}: {error}")); }
++                }
++                Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => break,
++            }
++        }
++        // Crucial ordering on RED: release the blocker BEFORE joining and
++        // BEFORE any assertion. Baseline readers now finish normally.
++        drop(held);
++        for (name, worker) in workers {
++            if worker.join().is_err() { errors.push(format!("{name}: reader panicked")); }
++        }
++        session.close();
++        let blocked = names.into_iter().filter(|name| !completed.contains(name)).collect::<Vec<_>>();
++        assert!(blocked.is_empty() && errors.is_empty(),
++            "readers blocked behind writer State: {blocked:?}; reader errors: {errors:?}");
++    }
++
++    #[test]
++    fn confirm_snapshot_excludes_later_commits_and_preserves_live_scratch() {
++        let dir = tempfile::tempdir().unwrap();
++        let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned())
++            .unwrap();
++        let session = engine.clone().new_document(8, 8, DocDepth::U8, None).unwrap();
++        let layer = session.layers().unwrap()[0].id;
++        session.rename_layer(layer, "At confirm".into()).unwrap();
++        session.set_opacity(layer, 0.25, true).unwrap();
++        let export = session.begin_export_flat(
++            "not-written.png".into(), ExportFormat::Png, 90, ExportColor::Document,
++        ).unwrap();
++        session.commit("Opacity".into()).unwrap();
++        session.rename_layer(layer, "After confirm".into()).unwrap();
++        session.set_opacity(layer, 0.75, false).unwrap();
++        session.close();
++        let snapshot = export.state.lock().unwrap().as_ref().unwrap().clone();
++        assert_eq!(snapshot.root[0].props.name, "At confirm");
++        assert_eq!(snapshot.root[0].props.opacity, 0.25);
++    }
++}
