@@ -23,6 +23,15 @@ final class ShellLayoutTests: XCTestCase {
         return dir
     }
 
+    func testLayoutHarnessUsesNonblockingAppKitAnimations() {
+        let animation = NSAnimation(duration: 60, animationCurve: .linear)
+        animation.animationBlockingMode = .nonblockingThreaded
+        animation.start()
+        defer { animation.stop() }
+        XCTAssertEqual(animation.animationBlockingMode, .nonblocking,
+                       "AppKit animations in layout tests must not reserve dispatch workers")
+    }
+
     func testLayoutHarnessUsesTimerDrivenProgressAnimations() {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
                               styleMask: [.titled], backing: .buffered, defer: false)
