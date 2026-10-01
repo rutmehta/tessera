@@ -596,3 +596,14 @@ mod lr4_tests {
         assert!(mask_parameters(&g, Extent::new(2, 1)).is_err());
     }
 }
+
+#[cfg(test)]
+mod lr4b_tests {
+    use super::*;
+    #[test]
+    fn lr4b_four_bounds_explicitly_require_cpu() {
+        let r = engine_api::recipe::Recipe::from_json(br#"{"settings":{"locals":{"adjustments":[{"components":[{"kind":"luminance_range","range":[0.25,0.5],"luminance_bounds":[0,0.25,0.5,1]}]}]}}}"#).unwrap();
+        let g = &r.settings.locals.adjustments[0];
+        assert!(mask_parameters(g, Extent::new(2, 1)).is_err());
+    }
+}

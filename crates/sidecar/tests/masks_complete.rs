@@ -207,3 +207,20 @@ fn lr4_optional_tree_and_disabled_fields_roundtrip() {
 fn lr4_arbitrary_legacy_fallback_survives_native_roundtrip() {
     direct(json!({"kind":"linear","start":[0.1,0.2],"end":[0.8,0.9],"group":[]}));
 }
+
+#[test]
+fn lr4b_four_bounds_native_xmp_roundtrip() {
+    let kind =
+        json!({"kind":"luminance_range","range":[0.25,0.5],"luminance_bounds":[0.,0.25,0.5,1.]});
+    let local: LocalAdjustment = serde_json::from_value(json!({"components":[kind]})).unwrap();
+    let mut recipe = Recipe::default();
+    recipe
+        .edit(Default::default(), |s| s.locals.adjustments = vec![local])
+        .unwrap();
+    let p = XmpPacket::from_recipe(&recipe, &Metadata::default(), &MarkPreset::default()).unwrap();
+    let r = p.to_recipe().unwrap().recipe;
+    assert_eq!(
+        serde_json::to_value(&r.settings.locals.adjustments[0].components[0]).unwrap()["luminance_bounds"],
+        json!([0., 0.25, 0.5, 1.])
+    );
+}

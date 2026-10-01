@@ -1,0 +1,43 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 0.82s
+     Running tests/lr4b_forms.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4b_forms-135bae9c09596048)
+
+running 4 tests
+test lr4b_four_bounds_translate_and_promote ... FAILED
+test lr4b_radial_flipped_is_complement_of_invert_not_a_second_toggle ... FAILED
+test lr4b_subtype_depth_and_luminance ... FAILED
+test lr4b_unsupported_payloads_retain_exact_lua ... ok
+
+failures:
+
+---- lr4b_four_bounds_translate_and_promote stdout ----
+
+thread 'lr4b_four_bounds_translate_and_promote' (53876406) panicked at crates/import-lrcat/tests/lr4b_forms.rs:12:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- lr4b_radial_flipped_is_complement_of_invert_not_a_second_toggle stdout ----
+
+thread 'lr4b_radial_flipped_is_complement_of_invert_not_a_second_toggle' (53876407) panicked at crates/import-lrcat/tests/lr4b_forms.rs:26:17:
+assertion `left == right` failed
+  left: 0
+ right: 1
+
+---- lr4b_subtype_depth_and_luminance stdout ----
+
+thread 'lr4b_subtype_depth_and_luminance' (53876408) panicked at crates/import-lrcat/tests/lr4b_forms.rs:37:13:
+assertion `left == right` failed
+  left: 0
+ right: 1
+
+
+failures:
+    lr4b_four_bounds_translate_and_promote
+    lr4b_radial_flipped_is_complement_of_invert_not_a_second_toggle
+    lr4b_subtype_depth_and_luminance
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4b_forms`
