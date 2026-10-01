@@ -1,0 +1,137 @@
+red-rust
+running 1 test
+B5-34 L2 saved vs zeroed: 0.5058824
+
+thread 'stacked_camera_raw_detail_follows_canvas_level' (46746085) panicked at crates/tessera-ffi/tests/document_camera_raw_preview.rs:889:13:
+assertion `left == right` failed: all saved Camera Raw stages omit detail at L2
+  left: 0.5058824
+ right: 0.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test stacked_camera_raw_detail_follows_canvas_level ... FAILED
+
+failures:
+
+failures:
+    stacked_camera_raw_detail_follows_canvas_level
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 1.40s
+
+error: test failed, to rerun pass `-p tessera-ffi --test document_camera_raw_preview`
+
+
+red-swift
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 00:26:31.520.
+Test Suite 'DocumentCameraRawTests' started at 2026-10-01 00:26:31.520.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailNoteIncludesOtherCameraRawStages]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-34/apps/mac/Tests/TesseraCoreTests/DocumentCameraRawTests.swift:298: error: -[TesseraCoreTests.DocumentCameraRawTests testDetailNoteIncludesOtherCameraRawStages] : XCTAssertEqual failed: ("false") is not equal to ("true") - lower stage has sharpening
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-34/apps/mac/Tests/TesseraCoreTests/DocumentCameraRawTests.swift:298: error: -[TesseraCoreTests.DocumentCameraRawTests testDetailNoteIncludesOtherCameraRawStages] : XCTAssertEqual failed: ("false") is not equal to ("true") - lower stage has sharpening
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailNoteIncludesOtherCameraRawStages]' failed (1.669 seconds).
+Test Suite 'DocumentCameraRawTests' failed at 2026-10-01 00:26:33.189.
+	 Executed 1 test, with 2 failures (0 unexpected) in 1.669 (1.669) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 00:26:33.189.
+	 Executed 1 test, with 2 failures (0 unexpected) in 1.669 (1.669) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 00:26:33.189.
+	 Executed 1 test, with 2 failures (0 unexpected) in 1.669 (1.672) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+
+
+green-rust
+running 1 test
+B5-34 L2 saved vs zeroed: 0
+B5-34 L2 edit 0 vs saved: 0
+B5-34 L2 edit 1 vs saved: 0
+B5-34 L0 saved vs zeroed: 0.6588235
+B5-34 L0 vs Apply: 0
+B5-34 L0 edit 0 vs saved: 0
+B5-34 L0 edit 1 vs saved: 0
+B5-34 L1 saved vs zeroed: 0
+B5-34 L1 edit 0 vs saved: 0
+B5-34 L1 edit 1 vs saved: 0
+B5-34 L2 saved vs zeroed: 0
+B5-34 L2 edit 0 vs saved: 0
+B5-34 L2 edit 1 vs saved: 0
+B5-34 L0 saved vs zeroed: 0.6588235
+B5-34 L0 vs Apply: 0
+B5-34 L0 edit 0 vs saved: 0
+B5-34 L0 edit 1 vs saved: 0
+B5-34 zoomed-out 1:1 pane vs Apply: 0
+B5-34 zoomed-out export vs Apply: 0
+test stacked_camera_raw_detail_follows_canvas_level ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.90s
+
+
+
+Rust gate summaries
+test result: ok. 205 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 3.70s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.74s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+test result: ok. 9 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 24.34s
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.06s
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 12 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 9.62s
+test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.87s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+test result: ok. 0 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+test result: ok. 8 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 19 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.62s
+test result: ok. 18 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.67s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.67s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.73s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.00s
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.82s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.62s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.85s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+clippy
+    Checking filters v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-34/crates/filters)
+    Checking agent v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-34/crates/agent)
+    Checking uniffi v0.32.2
+    Checking tessera-ffi v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-34/crates/tessera-ffi)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 05s
+
+ffi
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+    Finished `release` profile [optimized] target(s) in 1.27s
+     Running `/Users/rutmehta/.cache/tessera-target/B5-34/release/uniffi-bindgen generate --library /Users/rutmehta/.cache/tessera-target/B5-34/release/libtessera_ffi.dylib --language swift --out-dir /Users/rutmehta/Developer/lightroom/.worktrees/B5-34/apps/mac/build/ffi`
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-34/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+
+Swift gate
+Build complete! (68.77s)
+	 Executed 862 tests, with 3 tests skipped and 0 failures (0 unexpected) in 482.668 (482.811) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.046 seconds.
+SWIFT GATE OK
