@@ -1344,17 +1344,24 @@ final class FlatExportProgressView: NSView {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             let status = "\(task.phase) \(Int((task.fraction * 100).rounded())) %"
-            if phase.string as? String != status {
+            let phaseChanged = phaseAX.accessibilityValue() as? String != status
+            let percentage = "\(Int((task.fraction * 100).rounded())) %"
+            let progressChanged = (progressAX.accessibilityValue() as? NSNumber)?.doubleValue != task.fraction
+                || progressAX.accessibilityValueDescription() != percentage
+            if phaseChanged {
                 phase.string = status
                 phaseAX.setAccessibilityValue(status)
             }
             fill.frame = CGRect(x: 0, y: 0, width: progress.bounds.width * task.fraction,
                                 height: progress.bounds.height)
-            progressAX.setAccessibilityValue(task.fraction)
-            progressAX.setAccessibilityValueDescription("\(Int((task.fraction * 100).rounded())) %")
+            if progressChanged {
+                progressAX.setAccessibilityValue(task.fraction)
+                progressAX.setAccessibilityValueDescription(percentage)
+            }
             if cancel.isEnabled == task.cancelling { cancel.isEnabled = !task.cancelling }
             CATransaction.commit()
-            post(progressAX, .valueChanged)
+            if phaseChanged { post(phaseAX, .valueChanged) }
+            if progressChanged { post(progressAX, .valueChanged) }
         }
 
         override func viewDidMoveToWindow() {
