@@ -842,3 +842,254 @@ fn preview_level_decides_whether_the_detail_effects_are_omitted() {
         s.clear_preview().unwrap();
     }
 }
+
+/// B5-34: every saved stage and every edited stage follows the canvas level;
+/// zoom transitions must not reuse a bake with the opposite detail policy.
+#[test]
+fn stacked_camera_raw_detail_follows_canvas_level() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let path = opaque_png(dir.path(), "stack.png", 256, 192);
+    let s = open(&engine, &path);
+    let zero = open(&engine, &opaque_png(dir.path(), "stack-zero.png", 256, 192));
+    let applied = open(
+        &engine,
+        &opaque_png(dir.path(), "stack-applied.png", 256, 192),
+    );
+    let id = s.layers().unwrap()[0].id;
+    let zid = zero.layers().unwrap()[0].id;
+    let aid = applied.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(id).unwrap();
+    zero.convert_for_smart_filters(zid).unwrap();
+    applied.convert_for_smart_filters(aid).unwrap();
+    for exposure in [0.1, 0.2] {
+        s.apply_filter(id, local_json(exposure)).unwrap();
+        zero.apply_filter(zid, local_json_without_detail(exposure))
+            .unwrap();
+        applied.apply_filter(aid, local_json(exposure)).unwrap();
+    }
+    // Apply a smart stack, then use the independent exact-output path as the
+    // reference. Two destructive U8 Applies would clamp/quantize between
+    // stages, unlike the floating-point intermediates of a smart stack.
+    let reference = dir.path().join("stack-applied-export.png");
+    applied
+        .export_flat(
+            reference.to_string_lossy().into_owned(),
+            ExportFormat::Png,
+            90,
+            ExportColor::Document,
+        )
+        .unwrap();
+    let applied_pixels: Vec<f32> = image::open(reference)
+        .unwrap()
+        .to_rgba8()
+        .as_raw()
+        .iter()
+        .map(|v| f32::from(*v) / 255.0)
+        .collect();
+    let saved = s
+        .smart_filters(id)
+        .unwrap()
+        .iter()
+        .map(|r| r.filter_json.clone())
+        .collect::<Vec<_>>();
+    for level in [2u8, 0, 1, 2, 0] {
+        s.clear_preview().unwrap();
+        s.set_viewport(
+            level,
+            0,
+            0,
+            256 >> level,
+            192 >> level,
+            1.0 / f64::from(1u8 << level),
+        )
+        .unwrap();
+        let expected = zero.read_presented_level(level).unwrap().2;
+        let canvas = s.read_presented_level(level).unwrap().2;
+        let diff = max_diff(&canvas, &expected);
+        println!("B5-34 L{level} saved vs zeroed: {diff}");
+        if level > 0 {
+            assert_eq!(
+                diff, 0.0,
+                "all saved Camera Raw stages omit detail at L{level}"
+            );
+        } else {
+            assert!(diff > 0.02, "100% keeps detail");
+            let d = max_diff(
+                &crop(&canvas, 256, 64, 48, 128, 96),
+                &crop(&applied_pixels, 256, 64, 48, 128, 96),
+            );
+            println!("B5-34 L0 vs Apply: {d}");
+            assert!(d <= 2.5 / 255.0);
+        }
+        for index in [0u32, 1] {
+            s.preview_smart_filter(
+                id,
+                index,
+                local_json(if index == 0 { 0.1 } else { 0.2 }),
+                None,
+            )
+            .unwrap();
+            s.wait_filters_idle();
+            assert_eq!(s.filter_error(), None);
+            let preview = s.read_presented_level(level).unwrap().2;
+            let d = max_diff(&preview, &canvas);
+            println!("B5-34 L{level} edit {index} vs saved: {d}");
+            assert!(d <= 2.5 / 255.0);
+        }
+    }
+    s.clear_preview().unwrap();
+    s.set_viewport(2, 0, 0, 64, 48, 0.25).unwrap();
+    let detail = s
+        .smart_filter_detail(id, 1, local_json(0.2), 64, 48, 128, 96)
+        .unwrap();
+    assert_eq!(detail.level, 0);
+    let exact = crop(&applied_pixels, 256, 64, 48, 128, 96);
+    let d = max_diff(&pane(&detail), &exact);
+    println!("B5-34 zoomed-out 1:1 pane vs Apply: {d}");
+    assert!(d <= 2.5 / 255.0);
+    let out = dir.path().join("stack-export.png");
+    s.export_flat(
+        out.to_string_lossy().into_owned(),
+        ExportFormat::Png,
+        90,
+        ExportColor::Document,
+    )
+    .unwrap();
+    let exported: Vec<f32> = image::open(out)
+        .unwrap()
+        .to_rgba8()
+        .as_raw()
+        .iter()
+        .map(|v| f32::from(*v) / 255.0)
+        .collect();
+    let d = max_diff(&crop(&exported, 256, 64, 48, 128, 96), &exact);
+    println!("B5-34 zoomed-out export vs Apply: {d}");
+    assert!(d <= 2.5 / 255.0);
+    assert_eq!(
+        saved,
+        s.smart_filters(id)
+            .unwrap()
+            .iter()
+            .map(|r| r.filter_json.clone())
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn camera_raw_full_resolution_stack_keeps_detail_at_l2() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "full-stack.png", 256, 192));
+    let id = s.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(id).unwrap();
+    s.apply_filter(id, local_json(0.2)).unwrap();
+    let mesh = filters::liquify::Mesh::new(256, 192, 32).unwrap();
+    s.apply_filter(
+        id,
+        serde_json::json!({"id":"liquify", "params":{"mesh":mesh,"interpolation":"bilinear"}})
+            .to_string(),
+    )
+    .unwrap();
+    s.set_viewport(2, 0, 0, 64, 48, 0.25).unwrap();
+    assert_eq!(
+        s.filter_preview_level(id, Some(0), local_json(0.2))
+            .unwrap(),
+        0,
+        "full-resolution edit reports level 0, so the detail note is off"
+    );
+    let canvas = live(&s, 2);
+    let preview = previewed(&s, id, local_json(0.2), 2, true);
+    let stripped = previewed(&s, id, local_json_without_detail(0.2), 2, true);
+    assert!(max_diff(&preview, &stripped) > 0.02, "edit keeps detail");
+    let diff = max_diff(&canvas, &preview);
+    println!("B5-34 full-resolution L2 canvas vs edit: {diff}");
+    assert_eq!(
+        diff, 0.0,
+        "full-resolution L2 canvas and edit must both keep detail"
+    );
+}
+
+#[test]
+fn camera_raw_partial_amount_strips_detail_at_l1() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "partial.png", 256, 192));
+    let zero = open(
+        &engine,
+        &opaque_png(dir.path(), "partial-zero.png", 256, 192),
+    );
+    let mut json: serde_json::Value = serde_json::from_str(&local_json(0.2)).unwrap();
+    let mut stripped: serde_json::Value =
+        serde_json::from_str(&local_json_without_detail(0.2)).unwrap();
+    json["params"]["amount"] = serde_json::json!(0.35);
+    stripped["params"]["amount"] = serde_json::json!(0.35);
+    for (doc, spec) in [(&s, &json), (&zero, &stripped)] {
+        let id = doc.layers().unwrap()[0].id;
+        doc.convert_for_smart_filters(id).unwrap();
+        doc.apply_filter(id, spec.to_string()).unwrap();
+        doc.clear_selection().unwrap();
+        doc.set_viewport(1, 0, 0, 128, 96, 0.5).unwrap();
+    }
+    let id = s.layers().unwrap()[0].id;
+    let expected = live(&zero, 1);
+    let canvas = live(&s, 1);
+    assert_eq!(
+        max_diff(&canvas, &expected),
+        0.0,
+        "L1 stripping with partial Amount"
+    );
+    assert_eq!(
+        max_diff(&previewed(&s, id, json.to_string(), 1, true), &expected),
+        0.0
+    );
+    s.clear_preview().unwrap();
+    assert!(
+        max_diff(&live(&s, 0), &live(&zero, 0)) > 0.02,
+        "detail is active at L0"
+    );
+}
+
+#[test]
+fn camera_raw_disable_reenable_across_zoom_levels() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "toggle.png", 256, 192));
+    let reference = open(&engine, &opaque_png(dir.path(), "toggle-ref.png", 256, 192));
+    let id = s.layers().unwrap()[0].id;
+    let rid = reference.layers().unwrap()[0].id;
+    for (doc, layer) in [(&s, id), (&reference, rid)] {
+        doc.convert_for_smart_filters(layer).unwrap();
+        doc.apply_filter(layer, local_json(0.2)).unwrap();
+    }
+    for (enabled, level) in [
+        (true, 0),
+        (false, 2),
+        (true, 2),
+        (false, 0),
+        (true, 1),
+        (true, 0),
+        (true, 2),
+    ] {
+        s.set_smart_filter(id, 0, SmartFilterEdit::Enabled { enabled })
+            .unwrap();
+        s.set_viewport(
+            level,
+            0,
+            0,
+            256 >> level,
+            192 >> level,
+            1.0 / f64::from(1u8 << level),
+        )
+        .unwrap();
+        reference
+            .set_smart_filter(rid, 0, SmartFilterEdit::Enabled { enabled })
+            .unwrap();
+        let expected = live(&reference, level);
+        assert_eq!(
+            max_diff(&live(&s, level), &expected),
+            0.0,
+            "enabled={enabled}, L{level}"
+        );
+    }
+}

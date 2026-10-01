@@ -99,6 +99,8 @@ final class CameraRawSheetModel: Identifiable {
     var applying: Bool { owner?.busy != nil }
     @ObservationIgnored private weak var owner: DocumentCameraRaw?
     @ObservationIgnored private let backend: (any DocumentFiltersBackend)?
+    /// Saved stages remain fixed while this sheet previews its append/replacement.
+    private let otherStagesHaveDetailEffects: Bool
     @ObservationIgnored private var previewTask: Task<Void, Never>?
     @ObservationIgnored private var detailGate = LatestRequestBuffer<String>()
     @ObservationIgnored private var detailPixels = CGSize(width: 320, height: 320)
@@ -113,6 +115,13 @@ final class CameraRawSheetModel: Identifiable {
         self.owner = owner
         panel = owner.lastPanel
         backend = DocumentFilters.backend(doc)
+        let rows = (try? backend?.smartFilters(layer: layer.id)) ?? []
+        otherStagesHaveDetailEffects = rows.contains { row in
+            guard row.index != smartIndex, row.enabled, row.opacity > 0,
+                  row.filterId == CameraRawFilter.id,
+                  let saved = CameraRawDraft(filterJson: row.filterJson) else { return false }
+            return saved.amount > 0 && saved.hasDetailEffects
+        }
         let r = doc.lastFrame?.canvasRect ?? CanvasRect(x: 0, y: 0, width: Int64(doc.info.width), height: Int64(doc.info.height))
         detailCenter = CGPoint(x: Double(r.x) + Double(r.width) / 2, y: Double(r.y) + Double(r.height) / 2)
     }
@@ -142,7 +151,11 @@ final class CameraRawSheetModel: Identifiable {
 
     /// B5-18b: when the submitted preview's level is above 0 (zoom at or below 50 %), the canvas preview leaves
     /// out Sharpening, Noise Reduction, Texture and Clarity.
-    var detailPreviewNote: String? { showBefore ? nil : draft.detailPreviewNote(previewLevel: previewLevel) }
+    var detailPreviewNote: String? {
+        guard !showBefore, previewLevel > 0 else { return nil }
+        return otherStagesHaveDetailEffects || (draft.amount > 0 && draft.hasDetailEffects)
+            ? CameraRawDraft.detailPreviewNote : nil
+    }
 
     func setAmount(_ percent: Double, final: Bool) {
         var d = draft

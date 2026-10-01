@@ -277,6 +277,71 @@ final class DocumentCameraRawTests: XCTestCase {
         return sum / 256
     }
 
+    @MainActor func testDetailNoteIncludesOtherCameraRawStages() throws {
+        let (doc, f) = try greyDocument()
+        defer { doc.close() }
+        let layer = try XCTUnwrap(doc.primary).id
+        _ = try f.convertForSmartFilters(layer: layer)
+        var sharp = CameraRawDraft()
+        sharp.set(DetailControls.amount, 60)
+        _ = try f.applyFilter(layer: layer, filterJson: sharp.filterJson)
+        _ = try f.applyFilter(layer: layer, filterJson: CameraRawDraft().filterJson)
+        let cr = DocumentCameraRaw()
+        for level: UInt8 in [2, 0, 1] {
+            try doc.backend.setViewport(level: level, x: 0, y: 0, width: 12, height: 8, zoom: level == 0 ? 1 : 0.25)
+            let rows = try f.smartFilters(layer: layer)
+            cr.edit(doc, layer: layer, row: rows[1])
+            let sheet = try XCTUnwrap(cr.sheet)
+            sheet.start()
+            XCTAssertFalse(sheet.draft.hasDetailEffects)
+            XCTAssertEqual(sheet.previewLevel, Int(level))
+            XCTAssertEqual(sheet.detailPreviewNote != nil, level > 0, "lower stage has sharpening")
+            sheet.cancel()
+        }
+        // Replacing the only active detail stage with a neutral draft removes the note.
+        cr.edit(doc, layer: layer, row: try f.smartFilters(layer: layer)[0])
+        let resetSheet = try XCTUnwrap(cr.sheet)
+        resetSheet.start()
+        resetSheet.reset()
+        XCTAssertNil(resetSheet.detailPreviewNote)
+        resetSheet.cancel()
+        // A disabled saved stage contributes no detail effects to the canvas.
+        _ = try f.setSmartFilter(layer: layer, index: 0, change: .enabled(false))
+        cr.edit(doc, layer: layer, row: try f.smartFilters(layer: layer)[1])
+        let disabledSheet = try XCTUnwrap(cr.sheet)
+        disabledSheet.start()
+        XCTAssertNil(disabledSheet.detailPreviewNote)
+        disabledSheet.cancel()
+    }
+
+    @MainActor func testFullResolutionStackKeepsDetailNoteOffAtL2() throws {
+        let (doc, f) = try greyDocument()
+        defer { doc.close() }
+        let layer = try XCTUnwrap(doc.primary).id
+        _ = try f.convertForSmartFilters(layer: layer)
+        var sharp = CameraRawDraft()
+        sharp.set(DetailControls.amount, 60)
+        _ = try f.applyFilter(layer: layer, filterJson: sharp.filterJson)
+        let mesh: [String: Any] = [
+            "width": 48, "height": 32, "cell_size": 32, "version": 1,
+            "displacement": Array(repeating: [0, 0], count: 6),
+            "freeze": Array(repeating: 0, count: 6)
+        ]
+        let data = try JSONSerialization.data(withJSONObject: [
+            "id": "liquify", "params": ["mesh": mesh, "interpolation": "bilinear"]
+        ])
+        _ = try f.applyFilter(layer: layer, filterJson: String(decoding: data, as: UTF8.self))
+        try doc.backend.setViewport(level: 2, x: 0, y: 0, width: 12, height: 8, zoom: 0.25)
+        let cr = DocumentCameraRaw()
+        cr.edit(doc, layer: layer, row: try f.smartFilters(layer: layer)[0])
+        let sheet = try XCTUnwrap(cr.sheet)
+        sheet.start()
+        XCTAssertTrue(sheet.draft.hasDetailEffects)
+        XCTAssertEqual(sheet.previewLevel, 0)
+        XCTAssertNil(sheet.detailPreviewNote)
+        sheet.cancel()
+    }
+
     @MainActor func testNeutralIsIdentityAndExposureDoublesLinear() throws {
         let (doc, f) = try greyDocument()
         defer { doc.close() }
