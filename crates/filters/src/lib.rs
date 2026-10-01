@@ -267,6 +267,7 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
     let r = (k.len() / 2) as i32;
     let mut horizontal = vec![[0.0; 4]; src.pixels.len()];
     let mut output = vec![[0.0; 4]; src.pixels.len()];
+    const X_STRIP: usize = 256;
 
     // The interior has no horizontal edge clamping. Keep the same ascending
     // kernel order and weight*sample accumulation as the baseline for each
@@ -278,30 +279,37 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
         checkpoint(cancel)?;
         let row = y * src.w;
         let out_row = &mut horizontal[row..row + src.w];
-        out_row.fill([0.0; 4]);
-        // Process one tap across contiguous x positions before advancing to
-        // the next tap. Per-pixel additions still occur in ascending j order.
-        for (j, &weight) in k.iter().enumerate() {
-            let d = j as i32 - r;
-            for x in 0..interior_start {
-                let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
-                let sample = src.pixels[row + sample_x];
-                for c in 0..4 {
-                    out_row[x][c] += weight * sample[c];
+        for strip_start in (0..src.w).step_by(X_STRIP) {
+            let strip_end = (strip_start + X_STRIP).min(src.w);
+            out_row[strip_start..strip_end].fill([0.0; 4]);
+            // Work a small contiguous x strip through all taps while it is
+            // cache-hot. Every pixel still receives taps in ascending j order.
+            for (j, &weight) in k.iter().enumerate() {
+                let d = j as i32 - r;
+                let left_end = strip_end.min(interior_start);
+                for x in strip_start..left_end {
+                    let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
+                    let sample = src.pixels[row + sample_x];
+                    for c in 0..4 {
+                        out_row[x][c] += weight * sample[c];
+                    }
                 }
-            }
-            for x in interior_start..interior_end {
-                let sample_x = (x as i32 + d) as usize;
-                let sample = src.pixels[row + sample_x];
-                for c in 0..4 {
-                    out_row[x][c] += weight * sample[c];
+                let middle_start = strip_start.max(interior_start);
+                let middle_end = strip_end.min(interior_end);
+                for x in middle_start..middle_end {
+                    let sample_x = (x as i32 + d) as usize;
+                    let sample = src.pixels[row + sample_x];
+                    for c in 0..4 {
+                        out_row[x][c] += weight * sample[c];
+                    }
                 }
-            }
-            for x in interior_end..src.w {
-                let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
-                let sample = src.pixels[row + sample_x];
-                for c in 0..4 {
-                    out_row[x][c] += weight * sample[c];
+                let right_start = strip_start.max(interior_end);
+                for x in right_start..strip_end {
+                    let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
+                    let sample = src.pixels[row + sample_x];
+                    for c in 0..4 {
+                        out_row[x][c] += weight * sample[c];
+                    }
                 }
             }
         }
@@ -313,14 +321,17 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
     for y in 0..src.h {
         checkpoint(cancel)?;
         let out_row = &mut output[y * src.w..(y + 1) * src.w];
-        out_row.fill([0.0; 4]);
-        for (j, &weight) in k.iter().enumerate() {
-            let d = j as i32 - r;
-            let sample_y = (y as i32 + d).clamp(0, src.h as i32 - 1) as usize;
-            let sample_row = &horizontal[sample_y * src.w..(sample_y + 1) * src.w];
-            for x in 0..src.w {
-                for c in 0..4 {
-                    out_row[x][c] += weight * sample_row[x][c];
+        for strip_start in (0..src.w).step_by(X_STRIP) {
+            let strip_end = (strip_start + X_STRIP).min(src.w);
+            out_row[strip_start..strip_end].fill([0.0; 4]);
+            for (j, &weight) in k.iter().enumerate() {
+                let d = j as i32 - r;
+                let sample_y = (y as i32 + d).clamp(0, src.h as i32 - 1) as usize;
+                let sample_row = &horizontal[sample_y * src.w..(sample_y + 1) * src.w];
+                for x in strip_start..strip_end {
+                    for c in 0..4 {
+                        out_row[x][c] += weight * sample_row[x][c];
+                    }
                 }
             }
         }
