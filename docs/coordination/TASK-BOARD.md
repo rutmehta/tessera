@@ -14,6 +14,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### External canvas evidence remains partial — 2026-10-01 12:37 UTC heartbeat
+
+Main445131fc adds B5-30 evidence only, measured on dc30a179 on Machine B. Read `ONSCREEN-EDGE-ALPHA.md`: reported red/grey and linear-light alpha baselines pass;50% profile agreement is not interpolation proof. Requested75%/150% matrix remains blocked/unmeasured because current zoom steps lack these values, and the capture path has a resampling confound. No renderer failure or full on-screen qualification is established. Original measurements/crops are preserved; exact-zoom access and verified1:1 capture are the existing UI owner's next actions. Codex did not rerun GUI, alter zoom or claim a new test result. Mailbox/approval/runtime-handoff state unchanged.
+
 ### External Lightroom write protection integrated — 2026-10-01 12:11 UTC heartbeat
 
 Origin main `dc30a179` integrates B5-38 through38d: narrowed Lightroom-managed-directory write protection, application-support sidecar storage, alias-first lookup and single-file indexing. Independently read exact-revision external `batch24-dc30a179/exits.txt`: Rust/Clippy/fmt/Swift/strict0 and binding drift0. Raw Swift log891 XCTest/3 skipped/0 failures plus5 Swift Testing passes. Earlier `batch24-9b69cfcc` has no exits.txt; no passing outcome is inferred for that attempt. Main's MACHINE-A.md has not yet reconciled this integration or the existing Codex work. No Codex runtime or installed-app acceptance claim. Mailbox remains zero pending/75 receipts with no runtime handoff; no compiler observed is not a reservation. Existing frozen LR inventory and PERF/ENG evidence remain intact; future source integration must account for the new sidecar storage contract.
