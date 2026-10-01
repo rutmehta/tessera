@@ -25,7 +25,7 @@ LR-0 Inventory and plan (first, source-only, 1 worker): for every key the import
 
 LR-1 Point Color (`PointColors` → `/settings/color/point_colors`): per-point hue/sat/lum with range/feather. Render parity test vs a hand-computed reference on a synthetic swatch.
 
-LR-2 Extended tone curves (`ExtendedToneCurvePV2012`, `+Red/Green/Blue`) and legacy PV2010 sliders → existing tone-curve fields; document PV2010 → PV2012 conversion where Adobe's semantics differ; report what cannot be represented.
+LR-2 Extended tone curves (`ExtendedToneCurvePV2012`, `+Red/Green/Blue`), `ConvertToGrayscale` (+ `GrayMixer*`; present on 21,615 of 21,656 real images, so treat as high priority), `AutoToneDigest*`, `DepthMapInfo`, and legacy PV2010 sliders (`Exposure`/`Brightness`/`Contrast` PV2010 forms on 21,239 real images) → existing tone-curve fields; document PV2010 → PV2012 conversion where Adobe's semantics differ; report what cannot be represented.
 
 LR-3 Retouch (`RetouchAreas`, `RetouchInfo`: heal/clone spots with source offsets, feather, opacity; brush strokes) → `/settings/locals/retouch`. Render through the existing heal/clone operators. Spots must land within 1 px of Adobe's normalized coordinates.
 
