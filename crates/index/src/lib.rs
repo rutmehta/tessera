@@ -124,11 +124,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 9 {
+        if version > 10 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 9,
+                supported: 10,
             }
             .into());
         }
@@ -183,6 +183,9 @@ impl Core {
                 "../migrations/009_people_medoid_invalidation.sql"
             ))?;
         }
+        if missing(10)? {
+            conn.execute_batch(include_str!("../migrations/010_explicit_file_folders.sql"))?;
+        }
         Ok(Self { conn })
     }
 
@@ -235,11 +238,25 @@ impl Core {
             );
         }
         let root_s = root.to_string_lossy().into_owned();
-        self.conn
-            .execute("INSERT OR IGNORE INTO root(path) VALUES(?)", [&root_s])?;
-        let root_id: i64 =
+        // An explicitly admitted file does not opt its containing directory
+        // into folder discovery. Only an explicit folder scan creates a root.
+        let root_id: Option<i64> = if only_file.is_none() {
             self.conn
-                .query_row("SELECT id FROM root WHERE path=?", [&root_s], |r| r.get(0))?;
+                .execute("INSERT OR IGNORE INTO root(path) VALUES(?)", [&root_s])?;
+            let id = self
+                .conn
+                .query_row("SELECT id FROM root WHERE path=?", [&root_s], |r| {
+                    r.get::<_, i64>(0)
+                })?;
+            let prefix = format!("{}/", root_s.trim_end_matches('/'));
+            self.conn.execute(
+                "UPDATE folder SET root_id=? WHERE root_id IS NULL AND (path=? OR substr(path,1,length(?))=?)",
+                params![id, root_s, prefix, prefix],
+            )?;
+            Some(id)
+        } else {
+            None
+        };
         let mut changed = 0;
         for entry in WalkDir::new(only_file.unwrap_or(root))
             .follow_links(false)
@@ -1076,7 +1093,7 @@ mod tests {
             i.conn
                 .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
                 .unwrap(),
-            9
+            10
         );
     }
     #[test]
@@ -1119,7 +1136,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 9);
+        assert_eq!(tables, 10);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

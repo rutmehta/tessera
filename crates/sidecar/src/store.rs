@@ -60,12 +60,44 @@ fn content_key(image: &Path) -> Option<String> {
     Some(key)
 }
 
+// Accept the original string path aliases as well as the explicit stable
+// recipe reference. A content hash can be shared; an established path must not
+// lose its recipe when another path updates that hash's discovery alias.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum Alias {
+    Path {
+        content_hash: String,
+        recipe_key: String,
+    },
+    Key(String),
+}
+impl Alias {
+    fn recipe_key(&self) -> &str {
+        match self {
+            Self::Path { recipe_key, .. } => recipe_key,
+            Self::Key(key) => key,
+        }
+    }
+    fn content_hash(&self) -> &str {
+        match self {
+            Self::Path { content_hash, .. } => content_hash,
+            Self::Key(key) => key,
+        }
+    }
+    fn valid(&self) -> bool {
+        [self.recipe_key(), self.content_hash()]
+            .into_iter()
+            .all(|key| key.len() == 64 && key.bytes().all(|b| b.is_ascii_hexdigit()))
+    }
+}
+
 #[derive(Default)]
 struct Registry {
     roots: BTreeMap<PathBuf, PathBuf>,
     hashes: BTreeMap<PathBuf, (FileVersion, String)>,
-    aliases: BTreeMap<PathBuf, (PathBuf, String)>,
-    destinations: BTreeMap<PathBuf, BTreeMap<PathBuf, String>>,
+    aliases: BTreeMap<PathBuf, (PathBuf, Alias)>,
+    destinations: BTreeMap<PathBuf, BTreeMap<PathBuf, Alias>>,
 }
 static REGISTRY: OnceLock<Mutex<Registry>> = OnceLock::new();
 fn registry() -> &'static Mutex<Registry> {
@@ -97,6 +129,32 @@ fn support(image: &Path) -> PathBuf {
         })
 }
 
+fn read_alias(alias: &Path) -> Option<Alias> {
+    registry()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .aliases
+        .get(alias)
+        .map(|(_, key)| key.clone())
+        .or_else(|| {
+            fs::read(alias)
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<Alias>(&bytes).ok())
+                .filter(Alias::valid)
+        })
+}
+
+fn content_alias(store: &Path, key: &str) -> PathBuf {
+    store.join("content").join(format!("{key}.json"))
+}
+
+fn recipe_path(store: &Path, key: &str) -> PathBuf {
+    store
+        .join("objects")
+        .join(&key[..2])
+        .join(format!("{key}.json"))
+}
+
 pub(super) fn paths(image: &Path) -> SidecarPaths {
     let image = resolved_path(image);
     let store = support(&image).join(".edits/lightroom");
@@ -104,43 +162,62 @@ pub(super) fn paths(image: &Path) -> SidecarPaths {
         .to_hex()
         .to_string();
     let alias = store.join("paths").join(format!("{path_key}.json"));
+    let previous = read_alias(&alias);
+    // A path already owning a recipe wins over changed source bytes. Content
+    // aliases point directly to stable object keys (never to another alias).
+    let existing = previous
+        .as_ref()
+        .map(|alias| alias.recipe_key().to_owned())
+        .filter(|key| recipe_path(&store, key).is_file());
     let content = content_key(&image);
-    let remembered = registry()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .aliases
-        .get(&alias)
-        .map(|(_, key)| key.clone());
-    let key = content
-        .or(remembered)
+    let key = existing
         .or_else(|| {
-            fs::read(&alias)
-                .ok()
-                .and_then(|bytes| serde_json::from_slice::<String>(&bytes).ok())
-                .filter(|key| key.len() == 64 && key.bytes().all(|b| b.is_ascii_hexdigit()))
+            content.as_ref().map(|key| {
+                read_alias(&content_alias(&store, key))
+                    .map(|alias| alias.recipe_key().to_owned())
+                    .unwrap_or_else(|| key.clone())
+            })
         })
+        .or_else(|| previous.as_ref().map(|alias| alias.recipe_key().to_owned()))
+        .unwrap_or_else(|| path_key.clone());
+    let recipe = recipe_path(&store, &key);
+    // Keep lookup read-only. Record the new hash immediately in memory and
+    // durably publish its object alias before the path alias on the next save.
+    let current = content
+        .clone()
+        .or_else(|| previous.map(|alias| alias.content_hash().to_owned()))
         .unwrap_or(path_key);
-    let directory = store.join("objects").join(&key[..2]);
-    let recipe = directory.join(format!("{key}.json"));
+    let mut aliases = vec![(
+        alias,
+        Alias::Path {
+            content_hash: current,
+            recipe_key: key.clone(),
+        },
+    )];
+    if let Some(content) = content {
+        aliases.push((content_alias(&store, &content), Alias::Key(key)));
+    }
     {
         let mut registry = registry().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((previous, _)) = registry
-            .aliases
-            .insert(alias.clone(), (recipe.clone(), key.clone()))
-            && previous != recipe
-            && let Some(aliases) = registry.destinations.get_mut(&previous)
-        {
-            aliases.remove(&alias);
+        for (alias, key) in aliases {
+            if let Some((previous, _)) = registry
+                .aliases
+                .insert(alias.clone(), (recipe.clone(), key.clone()))
+                && previous != recipe
+                && let Some(aliases) = registry.destinations.get_mut(&previous)
+            {
+                aliases.remove(&alias);
+            }
+            registry
+                .destinations
+                .entry(recipe.clone())
+                .or_default()
+                .insert(alias, key);
         }
-        registry
-            .destinations
-            .entry(recipe.clone())
-            .or_default()
-            .insert(alias, key.clone());
     }
     SidecarPaths {
+        xmp: recipe.with_extension("xmp"),
         recipe,
-        xmp: directory.join(format!("{key}.xmp")),
     }
 }
 

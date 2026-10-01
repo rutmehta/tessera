@@ -950,7 +950,7 @@ impl LrcatImport {
                 self.engine
                     .support_dir()
                     .expect("engine support directory")
-                    .to_path_buf()
+                    .join("Imported Libraries")
             });
         let labels: BTreeSet<&str> = self
             .plan

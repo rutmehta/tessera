@@ -191,7 +191,25 @@ fn protected_offline_alias_survives_process_restart() {
             },
         )
         .unwrap();
-    Sidecar::write_recipe(Sidecar::paths(&photo).recipe, &doc).unwrap();
+    let paths = Sidecar::paths(&photo);
+    Sidecar::write_recipe(&paths.recipe, &doc).unwrap();
+    // A pre-B5-38c string alias remains readable after a process restart.
+    let store = paths
+        .recipe
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let path_key = blake3::hash(photo.canonicalize().unwrap().as_os_str().as_encoded_bytes())
+        .to_hex()
+        .to_string();
+    std::fs::write(
+        store.join("paths").join(format!("{path_key}.json")),
+        serde_json::to_vec(paths.recipe.file_stem().unwrap().to_str().unwrap()).unwrap(),
+    )
+    .unwrap();
     std::fs::remove_file(&photo).unwrap();
     assert!(
         std::process::Command::new(std::env::current_exe().unwrap())
@@ -246,15 +264,81 @@ fn protected_rewrite_preserves_recipe_and_realiases_new_content() {
     let path_alias = support
         .join(".edits/lightroom/paths")
         .join(format!("{path_key}.json"));
-    assert_eq!(
-        serde_json::from_slice::<String>(&std::fs::read(path_alias).unwrap()).unwrap(),
-        hash
-    );
+    let stored_alias: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(path_alias).unwrap()).unwrap();
+    assert_eq!(stored_alias["content_hash"], hash);
+    assert_eq!(stored_alias["recipe_key"], key);
     let moved = photo.with_file_name("renamed.dng");
     std::fs::rename(&photo, &moved).unwrap();
     assert_eq!(
         Sidecar::read_recipe(Sidecar::paths(&moved).recipe).unwrap(),
         doc
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn protected_rewrite_does_not_redirect_another_paths_existing_recipe() {
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-rewrite-collision");
+    let folder = root.join("X.lrdata");
+    let first = folder.join("first.dng");
+    let second = folder.join("second.dng");
+    if std::env::var_os("TESSERA_TEST_REWRITE_CHILD").is_some() {
+        Sidecar::register_store(&folder.canonicalize().unwrap(), &root.join("support"));
+        for (path, exposure) in [(&first, 1.25), (&second, -0.75)] {
+            assert_eq!(
+                Sidecar::read_recipe(Sidecar::paths(path).recipe)
+                    .unwrap()
+                    .recipe
+                    .settings
+                    .tone
+                    .exposure,
+                exposure
+            );
+        }
+        return;
+    }
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&folder).unwrap();
+    Sidecar::register_store(&folder.canonicalize().unwrap(), &root.join("support"));
+    for (path, bytes, exposure) in [
+        (&first, b"first".as_slice(), 1.25),
+        (&second, b"second".as_slice(), -0.75),
+    ] {
+        std::fs::write(path, bytes).unwrap();
+        let mut doc = RecipeDocument::default();
+        doc.recipe
+            .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+                s.tone.exposure = exposure
+            })
+            .unwrap();
+        Sidecar::write_recipe(Sidecar::paths(path).recipe, &doc).unwrap();
+    }
+    std::fs::write(&first, b"second").unwrap();
+    let paths = Sidecar::paths(&first);
+    let doc = Sidecar::read_recipe(&paths.recipe).unwrap();
+    assert_eq!(doc.recipe.settings.tone.exposure, 1.25);
+    Sidecar::write_recipe(&paths.recipe, &doc).unwrap();
+    assert_eq!(
+        Sidecar::read_recipe(Sidecar::paths(&second).recipe)
+            .unwrap()
+            .recipe
+            .settings
+            .tone
+            .exposure,
+        -0.75
+    );
+    assert!(
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "protected_rewrite_does_not_redirect_another_paths_existing_recipe"
+            ])
+            .env("TESSERA_TEST_REWRITE_CHILD", "1")
+            .status()
+            .unwrap()
+            .success()
     );
     std::fs::remove_dir_all(root).unwrap();
 }

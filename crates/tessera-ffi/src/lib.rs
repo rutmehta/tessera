@@ -310,12 +310,8 @@ impl Engine {
         let paths = catalog::write_paths(path)?;
         Sidecar::write_recipe(paths.recipe, doc)?;
         Sidecar::write_xmp(paths.xmp, packet)?;
-        c.index.scan(
-            path.parent()
-                .ok_or_else(|| failure("image has no folder"))?,
-            &catalog::Sidecars,
-            &catalog::EmbeddedMetadata,
-        )?;
+        c.index
+            .scan_file(path, &catalog::Sidecars, &catalog::EmbeddedMetadata)?;
         Ok(())
     }
 }
