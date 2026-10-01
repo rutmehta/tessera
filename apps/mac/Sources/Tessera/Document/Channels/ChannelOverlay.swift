@@ -33,7 +33,7 @@ enum ChannelImages {
 
     /// The composite with hidden components removed; a single visible component as grey (Photoshop's
     /// single-channel view).
-    static func components(_ s: IOSurfaceRef, _ v: ComponentVisibility) -> CGImage? {
+    static func components(_ s: IOSurfaceRef, _ v: ComponentVisibility, space: CGColorSpace = DocumentDisplayColor.srgb.space) -> CGImage? {
         let w = IOSurfaceGetWidth(s), h = IOSurfaceGetHeight(s), stride = IOSurfaceGetBytesPerRow(s)
         guard w > 0, h > 0 else { return nil }
         let on = [v.red, v.green, v.blue]

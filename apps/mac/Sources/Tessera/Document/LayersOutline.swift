@@ -490,7 +490,7 @@ struct ThumbnailCache {
     }
 
     /// RGBA8 straight alpha → NSImage.
-    nonisolated static func image(from s: IOSurfaceRef) -> NSImage? {
+    nonisolated static func image(from s: IOSurfaceRef, space: CGColorSpace = DocumentDisplayColor.srgb.space) -> NSImage? {
         let w = IOSurfaceGetWidth(s), h = IOSurfaceGetHeight(s), stride = IOSurfaceGetBytesPerRow(s)
         IOSurfaceLock(s, .readOnly, nil)
         let data = Data(bytes: IOSurfaceGetBaseAddress(s), count: stride * h)
@@ -532,7 +532,7 @@ final class LayerThumbnailLoader {
         generation += 1
     }
 
-    func load(key: String, slot: String, fetch: @escaping @Sendable () -> UInt32?,
+    func load(key: String, slot: String, space: CGColorSpace = DocumentDisplayColor.srgb.space, fetch: @escaping @Sendable () -> UInt32?,
               done: @escaping @MainActor (NSImage?) -> Void) {
         latest.set(slot, key)
         guard inFlight.insert(key).inserted else { return }
