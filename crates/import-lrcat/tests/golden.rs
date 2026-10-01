@@ -41,3 +41,43 @@ fn synthetic_catalog_output_matches_b5_29b() {
     eprintln!("golden digest: {got}");
     assert_eq!(got, GOLDEN);
 }
+
+/// The streaming API gives the same images and plan as `import`, and
+/// `PlanJson` writes exactly `serde_json::to_vec_pretty(&plan)`.
+#[test]
+fn streaming_matches_import_and_plan_json_is_byte_identical() {
+    let dir = tempfile::tempdir().unwrap();
+    let synthetic = common::write(dir.path(), 300);
+    let fixture = import_lrcat::fixture::write(&dir.path().join("fx")).unwrap();
+    let empty = common::write(&dir.path().join("empty"), 0);
+    for catalog in [synthetic, fixture.catalog, empty] {
+        let plan = import_lrcat::import(&catalog).unwrap();
+        let mut out = Vec::new();
+        let json = std::cell::RefCell::new(None);
+        let mut streamed = Vec::new();
+        let header = import_lrcat::import_each(
+            &catalog,
+            |plan| {
+                assert!(plan.images.is_empty());
+                *json.borrow_mut() = Some(import_lrcat::PlanJson::begin(&mut out, plan)?);
+                Ok(())
+            },
+            |image| {
+                json.borrow_mut().as_mut().unwrap().image(&image)?;
+                streamed.push(image);
+                Ok(())
+            },
+        )
+        .unwrap();
+        json.into_inner().unwrap().finish(&header).unwrap();
+        assert_eq!(header.report, plan.report);
+        assert_eq!(
+            serde_json::to_vec(&streamed).unwrap(),
+            serde_json::to_vec(&plan.images).unwrap()
+        );
+        assert!(
+            out == serde_json::to_vec_pretty(&plan).unwrap(),
+            "PlanJson bytes differ"
+        );
+    }
+}

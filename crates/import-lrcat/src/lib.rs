@@ -171,12 +171,50 @@ impl ImageReport {
     }
 }
 
-pub(crate) fn rows(
+/// One SQLite row as a [`SourceRow`]. Text and blob cells larger than
+/// [`MAX_CELL_BYTES`] are measured on SQLite's borrowed cell, never copied:
+/// the column reads as NULL and a note goes to `oversized`.
+fn source_row(
+    row: &rusqlite::Row,
+    names: &[String],
+    table: &str,
+    index: usize,
+    oversized: &mut Vec<String>,
+) -> rusqlite::Result<SourceRow> {
+    let mut result = BTreeMap::new();
+    for (i, name) in names.iter().enumerate() {
+        let cell = row.get_ref(i)?;
+        let len = match cell {
+            ValueRef::Text(b) | ValueRef::Blob(b) => b.len(),
+            _ => 0,
+        };
+        if len > MAX_CELL_BYTES {
+            oversized.push(format!(
+                "{table} row {index}: column {name} is {len} bytes, over the {MAX_CELL_BYTES}-byte cell limit; not loaded"
+            ));
+            result.insert(name.clone(), Value::Null);
+            continue;
+        }
+        let value = match cell {
+            ValueRef::Null => Value::Null,
+            ValueRef::Integer(n) => n.into(),
+            ValueRef::Real(n) => Value::from(n),
+            ValueRef::Text(s) => Value::String(String::from_utf8_lossy(s).into_owned()),
+            ValueRef::Blob(b) => Value::Array(b.iter().map(|v| Value::from(*v)).collect()),
+        };
+        result.insert(name.clone(), value);
+    }
+    Ok(result)
+}
+
+/// Whether `table` exists; a missing table is an error if `required`, else a
+/// report entry.
+fn present(
     c: &Connection,
     table: &str,
     required: bool,
     report: &mut Vec<String>,
-) -> EngineResult<Vec<SourceRow>> {
+) -> EngineResult<bool> {
     let exists: bool = c
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
@@ -190,48 +228,132 @@ pub(crate) fn rows(
             return Err(decode(message));
         }
         report.push(message);
+    }
+    Ok(exists)
+}
+
+pub(crate) fn rows(
+    c: &Connection,
+    table: &str,
+    required: bool,
+    report: &mut Vec<String>,
+) -> EngineResult<Vec<SourceRow>> {
+    if !present(c, table, required, report)? {
         return Ok(vec![]);
     }
+    all_rows(c, table, report)
+}
+
+/// Every row of an existing table, in rowid order.
+fn all_rows(c: &Connection, table: &str, report: &mut Vec<String>) -> EngineResult<Vec<SourceRow>> {
     // Table names are fixed constants supplied by this module, never user SQL.
     let mut stmt = c
         .prepare(&format!("SELECT * FROM \"{table}\" ORDER BY rowid"))
         .map_err(decode)?;
     let names: Vec<String> = stmt.column_names().iter().map(|n| n.to_string()).collect();
-    let mut oversized = Vec::new();
-    let mut index = 0usize;
-    let mapped = stmt
-        .query_map([], |row| {
-            index += 1;
-            let mut result = BTreeMap::new();
-            for (i, name) in names.iter().enumerate() {
-                let cell = row.get_ref(i)?;
-                // Measured on SQLite's borrowed cell, before anything is copied.
-                let len = match cell {
-                    ValueRef::Text(b) | ValueRef::Blob(b) => b.len(),
-                    _ => 0,
-                };
-                if len > MAX_CELL_BYTES {
-                    oversized.push(format!(
-                        "{table} row {index}: column {name} is {len} bytes, over the {MAX_CELL_BYTES}-byte cell limit; not loaded"
-                    ));
-                    result.insert(name.clone(), Value::Null);
-                    continue;
-                }
-                let value = match cell {
-                    ValueRef::Null => Value::Null,
-                    ValueRef::Integer(n) => n.into(),
-                    ValueRef::Real(n) => Value::from(n),
-                    ValueRef::Text(s) => Value::String(String::from_utf8_lossy(s).into_owned()),
-                    ValueRef::Blob(b) => Value::Array(b.iter().map(|v| Value::from(*v)).collect()),
-                };
-                result.insert(name.clone(), value);
+    let mut rows = stmt.query([]).map_err(decode)?;
+    let (mut out, mut index) = (Vec::new(), 0);
+    while let Some(row) = rows.next().map_err(decode)? {
+        index += 1;
+        out.push(source_row(row, &names, table, index, report).map_err(decode)?);
+    }
+    Ok(out)
+}
+
+/// A per-image table read in image order (`ORDER BY image, rowid`): each
+/// image's rows are taken in one forward pass, so the table is never held in
+/// memory. Rows whose `image` is not an integer never match, as before.
+struct ByImage<'s> {
+    rows: Option<rusqlite::Rows<'s>>,
+    names: Vec<String>,
+    table: &'static str,
+    index: usize,
+    peeked: Option<SourceRow>,
+}
+impl<'s> ByImage<'s> {
+    fn prepare<'c>(
+        c: &'c Connection,
+        table: &str,
+        exists: bool,
+    ) -> EngineResult<Option<rusqlite::Statement<'c>>> {
+        if !exists {
+            return Ok(None);
+        }
+        c.prepare(&format!("SELECT * FROM \"{table}\" ORDER BY image, rowid"))
+            .map(Some)
+            .map_err(decode)
+    }
+    fn new(
+        stmt: Option<&'s mut rusqlite::Statement<'_>>,
+        table: &'static str,
+    ) -> EngineResult<Self> {
+        let (rows, names) = match stmt {
+            Some(stmt) => {
+                let names = stmt.column_names().iter().map(|n| n.to_string()).collect();
+                (Some(stmt.query([]).map_err(decode)?), names)
             }
-            Ok(result)
+            None => (None, vec![]),
+        };
+        Ok(Self {
+            rows,
+            names,
+            table,
+            index: 0,
+            peeked: None,
         })
-        .map_err(decode)?;
-    let loaded = mapped.collect::<Result<Vec<_>, _>>().map_err(decode)?;
-    report.extend(oversized);
-    Ok(loaded)
+    }
+    fn next_row(&mut self, oversized: &mut Vec<String>) -> EngineResult<Option<SourceRow>> {
+        if let Some(row) = self.peeked.take() {
+            return Ok(Some(row));
+        }
+        let Some(rows) = &mut self.rows else {
+            return Ok(None);
+        };
+        let Some(row) = rows.next().map_err(decode)? else {
+            return Ok(None);
+        };
+        self.index += 1;
+        source_row(row, &self.names, self.table, self.index, oversized)
+            .map(Some)
+            .map_err(decode)
+    }
+    /// The rows for `image`, in rowid order. Images must be asked in
+    /// ascending order; rows for smaller ids (orphans) are skipped.
+    fn take(&mut self, image: i64, oversized: &mut Vec<String>) -> EngineResult<Vec<SourceRow>> {
+        let mut out = vec![];
+        while let Some(row) = self.next_row(oversized)? {
+            match number(&row, "image") {
+                Some(k) if k == image => out.push(row),
+                Some(k) if k > image => {
+                    self.peeked = Some(row);
+                    break;
+                }
+                _ => {}
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// `f` over `items` on all cores, results in input order.
+fn par_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
+    let threads = std::thread::available_parallelism()
+        .map_or(1, |n| n.get())
+        .min(items.len());
+    if threads <= 1 {
+        return items.iter().map(f).collect();
+    }
+    let f = &f;
+    std::thread::scope(|s| {
+        let workers: Vec<_> = items
+            .chunks(items.len().div_ceil(threads))
+            .map(|chunk| s.spawn(move || chunk.iter().map(f).collect::<Vec<_>>()))
+            .collect();
+        workers
+            .into_iter()
+            .flat_map(|w| w.join().unwrap_or_else(|e| std::panic::resume_unwind(e)))
+            .collect()
+    })
 }
 
 fn sidecar(path: &Path, suffix: &str) -> PathBuf {
@@ -406,10 +528,42 @@ fn keyword_tree(
     Ok(roots)
 }
 
+/// Images translated in parallel per batch while the catalog is streamed.
+const BATCH: usize = 256;
+
 /// Read a catalog into memory, preserving source history, snapshots and face
 /// rows in addition to translated current recipes. Missing optional metadata
 /// tables are reported; missing core catalog tables are errors.
+///
+/// This holds every image (with its history rows) in memory; callers that can
+/// consume images one at a time should use [`import_each`].
 pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
+    let mut images = vec![];
+    let mut plan = import_each(
+        path,
+        |_: &ImportPlan| Ok(()),
+        |image| {
+            images.push(image);
+            Ok(())
+        },
+    )?;
+    plan.images = images;
+    Ok(plan)
+}
+
+/// [`import`] as a stream: `begin` sees the plan without images (everything
+/// but the per-image report is final), then `visit` gets each image in
+/// catalog-id order. The returned plan has the full report and no images.
+///
+/// Small tables are loaded; the per-image tables (images, develop settings,
+/// history, snapshots, faces, EXIF) are read in image order alongside each
+/// other, so memory is bounded by a batch of [`BATCH`] images, and develop
+/// settings are translated on all cores.
+pub fn import_each(
+    path: impl AsRef<Path>,
+    begin: impl FnOnce(&ImportPlan) -> EngineResult<()>,
+    mut visit: impl FnMut(ImportedImage) -> EngineResult<()>,
+) -> EngineResult<ImportPlan> {
     let source = path.as_ref();
     let (_temp, copy) = copied_catalog(source)?;
     let c = open_copy(&copy)?;
@@ -429,9 +583,42 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         .ok_or_else(|| decode("Adobe_variablesTable missing Adobe_DBVersion"))?;
     let roots = rows(&c, "AgLibraryRootFolder", true, &mut report)?;
     let folders = rows(&c, "AgLibraryFolder", true, &mut report)?;
-    let files = rows(&c, "AgLibraryFile", true, &mut report)?;
-    let images = rows(&c, "Adobe_images", true, &mut report)?;
-    let develops = rows(&c, "Adobe_imageDevelopSettings", true, &mut report)?;
+    // Only the columns a path needs are kept per file.
+    let mut files = rows(&c, "AgLibraryFile", true, &mut report)?;
+    for f in &mut files {
+        f.retain(|k, _| matches!(k.as_str(), "id_local" | "folder" | "baseName" | "extension"));
+    }
+    // Images and develop settings are streamed below; only the master lookup
+    // for virtual copies (id -> rootFile) is loaded.
+    present(&c, "Adobe_images", true, &mut report)?;
+    present(&c, "Adobe_imageDevelopSettings", true, &mut report)?;
+    let master_files: HashMap<i64, Option<i64>> = {
+        let mut stmt = c
+            .prepare("SELECT * FROM \"Adobe_images\" ORDER BY rowid")
+            .map_err(decode)?;
+        let names: Vec<String> = stmt.column_names().iter().map(|n| n.to_string()).collect();
+        let (id_col, root_col) = (
+            names.iter().position(|n| n == "id_local"),
+            names.iter().position(|n| n == "rootFile"),
+        );
+        let mut out = HashMap::new();
+        let mut rows = stmt.query([]).map_err(decode)?;
+        while let Some(row) = rows.next().map_err(decode)? {
+            let get = |col: Option<usize>| -> EngineResult<Option<i64>> {
+                Ok(
+                    match col.map(|i| row.get_ref(i)).transpose().map_err(decode)? {
+                        Some(ValueRef::Integer(n)) => Some(n),
+                        _ => None,
+                    },
+                )
+            };
+            if let Some(id) = get(id_col)? {
+                let root = get(root_col)?;
+                out.entry(id).or_insert(root);
+            }
+        }
+        out
+    };
     let mut optional = |name| rows(&c, name, false, &mut report);
     let keywords = optional("AgLibraryKeyword")?;
     let synonyms = optional("AgLibraryKeywordSynonym")?;
@@ -445,12 +632,15 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             .total_cmp(&b.get("position").and_then(Value::as_f64).unwrap_or(0.0))
     });
     let contents = optional("AgLibraryCollectionContent")?;
-    let history = optional("Adobe_libraryImageDevelopHistoryStep")?;
-    let snapshots = optional("Adobe_libraryImageDevelopSnapshot")?;
-    let faces = optional("AgLibraryFace")?;
+    let mut streamed = |name| present(&c, name, false, &mut report);
+    let has_history = streamed("Adobe_libraryImageDevelopHistoryStep")?;
+    let has_snapshots = streamed("Adobe_libraryImageDevelopSnapshot")?;
+    let has_faces = streamed("AgLibraryFace")?;
+    let mut optional = |name| rows(&c, name, false, &mut report);
     let face_clusters = optional("AgLibraryFaceCluster")?;
     let keyword_faces = optional("AgLibraryKeywordFace")?;
-    let gps = optional("AgHarvestedExifMetadata")?;
+    let has_gps = present(&c, "AgHarvestedExifMetadata", false, &mut report)?;
+    let mut optional = |name| rows(&c, name, false, &mut report);
     let mut stacks = vec![];
     for (table, links) in [
         ("AgLibraryFolderStack", "AgLibraryFolderStackImage"),
@@ -501,15 +691,7 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
     let source_name = source
         .canonicalize()
         .map_err(|e| EngineError::io_at(source, &e))?;
-    let image_id = |id: i64| {
-        let digest = Digest::derive(
-            "tessera Lightroom image",
-            format!("{}:{id}", source_name.display()).as_bytes(),
-        );
-        ImageId(u128::from_le_bytes(
-            digest.0[..16].try_into().expect("16 bytes"),
-        ))
-    };
+    let image_id = |id: i64| image_id_for(&source_name, id);
     let contents_by_collection = group_by(&contents, "collection");
     let images_by_collection = group_by(&collection_images, "collection");
     for row in &collections {
@@ -587,175 +769,286 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             );
         }
     }
-    // Index every per-image table once (B5-29c): the loop below used to scan
-    // each table per image, which made import quadratic in the image count.
-    let images_by_id = first_by(&images, "id_local");
-    let files_by_id = first_by(&files, "id_local");
-    let folders_by_id = first_by(&folders, "id_local");
-    let roots_by_id = first_by(&roots, "id_local");
-    let develops_by_image = first_by(&develops, "image");
-    let history_by_image = group_by(&history, "image");
-    let snapshots_by_image = group_by(&snapshots, "image");
-    let faces_by_image = group_by(&faces, "image");
-    let gps_by_image = first_by(&gps, "image");
-    let keywords_by_image = group_by(&keyword_images, "image");
-    let collections_by_image = group_by(&collection_images, "image");
-    let mut image_report = ImageReport::default();
-    let mut result = vec![];
-    for image in &images {
-        let id = required_id(image, "id_local")?;
-        let master_image = number(image, "masterImage").filter(|v| *v != 0);
-        let file_id = number(image, "rootFile")
-            .or_else(|| {
-                master_image
-                    .and_then(|m| images_by_id.get(&m))
-                    .and_then(|m| number(m, "rootFile"))
-            })
-            .ok_or_else(|| decode(format!("image {id} missing rootFile")))?;
-        let file = files_by_id
-            .get(&file_id)
-            .ok_or_else(|| decode(format!("image {id} references missing file {file_id}")))?;
-        let folder_id = required_id(file, "folder")?;
-        let folder = folders_by_id
-            .get(&folder_id)
-            .ok_or_else(|| decode(format!("missing folder {folder_id}")))?;
-        let root_id = required_id(folder, "rootFolder")?;
-        let root = roots_by_id
-            .get(&root_id)
-            .ok_or_else(|| decode(format!("missing root {root_id}")))?;
-        let base = required_text(file, "baseName")?;
-        let ext = text(file, "extension").unwrap_or_default();
-        let filename = if ext.is_empty() {
-            base
-        } else {
-            format!("{base}.{ext}")
-        };
-        let path = PathBuf::from(required_text(root, "absolutePath")?)
-            .join(required_text(folder, "pathFromRoot")?)
-            .join(&filename);
-        let copy_name = text(image, "copyName").filter(|s| !s.is_empty());
-        let display_name = if master_image.is_some() {
-            format!(
-                "{filename} ({})",
-                copy_name.as_deref().unwrap_or("Virtual copy")
-            )
-        } else {
-            filename
-        };
-        // Lightroom leaves an empty develop row (NULL process version) for
-        // images that were never developed.
-        let develop_text = develops_by_image
-            .get(&id)
-            .and_then(|r| text(r, "text"))
-            .filter(|t| !t.trim().is_empty());
-        let mut recipe = if let Some(source) = develop_text {
-            let process_version = develops_by_image
-                .get(&id)
-                .and_then(|r| text(r, "processVersion"));
-            let decoded = match &process_version {
-                Some(pv) => develop(id, &source, pv),
-                None => Err(decode("develop settings have no process version")),
-            };
-            match decoded {
-                Ok((recipe, warnings)) => {
-                    for w in warnings {
-                        image_report.push(id, w);
-                    }
-                    recipe
-                }
-                // One bad row degrades that image only: unedited, reported,
-                // and the source kept verbatim in the recipe.
-                Err(e) => {
-                    let reason = e.to_string().replace(&format!("image {id}: "), "");
-                    image_report.push(
-                        id,
-                        format!(
-                            "develop settings not imported ({reason}); imported as unedited, source preserved"
-                        ),
-                    );
-                    let mut recipe = Recipe::default();
-                    recipe.unknown.insert(
-                        "lrcat_develop_source".into(),
-                        serde_json::json!({"text": source, "processVersion": process_version}),
-                    );
-                    recipe
-                }
-            }
-        } else {
-            Recipe::default()
-        };
-        recipe.image_id = Some(image_id(id));
-        let selection = selection(image);
-        recipe.selection = selection.clone();
-        let source_rows = |all: &HashMap<i64, Vec<&SourceRow>>| {
-            all.get(&id)
-                .into_iter()
-                .flatten()
-                .map(|r| (*r).clone())
-                .collect::<Vec<_>>()
-        };
-        let history = source_rows(&history_by_image);
-        let snapshots = source_rows(&snapshots_by_image);
-        // Preserve source edit timelines without inventing replayable patches for
-        // undocumented per-release history encodings.
-        recipe
-            .unknown
-            .insert("lrcat_history".into(), serde_json::to_value(&history)?);
-        recipe
-            .unknown
-            .insert("lrcat_snapshots".into(), serde_json::to_value(&snapshots)?);
-        recipe.validate()?;
-        let gps = gps_by_image.get(&id).and_then(|r| {
-            Some([
-                r.get("gpsLatitude")?.as_f64()?,
-                r.get("gpsLongitude")?.as_f64()?,
-            ])
-        });
-        result.push(ImportedImage {
-            catalog_id: id,
-            path,
-            master_image,
-            copy_name,
-            display_name,
-            orientation: text(image, "orientation"),
-            capture_time: text(image, "captureTime"),
-            recipe,
-            selection,
-            keywords: keywords_by_image
-                .get(&id)
-                .into_iter()
-                .flatten()
-                .filter_map(|r| number(r, "tag"))
-                .collect(),
-            collections: collections_by_image
-                .get(&id)
-                .into_iter()
-                .flatten()
-                .filter_map(|r| number(r, "collection"))
-                .collect(),
-            gps,
-            faces: source_rows(&faces_by_image),
-            history,
-            snapshots,
-            rating: number(image, "rating"),
-            pick: number(image, "pick"),
-            color_label: text(image, "colorLabels").filter(|s| !s.is_empty()),
-        });
-    }
-    report.extend(image_report.finish());
-    result.sort_by_key(|r| r.catalog_id);
-    Ok(ImportPlan {
+    let mut plan = ImportPlan {
         schema_version,
         roots,
         folders,
-        images: result,
+        images: vec![],
         library,
         stacks,
         face_clusters,
         keyword_faces,
         report,
-    })
+    };
+    begin(&plan)?;
+    // Small per-image link tables are indexed once; the large ones stream.
+    let files_by_id = first_by(&files, "id_local");
+    let folders_by_id = first_by(&plan.folders, "id_local");
+    let roots_by_id = first_by(&plan.roots, "id_local");
+    let keywords_by_image = group_by(&keyword_images, "image");
+    let collections_by_image = group_by(&collection_images, "image");
+    let mut image_stmt = c
+        .prepare("SELECT * FROM \"Adobe_images\" ORDER BY id_local, rowid")
+        .map_err(decode)?;
+    let image_names: Vec<String> = image_stmt
+        .column_names()
+        .iter()
+        .map(|n| n.to_string())
+        .collect();
+    let mut image_rows = image_stmt.query([]).map_err(decode)?;
+    let mut develop_stmt = ByImage::prepare(&c, "Adobe_imageDevelopSettings", true)?;
+    let mut history_stmt =
+        ByImage::prepare(&c, "Adobe_libraryImageDevelopHistoryStep", has_history)?;
+    let mut snapshot_stmt =
+        ByImage::prepare(&c, "Adobe_libraryImageDevelopSnapshot", has_snapshots)?;
+    let mut face_stmt = ByImage::prepare(&c, "AgLibraryFace", has_faces)?;
+    let mut gps_stmt = ByImage::prepare(&c, "AgHarvestedExifMetadata", has_gps)?;
+    let mut develops = ByImage::new(develop_stmt.as_mut(), "Adobe_imageDevelopSettings")?;
+    let mut history = ByImage::new(
+        history_stmt.as_mut(),
+        "Adobe_libraryImageDevelopHistoryStep",
+    )?;
+    let mut snapshots = ByImage::new(snapshot_stmt.as_mut(), "Adobe_libraryImageDevelopSnapshot")?;
+    let mut faces = ByImage::new(face_stmt.as_mut(), "AgLibraryFace")?;
+    let mut gps = ByImage::new(gps_stmt.as_mut(), "AgHarvestedExifMetadata")?;
+    let mut image_report = ImageReport::default();
+    let mut oversized = vec![];
+    let (mut image_index, mut batch) = (0, Vec::<Pending>::with_capacity(BATCH));
+    let source_name = &source_name;
+    let image_id = |id: i64| image_id_for(source_name, id);
+    loop {
+        let Some(row) = image_rows.next().map_err(decode)? else {
+            flush(&mut batch, &image_id, &mut image_report, &mut visit)?;
+            break;
+        };
+        image_index += 1;
+        let image = source_row(
+            row,
+            &image_names,
+            "Adobe_images",
+            image_index,
+            &mut oversized,
+        )
+        .map_err(decode)?;
+        let id = required_id(&image, "id_local")?;
+        // Duplicate image ids (no primary key) all see the same per-image
+        // rows, so a batch never ends between two of them.
+        let rows = match batch.last() {
+            Some(previous) if previous.id == id => previous.rows.clone(),
+            _ => {
+                if batch.len() >= BATCH {
+                    flush(&mut batch, &image_id, &mut image_report, &mut visit)?;
+                }
+                PerImage {
+                    develop: develops.take(id, &mut oversized)?.into_iter().next(),
+                    history: history.take(id, &mut oversized)?,
+                    snapshots: snapshots.take(id, &mut oversized)?,
+                    faces: faces.take(id, &mut oversized)?,
+                    gps: gps.take(id, &mut oversized)?.into_iter().next(),
+                }
+            }
+        };
+        {
+            let master_image = number(&image, "masterImage").filter(|v| *v != 0);
+            let file_id = number(&image, "rootFile")
+                .or_else(|| master_image.and_then(|m| master_files.get(&m).copied().flatten()))
+                .ok_or_else(|| decode(format!("image {id} missing rootFile")))?;
+            let file = files_by_id
+                .get(&file_id)
+                .ok_or_else(|| decode(format!("image {id} references missing file {file_id}")))?;
+            let folder_id = required_id(file, "folder")?;
+            let folder = folders_by_id
+                .get(&folder_id)
+                .ok_or_else(|| decode(format!("missing folder {folder_id}")))?;
+            let root_id = required_id(folder, "rootFolder")?;
+            let root = roots_by_id
+                .get(&root_id)
+                .ok_or_else(|| decode(format!("missing root {root_id}")))?;
+            let base = required_text(file, "baseName")?;
+            let ext = text(file, "extension").unwrap_or_default();
+            let filename = if ext.is_empty() {
+                base
+            } else {
+                format!("{base}.{ext}")
+            };
+            let path = PathBuf::from(required_text(root, "absolutePath")?)
+                .join(required_text(folder, "pathFromRoot")?)
+                .join(&filename);
+            let copy_name = text(&image, "copyName").filter(|s| !s.is_empty());
+            let display_name = if master_image.is_some() {
+                format!(
+                    "{filename} ({})",
+                    copy_name.as_deref().unwrap_or("Virtual copy")
+                )
+            } else {
+                filename
+            };
+            batch.push(Pending {
+                id,
+                image,
+                path,
+                master_image,
+                copy_name,
+                display_name,
+                rows,
+                keywords: keywords_by_image
+                    .get(&id)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|r| number(r, "tag"))
+                    .collect(),
+                collections: collections_by_image
+                    .get(&id)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|r| number(r, "collection"))
+                    .collect(),
+            });
+        }
+    }
+    plan.report.extend(oversized);
+    plan.report.extend(image_report.finish());
+    Ok(plan)
 }
+
+/// Rows of the streamed per-image tables for one image.
+#[derive(Clone)]
+struct PerImage {
+    develop: Option<SourceRow>,
+    history: Vec<SourceRow>,
+    snapshots: Vec<SourceRow>,
+    faces: Vec<SourceRow>,
+    gps: Option<SourceRow>,
+}
+
+/// An image whose source rows are gathered, waiting for translation.
+struct Pending {
+    id: i64,
+    image: SourceRow,
+    path: PathBuf,
+    master_image: Option<i64>,
+    copy_name: Option<String>,
+    display_name: String,
+    rows: PerImage,
+    keywords: Vec<i64>,
+    collections: Vec<i64>,
+}
+
+fn image_id_for(source: &Path, id: i64) -> ImageId {
+    let digest = Digest::derive(
+        "tessera Lightroom image",
+        format!("{}:{id}", source.display()).as_bytes(),
+    );
+    ImageId(u128::from_le_bytes(
+        digest.0[..16].try_into().expect("16 bytes"),
+    ))
+}
+
+/// Translate a batch on all cores, then report and emit it in order.
+fn flush(
+    batch: &mut Vec<Pending>,
+    image_id: &(impl Fn(i64) -> ImageId + Sync),
+    report: &mut ImageReport,
+    visit: &mut impl FnMut(ImportedImage) -> EngineResult<()>,
+) -> EngineResult<()> {
+    let translated = par_map(batch, |p| translate(p, image_id(p.id)));
+    for (p, result) in batch.drain(..).zip(translated) {
+        let (recipe, notes) = result?;
+        for note in notes {
+            report.push(p.id, note);
+        }
+        let selection = recipe.selection.clone();
+        let gps = p.rows.gps.as_ref().and_then(|r| {
+            Some([
+                r.get("gpsLatitude")?.as_f64()?,
+                r.get("gpsLongitude")?.as_f64()?,
+            ])
+        });
+        visit(ImportedImage {
+            catalog_id: p.id,
+            path: p.path,
+            master_image: p.master_image,
+            copy_name: p.copy_name,
+            display_name: p.display_name,
+            orientation: text(&p.image, "orientation"),
+            capture_time: text(&p.image, "captureTime"),
+            recipe,
+            selection,
+            keywords: p.keywords,
+            collections: p.collections,
+            gps,
+            faces: p.rows.faces,
+            history: p.rows.history,
+            snapshots: p.rows.snapshots,
+            rating: number(&p.image, "rating"),
+            pick: number(&p.image, "pick"),
+            color_label: text(&p.image, "colorLabels").filter(|s| !s.is_empty()),
+        })?;
+    }
+    Ok(())
+}
+
+/// One image's recipe and its report notes (without the `image <id>:` prefix).
+fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String>)> {
+    let id = p.id;
+    let mut notes = vec![];
+    // Lightroom leaves an empty develop row (NULL process version) for
+    // images that were never developed.
+    let develop_text = p
+        .rows
+        .develop
+        .as_ref()
+        .and_then(|r| text(r, "text"))
+        .filter(|t| !t.trim().is_empty());
+    let mut recipe = if let Some(source) = develop_text {
+        let process_version = p
+            .rows
+            .develop
+            .as_ref()
+            .and_then(|r| text(r, "processVersion"));
+        let decoded = match &process_version {
+            Some(pv) => develop(id, &source, pv),
+            None => Err(decode("develop settings have no process version")),
+        };
+        match decoded {
+            Ok((recipe, warnings)) => {
+                notes.extend(warnings);
+                recipe
+            }
+            // One bad row degrades that image only: unedited, reported,
+            // and the source kept verbatim in the recipe.
+            Err(e) => {
+                let reason = e.to_string().replace(&format!("image {id}: "), "");
+                notes.push(format!(
+                    "develop settings not imported ({reason}); imported as unedited, source preserved"
+                ));
+                let mut recipe = Recipe::default();
+                recipe.unknown.insert(
+                    "lrcat_develop_source".into(),
+                    serde_json::json!({"text": source, "processVersion": process_version}),
+                );
+                recipe
+            }
+        }
+    } else {
+        Recipe::default()
+    };
+    recipe.image_id = Some(image_id);
+    recipe.selection = selection(&p.image);
+    // Preserve source edit timelines without inventing replayable patches for
+    // undocumented per-release history encodings.
+    recipe.unknown.insert(
+        "lrcat_history".into(),
+        serde_json::to_value(&p.rows.history)?,
+    );
+    recipe.unknown.insert(
+        "lrcat_snapshots".into(),
+        serde_json::to_value(&p.rows.snapshots)?,
+    );
+    recipe.validate()?;
+    Ok((recipe, notes))
+}
+
 /// Decode one `Adobe_imageDevelopSettings.text` value. The format is chosen by
 /// the first non-space token: `<` is XMP (older catalogs), `s` followed by `=`
 /// is the Lua table literal LrC 15.5 writes. Decode errors name the image.
@@ -786,26 +1079,98 @@ pub fn develop(
     })
 }
 
-/// Counts from the same validated plan the importer will produce.
+/// Counts from the same validated plan the importer will produce (streamed:
+/// images are counted and dropped).
 pub fn inspect(path: impl AsRef<Path>) -> EngineResult<Summary> {
-    let plan = import(path)?;
+    let (mut images, mut virtual_copies, mut faces) = (0, 0, 0);
+    let plan = import_each(
+        path,
+        |_| Ok(()),
+        |image| {
+            images += 1;
+            virtual_copies += usize::from(image.master_image.is_some());
+            faces += image.faces.len();
+            Ok(())
+        },
+    )?;
     fn count(ks: &[Keyword]) -> usize {
         ks.iter().map(|k| 1 + count(&k.children)).sum()
     }
     Ok(Summary {
         schema_version: plan.schema_version,
-        images: plan.images.len(),
-        virtual_copies: plan
-            .images
-            .iter()
-            .filter(|r| r.master_image.is_some())
-            .count(),
+        images,
+        virtual_copies,
         folders: plan.folders.len(),
         keywords: count(&plan.library.keywords),
         albums: plan.library.albums.len(),
         album_groups: plan.library.album_groups.len(),
         smart_albums: plan.library.smart_albums.len(),
         stacks: plan.stacks.len(),
-        faces: plan.images.iter().map(|r| r.faces.len()).sum(),
+        faces,
     })
+}
+
+/// Writes an [`ImportPlan`] as the same bytes `serde_json::to_vec_pretty`
+/// gives for the whole plan, one image at a time, for use with
+/// [`import_each`]: [`PlanJson::begin`] in `begin`, [`PlanJson::image`] in
+/// `visit`, then [`PlanJson::finish`] with the returned plan.
+pub struct PlanJson<W: std::io::Write> {
+    out: W,
+    images: usize,
+}
+impl<W: std::io::Write> PlanJson<W> {
+    /// Pretty JSON of `value`, nested at `indent` (every line after the first
+    /// is prefixed; JSON strings never contain a raw newline).
+    fn nested<T: Serialize + ?Sized>(&mut self, value: &T, indent: &str) -> EngineResult<()> {
+        let bytes = serde_json::to_vec_pretty(value)?;
+        for (i, line) in bytes.split(|b| *b == b'\n').enumerate() {
+            if i > 0 {
+                self.out.write_all(b"\n")?;
+                self.out.write_all(indent.as_bytes())?;
+            }
+            self.out.write_all(line)?;
+        }
+        Ok(())
+    }
+    fn field<T: Serialize + ?Sized>(
+        &mut self,
+        name: &str,
+        value: &T,
+        first: bool,
+    ) -> EngineResult<()> {
+        let sep = if first { "{\n" } else { ",\n" };
+        write!(self.out, "{sep}  \"{name}\": ")?;
+        self.nested(value, "  ")
+    }
+    /// Start the document with the fields that precede `images`.
+    pub fn begin(out: W, plan: &ImportPlan) -> EngineResult<Self> {
+        let mut json = Self { out, images: 0 };
+        json.field("schema_version", &plan.schema_version, true)?;
+        json.field("roots", &plan.roots, false)?;
+        json.field("folders", &plan.folders, false)?;
+        write!(json.out, ",\n  \"images\": ")?;
+        Ok(json)
+    }
+    pub fn image(&mut self, image: &ImportedImage) -> EngineResult<()> {
+        self.out.write_all(if self.images == 0 {
+            b"[\n    "
+        } else {
+            b",\n    "
+        })?;
+        self.images += 1;
+        self.nested(image, "    ")
+    }
+    /// Close `images` and write the fields that follow it (the plan's own
+    /// `images` are ignored). Returns the writer.
+    pub fn finish(mut self, plan: &ImportPlan) -> EngineResult<W> {
+        self.out
+            .write_all(if self.images == 0 { b"[]" } else { b"\n  ]" })?;
+        self.field("library", &plan.library, false)?;
+        self.field("stacks", &plan.stacks, false)?;
+        self.field("face_clusters", &plan.face_clusters, false)?;
+        self.field("keyword_faces", &plan.keyword_faces, false)?;
+        self.field("report", &plan.report, false)?;
+        self.out.write_all(b"\n}")?;
+        Ok(self.out)
+    }
 }

@@ -4982,6 +4982,7 @@ dependencies = [
  "image-core",
  "import-lrcat",
  "index",
+ "libc",
  "library",
  "ml-caption",
  "ml-embed",

@@ -91,44 +91,151 @@ pub fn fidelity(source: &Path, reference_dir: &Path) -> Result<Value> {
     )
 }
 
+/// One recipe file of the staged bundle: the bytes and checks of
+/// `sidecar::Sidecar::write_recipe`, with a plain `fsync` (data handed to the
+/// drive) instead of a per-file `F_FULLFSYNC`. The staging directory is
+/// private until it is renamed into place, and [`apply`] issues one
+/// `F_FULLFSYNC` (drive cache flush) after every file is written. Per-file
+/// full flushes cost ~5 ms each (~100 s for 21k recipes).
+fn write_staged_recipe(path: &Path, document: &sidecar::RecipeDocument) -> Result<()> {
+    use std::{io::Write, os::fd::AsRawFd};
+    document.recipe.to_json()?;
+    document.recipe.validate()?;
+    let bytes = serde_json::to_vec_pretty(document)?;
+    let mut file = std::fs::File::create_new(path)?;
+    file.write_all(&bytes)?;
+    // SAFETY: fsync on a file descriptor this function owns and keeps open.
+    if unsafe { libc::fsync(file.as_raw_fd()) } != 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    Ok(())
+}
+
 /// Persist a lossless import bundle, never sidecars beside source originals.
 /// Recipes are keyed by catalog id to retain virtual copies and duplicate stems.
+///
+/// The catalog is streamed (B5-29c): translation runs on the importer's
+/// threads, `import-plan.json` is written by one thread as images arrive and
+/// recipe files by a small pool, so the whole plan is never in memory. Output
+/// bytes are the same as serializing the full plan.
 pub fn apply(source: &Path, dest: &Path) -> Result<Value> {
+    use std::sync::{Mutex, mpsc};
+    enum Msg {
+        Begin(Box<import_lrcat::ImportPlan>),
+        Image(Box<import_lrcat::ImportedImage>),
+    }
     ensure!(
         !dest.try_exists()?,
         "destination already exists: {}",
         dest.display()
     );
-    let plan = import_lrcat::import(source)?;
     let parent = dest
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
     std::fs::create_dir_all(parent)?;
     let staging = tempfile::tempdir_in(parent)?;
-    plan.library.write(staging.path().join("library.json"))?;
-    std::fs::write(
-        staging.path().join("import-plan.json"),
-        serde_json::to_vec_pretty(&plan)?,
-    )?;
     let recipes = staging.path().join("recipes");
     std::fs::create_dir(&recipes)?;
-    for image in &plan.images {
-        sidecar::Sidecar::write_recipe(
-            recipes.join(format!("{}.json", image.catalog_id)),
-            &sidecar::RecipeDocument {
-                recipe: image.recipe.clone(),
-                ..Default::default()
+    let plan_path = staging.path().join("import-plan.json");
+    let plan_file = std::io::BufWriter::with_capacity(1 << 20, std::fs::File::create(&plan_path)?);
+    // The first failure is kept; every queue still drains so no sender blocks.
+    let failed: Mutex<Option<anyhow::Error>> = Mutex::new(None);
+    let fail = |e: anyhow::Error| {
+        failed.lock().expect("error slot").get_or_insert(e);
+    };
+    let (image_tx, image_rx) = mpsc::sync_channel::<Msg>(64);
+    let (recipe_tx, recipe_rx) =
+        mpsc::sync_channel::<(std::path::PathBuf, sidecar::RecipeDocument)>(256);
+    let recipe_rx = Mutex::new(recipe_rx);
+    let mut images = 0usize;
+    let (plan, json) = std::thread::scope(|s| {
+        for _ in 0..8 {
+            s.spawn(|| {
+                loop {
+                    let job = recipe_rx.lock().expect("queue").recv();
+                    let Ok((path, document)) = job else { break };
+                    if let Err(e) = write_staged_recipe(&path, &document) {
+                        fail(e);
+                    }
+                }
+            });
+        }
+        let writer = s.spawn(move || {
+            let mut json = None;
+            let mut plan_file = Some(plan_file);
+            for msg in image_rx {
+                let step = (|| -> Result<()> {
+                    match msg {
+                        Msg::Begin(plan) => {
+                            json = Some(import_lrcat::PlanJson::begin(
+                                plan_file.take().context("plan begun twice")?,
+                                &plan,
+                            )?);
+                        }
+                        Msg::Image(image) => {
+                            json.as_mut().context("plan not begun")?.image(&image)?;
+                            let path = recipes.join(format!("{}.json", image.catalog_id));
+                            let document = sidecar::RecipeDocument {
+                                recipe: image.recipe,
+                                ..Default::default()
+                            };
+                            recipe_tx
+                                .send((path, document))
+                                .map_err(|_| anyhow::anyhow!("recipe writers stopped"))?;
+                        }
+                    }
+                    Ok(())
+                })();
+                if let Err(e) = step {
+                    fail(e);
+                }
+            }
+            json
+        });
+        let stopped = || engine_api::error::EngineError::Conflict {
+            message: "import plan writer stopped".into(),
+        };
+        let plan = import_lrcat::import_each(
+            source,
+            |plan| {
+                image_tx
+                    .send(Msg::Begin(Box::new(plan.clone())))
+                    .map_err(|_| stopped())
             },
-        )?;
+            |image| {
+                images += 1;
+                image_tx
+                    .send(Msg::Image(Box::new(image)))
+                    .map_err(|_| stopped())
+            },
+        );
+        drop(image_tx);
+        let json = writer
+            .join()
+            .unwrap_or_else(|e| std::panic::resume_unwind(e));
+        (plan, json)
+    });
+    if let Some(error) = failed.into_inner().expect("error slot") {
+        return Err(error);
     }
+    let plan = plan?;
+    plan.library.write(staging.path().join("library.json"))?;
+    let json = json.context("catalog plan was not started")?;
+    let file = json
+        .finish(&plan)?
+        .into_inner()
+        .map_err(|e| e.into_error())?;
+    // One drive-cache flush covers every file fsynced above.
+    file.sync_all()?;
+    drop(file);
     // Exclusive reservation prevents replacing any pre-existing destination.
     std::fs::create_dir(dest).context("reserve import destination")?;
     if let Err(error) = std::fs::rename(staging.path(), dest) {
         let _ = std::fs::remove_dir(dest);
         return Err(error.into());
     }
-    Ok(json!({"dest":dest,"images":plan.images.len(),"report":plan.report}))
+    Ok(json!({"dest":dest,"images":images,"report":plan.report}))
 }
 
 #[cfg(test)]
