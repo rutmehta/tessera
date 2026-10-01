@@ -421,7 +421,9 @@ final class DocumentExportFlatTests: XCTestCase {
         spans.start()
         let output = dir.appendingPathComponent("smart.png")
         let task = ws.startExportFlat(doc, ExportFlatSettings(), to: output) { outcome = $0 }
-        let hud = window.contentView?.subviews.last
+        let hud = task?.progressHost?.subviews.first {
+            $0.accessibilityIdentifier() == "document-export-progress"
+        }
         let finished = await waitFor(300) { outcome != nil }
         let busy = spans.stop()
         if measured {
@@ -433,6 +435,7 @@ final class DocumentExportFlatTests: XCTestCase {
             print("B5-47 BASELINES", controls)
         }
         XCTAssertNotNil(task)
+        XCTAssertNotNil(hud, "The measured export must have its HUD attached to the captured host")
         XCTAssertTrue(finished)
         XCTAssertEqual(outcome, .exported)
         XCTAssertTrue(FileManager.default.fileExists(atPath: output.path))

@@ -10,6 +10,7 @@ import time
 package = Path(__file__).resolve().parent
 root = package.parents[3]
 label = sys.argv[1]
+failed = False
 for index in range(1, 4):
     prefix = package / "evidence" / f"{label}-{index}"
     env = dict(os.environ, TESSERA_FILTER_PERF="1", TESSERA_EXPORT_BASELINES="1",
@@ -23,6 +24,10 @@ for index in range(1, 4):
         while process.poll() is None:
             samples.append({"wall": time.time(), "load1": os.getloadavg()[0]})
             time.sleep(1)
+    failed = failed or process.returncode != 0
+    Path(str(prefix) + ".result.json").write_text(json.dumps({"exitCode": process.returncode}) + "\n")
     Path(str(prefix) + ".load.json").write_text(json.dumps(samples, indent=2) + "\n")
     print(f"{label}-{index}: exit {process.returncode}, load1 "
           f"{min(s['load1'] for s in samples):.2f}–{max(s['load1'] for s in samples):.2f}", flush=True)
+
+sys.exit(1 if failed else 0)
