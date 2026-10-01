@@ -100,10 +100,21 @@ enum ShellHarness {
 
     /// Static layout checks create many background views. One threaded indeterminate animation per
     /// indicator can exhaust dispatch workers and starve unrelated async tests. Keep their normal
-    /// animation on the main run loop instead; production views are unaffected.
+    /// geometry while stopping existing workers; subsequent animations use timers. Production views are unaffected.
     static func useTimerAnimations(in view: NSView) {
-        if let progress = view as? NSProgressIndicator { progress.usesThreadedAnimation = false }
+        if let progress = view as? NSProgressIndicator {
+            progress.stopAnimation(nil)
+            progress.usesThreadedAnimation = false
+        }
         for child in view.subviews { useTimerAnimations(in: child) }
+    }
+
+    static func dispose(_ window: NSWindow) {
+        if let content = window.contentView { useTimerAnimations(in: content) }
+        window.orderOut(nil)
+        window.contentViewController = nil
+        window.contentView = nil
+        window.close()
     }
 
     /// The toolbar's bottom edge in the content view (flipped top inset).

@@ -52,7 +52,7 @@ final class MasksPanelLayoutTests: XCTestCase {
                 window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 window.contentViewController = host
                 window.orderBack(nil)
-                defer { window.orderOut(nil); window.contentViewController = nil }
+                defer { ShellHarness.dispose(window) }
                 for _ in 0..<3 {
                     window.setContentSize(CGSize(width: width, height: 720))
                     host.view.layoutSubtreeIfNeeded()

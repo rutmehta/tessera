@@ -47,7 +47,7 @@ final class ShellLayoutTests: XCTestCase {
             for dark in [true, false] {
                 for size in ShellHarness.sizes {
                     let (window, host) = ShellHarness.window(model, size: size, dark: dark)
-                    defer { window.orderOut(nil); window.contentViewController = nil }
+                    defer { ShellHarness.dispose(window) }
                     let tag = "\(state.rawValue)-\(Int(size.width))x\(Int(size.height))-\(dark ? "dark" : "light")"
                     XCTAssertFalse(NSApp.isActive, "the harness never activates")
                     // 1. Root containment: no split / hosting subtree outside the window's content.
@@ -136,7 +136,7 @@ final class ShellLayoutTests: XCTestCase {
                     UserDefaults.standard.set(history, forKey: historyKey)
                     DocumentInspectorProbe.frames = [:]
                     let (window, host) = ShellHarness.window(model, size: size, dark: true)
-                    defer { window.orderOut(nil); window.contentViewController = nil }
+                    defer { ShellHarness.dispose(window) }
                     let tag = "document-\(Int(size.width))x\(Int(size.height))-\(tab.rawValue)-history-\(history ? "open" : "closed")"
                     XCTAssertFalse(NSApp.isActive, "the harness never activates")
                     for v in ShellLayoutAudit.containmentViolations(in: host, columnContent: true) { failures.append("\(tag) containment: \(v)") }
@@ -237,7 +237,7 @@ final class ShellLayoutTests: XCTestCase {
         XCTAssertEqual(DocumentTabStrip.visible(count: ws.documents.count, current: 0), 0..<3)
         for size in [CGSize(width: 960, height: 600), CGSize(width: 1280, height: 800)] {
             let (window, host) = ShellHarness.window(model, size: size, dark: true)
-            defer { window.orderOut(nil); window.contentViewController = nil }
+            defer { ShellHarness.dispose(window) }
             XCTAssertEqual(ShellLayoutAudit.containmentViolations(in: host, columnContent: true), [])
             if let captureDir {
                 try ShellHarness.capture(window, to: captureDir.appendingPathComponent("tabs-8-documents-\(Int(size.width))x\(Int(size.height)).png"))
@@ -252,7 +252,7 @@ final class ShellLayoutTests: XCTestCase {
         let saved = ws.inspectorTab
         defer { ws.inspectorTab = saved }
         let (window, _) = ShellHarness.window(model, size: CGSize(width: 1280, height: 800), dark: true)
-        defer { window.orderOut(nil); window.contentViewController = nil }
+        defer { ShellHarness.dispose(window) }
         let codes: [Character: UInt16] = ["1": 18, "2": 19, "3": 20]
         for tab in [DocumentInspectorTab.properties, .channels, .stack] {
             let c = String(tab.shortcutDigit)

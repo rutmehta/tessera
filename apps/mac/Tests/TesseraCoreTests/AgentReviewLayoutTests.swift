@@ -31,7 +31,7 @@ final class AgentReviewLayoutTests: XCTestCase {
         let item = try XCTUnwrap(model.reviewTargetItem)
         let selected = model.reviewNavigation.selectedID
         let (window, _) = ShellHarness.window(model, size: CGSize(width: 960, height: 600), dark: false)
-        defer { window.orderOut(nil); window.contentViewController = nil }
+        defer { ShellHarness.dispose(window) }
         let firstDeadline = Date().addingTimeInterval(15)
         while model.loader.cached(item, tier: .preview) == nil, Date() < firstDeadline {
             try await Task.sleep(for: .milliseconds(20))
@@ -133,7 +133,7 @@ final class AgentReviewLayoutTests: XCTestCase {
             model.loader.invalidate(item)
             XCTAssertNil(model.loader.cached(item, tier: .preview))
             let (window, host) = ShellHarness.window(model, size: size, dark: dark)
-            defer { window.orderOut(nil); window.contentViewController = nil }
+            defer { ShellHarness.dispose(window) }
             let deadline = Date().addingTimeInterval(15)
             while model.loader.cached(item, tier: .preview) == nil, Date() < deadline {
                 try await Task.sleep(for: .milliseconds(20))
@@ -178,7 +178,7 @@ final class AgentReviewLayoutTests: XCTestCase {
                 window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 window.contentViewController = controller
                 window.orderBack(nil)
-                defer { window.orderOut(nil); window.contentViewController = nil }
+                defer { ShellHarness.dispose(window) }
                 controller.view.layoutSubtreeIfNeeded()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.1))
                 let host = controller.view
@@ -202,7 +202,7 @@ final class AgentReviewLayoutTests: XCTestCase {
         for dark in [true, false] {
             for size in ShellHarness.sizes {
                 let (window, host) = ShellHarness.window(model, size: size, dark: dark)
-                defer { window.orderOut(nil); window.contentViewController = nil }
+                defer { ShellHarness.dispose(window) }
                 let tag = "\(state)-\(Int(size.width))x\(Int(size.height))-\(dark ? "dark" : "light")"
                 XCTAssertFalse(NSApp.isActive, tag)
                 XCTAssertTrue(model.isReviewing, tag)
