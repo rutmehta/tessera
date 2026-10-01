@@ -23,6 +23,19 @@ final class ShellLayoutTests: XCTestCase {
         return dir
     }
 
+    func testLayoutHarnessUsesTimerDrivenProgressAnimations() {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        let progress = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
+        progress.usesThreadedAnimation = true
+        window.contentView?.addSubview(progress)
+        ShellHarness.settle(window, size: CGSize(width: 960, height: 600))
+        XCTAssertFalse(progress.usesThreadedAnimation,
+                       "Many background layout windows must not exhaust dispatch workers with animation threads")
+    }
+
     func testShellContainedAtEverySizeStateAndAppearance() throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil, "CI runners have a smaller virtual screen; windows and screen-derived budgets are clamped. Runs locally.")
         let captureDir = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"].map { URL(fileURLWithPath: $0) }
