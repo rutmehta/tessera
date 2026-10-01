@@ -1,0 +1,39 @@
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 2.47s
+     Running tests/lr4_adobe_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_adobe_shapes-c8ee84596d5076cb)
+
+running 3 tests
+test lr4_adobe_aggregate_and_range_mask_spelling ... FAILED
+test lr4_unverified_type_and_feather_keep_exact_source ... FAILED
+test lr4_unrenderable_local_params_are_not_source_promoted ... FAILED
+
+failures:
+
+---- lr4_adobe_aggregate_and_range_mask_spelling stdout ----
+
+thread 'lr4_adobe_aggregate_and_range_mask_spelling' (53177674) panicked at crates/import-lrcat/tests/lr4_adobe_shapes.rs:8:5:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- lr4_unverified_type_and_feather_keep_exact_source stdout ----
+
+thread 'lr4_unverified_type_and_feather_keep_exact_source' (53177676) panicked at crates/import-lrcat/tests/lr4_adobe_shapes.rs:19:40:
+assertion failed: r.settings.locals.adjustments.is_empty()
+
+---- lr4_unrenderable_local_params_are_not_source_promoted stdout ----
+
+thread 'lr4_unrenderable_local_params_are_not_source_promoted' (53177675) panicked at crates/import-lrcat/tests/lr4_adobe_shapes.rs:27:9:
+assertion failed: r.unknown.contains_key("lrcat_develop_source")
+
+
+failures:
+    lr4_adobe_aggregate_and_range_mask_spelling
+    lr4_unrenderable_local_params_are_not_source_promoted
+    lr4_unverified_type_and_feather_keep_exact_source
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4_adobe_shapes`
