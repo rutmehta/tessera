@@ -87,6 +87,11 @@ impl<'a> TileJob<'a> {
             pass: self.doc.pass,
             cancel: self.doc.cancel,
         })?;
+        #[cfg(test)]
+        self.comp
+            .stats
+            .style_evaluations
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let planes = styles::render(&raster, &layer.props.styles, self.doc.state.global_light)?;
         let source = self.comp.effect_samples(&raster, self.coord)?;
         let planes = planes
@@ -188,5 +193,109 @@ impl<'a> TileJob<'a> {
         }
         self.comp.stats.bump_blend();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod perf1_tests {
+    use super::*;
+    use crate::Document;
+    use engine_api::tile::Extent;
+    use std::sync::atomic::Ordering;
+
+    fn styled_document(effects: Vec<styles::StyleEffect>, hide_fill: bool) -> Document {
+        // Six output tiles, including partial right/bottom tiles. No fonts,
+        // files, providers, wall-clock assertions or global test counters.
+        let extent = Extent::new(513, 259);
+        let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
+        raster
+            .edit_region(crate::geom::Rect::of_extent(extent), 1, |x, y, p| {
+                let inside = (17..497).contains(&x) && (11..248).contains(&y);
+                *p = if inside {
+                    [0.125, 0.25, 0.5, 1.0]
+                } else {
+                    [0.0; 4]
+                };
+            })
+            .unwrap();
+        let mut layer = Layer::new("synthetic styled raster", LayerKind::Pixel(raster));
+        layer.props.styles.effects = effects;
+        if hide_fill {
+            layer.props.fill_opacity = 0.0;
+        }
+        let mut state = DocState::new(extent, Depth::F32);
+        state.root.push(Arc::new(layer));
+        Document::new(state)
+    }
+
+    #[test]
+    fn full_level_evaluates_each_styled_source_once() {
+        let doc = styled_document(
+            vec![
+                styles::StyleEffect::DropShadow(styles::Shadow {
+                    size: 2.0,
+                    distance: 3.0,
+                    ..Default::default()
+                }),
+                styles::StyleEffect::OuterGlow(styles::Glow {
+                    size: 1.0,
+                    ..Default::default()
+                }),
+            ],
+            false,
+        );
+        let compositor = Compositor::new(8 << 20);
+        let (extent, pixels) = compositor.render_level_rgba(&doc, 0).unwrap();
+        assert_eq!(extent, Extent::new(513, 259));
+        assert_eq!(pixels.len(), 513 * 259 * 4);
+        assert!(pixels.iter().all(|v| v.is_finite()));
+        // Expected RED on the unoptimized renderer: emit_styles computes the
+        // full source and effects for every output tile. This assertion is a
+        // work invariant, not a claim that a failure has already been observed.
+        assert_eq!(
+            compositor.stats.style_evaluations.load(Ordering::Relaxed),
+            1,
+            "one immutable styled source must be evaluated once per full-level pass"
+        );
+    }
+
+    #[test]
+    fn multitile_overlay_matches_independent_exact_pixel_fixture() {
+        let doc = styled_document(
+            vec![styles::StyleEffect::ColorOverlay(styles::Overlay {
+                fill: crate::document::Fill::Solid {
+                    color: [0.25, 0.5, 0.75],
+                },
+                opacity: 1.0,
+                ..Default::default()
+            })],
+            true,
+        );
+        let (_, pixels) = Compositor::new(8 << 20)
+            .render_level_rgba(&doc, 0)
+            .unwrap();
+        assert_eq!(pixels.len(), 513 * 259 * 4);
+        // Independent analytic oracle: zero source fill; opaque normal overlay
+        // on a binary alpha rectangle. Dyadic colors are exactly representable.
+        // This protects basic source/plane extraction at tile seams; it does
+        // not substitute for the pending frozen blur/morphology oracle.
+        for y in 0..259usize {
+            for x in 0..513usize {
+                let expected: [f32; 4] =
+                    if (17..497).contains(&x) && (11..248).contains(&y) {
+                        [0.25, 0.5, 0.75, 1.0]
+                    } else {
+                        [0.0; 4]
+                    };
+                let start = (y * 513 + x) * 4;
+                for channel in 0..4 {
+                    assert_eq!(
+                        pixels[start + channel].to_bits(),
+                        expected[channel].to_bits(),
+                        "pixel ({x},{y}) channel {channel}"
+                    );
+                }
+            }
+        }
     }
 }

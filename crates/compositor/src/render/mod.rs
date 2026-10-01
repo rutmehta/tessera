@@ -56,6 +56,9 @@ pub(crate) struct DocRef<'a> {
 
 #[derive(Default)]
 pub(crate) struct Counters {
+    // Per-compositor instrumentation avoids interference from concurrent tests.
+    #[cfg(test)]
+    style_evaluations: AtomicU64,
     hits: AtomicU64,
     misses: AtomicU64,
     mips: AtomicU64,
