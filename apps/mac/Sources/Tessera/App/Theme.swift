@@ -218,6 +218,7 @@ enum Theme {
         static var caption: NSFont { NSFont.systemFont(ofSize: 11) }
         static var captionMedium: NSFont { NSFont.systemFont(ofSize: 11, weight: .medium) }
         static var captionSemibold: NSFont { NSFont.systemFont(ofSize: 11, weight: .semibold) }
+        static var captionMono: NSFont { NSFont.monospacedSystemFont(ofSize: 11, weight: .regular) }
         static var captionNumeric: NSFont { NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular) }
         static var captionNumericMedium: NSFont { NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium) }
         static var label: NSFont { NSFont.systemFont(ofSize: 12) }
