@@ -975,3 +975,121 @@ fn stacked_camera_raw_detail_follows_canvas_level() {
             .collect::<Vec<_>>()
     );
 }
+
+#[test]
+fn camera_raw_full_resolution_stack_keeps_detail_at_l2() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "full-stack.png", 256, 192));
+    let id = s.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(id).unwrap();
+    s.apply_filter(id, local_json(0.2)).unwrap();
+    let mesh = filters::liquify::Mesh::new(256, 192, 32).unwrap();
+    s.apply_filter(
+        id,
+        serde_json::json!({"id":"liquify", "params":{"mesh":mesh,"interpolation":"bilinear"}})
+            .to_string(),
+    )
+    .unwrap();
+    s.set_viewport(2, 0, 0, 64, 48, 0.25).unwrap();
+    assert_eq!(
+        s.filter_preview_level(id, Some(0), local_json(0.2))
+            .unwrap(),
+        0,
+        "full-resolution edit reports level 0, so the detail note is off"
+    );
+    let canvas = live(&s, 2);
+    let preview = previewed(&s, id, local_json(0.2), 2, true);
+    let stripped = previewed(&s, id, local_json_without_detail(0.2), 2, true);
+    assert!(max_diff(&preview, &stripped) > 0.02, "edit keeps detail");
+    let diff = max_diff(&canvas, &preview);
+    println!("B5-34 full-resolution L2 canvas vs edit: {diff}");
+    assert_eq!(
+        diff, 0.0,
+        "full-resolution L2 canvas and edit must both keep detail"
+    );
+}
+
+#[test]
+fn camera_raw_partial_amount_strips_detail_at_l1() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "partial.png", 256, 192));
+    let zero = open(
+        &engine,
+        &opaque_png(dir.path(), "partial-zero.png", 256, 192),
+    );
+    let mut json: serde_json::Value = serde_json::from_str(&local_json(0.2)).unwrap();
+    let mut stripped: serde_json::Value =
+        serde_json::from_str(&local_json_without_detail(0.2)).unwrap();
+    json["params"]["amount"] = serde_json::json!(0.35);
+    stripped["params"]["amount"] = serde_json::json!(0.35);
+    for (doc, spec) in [(&s, &json), (&zero, &stripped)] {
+        let id = doc.layers().unwrap()[0].id;
+        doc.convert_for_smart_filters(id).unwrap();
+        doc.apply_filter(id, spec.to_string()).unwrap();
+        doc.clear_selection().unwrap();
+        doc.set_viewport(1, 0, 0, 128, 96, 0.5).unwrap();
+    }
+    let id = s.layers().unwrap()[0].id;
+    let expected = live(&zero, 1);
+    let canvas = live(&s, 1);
+    assert_eq!(
+        max_diff(&canvas, &expected),
+        0.0,
+        "L1 stripping with partial Amount"
+    );
+    assert_eq!(
+        max_diff(&previewed(&s, id, json.to_string(), 1, true), &expected),
+        0.0
+    );
+    s.clear_preview().unwrap();
+    assert!(
+        max_diff(&live(&s, 0), &live(&zero, 0)) > 0.02,
+        "detail is active at L0"
+    );
+}
+
+#[test]
+fn camera_raw_disable_reenable_across_zoom_levels() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "toggle.png", 256, 192));
+    let reference = open(&engine, &opaque_png(dir.path(), "toggle-ref.png", 256, 192));
+    let id = s.layers().unwrap()[0].id;
+    let rid = reference.layers().unwrap()[0].id;
+    for (doc, layer) in [(&s, id), (&reference, rid)] {
+        doc.convert_for_smart_filters(layer).unwrap();
+        doc.apply_filter(layer, local_json(0.2)).unwrap();
+    }
+    for (enabled, level) in [
+        (true, 0),
+        (false, 2),
+        (true, 2),
+        (false, 0),
+        (true, 1),
+        (true, 0),
+        (true, 2),
+    ] {
+        s.set_smart_filter(id, 0, SmartFilterEdit::Enabled { enabled })
+            .unwrap();
+        s.set_viewport(
+            level,
+            0,
+            0,
+            256 >> level,
+            192 >> level,
+            1.0 / f64::from(1u8 << level),
+        )
+        .unwrap();
+        reference
+            .set_smart_filter(rid, 0, SmartFilterEdit::Enabled { enabled })
+            .unwrap();
+        let expected = live(&reference, level);
+        assert_eq!(
+            max_diff(&live(&s, level), &expected),
+            0.0,
+            "enabled={enabled}, L{level}"
+        );
+    }
+}

@@ -4255,6 +4255,88 @@ mod request_cancellation_tests {
         assert!(!fresh.is_cancelled());
     }
 
+    #[test]
+    fn camera_raw_canvas_key_tracks_effective_level_and_enabled_state() {
+        let (_, mut layer, _) = fixture();
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        let camera = Node::new(
+            Spec::parse(r#"{"id":"camera_raw","params":{"settings":{},"amount":0.35}}"#).unwrap(),
+        )
+        .store();
+        so.filters = vec![camera];
+        let active0 = canvas_bake_key(&layer, 0);
+        let active2 = canvas_bake_key(&layer, 2);
+        assert_ne!(active0, active2);
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        so.filters[0].enabled = false;
+        assert_eq!(canvas_bake_key(&layer, 0), canvas_bake_key(&layer, 2));
+        assert_ne!(active2, canvas_bake_key(&layer, 2));
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        so.filters[0].enabled = true;
+        assert_eq!(active2, canvas_bake_key(&layer, 2));
+        let LayerKind::SmartObject(so) = &mut layer.kind else {
+            unreachable!()
+        };
+        let mesh = filters::liquify::Mesh::new(3, 2, 2).unwrap();
+        so.filters.push(
+            Node::new(
+                Spec::from_value(&serde_json::json!({
+                    "id":"liquify", "params":{"mesh":mesh,"interpolation":"bilinear"}
+                }))
+                .unwrap(),
+            )
+            .store(),
+        );
+        assert_eq!(
+            canvas_bake_key(&layer, 0),
+            canvas_bake_key(&layer, 2),
+            "full-resolution Camera Raw stacks reuse the unstripped bake across zoom levels"
+        );
+    }
+
+    #[test]
+    fn camera_raw_stage_mask_survives_detail_stripping_at_l1() {
+        let mut node = Node::new(
+            Spec::parse(
+                r#"{"id":"camera_raw","params":{
+            "settings":{"tone":{"exposure":0.3,"texture":40,"clarity":30},
+            "detail":{"sharpening":{"amount":60},"noise_reduction":{"luminance":20,"color":25}}},
+            "amount":0.35}}"#,
+            )
+            .unwrap(),
+        );
+        node.mask_png = Some("stored-mask-png".into());
+        node.opacity = 0.6;
+        node.blend = BlendMode::Multiply;
+        let saved = node.store();
+        let stripped = at_preview_level(vec![Node::of(&saved).unwrap()], 1).unwrap();
+        let out = &stripped[0];
+        assert_eq!(out.mask_png, node.mask_png);
+        assert_eq!(out.opacity, node.opacity);
+        assert_eq!(out.blend, node.blend);
+        assert_eq!(out.enabled, node.enabled);
+        let value: serde_json::Value = serde_json::from_str(&out.spec.json).unwrap();
+        let params = filters::camera_raw::parse(&value["params"]).unwrap();
+        assert_eq!(params.amount, 0.35);
+        assert_eq!(params.settings.tone.exposure, 0.3);
+        assert_eq!(params.settings.tone.texture, 0.0);
+        assert_eq!(params.settings.tone.clarity, 0.0);
+        assert_eq!(params.settings.detail.sharpening.amount, 0.0);
+        assert_eq!(params.settings.detail.noise_reduction.luminance, 0.0);
+        assert_eq!(params.settings.detail.noise_reduction.color, 0.0);
+        assert_eq!(Node::of(&saved).unwrap().spec.json, node.spec.json);
+        assert_eq!(
+            at_preview_level(vec![node.clone()], 0).unwrap()[0].key(),
+            node.key()
+        );
+    }
+
     fn bake_job(key: &str) -> BakeJob {
         BakeJob {
             key: key.into(),
