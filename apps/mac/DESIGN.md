@@ -539,6 +539,10 @@ an unseen Library selection while editing. Escape reaches active tool cancellati
 before returning to Library. Y in Library still confirms all **visible** suggestions,
 with that scope named; changing its shortcut meaning is a separate migration.
 
+The generated [keyboard shortcut reference](../../docs/shortcuts.md) lists menu equivalents,
+routed keys, mode boundaries and macOS reservations. `ShortcutIntegrityTests` checks it
+against the command definitions and key maps during the Swift gate.
+
 Layered documents remain a distinct workspace with their existing tabs, tools,
 save/dirty state and history. The Library-side handoff is **Open in Layers…** and explains that adjustments become pixels while the RAW
 and its recipe remain separate. An already-open copy reopens unchanged, without
