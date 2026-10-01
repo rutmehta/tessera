@@ -287,28 +287,32 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
             for (j, &weight) in k.iter().enumerate() {
                 let d = j as i32 - r;
                 let left_end = strip_end.min(interior_start);
-                for x in strip_start..left_end {
+                for (offset, out_pixel) in out_row[strip_start..left_end].iter_mut().enumerate() {
+                    let x = strip_start + offset;
                     let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
                     let sample = src.pixels[row + sample_x];
                     for c in 0..4 {
-                        out_row[x][c] += weight * sample[c];
+                        out_pixel[c] += weight * sample[c];
                     }
                 }
                 let middle_start = strip_start.max(interior_start);
                 let middle_end = strip_end.min(interior_end);
-                for x in middle_start..middle_end {
+                for (offset, out_pixel) in out_row[middle_start..middle_end].iter_mut().enumerate()
+                {
+                    let x = middle_start + offset;
                     let sample_x = (x as i32 + d) as usize;
                     let sample = src.pixels[row + sample_x];
                     for c in 0..4 {
-                        out_row[x][c] += weight * sample[c];
+                        out_pixel[c] += weight * sample[c];
                     }
                 }
                 let right_start = strip_start.max(interior_end);
-                for x in right_start..strip_end {
+                for (offset, out_pixel) in out_row[right_start..strip_end].iter_mut().enumerate() {
+                    let x = right_start + offset;
                     let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
                     let sample = src.pixels[row + sample_x];
                     for c in 0..4 {
-                        out_row[x][c] += weight * sample[c];
+                        out_pixel[c] += weight * sample[c];
                     }
                 }
             }
@@ -328,9 +332,12 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
                 let d = j as i32 - r;
                 let sample_y = (y as i32 + d).clamp(0, src.h as i32 - 1) as usize;
                 let sample_row = &horizontal[sample_y * src.w..(sample_y + 1) * src.w];
-                for x in strip_start..strip_end {
+                for (out_pixel, sample_pixel) in out_row[strip_start..strip_end]
+                    .iter_mut()
+                    .zip(&sample_row[strip_start..strip_end])
+                {
                     for c in 0..4 {
-                        out_row[x][c] += weight * sample_row[x][c];
+                        out_pixel[c] += weight * sample_pixel[c];
                     }
                 }
             }
