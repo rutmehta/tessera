@@ -55,7 +55,8 @@ fn locator_does_not_affect_identity_but_asset_and_owner_do() {
 #[test]
 fn explicit_schema_and_owner_are_required() {
     let mut v: serde_json::Value = serde_json::from_slice(&bytes()).unwrap();
-    for version in [2, 4] {
+    let newer = engine_api::recipe::max_writable_schema_version() + 1;
+    for version in [2, newer] {
         v["schema_version"] = version.into();
         assert!(PinnedRawDescriptor::new(input(serde_json::to_vec(&v).unwrap())).is_err());
     }

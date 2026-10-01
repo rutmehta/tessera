@@ -1,4 +1,4 @@
-use engine_api::recipe::{RECIPE_SCHEMA_VERSION, Recipe};
+use engine_api::recipe::{Recipe, max_writable_schema_version};
 use sidecar::{RecipeDocument, Sidecar};
 use std::collections::BTreeMap;
 
@@ -22,7 +22,7 @@ fn recipe_atomic_roundtrip_and_schema_guard() {
     assert_eq!(doc, read);
     Sidecar::write_recipe(&paths.recipe, &read).unwrap();
     assert_eq!(first, std::fs::read(&paths.recipe).unwrap());
-    doc.recipe.schema_version = RECIPE_SCHEMA_VERSION + 1;
+    doc.recipe.schema_version = max_writable_schema_version() + 1;
     assert!(Sidecar::write_recipe(&paths.recipe, &doc).is_err());
     assert_eq!(first, std::fs::read(&paths.recipe).unwrap());
     std::fs::remove_dir_all(dir).unwrap();

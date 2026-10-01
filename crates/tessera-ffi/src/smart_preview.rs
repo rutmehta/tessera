@@ -484,6 +484,13 @@ pub(crate) fn save_local_recipe(journal: &mut SmartPreviewJournal, recipe: &Reci
     ] {
         value["recipe"][key] = updated[key].clone();
     }
+    // A schema 4 feature bumps the stored version (LR-SCHEMA); otherwise the
+    // envelope's own version bytes are retained.
+    if engine_api::recipe::required_schema_version(recipe)
+        > engine_api::recipe::RECIPE_SCHEMA_VERSION
+    {
+        value["recipe"]["schema_version"] = updated["schema_version"].clone();
+    }
     journal
         .save_recipe(serde_json::to_vec(&value).map_err(failure)?)
         .map_err(failure)?;
@@ -640,6 +647,40 @@ mod tests {
         assert_eq!(fs::read(original).unwrap(), b"untouched");
         let doc: sidecar::RecipeDocument = serde_json::from_slice(&snapshot.recipe).unwrap();
         assert_eq!(doc.recipe.settings.tone.exposure, 1.25);
+    }
+    /// LR-SCHEMA: without a schema 4 feature, a local save keeps the journal
+    /// envelope's own (legacy) version bytes rather than the in-memory upgrade.
+    #[test]
+    fn local_save_keeps_legacy_envelope_schema_version() {
+        let local = tempfile::tempdir().unwrap();
+        let id = ImageId(9103);
+        let mut legacy: serde_json::Value = serde_json::from_slice(&recipe(id)).unwrap();
+        legacy["recipe"]["schema_version"] = serde_json::json!(2);
+        let legacy = serde_json::to_vec(&legacy).unwrap();
+        let mut journal =
+            SmartPreviewJournal::create(local.path(), id, [1; 32], 9, legacy.clone(), None, None)
+                .unwrap();
+        let mut doc: sidecar::RecipeDocument = serde_json::from_slice(&legacy).unwrap();
+        assert_eq!(
+            doc.recipe.schema_version,
+            engine_api::recipe::RECIPE_SCHEMA_VERSION
+        );
+        assert!(engine_api::recipe::v4_features_used(&doc.recipe).is_empty());
+        doc.recipe.settings.tone.exposure = 0.75;
+        doc.recipe
+            .history
+            .record(
+                &doc.recipe.history.base.clone(),
+                &doc.recipe.settings,
+                engine_api::recipe::EditMeta::user("test edit", 1),
+            )
+            .unwrap();
+        save_local_recipe(&mut journal, &doc.recipe).unwrap();
+        drop(journal);
+        let (_journal, snapshot) = SmartPreviewJournal::open(local.path(), id).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&snapshot.recipe).unwrap();
+        assert_eq!(value["recipe"]["schema_version"], 2);
+        assert_eq!(value["recipe"]["settings"]["tone"]["exposure"], 0.75);
     }
     #[test]
     fn dirty_local_recipe_blocks_full_quality_export_and_direct_original_write() {

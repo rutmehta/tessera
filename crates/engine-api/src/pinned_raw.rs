@@ -86,10 +86,16 @@ impl PinnedRawDescriptor {
         let obj = value
             .as_object()
             .ok_or_else(|| bad("recipe_json", "expected object"))?;
-        if obj.get("schema_version").and_then(Value::as_u64) != Some(3) {
+        let writable = u64::from(crate::recipe::RECIPE_SCHEMA_VERSION)
+            ..=u64::from(crate::recipe::max_writable_schema_version());
+        if !obj
+            .get("schema_version")
+            .and_then(Value::as_u64)
+            .is_some_and(|v| writable.contains(&v))
+        {
             return Err(bad(
                 "schema_version",
-                "explicit raw recipe schema 3 required",
+                "explicit writable raw recipe schema (3 or a supported conditional 4) required",
             ));
         }
         if obj

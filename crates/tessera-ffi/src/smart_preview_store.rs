@@ -352,7 +352,7 @@ fn validate_recipe(id: ImageId, bytes: &[u8]) -> StoreResult<()> {
         .and_then(|recipe| recipe.get("schema_version"))
         .and_then(serde_json::Value::as_u64)
         .ok_or_else(|| StoreError::Corrupt("recipe schema version is missing or invalid".into()))?;
-    if schema_version > u64::from(engine_api::recipe::RECIPE_SCHEMA_VERSION) {
+    if schema_version > u64::from(engine_api::recipe::max_writable_schema_version()) {
         return Err(StoreError::Corrupt(format!(
             "unsupported future recipe schema {schema_version}"
         )));
@@ -784,6 +784,31 @@ mod tests {
                 .exists()
         );
         assert_eq!(journal.snapshot().unwrap().generation, 1);
+    }
+
+    /// LR-SCHEMA: the journal ceiling is exactly the writable maximum.
+    #[test]
+    fn schema_just_above_writable_max_cannot_replace_a_record() {
+        let dir = tempdir().unwrap();
+        let id = ImageId(40);
+        let mut journal =
+            SmartPreviewJournal::create(dir.path(), id, [0; 32], 1, recipe(id), None, None)
+                .unwrap();
+        let path = journal.path();
+        let original_record = fs::read(&path).unwrap();
+        let max = engine_api::recipe::max_writable_schema_version();
+        let mut newer: serde_json::Value = serde_json::from_slice(&recipe(id)).unwrap();
+        newer["recipe"]["schema_version"] = serde_json::json!(max + 1);
+        assert!(matches!(
+            journal.save_recipe(serde_json::to_vec(&newer).unwrap()),
+            Err(StoreError::Corrupt(_))
+        ));
+        assert_eq!(fs::read(&path).unwrap(), original_record);
+        let mut current: serde_json::Value = serde_json::from_slice(&recipe(id)).unwrap();
+        current["recipe"]["schema_version"] = serde_json::json!(max);
+        journal
+            .save_recipe(serde_json::to_vec(&current).unwrap())
+            .unwrap();
     }
 
     #[test]
