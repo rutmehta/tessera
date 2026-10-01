@@ -7,7 +7,6 @@ use engine_api::{
     id::RetouchId,
     recipe::{
         MaskComponent, MaskKind, Recipe,
-        history::{Author, EditMeta},
         mask::{BrushStroke, RetouchKind, RetouchOperation, RetouchTarget},
     },
 };
@@ -60,23 +59,7 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         // Empty values do not justify altering previously retained recipes.
         return Ok(());
     };
-    // Rebuild the single import edit from its original base, including retouch.
-    // This translator runs only while constructing a fresh imported recipe.
-    let mut settings = recipe.settings.clone();
-    settings.locals.retouch = ops;
-    recipe.settings = recipe.history.base.clone();
-    recipe.history.entries.clear();
-    recipe.history.head = None;
-    recipe.edit(
-        EditMeta {
-            label: "Import Lightroom".into(),
-            author: Author::Import {
-                source: "lightroom-classic".into(),
-            },
-            ..EditMeta::default()
-        },
-        |s| *s = settings,
-    )?;
+    recipe.settings.locals.retouch = ops;
     for (key, ops) in decoded {
         if ops.is_empty() {
             continue;
@@ -84,7 +67,7 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         let qualified = format!("crs:{key}");
         recipe.unknown.remove(&qualified);
         warnings.retain(|w| !w.starts_with(&format!("{qualified}:")));
-        push_approximate(
+        crate::diagnostics::push_approximate(
             recipe,
             key,
             "/settings/locals/retouch",
@@ -93,26 +76,6 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         );
     }
     Ok(())
-}
-
-// TODO(LR-DIAG): replace with import_lrcat::diagnostics::push_approximate
-fn push_approximate(recipe: &mut Recipe, adobe_key: &str, field: &str, lane: &str, reason: &str) {
-    let entry = serde_json::json!({"level":"info", "status":"approximate", "lane":lane, "field":field, "reason":reason});
-    let diagnostics = recipe
-        .unknown
-        .entry("lrcat_translation_diagnostics".into())
-        .or_insert_with(|| Value::Object(Map::new()));
-    let Some(diagnostics) = diagnostics.as_object_mut() else {
-        return;
-    };
-    let entries = diagnostics
-        .entry(adobe_key)
-        .or_insert_with(|| Value::Array(Vec::new()));
-    if let Some(entries) = entries.as_array_mut()
-        && !entries.contains(&entry)
-    {
-        entries.push(entry);
-    }
 }
 
 fn literal(value: LuaValue) -> Option<Value> {

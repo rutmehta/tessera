@@ -150,7 +150,7 @@ fn lr3d_import_is_one_history_entry_and_approximate_without_warnings() {
         let notes = import_lrcat::diagnostics::entries(&r);
         assert!(notes[key].iter().any(|e| e.level == "info"
             && e.status == "approximate"
-            && e.field == "/settings/locals/retouch"));
+            && e.field.as_deref() == Some("/settings/locals/retouch")));
         assert_eq!(serde_json::to_value(&r).unwrap()["schema_version"], 4);
     }
 }

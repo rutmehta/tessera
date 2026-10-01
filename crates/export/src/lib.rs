@@ -314,8 +314,11 @@ pub fn render_pixels(
 }
 
 pub fn render_pixels_with_retouch(
-    image: &ExportImage<'_>, recipe: &Recipe, render: &RenderRequest,
-    cancel: &CancellationToken, segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    render: &RenderRequest,
+    cancel: &CancellationToken,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
     retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
 ) -> EngineResult<image::Rgb32FImage> {
     render_pixels_with_resources(image, recipe, render, cancel, segmenter, retouch)

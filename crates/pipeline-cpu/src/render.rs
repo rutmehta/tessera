@@ -323,39 +323,14 @@ fn render_linear_impl(
     }
     rgb = crate::optics::profile_vignette(&rgb, &settings.lens, &correction)?;
     rgb = crate::optics::point_corrections(&rgb, &settings.lens)?;
-    // Retouch operates in the unrotated scene-linear active image before Detail
-    // and Tone. Preview spots use target-level pixels, never a full-sensor solve.
-    let active_retouch = settings
-        .locals
-        .retouch
-        .iter()
-        .any(|op| op.enabled && op.opacity > 0.0);
-    // Inactive spots must preserve the no-retouch preview sampling order.
-    let early_scale = if active_retouch { scale } else { 1 };
-    let reduced_depth = if early_scale > 1 {
-        depth
-            .map(|(plane, _)| {
-                Image::new(rgb.width(), rgb.height(), vec![plane.to_vec()])?
-                    .downsample_crop([0, 0, rgb.width(), rgb.height()], early_scale)
-            })
-            .transpose()?
-    } else {
-        None
-    };
-    let depth = depth.map(|(plane, options)| {
-        (
-            reduced_depth
-                .as_ref()
-                .map_or(plane, |image| image.planes()[0].as_slice()),
-            options,
-        )
-    });
-    if early_scale > 1 {
-        rgb = rgb.downsample_crop([0, 0, rgb.width(), rgb.height()], early_scale)?;
-        crop = [0, 0, rgb.width(), rgb.height()];
-    }
-    let scale = scale / early_scale;
-    rgb = crate::apply_retouch(rgb, &settings.locals.retouch, context.retouch.as_deref())?;
+    // Only the spot solve uses preview pixels. Lift its nonzero delta back
+    // before Detail/Tone so every downstream stage keeps its original sampling.
+    rgb = crate::retouch::apply_retouch_scaled(
+        rgb,
+        &settings.locals.retouch,
+        context.retouch.as_deref(),
+        scale,
+    )?;
     if crate::detail_halo(&settings.detail) > 0 || settings.detail != Default::default() {
         let workers = std::thread::available_parallelism().map_or(1, usize::from);
         rgb = detail_image(&rgb, &settings.detail, workers)?;
