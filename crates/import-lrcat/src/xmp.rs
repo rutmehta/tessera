@@ -37,10 +37,15 @@ fn decode_with_mask_audit(text: &str, extensions: bool) -> EngineResult<sidecar:
 /// Compatibility diagnostics retain individual properties as well as the exact
 /// original packet, even when a legacy spelling needs normalization for decoding.
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
-    let (mut recipe, warnings) = parse_inner(text, process_version, true)?;
+    let (mut recipe, mut warnings) = parse_inner(text, process_version, true)?;
+    crate::retouch::translate(&mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
     Ok((recipe, warnings))
+}
+
+pub(crate) fn parse_without_retouch(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
+    parse_inner(text, process_version, false)
 }
 
 pub(crate) fn parse_inner(

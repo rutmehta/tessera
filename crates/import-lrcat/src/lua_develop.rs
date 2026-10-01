@@ -696,7 +696,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         return Err(error("develop settings are not a table"));
     };
     let (packet, notes, keep) = to_xmp(&table);
-    let (mut recipe, mut warnings) = crate::xmp::parse_inner(&packet, process_version, false)?;
+    let (mut recipe, mut warnings) = crate::xmp::parse_without_retouch(&packet, process_version)?;
     // The packet was generated from the literal; it is not source data.
     recipe.unknown.remove("sidecar_xmp");
     // Never derive retention from decoder diagnostics: future translators need
@@ -753,6 +753,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         *warning = warning.replace("retained in original XMP", "source preserved per property");
     }
     warnings.extend(notes);
+    crate::lr2::lua(&table, &mut recipe, &mut warnings)?;
     crate::geometry::apply(
         &mut recipe,
         &mut warnings,
@@ -769,7 +770,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             Some((key.as_str(), value))
         }),
     )?;
-    crate::lr2::lua(&table, &mut recipe, &mut warnings)?;
+    crate::retouch::translate(&mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
     Ok((recipe, warnings))

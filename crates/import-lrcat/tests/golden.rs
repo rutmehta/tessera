@@ -6,8 +6,9 @@ mod common;
 use engine_api::id::Digest;
 
 const N: i64 = 2_000;
-/// Re-pinned for tagged retained-source envelopes; exact per-key tests cover source spelling.
-const GOLDEN: &str = "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8";
+/// LR-3 translates RetouchInfo in the 200 synthetic structure rows. Other rows
+/// retain the B5-29c output; see the LR-3 byte-comparison evidence.
+const GOLDEN: &str = "8dd7443a4a62f86c4133d2ee8bbb2036c1790912ed21070d799d1a8dd87c16c4";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();

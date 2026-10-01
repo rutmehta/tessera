@@ -29,7 +29,7 @@ fn lr3_spot_coordinates_offsets_and_units() {
         assert_eq!(strokes[0].points, vec![[0.25, 0.5, 1.0]]);
         assert_eq!(strokes[0].radius, 0.0625);
         assert_eq!(strokes[0].feather, 50.0);
-        assert!(r.unknown.get("lrcat_develop_source").is_none());
+        assert!(!r.unknown.contains_key("lrcat_develop_source"));
     }
 }
 
@@ -44,7 +44,7 @@ fn lr3_legacy_string_heal_and_empty_alias() {
             source_offset: [0.5, 0.0]
         }
     );
-    assert!(r.unknown.get("lrcat_develop_source").is_none());
+    assert!(!r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn lr3_brush_dabs_and_source_anchor() {
         panic!()
     };
     assert_eq!(strokes[0].points, vec![[0.25, 0.5, 1.0], [0.3, 0.6, 1.0]]);
-    assert!(r.unknown.get("lrcat_develop_source").is_none());
+    assert!(!r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn lr3_xmp_attributes_and_legacy_items() {
     let (r, _) = develop(1, xml, "15.4").unwrap();
     assert_eq!(r.settings.locals.retouch.len(), 1);
     assert_eq!(r.settings.locals.retouch[0].opacity, 50.0);
-    assert!(r.unknown.get("lrcat_develop_source").is_none());
+    assert!(!r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]
@@ -118,5 +118,5 @@ fn lr3_xmp_inherited_namespace_prefix_is_not_semantic() {
     let (r, _) = develop(1, xml, "15.4").unwrap();
     assert_eq!(r.settings.locals.retouch.len(), 1);
     r.validate().unwrap();
-    assert!(r.unknown.get("lrcat_develop_source").is_none());
+    assert!(!r.unknown.contains_key("lrcat_develop_source"));
 }
