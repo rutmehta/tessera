@@ -15,6 +15,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### External Export Flat integration — 2026-10-01 15:12 UTC heartbeat
+
+Main `16b0b890` integrates B5-40: worker snapshot acquisition, duplicate-aware progress throttling, and HUD control reuse. External exact-tree evidence `/Volumes/betterSSD/tessera-validation/batch26-16b0b890/exits.txt` records swift-gate0, bindings drift0, strict0; gate log reports896 XCTest cases/3skipped/0failures. These are externally executed gates, not Codex runtime. The whole-main-thread <8ms target remains OPEN; timing bounds are opt-in on quiet hosts. Current UI intentionally includes edits committed between confirmation and worker snapshot acquisition. ENG-2 must enable B to restore click-time acquisition without losing live scratch semantics. Rust ENG-2 draft target files are unchanged from `a187355e`; no runtime RED/acceptance is implied. B5-47 HUD follow-up remains B-owned. Mailbox has no new messages or peer receipts; existing explicit runtime handoff remains pending.
+
 ### External canvas evidence remains partial — 2026-10-01 12:37 UTC heartbeat
 
 Main445131fc adds B5-30 evidence only, measured on dc30a179 on Machine B. Read `ONSCREEN-EDGE-ALPHA.md`: reported red/grey and linear-light alpha baselines pass;50% profile agreement is not interpolation proof. Requested75%/150% matrix remains blocked/unmeasured because current zoom steps lack these values, and the capture path has a resampling confound. No renderer failure or full on-screen qualification is established. Original measurements/crops are preserved; exact-zoom access and verified1:1 capture are the existing UI owner's next actions. Codex did not rerun GUI, alter zoom or claim a new test result. Mailbox/approval/runtime-handoff state unchanged.
