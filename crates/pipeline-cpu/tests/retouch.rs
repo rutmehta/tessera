@@ -9,7 +9,7 @@ use engine_api::{
 use pipeline_cpu::{Image, RenderSource, render_linear_scaled};
 
 #[test]
-fn heal_and_clone_spots_render_through_develop_cpu() {
+fn spots_without_registered_renderer_fail_explicitly() {
     let plane: Vec<f32> = (0..80)
         .flat_map(|_| (0..128).map(|x| if x >= 64 { 0.8 } else { 0.1 }))
         .collect();
@@ -44,9 +44,9 @@ fn heal_and_clone_spots_render_through_develop_cpu() {
         enabled: true,
     })
     .collect();
-    let rendered = render_linear_scaled(&settings, &RenderSource::Rgb(&image), 1)
-        .expect("Develop CPU must render supported heal and clone spots");
-    assert_eq!((rendered.width(), rendered.height()), (128, 80));
-    // A successful return that silently drops retouch must also fail this test.
-    assert!(rendered.planes()[0][24 * 128 + 32] > baseline.planes()[0][24 * 128 + 32] + 0.1);
+    let error = render_linear_scaled(&settings, &RenderSource::Rgb(&image), 1).unwrap_err();
+    assert!(
+        matches!(error, engine_api::EngineError::InvalidArgument { name, .. } if name == "retouch")
+    );
+    assert_eq!((baseline.width(), baseline.height()), (128, 80));
 }

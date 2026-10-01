@@ -91,3 +91,57 @@ fn lr3_synthetic_catalog_clone_pixels() {
         "LR-3 synthetic 128x80: centroid_error_px={error:.8}, center={center:.8}, feather_shoulder={shoulder:.8}"
     );
 }
+
+#[test]
+fn synthetic_catalog_to_develop_cpu() {
+    use std::sync::Arc;
+    let dir = tempfile::tempdir().unwrap();
+    let fixture = import_lrcat::fixture::write(dir.path()).unwrap();
+    let c = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    c.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4' WHERE image=30", ["s = { RetouchInfo = {{ centerX=0.25, centerY=0.5, radius=0.0625, sourceX=0.75, sourceY=0.5, spotType='clone', opacity=0.5, feather=0.5 }} }"]).unwrap();
+    drop(c);
+    let plan = import_lrcat::import(&fixture.catalog).unwrap();
+    let recipe = &plan
+        .images
+        .iter()
+        .find(|i| i.catalog_id == 30)
+        .unwrap()
+        .recipe;
+    assert_eq!(recipe.settings.locals.retouch.len(), 1);
+    let plane = (0..80)
+        .flat_map(|_| (0..128).map(|x| if x >= 64 { 0.8 } else { 0.1 }))
+        .collect();
+    let pixels = pipeline_cpu::Image::new(128, 80, vec![plane; 3]).unwrap();
+    let raw = image_core::RawImage::from_rgb(
+        engine_api::id::ImageId(44),
+        image_core::RgbSource::from_linear_rec2020(pixels).unwrap(),
+    )
+    .unwrap();
+    let renderer = image_core::Renderer::new(Default::default())
+        .with_retouch_renderer(Arc::new(brush::render_retouch))
+        .for_recipe(recipe);
+    let rect = image_core::PixelRect::full(raw.active_extent());
+    let mut baseline = recipe.settings.clone();
+    baseline.locals.retouch.clear();
+    let before = renderer
+        .render_region_as(
+            &raw,
+            &baseline,
+            0,
+            rect,
+            image_core::RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let after = renderer
+        .render_region_as(
+            &raw,
+            &recipe.settings,
+            0,
+            rect,
+            image_core::RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let l = after[0].layout();
+    let i = l.index(0, 32, 40).unwrap();
+    assert!(after[0].samples::<f32>().unwrap()[i] > before[0].samples::<f32>().unwrap()[i] + 0.1);
+}
