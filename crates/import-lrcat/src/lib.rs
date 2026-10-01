@@ -718,6 +718,10 @@ pub fn import_each_with_storage(
     begin: impl FnOnce(&ImportPlan) -> EngineResult<()>,
     mut visit: impl FnMut(ImportedImage) -> EngineResult<()>,
 ) -> EngineResult<ImportPlan> {
+    if let Some(storage) = storage {
+        sidecar::Sidecar::ensure_destination(storage, "import bundle")?;
+        sidecar::Sidecar::ensure_destination(storage.join("large"), "import source cells")?;
+    }
     let source = path.as_ref();
     let (_temp, copy) = copied_catalog(source)?;
     let c = open_copy(&copy)?;

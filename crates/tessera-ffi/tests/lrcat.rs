@@ -859,3 +859,43 @@ fn read_only_report_counts_successful_writes_not_failed_candidates() {
             .any(|p| p.ends_with("ceremony-01.jpg"))
     );
 }
+
+#[test]
+fn streaming_resume_rejects_protected_publication_symlinks() {
+    for child in ["bundle", "large", "import-plan.json"] {
+        let s = setup();
+        let options = relocated(&s);
+        s.import.apply(options.clone(), None).unwrap();
+        let import_root = Path::new(&options.library_folder).join(".tessera-import");
+        let bundle = std::fs::read_dir(&import_root)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let protected = s._temp.path().join("Retained.lrdata");
+        std::fs::create_dir(&protected).unwrap();
+        let destination = if child == "bundle" {
+            bundle.clone()
+        } else {
+            bundle.join(child)
+        };
+        if destination.is_dir() {
+            std::fs::rename(&destination, s._temp.path().join("saved-bundle")).unwrap();
+        } else if destination.exists() {
+            std::fs::remove_file(&destination).unwrap();
+        }
+        let target = if child == "import-plan.json" {
+            let target = protected.join("plan.json");
+            std::fs::write(&target, b"untouched").unwrap();
+            target
+        } else {
+            protected.clone()
+        };
+        std::os::unix::fs::symlink(target, destination).unwrap();
+        let before = snapshot(&protected);
+        let error = s.import.apply(options, None).unwrap_err();
+        assert!(error.to_string().contains("import bundle"), "{error}");
+        assert_eq!(snapshot(&protected), before);
+    }
+}

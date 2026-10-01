@@ -1161,11 +1161,21 @@ impl LrcatImport {
             ));
         }
         Sidecar::ensure_destination(&library_folder, "library folder")?;
-        std::fs::create_dir_all(&library_folder)?;
         let library_path = library_folder.join("library.json");
         let bundle = bundle_dir(&library_folder, &self.catalog);
-        std::fs::create_dir_all(&bundle)?;
         let plan_file = bundle.join("import-plan.json");
+        // Check nested destinations too: an existing bundle or child may be a
+        // symlink into Lightroom-owned storage, including on resume.
+        for path in [
+            library_path.clone(),
+            bundle.clone(),
+            plan_file.clone(),
+            bundle.join("large"),
+            bundle.join("state.json"),
+        ] {
+            Sidecar::ensure_destination(&path, "import bundle")?;
+        }
+        std::fs::create_dir_all(&bundle)?;
         // Publish every lossless source cell before publishing its references.
         // Resume may use records from a later session with new source cells.
         // Keep the private copies for retries and independent record reads.
@@ -1176,6 +1186,7 @@ impl LrcatImport {
             for entry in std::fs::read_dir(large)? {
                 let entry = entry?;
                 let target = destination.join(entry.file_name());
+                Sidecar::ensure_destination(&target, "import source cell")?;
                 if target.exists() {
                     let digest = |path: &Path| -> std::io::Result<blake3::Hash> {
                         let mut hash = blake3::Hasher::new();

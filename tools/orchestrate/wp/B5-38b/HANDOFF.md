@@ -1,4 +1,44 @@
-# B5-38b — Machine A review rework
+# B5-38b — Rebased review rework
+
+## Rebase onto B5-29c/B5-29d and B5-37 (2026-10-01)
+
+Branch `wp/B5-38` is now based on `origin/main` at `0c6ab1c79ca5cf8265bfc4ce66667898cd36578a`. Fetched origin and rebased all six original B5-38/38b commits locally. The sole textual conflict was in `crates/tessera-ffi/tests/lrcat.rs`: retained both main's catalog-only indexing/degraded-report tests and B5-38's protected-original tests. Production files merged automatically; main's streaming importer, retained-source contract (`recipe.unknown["lrcat_develop_source"]`), oversized side files, durability ordering, and explicit-file indexing remain authoritative.
+
+Rebased history: `188f9ce6 → f7f56c7b`, `aab7d1cb → b1c6367c`, `4d6da349 → 46f91fc2`, `f5f69b4e → 43645c91`, `375623ff → 713e84a7`, `c28d0e4b → a1177c83`. The final local commit adds the streaming publication guards and this updated handoff.
+
+The audit found CLI streaming `--apply` did not guard its bundle destination. It now preflights before empty-reservation recovery, parent/staging creation, and final reservation/publication. The lower streaming import API guards supplied storage and its `large` directory. FFI apply preflights the library file, bundle, `import-plan.json`, `large`, and resume state before creating the bundle, and checks each retained-source target. This covers existing nested symlinks into protected directories as well as lexical protected paths. Main's lossless copy/digest and sync/publication semantics remain unchanged.
+
+New regressions cover CLI direct and symlinked protected destinations (including preservation of empty reservations), and FFI resume with the bundle, `large`, or `import-plan.json` redirected into protected storage. Existing tests verify protected originals receive recipes in engine Application Support, preserve adjacent bytes through import/resume/edit, retain oversized source bytes, and index only catalog references.
+
+### Current gates after rebase
+
+All builds were serial with `PATH="$HOME/.cargo/bin:$PATH"`, `CARGO_TARGET_DIR="$HOME/.cache/tessera-target/B5-38"`, `CARGO_BUILD_JOBS=1`, and `MACOSX_DEPLOYMENT_TARGET=15.0`. Rust tests also used `RUST_TEST_THREADS=1` and `TESSERA_APP_DIR=/tmp/B5-38-rebase-app-store` to isolate standalone metadata stores.
+
+Passed, exit 0:
+
+```sh
+RUST_TEST_THREADS=1 cargo test --locked --release -p sidecar -p export -p index -p import-lrcat -p tessera-cli -p tessera-ffi -p cull --no-fail-fast
+cargo clippy --locked --all-targets -p sidecar -p cull -p index -p export -p import-lrcat -p tessera-cli -p tessera-ffi -- -D warnings
+cargo fmt --all -- --check
+(cd apps/mac && ./build-ffi.sh)
+```
+
+The release command completed every target, including the full FFI suite. Both new streaming guard tests passed, as did protected-original import/edit/remount, catalog-only indexing, lossless oversized-cell publication, streaming equivalence, importer scale, and FFI streaming-memory tests. The fixture-only catalog-copy test remains ignored; no personal catalogs were opened. The generated archive is arm64, and regenerated Swift/C bindings have no source diff. Logs: `/tmp/B5-38-rebase-tests.log`, `/tmp/B5-38-rebase-clippy.log`, `/tmp/B5-38-rebase-fmt.log`, `/tmp/B5-38-rebase-build-ffi.log`.
+
+**Swift gate FAILED (exit 1); no `SWIFT GATE OK`.** Ran the unmodified script as `CI=1 bash -x tools/orchestrate/swift-gate.sh`, using its existing CI skips because the earlier normal-mode run recorded below stalled. This is not a claim that the default non-CI gate passed. Swift build passed (`Build complete! (27.45s)`), and release test compilation passed. Final results:
+
+```text
+Executed 871 tests, with 9 tests skipped and 1 failure (0 unexpected) in 154.932 (155.005) seconds
+Test run with 5 tests in 2 suites passed after 0.027 seconds.
+SWIFT GATE FAILED (exit 1):
+MasksPanelLayoutTests.testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth
+```
+
+The sole failure was `could not create image from window`, followed by the `CGImageSourceRef` unwrap at `apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:88`. This reproduces the known window-capture limitation and is consistent with the stated locked-screen condition; the required green Swift gate remains outstanding. No new skips or test modifications were introduced. Gate log: `/tmp/B5-38-rebase-swift-gate.log`; preserved detailed output including the failure: `/tmp/B5-38-rebase-swift-details.log`.
+
+No `board.json` or `Cargo.lock` changes, no push, no Pictures catalogs opened, and no GUI app launched. Window-capture activity came only from the required Swift test harness. All commits remain local. Historical pre-rebase evidence follows separately.
+
+## Historical pre-rebase handoff
 
 Branch: `wp/B5-38`. Added on top of `4d6da349`; the original three B5-38 commits were not rebased. Local commits only. This supersedes B5-38's protected-path and store-location descriptions.
 
