@@ -1,0 +1,38 @@
+# LR-1 / LR-2 Adobe schema research (2026-09-30)
+
+Scope: Adobe Help and ExifTool primary references, plus explicitly non-normative Adobe-hosted community observations. Community hosting does not make a user report an Adobe specification. No user catalog or local code changes were used.
+
+## PointColors
+
+**Established function semantics (Adobe Help):** Lightroom Classic's Point Color samples a color and stores a swatch; controls are Hue Shift, Saturation Shift, Luminance Shift, Variance, and Range. Adobe says Variance determines how broadly/narrowly similar colors are affected and Range sets limits of colors included. Adobe Help does not describe the persisted property grammar or numeric encoding. [Adobe, Color Mixer / Point Color](https://helpx.adobe.com/uk/lightroom-classic/desktop/process-and-develop-photos/color-mixer.html) (last updated 2025-10-27; see “Edit your images with Point Color”).
+
+**Established XMP property type, but not value grammar:** ExifTool's XMP-crs tag database lists `PointColors` as `string+` (one or more string values/list-type). This recognizes the property and broad RDF/XMP item type only; it does not publish the contents of each string. [ExifTool XMP tag database](https://exiftool.org/TagNames/XMP.html) (search for `PointColors string+`; mirrored in ExifTool's [published TagNames PDF](https://exiftool.org/TagNames.pdf)). The current ExifTool public docs show no PointColors-specific structure definition. This does not establish whether each string is JSON, packed numbers, a binary encoding, or another format.
+
+**Practical test consequence:** A synthetic import fixture may exercise list preservation with arbitrary string values, but cannot assert parsing into `PointColor` fields until an authoritative exported sample/schema establishes each item's grammar and mapping. In particular, Adobe has separate Variance and Range controls; an Adobe point cannot be faithfully reduced to the current Tessera `PointColor.range` field alone. Adobe docs establish the controls' broad behavior but not their ranges, transfer function, color space, or whether variances apply independently by dimension. Do not infer OkLCh or a Gaussian/falloff formula from the help text.
+
+## ExtendedToneCurvePV2012
+
+**Names/shape evidence, not a complete specification:** An Adobe-hosted Lightroom SDK forum response states Lightroom introduced `ExtendedToneCurvePV2012`, `ExtendedToneCurvePV2012Red`, `...Green`, and `...Blue`; legacy `ToneCurvePV2012` and channel settings remain too; the relationship is “undocumented and not clear.” It also identifies `EnableToneCurve` as a separate setting that should accompany curves. [Adobe Community: SDK curve settings issue](https://community.adobe.com/questions-675/sdk-curve-settings-issue-with-photo-applydeveloppreset-in-lr-sdk-972917), accepted answer, 2023-10-31 (lines 41-42 / 56-57 in page text).
+
+An Adobe-hosted bug report contains a catalog metadata dump for `ExtendedToneCurvePV2012` as a Lua numeric array of alternating x,y values: `0,0,149,88,255,255,302,344,448,473`. This establishes one observed array representation and that coordinates may exceed 255 (HDR extension); it does not establish point-count constraints, units/normalization for all versions, interpolation, or precedence relative to the classic field. [Adobe Community bug report: HDR region truncation](https://community.adobe.com/bug-reports-674/p-sdk-photo-applydevelopsettings-truncates-the-hdr-region-of-tone-curves-664132), catalog metadata excerpt. This is a first-party-hosted user report, not a published Adobe schema or guarantee.
+
+ExifTool's currently published XMP-crs database recognizes classic `ToneCurvePV2012` properties as `string+`, but provides no documented `ExtendedToneCurvePV2012*` XMP tag/grammar. That absence is a limit of ExifTool's public database, not proof that the property does not exist in Lightroom catalogs.
+
+**Safe synthetic-test boundary:** Build fixtures only for an alternating numeric array with values beyond 255 if the lane explicitly cites the Adobe-hosted dump as a sample shape; label it as a narrow observed format test. Do not equate this array with classic XMP sequence encoding or overwrite classic settings absent precedence evidence. Add `EnableToneCurve` precedence coverage only once runtime semantics are established. A curve test should include values >255 and an input/output knot on the extended interval; the existing recipe's `CurvePoint` is normalized to [0,1], so mapping requires explicit HDR-domain behavior or reporting the portion not representable.
+
+## PV2010 semantics and conversion
+
+Adobe Help separates controls by process version. In PV2010/PV2003, **Blacks** determines which values map to black, **Recovery** reduces extreme highlights to attempt highlight recovery, **Fill Light** lifts shadows while maintaining blacks, and **Brightness** mostly changes midtones. Adobe Help also says Exposure and Contrast apply in all versions; PV2012 instead exposes Highlights, Shadows, Whites, and Blacks with new tone-mapping algorithms. [Adobe, image tone and color](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/image-tone-color.html) (lines 516-553 in opened page).
+
+Adobe identifies PV2010 as Lightroom 3's default, PV2012 as a new process version with new tone controls and tone-mapping algorithms, and warns upgrading a photo to PV2012 may cause significant visual changes. Its documented migration is an explicit process-version update action; Help does not provide a numeric conversion formula from old slider values to new values. [Adobe, Develop module process versions](https://helpx.adobe.com/uk/lightroom-classic/desktop/process-and-develop-photos/develop-module-options.html) (lines 307-360 in opened page).
+
+**Conclusion:** Adobe's official materials establish that PV2010 and PV2012 controls are not semantic aliases and that the migration can materially change appearance. No authoritative numeric PV2010-to-PV2012 mapping was found. Therefore a RED test can assert PV2010 keys are recognized and retained in explicit legacy recipe fields (or that legacy process rendering is selected); it cannot assert they translate losslessly to PV2012 sliders. A lossy conversion should not silently populate current PV2012 settings. Exact rendering compatibility would require Adobe's legacy process implementation or trusted Adobe-rendered golden outputs; the Help pages are descriptive, not an algorithm specification.
+
+## Source excerpts to carry into review
+
+- Adobe Point Color: sampled color, Hue/Saturation/Luminance shift, Variance broadens/narrows similar colors, Range limits affected colors: [Adobe Help](https://helpx.adobe.com/uk/lightroom-classic/desktop/process-and-develop-photos/color-mixer.html).
+- ExifTool PointColors: `string+` only; no element grammar: [XMP tag database](https://exiftool.org/TagNames/XMP.html).
+- Extended curve names are distinct from legacy curve keys and relationship is explicitly undocumented/unclear: [Adobe Community SDK reply](https://community.adobe.com/questions-675/sdk-curve-settings-issue-with-photo-applydeveloppreset-in-lr-sdk-972917).
+- One reported extended curve catalog Lua array includes values >255: [Adobe-hosted issue](https://community.adobe.com/bug-reports-674/p-sdk-photo-applydevelopsettings-truncates-the-hdr-region-of-tone-curves-664132).
+- PV2010 control descriptions: [Adobe Help](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/image-tone-color.html).
+- PV2012 migration warning and separate process version semantics: [Adobe Help](https://helpx.adobe.com/uk/lightroom-classic/desktop/process-and-develop-photos/develop-module-options.html).

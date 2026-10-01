@@ -1,5 +1,18 @@
 # Tessera task board — Machine A coordinator
 
+## Lightroom translation assignment — 2026-10-01
+
+The scoped brief at `68264c74` resumes Codex A for LR-0 through LR-7 only; Claude A retains independent review and all main merges. B owns B5-29c importer performance. The earlier ownership hold remains historical for other work.
+
+| Task | Owner | State | Evidence and next action |
+| --- | --- | --- | --- |
+| LR-0 translation inventory | Codex A / Astra | Source inventory complete; review pending | Base `68264c74`; source-only inventory and independent Luna test-design scouts. 199 Lua mappings, 143 CrsKey names and all 56 passthrough names checked against the matrix. Claude A review required before implementation. |
+| LR-1/2 Point Color, curves and PV2010 | Codex A / Luna scout | Schema and test design | CPU Point Color rejects settings; Adobe string grammar and legacy tone semantics need evidence. No fidelity or RED/GREEN claim. |
+| LR-3/7 retouch and geometry | Codex A / Luna scout | Source and test design | Retouch recipe types exist but CPU develop-render consumer is missing; Adobe retouch/Upright payload semantics need evidence. |
+| LR-4/5/6 masks and Lens Blur | Codex A | Dependency inventory | Confirm representation, raster provenance and inference dependencies before implementing. |
+
+Accepted assignment status `928e9f33-242f-424c-bdca-8f2fff607951` is published on the Git mailbox; coordinator receipt is unverified. No incoming request was ACKed and no receipt was ACKed. No Swift gates, app launches or main writes. Compiler jobs remain serialized with the brief's betterSSD target/temp paths. LR-0 checkout is `/Volumes/betterSSD/tessera-worktrees/codex-lr-0-inventory` (created through the managed tool, moved across volumes with Git administration repaired to keep work on betterSSD).
+
 ## Coordinator reconciliation — 2026-09-30 06:37 UTC
 
 This Codex coordinator resumed read-only reconciliation after its workers hit usage limits. Main is now `74f76332`; `MACHINE-A.md` records a replacement Claude Machine A coordinator and subsequent integrations. Its newer handoff supersedes stale rows/runtime text below: opaque CFA is integrated (`30b298c8`), Dither is integrated (`c9efa690`), and WB attribution G12 is complete with caveats; the failed decision-cache product remains unmerged. The newer B5-21/B5-25 GUI acceptance remains pending per the latest handoff. These are reconciled repository records, not newly executed acceptance checks.
