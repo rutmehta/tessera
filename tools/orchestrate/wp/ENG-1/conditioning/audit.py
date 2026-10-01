@@ -30,10 +30,11 @@ def replace_once(text, old, new):
 
 
 def instrument(text):
-    text = replace_once(text, '        let gain = finite(decode(out)', '''        if y[i].abs() < 1e-3 {
+    text = replace_once(text, '\n        let gain = finite(', '''
+        if y[i].abs() < 1e-3 && out != z[i] {
             eng1_trace(&format!("seed\\t{w}\\t{h}\\t{i}\\t{:08x}", y[i].to_bits()));
         }
-        let gain = finite(decode(out)''')
+        let gain = finite(''')
     text = replace_once(text, '    let normalized: Vec<_> = rgb', '''    eng1_trace(&format!("global\\t{:08x}\\t{:08x}\\t{:08x}\\t{:08x}",
         air[0].to_bits(), air[1].to_bits(), air[2].to_bits(), confidence.to_bits()));
     let normalized: Vec<_> = rgb''')
@@ -170,7 +171,12 @@ def main():
         fixed = (ROOT / TONE).read_text()
         # Verify exactly the authorized production delta, not unrelated historical code.
         expected = legacy.replace('        let gain = finite(decode(out) / y[i]);',
-                                  '        let gain = finite(decode(out) / y[i].abs().max(PRESENCE_LUMA_FLOOR));')
+                                  '''        let gain = finite(if y[i] >= PRESENCE_LUMA_FLOOR {
+            decode(out) / y[i]
+        } else {
+            1.0 + (decode(out) - y[i]) / PRESENCE_LUMA_FLOOR
+        });''')
+        expected = expected.replace('if out == z[i] {', 'if y[i] >= PRESENCE_LUMA_FLOOR && out == z[i] {')
         start = fixed.index('// Scene-linear Rec.2020 luminance (white = 1). Signed RGB')
         end = fixed.index('fn presence(', start)
         assert fixed[:start] + fixed[end:] == expected

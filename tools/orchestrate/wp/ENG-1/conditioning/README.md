@@ -4,7 +4,7 @@
 committed capture tests, and renders the same fixtures twice. The first run
 uses `tone_extra.rs` from `d01723659a7a6193ad1e323b311a56f72f7411f7`;
 the second uses the current file. It verifies that the only production delta
-between those files is the approved divisor floor and its constant/comment.
+between those files is the approved continuous gain formula, above-floor bypass, and constant/comment.
 Instrumentation is injected only into the disposable copy, never the working
 production source. The script does not update goldens.
 

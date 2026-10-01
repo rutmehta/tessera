@@ -210,9 +210,10 @@ fn range(v: &[f32], w: usize, h: usize, r: usize) -> (Vec<f32>, Vec<f32>) {
     (lo, hi)
 }
 // Scene-linear Rec.2020 luminance (white = 1). Signed RGB from sharpening
-// can nearly cancel in Y; limiting the divisor to 0.1% of white prevents
-// ordinary f32 input differences becoming unbounded chroma gains. Keep this
-// value and formulation identical to presence.wgsl. Other tone math is unchanged.
+// can nearly cancel in Y; condition the luminance delta at 0.1% of white
+// to bound chroma gain from ordinary f32 differences. Keep this value and
+// formulation identical to presence.wgsl and tone_local.wgsl. Other tone
+// math is unchanged.
 const PRESENCE_LUMA_FLOOR: f32 = 1e-3;
 
 fn presence(data: &mut [f32], w: usize, h: usize, s: &ToneSettings) {
@@ -238,10 +239,14 @@ fn presence(data: &mut [f32], w: usize, h: usize, s: &ToneSettings) {
             + s.clarity.clamp(-100.0, 100.0) / 100.0 * weight * (mid[i] - wide[i]);
         // No newly created extrema: removes the bright/dark step-edge lobes.
         let out = (z[i] + delta).clamp(lo[i], hi[i]);
-        if out == z[i] {
+        if y[i] >= PRESENCE_LUMA_FLOOR && out == z[i] {
             continue;
         }
-        let gain = finite(decode(out) / y[i].abs().max(PRESENCE_LUMA_FLOOR));
+        let gain = finite(if y[i] >= PRESENCE_LUMA_FLOOR {
+            decode(out) / y[i]
+        } else {
+            1.0 + (decode(out) - y[i]) / PRESENCE_LUMA_FLOOR
+        });
         for c in 0..3 {
             data[c * n + i] = finite(data[c * n + i] * gain);
         }

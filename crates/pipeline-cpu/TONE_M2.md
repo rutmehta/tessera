@@ -35,15 +35,16 @@ by segment endpoints, with monotonicity tested to f32 epsilon.
    detail from clarity. The resulting `z+delta` is constrained to the original
    3x3 log-luminance min/max. It cannot create new extrema, and a hard two-level
    step acquires no overshoot/undershoot lobes. Recombine with RGB by
-   `D(z') / max(abs(Y), 1e-3)` (identical CPU and GPU formulation). The floor
-   is 0.1% of scene-linear Rec.2020 white (1.0), not the guided-filter epsilon.
-   It conditions nearly cancelling signed RGB produced by sharpening without
-   changing arithmetic for `Y >= 1e-3`. Below the floor the resulting luminance
-   is attenuated by `Y / 1e-3`, so the log-domain extrema guarantee above does
-   not describe the final RGB luminance there. This is an intentional rendering
-   policy for the near-black singularity, not a tone-precision change.
-   Nonpositive luminance and unchanged `z' == z` are left untouched; flat
-   regions and neutral controls keep their existing identity paths.
+   `Y >= epsilon ? D(z') / Y : 1 + (D(z') - Y) / epsilon`, identically
+   on CPU and both GPU paths, with `epsilon = 1e-3` (0.1% of scene-linear
+   Rec.2020 white). This policy constant is separate from the guided-filter
+   epsilon. Above the floor arithmetic and the unchanged-log bypass are
+   preserved. Below it, conditioning the luminance delta keeps gain continuous
+   through a zero adjustment; no unchanged-log bypass is applied there.
+   The resulting luminance interpolates between the input and decoded target
+   with weight `Y / epsilon`. Nonpositive luminance retains its bypass and
+   neutral controls retain their identity path. The pre-existing discontinuity
+   at exactly zero luminance is outside ENG-1's scope.
 
 2. **Dehaze** uses the dark-channel prior, not a global contrast proxy.
    Form a radius-3 minimum of the positive RGB channel minimum. Candidate airlight

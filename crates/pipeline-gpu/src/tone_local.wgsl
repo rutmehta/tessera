@@ -92,8 +92,11 @@ fn main(@builtin(global_invocation_id) id:vec3<u32>) {
         let delta=p[4]*(c[i].x-d[i].x)+p[5]*weight*(d[i].x-e[i].x);
         let adjusted=clamp(z+delta,lo,hi);
         var result=rgb;
-        if lum>0.0 && adjusted!=z {
-            let gain=finite(decode(adjusted)/max(abs(lum), PRESENCE_LUMA_FLOOR));
+        if lum>0.0 && (lum<PRESENCE_LUMA_FLOOR || adjusted!=z) {
+            var gain: f32;
+            if lum>=PRESENCE_LUMA_FLOOR { gain=decode(adjusted)/lum; }
+            else { gain=1.0+(decode(adjusted)-lum)/PRESENCE_LUMA_FLOOR; }
+            gain=finite(gain);
             result=vec3<f32>(finite(rgb.x*gain),finite(rgb.y*gain),finite(rgb.z*gain));
         }
         out[i]=vec4<f32>(result,0.0);

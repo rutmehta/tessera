@@ -2,7 +2,7 @@
   {
     "golden": "AdobeRgb-0.35",
     "before_sha256": "db11211abe5550e565437843136e6d06f4900c871d12e0b4aa5bef1298a361a7",
-    "after_sha256": "412435f39500e34212d15c3d4cd7ec1601ea6ac0613a067b2dc2e724c0d23b00",
+    "after_sha256": "ed77a1fca06d09a82ddb8eb16dcf4cecb5db42823c7f6ac280dd27ff2ba0dd3c",
     "pixels": 4403,
     "seed_pixels": [
       2101
@@ -24,57 +24,27 @@
     ],
     "support_radius": 11,
     "trace_source": "AdobeRgb-1",
-    "changed_pixels": 85,
-    "max_encoded_delta": 0.06987577676773071,
+    "changed_pixels": 42,
+    "max_encoded_delta": 0.0001010894775390625,
     "outside_predicate": [],
     "changed_pixel_evidence": [
-      {
-        "pixel": 23,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 24,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 26,
-        "distance": 8,
-        "predicate": true
-      },
       {
         "pixel": 27,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 29,
+        "pixel": 31,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 34,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 37,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 282,
+        "pixel": 283,
         "distance": 7,
         "predicate": true
       },
       {
-        "pixel": 285,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 288,
+        "pixel": 284,
         "distance": 7,
         "predicate": true
       },
@@ -84,13 +54,8 @@
         "predicate": true
       },
       {
-        "pixel": 291,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 541,
-        "distance": 6,
+        "pixel": 539,
+        "distance": 8,
         "predicate": true
       },
       {
@@ -99,12 +64,7 @@
         "predicate": true
       },
       {
-        "pixel": 550,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 552,
+        "pixel": 543,
         "distance": 6,
         "predicate": true
       },
@@ -119,32 +79,7 @@
         "predicate": true
       },
       {
-        "pixel": 809,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 810,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 1059,
-        "distance": 6,
-        "predicate": true
-      },
-      {
         "pixel": 1061,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 1064,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 1065,
         "distance": 4,
         "predicate": true
       },
@@ -154,18 +89,13 @@
         "predicate": true
       },
       {
-        "pixel": 1319,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 1320,
         "distance": 4,
         "predicate": true
       },
       {
-        "pixel": 1330,
-        "distance": 6,
+        "pixel": 1322,
+        "distance": 3,
         "predicate": true
       },
       {
@@ -174,13 +104,13 @@
         "predicate": true
       },
       {
-        "pixel": 1590,
-        "distance": 7,
+        "pixel": 1580,
+        "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 1837,
-        "distance": 5,
+        "pixel": 1581,
+        "distance": 2,
         "predicate": true
       },
       {
@@ -189,33 +119,13 @@
         "predicate": true
       },
       {
-        "pixel": 1841,
+        "pixel": 1842,
         "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 1844,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1845,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 1849,
-        "distance": 7,
         "predicate": true
       },
       {
         "pixel": 2095,
         "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 2097,
-        "distance": 4,
         "predicate": true
       },
       {
@@ -229,48 +139,18 @@
         "predicate": true
       },
       {
-        "pixel": 2105,
-        "distance": 4,
+        "pixel": 2104,
+        "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2108,
+        "pixel": 2353,
         "distance": 7,
         "predicate": true
       },
       {
-        "pixel": 2109,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2355,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2358,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2359,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2361,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2362,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2364,
-        "distance": 4,
+        "pixel": 2363,
+        "distance": 3,
         "predicate": true
       },
       {
@@ -289,8 +169,8 @@
         "predicate": true
       },
       {
-        "pixel": 2624,
-        "distance": 5,
+        "pixel": 2622,
+        "distance": 3,
         "predicate": true
       },
       {
@@ -299,88 +179,13 @@
         "predicate": true
       },
       {
-        "pixel": 2873,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2874,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 2875,
-        "distance": 3,
-        "predicate": true
-      },
-      {
         "pixel": 2877,
         "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2879,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2881,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2882,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 2883,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2886,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3135,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3136,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3139,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3141,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3145,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3388,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3394,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 3397,
-        "distance": 5,
+        "pixel": 3143,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -389,7 +194,12 @@
         "predicate": true
       },
       {
-        "pixel": 3402,
+        "pixel": 3403,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 3653,
         "distance": 6,
         "predicate": true
       },
@@ -399,7 +209,7 @@
         "predicate": true
       },
       {
-        "pixel": 3656,
+        "pixel": 3658,
         "distance": 6,
         "predicate": true
       },
@@ -409,27 +219,7 @@
         "predicate": true
       },
       {
-        "pixel": 3909,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3910,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3919,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3921,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3922,
+        "pixel": 3663,
         "distance": 8,
         "predicate": true
       },
@@ -444,12 +234,7 @@
         "predicate": true
       },
       {
-        "pixel": 4176,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 4180,
+        "pixel": 4179,
         "distance": 8,
         "predicate": true
       }
@@ -473,7 +258,7 @@
   {
     "golden": "AdobeRgb-1",
     "before_sha256": "2cc3d6290036009bf9f868a19d8bde6a909eb573c321328c6e60870deb364ee3",
-    "after_sha256": "f533cf7d943dcb9e928f672d80e70124b0d43bc400347c86d4f02a776fd30da1",
+    "after_sha256": "1fea284ebec8229c60929034ab4daadc3f38871fc9b80820fd53ee802d63ea28",
     "pixels": 4403,
     "seed_pixels": [
       2101
@@ -495,57 +280,27 @@
     ],
     "support_radius": 11,
     "trace_source": "AdobeRgb-1",
-    "changed_pixels": 87,
-    "max_encoded_delta": 0.19964510202407837,
+    "changed_pixels": 44,
+    "max_encoded_delta": 0.0002887845039367676,
     "outside_predicate": [],
     "changed_pixel_evidence": [
-      {
-        "pixel": 23,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 24,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 26,
-        "distance": 8,
-        "predicate": true
-      },
       {
         "pixel": 27,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 29,
+        "pixel": 31,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 34,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 37,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 282,
+        "pixel": 283,
         "distance": 7,
         "predicate": true
       },
       {
-        "pixel": 285,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 288,
+        "pixel": 284,
         "distance": 7,
         "predicate": true
       },
@@ -555,13 +310,8 @@
         "predicate": true
       },
       {
-        "pixel": 291,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 541,
-        "distance": 6,
+        "pixel": 539,
+        "distance": 8,
         "predicate": true
       },
       {
@@ -570,12 +320,7 @@
         "predicate": true
       },
       {
-        "pixel": 550,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 552,
+        "pixel": 543,
         "distance": 6,
         "predicate": true
       },
@@ -590,32 +335,7 @@
         "predicate": true
       },
       {
-        "pixel": 809,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 810,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 1059,
-        "distance": 6,
-        "predicate": true
-      },
-      {
         "pixel": 1061,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 1064,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 1065,
         "distance": 4,
         "predicate": true
       },
@@ -625,18 +345,13 @@
         "predicate": true
       },
       {
-        "pixel": 1319,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 1320,
         "distance": 4,
         "predicate": true
       },
       {
-        "pixel": 1330,
-        "distance": 6,
+        "pixel": 1322,
+        "distance": 3,
         "predicate": true
       },
       {
@@ -645,13 +360,13 @@
         "predicate": true
       },
       {
-        "pixel": 1590,
-        "distance": 7,
+        "pixel": 1580,
+        "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 1837,
-        "distance": 5,
+        "pixel": 1581,
+        "distance": 2,
         "predicate": true
       },
       {
@@ -660,33 +375,13 @@
         "predicate": true
       },
       {
-        "pixel": 1841,
+        "pixel": 1842,
         "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 1844,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1845,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 1849,
-        "distance": 7,
         "predicate": true
       },
       {
         "pixel": 2095,
         "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 2097,
-        "distance": 4,
         "predicate": true
       },
       {
@@ -700,48 +395,18 @@
         "predicate": true
       },
       {
-        "pixel": 2105,
-        "distance": 4,
+        "pixel": 2104,
+        "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2108,
+        "pixel": 2353,
         "distance": 7,
         "predicate": true
       },
       {
-        "pixel": 2109,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2355,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2358,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2359,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2361,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2362,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2364,
-        "distance": 4,
+        "pixel": 2363,
+        "distance": 3,
         "predicate": true
       },
       {
@@ -760,8 +425,8 @@
         "predicate": true
       },
       {
-        "pixel": 2624,
-        "distance": 5,
+        "pixel": 2622,
+        "distance": 3,
         "predicate": true
       },
       {
@@ -770,93 +435,13 @@
         "predicate": true
       },
       {
-        "pixel": 2873,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2874,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 2875,
-        "distance": 3,
-        "predicate": true
-      },
-      {
         "pixel": 2877,
         "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2879,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2881,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2882,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 2883,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2886,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3135,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3136,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3139,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3141,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3145,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3388,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3394,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 3395,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 3397,
-        "distance": 5,
+        "pixel": 3143,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -865,7 +450,12 @@
         "predicate": true
       },
       {
-        "pixel": 3402,
+        "pixel": 3403,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 3653,
         "distance": 6,
         "predicate": true
       },
@@ -875,7 +465,7 @@
         "predicate": true
       },
       {
-        "pixel": 3656,
+        "pixel": 3658,
         "distance": 6,
         "predicate": true
       },
@@ -885,27 +475,7 @@
         "predicate": true
       },
       {
-        "pixel": 3909,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3910,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3919,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3921,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3922,
+        "pixel": 3663,
         "distance": 8,
         "predicate": true
       },
@@ -930,7 +500,7 @@
         "predicate": true
       },
       {
-        "pixel": 4180,
+        "pixel": 4179,
         "distance": 8,
         "predicate": true
       }
@@ -939,7 +509,7 @@
   {
     "golden": "DisplayP3-0.35",
     "before_sha256": "5ce3726c68269f89cdafcd4f3e72ea7d3d8e02bd6b640b5f6add610d2abc4422",
-    "after_sha256": "4434ae3d1db54e54768a97e1a901b5f12fd8260baeeecacb615bdba0641de0be",
+    "after_sha256": "30928703598e1aa03470f05c9ea112468743d05cd15adaf705937123ebcbf439",
     "pixels": 4403,
     "seed_pixels": [
       2101
@@ -961,12 +531,17 @@
     ],
     "support_radius": 11,
     "trace_source": "DisplayP3-1",
-    "changed_pixels": 79,
-    "max_encoded_delta": 0.06942856311798096,
+    "changed_pixels": 55,
+    "max_encoded_delta": 9.900331497192383e-05,
     "outside_predicate": [],
     "changed_pixel_evidence": [
       {
         "pixel": 23,
+        "distance": 8,
+        "predicate": true
+      },
+      {
+        "pixel": 25,
         "distance": 8,
         "predicate": true
       },
@@ -976,28 +551,13 @@
         "predicate": true
       },
       {
-        "pixel": 30,
+        "pixel": 27,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 34,
+        "pixel": 280,
         "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 35,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 36,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 282,
-        "distance": 7,
         "predicate": true
       },
       {
@@ -1011,8 +571,13 @@
         "predicate": true
       },
       {
-        "pixel": 295,
+        "pixel": 290,
         "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 544,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -1026,27 +591,17 @@
         "predicate": true
       },
       {
-        "pixel": 549,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 551,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 554,
-        "distance": 7,
-        "predicate": true
-      },
-      {
         "pixel": 801,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 811,
+        "pixel": 804,
+        "distance": 5,
+        "predicate": true
+      },
+      {
+        "pixel": 806,
         "distance": 5,
         "predicate": true
       },
@@ -1056,22 +611,12 @@
         "predicate": true
       },
       {
-        "pixel": 1067,
+        "pixel": 1066,
         "distance": 4,
         "predicate": true
       },
       {
         "pixel": 1316,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 1325,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 1332,
         "distance": 8,
         "predicate": true
       },
@@ -1091,18 +636,8 @@
         "predicate": true
       },
       {
-        "pixel": 1581,
-        "distance": 2,
-        "predicate": true
-      },
-      {
         "pixel": 1582,
         "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1587,
-        "distance": 4,
         "predicate": true
       },
       {
@@ -1111,13 +646,8 @@
         "predicate": true
       },
       {
-        "pixel": 1844,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1849,
-        "distance": 7,
+        "pixel": 2095,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -1156,23 +686,13 @@
         "predicate": true
       },
       {
-        "pixel": 2105,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 2106,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 2107,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 2352,
-        "distance": 8,
+        "pixel": 2353,
+        "distance": 7,
         "predicate": true
       },
       {
@@ -1186,33 +706,18 @@
         "predicate": true
       },
       {
+        "pixel": 2356,
+        "distance": 4,
+        "predicate": true
+      },
+      {
         "pixel": 2357,
         "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2359,
+        "pixel": 2361,
         "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2360,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2362,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2363,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2365,
-        "distance": 5,
         "predicate": true
       },
       {
@@ -1221,8 +726,13 @@
         "predicate": true
       },
       {
-        "pixel": 2618,
-        "distance": 2,
+        "pixel": 2612,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 2613,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -1231,48 +741,13 @@
         "predicate": true
       },
       {
-        "pixel": 2620,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2624,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 2625,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 2627,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2870,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2878,
+        "pixel": 2876,
         "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2879,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2880,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2882,
-        "distance": 4,
         "predicate": true
       },
       {
@@ -1281,7 +756,17 @@
         "predicate": true
       },
       {
-        "pixel": 3133,
+        "pixel": 3130,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 3135,
+        "distance": 4,
+        "predicate": true
+      },
+      {
+        "pixel": 3137,
         "distance": 4,
         "predicate": true
       },
@@ -1291,53 +776,23 @@
         "predicate": true
       },
       {
-        "pixel": 3142,
+        "pixel": 3393,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 3143,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 3389,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3399,
+        "pixel": 3394,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 3651,
+        "pixel": 3403,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 3650,
         "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 3653,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 3662,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3663,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3907,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3908,
-        "distance": 7,
         "predicate": true
       },
       {
@@ -1346,13 +801,8 @@
         "predicate": true
       },
       {
-        "pixel": 4177,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 4178,
-        "distance": 8,
+        "pixel": 3921,
+        "distance": 7,
         "predicate": true
       },
       {
@@ -1380,7 +830,7 @@
   {
     "golden": "DisplayP3-1",
     "before_sha256": "b2b8cba15e4c03f849a4adce84e56e8ae407329b8adefefad32949785f5128ea",
-    "after_sha256": "4b37a9ce36ea2d2f91a5060de3d2a6b516e4eac211e1cca90868a38d752d48ea",
+    "after_sha256": "358d878497f4461223c7ffeafab4d475f378e1074d23311e3c12359acf2fc998",
     "pixels": 4403,
     "seed_pixels": [
       2101
@@ -1402,12 +852,17 @@
     ],
     "support_radius": 11,
     "trace_source": "DisplayP3-1",
-    "changed_pixels": 79,
-    "max_encoded_delta": 0.19836732745170593,
+    "changed_pixels": 57,
+    "max_encoded_delta": 0.0002828836441040039,
     "outside_predicate": [],
     "changed_pixel_evidence": [
       {
         "pixel": 23,
+        "distance": 8,
+        "predicate": true
+      },
+      {
+        "pixel": 25,
         "distance": 8,
         "predicate": true
       },
@@ -1417,28 +872,13 @@
         "predicate": true
       },
       {
-        "pixel": 30,
+        "pixel": 27,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 34,
+        "pixel": 280,
         "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 35,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 36,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 282,
-        "distance": 7,
         "predicate": true
       },
       {
@@ -1452,8 +892,13 @@
         "predicate": true
       },
       {
-        "pixel": 295,
+        "pixel": 290,
         "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 544,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -1467,27 +912,17 @@
         "predicate": true
       },
       {
-        "pixel": 549,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 551,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 554,
-        "distance": 7,
-        "predicate": true
-      },
-      {
         "pixel": 801,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 811,
+        "pixel": 804,
+        "distance": 5,
+        "predicate": true
+      },
+      {
+        "pixel": 806,
         "distance": 5,
         "predicate": true
       },
@@ -1497,22 +932,12 @@
         "predicate": true
       },
       {
-        "pixel": 1067,
+        "pixel": 1066,
         "distance": 4,
         "predicate": true
       },
       {
         "pixel": 1316,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 1325,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 1332,
         "distance": 8,
         "predicate": true
       },
@@ -1532,18 +957,8 @@
         "predicate": true
       },
       {
-        "pixel": 1581,
-        "distance": 2,
-        "predicate": true
-      },
-      {
         "pixel": 1582,
         "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1587,
-        "distance": 4,
         "predicate": true
       },
       {
@@ -1552,13 +967,8 @@
         "predicate": true
       },
       {
-        "pixel": 1844,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1849,
-        "distance": 7,
+        "pixel": 2095,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -1597,23 +1007,13 @@
         "predicate": true
       },
       {
-        "pixel": 2105,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 2106,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 2107,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 2352,
-        "distance": 8,
+        "pixel": 2353,
+        "distance": 7,
         "predicate": true
       },
       {
@@ -1627,33 +1027,18 @@
         "predicate": true
       },
       {
+        "pixel": 2356,
+        "distance": 4,
+        "predicate": true
+      },
+      {
         "pixel": 2357,
         "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2359,
+        "pixel": 2361,
         "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2360,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2362,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2363,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2365,
-        "distance": 5,
         "predicate": true
       },
       {
@@ -1662,8 +1047,13 @@
         "predicate": true
       },
       {
-        "pixel": 2618,
-        "distance": 2,
+        "pixel": 2612,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 2613,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -1672,48 +1062,13 @@
         "predicate": true
       },
       {
-        "pixel": 2620,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2624,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 2625,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 2627,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2870,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2878,
+        "pixel": 2876,
         "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2879,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2880,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2882,
-        "distance": 4,
         "predicate": true
       },
       {
@@ -1722,7 +1077,27 @@
         "predicate": true
       },
       {
-        "pixel": 3133,
+        "pixel": 3130,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 3134,
+        "distance": 4,
+        "predicate": true
+      },
+      {
+        "pixel": 3135,
+        "distance": 4,
+        "predicate": true
+      },
+      {
+        "pixel": 3136,
+        "distance": 4,
+        "predicate": true
+      },
+      {
+        "pixel": 3137,
         "distance": 4,
         "predicate": true
       },
@@ -1732,53 +1107,23 @@
         "predicate": true
       },
       {
-        "pixel": 3142,
+        "pixel": 3393,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 3143,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 3389,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3399,
+        "pixel": 3394,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 3651,
+        "pixel": 3403,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 3650,
         "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 3653,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 3662,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3663,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3907,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3908,
-        "distance": 7,
         "predicate": true
       },
       {
@@ -1787,13 +1132,8 @@
         "predicate": true
       },
       {
-        "pixel": 4177,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 4178,
-        "distance": 8,
+        "pixel": 3921,
+        "distance": 7,
         "predicate": true
       },
       {
@@ -1806,7 +1146,7 @@
   {
     "golden": "Srgb-0.35",
     "before_sha256": "95b18f4cd94cef1c683ba8b302d13272fcdb69a764d7bc06e91c88bb3f005a50",
-    "after_sha256": "33ec298810d07cd9d4bff84dc85625e04e8ebde71857e827d69b5ff3a728d970",
+    "after_sha256": "27ceee9a01c962d83d0bb5ab4b24beb6da77a5b183ab50861ea9ab584076a3cc",
     "pixels": 4403,
     "seed_pixels": [
       2101
@@ -1828,20 +1168,10 @@
     ],
     "support_radius": 11,
     "trace_source": "Srgb-1",
-    "changed_pixels": 63,
-    "max_encoded_delta": 0.07242506742477417,
+    "changed_pixels": 38,
+    "max_encoded_delta": 0.00010323524475097656,
     "outside_predicate": [],
     "changed_pixel_evidence": [
-      {
-        "pixel": 23,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 24,
-        "distance": 8,
-        "predicate": true
-      },
       {
         "pixel": 26,
         "distance": 8,
@@ -1853,17 +1183,17 @@
         "predicate": true
       },
       {
-        "pixel": 29,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 34,
-        "distance": 8,
+        "pixel": 282,
+        "distance": 7,
         "predicate": true
       },
       {
         "pixel": 284,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 285,
         "distance": 7,
         "predicate": true
       },
@@ -1873,18 +1203,28 @@
         "predicate": true
       },
       {
-        "pixel": 541,
+        "pixel": 542,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 546,
+        "pixel": 544,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 801,
+        "pixel": 548,
+        "distance": 6,
+        "predicate": true
+      },
+      {
+        "pixel": 808,
         "distance": 5,
+        "predicate": true
+      },
+      {
+        "pixel": 1059,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -1893,22 +1233,7 @@
         "predicate": true
       },
       {
-        "pixel": 1071,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 1319,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 1322,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 1328,
+        "pixel": 1069,
         "distance": 4,
         "predicate": true
       },
@@ -1918,23 +1243,13 @@
         "predicate": true
       },
       {
-        "pixel": 1331,
-        "distance": 7,
-        "predicate": true
-      },
-      {
         "pixel": 1585,
         "distance": 2,
         "predicate": true
       },
       {
-        "pixel": 1588,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 1835,
-        "distance": 7,
+        "pixel": 1834,
+        "distance": 8,
         "predicate": true
       },
       {
@@ -1948,18 +1263,13 @@
         "predicate": true
       },
       {
-        "pixel": 1841,
+        "pixel": 1842,
         "distance": 1,
         "predicate": true
       },
       {
         "pixel": 1844,
         "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1845,
-        "distance": 3,
         "predicate": true
       },
       {
@@ -1973,28 +1283,18 @@
         "predicate": true
       },
       {
+        "pixel": 2100,
+        "distance": 1,
+        "predicate": true
+      },
+      {
         "pixel": 2101,
         "distance": 0,
         "predicate": true
       },
       {
-        "pixel": 2102,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2106,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2107,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 2108,
-        "distance": 7,
+        "pixel": 2103,
+        "distance": 2,
         "predicate": true
       },
       {
@@ -2003,58 +1303,18 @@
         "predicate": true
       },
       {
-        "pixel": 2362,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2363,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2366,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 2368,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2619,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2621,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2622,
-        "distance": 3,
-        "predicate": true
-      },
-      {
         "pixel": 2624,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 2626,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 2877,
+        "pixel": 2879,
         "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2878,
-        "distance": 3,
+        "pixel": 2882,
+        "distance": 4,
         "predicate": true
       },
       {
@@ -2063,42 +1323,12 @@
         "predicate": true
       },
       {
-        "pixel": 2884,
-        "distance": 6,
-        "predicate": true
-      },
-      {
         "pixel": 2886,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 3136,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3137,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3142,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 3391,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 3393,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 3397,
         "distance": 5,
         "predicate": true
       },
@@ -2108,28 +1338,13 @@
         "predicate": true
       },
       {
-        "pixel": 3403,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3652,
-        "distance": 6,
-        "predicate": true
-      },
-      {
         "pixel": 3655,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 3663,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3908,
-        "distance": 7,
+        "pixel": 3658,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -2138,13 +1353,13 @@
         "predicate": true
       },
       {
-        "pixel": 3918,
+        "pixel": 3914,
         "distance": 7,
         "predicate": true
       },
       {
-        "pixel": 3920,
-        "distance": 7,
+        "pixel": 4180,
+        "distance": 8,
         "predicate": true
       }
     ]
@@ -2167,7 +1382,7 @@
   {
     "golden": "Srgb-1",
     "before_sha256": "71bcd47e6aef52e9325ceedad65c9552ed94c02b79844f8fcfbd40c641300113",
-    "after_sha256": "54a74507259313042e15547679beedccc66de97dfa47312b4b8e93ecc51b62bc",
+    "after_sha256": "47fe0176537f718f2f499e1761d8efe619139f2310afd14f9bdee19ca2e58788",
     "pixels": 4403,
     "seed_pixels": [
       2101
@@ -2189,20 +1404,10 @@
     ],
     "support_radius": 11,
     "trace_source": "Srgb-1",
-    "changed_pixels": 64,
-    "max_encoded_delta": 0.20692861080169678,
+    "changed_pixels": 38,
+    "max_encoded_delta": 0.0002949833869934082,
     "outside_predicate": [],
     "changed_pixel_evidence": [
-      {
-        "pixel": 23,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 24,
-        "distance": 8,
-        "predicate": true
-      },
       {
         "pixel": 26,
         "distance": 8,
@@ -2214,17 +1419,17 @@
         "predicate": true
       },
       {
-        "pixel": 29,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 34,
-        "distance": 8,
+        "pixel": 282,
+        "distance": 7,
         "predicate": true
       },
       {
         "pixel": 284,
+        "distance": 7,
+        "predicate": true
+      },
+      {
+        "pixel": 285,
         "distance": 7,
         "predicate": true
       },
@@ -2234,18 +1439,28 @@
         "predicate": true
       },
       {
-        "pixel": 541,
+        "pixel": 542,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 546,
+        "pixel": 544,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 801,
+        "pixel": 548,
+        "distance": 6,
+        "predicate": true
+      },
+      {
+        "pixel": 808,
         "distance": 5,
+        "predicate": true
+      },
+      {
+        "pixel": 1059,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -2254,22 +1469,7 @@
         "predicate": true
       },
       {
-        "pixel": 1071,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 1319,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 1322,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 1328,
+        "pixel": 1069,
         "distance": 4,
         "predicate": true
       },
@@ -2279,28 +1479,13 @@
         "predicate": true
       },
       {
-        "pixel": 1331,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 1332,
-        "distance": 8,
-        "predicate": true
-      },
-      {
         "pixel": 1585,
         "distance": 2,
         "predicate": true
       },
       {
-        "pixel": 1588,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 1835,
-        "distance": 7,
+        "pixel": 1834,
+        "distance": 8,
         "predicate": true
       },
       {
@@ -2314,18 +1499,13 @@
         "predicate": true
       },
       {
-        "pixel": 1841,
+        "pixel": 1842,
         "distance": 1,
         "predicate": true
       },
       {
         "pixel": 1844,
         "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 1845,
-        "distance": 3,
         "predicate": true
       },
       {
@@ -2339,28 +1519,18 @@
         "predicate": true
       },
       {
+        "pixel": 2100,
+        "distance": 1,
+        "predicate": true
+      },
+      {
         "pixel": 2101,
         "distance": 0,
         "predicate": true
       },
       {
-        "pixel": 2102,
-        "distance": 1,
-        "predicate": true
-      },
-      {
-        "pixel": 2106,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 2107,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 2108,
-        "distance": 7,
+        "pixel": 2103,
+        "distance": 2,
         "predicate": true
       },
       {
@@ -2369,58 +1539,18 @@
         "predicate": true
       },
       {
-        "pixel": 2362,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2363,
-        "distance": 3,
-        "predicate": true
-      },
-      {
-        "pixel": 2366,
-        "distance": 6,
-        "predicate": true
-      },
-      {
-        "pixel": 2368,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 2619,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2621,
-        "distance": 2,
-        "predicate": true
-      },
-      {
-        "pixel": 2622,
-        "distance": 3,
-        "predicate": true
-      },
-      {
         "pixel": 2624,
         "distance": 5,
         "predicate": true
       },
       {
-        "pixel": 2626,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 2877,
+        "pixel": 2879,
         "distance": 3,
         "predicate": true
       },
       {
-        "pixel": 2878,
-        "distance": 3,
+        "pixel": 2882,
+        "distance": 4,
         "predicate": true
       },
       {
@@ -2429,42 +1559,12 @@
         "predicate": true
       },
       {
-        "pixel": 2884,
-        "distance": 6,
-        "predicate": true
-      },
-      {
         "pixel": 2886,
         "distance": 8,
         "predicate": true
       },
       {
-        "pixel": 3136,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3137,
-        "distance": 4,
-        "predicate": true
-      },
-      {
-        "pixel": 3142,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 3391,
-        "distance": 5,
-        "predicate": true
-      },
-      {
         "pixel": 3393,
-        "distance": 5,
-        "predicate": true
-      },
-      {
-        "pixel": 3397,
         "distance": 5,
         "predicate": true
       },
@@ -2474,28 +1574,13 @@
         "predicate": true
       },
       {
-        "pixel": 3403,
-        "distance": 7,
-        "predicate": true
-      },
-      {
-        "pixel": 3652,
-        "distance": 6,
-        "predicate": true
-      },
-      {
         "pixel": 3655,
         "distance": 6,
         "predicate": true
       },
       {
-        "pixel": 3663,
-        "distance": 8,
-        "predicate": true
-      },
-      {
-        "pixel": 3908,
-        "distance": 7,
+        "pixel": 3658,
+        "distance": 6,
         "predicate": true
       },
       {
@@ -2504,13 +1589,13 @@
         "predicate": true
       },
       {
-        "pixel": 3918,
+        "pixel": 3914,
         "distance": 7,
         "predicate": true
       },
       {
-        "pixel": 3920,
-        "distance": 7,
+        "pixel": 4180,
+        "distance": 8,
         "predicate": true
       }
     ]
