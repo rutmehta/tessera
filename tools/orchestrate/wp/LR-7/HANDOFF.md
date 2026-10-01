@@ -154,3 +154,126 @@ clippy with `-D warnings` succeeds. No Swift gates or application launch.
 Reference check: [ExifTool's primary XMP CRS tag table](https://www.exiftool.org/TagNames/XMP.html)
 confirms the `UprightTransform_0..5` and `UprightFourSegments_0..3` spellings.
 This is tag-schema evidence only, not a published Adobe rendering specification.
+
+
+## LR-7b addendum — ruling 4 legacy independent CA (2026-10-01)
+
+Local-only continuation on `wp/LR-7-upright`, directly on `9fb0f3db`; no rebase.
+The untracked coordinator-owned `LR-RULINGS-FROM-A.md` remains untouched.
+
+- RED: `11660342664c6ed0d20ddb86b2df0e984984d450`.
+- GREEN implementation: `e335a8a86e131cfef5ee84c921a44dc179170969`.
+- The subsequent `docs(LR-7b):` commit contains this append and evidence;
+  its hash is the final lane HEAD reported to the coordinator.
+- All three commits end with the requested Claude Opus 5.5 co-author trailer.
+
+### Changes and compatibility
+
+- Added optional `Option<f32>` lens fields `legacy_ca_red` and `legacy_ca_blue`,
+  with serde defaults and omission when absent. No recipe FORMAT, contract,
+  process or smart-preview version bump. The pre-change serde reader ignored
+  these keys (the RED round-trip failure demonstrates this); older recipe
+  readers can ignore the additions. None adds no correction; explicit zero is
+  identity. Existing transient `LensContext.manual_ca` remains the fallback
+  per absent channel. Present recipe values override it, avoiding double apply.
+- The catalog geometry extension now also imports `ChromaticAberrationR/B`
+  from Lua and namespaced XMP, accepting finite values in [-100,100], recording
+  an ordinary recipe history edit and consuming only successfully mapped source
+  diagnostics. Malformed/out-of-range values remain retained and diagnosed.
+  Shared sidecar CRS Legacy targets remain unchanged; no sidecar export claim.
+  The existing PV1/2 general fidelity warning remains appropriate and is retained.
+- Resolved CPU lens state feeds the existing independent manual-CA pass. It
+  operates regardless of profile and automatic-CA toggles, before colour mixing,
+  after demosaic for RAW. Finite-field validation is included. Persistent preview
+  parsing accepts either optional field without making it mandatory; a synthetic
+  proxy round-trip verifies both persistence and rejection of stale-prefix edits.
+- Matrix and its guard were copied from local `main` because neither existed on
+  this branch. Only the two CA rows were promoted, with concrete recipe pointers
+  and Lua values 35/-25. They are the only legacy CA rows assigned to LR-7 there.
+  Other rows retain main's statuses. The guard now checks 10 translated rows.
+- Ruling 9 required no production change: enabled `EnableDistractionRemoval`,
+  `GenerativeRemove`, and `GenerativeFill` already report the exact substring
+  **"requires Adobe cloud; not translatable"**. A regression test covers all three.
+- The four pre-existing untranslated-input serialized byte fingerprints in
+  `upright_lr7_compat.rs` remain identical. No dependencies, Cargo.lock, board.json,
+  remote branches, mailbox branches, Swift gates, GUI/app launch or real catalog
+  access. All database and pixel fixtures here are synthetic.
+
+### Formula, source and assumptions
+
+For output pixel p=(x,y), active crop [x0,y0,w,h] and channel coefficient a:
+
+```text
+c = (x0 + w/2 - 0.5, y0 + h/2 - 0.5)
+k_R = 1 + clamp(legacy_ca_red,  -100, 100) / 10000
+k_B = 1 + clamp(legacy_ca_blue, -100, 100) / 10000
+q_R = c + k_R * (p - c)
+q_B = c + k_B * (p - c)
+out_R(p) = bilinear(in_R, q_R)
+out_B(p) = bilinear(in_B, q_B)
+out_G(p) = in_G(p)
+```
+
+Coordinates clamp to the source image at boundaries. Positive a samples farther
+from the center (shrinks the displayed channel); negative a expands it. ±100
+means ±1% source-radius displacement. This is Tessera's existing
+`optics::manual_ca` / `ManualCaSettings` convention, now reachable from recipes.
+
+[Adobe's CRS schema](https://github.com/adobe/xmp-docs/blob/master/XMPNamespaces/crs.md)
+documents both key names and the -100..100 range.
+[Adobe's Camera Raw workflow whitepaper, page 5](https://www.adobe.com/digitalimag/pdfs/ps_workflow_sec2.pdf)
+describes separate red/blue channel-size adjustments and calls the adjustment
+nonlinear, without specifying the transfer function. **The constant radial scale,
+1/10000 factor, sign and crop-center choice are explicit approximation assumptions,
+not a recovered Adobe equation or measured Adobe pixel parity.** Translation status
+means settings are represented and rendered; it does not claim proprietary parity.
+
+### RED / GREEN and measured tolerances
+
+`LR-7b-evidence.log` records test output and gate summaries.
+
+- RED round-trip: each new field was discarded (Null instead of -100).
+- RED importer: coefficient absent with legacy unsupported diagnostic.
+- RED matrix: ChromaticAberrationB still retained its unsupported diagnostic.
+- RED CPU: radial error 0.01060665 exceeded fixed tolerance 0.0005.
+- RED generated SQLite -> recipe -> CPU: no translated coefficient found.
+- GREEN per-field recipe round-trips cover -100, -25, 0, 35, 100, independently;
+  Lua and XMP imports cover each, with full Recipe JSON replay round-trips.
+- GREEN radial target: 129x129 radius ramp, center (64,64), tested interior
+  [16,112]^2 excluding radius <8 to avoid the radial cusp. Independent analytic
+  expected radius r*k/64. Pairs (100,-100), (-50,75), (0,0) yield maximum errors
+  **0.00005652**, **0.00003661**, **0.00000005**, each < **0.0005** normalized units
+  (equivalent to 0.032 radius pixels). Green plane is bit-identical; zero/zero
+  leaves all input planes bit-identical.
+- GREEN synthetic catalog -> full CPU renderer: analytic radial reference runs
+  through the same downstream colour/tone pipeline with CA removed. Maximum
+  absolute linear RGB difference **0.00002826**, tolerance **0.001**, same interior.
+- Initial broad run caught three failures after optional fields were mistakenly
+  made mandatory in the strict preview schema. Corrected before final gates;
+  both old snapshots and the new optional-prefix round-trip now pass. No RED
+  expectation or pixel tolerance was weakened.
+
+### Final gates
+
+Environment: PATH prepended with `$HOME/.cargo/bin`,
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-7-upright`,
+`CARGO_BUILD_JOBS=3`, `RAYON_NUM_THREADS=3`, `RUST_TEST_THREADS=3`.
+
+```sh
+cargo test --locked -p import-lrcat -p engine-api -p pipeline-cpu -- \
+  --skip raw_fixture_goldens \
+  --skip real_opcode_fixtures_when_available \
+  --skip fixture_as_shot_roundtrip_and_slider_directions \
+  --skip five_actual_raws_auto_lens_and_upright_are_finite
+# 336 passed, 0 failed, 3 pre-existing ignored, 4 excluded external-RAW tests
+cargo test --locked -p tessera-ffi --test legacy_ca_lr7b -- --nocapture
+# 1 passed; test-only FFI integration, no production FFI edits or full FFI suite
+cargo clippy --locked -p import-lrcat -p engine-api -p pipeline-cpu --all-targets -- -D warnings
+cargo clippy --locked -p tessera-ffi --test legacy_ca_lr7b -- -D warnings
+cargo fmt --all --check
+git diff --check
+```
+
+All listed final gates passed. Existing libraw C compiler `sprintf` deprecation
+warnings remain; Rust clippy passes with `-D warnings`. External RAW qualification,
+Adobe-rendered reference parity, GPU execution and app/Swift gates are not claimed.

@@ -194,7 +194,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   endpoints can target guides, but solve metadata cannot. Perspective sliders
   already translate; their existence does not implement UprightTransform_*.
   Cloud distraction removal needs an explicit user-facing unsupported explanation;
-  today EnableDistractionRemoval receives the generic unknown/unsupported warning.
+  LR-7 reports "requires Adobe cloud; not translatable" verbatim for enabled
+  EnableDistractionRemoval, GenerativeRemove and GenerativeFill (LR-7b regression-tested).
 
 ## Diagnostic and source-contract boundaries (29c compatibility)
 
@@ -210,8 +211,14 @@ For pending/unmapped keys, the actual live slot is
 Source retention is independent of whether a value is active or a subset decodes.
 Lua also has `lrcat_develop_lua`, ordered `lrcat_develop_lua_entries` and positional
 fallbacks. XMP keeps `sidecar_xmp` and per-key `crs:*` diagnostics. The two legacy
-CA keys are recognized CRS Legacy targets: diagnostic retention can live under
-`crs:*` even though retain_source does not include them in properties.
+CA keys remain recognized CRS Legacy targets in the shared sidecar schema.
+LR-7b's catalog extension translates valid finite -100..100 values into optional
+`/settings/lens/legacy_ca_red` and `legacy_ca_blue`, removing consumed diagnostics.
+Malformed values still retain `crs:*` diagnostics even though retain_source does
+not include these keys in properties. Both translated rows have synthetic guard
+values. CPU rendering uses independent radial R/B scale with green fixed; the
+numerical scale is an explicitly documented approximation in the LR-7 HANDOFF,
+not a claim of Adobe pixel parity.
 
 Any recognized key can be diagnostic-retained for malformed/out-of-range numeric
 values, invalid choices/booleans/curves, duplicate/superseded values, process
