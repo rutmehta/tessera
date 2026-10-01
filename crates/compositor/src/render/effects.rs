@@ -466,4 +466,84 @@ mod perf1_tests {
             }
         }
     }
+
+    #[test]
+    fn full_level_live_shape_styles_use_one_source_and_exact_overlay_pixels() {
+        use crate::geom::Affine;
+        use engine_api::id::LayerId;
+
+        let extent = Extent::new(257, 3);
+        // Extend the opaque axis-aligned shape beyond every canvas edge, so
+        // all output samples are strictly interior. The oracle does not rely
+        // on edge-antialias coverage or any platform font/raster font data.
+        let model = vector::ShapeModel {
+            path: vector::Path::polyline(
+                &[
+                    vector::Point::new(-4.0, -4.0),
+                    vector::Point::new(261.0, -4.0),
+                    vector::Point::new(261.0, 7.0),
+                    vector::Point::new(-4.0, 7.0),
+                ],
+                true,
+            ),
+            fill: Some(vector::Fill::Solid([0.125, 0.25, 0.5, 1.0])),
+            ..Default::default()
+        };
+        let mut layer = Layer::new(
+            "opaque live styled shape",
+            LayerKind::Shape {
+                model,
+                transform: Affine::IDENTITY,
+            },
+        );
+        layer.id = LayerId(1);
+        layer.props.fill_opacity = 0.0;
+        layer.props.styles.effects = vec![styles::StyleEffect::ColorOverlay(styles::Overlay {
+            fill: crate::document::Fill::Solid {
+                color: [0.25, 0.5, 0.75],
+            },
+            ..Default::default()
+        })];
+        let mut state = DocState::new(extent, Depth::F32);
+        state.root.push(Arc::new(layer));
+        let doc = Document::new(state);
+        assert!(super::super::live_damage::has_live(&doc.state().root));
+        assert!(doc.state().has_layer_styles());
+        let compositor = Compositor::new(8 << 20);
+        let (actual_extent, pixels) = compositor.render_level_rgba(&doc, 0).unwrap();
+        assert_eq!(actual_extent, extent);
+        assert_eq!(pixels.len(), 257 * 3 * 4);
+        // Source fill is hidden, but its opaque shape clips a unit-opacity
+        // normal overlay. Every canvas pixel must be this exact dyadic RGBA.
+        let expected: [f32; 4] = [0.25, 0.5, 0.75, 1.0];
+        for (i, pixel) in pixels.chunks_exact(4).enumerate() {
+            for c in 0..4 {
+                assert_eq!(
+                    pixel[c].to_bits(),
+                    expected[c].to_bits(),
+                    "live overlay pixel {i}, channel {c}"
+                );
+            }
+        }
+        assert!(
+            compositor.stats().live_tiles > 0,
+            "must rasterize a live source"
+        );
+        // Expected RED until the future full-level StylePass is forwarded
+        // through render_live_scene as well as the plain composite route.
+        // This remains UNRUN; counts below are requirements, not evidence.
+        assert_eq!(
+            compositor
+                .stats
+                .source_raster_build_calls
+                .load(Ordering::Relaxed),
+            1,
+            "live style source must be built once for both output tiles"
+        );
+        assert_eq!(
+            compositor.stats.style_render_calls.load(Ordering::Relaxed),
+            1,
+            "live style stack must render once for both output tiles"
+        );
+    }
 }
