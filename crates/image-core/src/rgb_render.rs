@@ -212,10 +212,14 @@ impl Renderer {
                         .run_image(stage, &Op::ToneExtra(&settings.tone), toned, cancel)?
                 }
                 StageId::Color => run(Op::Color(&settings.color_after_curves()))?,
-                StageId::Locals => pipeline_cpu::locals_image(
-                    &rgb,
-                    &settings.locals.adjustments,
-                    Default::default(),
+                StageId::Locals => pipeline_cpu::apply_retouch(
+                    pipeline_cpu::locals_image(
+                        &rgb,
+                        &settings.locals.adjustments,
+                        Default::default(),
+                    )?,
+                    &settings.locals.retouch,
+                    self.retouch.as_deref(),
                 )?,
                 StageId::Effects => {
                     let developed = self.apply_depth_effects(&rgb, settings)?;

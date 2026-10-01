@@ -273,6 +273,7 @@ pub struct Renderer {
     native_ops: Arc<dyn StageOp>,
     dcp: Option<(Arc<pipeline_adobe::dcp::DcpProfile>, ParamHash)>,
     dcp_resolved: bool,
+    retouch: Option<Arc<dyn pipeline_cpu::RetouchRenderer>>,
     denoiser: Option<Arc<dyn pipeline_cpu::PostDemosaicDenoise>>,
     cfa_denoiser: Option<Arc<dyn crate::cfa::CfaDenoise>>,
     cfa_memo: Arc<Mutex<crate::cfa::InferenceMemo>>,
@@ -333,6 +334,7 @@ impl Renderer {
             native_ops,
             dcp: None,
             dcp_resolved: false,
+            retouch: None,
             denoiser: None,
             cfa_denoiser: None,
             cfa_memo: Arc::new(std::sync::Mutex::new(None)),
@@ -412,6 +414,16 @@ impl Renderer {
         self.config.process_version.family == engine_api::recipe::ProcessFamily::Adobe
     }
 
+    /// Register caller-owned CPU retouch kernels. Snapshots retain the same implementation.
+    pub fn with_retouch_renderer(
+        mut self,
+        renderer: Arc<dyn pipeline_cpu::RetouchRenderer>,
+    ) -> Self {
+        self.retouch = Some(renderer);
+        self.rgb_memo = Arc::new(Mutex::new(Default::default()));
+        self
+    }
+
     fn validate_settings(&self, settings: &DevelopSettings) -> EngineResult<()> {
         let mut checked_depth = settings.clone();
         if self.depth.is_some() {
@@ -434,7 +446,7 @@ impl Renderer {
             let mut checked = settings.clone();
             checked.camera_profile.profile = Default::default();
             checked.tone.display_transform = Default::default();
-            pipeline_cpu::validate_settings(&checked)?;
+            pipeline_cpu::validate_settings_with_retouch(&checked, self.retouch.as_deref())?;
             pipeline_adobe::curves::validate_domain(
                 settings
                     .tone
@@ -444,7 +456,7 @@ impl Renderer {
                 settings.tone.curves_extended.is_some(),
             )
         } else {
-            pipeline_cpu::validate_settings(settings)
+            pipeline_cpu::validate_settings_with_retouch(settings, self.retouch.as_deref())
         }
     }
 
@@ -792,6 +804,13 @@ impl Renderer {
                 && !pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled)
             {
                 continue;
+            }
+            if stage == StageId::Effects {
+                developed = pipeline_cpu::apply_retouch(
+                    developed,
+                    &settings.locals.retouch,
+                    self.retouch.as_deref(),
+                )?;
             }
             if stage == StageId::Effects
                 && (settings.effects.lens_blur.is_some() || self.depth_visualisation)

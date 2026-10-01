@@ -156,6 +156,7 @@ impl Console {
             }
         };
         let options = export::ExportSettings {
+            retouch: Some(std::sync::Arc::new(brush::render_retouch)),
             format,
             hdr: settings
                 .hdr
@@ -243,6 +244,7 @@ impl Console {
         for (sequence, (image, path, mut doc, name)) in pending.into_iter().enumerate() {
             let source = Source::open(&path)?;
             let options = export::ExportSettings {
+                retouch: Some(std::sync::Arc::new(brush::render_retouch)),
                 original_raw: settings.embed_original_raw.then(|| path.clone()),
                 metadata_sources: [(sequence + 1, path.clone())].into(),
                 ..options.clone()

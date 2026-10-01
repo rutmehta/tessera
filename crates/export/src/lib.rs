@@ -101,6 +101,8 @@ pub enum Metadata {
 
 #[derive(Clone, Debug)]
 pub struct ExportSettings {
+    /// Caller-owned CPU retouch implementation; never serialized into a recipe.
+    pub retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
     pub format: Format,
     /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits. None is SDR.
     pub hdr: Option<HdrTransfer>,
@@ -144,6 +146,7 @@ pub struct ExportSettings {
 impl Default for ExportSettings {
     fn default() -> Self {
         Self {
+            retouch: None,
             format: Format::Jpeg { quality: 90 },
             hdr: None,
             color_space: ColorSpace::Srgb,
@@ -307,13 +310,63 @@ pub fn render_pixels(
     cancel: &CancellationToken,
     segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
 ) -> EngineResult<image::Rgb32FImage> {
+    render_pixels_with_retouch(image, recipe, render, cancel, segmenter, None)
+}
+
+pub fn render_pixels_with_retouch(
+    image: &ExportImage<'_>, recipe: &Recipe, render: &RenderRequest,
+    cancel: &CancellationToken, segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+    retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
+) -> EngineResult<image::Rgb32FImage> {
+    render_pixels_with_resources(image, recipe, render, cancel, segmenter, retouch)
+}
+
+fn retouch_float(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    scale: u32,
+    retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
+) -> EngineResult<image::Rgb32FImage> {
+    if !matches!(scale, 1 | 2 | 4 | 8) {
+        return Err(EngineError::invalid("scale", "must be 1, 2, 4 or 8"));
+    }
+    // These hooks need their own inference contexts; never drop them for retouch.
+    if ai_masks::active(&recipe.settings) || depth::active(&image.source, &recipe.settings) {
+        return Err(EngineError::invalid(
+            "retouch",
+            "retouch export with AI masks, denoise or depth is not supported",
+        ));
+    }
+    let mut settings = recipe.settings.clone();
+    settings.output.proof_profile = None;
+    let context = pipeline_cpu::LensContext {
+        retouch,
+        ..Default::default()
+    };
+    let rgb =
+        pipeline_cpu::render_linear_scaled_with_lens(&settings, &image.source, scale, &context)?;
+    Ok(depth::tone_map(rgb))
+}
+
+/// Print/pixel export with a caller-owned retouch implementation.
+pub fn render_pixels_with_resources(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    render: &RenderRequest,
+    cancel: &CancellationToken,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+    retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
+) -> EngineResult<image::Rgb32FImage> {
     require_full_quality_source(&image.source)?;
     cancel.check()?;
     recipe.validate()?;
     if !matches!(render.scale, 1 | 2 | 4 | 8) {
         return Err(EngineError::invalid("scale", "must be 1, 2, 4 or 8"));
     }
-    let rgb = if ai_masks::active(&recipe.settings) {
+    let rgb = if !recipe.settings.locals.retouch.is_empty() {
+        let rgb = retouch_float(image, recipe, render.scale, retouch)?;
+        encode_output_profile(rgb, recipe, render.color_space)?
+    } else if ai_masks::active(&recipe.settings) {
         let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else {
@@ -570,6 +623,7 @@ pub fn render_one_cancellable(
         && !matches!(settings.format, Format::Dng)
         && upscale.is_none()
         && !needs_hooks
+        && recipe.settings.locals.retouch.is_empty()
         && !ai_masks::active(&recipe.settings)
         && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu")
     {
@@ -598,6 +652,26 @@ pub fn render_one_cancellable(
     let started = std::time::Instant::now();
     let rgb = if settings.hdr.is_some() {
         hdr::render(image, recipe, settings, cancel)?
+    } else if !recipe.settings.locals.retouch.is_empty() {
+        let rgb = retouch_float(
+            image,
+            recipe,
+            if upscale.is_some() {
+                1
+            } else {
+                settings.render_scale
+            },
+            settings.retouch.clone(),
+        )?;
+        let rgb = match upscale {
+            Some(model) => upscale_rgb(rgb, model)?,
+            None => rgb,
+        };
+        if matches!(settings.format, Format::Dng) {
+            rgb
+        } else {
+            encode_output_profile(rgb, recipe, settings.color_space)?
+        }
     } else if matches!(settings.format, Format::Dng) {
         let rgb = if ai_masks::active(&recipe.settings) {
             ai_masks::render(&image.source, &recipe.settings, segmenter)?
