@@ -58,7 +58,15 @@ enum LayoutProbeHarness {
 
     /// One offscreen rendering path for OCR and its optional evidence image.
     static func bitmap(_ view: NSView) throws -> NSBitmapImageRep {
-        let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        // OCR must see Retina-sized glyphs even when the build machine's display is 1×.
+        // Set both pixel dimensions and logical size before caching so AppKit draws at 2×;
+        // allocating via bitmapImageRepForCachingDisplay would inherit the screen scale.
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil,
+            pixelsWide: Int((view.bounds.width * 2).rounded(.up)),
+            pixelsHigh: Int((view.bounds.height * 2).rounded(.up)),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        bitmap.size = view.bounds.size
         view.cacheDisplay(in: view.bounds, to: bitmap)
         return bitmap
     }
