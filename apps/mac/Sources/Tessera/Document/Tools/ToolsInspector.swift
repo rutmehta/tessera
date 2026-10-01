@@ -10,10 +10,12 @@ struct ToolInspectorSections: View {
     let document: DocumentController
 
     var body: some View {
-        PanelSection("Color") { ColorPanel(tools: tools) }
+        PanelSection("Color", headerIdentifier: "document.color.toggle") { ColorPanel(tools: tools) }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("document.colorPanel")
         if document.tool.paints {
-            PanelSection("Brushes") { BrushesList(tools: tools) }
+            PanelSection("Brushes", headerIdentifier: "document.brushes.toggle") { BrushesList(tools: tools) }
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("document.brushes")
         }
     }
@@ -27,7 +29,7 @@ struct ColorPanel: View {
         HStack(spacing: Theme.Space.s) {
             Text(title).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 .frame(width: Theme.Width.label, alignment: .leading)
-            DocColorWell(rgb: [Double(c.r), Double(c.g), Double(c.b)], identifier: id) { v in
+            DocColorWell(rgb: [Double(c.r), Double(c.g), Double(c.b)], identifier: id, label: title) { v in
                 set(ToolColor(r: Float(v[0]), g: Float(v[1]), b: Float(v[2])))
             }
             .frame(width: Theme.Height.large * 2, height: Theme.Height.small)
@@ -43,7 +45,9 @@ struct ColorPanel: View {
             row("Background", tools.colors.background, id: "document.color.background") { tools.colors.background = $0 }
             HStack(spacing: Theme.Space.s) {
                 Button("Swap (X)") { tools.colors.swap() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                    .accessibilityIdentifier("document.color.swap")
                 Button("Default (D)") { tools.colors.reset() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                    .accessibilityIdentifier("document.color.default")
             }
         }
     }
@@ -123,6 +127,8 @@ struct BrushesList: View {
                         }
                         .buttonStyle(.plain)
                         .help(p.name)
+                        .accessibilityLabel(p.name)
+                        .accessibilityIdentifier("document.brushes.preset.\(p.id)")
                     }
                 }
             }

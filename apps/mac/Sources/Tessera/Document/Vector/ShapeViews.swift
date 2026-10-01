@@ -129,7 +129,7 @@ struct ShapeInspector: View {
             HStack(spacing: Theme.Space.s) {
                 label("Fill rule")
                 SegmentedPicker(selection: Binding(get: { info.source.path.fillRule }, set: { vector.setFillRule(document, layer: layer, $0) }),
-                                segments: ShapeFillRule.allCases.map { .init(value: $0, title: $0.title) }, height: Theme.Height.small)
+                                segments: ShapeFillRule.allCases.map { .init(value: $0, title: $0.title) }, height: Theme.Height.small, accessibilityPrefix: "document.shape.fillRule")
                     .accessibilityIdentifier("document.shape.fillRule")
             }
         }
@@ -200,7 +200,7 @@ struct ShapeInspector: View {
             case .gradient: set(defaultGradient(info, from: base), true)
             case .pattern: break
             }
-        }), segments: paintSegments(allowNone: allowNone, pattern: k == .pattern), height: Theme.Height.small)
+        }), segments: paintSegments(allowNone: allowNone, pattern: k == .pattern), height: Theme.Height.small, accessibilityPrefix: "document.shape.\(key).kind")
         .accessibilityIdentifier("document.shape.\(key).kind")
         switch paint {
         case .solid(let c)?:
@@ -263,7 +263,7 @@ struct ShapeInspector: View {
             HStack(spacing: Theme.Space.s) {
                 label("Align")
                 SegmentedPicker(selection: Binding(get: { st.alignment }, set: { a in set(true) { $0.alignment = a } }),
-                                segments: ShapeStrokeAlignment.allCases.map { .init(value: $0, title: $0.title) }, height: Theme.Height.small)
+                                segments: ShapeStrokeAlignment.allCases.map { .init(value: $0, title: $0.title) }, height: Theme.Height.small, accessibilityPrefix: "document.shape.stroke.alignment")
                     .accessibilityIdentifier("document.shape.stroke.alignment")
             }
             if info.hasOpenSubpaths && info.source.liveShape.map({ ShapePrimitives.path($0).hasOpenSubpaths }) ?? true {
@@ -272,7 +272,7 @@ struct ShapeInspector: View {
             HStack(spacing: Theme.Space.s) {
                 label("Caps")
                 SegmentedPicker(selection: Binding(get: { st.cap }, set: { c in set(true) { $0.cap = c } }),
-                                segments: ShapeLineCap.allCases.map { .init(value: $0, title: $0.title) }, height: Theme.Height.small)
+                                segments: ShapeLineCap.allCases.map { .init(value: $0, title: $0.title) }, height: Theme.Height.small, accessibilityPrefix: "document.shape.stroke.cap")
                     .accessibilityIdentifier("document.shape.stroke.cap")
             }
             HStack(spacing: Theme.Space.s) {
@@ -301,6 +301,7 @@ struct ShapeInspector: View {
                     }
                     .help("Dash and gap lengths in pixels, e.g. 12, 6; empty for a solid stroke")
                     .accessibilityIdentifier("document.shape.stroke.dashes")
+                    .accessibilityLabel("Stroke dashes")
             }
             if !st.dashes.isEmpty {
                 slider("Dash offset", st.dashOffset, -200...200, 0, "%.1f px", 0.5, "stroke.dashOffset") { v, f in set(f) { $0.dashOffset = v } }
@@ -352,6 +353,7 @@ struct ShapeInspector: View {
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .accessibilityIdentifier("document.shape.mask.add")
                 Button("From Selection") { vector.addVectorMask(fromSelection: true) }
+                    .accessibilityIdentifier("document.shape.mask.fromSelection")
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                     .disabled(document.marquee == nil)
             }
@@ -386,11 +388,11 @@ struct ShapeOptionsBar: View {
         switch document.tool {
         case .rectangleShape, .ellipseShape, .polygonShape, .lineShape, .pen:
             if document.tool != .lineShape {
-                OptionToggle(title: "Fill", on: $vector.options.fillEnabled)
+                OptionToggle(title: "Fill", on: $vector.options.fillEnabled, identifier: "document.option.fillEnabled")
                 colorWell(vector.options.fillColor, "fillColor") { vector.options.fillColor = $0 }
                 separator
             }
-            OptionToggle(title: document.tool == .lineShape ? "Stroke colour" : "Stroke", on: $vector.options.strokeEnabled)
+            OptionToggle(title: document.tool == .lineShape ? "Stroke colour" : "Stroke", on: $vector.options.strokeEnabled, identifier: "document.option.strokeEnabled")
             colorWell(vector.options.strokeColor, "strokeColor") { vector.options.strokeColor = $0 }
             if document.tool == .lineShape {
                 OptionField(title: "Weight", value: $vector.options.lineWeight, range: 0.5...500, unit: "px", fractionDigits: 1)
@@ -407,7 +409,7 @@ struct ShapeOptionsBar: View {
             case .polygonShape:
                 OptionField(title: "Sides", value: Binding(get: { Double(vector.options.sides) }, set: { vector.options.setSides(Int($0)) }),
                             range: 3...100)
-                OptionToggle(title: "Star", on: $vector.options.star)
+                OptionToggle(title: "Star", on: $vector.options.star, identifier: "document.option.star")
                 if vector.options.star {
                     OptionField(title: "Inset", value: Binding(get: { (1 - vector.options.starInset) * 100 },
                                                                set: { vector.options.starInset = min(max(1 - $0 / 100, 0.01), 1) }),
@@ -420,7 +422,7 @@ struct ShapeOptionsBar: View {
                 hint("Click corners · drag for curves (⌥ breaks handles) · click the first point to close · Return finishes · Esc cancels")
             }
         case .pathSelect:
-            OptionToggle(title: "Move vector mask with shape", on: $vector.moveMaskWithShape)
+            OptionToggle(title: "Move vector mask with shape", on: $vector.moveMaskWithShape, identifier: "document.option.moveVectorMask")
             separator
             Menu("Combine") {
                 ForEach(ShapeOperation.allCases) { op in Button(op.title) { vector.combineSelected(op) } }
@@ -428,6 +430,7 @@ struct ShapeOptionsBar: View {
             .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
             .fixedSize()
             .disabled(!vector.canCombine)
+            .accessibilityIdentifier("document.option.combine")
             hint("Click a shape · drag handles to scale, outside to rotate · each drag is one undo step, Esc cancels")
         default:
             hint("Click an anchor to select it (⇧ adds) · drag anchors or handles (⌥ breaks a handle) · ⌥-click a segment adds a point · ⌫ deletes")

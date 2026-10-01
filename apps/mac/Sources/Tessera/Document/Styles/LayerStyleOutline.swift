@@ -161,7 +161,7 @@ final class StyleEffectRowCell: NSTableCellView {
         eye.toolTip = "Show or hide this effect"
         let base = "document.layers.effect.\(item.layer).\(e.index)"
         setAccessibilityIdentifier(base)
-        eye.setAccessibilityIdentifier("\(base).visibility")
+        eye.setDocumentAccessibility(identifier: "\(base).visibility", label: "Show or hide " + name.stringValue)
         name.setAccessibilityIdentifier("\(base).name")
         setAccessibilityLabel("Effect \(e.kind.title)\(e.enabled ? "" : ", hidden")")
         toolTip = "Double-click to edit \(e.kind.title)"

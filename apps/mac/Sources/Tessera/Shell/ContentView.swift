@@ -28,6 +28,23 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView(model: model)
+                .toolbar(removing: model.viewMode == .document ? .sidebarToggle : nil)
+                .toolbar {
+                    if model.viewMode == .document {
+                        // SwiftUI's automatic item has no hook for AX metadata. Keep its native
+                        // responder-chain action and symbol in an explicitly labelled item.
+                        ToolbarItem(id: "document-sidebar", placement: .navigation) {
+                            Button {
+                                NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
+                            } label: {
+                                Label(columnVisibility.wrappedValue == .detailOnly ? "Show Sidebar" : "Hide Sidebar",
+                                      systemImage: "sidebar.left")
+                            }
+                            .help("Toggle sidebar")
+                            .accessibilityIdentifier("document.toolbar.sidebar")
+                        }
+                    }
+                }
                 .containedColumn()
                 .navigationSplitViewColumnWidth(min: Theme.Width.sidebarMin, ideal: Theme.Width.sidebarIdeal,
                                                 max: Theme.Width.sidebarMax)
@@ -280,6 +297,7 @@ struct ContentView: View {
             }
             .buttonStyle(ToolbarButtonStyle())
             .help("Open a folder of JPEG / RAW images (⌘O)")
+            .accessibilityIdentifierIfPresent(model.viewMode == .document ? "document.toolbar.open" : nil)
         }
         .flatToolbarItem()
         ToolbarItem(id: "mode", placement: .principal) {
@@ -287,6 +305,7 @@ struct ContentView: View {
                 Button("Library") { model.requestLibraryViewMode(.grid) }
                     .buttonStyle(ToolbarButtonStyle())
                     .help("Return to Library; open documents stay available")
+                    .accessibilityIdentifier("document.toolbar.library")
             } else {
                 SegmentedPicker(selection: Binding(get: {
                     model.isReviewing ? "review" : model.isPhotoEditing ? "edit" : "library"
@@ -349,6 +368,7 @@ struct ContentView: View {
             }
             .toggleStyle(ToolbarToggleStyle())
             .help("Show or hide the inspector (⌥⌘I)")
+            .accessibilityIdentifierIfPresent(model.viewMode == .document ? "document.toolbar.inspector" : nil)
         }
         .flatToolbarItem()
     }

@@ -25,7 +25,7 @@ struct ContentAwareOptionsBar: View {
     var body: some View {
         SegmentedPicker(selection: $cam.options.mode, segments: ContentAwareMoveMode.allCases.map {
             .init(value: $0, title: $0.title, help: $0.help)
-        }, height: Theme.Height.small, fill: false)
+        }, height: Theme.Height.small, fill: false, accessibilityPrefix: "document.cam.mode")
         .fixedSize()
         .disabled(cam.jobs.isBusy)
         .accessibilityIdentifier("document.cam.mode")

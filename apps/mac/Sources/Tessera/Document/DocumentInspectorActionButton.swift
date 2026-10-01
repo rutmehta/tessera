@@ -54,8 +54,7 @@ final class DocumentInspectorNativeActionButton: NSButton, KeyOwningControl {
     func configure(title: String, identifier: String, help: String, enabled: Bool,
                    action: @escaping () -> Void) {
         self.title = title
-        setAccessibilityLabel(title)
-        setAccessibilityIdentifier(identifier)
+        setDocumentAccessibility(identifier: identifier, label: title)
         toolTip = help
         onPress = action
         isEnabled = enabled

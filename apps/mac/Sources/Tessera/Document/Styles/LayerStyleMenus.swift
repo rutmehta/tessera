@@ -53,6 +53,7 @@ struct LayerStyleFooterButton: View {
             .disabled(document.primary == nil)
             .help("Add a layer style")
             .accessibilityIdentifier("document.layers.addStyle")
+            .accessibilityLabel("Add a layer style")
     }
 }
 

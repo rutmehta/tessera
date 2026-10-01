@@ -38,6 +38,7 @@ struct DocSlider: NSViewRepresentable {
         s.step = step
         s.isEnabled = enabled
         s.setAccessibilityIdentifier(identifier)
+        s.setAccessibilityLabel(title)
         if !s.isDragging { s.doubleValue = value }
         s.needsDisplay = true
     }
@@ -47,6 +48,7 @@ struct DocSlider: NSViewRepresentable {
 struct DocColorWell: NSViewRepresentable {
     let rgb: [Double]
     var identifier: String
+    var label = "Color"
     let onChange: ([Double]) -> Void
 
     final class Coordinator: NSObject {
@@ -70,6 +72,7 @@ struct DocColorWell: NSViewRepresentable {
     func updateNSView(_ w: NSColorWell, context: Context) {
         context.coordinator.onChange = onChange
         w.setAccessibilityIdentifier(identifier)
+        w.setAccessibilityLabel(label)
         guard rgb.count >= 3 else { return }
         let color = NSColor(srgbRed: rgb[0], green: rgb[1], blue: rgb[2], alpha: 1)   // lint:allow (fill colour is document data)
         if w.color.usingColorSpace(.sRGB) != color {
@@ -105,6 +108,7 @@ struct DocCurveEditor: NSViewRepresentable {
         let c = context.coordinator
         v.onCurve = { curve, final in c.onChange?(curve.knots.map { [$0.x, $0.y] }, final) }
         v.setAccessibilityIdentifier(identifier)
+        v.setAccessibilityLabel("Curve points")
         return v
     }
 
@@ -114,5 +118,13 @@ struct DocCurveEditor: NSViewRepresentable {
         v.channel = channel
         guard !v.isInteracting else { return }
         v.curve = PointCurve(json: points.map { ["x": $0[0], "y": $0[1]] })
+    }
+}
+
+// Store metadata on the native control without replacing its cell-backed AX element.
+extension NSControl {
+    func setDocumentAccessibility(identifier: String, label: String) {
+        setAccessibilityIdentifier(identifier)
+        setAccessibilityLabel(label)
     }
 }
