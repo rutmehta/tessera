@@ -201,7 +201,8 @@ fn extended_tone_curves_are_one_named_limitation() {
             .iter()
             .filter(|w| w.contains("ExtendedToneCurve"))
             .collect();
-        assert_eq!(ext.len(), 1, "{warnings:?}");
+        assert_eq!(ext.len(), usize::from(text == edited), "{warnings:?}");
+        if text == identity { continue; }
         assert!(ext[0].contains("not supported"), "{}", ext[0]);
         assert!(!ext[0].contains("unknown Lua develop key"), "{}", ext[0]);
         let kept = recipe.unknown["lrcat_develop_lua"].as_object().unwrap();
@@ -210,7 +211,7 @@ fn extended_tone_curves_are_one_named_limitation() {
         assert!(recipe.settings.tone.curves.rgb.0.is_empty());
     }
     // Several images: one grouped report entry.
-    let (ids, plan) = import_with(&[(Some(edited), Some("15.4")), (Some(identity), Some("15.4"))]);
+    let (ids, plan) = import_with(&[(Some(edited), Some("15.4")), (Some(edited), Some("15.4")), (Some(identity), Some("15.4"))]);
     let entries: Vec<_> = plan
         .report
         .iter()
@@ -234,12 +235,42 @@ fn oversized_cells_are_not_loaded() {
     );
     let (ids, plan) = import_with(&[(Some(&huge), Some("15.4"))]);
     let r = recipe(&plan, ids[0]);
+    let kept = r.unknown["lrcat_develop_source"]["text"].as_str().unwrap();
+    assert!(!kept.is_empty() && kept.len() <= 64 * 1024);
+    assert!(huge.starts_with(kept));
+    assert_eq!(r.unknown["lrcat_develop_source"]["truncated"], true);
     assert_eq!(r.settings, engine_api::recipe::Recipe::default().settings);
     assert!(
         plan.report
             .iter()
-            .any(|e| e.contains("Adobe_imageDevelopSettings") && e.contains("limit")),
+            .any(|e| e.starts_with(&format!("image {}: ", ids[0])) && e.contains("row 1") && e.contains("limit") && e.contains("imported as unedited")),
         "{:#?}",
         plan.report
     );
+}
+
+#[test]
+fn every_unedited_image_is_individually_reported() {
+    let (ids, plan) = import_with(&[(Some("garbage"), Some("15.4")), (Some("garbage"), Some("15.4")), (None, None), (None, None)]);
+    for id in ids {
+        assert!(plan.report.iter().any(|e| e.starts_with(&format!("image {id}: ")) && e.contains("imported as unedited")), "{:?}", plan.report);
+    }
+}
+
+#[test]
+fn develop_rows_are_ordered_and_orphans_and_null_ids_do_not_block() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture::write(dir.path()).unwrap();
+    let c = Connection::open(&f.catalog).unwrap();
+    c.execute_batch("DELETE FROM Adobe_imageDevelopSettings;
+        INSERT INTO Adobe_imageDevelopSettings VALUES(31, 's = { Exposure2012 = 2 }', '15.4');
+        INSERT INTO Adobe_imageDevelopSettings VALUES(NULL, 'garbage', '15.4');
+        INSERT INTO Adobe_imageDevelopSettings VALUES(-1, 'garbage', '15.4');
+        INSERT INTO Adobe_imageDevelopSettings VALUES(999999, 'garbage', '15.4');
+        INSERT INTO Adobe_imageDevelopSettings VALUES(30, 's = { Exposure2012 = 1 }', '15.4');
+        INSERT INTO Adobe_imageDevelopSettings VALUES(30, 's = { Exposure2012 = 3 }', '15.4');").unwrap();
+    let plan = import(&f.catalog).unwrap();
+    assert_eq!(recipe(&plan, 30).settings.tone.exposure, 3.0);
+    assert_eq!(recipe(&plan, 31).settings.tone.exposure, 2.0);
+    assert!(plan.report.iter().any(|e| e.contains("image 30") && e.contains("last-write-wins")));
 }

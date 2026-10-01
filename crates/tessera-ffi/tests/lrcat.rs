@@ -519,3 +519,15 @@ fn grouped_develop_report_entries_keep_their_image_counts() {
     assert_eq!(issue.examples.len(), 1, "{issue:?}");
     assert!(!issue.examples[0].starts_with("image "), "{issue:?}");
 }
+
+#[test]
+fn unedited_summary_lists_each_image() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = fixture::write(&temp.path().join("fx")).unwrap();
+    let c = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    c.execute("UPDATE Adobe_imageDevelopSettings SET text='garbage'", []).unwrap();
+    let summary = inspect_lrcat(fixture.catalog.to_string_lossy().into_owned()).unwrap();
+    let issues: Vec<_> = summary.unsupported.iter().filter(|i| i.reason.contains("imported as unedited")).collect();
+    assert_eq!(issues.len(), summary.images as usize);
+    assert!(issues.iter().all(|i| i.count == 1 && i.reason.contains("image ")));
+}

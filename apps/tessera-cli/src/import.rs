@@ -243,6 +243,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn lrcat_failed_publish_leaves_no_destination() {
+        for skip in [false, true] {
+            let temp = tempfile::tempdir().unwrap();
+            let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+            let dest = temp.path().join("bundle");
+            let result = apply_with_publish(&fixture.catalog, &dest, |_, _| {
+                if skip { Ok(()) } else { anyhow::bail!("injected pre-rename error") }
+            });
+            assert!(result.is_err());
+            assert!(!dest.exists());
+            assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+        }
+    }
+
+    #[test]
     fn reference_dimensions_are_validated_not_arbitrarily_resized() {
         let quarter = image::RgbImage::new(3, 2);
         assert_eq!(
