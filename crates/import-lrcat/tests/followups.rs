@@ -178,9 +178,9 @@ fn lua_rows_retain_only_unknown_key_source() {
     assert!(x.unknown.contains_key("sidecar_xmp"));
 }
 
-// 6. The extended-range tone curve has no slot in the recipe: one named
-// limitation per image when it changes anything, source retained; identity
-// curves (no adjustment) are dropped silently.
+// 6. The extended-range tone curve has no slot in the recipe and is not
+// translated here: one named limitation per image (grouped in the plan
+// report), never an "unknown key" entry, source retained.
 #[test]
 fn extended_tone_curves_are_one_named_limitation() {
     let edited = "s = { Exposure2012 = 1,
@@ -189,34 +189,39 @@ fn extended_tone_curves_are_one_named_limitation() {
 	ExtendedToneCurvePV2012Blue = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Green = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Red = { 0, 0, 255, 255 } }";
-    let (recipe, warnings) = lua_develop::parse(edited, "15.4").unwrap();
-    let ext: Vec<_> = warnings
-        .iter()
-        .filter(|w| w.contains("ExtendedToneCurve"))
-        .collect();
-    assert_eq!(ext.len(), 1, "{warnings:?}");
-    assert!(ext[0].contains("not supported"), "{}", ext[0]);
-    assert!(!ext[0].contains("unknown Lua develop key"), "{}", ext[0]);
-    let kept = recipe.unknown["lrcat_develop_lua"].as_object().unwrap();
-    for key in [
-        "ExtendedToneCurveName2012",
-        "ExtendedToneCurvePV2012",
-        "ExtendedToneCurvePV2012Red",
-        "ExtendedToneCurvePV2012Green",
-        "ExtendedToneCurvePV2012Blue",
-    ] {
-        assert!(kept.contains_key(key), "{key}: {kept:?}");
-    }
-    assert!(recipe.settings.tone.curves.rgb.0.is_empty());
-
     let identity = "s = { Exposure2012 = 1,
 	ExtendedToneCurvePV2012 = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Blue = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Green = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Red = { 0, 0, 255, 255 } }";
-    let (recipe, warnings) = lua_develop::parse(identity, "15.4").unwrap();
-    assert!(warnings.is_empty(), "{warnings:?}");
-    assert!(!recipe.unknown.contains_key("lrcat_develop_lua"));
+    for (text, keys) in [(edited, 5), (identity, 4)] {
+        let (recipe, warnings) = lua_develop::parse(text, "15.4").unwrap();
+        assert_eq!(recipe.settings.tone.exposure, 1.0);
+        let ext: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.contains("ExtendedToneCurve"))
+            .collect();
+        assert_eq!(ext.len(), 1, "{warnings:?}");
+        assert!(ext[0].contains("not supported"), "{}", ext[0]);
+        assert!(!ext[0].contains("unknown Lua develop key"), "{}", ext[0]);
+        let kept = recipe.unknown["lrcat_develop_lua"].as_object().unwrap();
+        assert_eq!(kept.len(), keys, "{kept:?}");
+        assert!(kept.keys().all(|k| k.starts_with("ExtendedToneCurve")));
+        assert!(recipe.settings.tone.curves.rgb.0.is_empty());
+    }
+    // Several images: one grouped report entry.
+    let (ids, plan) = import_with(&[(Some(edited), Some("15.4")), (Some(identity), Some("15.4"))]);
+    let entries: Vec<_> = plan
+        .report
+        .iter()
+        .filter(|e| e.contains("ExtendedToneCurve"))
+        .collect();
+    assert_eq!(entries.len(), 1, "{:#?}", plan.report);
+    assert!(
+        entries[0].starts_with(&format!("2 images (first: image {}): ", ids[0])),
+        "{}",
+        entries[0]
+    );
 }
 
 // 5. Cells larger than the per-cell bound are not loaded: the row degrades
