@@ -5,9 +5,12 @@ import QuartzCore
 import SwiftUI
 import TesseraCore
 
-/// Presents document composites: a `CAMetalLayer` in the EDR configuration of the loupe
-/// (RGBA16F, extended linear, `wantsExtendedDynamicRangeContent`) sampling the backend's RGBA8
-/// straight-alpha IOSurfaces over a checkerboard drawn here. Frames cover a canvas rectangle at a
+/// Presents document composites: a `CAMetalLayer` (RGBA16F) sampling the backend's RGBA8
+/// straight-alpha IOSurfaces over a checkerboard drawn here. The surfaces hold the document's own
+/// encoded samples. sRGB documents: the loupe's EDR configuration (extended linear sRGB,
+/// `wantsExtendedDynamicRangeContent`), surfaces decoded by `rgba8Unorm_srgb`. Other profiles (B5-30):
+/// surfaces sampled as `rgba8Unorm`, composited in the document's encoding and the layer tagged with
+/// the document profile, so Core Animation converts to the display (no per-pixel work here). Frames cover a canvas rectangle at a
 /// pyramid level; the shader maps every drawable pixel to the canvas through the current zoom and
 /// pan, so a frame keeps lining up while the next one renders.
 @MainActor
@@ -57,7 +60,8 @@ final class DocumentRenderer {
         if (r.z > 0.0 && c.x >= r.x && c.y >= r.y && c.x < r.x + r.z && c.y < r.y + r.w) {
             float2 size = float2(tex.get_width(), tex.get_height());
             float2 uv = min((c - r.xy) / r.zw * u.uvScale, u.uvScale - 0.5 / size);
-            // Straight alpha, sRGB-decoded by the texture format: composite over the checkerboard.
+            // Straight alpha, composited over the checkerboard in the layer's space (linear sRGB via the
+            // `_srgb` format, or the document profile's own encoding).
             half4 s = u.nearest > 0.5 ? tex.sample(near, uv) : tex.sample(lin, uv);
             col = mix(col, s.rgb, s.a);
         }
@@ -94,8 +98,8 @@ final class DocumentRenderer {
         nearest = n
     }
 
-    func texture(for surface: IOSurfaceRef) -> MTLTexture? {
-        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm_srgb, width: IOSurfaceGetWidth(surface),
+    func texture(for surface: IOSurfaceRef, format: MTLPixelFormat) -> MTLTexture? {
+        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: IOSurfaceGetWidth(surface),
                                                             height: IOSurfaceGetHeight(surface), mipmapped: false)
         desc.usage = .shaderRead
         desc.storageMode = device.hasUnifiedMemory ? .shared : .managed
@@ -215,6 +219,7 @@ final class DocumentViewportView: NSView {
         ringSize = (0, 0)
         current = nil
         lastPushed = nil
+        displayColorDidChange()   // B5-30: the new document's colour space (sRGB without one)
         guard let doc else { ants.rect = nil; toolOverlay.updateAnimation(); render(); return }
         doc.viewport = self
         doc.onFrame = { [weak self, weak doc] f in
@@ -246,11 +251,28 @@ final class DocumentViewportView: NSView {
     /// Test seams: the layer's colour space and EDR flag, and the pixel format surfaces are sampled as.
     var layerColorSpace: CGColorSpace? { metalLayer?.colorspace }
     var layerWantsEDR: Bool { metalLayer?.wantsExtendedDynamicRangeContent ?? false }
-    var surfacePixelFormat: MTLPixelFormat { .rgba8Unorm_srgb }
+    var surfacePixelFormat: MTLPixelFormat { displayColor.isSRGB ? .rgba8Unorm_srgb : .rgba8Unorm }
     var ringSurfaces: [IOSurfaceRef] { ring.values.map(\.surface) }
 
     /// B5-30: the document profile changed (or a document was attached): re-tag the layer and surfaces.
     func displayColorDidChange() {
+        let next = controller?.displayColor ?? .srgb
+        let formatChanged = next.isSRGB != displayColor.isSRGB
+        displayColor = next
+        if let l = metalLayer {
+            // sRGB keeps the EDR layer exactly as before. Canvas values never exceed 1 (8-bit surfaces, SDR
+            // theme colours), so a document-profile layer loses nothing without EDR.
+            l.colorspace = next.isSRGB ? CGColorSpace(name: CGColorSpace.extendedLinearSRGB) : next.space
+            l.wantsExtendedDynamicRangeContent = next.isSRGB
+        }
+        for (id, entry) in ring {
+            next.tag(entry.surface)
+            if formatChanged { ring[id] = (entry.surface, renderer?.texture(for: entry.surface, format: surfacePixelFormat)) }
+        }
+        if formatChanged, let (info, _) = current {
+            current = ring[info.surfaceId]?.texture.map { (info, $0) }
+        }
+        render()
     }
 
     func detachFromWorkspace() {
@@ -310,7 +332,8 @@ final class DocumentViewportView: NSView {
             var next: [UInt32: (IOSurfaceRef, MTLTexture?)] = [:]
             for _ in 0..<3 {
                 guard let s = DocumentSurfaces.make(width: Int(w), height: Int(h)) else { continue }
-                next[IOSurfaceGetID(s)] = (s, renderer?.texture(for: s))
+                displayColor.tag(s)
+                next[IOSurfaceGetID(s)] = (s, renderer?.texture(for: s, format: surfacePixelFormat))
             }
             // Release the old ring first (B5-01: a different size replaces the ring; detaching makes it
             // explicit). The frame on screen keeps its texture until the new ring's first frame arrives.
@@ -346,9 +369,17 @@ final class DocumentViewportView: NSView {
     func render() {
         guard let renderer, let metalLayer, window != nil else { return }
         let appearance = effectiveAppearance
+        let documentSpace = displayColor.isSRGB ? nil : displayColor.space
         func linear(_ c: NSColor) -> SIMD4<Float> {
             var out = SIMD4<Float>(0, 0, 0, 1)
             appearance.performAsCurrentDrawingAppearance {
+                // B5-30: a document-profile layer takes the colour encoded in that profile.
+                if let documentSpace,
+                   let d = c.cgColor.converted(to: documentSpace, intent: .defaultIntent, options: nil)?.components,
+                   d.count >= 3 {
+                    out = SIMD4(Float(d[0]), Float(d[1]), Float(d[2]), 1)
+                    return
+                }
                 let s = c.usingColorSpace(.sRGB) ?? c
                 let lin = { (v: CGFloat) -> Float in
                     let x = Float(v)

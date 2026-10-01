@@ -343,7 +343,7 @@ final class FilterSheetModel: Identifiable {
         let data = Data(bytes: IOSurfaceGetBaseAddress(s), count: stride * height)
         guard let provider = CGDataProvider(data: data as CFData) else { return nil }
         return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: stride,
-                       space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                       space: space,
                        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
                        provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
     }

@@ -69,6 +69,18 @@ final class DocumentDisplayColorTests: XCTestCase {
 
     private func icc(_ space: CGColorSpace?) -> Data? { space?.copyICCData() as Data? }
 
+    /// The same colour space by what it means: saturated primaries and a grey land on the same extended
+    /// sRGB values. (CGImage may swap an ICC space for the system's equivalent named one, so its bytes differ.)
+    private func sameColors(_ a: CGColorSpace?, _ b: CGColorSpace) -> Bool {
+        guard let a, let target = CGColorSpace(name: CGColorSpace.extendedSRGB) else { return false }
+        for c in [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [0.5, 0.5, 0.5, 1]] as [[CGFloat]] {
+            guard let x = CGColor(colorSpace: a, components: c)?.converted(to: target, intent: .relativeColorimetric, options: nil)?.components,
+                  let y = CGColor(colorSpace: b, components: c)?.converted(to: target, intent: .relativeColorimetric, options: nil)?.components,
+                  zip(x, y).allSatisfy({ abs($0 - $1) < 2e-3 }) else { return false }
+        }
+        return true
+    }
+
     func testSRGBDocumentKeepsTheSRGBCanvasAndItsBytes() throws {
         let (doc, f) = try redDocument(profile: nil)   // new documents carry the built-in sRGB profile
         defer { doc.close() }
@@ -100,6 +112,8 @@ final class DocumentDisplayColorTests: XCTestCase {
         XCTAssertEqual(px, [255, 0, 0, 255])
         let image = try XCTUnwrap(FilterSheetModel.image(s, width: Int(d.width), height: Int(d.height), space: doc.displayColor.space))
         XCTAssertEqual(icc(image.colorSpace), profile, "the pane carries the document profile")
+        XCTAssertTrue(sameColors(image.colorSpace, doc.displayColor.space))
+        XCTAssertFalse(sameColors(image.colorSpace, CGColorSpace(name: CGColorSpace.sRGB)!), "and not sRGB")
         // The canvas: the layer is tagged with the profile, surfaces are sampled without an sRGB decode.
         let v = viewport(doc)
         XCTAssertEqual(icc(v.layerColorSpace), profile)

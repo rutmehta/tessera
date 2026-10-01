@@ -19,12 +19,27 @@ public struct DocumentDisplayColor: @unchecked Sendable {
 
     /// `icc`: `DocumentBackend.displayProfileICC()` (nil = sRGB); `name`: the profile's description.
     public static func resolve(icc: Data?, name: String?) -> DocumentDisplayColor {
-        .srgb
+        guard let icc else { return .srgb }
+        let label = name ?? "embedded"
+        guard let space = CGColorSpace(iccData: icc as CFData) else {
+            return fallback("the colour profile “\(label)” cannot be read by macOS")
+        }
+        guard space.model == .rgb, space.numberOfComponents == 3 else {
+            return fallback("the colour profile “\(label)” is not an RGB profile")
+        }
+        return DocumentDisplayColor(space: space, isSRGB: false, diagnostic: nil)
+    }
+
+    private static func fallback(_ why: String) -> DocumentDisplayColor {
+        DocumentDisplayColor(space: srgb.space, isSRGB: true, diagnostic: "Display: \(why); the canvas shows it as sRGB")
     }
 
     /// The ICC bytes of `space`.
     public var iccData: Data? { space.copyICCData() as Data? }
 
     /// Tags `surface` with `space` (`kIOSurfaceColorSpace`): metadata only, the samples are untouched.
-    public func tag(_ surface: IOSurfaceRef) {}
+    public func tag(_ surface: IOSurfaceRef) {
+        guard let icc = space.copyICCData() else { return }
+        IOSurfaceSetValue(surface, kIOSurfaceColorSpace, icc)
+    }
 }

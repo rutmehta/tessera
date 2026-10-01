@@ -67,6 +67,17 @@ final class DocumentController: Identifiable {
 
     /// B5-30: re-reads the document profile (open, Assign / Convert to Profile, undo across them).
     private func refreshDisplayColor() {
+        let icc: Data?
+        do { icc = try backend.displayProfileICC() } catch {
+            icc = nil
+            report?("Display: \(error.localizedDescription)")
+        }
+        displayColor = DocumentDisplayColor.resolve(icc: icc, name: info.profileName)
+        if let d = displayColor.diagnostic {
+            NSLog("%@", d)
+            report?(d)
+        }
+        viewport?.displayColorDidChange()
     }
 
     var title: String { info.title }
