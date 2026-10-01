@@ -104,6 +104,40 @@ history steps and an unknown develop key. Its "Lightroom previews" are this
 module's own approximation of the edits, not Adobe renders. The CLI exposes it
 as `tessera import lrcat --make-fixture <dir>`.
 
+## Retouch translation (LR-3)
+
+The catalog adapter reads `RetouchAreas` / `RetouchInfo` from
+`recipe.unknown["lrcat_develop_source"].properties` after the ordinary decoder.
+Supported explicit-source heal/clone circles and simple `Mask/Paint` paths become
+`settings.locals.retouch`. Legacy comma-separated `RetouchInfo` strings, Lua
+resource tables, and XMP RDF resource/list forms are accepted. Source coordinates
+are normalized; the offset is source minus destination (the first dab for paths).
+Circles use a one-point brush target so radius remains relative to image width on
+non-square images. Adobe 0–1 opacity/feather/flow become recipe percentages;
+feather lives on the brush target, with no second operation-level feather.
+
+A property is consumed only if every item is supported. Unknown fields/methods,
+missing source coordinates, conflicting aliases, generative/remove modes,
+`OffsetY`-only source encodings, variable-radius/pressure dab commands, inverted
+or subtractive paint masks, and solver-version/seed metadata remain retained.
+Empty-only lists retain their existing output. Nonempty equivalent aliases apply
+once. Translation records an import history edit, preserving recipe validation
+and undo. Inputs without a successful retouch translation are unchanged.
+
+The synthetic CPU test in `tessera-ffi/tests/lr3_retouch_import.rs` imports a
+fixture catalog and explicitly feeds the decoded target to `brush::Stroke`.
+It verifies placement, source offset, opacity, and feather on a 128×80 raster.
+This is **not application integration**: the current Develop renderer does not
+yet dispatch `settings.locals.retouch`, and `pipeline_cpu::validate_settings`
+rejects nonempty retouch. Do not merge this as app-visible retouch support before
+that integration is implemented. Adobe healing solver parity and the
+undocumented source variants listed above are unverified. Existing brush healing
+uses Poisson blending; its output is not asserted equivalent to Adobe's solver.
+
+Schema references: [ExifTool CRS tags](https://exiftool.org/TagNames/XMP.html#crs)
+and [go-xmp CRS types](https://pkg.go.dev/github.com/mholt/go-xmp/models/crs).
+They document shapes/names, not an Adobe pixel-equivalence specification.
+
 ## Verification boundary
 
 There is no real catalog fixture. `tests/make_fixture.rs` creates a synthetic
