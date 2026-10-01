@@ -277,41 +277,33 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
     for y in 0..src.h {
         checkpoint(cancel)?;
         let row = y * src.w;
-        for x in 0..interior_start {
-            let mut sum = [0.0; 4];
-            for (j, &weight) in k.iter().enumerate() {
-                let d = j as i32 - r;
+        let out_row = &mut horizontal[row..row + src.w];
+        out_row.fill([0.0; 4]);
+        // Process one tap across contiguous x positions before advancing to
+        // the next tap. Per-pixel additions still occur in ascending j order.
+        for (j, &weight) in k.iter().enumerate() {
+            let d = j as i32 - r;
+            for x in 0..interior_start {
                 let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
                 let sample = src.pixels[row + sample_x];
                 for c in 0..4 {
-                    sum[c] += weight * sample[c];
+                    out_row[x][c] += weight * sample[c];
                 }
             }
-            horizontal[row + x] = sum;
-        }
-        for x in interior_start..interior_end {
-            let mut sum = [0.0; 4];
-            for (j, &weight) in k.iter().enumerate() {
-                let d = j as i32 - r;
+            for x in interior_start..interior_end {
                 let sample_x = (x as i32 + d) as usize;
                 let sample = src.pixels[row + sample_x];
                 for c in 0..4 {
-                    sum[c] += weight * sample[c];
+                    out_row[x][c] += weight * sample[c];
                 }
             }
-            horizontal[row + x] = sum;
-        }
-        for x in interior_end..src.w {
-            let mut sum = [0.0; 4];
-            for (j, &weight) in k.iter().enumerate() {
-                let d = j as i32 - r;
+            for x in interior_end..src.w {
                 let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
                 let sample = src.pixels[row + sample_x];
                 for c in 0..4 {
-                    sum[c] += weight * sample[c];
+                    out_row[x][c] += weight * sample[c];
                 }
             }
-            horizontal[row + x] = sum;
         }
     }
 
@@ -592,7 +584,9 @@ mod tests {
     #[test]
     #[ignore = "24 MP r12 public apply benchmark; run before and after PERF-4 on the same host/load"]
     fn benchmark_gaussian_apply_r12_24mp() {
-        assert!(!cfg!(debug_assertions), "run this benchmark with --release");
+        if cfg!(debug_assertions) {
+            panic!("run this benchmark with --release");
+        }
         const W: u32 = 6000;
         const H: u32 = 4000;
         const TRIALS: usize = 3;
@@ -634,7 +628,9 @@ mod tests {
     #[test]
     #[ignore = "24 MP r12 paired CPU benchmark; diagnostic under load, not a CI timing gate"]
     fn benchmark_gaussian_r12_24mp_against_frozen_baseline() {
-        assert!(!cfg!(debug_assertions), "run this benchmark with --release");
+        if cfg!(debug_assertions) {
+            panic!("run this benchmark with --release");
+        }
         const W: usize = 6000;
         const H: usize = 4000;
         const SIGMA: f32 = 12.0;
