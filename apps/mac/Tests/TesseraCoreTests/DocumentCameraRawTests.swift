@@ -98,6 +98,34 @@ final class DocumentCameraRawTests: XCTestCase {
         XCTAssertEqual(sheet.amountPercent, 37)
     }
 
+    @MainActor func testDragEventsAcrossRunLoopKeepExactAmountAndDropStaleError() async throws {
+        let (doc, _) = try greyDocument()
+        defer { doc.close() }
+        let cr = DocumentCameraRaw()
+        cr.open(doc)
+        let sheet = try XCTUnwrap(cr.sheet)
+        var amounts: [Double] = []
+        sheet.previewSubmitter = { json, _ in
+            amounts.append(try XCTUnwrap(CameraRawDraft(filterJson: json)).amountPercent)
+            let first = amounts.count == 1
+            try await Task.sleep(for: .milliseconds(first ? 250 : 20))
+            if first { throw DocumentError.invalid("stale drag error") }
+            return 2
+        }
+        for tick in 1...60 {
+            sheet.setAmount(Double(tick) + 0.25, final: false)
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        sheet.setAmount(60.25, final: true)
+        try await Task.sleep(for: .milliseconds(600))
+        XCTAssertLessThanOrEqual(amounts.count, 3, "separate run-loop events must also coalesce")
+        XCTAssertEqual(amounts.last, 60.25)
+        XCTAssertEqual(sheet.amountPercent, 60.25)
+        XCTAssertEqual(sheet.previewLevel, 2)
+        XCTAssertNil(sheet.error)
+        sheet.cancel()
+    }
+
     // MARK: Draft
 
     private func params(_ draft: CameraRawDraft) throws -> [String: Any] {
@@ -366,7 +394,7 @@ final class DocumentCameraRawTests: XCTestCase {
         return sum / 256
     }
 
-    @MainActor func testDetailNoteIncludesOtherCameraRawStages() throws {
+    @MainActor func testDetailNoteIncludesOtherCameraRawStages() async throws {
         let (doc, f) = try greyDocument()
         defer { doc.close() }
         let layer = try XCTUnwrap(doc.primary).id
@@ -382,6 +410,7 @@ final class DocumentCameraRawTests: XCTestCase {
             cr.edit(doc, layer: layer, row: rows[1])
             let sheet = try XCTUnwrap(cr.sheet)
             sheet.start()
+            try await Task.sleep(for: .milliseconds(200))
             XCTAssertFalse(sheet.draft.hasDetailEffects)
             XCTAssertEqual(sheet.previewLevel, Int(level))
             XCTAssertEqual(sheet.detailPreviewNote != nil, level > 0, "lower stage has sharpening")
@@ -403,7 +432,7 @@ final class DocumentCameraRawTests: XCTestCase {
         disabledSheet.cancel()
     }
 
-    @MainActor func testFullResolutionStackKeepsDetailNoteOffAtL2() throws {
+    @MainActor func testFullResolutionStackKeepsDetailNoteOffAtL2() async throws {
         let (doc, f) = try greyDocument()
         defer { doc.close() }
         let layer = try XCTUnwrap(doc.primary).id
@@ -425,6 +454,7 @@ final class DocumentCameraRawTests: XCTestCase {
         cr.edit(doc, layer: layer, row: try f.smartFilters(layer: layer)[0])
         let sheet = try XCTUnwrap(cr.sheet)
         sheet.start()
+        try await Task.sleep(for: .milliseconds(200))
         XCTAssertTrue(sheet.draft.hasDetailEffects)
         XCTAssertEqual(sheet.previewLevel, 0)
         XCTAssertNil(sheet.detailPreviewNote)

@@ -103,6 +103,7 @@ final class CameraRawSheetModel: Identifiable {
     private let otherStagesHaveDetailEffects: Bool
     /// Submission seam for exercising a slow backend without changing the engine.
     @ObservationIgnored var previewSubmitter: (@MainActor (String, CanvasRect?) async throws -> UInt8)?
+    @ObservationIgnored private var previewGate = LatestRequestBuffer<String>()
     @ObservationIgnored private var previewTask: Task<Void, Never>?
     @ObservationIgnored private var detailGate = LatestRequestBuffer<String>()
     @ObservationIgnored private var detailPixels = CGSize(width: 320, height: 320)
@@ -180,46 +181,69 @@ final class CameraRawSheetModel: Identifiable {
 
     // MARK: Preview
 
-    /// Slider drags are coalesced (every camera_raw preview is a full-resolution render); mouse-up at once.
-    private func schedulePreview(final: Bool) {
-        previewTask?.cancel()
-        if final {
-            pushPreview()
-            refreshDetail()
-            return
-        }
-        previewTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(120))
-            guard !Task.isCancelled, let self else { return }
-            self.pushPreview()
-            self.refreshDetail()
-        }
+    /// Both drag and release callbacks replace the pending draft. Even an unchanged mouse-up value
+    /// is already retained by the buffer; it must not cancel the last drag's submission.
+    private func schedulePreview(final _: Bool) {
+        pushPreview()
+        refreshDetail()
     }
 
     private func pushPreview() {
         guard let backend, !closed else { return }
-        do {
-            if showBefore {
-                try backend.clearPreview()
-            } else if let previewSubmitter {
-                let json = draft.filterJson, region = doc.lastFrame?.canvasRect
-                Task { @MainActor in
-                    do { previewLevel = Int(try await previewSubmitter(json, region)) }
-                    catch { self.error = error.localizedDescription }
+        if showBefore {
+            previewGate.invalidate()
+            previewTask?.cancel()
+            do { try backend.clearPreview(); error = nil }
+            catch { self.error = error.localizedDescription }
+            return
+        }
+        if let request = previewGate.submit(draft.filterJson) { runPreview(request) }
+    }
+
+    private func runPreview(_ request: LatestRequestBuffer<String>.Request) {
+        guard let backend else { return }
+        let json = request.value, region = doc.lastFrame?.canvasRect
+        let layer = layer.id, index = smartIndex, submitter = previewSubmitter
+        previewTask = Task { @MainActor [weak self] in
+            let result: Result<UInt8, Error>
+            do {
+                try Task.checkCancellation()
+                let level: UInt8
+                if let submitter {
+                    level = try await submitter(json, region)
+                } else {
+                    // These calls enqueue engine work, rather than waiting for a rendered frame.
+                    // Keep the submit and level query on the same actor/viewport (B5-18b/B5-34),
+                    // ordered with Before, Cancel and OK; no detached submit can run after close.
+                    if let index {
+                        try backend.previewSmartFilter(layer: layer, index: index, filterJson: json, region: region)
+                    } else {
+                        try backend.previewFilter(layer: layer, filterJson: json, region: region)
+                    }
+                    level = try backend.filterPreviewLevel(layer: layer, smartIndex: index, filterJson: json)
+                    // The note describes the canvas request just submitted, including during a long drag.
+                    self?.previewLevel = Int(level)
                 }
-            } else if let i = smartIndex {
-                try backend.previewSmartFilter(layer: layer.id, index: i, filterJson: draft.filterJson, region: doc.lastFrame?.canvasRect)
-            } else {
-                try backend.previewFilter(layer: layer.id, filterJson: draft.filterJson, region: doc.lastFrame?.canvasRect)
+                result = .success(level)
+            } catch {
+                result = .failure(error)
             }
-            if !showBefore, previewSubmitter == nil {
-                // Same viewport as the submit just above (both on the main thread): the level it renders at.
-                previewLevel = Int(try backend.filterPreviewLevel(layer: layer.id, smartIndex: smartIndex,
-                                                                  filterJson: draft.filterJson))
+            // The engine's enqueue returns quickly. Retain the worker slot for one preview interval,
+            // so a continuous drag produces first + latest previews instead of a submit per tick.
+            try? await Task.sleep(for: .milliseconds(120))
+            guard let self else { return }
+            let (accept, next) = self.previewGate.finish(request.generation)
+            if accept, !self.closed {
+                switch result {
+                case .success(let level):
+                    self.previewLevel = Int(level)
+                    self.error = nil
+                case .failure(let error):
+                    self.error = error.localizedDescription
+                }
             }
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
+            self.previewTask = nil
+            if let next, !self.closed { self.runPreview(next) }
         }
     }
 
@@ -298,6 +322,7 @@ final class CameraRawSheetModel: Identifiable {
     func ok() {
         guard !applying else { return }
         if showBefore { showBefore = false }
+        previewGate.invalidate()
         previewTask?.cancel()
         closed = true
         detailGate.invalidate()
@@ -306,6 +331,7 @@ final class CameraRawSheetModel: Identifiable {
 
     private func close() {
         closed = true
+        previewGate.invalidate()
         previewTask?.cancel()
         detailGate.invalidate()
     }

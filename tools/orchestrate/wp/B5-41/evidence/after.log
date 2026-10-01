@@ -1,0 +1,69 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-01 10:59:50.770.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 10:59:50.772.
+Test Suite 'DocumentCameraRawTests' started at 2026-10-01 10:59:50.772.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testAmountIsEncodedAsAFraction]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testAmountIsEncodedAsAFraction]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testCancelDropsPendingSliderSubmissionAndLateError]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testCancelDropsPendingSliderSubmissionAndLateError]' passed (0.549 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testCancelLeavesHistoryAndPixelsUnchanged]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testCancelLeavesHistoryAndPixelsUnchanged]' passed (0.017 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailNoteIncludesOtherCameraRawStages]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailNoteIncludesOtherCameraRawStages]' passed (0.643 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailPreviewNoteFollowsTheSubmittedPreviewLevel]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailPreviewNoteFollowsTheSubmittedPreviewLevel]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailRequestsAreLatestWins]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDetailRequestsAreLatestWins]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDragEventsAcrossRunLoopKeepExactAmountAndDropStaleError]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testDragEventsAcrossRunLoopKeepExactAmountAndDropStaleError]' passed (0.773 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testEngineRejectsOutOfDomainValuesWithoutHistory]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testEngineRejectsOutOfDomainValuesWithoutHistory]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testEveryControlPatchesItsDevelopControlPath]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testEveryControlPatchesItsDevelopControlPath]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testFullResolutionStackKeepsDetailNoteOffAtL2]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testFullResolutionStackKeepsDetailNoteOffAtL2]' passed (0.228 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testHistoryAndSmartFilterRowsShowTheFilterTitle]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testHistoryAndSmartFilterRowsShowTheFilterTitle]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testNeutralDraftTurnsOffRawOnlyDefaultsAndResets]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testNeutralDraftTurnsOffRawOnlyDefaultsAndResets]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testNeutralIsIdentityAndExposureDoublesLinear]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testNeutralIsIdentityAndExposureDoublesLinear]' passed (0.023 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testReEditDetailPaneShowsTheFilterOnce]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testReEditDetailPaneShowsTheFilterOnce]' passed (0.063 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testReEditParsesAndRoundTripsIncludingSettingsTheSheetDoesNotShow]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testReEditParsesAndRoundTripsIncludingSettingsTheSheetDoesNotShow]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testRefusalsForTargetsSelectionAndAIMasks]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testRefusalsForTargetsSelectionAndAIMasks]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSheetPreviewsThenAppliesOneUndoableNode]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSheetPreviewsThenAppliesOneUndoableNode]' passed (0.030 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSliderSubmissionsAreLatestWins24MP]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSliderSubmissionsAreLatestWins24MP]' passed (0.685 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSmartObjectAppendsOneSmartFilterAndReEditReplacesIt]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSmartObjectAppendsOneSmartFilterAndReEditReplacesIt]' passed (0.056 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSmartObjectWithSelectionAndAIMasksAreRefusedWithAReason]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSmartObjectWithSelectionAndAIMasksAreRefusedWithAReason]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSplitPointsKeepTheirOrder]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testSplitPointsKeepTheirOrder]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testStubPreviewLevelIsTheViewportLevel]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testStubPreviewLevelIsTheViewportLevel]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testTheFilterMenuHookRoutesCameraRawRows]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testTheFilterMenuHookRoutesCameraRawRows]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testTimedEngineSliderSubmissions24MP]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testTimedEngineSliderSubmissions24MP]' passed (1.530 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testValuesAreClampedToTheControlRange]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testValuesAreClampedToTheControlRange]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testWhiteBalanceSwitchesToCustomWithBothValues]' started.
+Test Case '-[TesseraCoreTests.DocumentCameraRawTests testWhiteBalanceSwitchesToCustomWithBothValues]' passed (0.000 seconds).
+Test Suite 'DocumentCameraRawTests' passed at 2026-10-01 10:59:55.417.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 4.642 (4.645) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 10:59:55.417.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 4.642 (4.645) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 10:59:55.417.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 4.642 (4.647) seconds
+B5-41 24MP ticks=60 submits=2 elapsed=0.6550439596176147 final=3.0
+B5-41 engine24MP releaseCallbacks=true ticks=60 submits=2 inputSeconds=0.01617300510406494 elapsed=0.655777096748352 final=3.0
+B5-41 engine24MP releaseCallbacks=false ticks=60 submits=2 inputSeconds=0.0063010454177856445 elapsed=0.6311659812927246 final=3.0
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
