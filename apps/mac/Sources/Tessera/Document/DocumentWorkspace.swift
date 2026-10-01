@@ -1007,7 +1007,7 @@ private final class CancelBox: @unchecked Sendable {
 /// One pending main-queue delivery per export. Tile callbacks replace the pending
 /// value instead of queuing main-actor tasks. Both phase and percentage changes
 /// obey the 100 ms interval, and identical displayed values never publish again.
-private final class FlatExportProgressPublisher: @unchecked Sendable {
+final class FlatExportProgressPublisher: @unchecked Sendable {
     private let lock = NSLock()
     private let publish: @MainActor @Sendable (Double, String) -> Void
     private var latest: (Double, String)?
@@ -1016,7 +1016,19 @@ private final class FlatExportProgressPublisher: @unchecked Sendable {
     private var finished = false
     private var lastPublication: TimeInterval = -.infinity
 
-    init(publish: @escaping @MainActor @Sendable (Double, String) -> Void) { self.publish = publish }
+    private let now: @Sendable () -> TimeInterval
+    private let schedule: @Sendable (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> Void
+
+    init(now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+         schedule: @escaping @Sendable (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> Void = { delay, action in
+             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                 MainActor.assumeIsolated { action() }
+             }
+         }, publish: @escaping @MainActor @Sendable (Double, String) -> Void) {
+        self.now = now
+        self.schedule = schedule
+        self.publish = publish
+    }
 
     func receive(_ fraction: Double, _ phase: String) {
         let delay: TimeInterval? = lock.withLock {
@@ -1024,12 +1036,10 @@ private final class FlatExportProgressPublisher: @unchecked Sendable {
             latest = (fraction, phase)
             guard !scheduled else { return nil }
             scheduled = true
-            return max(0, 0.1 - (ProcessInfo.processInfo.systemUptime - lastPublication))
+            return max(0, 0.1 - (now() - lastPublication))
         }
         guard let delay else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            MainActor.assumeIsolated { deliver() }
-        }
+        schedule(delay) { [self] in deliver() }
     }
 
     @MainActor private func deliver() {
@@ -1040,7 +1050,7 @@ private final class FlatExportProgressPublisher: @unchecked Sendable {
             let key = (Int((value.0 * 100).rounded()), value.1)
             if let displayed, displayed == key { return nil }
             displayed = key
-            lastPublication = ProcessInfo.processInfo.systemUptime
+            lastPublication = now()
             return value
         }
         if let value { publish(value.0, value.1) }

@@ -74,6 +74,73 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["kept.tif", "support"])
     }
 
+    func testReservedSnapshotIncludesEditCommittedAfterPreparation() async throws {
+        let dir = try temp()
+        let backend = try engineDocument(dir, width: 32, height: 24)
+        defer { backend.close() }
+        let before = dir.appendingPathComponent("before.png").path
+        let expected = dir.appendingPathComponent("expected.png").path
+        let output = dir.appendingPathComponent("reserved.png").path
+        try backend.exportFlat(path: before, format: .png, quality: 90, color: .srgb)
+        let request = try backend.prepareExportFlat(path: output, format: .png, quality: 90, color: .srgb)
+        let layer = try XCTUnwrap(try backend.layers().first?.id)
+        _ = try backend.setVisible(id: layer, visible: false)
+        try backend.exportFlat(path: expected, format: .png, quality: 90, color: .srgb)
+        let job = try await Task.detached { try request.snapshot() }.value
+        // An edit after acquisition must not change the already acquired snapshot.
+        _ = try backend.setVisible(id: layer, visible: true)
+        try await Task.detached { try job.run { _, _ in } }.value
+        XCTAssertNotEqual(try pixels(before), try pixels(expected))
+        XCTAssertEqual(try pixels(output), try pixels(expected))
+    }
+
+    private final class ProgressScheduler: @unchecked Sendable {
+        private let lock = NSLock()
+        private var time: TimeInterval = 0
+        private var pending: [(TimeInterval, @MainActor @Sendable () -> Void)] = []
+        var now: TimeInterval { lock.withLock { time } }
+        func enqueue(_ delay: TimeInterval, _ action: @escaping @MainActor @Sendable () -> Void) {
+            lock.withLock { pending.append((time + delay, action)) }
+        }
+        @MainActor func advance(to instant: TimeInterval) -> Int {
+            let ready = lock.withLock {
+                time = instant
+                let ready = pending.filter { $0.0 <= instant }
+                pending.removeAll { $0.0 <= instant }
+                return ready
+            }
+            for (_, action) in ready { action() }
+            return ready.count
+        }
+    }
+
+    func testDuplicateProgressWakesMainAtMostOncePerInterval() {
+        let scheduler = ProgressScheduler()
+        var publications = 0
+        let publisher = FlatExportProgressPublisher(now: { scheduler.now },
+            schedule: { scheduler.enqueue($0, $1) }) { _, _ in publications += 1 }
+        publisher.receive(0.5, "Rendering")
+        XCTAssertEqual(scheduler.advance(to: 0), 1)
+        // Start after the previous publication's throttle interval expired. Drain
+        // every callback, so a pending callback cannot hide repeated main wakes.
+        var wakes = 0
+        for index in 0..<100 {
+            let time = 1 + Double(index) * 0.0009
+            wakes += scheduler.advance(to: time)
+            publisher.receive(0.5001, "Rendering") // same displayed percentage
+            wakes += scheduler.advance(to: time)
+        }
+        XCTAssertLessThanOrEqual(wakes, 1)
+        XCTAssertEqual(publications, 1)
+        publisher.receive(0.6, "Encoding")
+        _ = scheduler.advance(to: 2)
+        XCTAssertEqual(publications, 2)
+        publisher.finish()
+        publisher.receive(1, "Done")
+        _ = scheduler.advance(to: 3)
+        XCTAssertEqual(publications, 2)
+    }
+
     func testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts() async throws {
         let dir = try temp()
         let backend = try engineDocument(dir)
