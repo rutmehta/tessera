@@ -1,0 +1,1 @@
+PERF source preparation only. codex/perf-1-styles 7ec1db28 preserves bounded style reuse design/pending handoff and Camera Raw/vector source investigation. No RED execution, product implementation, benchmark or acceptance. External batch15 compiler/test pipeline holds runtime lane. See PERF-1/HANDOFF.md and PERF-2-3/SOURCE-PLAN.md. Publication is not peer receipt.
