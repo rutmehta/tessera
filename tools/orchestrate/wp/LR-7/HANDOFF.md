@@ -277,3 +277,116 @@ git diff --check
 All listed final gates passed. Existing libraw C compiler `sprintf` deprecation
 warnings remain; Rust clippy passes with `-D warnings`. External RAW qualification,
 Adobe-rendered reference parity, GPU execution and app/Swift gates are not claimed.
+
+## LR-7c — Machine A review corrections (2026-10-01)
+
+This section supersedes LR-7/LR-7b claims that a saved Adobe matrix or legacy CA
+is fully translated, that translated source is deleted, or that an imported
+matrix may continue overriding mode/guide edits. Local-only work; Machine A owns
+the force-push and integration. No real catalog or GUI was opened.
+
+### Rebase and commits
+
+- Rebased onto `origin/main` at `44db24b251522a477375d36f3bc34244ea015836`.
+- Resolved the expected add/add translation-matrix conflict by preserving every
+  main row and applying the lane's CA row changes. The guard file was identical
+  to main at rebase. No extra rebase commit, dependency/lockfile or board changes.
+- RED: `759e013d` (`test(LR-7c): cover review regressions for saved geometry and legacy CA`).
+- Implementation: `bb87f061725c4a1929da6e94be57586d74ac26dd` (`fix(LR-7c): preserve approximate imports and honor Upright edits`).
+- Final lane HEAD is the subsequent documentation commit. Every new commit has
+  the requested Claude Opus 5.5 co-author trailer.
+
+### Blockers and majors
+
+1. **Approximation/source contract:** the matrix and guard support `approximate`.
+   A concrete fixture must populate its recipe path, retain its exact literal in
+   `unknown.lrcat_develop_source.properties`, and carry an info-level per-key
+   `unknown.translation_diagnostics` message beginning `approximate: `, with zero
+   user-facing warnings for that mapping. This applies to CA, selected matrices,
+   center/focal framing and complete guide sets. Lua literals/ordered entries and
+   XMP fragments stay retained. LR-1/LR-2 notes explicitly inherit the same rule.
+2. **Frame assumption:** row-major source-to-output matrices are still an
+   approximation. With center/focal metadata, assume
+   `q = (u-cx, v-cy)/(f35/35)` on both normalized image axes, defaulting missing
+   centers to `(0.5,0.5)` and missing focal length to `35`. Center/focal mode flags
+   signal a saved frame; their Adobe enum meanings are not claimed verified.
+   Conjugate into the recipe's unit frame at import. Invalid/nonfinite frame
+   values are rejected and retained. Non-square 160x80/80x160 rotated ramp tests,
+   center-offset rotation and focal-scaled translation tests cover this explicit
+   assumption. Poles are checked after frame conversion, in the actual image
+   domain; unknown future frame-family keys remain opaque and cannot select a
+   frame. Both boundaries have separate observed RED/GREEN regressions. These
+   tests are not Adobe reference evidence.
+3. **Stale solutions:** optional `homography_mode` tags the solved mode. A mismatch
+   cannot bypass the solver. Recipe edits and live FFI edits invalidate a saved
+   matrix on mode/guide changes; Swift patches explicitly clear matrix and tag.
+   Rust mode/guide regressions and Swift mode/endpoint-edit regressions cover it.
+   Absent tags on older recipes remain compatible; absent fields stay omitted.
+4. **Resident CA admission:** legacy coefficients participate in export admission,
+   M2 activation and the resident-prefix support check. Resolution reaches the
+   lens-plan path; its existing manual-CA restriction selects the CPU reference
+   prefix rather than silently omitting CA. The resident-backend-versus-CPU test
+   uses profile None, automatic CA disabled and nonzero red/blue coefficients,
+   with an offset non-square default crop. It explicitly permits/validates the
+   required fallback; it does not claim a new GPU CA kernel.
+5. **PV/zero handling:** only Adobe PV1/2 materializes legacy CA. Zero values are
+   absent; stale PV2012+ values remain source-only, including when XMP claims an
+   older version than the authoritative catalog version. No zero-only history
+   edit. Sign, units and constant radial-scale approximation remain unverified.
+6. **History:** geometry and CA fold into the same import transaction as ordinary
+   develop settings, with `Author::Import`; at most one entry, none for a no-op.
+7. **Sidecar:** one shared decoder now serves catalog and standalone XMP paths.
+   Export writes canonical CRS values for changed settings and preserves
+   unchanged source fragments. `ts:GeometryLens`, bound to the existing CRS
+   ExportHash, round-trips optional native geometry/CA fields and the mode tag.
+   External CRS changes invalidate that companion. `sidecar/UNMAPPED.md` updated.
+8. **Validation/analysis:** `Recipe::validate` rejects invalid/singular/pole-crossing
+   matrices. A usable saved solution skips interactive L0 develop/line analysis;
+   the regression asserts zero stage invocations.
+9. **Inventory/cloud:** selected transform, center/focal and four-segment rows have
+   current statuses; inactive Off matrices and transform count remain retained.
+   GenerativeRemove/GenerativeFill rows use the required wording:
+   “requires Adobe cloud; not translatable”. Cloud source remains retained.
+
+No FORMAT bump. CA placement remains after demosaic in linear camera RGB, before
+colour matrix, Upright and crop, using the default-crop centre. Non-Off Upright's
+GPU geometry fallback is unchanged. All added import fixtures are synthetic.
+
+### Verification
+
+Final evidence: [LR-7c-evidence.log](LR-7c-evidence.log).
+
+- Seven-crate `cargo test --locked --no-fail-fast`: **1243 passed, 1 failed,
+  49 ignored** across 193 target summaries; exit 101. The only failure was
+  `document_liquify_ui::brush_latency_on_a_20_megapixel_layer`: p95 **562.5 ms**
+  against `<250 ms`. The requested isolated serial retry also failed, p95
+  **486.4 ms** (0 passed, 1 failed, 14 filtered). This remains an unresolved
+  latency gate failure, not a proven flake. No threshold or Liquify test changes.
+- Every other target passed, including full image-core, pipeline-gpu, all LR-7c
+  regressions, translation matrix, sidecar and remaining tessera-ffi tests.
+- Required `five_actual_raws_auto_lens_and_upright_are_finite` is opt-in/ignored
+  in the normal suite; explicitly executed with `--release --ignored --nocapture`:
+  **1 passed**, 205.65s, finite Canon/Sony/Nikon/Fuji/DNG outputs from repo fixtures.
+- Seven-crate all-target clippy `-D warnings`, format and diff checks: **PASS**.
+- Rebuilt FFI archive/bindings, then Swift gate: **SWIFT GATE OK**, 907 XCTest
+  tests (3 skipped, 0 failures), plus 5 Swift Testing tests passed.
+- Strict-concurrency, warnings-as-errors release `Tessera` product: **PASS**,
+  283.13s. No GUI launched.
+
+The initial RED run failed all three engine regressions (mode, guides, invalid
+matrix) and all three initial importer regressions (approximation/history,
+PV/zero, center/focal/tag). The first broad build found a test-only accidental
+`serde_json` reference in image-core; it was replaced by direct settings
+construction without adding a dependency. A subsequent broad run was stopped
+when the final frame-domain/future-key regression fixes changed the decoder;
+its partial successes are not used as the final gate. The seven-crate gate and
+both Swift checks were restarted against the corrected source.
+
+### Integration limits
+
+No Adobe-rendered synthetic chart or public DNG+XMP pair verifies these Adobe
+conventions. The status intentionally remains `approximate`, without warnings
+for valid mapped values. Exact source is available for a later verified decoder.
+`upright_lr7_compat.rs` fingerprints will need re-baselining after LR-2 lands;
+this lane does not pre-empt that change. Source-only unsupported properties and
+malformed inputs can still have their own diagnostics.

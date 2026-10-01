@@ -150,3 +150,16 @@ Enabled `EnableDistractionRemoval`, `GenerativeRemove` and `GenerativeFill`
 produce a user-facing import report entry: "requires Adobe cloud; not
 translatable", with an explanation that rendered Adobe pixels are needed and
 a rendered TIFF export preserves their appearance. Source stays retained.
+
+### LR-7c review correction
+
+The earlier LR-7/LR-7b translation descriptions are superseded for saved Upright
+and legacy CA: these are **approximate**, with exact source retained under
+`lrcat_develop_source` and info-level `translation_diagnostics` (`approximate: ...`),
+not user-facing warnings. No Adobe-rendered/public DNG+XMP reference has verified
+matrix direction/layout, center/focal frame, or CA sign/units. Center/focal
+metadata now defines the assumed normalized frame documented in sidecar/UNMAPPED.md.
+Saved solutions carry their mode and are cleared on mode/guide edits. Legacy CA
+is gated to Adobe PV1/2 and zero values do not create fields or history. Shared
+standalone sidecar import/export supports both families; all settings are recorded
+in one import-authored history entry. Invalid matrices fail Recipe validation.
