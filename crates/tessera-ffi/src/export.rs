@@ -516,6 +516,21 @@ impl Engine {
         Ok(())
     }
 
+    pub(crate) fn photo_output_folder(&self) -> Result<PathBuf> {
+        let previous = std::fs::read(self.support_dir()?.join(LAST_EXPORT))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<PreviousExport>(&bytes).ok())
+            .and_then(|previous| previous.settings.into_iter().next())
+            .map(|options| PathBuf::from(options.destination));
+        let folder = previous.unwrap_or_else(|| {
+            PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+                .join("Pictures/Tessera Export")
+        });
+        sidecar::Sidecar::ensure_destination(&folder, "export")?;
+        // Index paths are canonical, including macOS /var aliases and symlinked exports.
+        Ok(sidecar::Sidecar::resolved_destination(folder))
+    }
+
     pub(crate) fn support_dir(&self) -> Result<&Path> {
         self.db
             .parent()
@@ -1051,6 +1066,7 @@ impl Engine {
         }
         let pending = self.pending(&ids)?;
         let settings = options.settings(destination.clone())?;
+        sidecar::Sidecar::ensure_destination(&destination, "export")?;
         std::fs::create_dir_all(&destination)
             .map_err(|e| failure(format!("{}: {e}", destination.display())))?;
         let cancel = cancel.map(|c| c.0.clone()).unwrap_or_default();

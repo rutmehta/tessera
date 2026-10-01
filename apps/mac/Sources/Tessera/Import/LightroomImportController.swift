@@ -98,19 +98,19 @@ final class LightroomImportController {
         let support = EngineLibrary.defaultSupportDirectory.path
         let existing = engine
         Task.detached(priority: .userInitiated) {
-            let result = Result { () throws -> (Engine, LrcatImport) in
+            let result = Result { () throws -> (Engine, LrcatImport, LrcatOptions) in
                 let engine = try existing ?? Engine.open(appSupportDir: support)
-                return (engine, try engine.openLrcat(path: url.path))
+                let importer = try engine.openLrcat(path: url.path)
+                return (engine, importer, try importer.defaultOptions())
             }
             await MainActor.run {
                 guard self.catalogURL == url else { return }
                 self.busy = nil
                 switch result {
-                case .success(let (engine, importer)):
+                case .success(let (engine, importer, defaults)):
                     self.engine = engine
                     self.importer = importer
                     self.summary = importer.summary()
-                    let defaults = importer.defaultOptions()
                     self.folders = FolderMappingTable(options: defaults)
                     self.marks = MarkMappingTable(rows: defaults.marks.map { LrcatMarkRow(label: $0.label, mark: $0.mark, count: 0) })
                     self.step = .summary

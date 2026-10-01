@@ -2,6 +2,7 @@
 mod develop;
 mod export_policy;
 mod faces;
+mod store;
 pub use develop::ImportedRecipe;
 pub use export_policy::ExportMetadataPolicy;
 pub use faces::FaceRegion;
@@ -26,6 +27,7 @@ use serde::{Deserialize, Serialize};
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
+    Sidecar::ensure_writable_destination(path)?;
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -54,6 +56,49 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
         let _ = fs::remove_file(&temp);
     }
     result.map_err(|e| EngineError::io_at(path, &e))
+}
+
+// Resolve existing prefixes too: sidecar directories usually do not exist yet.
+fn resolved_path(path: &Path) -> PathBuf {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(path)
+    };
+    for ancestor in absolute.ancestors() {
+        if let Ok(resolved) = fs::canonicalize(ancestor) {
+            let suffix = absolute.strip_prefix(ancestor).unwrap();
+            return if suffix.as_os_str().is_empty() {
+                resolved
+            } else {
+                resolved.join(suffix)
+            };
+        }
+    }
+    absolute
+}
+
+fn owned_root(path: &Path) -> Option<PathBuf> {
+    path.ancestors()
+        .filter(|ancestor| {
+            let name = ancestor
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_ascii_lowercase();
+            name.ends_with(".lrdata") || name.ends_with(".lrcat") || name.ends_with(".lrcat-data")
+        })
+        .last()
+        .map(Path::to_path_buf)
+}
+
+fn lightroom_root(path: &Path) -> Option<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(path)
+    };
+    owned_root(&resolved_path(path)).or_else(|| owned_root(&absolute))
 }
 
 /// Paths associated with one image.
@@ -125,9 +170,51 @@ impl RecipeDocument {
 pub struct Sidecar;
 
 impl Sidecar {
-    /// Derive XMP and recipe paths for an image.
+    /// Bind a canonical source root to the host's existing Application Support directory.
+    /// The host resolves online roots before scanning/importing. Already indexed roots
+    /// can be registered on reopen without probing an offline originals volume.
+    pub fn register_store(source: &Path, support: &Path) {
+        store::register(source, support);
+    }
+
+    /// Lightroom bundle components are immutable source locations.
+    pub fn is_lightroom_owned(path: impl AsRef<Path>) -> bool {
+        lightroom_root(path.as_ref()).is_some()
+    }
+
+    /// Shared preflight for every sidecar publisher, including raw-byte restore/sync.
+    /// Checks lexical and resolved paths before creating directories or temporary files.
+    pub fn ensure_writable_destination(path: impl AsRef<Path>) -> EngineResult<()> {
+        Self::ensure_destination(path, "sidecar")
+    }
+
+    /// Context-specific refusal, before mkdir, temporary files, or publication.
+    pub fn ensure_destination(path: impl AsRef<Path>, operation: &str) -> EngineResult<()> {
+        let path = path.as_ref();
+        if Self::is_lightroom_owned(path) {
+            return Err(EngineError::invalid(
+                operation,
+                format!(
+                    "{operation} destination is a read-only Lightroom path: {}",
+                    path.display()
+                ),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Resolve an existing prefix without creating the destination's parent directories.
+    pub fn resolved_destination(path: impl AsRef<Path>) -> PathBuf {
+        resolved_path(path.as_ref())
+    }
+
+    /// Protected edits live in the host app store, keyed by content with a
+    /// canonical-path alias for offline lookup. Ordinary edits remain adjacent.
     pub fn paths(image_path: impl AsRef<Path>) -> SidecarPaths {
         let image = image_path.as_ref();
+        if Self::is_lightroom_owned(image) {
+            return store::paths(image);
+        }
         let mut xmp = image.as_os_str().to_os_string();
         xmp.push(".xmp");
         let recipe = image
@@ -160,6 +247,8 @@ impl Sidecar {
     pub fn write_recipe(path: impl AsRef<Path>, document: &RecipeDocument) -> EngineResult<()> {
         document.recipe.to_json()?;
         document.recipe.validate()?;
+        Self::ensure_writable_destination(path.as_ref())?;
+        store::persist_aliases(path.as_ref())?;
         atomic_write(path.as_ref(), &serde_json::to_vec_pretty(document)?)
     }
 
@@ -170,6 +259,8 @@ impl Sidecar {
 
     pub fn write_xmp(path: impl AsRef<Path>, packet: &XmpPacket) -> EngineResult<()> {
         xml::Tree::parse(&packet.xml)?;
+        Self::ensure_writable_destination(path.as_ref())?;
+        store::persist_aliases(path.as_ref())?;
         atomic_write(path.as_ref(), packet.xml.as_bytes())
     }
 

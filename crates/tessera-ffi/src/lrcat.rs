@@ -226,7 +226,7 @@ pub trait LrcatProgressListener: Send + Sync {
 pub struct LrcatReport {
     pub catalog_path: String,
     pub cancelled: bool,
-    /// Photos whose sidecars were written in this run.
+    /// Photos whose recipes were saved in this run.
     pub imported: u32,
     /// Photos already imported by an earlier, interrupted run.
     pub resumed: u32,
@@ -490,10 +490,12 @@ fn existing_edit_conflict(path: &Path, id: ImageId, overwrite: bool) -> Option<S
         return None;
     }
     match Sidecar::read_recipe(&recipe) {
-        Ok(doc) if doc.recipe.image_id != Some(id) => Some(format!(
-            "{} belongs to another file; left untouched",
-            recipe.display()
-        )),
+        Ok(doc) if doc.recipe.image_id != Some(id) && !Sidecar::is_lightroom_owned(path) => {
+            Some(format!(
+                "{} belongs to another file; left untouched",
+                recipe.display()
+            ))
+        }
         Ok(doc) if doc.last_writer.machine_id == MACHINE || overwrite => None,
         Ok(_) => Some("already has Tessera edits; kept them (enable overwrite to replace)".into()),
         Err(e) => Some(format!(
@@ -938,19 +940,31 @@ impl LrcatImport {
 
     /// Identity relocations, identity mark names (every label in the catalog)
     /// and the photos' common folder as the library folder.
-    pub fn default_options(&self) -> LrcatOptions {
+    pub fn default_options(&self) -> Result<LrcatOptions> {
         let roots = root_paths(&self.plan);
-        let library = common_ancestor(&roots)
+        let library = match common_ancestor(&roots)
             .filter(|p| p.components().count() > 1)
             .or_else(|| self.catalog.parent().map(Path::to_path_buf))
-            .unwrap_or_default();
+            .filter(|p| !Sidecar::is_lightroom_owned(p))
+        {
+            Some(library) => library,
+            None => {
+                let support = self.engine.support_dir()?;
+                if !support.is_dir() {
+                    return Err(failure(
+                        "app support directory is missing or is not a directory",
+                    ));
+                }
+                support.join("Imported Libraries")
+            }
+        };
         let labels: BTreeSet<&str> = self
             .plan
             .images
             .iter()
             .filter_map(|i| i.color_label.as_deref())
             .collect();
-        LrcatOptions {
+        Ok(LrcatOptions {
             library_folder: display_path(&library),
             relocations: roots
                 .iter()
@@ -967,12 +981,18 @@ impl LrcatImport {
                 })
                 .collect(),
             overwrite_existing_edits: false,
-        }
+        })
     }
 
     /// What `apply` would do with these options. Reads the disk; writes nothing.
     pub fn plan(&self, options: LrcatOptions) -> Result<LrcatPlanPreview> {
         let resolved = resolve(&self.plan, &options)?;
+        for row in &resolved {
+            Sidecar::register_store(
+                &Sidecar::resolved_destination(&row.folder),
+                self.engine.support_dir()?,
+            );
+        }
         let library_folder = PathBuf::from(&options.library_folder);
         let roots = root_paths(&self.plan);
         let moves = relocations(&options)?;
@@ -1146,11 +1166,22 @@ impl LrcatImport {
                 "the library folder must not be inside the Lightroom catalog files",
             ));
         }
-        std::fs::create_dir_all(&library_folder)?;
+        Sidecar::ensure_destination(&library_folder, "library folder")?;
         let library_path = library_folder.join("library.json");
         let bundle = bundle_dir(&library_folder, &self.catalog);
-        std::fs::create_dir_all(&bundle)?;
         let plan_file = bundle.join("import-plan.json");
+        // Check nested destinations too: an existing bundle or child may be a
+        // symlink into Lightroom-owned storage, including on resume.
+        for path in [
+            library_path.clone(),
+            bundle.clone(),
+            plan_file.clone(),
+            bundle.join("large"),
+            bundle.join("state.json"),
+        ] {
+            Sidecar::ensure_destination(&path, "import bundle")?;
+        }
+        std::fs::create_dir_all(&bundle)?;
         // Publish every lossless source cell before publishing its references.
         // Resume may use records from a later session with new source cells.
         // Keep the private copies for retries and independent record reads.
@@ -1161,6 +1192,7 @@ impl LrcatImport {
             for entry in std::fs::read_dir(large)? {
                 let entry = entry?;
                 let target = destination.join(entry.file_name());
+                Sidecar::ensure_destination(&target, "import source cell")?;
                 if target.exists() {
                     let digest = |path: &Path| -> std::io::Result<blake3::Hash> {
                         let mut hash = blake3::Hasher::new();
@@ -1205,6 +1237,12 @@ impl LrcatImport {
         state.catalog = self.catalog.to_string_lossy().into_owned();
 
         let resolved = resolve(&self.plan, &options)?;
+        for row in &resolved {
+            Sidecar::register_store(
+                &Sidecar::resolved_destination(&row.folder),
+                self.engine.support_dir()?,
+            );
+        }
         let existing = Library::read(&library_path)?;
         let ids: HashMap<ImageId, ImageId> = self.app_ids(&resolved);
         let merge = merge_library(
@@ -1337,6 +1375,25 @@ impl LrcatImport {
             match result {
                 Ok(()) => {
                     report.imported += 1;
+                    if Sidecar::is_lightroom_owned(&r.path) {
+                        if let Some(issue) = report
+                            .unsupported
+                            .iter_mut()
+                            .find(|i| i.category == "Read-only originals")
+                        {
+                            issue.count += 1;
+                            if issue.examples.len() < 5 {
+                                issue.examples.push(display_path(&r.path));
+                            }
+                        } else {
+                            report.unsupported.push(LrcatIssue {
+                                category: "Read-only originals".into(),
+                                reason: "Lightroom originals remain read-only; no adjacent sidecar was written. Recipes and XMP use Tessera's Application Support store".into(),
+                                count: 1,
+                                examples: vec![display_path(&r.path)],
+                            });
+                        }
+                    }
                     count_selection(&mut report.selection, &selection);
                     state.done.insert(image.catalog_id);
                     if report.imported.is_multiple_of(50) {
@@ -1445,6 +1502,7 @@ impl LrcatImport {
 // Writing.
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    Sidecar::ensure_writable_destination(path)?;
     let parent = path.parent().unwrap_or(Path::new("."));
     let mut temp = tempfile::NamedTempFile::new_in(parent)?;
     std::io::Write::write_all(&mut temp, bytes)?;
@@ -1537,7 +1595,10 @@ fn write_image(
     let packet = base
         .unwrap_or_else(|| XmpPacket::from_selection(selection, &preset))
         .with_metadata(selection, &meta, &preset)?;
-    Sidecar::write_recipe(Sidecar::paths(path).recipe, &doc)?;
+    let paths = Sidecar::paths(path);
+    Sidecar::ensure_writable_destination(&paths.recipe)?;
+    Sidecar::ensure_writable_destination(&ours)?;
+    Sidecar::write_recipe(paths.recipe, &doc)?;
     Sidecar::write_xmp(&ours, &packet)?;
     Ok(())
 }
@@ -1756,7 +1817,7 @@ mod lrcat_resume_tests {
             .clone()
             .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
             .unwrap();
-        let mut options = import.default_options();
+        let mut options = import.default_options().unwrap();
         options.relocations[0].to = fixture
             .photos
             .canonicalize()

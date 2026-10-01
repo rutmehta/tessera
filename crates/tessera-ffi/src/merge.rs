@@ -312,16 +312,23 @@ impl Engine {
         use std::io::Write;
         job.check()?;
         job.progress("write", 0, 1);
-        let folder = source
-            .path
-            .parent()
-            .ok_or_else(|| failure("source has no parent"))?;
+        let folder = if sidecar::Sidecar::is_lightroom_owned(&source.path) {
+            self.photo_output_folder()?
+        } else {
+            source
+                .path
+                .parent()
+                .ok_or_else(|| failure("source has no parent"))?
+                .to_path_buf()
+        };
+        sidecar::Sidecar::ensure_destination(&folder, "export")?;
+        std::fs::create_dir_all(&folder)?;
         let stem = source
             .path
             .file_stem()
             .ok_or_else(|| failure("source has no name"))?
             .to_string_lossy();
-        let mut temp = tempfile::NamedTempFile::new_in(folder)?;
+        let mut temp = tempfile::NamedTempFile::new_in(&folder)?;
         let mut recipe = recipe.clone();
         recipe.image_id = None;
         ::merge::write_dng(&mut temp, image, &recipe)?;
@@ -340,6 +347,7 @@ impl Engine {
                 format!("{stem}{suffix}-{n}.dng")
             };
             let path = folder.join(name);
+            sidecar::Sidecar::ensure_destination(&path, "export")?;
             match temp.persist_noclobber(&path) {
                 Ok(_) => break path,
                 Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -354,7 +362,7 @@ impl Engine {
         // Index IDs are derived from canonical paths. Do not duplicate that algorithm.
         let indexed = c
             .index
-            .scan(folder, &catalog::Sidecars, &catalog::EmbeddedMetadata);
+            .scan_file(&path, &catalog::Sidecars, &catalog::EmbeddedMetadata);
         if let Err(e) = indexed {
             return Err(failure(format!(
                 "DNG saved at {}; catalog scan failed: {e}",

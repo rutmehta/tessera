@@ -503,6 +503,7 @@ pub fn render_one_cancellable(
 ) -> EngineResult<RenderedExport> {
     require_full_quality_source(&image.source)?;
     cancel.check()?;
+    Sidecar::ensure_destination(&settings.output_dir, "export")?;
     recipe.validate()?;
     settings.format.validate()?;
     dng::validate(settings)?;
@@ -720,6 +721,8 @@ fn encode_rendered(
         side_path,
         ..
     } = rendered;
+    Sidecar::ensure_destination(&path, "export")?;
+    Sidecar::ensure_destination(&side_path, "export")?;
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
@@ -787,6 +790,7 @@ fn encode_rendered(
 /// A temporary file that becomes an output: readable like any exported
 /// document (0644), not the 0600 of a private temporary file.
 fn new_output_temp(dir: &std::path::Path) -> EngineResult<tempfile::NamedTempFile> {
+    Sidecar::ensure_destination(dir, "export")?;
     let temp = tempfile::NamedTempFile::new_in(dir).map_err(encode_error)?;
     #[cfg(unix)]
     {
@@ -870,6 +874,9 @@ struct PreparedExport {
 impl PreparedExport {
     fn commit(self, cancel: &CancellationToken) -> EngineResult<PathBuf> {
         cancel.check()?;
+        Sidecar::ensure_destination(&self.path, "export")?;
+        Sidecar::ensure_destination(&self.side_path, "export")?;
+        Sidecar::ensure_destination(&self.warning_path, "export")?;
         let Self {
             temp,
             side_temp,
@@ -1191,5 +1198,48 @@ mod tests {
         for template in ["../{name}", "{unknown}", "", "/absolute", "a\\b"] {
             assert!(super::filename(template, "photo", 1, "20260925", "jpg").is_err());
         }
+    }
+}
+
+#[cfg(test)]
+mod lightroom_safety_tests {
+    use super::*;
+
+    #[test]
+    fn original_export_never_creates_files_in_lightroom_owned_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source.nef");
+        fs::write(&source, b"original raw bytes").unwrap();
+        let protected = root.path().join("X.lrdata");
+        fs::create_dir(&protected).unwrap();
+        let destination = protected.join("copy.nef");
+        fs::create_dir_all(Sidecar::paths(&destination).xmp.parent().unwrap()).unwrap();
+        assert!(
+            export_original(&source, &destination, None, None, &CancellationToken::new()).is_err()
+        );
+        assert_eq!(fs::read_dir(protected).unwrap().count(), 0);
+        assert_eq!(fs::read(source).unwrap(), b"original raw bytes");
+    }
+
+    #[test]
+    fn rendered_export_rejects_lightroom_owned_directory_before_creation() {
+        let root = tempfile::tempdir().unwrap();
+        let protected = root.path().join("Foo.lrcat-data");
+        let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();
+        let image = ExportImage {
+            source: RenderSource::Rgb(&pixels),
+            name: "photo",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let settings = ExportSettings {
+            output_dir: protected.clone(),
+            format: Format::Png,
+            metadata: Metadata::None,
+            ..Default::default()
+        };
+        assert!(export_one(&image, &Recipe::default(), &settings).is_err());
+        assert!(!protected.exists());
     }
 }

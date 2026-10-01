@@ -155,6 +155,7 @@ fn apply_with_publish(
         Begin(Box<import_lrcat::ImportPlan>),
         Image(Box<import_lrcat::ImportedImage>),
     }
+    sidecar::Sidecar::ensure_destination(dest, "import bundle")?;
     if dest.try_exists()? {
         // Crash recovery: an empty directory is a reservation, not a bundle.
         // remove_dir atomically refuses nonempty destinations; never recurse.
@@ -273,6 +274,7 @@ fn apply_with_publish(
     sync_directory(staging.path())?;
     // Exclusive reservation prevents replacing a concurrent destination.
     // A crash before rename leaves an empty reservation recovered above.
+    sidecar::Sidecar::ensure_destination(dest, "import bundle")?;
     std::fs::create_dir(dest).context("reserve import destination")?;
     if let Err(error) = publish(staging.path(), dest).and_then(|()| {
         ensure!(
@@ -291,6 +293,31 @@ fn apply_with_publish(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn streaming_apply_rejects_protected_bundles_before_recovery_or_staging() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        for name in ["Catalog.lrdata", "Catalog.lrcat-data", "Catalog.LRCAT"] {
+            let protected = temp.path().join(name);
+            let dest = protected.join("bundle");
+            assert!(
+                apply(&fixture.catalog, &dest)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("import bundle")
+            );
+            assert!(!protected.exists());
+            std::fs::create_dir_all(&dest).unwrap();
+            assert!(apply(&fixture.catalog, &dest).is_err());
+            assert!(dest.is_dir(), "protected empty reservation must survive");
+            assert_eq!(std::fs::read_dir(&protected).unwrap().count(), 1);
+            let alias = temp.path().join(format!("alias-{name}"));
+            std::os::unix::fs::symlink(&protected, &alias).unwrap();
+            assert!(apply(&fixture.catalog, &alias.join("new-bundle")).is_err());
+            assert_eq!(std::fs::read_dir(&protected).unwrap().count(), 1);
+        }
+    }
 
     #[test]
     fn lrcat_empty_reservation_recovers_but_nonempty_destination_survives() {

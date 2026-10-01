@@ -146,6 +146,7 @@ fn atomic_local_with_sync(
     bytes: &[u8],
     sync: impl FnOnce(&Path) -> Result<()>,
 ) -> Result<()> {
+    sidecar::Sidecar::ensure_writable_destination(path)?;
     let parent = path
         .parent()
         .ok_or_else(|| failure("missing local parent"))?;
@@ -551,6 +552,8 @@ fn publish_sync_sidecars(
     xmp_path: &Path,
     mut publish: impl FnMut(&Path, &[u8]) -> Result<()>,
 ) -> Result<()> {
+    sidecar::Sidecar::ensure_writable_destination(recipe_path)?;
+    sidecar::Sidecar::ensure_writable_destination(xmp_path)?;
     let doc = validate_local_document(&pending.recipe)?;
     doc.recipe.validate()?;
     doc.recipe.to_json()?;
@@ -865,5 +868,20 @@ mod recovery_tests {
         reconcile_acknowledged_intent(&journal).unwrap();
         assert!(!intent_path.exists());
         assert!(journal.snapshot().unwrap().dirty);
+    }
+}
+
+#[cfg(test)]
+mod lightroom_safety_tests {
+    #[test]
+    fn raw_sync_writer_preserves_lightroom_owned_files() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("X.lrdata");
+        std::fs::create_dir(&folder).unwrap();
+        let path = folder.join("photo.xmp");
+        std::fs::write(&path, b"original").unwrap();
+        assert!(super::atomic_local(&path, b"replacement").is_err());
+        assert_eq!(std::fs::read(path).unwrap(), b"original");
+        assert_eq!(std::fs::read_dir(folder).unwrap().count(), 1);
     }
 }

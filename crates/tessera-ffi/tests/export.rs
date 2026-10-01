@@ -1310,3 +1310,19 @@ fn ffi_extracts_native_metadata_per_source_and_filters() {
         }
     }
 }
+
+#[test]
+fn protected_batch_destination_is_rejected_before_mkdir() {
+    let f = fixture();
+    let out = f.dir.path().join("X.lrdata/new-export");
+    let result = f.engine.export_batch(
+        ExportTarget::Images {
+            image_ids: vec![f.ids[0].clone()],
+        },
+        settings(&out, serde_json::json!({"format":"png"})),
+        None,
+        None,
+    );
+    assert!(!f.dir.path().join("X.lrdata").exists());
+    assert!(result.unwrap_err().to_string().contains("export"));
+}

@@ -10871,7 +10871,7 @@ public protocol LrcatImportProtocol: AnyObject, Sendable {
      * Identity relocations, identity mark names (every label in the catalog)
      * and the photos' common folder as the library folder.
      */
-    func defaultOptions()  -> LrcatOptions
+    func defaultOptions() throws  -> LrcatOptions
     
     /**
      * What `apply` would do with these options. Reads the disk; writes nothing.
@@ -10975,8 +10975,8 @@ open func cancel()  {try! rustCall() {
      * Identity relocations, identity mark names (every label in the catalog)
      * and the photos' common folder as the library folder.
      */
-open func defaultOptions() -> LrcatOptions  {
-    return try!  FfiConverterTypeLrcatOptions_lift(try! rustCall() {
+open func defaultOptions()throws  -> LrcatOptions  {
+    return try  FfiConverterTypeLrcatOptions_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_lrcatimport_default_options(
             self.uniffiCloneHandle(),uniffiCallStatus
@@ -20812,7 +20812,7 @@ public struct LrcatReport: Equatable, Hashable {
     public var catalogPath: String
     public var cancelled: Bool
     /**
-     * Photos whose sidecars were written in this run.
+     * Photos whose recipes were saved in this run.
      */
     public var imported: UInt32
     /**
@@ -20842,7 +20842,7 @@ public struct LrcatReport: Equatable, Hashable {
     // declare one manually.
     public init(catalogPath: String, cancelled: Bool, 
         /**
-         * Photos whose sidecars were written in this run.
+         * Photos whose recipes were saved in this run.
          */imported: UInt32, 
         /**
          * Photos already imported by an earlier, interrupted run.
@@ -37946,7 +37946,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_cancel() != 11947) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_lrcatimport_default_options() != 57273) {
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_default_options() != 10466) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_plan() != 57079) {

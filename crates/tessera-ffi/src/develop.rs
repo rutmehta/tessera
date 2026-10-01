@@ -1291,12 +1291,12 @@ impl Engine {
             .and_then(|packet| packet.with_recipe(&doc.recipe))
             .map_err(SaveFailure::full)?;
         let published = OwnerBaseline::published(doc.recipe.clone()).map_err(SaveFailure::full)?;
-        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(path).recipe, &doc)
-            .map_err(SaveFailure::full)?;
+        let paths = catalog::write_paths(path).map_err(SaveFailure::full)?;
+        sidecar::Sidecar::write_recipe(paths.recipe, &doc).map_err(SaveFailure::full)?;
         #[cfg(test)]
         injected_post_recipe_failure(path)
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
-        sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)
+        sidecar::Sidecar::write_xmp(paths.xmp, &packet)
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         c.index
             .scan(
@@ -1329,7 +1329,8 @@ impl Engine {
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
         #[cfg(test)]
         injected_post_recipe_failure(path)?;
-        sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)?;
+        let paths = catalog::write_paths(path)?;
+        sidecar::Sidecar::write_xmp(paths.xmp, &packet)?;
         c.index.scan(
             path.parent()
                 .ok_or_else(|| failure("image has no folder"))?,
@@ -3947,6 +3948,65 @@ mod tests {
         let row = rows.remove(0);
         let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
         (dir, photo, engine, row.id, session)
+    }
+
+    #[test]
+    fn protected_develop_save_and_repair_leave_adjacent_xmp_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().join("X.lrdata");
+        std::fs::create_dir(&folder).unwrap();
+        let photo = folder.join("image.jpg");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([123, 81, 43]))
+            .save(&photo)
+            .unwrap();
+        let adjacent = photo.with_extension("xmp");
+        let packet = sidecar::XmpPacket::from_selection(&Default::default(), &Default::default());
+        std::fs::write(&adjacent, packet.xml.as_bytes()).unwrap();
+        let before = std::fs::read(&adjacent).unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        engine
+            .index_folder(folder.to_string_lossy().into())
+            .unwrap();
+        let id = engine.list_images(crate::ImageQuery::default()).unwrap()[0]
+            .id
+            .clone();
+        let session = engine.clone().open_develop_session(id).unwrap();
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        FAIL_AFTER_DEVELOP_RECIPE
+            .lock()
+            .unwrap()
+            .insert(session.shared.path.clone(), 1);
+        session
+            .set_settings(r#"{"tone":{"exposure":0.8}}"#.into(), false)
+            .unwrap();
+        assert!(session.flush().is_err());
+        session.flush().unwrap();
+        session.close().unwrap();
+        assert_eq!(std::fs::read(adjacent).unwrap(), before);
+        let paths = sidecar::Sidecar::paths(&photo);
+        assert_eq!(
+            sidecar::Sidecar::read_recipe(paths.recipe)
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.8
+        );
+        assert_eq!(
+            sidecar::Sidecar::read_xmp(paths.xmp)
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+                .tone
+                .exposure,
+            0.8
+        );
     }
 
     #[test]

@@ -896,6 +896,7 @@ impl PeopleFile {
     }
 
     fn restore(&self) -> Result<()> {
+        sidecar::Sidecar::ensure_destination(&self.path, "restore")?;
         use std::io::Write;
         if let Some(bytes) = &self.bytes {
             let mut file = tempfile::NamedTempFile::new_in(
@@ -1591,5 +1592,24 @@ impl CullSession {
             .collect::<Result<Vec<_>>>()?;
         self.lock()?.assist.dismissed.extend(ids);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod lightroom_sidecar_restore_tests {
+    #[test]
+    fn people_history_preserves_lightroom_owned_sidecars() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("X.lrdata/photo.xmp");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"original").unwrap();
+        let mut snapshot = super::PeopleFile {
+            path: path.clone(),
+            bytes: Some(b"replacement".to_vec()),
+        };
+        assert!(snapshot.restore().is_err());
+        snapshot.bytes = None;
+        assert!(snapshot.restore().is_err());
+        assert_eq!(std::fs::read(path).unwrap(), b"original");
     }
 }

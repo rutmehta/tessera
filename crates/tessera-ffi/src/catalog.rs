@@ -6,17 +6,37 @@ use std::path::{Path, PathBuf};
 
 pub(crate) fn xmp_path(path: &Path) -> PathBuf {
     let appended = Sidecar::paths(path).xmp;
-    if appended.exists() || !path.with_extension("xmp").exists() {
+    if Sidecar::is_lightroom_owned(path)
+        || appended.exists()
+        || !path.with_extension("xmp").exists()
+    {
         appended
     } else {
         path.with_extension("xmp")
     }
 }
 
+pub(crate) fn write_paths(path: &Path) -> EngineResult<sidecar::SidecarPaths> {
+    let mut paths = Sidecar::paths(path);
+    if !Sidecar::is_lightroom_owned(path)
+        && !paths.xmp.exists()
+        && path.with_extension("xmp").exists()
+    {
+        paths.xmp = path.with_extension("xmp");
+    }
+    Sidecar::ensure_writable_destination(&paths.recipe)?;
+    Sidecar::ensure_writable_destination(&paths.xmp)?;
+    Ok(paths)
+}
+
 pub(crate) fn document(path: &Path, id: ImageId) -> EngineResult<RecipeDocument> {
     let recipe = Sidecar::paths(path).recipe;
     if recipe.exists() {
-        let document = Sidecar::read_recipe(recipe)?;
+        let mut document = Sidecar::read_recipe(recipe)?;
+        // Content-addressed protected edits survive a path-derived index ID change.
+        if Sidecar::is_lightroom_owned(path) {
+            document.recipe.image_id = Some(id);
+        }
         if document.recipe.image_id != Some(id) {
             return Err(engine_api::EngineError::invalid(
                 "image_id",
@@ -39,6 +59,14 @@ pub(crate) fn document(path: &Path, id: ImageId) -> EngineResult<RecipeDocument>
 
 pub(crate) struct Sidecars;
 impl SidecarReader for Sidecars {
+    fn additional_stamp_paths(&self, path: &Path) -> Vec<PathBuf> {
+        if Sidecar::is_lightroom_owned(path) {
+            let paths = Sidecar::paths(path);
+            vec![paths.recipe, paths.xmp]
+        } else {
+            Vec::new()
+        }
+    }
     fn read(&self, path: &Path) -> EngineResult<SidecarData> {
         let mut data = SidecarData::default();
         let xmp = xmp_path(path);

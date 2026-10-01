@@ -64,7 +64,7 @@ fn ffi_streaming_summary_and_bundle_match_crate() {
             .map(|i| i.history.len() + i.snapshots.len())
             .sum::<usize>()
     );
-    let mut options = import.default_options();
+    let mut options = import.default_options().unwrap();
     options.library_folder = temp
         .path()
         .join("comparison")
@@ -161,7 +161,7 @@ fn ffi_retains_develop_sources_and_publishes_oversized_cells() {
         .unwrap()
         .execute("UPDATE Adobe_imageDevelopSettings SET text='changed'", [])
         .unwrap();
-    let mut options = import.default_options();
+    let mut options = import.default_options().unwrap();
     options.library_folder = temp.path().join("library").to_string_lossy().into_owned();
     for r in &mut options.relocations {
         r.to = temp.path().join("absent").to_string_lossy().into_owned();
@@ -233,7 +233,7 @@ fn ffi_retains_develop_sources_and_publishes_oversized_cells() {
     let conflicting = engine
         .open_lrcat(catalog.to_string_lossy().into_owned())
         .unwrap();
-    let mut options = conflicting.default_options();
+    let mut options = conflicting.default_options().unwrap();
     options.library_folder = temp.path().join("library").to_string_lossy().into_owned();
     assert!(
         conflicting
