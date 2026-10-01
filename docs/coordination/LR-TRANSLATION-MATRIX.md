@@ -54,8 +54,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `AutoToneDigestNoSat` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `AutoWhiteVersion` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `Brightness` | MISSING: PV2010 brightness operator; /settings/tone/curves/rgb only an approximation | LR-2 | unsupported-diagnostic | — |
-| `ChromaticAberrationB` | MISSING: independent legacy red/blue CA coefficients in /settings/lens | LR-7 | unsupported-diagnostic | — |
-| `ChromaticAberrationR` | MISSING: independent legacy red/blue CA coefficients in /settings/lens | LR-7 | unsupported-diagnostic | — |
+| `ChromaticAberrationB` | `/settings/lens/legacy_ca_blue` | LR-7 | translated | `-25` |
+| `ChromaticAberrationR` | `/settings/lens/legacy_ca_red` | LR-7 | translated | `35` |
 | `Clarity` | /settings/tone/clarity (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
 | `CompatibleVersion` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
 | `Contrast` | /settings/tone/contrast (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |

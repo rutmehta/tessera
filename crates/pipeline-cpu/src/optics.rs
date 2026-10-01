@@ -307,3 +307,49 @@ mod tests {
         assert_eq!(defringe(&image, &s).unwrap().planes(), image.planes());
     }
 }
+
+#[cfg(test)]
+mod legacy_ca_lr7b {
+    use super::*;
+    #[test]
+    fn recipe_ca_renders_radial_target_independent_planes() {
+        let n = 129u32;
+        let radial: Vec<f32> = (0..n * n)
+            .map(|i| {
+                let x = f64::from(i % n) - 64.;
+                let y = f64::from(i / n) - 64.;
+                (x.hypot(y) / 64.) as f32
+            })
+            .collect();
+        let image = Image::new(n, n, vec![radial.clone(); 3]).unwrap();
+        for (red, blue) in [(100., -100.), (-50., 75.), (0., 0.)] {
+            let s: LensSettings = serde_json::from_value(serde_json::json!({
+                "profile": {"kind": "none"}, "remove_chromatic_aberration": false,
+                "legacy_ca_red": red, "legacy_ca_blue": blue
+            }))
+            .unwrap();
+            let resolved = crate::resolve_lens(&image, &s, None, &Default::default()).unwrap();
+            let output = lateral_manual(&image, [0, 0, n, n], resolved.manual_ca, &s).unwrap();
+            assert_eq!(output.planes()[1], radial);
+            let mut max_error = 0f64;
+            for (channel, amount) in [(0, red), (2, blue)] {
+                for y in 16..113usize {
+                    for x in 16..113usize {
+                        let r = (x as f64 - 64.).hypot(y as f64 - 64.);
+                        if r < 8. {
+                            continue;
+                        }
+                        let want = r * (1. + amount / 10000.) / 64.;
+                        max_error = max_error
+                            .max((f64::from(output.planes()[channel][y * 129 + x]) - want).abs());
+                    }
+                }
+            }
+            eprintln!("LR-7b radial error {max_error:.8}; tolerance 0.0005");
+            assert!(max_error < 0.0005, "{max_error}");
+            if red == 0. && blue == 0. {
+                assert_eq!(output.planes(), image.planes());
+            }
+        }
+    }
+}
