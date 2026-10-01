@@ -369,6 +369,11 @@ public enum LightroomImportReport {
         return url
     }
 
+    /// One line per Adobe key: photo count and the first reason as the example.
+    public static func approximateLines(_ r: LrcatReport) -> [String] {
+        []
+    }
+
     static func fmt(_ v: Float) -> String { String(format: "%.1f", v) }
     static func escape(_ s: String) -> String { s.replacingOccurrences(of: "*", with: "\\*") }
     static func cell(_ s: String) -> String {
