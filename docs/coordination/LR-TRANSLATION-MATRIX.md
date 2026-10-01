@@ -112,7 +112,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `PerspectiveVertical` | `/settings/geometry/transform/vertical` | LR-7 | translated | `1` |
 | `PerspectiveX` | `/settings/geometry/transform/offset_x` | LR-7 | translated | `1` |
 | `PerspectiveY` | `/settings/geometry/transform/offset_y` | LR-7 | translated | `1` |
-| `PointColors` | `/settings/color/point_colors` | LR-1 | retained | — |
+| `PointColors` | `/settings/color/point_colors` | LR-1 | translated | `{{ SrcHue=0, SrcSat=0.9, SrcLum=0.5, HueShift=0.5 }}` |
 | `RangeMaskMapInfo` | MISSING: Adobe range-mask resource mapping; candidate /settings/locals/adjustments | LR-4 | unsupported-diagnostic | — |
 | `RedEyeInfo` | MISSING: red-eye correction operator in /settings/locals/retouch | LR-3 | unsupported-diagnostic | — |
 | `RetouchAreas` | `/settings/locals/retouch` | LR-3 | retained | — |

@@ -134,3 +134,51 @@ fn point_color_resource_wrapper_extensions_are_not_discarded() {
     assert!(r.settings.color.point_colors.is_empty());
     assert!(r.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
 }
+
+#[test]
+fn point_color_success_has_no_unsupported_warning() {
+    let (_, warnings) = lua_develop::parse(LUA, "15.4").unwrap();
+    assert!(warnings.is_empty(), "{warnings:?}");
+}
+#[test]
+fn point_color_defaults_missing_ranges() {
+    let (r, warnings) = lua_develop::parse(
+        "s = { PointColors = {{ SrcHue=0, SrcSat=0.9, SrcLum=0.5, HueShift=0.5 }} }",
+        "15.4",
+    )
+    .unwrap();
+    assert_eq!(r.settings.color.point_colors.len(), 1, "{warnings:?}");
+    assert_eq!(
+        r.settings.color.point_colors[0]
+            .selection
+            .as_ref()
+            .unwrap()
+            .saturation,
+        [0., 0.25, 0.75, 1.]
+    );
+}
+#[test]
+fn point_color_skips_placeholder_among_real_records() {
+    let placeholder = vec!["-1"; 19].join(",");
+    let (r, warnings) = xmp::parse(
+        &packet(&format!(
+            "{placeholder}</rdf:li><rdf:li>{CSV}</rdf:li><rdf:li>{placeholder}"
+        )),
+        "15.4",
+    )
+    .unwrap();
+    assert_eq!(r.settings.color.point_colors.len(), 1, "{warnings:?}");
+    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+}
+#[test]
+fn point_color_requires_pv3_or_later() {
+    let (r, warnings) = lua_develop::parse(LUA, "5.7").unwrap();
+    assert!(r.settings.color.point_colors.is_empty());
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("PointColors") && w.contains("PV3")),
+        "{warnings:?}"
+    );
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
+}

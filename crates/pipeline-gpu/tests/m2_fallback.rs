@@ -332,3 +332,69 @@ fn lr2c_resident_bw_preserves_toning_with_and_without_local_tone() {
         }
     }
 }
+
+#[test]
+fn point_color_render_routes_around_resident_gpu() {
+    use engine_api::recipe::DevelopSettings;
+    use image_core::{PixelRect, RenderOutput, Renderer, RendererConfig, TileCache};
+    let gpu = Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())));
+    let renderer = Renderer::with_ops(
+        gpu.clone(),
+        Arc::new(TileCache::new(0)),
+        RendererConfig::default(),
+    );
+    let cpu = Renderer::new(RendererConfig::default());
+    let image = common::synthetic(1811, 19, 17, common::RGGB, [0, 0, 19, 17]);
+    let mut settings = DevelopSettings::default();
+    settings
+        .color
+        .point_colors
+        .push(engine_api::recipe::settings::PointColor {
+            hue_shift: 30.,
+            range: 100.,
+            selection: Some(engine_api::recipe::settings::PointColorSelection {
+                source_hsl: [0., 0.5, 0.5],
+                hue: [0., 0., 1., 1.],
+                saturation: [0., 0., 1., 1.],
+                luminance: [0., 0., 1., 1.],
+            }),
+            ..Default::default()
+        });
+    assert!(!renderer.can_render_resident(&image, &settings).unwrap());
+    let op = Op::Color(&settings.color);
+    let token = CancellationToken::new();
+    let expected = CpuStageOp
+        .run_image(StageId::Tone, &op, self::image(), &token)
+        .unwrap();
+    let actual = gpu
+        .run_image(StageId::Tone, &op, self::image(), &token)
+        .unwrap();
+    assert_eq!(actual.planes(), expected.planes());
+    assert_ne!(actual.planes(), self::image().planes());
+    for output in [RenderOutput::SceneLinear, RenderOutput::Display] {
+        let rect = PixelRect::full(image.level_extent(0));
+        let expected = cpu
+            .render_region_as(&image, &settings, 0, rect, output)
+            .unwrap();
+        let actual = renderer
+            .render_region_as(&image, &settings, 0, rect, output)
+            .unwrap();
+        for (a, b) in actual.iter().zip(expected.iter()) {
+            if output == RenderOutput::Display {
+                assert!(
+                    common::max_u8_diff(a.samples::<u8>().unwrap(), b.samples::<u8>().unwrap())
+                        <= 1
+                );
+            } else {
+                for (a, b) in a
+                    .samples::<f32>()
+                    .unwrap()
+                    .iter()
+                    .zip(b.samples::<f32>().unwrap())
+                {
+                    assert!((a - b).abs() < 1e-4);
+                }
+            }
+        }
+    }
+}

@@ -119,3 +119,55 @@ fn native_point_color_keeps_oklch_semantics_and_signed_headroom() {
         assert!((a - b).abs() < 2e-6, "native output {output:?}");
     }
 }
+
+fn linear(v: f32) -> f32 {
+    if v <= 0.04045 {
+        v / 12.92
+    } else {
+        ((v + 0.055) / 1.055).powf(2.4)
+    }
+}
+#[test]
+fn sampled_colour_always_gets_full_weight() {
+    for (sat, lum) in [(0.9, 0.5), (0.95, 0.85), (0.1, 0.2), (0.5, 0.5)] {
+        let mut s = settings();
+        s.point_colors[0].selection.as_mut().unwrap().source_hsl = [0., sat, lum];
+        let c = (1.0_f32 - (2.0_f32 * lum - 1.).abs()) * sat;
+        let lo = lum - c / 2.;
+        let input = [lo + c, lo, lo].map(linear);
+        let expected = [lo + c, lo + c / 2., lo].map(linear);
+        let output = render(input, &s);
+        for (a, b) in output.into_iter().zip(expected) {
+            assert!(
+                (a - b).abs() < 2e-6,
+                "S={sat} L={lum}: {output:?} != {expected:?}"
+            );
+        }
+    }
+}
+#[test]
+fn point_membership_uses_original_pixel() {
+    let input = [0.75, 0.25, 0.25].map(linear);
+    let mut s = settings();
+    s.point_colors[0].hue_shift = 60.;
+    let expected = render(input, &s);
+    let mut second = s.point_colors[0].clone();
+    second.selection.as_mut().unwrap().source_hsl[0] = 60.;
+    second.selection.as_mut().unwrap().hue = [0.45, 0.49, 0.51, 0.55];
+    s.point_colors.push(second);
+    assert_eq!(render(input, &s), expected);
+}
+#[test]
+fn point_color_is_continuous_across_sdr_ceiling() {
+    let mut s = settings();
+    let selection = s.point_colors[0].selection.as_mut().unwrap();
+    selection.saturation = [0., 0., 1., 1.];
+    selection.luminance = [0., 0., 1., 1.];
+    let below = render([0.999, 0.2, 0.2], &s);
+    let above = render([1.001, 0.2, 0.2], &s);
+    assert!(
+        (below[1] - above[1]).abs() < 0.003,
+        "{below:?} vs {above:?}"
+    );
+    assert!((above[1] - 0.2).abs() > 0.05);
+}
