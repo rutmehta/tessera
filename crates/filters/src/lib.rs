@@ -374,6 +374,9 @@ mod tests {
     /// independent of `gaussian_kernel` and `convolve` so loop changes are
     /// checked against the baseline arithmetic.
     fn baseline_gaussian(src: &Buffer, sigma: f32) -> Vec<[f32; 4]> {
+        if sigma == 0.0 {
+            return src.pixels.clone();
+        }
         let radius = (3.0 * sigma).ceil() as i32;
         let mut kernel: Vec<f32> = (-radius..=radius)
             .map(|x| (-0.5 * (x as f32 / sigma).powi(2)).exp())
@@ -393,11 +396,9 @@ mod tests {
                         let d = j as i32 - radius;
                         let sx = x as i32 + if vertical { 0 } else { d };
                         let sy = y as i32 + if vertical { d } else { 0 };
-                        let input = if vertical { &a } else { &src.pixels };
-                        let pixel = input[
-                            sy.clamp(0, src.h as i32 - 1) as usize * src.w
-                                + sx.clamp(0, src.w as i32 - 1) as usize,
-                        ];
+                        let index = sy.clamp(0, src.h as i32 - 1) as usize * src.w
+                            + sx.clamp(0, src.w as i32 - 1) as usize;
+                        let pixel = a[index];
                         for c in 0..4 {
                             sum[c] += weight * pixel[c];
                         }
@@ -435,6 +436,8 @@ mod tests {
         let mut worst = (0, 0, 0.0_f32, 0.0_f32);
         for (i, (a, e)) in actual.iter().zip(expected).enumerate() {
             for c in 0..4 {
+                assert!(a[c].is_finite(), "{context}: nonfinite actual at {i}/{c}");
+                assert!(e[c].is_finite(), "{context}: nonfinite expected at {i}/{c}");
                 let error = (a[c] - e[c]).abs();
                 if error > max_error {
                     max_error = error;
@@ -452,8 +455,16 @@ mod tests {
     #[test]
     fn gaussian_matches_frozen_baseline_for_edges_hdr_and_fractional_alpha() {
         let cancel = AtomicBool::new(false);
-        for (w, h, sigma) in [(3, 2, 0.5), (9, 5, 1.25), (47, 23, 12.0)] {
+        for (w, h, sigma) in [
+            (1, 1, 0.0),
+            (1, 7, 0.5),
+            (8, 1, 1.25),
+            (3, 2, 0.5),
+            (9, 5, 1.25),
+            (47, 23, 12.0),
+        ] {
             let src = gaussian_fixture(w, h);
+            let original = src.pixels.clone();
             let expected = baseline_gaussian(&src, sigma);
             let actual = convolve(&src, &gaussian_kernel(sigma), &cancel).unwrap();
             assert_close_pixels(
@@ -463,12 +474,102 @@ mod tests {
             );
             let repeated = convolve(&src, &gaussian_kernel(sigma), &cancel).unwrap();
             assert_eq!(actual.pixels, repeated.pixels);
+            assert_eq!(
+                src.pixels, original,
+                "input mutated for {w}x{h}, sigma={sigma}"
+            );
         }
+    }
+
+    #[test]
+    fn gaussian_observes_cancellation_at_the_pass_row_boundary() {
+        let src = gaussian_fixture(7, 5);
+        let cancel = AtomicBool::new(true);
+        assert!(matches!(
+            convolve(&src, &gaussian_kernel(1.25), &cancel),
+            Err(EngineError::Cancelled)
+        ));
+    }
+
+    fn raster_digest(raster: &Raster) -> u64 {
+        let (nx, ny) = raster.grid();
+        let mut samples = Vec::new();
+        let mut digest = 0xcbf2_9ce4_8422_2325_u64;
+        for ty in 0..ny {
+            for tx in 0..nx {
+                raster.read_tile(tx, ty, &mut samples).unwrap();
+                for value in &samples {
+                    digest ^= u64::from(value.to_bits());
+                    digest = digest.wrapping_mul(0x0000_0100_0000_01b3);
+                }
+            }
+        }
+        digest
+    }
+
+    fn gaussian_raster_fixture(w: u32, h: u32) -> Raster {
+        let extent = Extent::new(w, h);
+        let mut input = Raster::new(extent, 4, Depth::F32, 0.0);
+        input
+            .edit_region(Rect::of_extent(extent), 1, |x, y, p| {
+                *p = [
+                    (x % 31) as f32 / 8.0 - 1.0,
+                    (y % 37) as f32 / 12.0 - 0.5,
+                    ((x * 13 + y * 7) % 31) as f32 / 9.0 - 0.8,
+                    0.17 + ((x + y) % 23) as f32 / 37.0,
+                ]
+            })
+            .unwrap();
+        input
+    }
+
+    #[test]
+    #[ignore = "24 MP r12 public apply benchmark; run before and after PERF-4 on the same host/load"]
+    fn benchmark_gaussian_apply_r12_24mp() {
+        assert!(!cfg!(debug_assertions), "run this benchmark with --release");
+        const W: u32 = 6000;
+        const H: u32 = 4000;
+        const TRIALS: usize = 3;
+        let host = std::env::var("PERF4_HOST").unwrap_or_else(|_| "unspecified".into());
+        let load = std::env::var("PERF4_LOAD").unwrap_or_else(|_| "unspecified".into());
+        eprintln!(
+            "PERF4 apply host={host} load={load} dimensions={W}x{H} sigma=12 trials={TRIALS}"
+        );
+
+        let input = gaussian_raster_fixture(W, H);
+        let params = FilterParams {
+            amount: 1.0,
+            radius: 12.0,
+            ..Default::default()
+        };
+        let cancel = AtomicBool::new(false);
+        let mut timings = Vec::with_capacity(TRIALS);
+        let mut expected_digest = None;
+        for trial in 0..TRIALS {
+            let start = Instant::now();
+            let output = Effect::Gaussian.apply(&input, &params, &cancel).unwrap();
+            let elapsed = start.elapsed();
+            let digest = raster_digest(&output);
+            assert_eq!(
+                Some(digest),
+                expected_digest.or(Some(digest)),
+                "output digest changed at trial {trial}"
+            );
+            expected_digest = Some(digest);
+            timings.push(elapsed.as_secs_f64() * 1000.0);
+            eprintln!(
+                "PERF4 apply trial={trial} wall_ms={:.3} digest={digest:016x}",
+                timings[trial]
+            );
+        }
+        timings.sort_by(f64::total_cmp);
+        eprintln!("PERF4 apply median_ms={:.3}", timings[1]);
     }
 
     #[test]
     #[ignore = "24 MP r12 paired CPU benchmark; diagnostic under load, not a CI timing gate"]
     fn benchmark_gaussian_r12_24mp_against_frozen_baseline() {
+        assert!(!cfg!(debug_assertions), "run this benchmark with --release");
         const W: usize = 6000;
         const H: usize = 4000;
         const SIGMA: f32 = 12.0;
@@ -484,13 +585,23 @@ mod tests {
         let mut optimized_ms = Vec::with_capacity(TRIALS);
 
         for trial in 0..TRIALS {
-            let start = Instant::now();
-            let expected = baseline_gaussian(&src, SIGMA);
-            let baseline_elapsed = start.elapsed();
-
-            let start = Instant::now();
-            let actual = convolve(&src, &kernel, &cancel).unwrap();
-            let optimized_elapsed = start.elapsed();
+            let (expected, actual, baseline_elapsed, optimized_elapsed) = if trial % 2 == 0 {
+                let start = Instant::now();
+                let expected = baseline_gaussian(&src, SIGMA);
+                let baseline_elapsed = start.elapsed();
+                let start = Instant::now();
+                let actual = convolve(&src, &kernel, &cancel).unwrap();
+                let optimized_elapsed = start.elapsed();
+                (expected, actual, baseline_elapsed, optimized_elapsed)
+            } else {
+                let start = Instant::now();
+                let actual = convolve(&src, &kernel, &cancel).unwrap();
+                let optimized_elapsed = start.elapsed();
+                let start = Instant::now();
+                let expected = baseline_gaussian(&src, SIGMA);
+                let baseline_elapsed = start.elapsed();
+                (expected, actual, baseline_elapsed, optimized_elapsed)
+            };
             assert_close_pixels(
                 &actual.pixels,
                 &expected,
@@ -510,7 +621,10 @@ mod tests {
             "PERF4 median_baseline_ms={:.3} median_optimized_ms={:.3} speedup={speedup:.3}x",
             baseline_ms[1], optimized_ms[1]
         );
-        assert!(speedup >= 2.0, "PERF-4 target is at least 2x; got {speedup:.3}x");
+        assert!(
+            speedup >= 2.0,
+            "PERF-4 target is at least 2x; got {speedup:.3}x"
+        );
     }
     #[test]
     fn gaussian_identity_and_scalar_reference() {
