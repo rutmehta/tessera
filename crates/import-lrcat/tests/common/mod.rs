@@ -184,7 +184,7 @@ INSERT INTO AgLibraryFaceCluster VALUES(1,'Alice'),(2,NULL);
             )
             .unwrap();
         }
-        if i % 100 == 1 && i + 1 <= n {
+        if i % 100 == 1 && i < n {
             t.execute(
                 "INSERT INTO AgLibraryFolderStack VALUES(?1,?2)",
                 params![stack, 100 + i % 20],
