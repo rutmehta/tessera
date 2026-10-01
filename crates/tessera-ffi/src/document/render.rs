@@ -1606,6 +1606,34 @@ mod frame_cancellation_tests {
 
     #[test]
     #[cfg(target_os = "macos")]
+    fn eng2b_presented_frame_does_not_republish_model_or_retain_surfaces() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "synthetic".into());
+        session.wait_idle();
+        let surface = Arc::new(Surface::create_rgba8(3, 2).unwrap());
+        {
+            let mut st = session.shared.lock().unwrap();
+            st.view.surfaces.push(surface.clone());
+        }
+        let before = session.shared.read().unwrap();
+        session.shared.render.request(Vec::new(), false, 0);
+        session.wait_idle();
+        assert_eq!(session.shared.render.records().len(), 1);
+        assert!(
+            Arc::ptr_eq(&before, &session.shared.read().unwrap()),
+            "ring cursor advancement republished the whole model"
+        );
+        assert_eq!(
+            Arc::strong_count(&surface),
+            2,
+            "reader publication retains an IOSurface"
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
     fn eng2_requests_before_snapshot_do_not_render_twice() {
         let dir = tempfile::tempdir().unwrap();
         let engine =

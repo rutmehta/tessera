@@ -2870,6 +2870,68 @@ mod publication_tests {
     }
 
     #[test]
+    fn eng2b_unwinding_edit_keeps_pre_edit_publication() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let id = session.layers().unwrap()[0].id;
+        let before = session.document_state().unwrap();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut st = session.shared.lock().unwrap();
+            let mut props = st.doc.state().find(LayerId(id)).unwrap().props.clone();
+            props.opacity = 0.25;
+            st.doc
+                .apply(DocOp::SetProps {
+                    id: LayerId(id),
+                    props,
+                })
+                .unwrap();
+            panic!("injected failure before edit metadata is complete");
+        }));
+        assert!(panic.is_err());
+        assert!(
+            session.shared.lock().is_err(),
+            "edit mutex remains poisoned"
+        );
+        assert!(Arc::ptr_eq(&before, &session.document_state().unwrap()));
+        assert_eq!(session.layer(id).unwrap().opacity, 1.0);
+    }
+
+    #[test]
+    fn eng2b_draft_publication_does_not_retain_historical_states() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let id = session.layers().unwrap()[0].id;
+        session.set_opacity(id, 0.75, true).unwrap();
+        session.wait_idle();
+        let previous = session.shared.read().unwrap();
+        let mut st = session.shared.lock().unwrap();
+        let historical = st.live().state().clone();
+        let mut props = historical.find(LayerId(id)).unwrap().props.clone();
+        props.opacity = 0.25;
+        st.scratch
+            .as_mut()
+            .unwrap()
+            .apply(DocOp::SetProps {
+                id: LayerId(id),
+                props,
+            })
+            .unwrap();
+        let count = Arc::strong_count(&historical);
+        let next = PublishedState::new(&st, Some(&previous));
+        assert_eq!(
+            Arc::strong_count(&historical),
+            count,
+            "publishing a drag tick cloned history (and the Document damage log)"
+        );
+        assert_eq!(
+            next.live().state().find(LayerId(id)).unwrap().props.opacity,
+            0.25
+        );
+    }
+
+    #[test]
     fn eng2_publication_preserves_mutable_document_cache_namespace() {
         let dir = tempfile::tempdir().unwrap();
         let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
@@ -2998,36 +3060,64 @@ mod publication_tests {
 
     #[test]
     fn eng2_confirm_snapshot_excludes_later_commits_and_includes_prior_commit() {
+        use std::{sync::mpsc, time::Duration};
         let dir = tempfile::tempdir().unwrap();
         let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
         let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
-        session
-            .add_layer(NewLayer::Pixel, "before".into(), None, None)
-            .unwrap();
-        session.commit("before confirm".into()).unwrap();
-        let export = session
-            .begin_export_flat(
-                "synthetic.png".into(),
-                ExportFormat::Png,
-                90,
-                ExportColor::Srgb,
-            )
-            .unwrap();
-        session
-            .add_layer(NewLayer::Pixel, "after".into(), None, None)
-            .unwrap();
-        session.commit("after confirm".into()).unwrap();
-        let state = export.state.lock().unwrap();
-        let state = state.as_ref().unwrap();
-        assert!(state.root.iter().any(|l| l.props.name == "before"));
-        assert!(!state.root.iter().any(|l| l.props.name == "after"));
-        assert!(
-            session
-                .document_state()
-                .unwrap()
-                .root
-                .iter()
-                .any(|l| l.props.name == "after")
-        );
+        let id = session.layers().unwrap()[0].id;
+        for _ in 0..64 {
+            let (ready_tx, ready_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let (snapshot_tx, snapshot_rx) = mpsc::channel();
+            let writer_session = session.clone();
+            let writer = std::thread::spawn(move || {
+                writer_session.set_opacity(id, 0.75, false).unwrap();
+                writer_session
+                    .history_move(|doc| {
+                        let mut props = doc.state().find(LayerId(id)).unwrap().props.clone();
+                        props.opacity = 0.25;
+                        doc.apply(DocOp::SetProps {
+                            id: LayerId(id),
+                            props,
+                        })?;
+                        // Commit is in progress, after mutation but before publication.
+                        ready_tx.send(()).unwrap();
+                        release_rx.recv().unwrap();
+                        Ok(true)
+                    })
+                    .unwrap();
+            });
+            ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let reader_session = session.clone();
+            let reader = std::thread::spawn(move || {
+                let export = reader_session
+                    .begin_export_flat(
+                        "synthetic.png".into(),
+                        ExportFormat::Png,
+                        90,
+                        ExportColor::Srgb,
+                    )
+                    .unwrap();
+                snapshot_tx.send(export).unwrap();
+            });
+            let acquired = snapshot_rx.recv_timeout(Duration::from_millis(250));
+            // Release even on timeout so a lock regression fails without hanging.
+            release_tx.send(()).unwrap();
+            writer.join().unwrap();
+            reader.join().unwrap();
+            let export = acquired.expect("confirm acquisition waited for an in-progress commit");
+            let snapshot = export.state.lock().unwrap();
+            assert_eq!(
+                snapshot
+                    .as_ref()
+                    .unwrap()
+                    .find(LayerId(id))
+                    .unwrap()
+                    .props
+                    .opacity,
+                0.75
+            );
+            assert_eq!(session.layer(id).unwrap().opacity, 0.25);
+        }
     }
 }
