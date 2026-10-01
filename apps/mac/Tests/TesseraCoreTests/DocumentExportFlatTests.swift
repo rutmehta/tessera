@@ -223,6 +223,15 @@ final class DocumentExportFlatTests: XCTestCase {
         let setup = try XCTUnwrap(events.first { $0.name == "export_flat_setup_end" })
         XCTAssertTrue(setup.mainThread)
         XCTAssertLessThan(try XCTUnwrap(setup.durationMs), 100)
+        for name in ["export_flat_progress_end", "export_flat_completion_end"] {
+            let updates = events.filter { $0.name == name }
+            XCTAssertFalse(updates.isEmpty, "Missing timing coverage for \(name)")
+            for event in updates {
+                XCTAssertTrue(event.mainThread)
+                XCTAssertLessThan(try XCTUnwrap(event.durationMs), 100,
+                                  "UI publication must remain short even on a loaded test host")
+            }
+        }
         let work = events.filter { $0.name == "export_flat_work_start" }
         XCTAssertEqual(work.count, 1)
         XCTAssertTrue(work.allSatisfy { !$0.mainThread }, "Rendering, encoding and writing must never run on main")

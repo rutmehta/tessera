@@ -217,7 +217,17 @@ final class FilterSelfTest {
 
     fileprivate func finish() {
         log("done, \(failures) failure(s)")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
+        Task { @MainActor in
+            if let path = PerformanceTrace.outputPath {
+                do {
+                    try await Task.detached(priority: .utility) {
+                        try PerformanceTrace.shared.write(to: URL(fileURLWithPath: path))
+                    }.value
+                } catch { log("FAIL timing trace write: \(error)") }
+            }
+            await pause(1)
+            NSApp.terminate(nil)
+        }
     }
 }
 
@@ -282,6 +292,9 @@ extension FilterSelfTest {
                            display: true)
                 await pause(1)
                 plog(String(format: "viewport %.0f × %.0f pt @%.0fx", v.bounds.width, v.bounds.height, scale))
+                check("4K viewport resize", abs(v.bounds.width * scale - 3840) <= 2
+                      && abs(v.bounds.height * scale - 2160) <= 2,
+                      "window or hosting constraints clamped the requested viewport")
             }
             if let view = doc.viewport { if actual { view.zoomActual() } else { view.zoomToFit() } }
             _ = await wait(20) { (doc.lastFrame?.level == 0) == actual }

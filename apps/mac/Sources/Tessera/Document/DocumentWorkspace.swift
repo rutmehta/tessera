@@ -634,7 +634,7 @@ final class DocumentWorkspace {
     private(set) var flatExports: [FlatExportTask] = []
     @ObservationIgnored private let flatExportGroup = DispatchGroup()
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
-    @ObservationIgnored private var exportAccessory: NSTitlebarAccessoryViewController?
+    @ObservationIgnored private var exportAccessory: FlatExportProgressView?
     // Diagnostic injection: exercise the real progress UI in an unordered test window.
     @ObservationIgnored var exportWindow: NSWindow?
     @ObservationIgnored var exportTrace = PerformanceTrace.shared
@@ -682,10 +682,15 @@ final class DocumentWorkspace {
         updateExportAccessory()
         let summary = "\(url.lastPathComponent) (\(s.format.title), \(s.color.title))"
         let group = flatExportGroup
-        let onProgress: @MainActor @Sendable (Double, String) -> Void = { [weak task] f, phase in
+        let onProgress: @MainActor @Sendable (Double, String) -> Void = { [weak self, weak task] f, phase in
+            let span = trace.begin("export_flat_progress")
+            defer { trace.end(span) }
             task?.update(f, phase)
+            self?.updateExportAccessory()
         }
         let onDone: @MainActor @Sendable (Result<Void, any Error>) -> Void = { [weak self, weak task] result in
+            let span = trace.begin("export_flat_completion")
+            defer { trace.end(span) }
             guard let task else { return }
             let outcome: FlatExportTask.Outcome
             switch result {
@@ -720,6 +725,7 @@ final class DocumentWorkspace {
     /// passed its last checkpoint, in which case it completes and is reported as exported.
     func cancelExportFlat(_ task: FlatExportTask) {
         task.cancelNow()
+        updateExportAccessory()
         say("Cancelling export of \(task.fileName)…")
     }
 
@@ -748,23 +754,28 @@ final class DocumentWorkspace {
         }
     }
 
-    /// The progress bar under the toolbar while exports run.
+    /// Keep progress outside the SwiftUI layout tree. Adding/removing a titlebar accessory changes
+    /// contentLayoutRect, resizes the document viewport, and schedules another expensive render/layout.
+    /// This native overlay never changes the window, canvas, or hosting view's sizing constraints.
     private func updateExportAccessory() {
-        guard let window = exportWindow ?? window else { return }
         if flatExports.isEmpty {
-            if let a = exportAccessory, let i = window.titlebarAccessoryViewControllers.firstIndex(of: a) {
-                window.removeTitlebarAccessoryViewController(at: i)
-            }
+            exportAccessory?.removeFromSuperview()
             exportAccessory = nil
-        } else if exportAccessory == nil {
-            let host = NSHostingView(rootView: FlatExportBar(workspace: self))
-            host.frame = NSRect(x: 0, y: 0, width: 400, height: 30)
-            let a = NSTitlebarAccessoryViewController()
-            a.view = host
-            a.layoutAttribute = .bottom
-            window.addTitlebarAccessoryViewController(a)
-            exportAccessory = a
+            return
         }
+        guard let parent = (exportWindow ?? window)?.contentView else { return }
+        let bar = exportAccessory ?? FlatExportProgressView(workspace: self)
+        if bar.superview !== parent {
+            bar.removeFromSuperview()
+            parent.addSubview(bar, positioned: .above, relativeTo: nil)
+        }
+        bar.update(flatExports)
+        let height = FlatExportProgressView.rowHeight * CGFloat(flatExports.count)
+        bar.autoresizingMask = [.width, parent.isFlipped ? .maxYMargin : .minYMargin]
+        bar.frame = NSRect(x: parent.bounds.minX,
+                           y: parent.isFlipped ? parent.bounds.minY : parent.bounds.maxY - height,
+                           width: parent.bounds.width, height: height)
+        exportAccessory = bar
     }
 
     // MARK: Closing
@@ -950,33 +961,124 @@ private final class CancelBox: @unchecked Sendable {
     func set() { lock.withLock { value = true } }
 }
 
-/// Export progress and Cancel, under the document window's toolbar.
-private struct FlatExportBar: View {
-    let workspace: DocumentWorkspace
+/// Native progress over the top of the content, below the titlebar. Manual layout deliberately
+/// cannot invalidate the hosting view's size or re-evaluate the document's SwiftUI graph.
+@MainActor
+private final class FlatExportProgressView: NSView {
+    static let rowHeight: CGFloat = 32
+    private weak var workspace: DocumentWorkspace?
+    private var rows: [UUID: Row] = [:]
+    private var order: [UUID] = []
+    override var isFlipped: Bool { true }
+    override var isOpaque: Bool { true }
 
-    var body: some View {
-        VStack(spacing: Theme.Space.xxs) {
-            ForEach(workspace.flatExports) { t in
-                HStack(spacing: Theme.Space.s) {
-                    Text("Exporting \(t.fileName)")
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    ProgressView(value: t.fraction)
-                        .progressViewStyle(.linear)
-                        .frame(minWidth: 120, maxWidth: 260)
-                    Text("\(t.phase) \(Int((t.fraction * 100).rounded())) %")
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.textSecondary)
-                        .frame(minWidth: 150, alignment: .leading)
-                    Button("Cancel") { workspace.cancelExportFlat(t) }
-                        .controlSize(.small)
-                        .disabled(t.cancelling)
-                }
-                .font(.callout)
-            }
+    init(workspace: DocumentWorkspace) {
+        self.workspace = workspace
+        super.init(frame: .zero)
+        setAccessibilityIdentifier("document-export-progress")
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func update(_ tasks: [FlatExportTask]) {
+        let ids = Set(tasks.map(\.id))
+        for id in Array(rows.keys) where !ids.contains(id) {
+            rows.removeValue(forKey: id)?.removeFromSuperview()
         }
-        .padding(.horizontal, Theme.Space.m)
-        .padding(.vertical, Theme.Space.xs)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        order = tasks.map(\.id)
+        for task in tasks {
+            let row = rows[task.id] ?? Row(task: task, workspace: workspace)
+            if row.superview == nil { addSubview(row) }
+            rows[task.id] = row
+            row.update(task)
+        }
+        arrangeRows()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        arrangeRows()
+    }
+
+    private func arrangeRows() {
+        for (i, id) in order.enumerated() {
+            rows[id]?.frame = NSRect(x: 0, y: CGFloat(i) * Self.rowHeight,
+                                     width: bounds.width, height: Self.rowHeight)
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        Theme.Palette.panel.setFill()
+        bounds.fill()
+        Theme.Palette.hairline.setFill()
+        NSRect(x: 0, y: bounds.maxY - Theme.Space.hairline,
+               width: bounds.width, height: Theme.Space.hairline).fill()
+    }
+
+    private final class Row: NSView {
+        private let name = NSTextField(labelWithString: "")
+        private let phase = NSTextField(labelWithString: "")
+        private let progress = NSProgressIndicator()
+        private let cancel = NSButton(title: "Cancel", target: nil, action: nil)
+        private weak var task: FlatExportTask?
+        private weak var workspace: DocumentWorkspace?
+        override var isFlipped: Bool { true }
+
+        init(task: FlatExportTask, workspace: DocumentWorkspace?) {
+            self.task = task
+            self.workspace = workspace
+            super.init(frame: .zero)
+            name.font = Theme.NSFonts.body
+            name.textColor = Theme.Palette.textPrimary
+            name.lineBreakMode = .byTruncatingMiddle
+            name.maximumNumberOfLines = 1
+            phase.font = Theme.NSFonts.labelNumeric
+            phase.textColor = Theme.Palette.textSecondary
+            phase.lineBreakMode = .byTruncatingTail
+            progress.isIndeterminate = false
+            progress.minValue = 0
+            progress.maxValue = 1
+            progress.style = .bar
+            progress.controlSize = .small
+            progress.setAccessibilityLabel("Export progress for \(task.fileName)")
+            cancel.bezelStyle = .rounded
+            cancel.controlSize = .small
+            cancel.target = self
+            cancel.action = #selector(cancelExport)
+            for view in [name, progress, phase, cancel] { addSubview(view) }
+            update(task)
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        func update(_ task: FlatExportTask) {
+            let title = "Exporting \(task.fileName)"
+            if name.stringValue != title { name.stringValue = title }
+            let status = "\(task.phase) \(Int((task.fraction * 100).rounded())) %"
+            if phase.stringValue != status { phase.stringValue = status }
+            if progress.doubleValue != task.fraction { progress.doubleValue = task.fraction }
+            cancel.isEnabled = !task.cancelling
+        }
+
+        override func setFrameSize(_ newSize: NSSize) {
+            super.setFrameSize(newSize)
+            let gap = Theme.Space.s, inset = Theme.Space.m
+            let available = max(0, bounds.width - 2 * inset - 3 * gap)
+            let buttonWidth = min(64, available)
+            let phaseWidth = min(170, max(0, available - buttonWidth))
+            let progressWidth = min(260, max(0, (available - buttonWidth - phaseWidth) * 0.45))
+            let nameWidth = max(0, available - buttonWidth - phaseWidth - progressWidth)
+            var x = inset
+            name.frame = NSRect(x: x, y: 7, width: nameWidth, height: 20)
+            x += nameWidth + gap
+            progress.frame = NSRect(x: x, y: 9, width: progressWidth, height: 14)
+            x += progressWidth + gap
+            phase.frame = NSRect(x: x, y: 8, width: phaseWidth, height: 18)
+            x += phaseWidth + gap
+            cancel.frame = NSRect(x: x, y: 4, width: buttonWidth, height: 24)
+        }
+
+        @objc private func cancelExport() {
+            guard let task else { return }
+            workspace?.cancelExportFlat(task)
+        }
     }
 }
