@@ -559,10 +559,16 @@ final class LayersOutlineView: NSOutlineView, KeyOwningControl {
     // Vend the existing row views for realized rows so their modern AX metadata is visible.
     // AppKit otherwise returns legacy NSOutlineRow proxies which have no identifier or label.
     override func accessibilityChildren() -> [Any]? {
-        super.accessibilityChildren()?.enumerated().map { index, child in
-            guard let proxy = child as? NSObject,
-                  proxy.accessibilityAttributeValue(.role) as? String == NSAccessibility.Role.row.rawValue else { return child }
-            let number = proxy.accessibilityAttributeValue(.index) as? Int ?? index
+        let rows = (super.accessibilityRows() as NSArray?) ?? []
+        return super.accessibilityChildren()?.enumerated().map { index, child in
+            let proxy = child as AnyObject
+            // AppKit's row proxies lack modern getters and are recreated per query.
+            // Keep NSArray bridging (they do not conform to NSAccessibilityRow) and
+            // use their value equality to locate the row in native accessibility order.
+            let position = rows.index(of: proxy)
+            let nativeIndex = position == NSNotFound ? nil : position
+            guard nativeIndex != nil || proxy.accessibilityRole?() == .row else { return child }
+            let number = nativeIndex ?? proxy.accessibilityIndex?() ?? index
             guard let row = rowView(atRow: number, makeIfNecessary: false) else { return child }
             let label = view(atColumn: 0, row: number, makeIfNecessary: false)?.accessibilityLabel() ?? "Layer row \(number + 1)"
             row.setAccessibilityElement(true)

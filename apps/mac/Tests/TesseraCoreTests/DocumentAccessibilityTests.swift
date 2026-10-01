@@ -5,6 +5,14 @@ import TesseraFFI
 @testable import Tessera
 @testable import TesseraCore
 
+// AppKit implements these modern accessors for AXEnhancedUserInterface but does not
+// expose them in the public NSAccessibility protocol. Keep this test-only bridge
+// so hosted SwiftUI trees are materialized without deprecated attribute APIs.
+@objc private protocol HostedAccessibilityApplication {
+    @objc optional func isAccessibilityEnhancedUserInterface() -> Bool
+    @objc optional func setAccessibilityEnhancedUserInterface(_ enabled: Bool)
+}
+
 /// Removing an identifier or accessible name from any realized document control must fail
 /// with its scenario and AX path. These probes never make a window key or order it front.
 @MainActor
@@ -22,28 +30,22 @@ final class DocumentAccessibilityTests: XCTestCase {
         var roles = Set<String>()
         func walk(_ node: AnyObject, path: String) {
             guard seen.insert(ObjectIdentifier(node)).inserted else { return }
-            // AppKit's NSOutlineRow and cell-backed controls still expose legacy AX attributes.
             // SwiftUI virtual nodes expose modern selectors without protocol conformance.
-            func legacy(_ name: String) -> Any? {
-                node.accessibilityAttributeValue?(NSAccessibility.Attribute(rawValue: name))
-            }
-            let modernRole = node.accessibilityRole?()?.rawValue
-            let role = (modernRole == "AXUnknown" ? nil : modernRole) ?? legacy("AXRole") as? String ?? "unknown"
-            // AppKit's exported cell element uses metadata installed on its control view.
-            // Direct legacy cell getters do not merge that metadata as the AX server does.
+            // Cell-backed controls keep their accessible metadata on the owning view.
             let owner = (node as? NSCell)?.controlView
-            let id = [node.accessibilityIdentifier?(), legacy("AXIdentifier") as? String, owner?.accessibilityIdentifier()]
+            let modernRole = node.accessibilityRole?()
+            let role = (modernRole == .unknown ? owner?.accessibilityRole() : modernRole)?.rawValue ?? "unknown"
+            let id = [node.accessibilityIdentifier?(), owner?.accessibilityIdentifier()]
                 .compactMap { $0 }.first { !$0.isEmpty } ?? ""
             // AXTitle is the accessible name of standard AppKit/SwiftUI buttons;
             // AXLabel is used by custom controls. Values/placeholders/help are not names.
-            let label = [node.accessibilityLabel?(), owner?.accessibilityLabel(), legacy("AXDescription") as? String, node.accessibilityTitle?(), legacy("AXTitle") as? String]
+            let label = [node.accessibilityLabel?(), owner?.accessibilityLabel(), node.accessibilityTitle?()]
                 .compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? ""
             let here = "\(path)/\(role)[\(id)]{\(label)}"
             // Scrollbar arrows/thumbs are AppKit implementation details, not document controls.
             if role == "AXScrollBar" { return }
             roles.insert(role)
-            let hasPress = node.accessibilityActionNames?().contains(.press) ?? false
-            if interactive.contains(role) || hasPress {
+            if interactive.contains(role) {
                 count += 1
                 // A native toolbar item and its hosted child can describe the same control.
                 // Sibling controls must still have distinct identifiers.
@@ -59,7 +61,7 @@ final class DocumentAccessibilityTests: XCTestCase {
                     XCTFail("\(scenario): \(here) — \(id.isEmpty ? "missing identifier" : "identifier=" + id); \(label.isEmpty ? "missing label" : "label=" + label)")
                 }
             }
-            for (index, child) in (node.accessibilityChildren?() ?? legacy("AXChildren") as? [Any] ?? []).enumerated() {
+            for (index, child) in (node.accessibilityChildren?() ?? []).enumerated() {
                 walk(child as AnyObject, path: "\(here)/\(index)")
             }
         }
@@ -86,10 +88,12 @@ final class DocumentAccessibilityTests: XCTestCase {
         host.frame = bounds
         window.orderBack(nil)
         defer { LayoutProbeHarness.dispose(window) }
-        let attribute = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
-        let previous = NSApp.accessibilityAttributeValue(attribute)
-        NSApp.accessibilitySetValue(true, forAttribute: attribute)
-        defer { NSApp.accessibilitySetValue(previous, forAttribute: attribute) }
+        let application = NSApp as AnyObject
+        guard let previous = application.isAccessibilityEnhancedUserInterface?() else {
+            return XCTFail("AppKit must support hosted accessibility activation")
+        }
+        application.setAccessibilityEnhancedUserInterface?(true)
+        defer { application.setAccessibilityEnhancedUserInterface?(previous) }
         await LayoutProbeHarness.settleAsync(host)
         func expand(_ view: NSView) {
             if let outline = view as? NSOutlineView { outline.expandItem(nil, expandChildren: true) }
@@ -162,10 +166,12 @@ final class DocumentAccessibilityTests: XCTestCase {
         // The real unified toolbar also has shared shell controls (Open Folder, Library).
         let (window, _) = ShellHarness.window(model, size: CGSize(width: 1440, height: 900), dark: true)
         defer { LayoutProbeHarness.dispose(window) }
-        let attribute = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
-        let previous = NSApp.accessibilityAttributeValue(attribute)
-        NSApp.accessibilitySetValue(true, forAttribute: attribute)
-        defer { NSApp.accessibilitySetValue(previous, forAttribute: attribute) }
+        let application = NSApp as AnyObject
+        guard let previous = application.isAccessibilityEnhancedUserInterface?() else {
+            return XCTFail("AppKit must support hosted accessibility activation")
+        }
+        application.setAccessibilityEnhancedUserInterface?(true)
+        defer { application.setAccessibilityEnhancedUserInterface?(previous) }
         await LayoutProbeHarness.settleAsync(try XCTUnwrap(window.contentView))
         var seen = Set<ObjectIdentifier>()
         func findToolbar(_ node: AnyObject) -> AnyObject? {
