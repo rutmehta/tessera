@@ -1,4 +1,43 @@
-# LR-3: retouch translation — renderer integration blocked
+# LR-3: retouch translation and caller-owned rendering
+
+## LR-3c (2026-10-01): Option A implemented
+
+Local commits on top of `634d3fbc`, without rebase:
+
+- `cf85e2ca`: caller-owned brush retouch integration, FFI/MCP construction sites,
+  CPU/GPU host routing, file/HDR/print export.
+- `664423b7`: real-brush RED-to-GREEN, bit-identical clone/heal kernels,
+  synthetic catalog-to-Develop, missing-renderer, GPU, export and MCP regressions.
+- `53964430`: complete library/JPEG-preview wiring, preservation through FFI
+  admission, full-source detail retouch, and headless session regressions.
+
+One `pipeline_cpu::RetouchRenderer` trait with one planar-buffer rendering
+method is supplied as `Arc<dyn RetouchRenderer>`. Engine assembly registers
+`brush::render_retouch`; there is no global/static retouch registry and no new
+Cargo dependency edge. Missing renderers and unsupported operations fail
+explicitly. Retouch executes after locals and before effects/geometry.
+
+The original LR-3b RED assertions now pass with brush registered in the FFI
+integration suite. Keeping the real-brush test in FFI is necessary because a
+pipeline-cpu test dependency on brush would recreate the same dependency cycle.
+The pipeline-cpu test covers the mandatory no-renderer error instead.
+
+See [LR-3c-EVIDENCE.md](LR-3c-EVIDENCE.md) for the full construction-site audit,
+coverage, limitations and gate evidence. The earlier blocked/RED reports below
+are historical and are superseded by this section.
+
+**Gate status: NOT GREEN.** The five-package suite finished with 921 passed,
+2 failed, 34 ignored. Liquify latency failed again in isolation (p95 416.2 ms
+versus a 250 ms limit; initial p95 548.6 ms). The export/slider serial retry also failed: 105/120 frames at L2,
+below the required 108/120; initial run had 0/120. Focused retouch tests, FFI/MCP assembly tests, clippy with warnings
+denied and formatting pass. See the evidence file for exact failure metrics.
+
+No Cargo manifest/lockfile delta against `634d3fbc`. No board, Swift gate, app,
+push, rebase or real-catalog fixture was involved. The externally supplied
+`LR-RULINGS-FROM-A.md` remains untracked and untouched. All new commits use the
+requested Claude Opus 5.5 coauthor trailer.
+
+---
 
 ## LR-3b follow-up (2026-10-01): dependency ruling cannot resolve
 
