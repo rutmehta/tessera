@@ -640,3 +640,117 @@ All current logs are archived outside the repo in
 Both ENG-1f commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 The docs commit changes only evidence references and this validation record.
 All work remains local on the existing branch, with no rebase or remote action.
+
+## ENG-1g — 24 MP measurement and stage attribution (2026-10-01)
+
+Measurement only, directly on `3e565432`, without rebase. Tip measured at
+`3e565432`; base is the local `origin/main` ref resolved once to
+`87536669ea555535ebb6622a17848f2b0fb530f3` (no fetch or remote action).
+Base was built in `git worktree add --detach /tmp/tessera-ENG-1g-base origin/main`
+with its own `~/.cache/tessera-target/ENG-1-base`. The temporary base worktree
+and its target directory were deleted after measurements. No production code,
+existing tests, bounds, dependencies, or lockfiles changed; only this handoff
+is committed. No app was launched.
+
+### Four-way all-pixel result
+
+Same 6000×4000 synthetic input, `rich_settings()`, amount 1, `profile: None`,
+level 0, CPU reference and resident GPU evaluator as `bench_24mp_cpu_gpu`.
+The input/reference/settings helpers were verified identical between base
+and tip. Presence off changes only texture and clarity to zero. An identical
+temporary integration test on both revisions scanned all 72 million RGB
+samples, checked finite CPU/GPU values and bit-exact alpha, and logged the
+maximum instead of applying a parity acceptance assertion. Existing bench
+assertions were never edited. These diagnostic test passes are **not** passes
+of the existing absolute `< 0.01` guard: all four measurements exceed it.
+Indices are zero-based; GPU/CPU values are final encoded document RGB.
+
+| Revision | Presence | Max absolute gap | Pixel | Channel | GPU | CPU |
+| --- | --- | ---: | ---: | --- | ---: | ---: |
+| base | on | 6.1408234 | 5,112,798 | blue | 225.30309 | 219.16226 |
+| base | off | 0.016636014 | 4,999,168 | red | 0.5281837 | 0.5115477 |
+| tip | on | 0.01663196 | 4,999,168 | red | 0.5281682 | 0.51153624 |
+| tip | off | 0.016636014 | 4,999,168 | red | 0.5281837 | 0.5115477 |
+
+The original every-997th-pixel scaled metric remains below 0.002 in all four
+cases: base/on 0.000946507, base/off 0.00071656704, tip/on 0.0007223487,
+tip/off 0.00071656704. Tip/on exactly reproduces ENG-1f. Base/off and tip/off
+have identical reported maxima, location, GPU/CPU values and target RGBA.
+
+### Stage isolation at pixel 4,999,168 (x=1168, y=833), red
+
+Cumulative settings isolation on tip, using full-frame renders at each step
+and the original encoded profile bridge. Rows are encoded outputs with later
+controls neutralized, **not internal buffer readbacks**. Start with neutral
+settings (including sharpening and color-noise reduction zero), then restore
+rich white balance, detail, tone, presence, dehaze, RGB curve, color, locals,
+and effects in evaluator order. Tone here restores exposure/contrast/
+highlights/shadows/whites/blacks while presence, dehaze and curves stay neutral.
+
+| Cumulative enabled stages | GPU red | CPU red | Absolute red gap |
+| --- | ---: | ---: | ---: |
+| Neutral bridge | 0.46875 | 0.46875 | 0 |
+| + White balance | 0.46674666 | 0.46674666 | 0 |
+| + Detail | 0.4080246 | 0.4080245 | 1.1920929e-07 |
+| + Tone (no presence/dehaze/curves) | 0.4591821 | 0.4445941 | 0.0145880282 |
+| + Presence | 0.45916852 | 0.44458404 | 0.0145844817 |
+| + Dehaze | 0.45916852 | 0.44458404 | 0.0145844817 |
+| + RGB curve | 0.48747167 | 0.4716921 | 0.0157795846 |
+| + Color | 0.47831452 | 0.462764 | 0.015550524 |
+| + Local adjustments | 0.53591484 | 0.518707 | 0.0172078609 |
+| + Effects (full original settings) | 0.5281682 | 0.51153624 | 0.01663196 |
+
+**Conclusion:** the remaining tip 24 MP failure is a pre-existing tone-stage
+precision gap, not a gap introduced by the ENG-1 presence conditioning. It
+persists with presence disabled at exactly the same maximum and values on
+base and tip (0.016636014). At the target pixel, detail leaves only about
+1.19e-7 red error; enabling tone increases it to 0.014588028 before any presence
+or dehaze. Presence slightly reduces that error, while subsequent curves,
+color, locals and effects yield the full-chain 0.01663196. Main already
+exceeds 0.01 with original settings, by 6.1408234 at a different blue sample;
+that older unconditioned-presence failure is distinct from the residual tone
+failure exposed here. ENG-4 remains responsible for the residual tone gap;
+no threshold or rendering change is proposed or made in this lane.
+
+### Reproduction and evidence
+
+All runs used release mode, Apple M4 Max **Metal** (adapter recorded in every
+measurement log), and the requested PATH, `CARGO_BUILD_JOBS=3`, and
+`RAYON_NUM_THREADS=3`. Tip target directory was
+`~/.cache/tessera-target/ENG-1-texture-clarity`. Temporary measurement source
+was removed from both worktrees after execution; its exact copy and all logs
+remain at `/Users/rutmehta/tessera-evidence/ENG-1/eng1g/`.
+
+To reproduce, copy archived `eng1g_measure.rs` to `crates/filters/tests/`,
+set the appropriate external target directory and requested environment, then:
+
+```sh
+ENG1G_MODE=on cargo test --locked --release -p filters --test eng1g_measure -- --nocapture
+ENG1G_MODE=off cargo test --locked --release -p filters --test eng1g_measure -- --nocapture
+# On tip, modes 0..8 select the cumulative stage rows; on is the final row.
+ENG1G_MODE=3 cargo test --locked --release -p filters --test eng1g_measure -- --nocapture
+```
+
+All 13 measurement invocations completed successfully, with finite RGB and
+exact alpha checks. No parity-bound acceptance is implied. Full Rust/Swift
+suites were not rerun for this documentation-only lane. Verified clean
+tracked source on both revisions before removing diagnostics, and
+`git diff --check` before commit.
+
+| Archived file | SHA-256 |
+| --- | --- |
+| base-build.log | `9547d6288cbdf86586325b1309a56ca551cff4a643f3bee06093f9410233c859` |
+| base-off.log | `21069718d7a81a245d54febaaa9cdc60d585883d724d29b69a14871d2fa4dfd7` |
+| base-on.log | `950926200f06c5aac77d66f4795b87fb94613df3cbdc542517bc87d99da0d32d` |
+| eng1g_measure.rs | `1f23beac2eb08e56fd5790e4ace453173b4fdadacce8a6233198ae1f6a535a05` |
+| tip-0.log | `ec05991235ff402522104d30482192e1fd4e58d501a6920cbe60811c30ba8063` |
+| tip-1.log | `6b4ca975b5885bd2bbd52ff607afe25eac3eb27724f933e8ce51e11d4e4dca90` |
+| tip-2.log | `853bb398e7d55f2496811d53981f01392c9b00adc6118193ca498d04b5460a94` |
+| tip-3.log | `8e19bbbe2233b66bde53c5b0386898fce7c5018c9c73628a1bc303673df7644c` |
+| tip-4.log | `c13f127e1c8f9dee67771872ad45294345bc58b05a5b7de0b8df583593aa0a38` |
+| tip-5.log | `d9326fb37a19ba8e9a2fc5708099d0af05ce03f5c292cf8ef5f7e314437086ea` |
+| tip-6.log | `bfd9956a9aca0f9f17359a973a8975e3a0900644d65353f947831199fbd41591` |
+| tip-7.log | `3ea8abebbae6dee55e75623f35f6bc875bca1010d294f04c63cf9eaf2aa13d26` |
+| tip-8.log | `2cc7beebe477b5e3c0aa08104c11e55d741f8d94247d1bc403f02a9deae34d27` |
+| tip-off.log | `4608cad0a52fe2ec3e5b12066dd070531f9953bb0659bade38ae227e92daeeb2` |
+| tip-on.log | `f4bf2c630f7b2f38fa48bd1960378ef7283662ad4dfad5a2a317bb8d41b4e629` |
