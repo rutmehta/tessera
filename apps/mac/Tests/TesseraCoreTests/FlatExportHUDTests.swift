@@ -81,6 +81,60 @@ final class FlatExportHUDTests: XCTestCase {
         XCTAssertTrue(accessibility(host).contains { ($0.accessibilityValue() as? String) == "Cancelling 63 %" })
     }
 
+    func testAccessibilityNotificationsForPhaseOnlyChangesAndCancel() throws {
+        LayoutProbeHarness.prepare()
+        let ws = DocumentWorkspace()
+        var notifications: [(AnyObject, NSAccessibility.Notification)] = []
+        let hud = FlatExportProgressView(workspace: ws) { element, notification in
+            notifications.append((element as AnyObject, notification))
+        }
+        let cancellations = Changes()
+        let task = FlatExportTask(fileName: "notifications.png", documentTitle: "Notifications",
+                                  cancel: { cancellations.changed() })
+        hud.update([task])
+        let row = try XCTUnwrap(hud.subviews.first)
+        let children = try XCTUnwrap(row.accessibilityChildren())
+        let phase = try XCTUnwrap(children[1] as? any NSAccessibilityProtocol)
+        let progress = try XCTUnwrap(children[2] as? any NSAccessibilityProtocol)
+        func expect(_ expected: [any NSAccessibilityProtocol], file: StaticString = #filePath, line: UInt = #line) {
+            XCTAssertEqual(notifications.count, expected.count, file: file, line: line)
+            for (actual, target) in zip(notifications, expected) {
+                XCTAssertTrue(actual.0 === (target as AnyObject), file: file, line: line)
+                XCTAssertEqual(actual.1, .valueChanged, file: file, line: line)
+            }
+            notifications.removeAll()
+        }
+        notifications.removeAll() // Ignore initial row publication.
+        task.update(0.625, "Encoding")
+        expect([phase, progress])
+        task.update(0.625, "Writing")
+        XCTAssertEqual(phase.accessibilityValue() as? String, "Writing 63 %")
+        expect([phase])
+        hud.update([task]) // Republishing identical values must remain silent.
+        expect([])
+        task.update(0.626, "Writing") // Fraction changes within the same rounded percent.
+        expect([progress])
+        let cancel = try XCTUnwrap(row.subviews.compactMap { $0 as? NSButton }.first)
+        cancel.performClick(nil)
+        XCTAssertEqual(cancellations.value, 1)
+        XCTAssertFalse(cancel.isEnabled)
+        XCTAssertEqual(phase.accessibilityValue() as? String, "Cancelling 63 %")
+        expect([phase])
+        hud.update([task])
+        expect([])
+
+        let finishing = FlatExportTask(fileName: "finished.png", documentTitle: "Finished", cancel: {})
+        hud.update([finishing]) // Exercise the reused row as well.
+        notifications.removeAll()
+        finishing.update(1, "Encoding")
+        expect([phase, progress])
+        finishing.update(1, "Complete")
+        XCTAssertEqual(phase.accessibilityValue() as? String, "Complete 100 %")
+        expect([phase])
+        hud.update([finishing])
+        expect([])
+    }
+
     func testViewportShrinkRepositionsActiveExport() throws {
         LayoutProbeHarness.prepare()
         let ws = DocumentWorkspace()

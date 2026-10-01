@@ -1073,6 +1073,8 @@ final class FlatExportProgressPublisher: @unchecked Sendable {
 /// cannot invalidate the hosting view's size or re-evaluate the document's SwiftUI graph.
 @MainActor
 final class FlatExportProgressView: NSView {
+    typealias AccessibilityPost = (Any, NSAccessibility.Notification) -> Void
+    private let post: AccessibilityPost
     static let rowHeight: CGFloat = 64
     private weak var workspace: DocumentWorkspace?
     private var rows: [UUID: Row] = [:]
@@ -1088,14 +1090,17 @@ final class FlatExportProgressView: NSView {
     override func scrollWheel(with event: NSEvent) {}
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    init(workspace: DocumentWorkspace) {
+    init(workspace: DocumentWorkspace, post: @escaping AccessibilityPost = {
+        NSAccessibility.post(element: $0, notification: $1)
+    }) {
+        self.post = post
         self.workspace = workspace
         super.init(frame: .zero)
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel("Document exports")
         setAccessibilityIdentifier("document-export-progress")
-        reusableRow = Row(workspace: workspace)
+        reusableRow = Row(workspace: workspace, post: post)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
@@ -1120,7 +1125,7 @@ final class FlatExportProgressView: NSView {
             } else {
                 let trace = workspace?.exportTrace
                 let span = trace?.begin("export_flat_row_create")
-                row = Row(workspace: workspace)
+                row = Row(workspace: workspace, post: post)
                 trace?.end(span)
             }
             if row.superview == nil { addSubview(row) }
@@ -1248,6 +1253,7 @@ final class FlatExportProgressView: NSView {
     }
 
     private final class Row: NSView {
+        private let post: AccessibilityPost
         private let name = CATextLayer()
         private let phase = CATextLayer()
         private let progress = CALayer()
@@ -1260,7 +1266,8 @@ final class FlatExportProgressView: NSView {
         private weak var workspace: DocumentWorkspace?
         override var isFlipped: Bool { true }
 
-        init(workspace: DocumentWorkspace?) {
+        init(workspace: DocumentWorkspace?, post: @escaping AccessibilityPost) {
+            self.post = post
             self.workspace = workspace
             super.init(frame: .zero)
             wantsLayer = true
@@ -1347,7 +1354,7 @@ final class FlatExportProgressView: NSView {
             progressAX.setAccessibilityValueDescription("\(Int((task.fraction * 100).rounded())) %")
             if cancel.isEnabled == task.cancelling { cancel.isEnabled = !task.cancelling }
             CATransaction.commit()
-            NSAccessibility.post(element: progressAX, notification: .valueChanged)
+            post(progressAX, .valueChanged)
         }
 
         override func viewDidMoveToWindow() {
