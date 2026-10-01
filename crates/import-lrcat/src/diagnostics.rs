@@ -11,7 +11,6 @@ use std::collections::BTreeMap;
 
 use engine_api::recipe::Recipe;
 use serde::{Deserialize, Serialize};
-#[allow(unused_imports)]
 use serde_json::{Map, Value};
 
 /// `recipe.unknown` member holding the diagnostics object.
@@ -43,17 +42,52 @@ pub fn push_approximate(
     lane: &str,
     reason: &str,
 ) {
-    let _ = (recipe, adobe_key, field, lane, reason);
-    todo_red()
+    let entry = serde_json::to_value(Entry {
+        level: "info".into(),
+        status: "approximate".into(),
+        lane: lane.into(),
+        field: field.into(),
+        reason: reason.into(),
+    })
+    .expect("entry serializes");
+    let object = recipe
+        .unknown
+        .entry(KEY.into())
+        .or_insert_with(|| Value::Object(Map::new()));
+    if !object.is_object() {
+        *object = Value::Object(Map::new());
+    }
+    let list = object
+        .as_object_mut()
+        .expect("object")
+        .entry(adobe_key)
+        .or_insert_with(|| Value::Array(vec![]));
+    if !list.is_array() {
+        *list = Value::Array(vec![]);
+    }
+    let list = list.as_array_mut().expect("array");
+    if !list.contains(&entry) {
+        list.push(entry);
+    }
 }
-
-fn todo_red() {}
 
 /// Every well-formed diagnostics entry, by Adobe key. Malformed entries
 /// (e.g. from a foreign writer) are skipped; keys with none are omitted.
 pub fn entries(recipe: &Recipe) -> BTreeMap<String, Vec<Entry>> {
-    let _ = recipe;
-    BTreeMap::new()
+    let Some(Value::Object(object)) = recipe.unknown.get(KEY) else {
+        return BTreeMap::new();
+    };
+    object
+        .iter()
+        .filter_map(|(key, list)| {
+            let list: Vec<Entry> = list
+                .as_array()?
+                .iter()
+                .filter_map(|e| Entry::deserialize(e).ok())
+                .collect();
+            (!list.is_empty()).then(|| (key.clone(), list))
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -74,7 +108,13 @@ mod tests {
     fn absent_object_is_created_with_one_info_entry() {
         let mut recipe = Recipe::default();
         assert!(entries(&recipe).is_empty());
-        push_approximate(&mut recipe, "Exposure2012", "/settings/tone/exposure", "LR-2", "r");
+        push_approximate(
+            &mut recipe,
+            "Exposure2012",
+            "/settings/tone/exposure",
+            "LR-2",
+            "r",
+        );
         assert_eq!(
             recipe.unknown[KEY],
             serde_json::json!({"Exposure2012": [{
@@ -135,8 +175,7 @@ mod tests {
     fn diagnostics_round_trip_through_serialization() {
         let mut recipe = Recipe::default();
         push_approximate(&mut recipe, "K", "/a", "LR-1", "why");
-        let back: Recipe =
-            serde_json::from_slice(&serde_json::to_vec(&recipe).unwrap()).unwrap();
+        let back: Recipe = serde_json::from_slice(&serde_json::to_vec(&recipe).unwrap()).unwrap();
         assert_eq!(entries(&back), entries(&recipe));
     }
 
@@ -161,6 +200,9 @@ mod tests {
                 }
             }
         }
-        assert!(offenders.is_empty(), "write via push_approximate: {offenders:?}");
+        assert!(
+            offenders.is_empty(),
+            "write via push_approximate: {offenders:?}"
+        );
     }
 }

@@ -540,6 +540,19 @@ struct ReportStep: View {
                     .accessibilityLabel("Import warnings")
                     .accessibilityValue(warningsDescription(r))
                     .accessibilityIdentifier("document.import.report.warnings")
+                    if !r.approximate.isEmpty {
+                        VStack(alignment: .leading, spacing: Theme.Space.s) {
+                            Text("Approximate translations").font(Theme.Fonts.labelSemibold)
+                            ForEach(Array(r.approximate.enumerated()), id: \.offset) { _, issue in
+                                IssueRow(issue: issue)
+                            }
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityAddTraits(.isStaticText)
+                        .accessibilityLabel("Approximate translations")
+                        .accessibilityValue(LightroomImportReport.approximateLines(r).joined(separator: "\n"))
+                        .accessibilityIdentifier("document.import.report.approximate")
+                    }
                     if let fidelity {
                         VStack(alignment: .leading, spacing: Theme.Space.s) {
                             Text("Fidelity preview (\(fidelity.renderer) renderer)").font(Theme.Fonts.labelSemibold)

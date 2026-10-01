@@ -72,7 +72,9 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         if !path.starts_with('/') || json.pointer(path).is_none() {
             return Err(format!("{key}: missing recipe path {path}"));
         }
-        let notes = diagnostics::entries(&recipe).remove(key).unwrap_or_default();
+        let notes = diagnostics::entries(&recipe)
+            .remove(key)
+            .unwrap_or_default();
         if approximate {
             if !warnings.is_empty() {
                 return Err(format!("{key}: approximate key has warnings: {warnings:?}"));

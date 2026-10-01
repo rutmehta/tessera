@@ -332,6 +332,19 @@ public enum LightroomImportReport {
                 out.append("| \(cell(i.category)) | \(cell(i.reason)) | \(i.count) | \(cell(i.examples.joined(separator: ", "))) |")
             }
         }
+        if !r.approximate.isEmpty {
+            out.append("")
+            out.append("## Approximate translations (\(r.approximate.count))")
+            out.append("")
+            out.append("Translated into Tessera settings, but Lightroom's rendering is not yet verified to match; "
+                       + "the exact Lightroom values are kept with each edit.")
+            out.append("")
+            out.append("| Lightroom setting | Photos | Example reason | Examples |")
+            out.append("| --- | ---: | --- | --- |")
+            for i in r.approximate {
+                out.append("| \(cell(i.category)) | \(i.count) | \(cell(i.reason)) | \(cell(i.examples.joined(separator: ", "))) |")
+            }
+        }
         if let f = fidelity {
             out.append("")
             out.append("## Fidelity preview (\(f.renderer) renderer)")
@@ -371,7 +384,7 @@ public enum LightroomImportReport {
 
     /// One line per Adobe key: photo count and the first reason as the example.
     public static func approximateLines(_ r: LrcatReport) -> [String] {
-        []
+        r.approximate.map { "\($0.category): \($0.count) photo\($0.count == 1 ? "" : "s"); e.g. \($0.reason)" }
     }
 
     static func fmt(_ v: Float) -> String { String(format: "%.1f", v) }

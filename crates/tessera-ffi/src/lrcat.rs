@@ -520,6 +520,27 @@ fn issue(category: &str, reason: String, count: usize, examples: Vec<String>) ->
     }
 }
 
+/// Count one photo's approximate translations (`import_lrcat::diagnostics`)
+/// into per-Adobe-key groups; the first photo's reason is the example.
+fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) {
+    for (key, entries) in import_lrcat::diagnostics::entries(recipe) {
+        match issues.iter_mut().find(|i| i.category == key) {
+            Some(group) => {
+                group.count += 1;
+                if group.examples.len() < 5 {
+                    group.examples.push(display_path(path));
+                }
+            }
+            None => issues.push(issue(
+                &key,
+                entries[0].reason.clone(),
+                1,
+                vec![display_path(path)],
+            )),
+        }
+    }
+}
+
 fn keyword_names(list: &[Keyword], out: &mut BTreeMap<i64, String>) {
     for k in list {
         out.insert(k.id, k.name.clone());
@@ -1334,6 +1355,7 @@ impl LrcatImport {
             if state.done.contains(&image.catalog_id) {
                 report.resumed += 1;
                 count_selection(&mut report.selection, &selection);
+                note_approximate(&mut report.approximate, &image.recipe, &r.path);
                 continue;
             }
             if let Some(delay) = delay {
@@ -1407,7 +1429,8 @@ impl LrcatImport {
                         }
                     }
                     count_selection(&mut report.selection, &selection);
-                        state.done.insert(image.catalog_id);
+                    note_approximate(&mut report.approximate, &image.recipe, &r.path);
+                    state.done.insert(image.catalog_id);
                     if report.imported.is_multiple_of(50) {
                         state.write(&state_file)?;
                     }
