@@ -774,6 +774,7 @@ impl Compositor {
         &self,
         so: &SmartObject,
         pass: Option<&FilterPass>,
+        style_pass: Option<&super::style_pass::StylePass>,
         cancel: Option<&CancellationToken>,
     ) -> EngineResult<Option<FilteredSource>> {
         check_render_cancel(cancel)?;
@@ -824,6 +825,7 @@ impl Compositor {
                     state: &so.state,
                     key: so.key,
                     pass,
+                    style_pass,
                     cancel,
                 })?;
                 check_render_cancel(cancel)?;

@@ -10,6 +10,7 @@ mod effects;
 pub(crate) mod exec;
 pub(crate) mod pixel;
 pub mod smart_filters;
+mod style_pass;
 pub mod styles;
 
 use std::collections::HashMap;
@@ -51,6 +52,7 @@ pub(crate) struct DocRef<'a> {
     pub state: &'a DocState,
     pub key: u64,
     pub pass: Option<&'a smart_filters::FilterPass>,
+    pub style_pass: Option<&'a style_pass::StylePass>,
     pub cancel: Option<&'a CancellationToken>,
 }
 
@@ -436,18 +438,20 @@ impl Compositor {
             .transform
             .inverse()
             .ok_or_else(|| EngineError::invalid("transform", "singular"))?;
-        let filtered = self.filtered_source(so, doc.pass, doc.cancel)?;
+        let filtered = self.filtered_source(so, doc.pass, doc.style_pass, doc.cancel)?;
         let child = filtered.as_ref().map_or(
             DocRef {
                 state: &so.state,
                 key: so.key,
                 pass: doc.pass,
+                style_pass: doc.style_pass,
                 cancel: doc.cancel,
             },
             |s| DocRef {
                 state: &s.state,
                 key: s.key,
                 pass: doc.pass,
+                style_pass: doc.style_pass,
                 cancel: doc.cancel,
             },
         );
@@ -613,7 +617,7 @@ impl Compositor {
         doc: &Document,
         coord: TileCoord,
     ) -> EngineResult<Tile> {
-        self.render_tile_premultiplied_in_pass(doc, coord, None, None)
+        self.render_tile_premultiplied_in_pass(doc, coord, None, None, None)
     }
 
     fn render_tile_premultiplied_in_pass<'a>(
@@ -621,6 +625,7 @@ impl Compositor {
         doc: &'a Document,
         coord: TileCoord,
         pass: Option<&'a smart_filters::FilterPass>,
+        style_pass: Option<&'a style_pass::StylePass>,
         cancel: Option<&'a CancellationToken>,
     ) -> EngineResult<Tile> {
         smart_filters::check_render_cancel(cancel)?;
@@ -629,13 +634,14 @@ impl Compositor {
             state,
             key: doc.key(),
             pass,
+            style_pass,
             cancel,
         };
         if has_local_adjustments(state) {
             return self.composite_premult(dref, coord);
         }
         if live_damage::has_live(&state.root) {
-            return self.render_live_scene(doc, coord, pass, cancel);
+            return self.render_live_scene(doc, coord, pass, style_pass, cancel);
         }
         if effects::has_styles(state) {
             return self.composite_premult(dref, coord);
@@ -762,6 +768,7 @@ impl Compositor {
                     doc,
                     coord,
                     pass.as_ref(),
+                    None,
                     Some(cancel),
                 )?;
                 cancel.check()?;
@@ -794,6 +801,18 @@ impl Compositor {
         level: u8,
         cancel: &CancellationToken,
     ) -> EngineResult<Vec<Tile>> {
+        let pass = effects::has_styles(doc.state()).then(style_pass::StylePass::default);
+        self.render_level_premultiplied_with_styles(doc, level, cancel, pass.as_ref())
+    }
+
+    // Private seam exercises production traversal with small budgets or no reuse.
+    fn render_level_premultiplied_with_styles(
+        &self,
+        doc: &Document,
+        level: u8,
+        cancel: &CancellationToken,
+        style_pass: Option<&style_pass::StylePass>,
+    ) -> EngineResult<Vec<Tile>> {
         let (cols, rows) = doc.state().canvas.at_level(level).tile_grid(TILE_SIZE);
         let coords: Vec<TileCoord> = (0..rows)
             .flat_map(|y| (0..cols).map(move |x| TileCoord::new(level, x, y)))
@@ -803,15 +822,17 @@ impl Compositor {
         // cache is smaller than that result. Nested kernels may still use Rayon.
         let filtered = has_enabled_smart_filters(&doc.state().root);
         let pass = filtered.then(|| smart_filters::FilterPass::new(self.filter_pass_limits));
+        let styled = effects::has_styles(doc.state());
         let render = |c: &TileCoord| {
             cancel.check()?;
-            self.render_tile_premultiplied_in_pass(doc, *c, pass.as_ref(), Some(cancel))
+            self.render_tile_premultiplied_in_pass(doc, *c, pass.as_ref(), style_pass, Some(cancel))
         };
         // Up to ~2MP of output: almost all tiles are completed cache hits after
         // a live edit, and geometry preparation is shared. Waking a worker for
         // every cached tile creates lock/scheduling tails larger than the work.
         // Keep cold photo mip generation and larger export frames parallel.
         let tiles = if filtered
+            || styled
             || (coords.len() <= 32
                 && coords
                     .first()

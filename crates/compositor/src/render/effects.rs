@@ -51,13 +51,75 @@ impl Compositor {
         Ok(raster)
     }
 
-    fn effect_samples(&self, raster: &Raster, coord: TileCoord) -> EngineResult<Vec<f32>> {
+    fn effect_samples(
+        &self,
+        key: u64,
+        raster: &Raster,
+        coord: TileCoord,
+    ) -> EngineResult<Vec<f32>> {
         let tile = self
-            .raster_level(next_doc_key(), 0, Part::Content, raster, coord)?
+            .raster_level(key, 0, Part::Content, raster, coord)?
             .ok_or_else(|| EngineError::internal("missing effect tile"))?;
         let mut samples = vec![0.0; tile.layout().plane_len() * 4];
         load_normalized(&tile, &mut samples)?;
         Ok(samples)
+    }
+}
+
+impl Compositor {
+    fn style_entry(
+        &self,
+        doc: DocRef<'_>,
+        layer: &Layer,
+    ) -> EngineResult<Arc<super::style_pass::Entry>> {
+        use super::smart_filters::check_render_cancel;
+        use super::style_pass::{Entry, predicted_bytes};
+        let build = |admitted| {
+            // Declined parents use uncached subtrees: their isolated keys are
+            // short-lived, so retaining children would consume budget without reuse.
+            let child_pass = if admitted { doc.style_pass } else { None };
+            let mut source = layer.clone();
+            source.props = LayerProps::default();
+            let mut state = doc.state.clone();
+            state.depth = Depth::F32;
+            state.root = vec![Arc::new(source)];
+            // One unique source namespace per miss, stable across all source
+            // tiles and nested styles. No cache lock is held during rendering.
+            let raster = self.source_raster(DocRef {
+                state: &state,
+                key: next_doc_key(),
+                pass: doc.pass,
+                style_pass: child_pass,
+                cancel: doc.cancel,
+            })?;
+            check_render_cancel(doc.cancel)?;
+            #[cfg(test)]
+            self.stats
+                .style_render_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let planes = styles::render(&raster, &layer.props.styles, doc.state.global_light)?;
+            let plane_keys = planes.iter().map(|_| next_doc_key()).collect();
+            Ok(Entry {
+                source: raster,
+                planes,
+                source_key: next_doc_key(),
+                plane_keys,
+            })
+        };
+        match doc.style_pass {
+            Some(pass) => pass.get_or_build(
+                (doc.key, doc.state.rev, layer.id.0),
+                predicted_bytes(doc.state.canvas, &layer.props.styles),
+                doc.cancel,
+                build,
+            ),
+            None => {
+                check_render_cancel(doc.cancel)?;
+                let entry = build(false)?;
+                check_render_cancel(doc.cancel)?;
+                Ok(Arc::new(entry))
+            }
+        }
     }
 }
 
@@ -80,29 +142,17 @@ impl<'a> TileJob<'a> {
                 what: "styles on adjustment/pass-through layers require isolation".into(),
             });
         }
-        let mut source = layer.clone();
-        source.props = LayerProps::default();
-        let mut state = self.doc.state.clone();
-        state.depth = Depth::F32;
-        state.root = vec![Arc::new(source)];
-        let raster = self.comp.source_raster(DocRef {
-            state: &state,
-            key: next_doc_key(),
-            pass: self.doc.pass,
-            cancel: self.doc.cancel,
-        })?;
-        #[cfg(test)]
-        self.comp
-            .stats
-            .style_render_calls
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let planes = styles::render(&raster, &layer.props.styles, self.doc.state.global_light)?;
-        let source = self.comp.effect_samples(&raster, self.coord)?;
-        let planes = planes
+        let entry = self.comp.style_entry(self.doc, layer)?;
+        let source = self
+            .comp
+            .effect_samples(entry.source_key, &entry.source, self.coord)?;
+        let planes = entry
+            .planes
             .iter()
-            .map(|plane| -> EngineResult<EffectTile> {
+            .zip(&entry.plane_keys)
+            .map(|(plane, &key)| -> EngineResult<EffectTile> {
                 Ok(EffectTile {
-                    samples: self.comp.effect_samples(&plane.raster, self.coord)?,
+                    samples: self.comp.effect_samples(key, &plane.raster, self.coord)?,
                     mode: plane.mode,
                     opacity: plane.opacity,
                     outside: plane.outside,
@@ -257,17 +307,15 @@ mod perf1_tests {
         // full source and effects for every output tile. This assertion is a
         // work invariant, not a claim that a failure has already been observed.
         assert_eq!(
-            compositor
-                .stats
-                .source_raster_build_calls
-                .load(Ordering::Relaxed),
-            1,
-            "one immutable styled source raster must be built once per full-level pass"
-        );
-        assert_eq!(
-            compositor.stats.style_render_calls.load(Ordering::Relaxed),
-            1,
-            "one immutable style stack must be rendered once per full-level pass"
+            (
+                compositor
+                    .stats
+                    .source_raster_build_calls
+                    .load(Ordering::Relaxed),
+                compositor.stats.style_render_calls.load(Ordering::Relaxed)
+            ),
+            (1, 1),
+            "source builds and style renders must each occur once per full-level pass"
         );
     }
 
@@ -531,19 +579,69 @@ mod perf1_tests {
         );
         // Expected RED until the future full-level StylePass is forwarded
         // through render_live_scene as well as the plain composite route.
-        // This remains UNRUN; counts below are requirements, not evidence.
+        // Baseline source count was observed RED; both candidate counts remain UNRUN.
         assert_eq!(
-            compositor
-                .stats
-                .source_raster_build_calls
-                .load(Ordering::Relaxed),
-            1,
-            "live style source must be built once for both output tiles"
+            (
+                compositor
+                    .stats
+                    .source_raster_build_calls
+                    .load(Ordering::Relaxed),
+                compositor.stats.style_render_calls.load(Ordering::Relaxed)
+            ),
+            (1, 1),
+            "source builds and style renders must each occur once per full-level pass"
         );
-        assert_eq!(
-            compositor.stats.style_render_calls.load(Ordering::Relaxed),
-            1,
-            "live style stack must render once for both output tiles"
-        );
+    }
+    #[test]
+    fn blurred_morphology_planes_match_uncached_with_budget_fallback() {
+        use super::super::style_pass::StylePass;
+        use engine_api::jobs::CancellationToken;
+        let extent = Extent::new(257, 13);
+        let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
+        raster
+            .edit_region(crate::geom::Rect::of_extent(extent), 1, |x, y, p| {
+                let alpha = if y > 1 && y < 11 && !(x > 125 && x < 130 && y > 4 && y < 8) {
+                    [0.25, 0.5, 0.75, 1.0][(x as usize + y as usize) % 4]
+                } else {
+                    0.0
+                };
+                *p = [0.25, 0.5, 0.75, alpha];
+            })
+            .unwrap();
+        let mut layer = Layer::new("fractional alpha", LayerKind::Pixel(raster));
+        layer.props.styles.effects = vec![
+            styles::StyleEffect::DropShadow(styles::Shadow {
+                size: 2.5,
+                spread: 0.375,
+                distance: 1.5,
+                ..Default::default()
+            }),
+            styles::StyleEffect::OuterGlow(styles::Glow {
+                size: 1.25,
+                ..Default::default()
+            }),
+        ];
+        let mut state = DocState::new(extent, Depth::F32);
+        state.root.push(Arc::new(layer));
+        let doc = Document::new(state);
+        let render = |pass: Option<&StylePass>| {
+            Compositor::new(8 << 20)
+                .render_level_premultiplied_with_styles(&doc, 0, &CancellationToken::new(), pass)
+                .unwrap()
+                .iter()
+                .flat_map(|t| t.samples::<f32>().unwrap().iter().map(|v| v.to_bits()))
+                .collect::<Vec<_>>()
+        };
+        let uncached = render(None);
+        let normal = StylePass::default();
+        assert_eq!(render(Some(&normal)), uncached);
+        assert_eq!(normal.usage().2, 1);
+        for bytes in [0, 1] {
+            let limited = StylePass::new(bytes, 256);
+            assert_eq!(render(Some(&limited)), uncached);
+            assert_eq!(limited.usage(), (0, 0, 0));
+        }
+        // A frozen preimplementation numerical oracle is a separate pending
+        // runtime gate. This checks reuse/fallback parity, not kernel semantics.
     }
 }

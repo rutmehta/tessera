@@ -538,6 +538,18 @@ impl Tile {
         self.buffer.len() * self.format().bytes_per_sample()
     }
 
+    /// Allocated sample-buffer capacity in bytes, including unused capacity.
+    /// Shared buffers are charged in full; excludes Arc/Vec metadata and allocator overhead.
+    pub fn allocated_byte_len(&self) -> usize {
+        let capacity = match &self.buffer {
+            TileBuffer::F32(v) => v.capacity(),
+            TileBuffer::F16(v) => v.capacity(),
+            TileBuffer::U16(v) => v.capacity(),
+            TileBuffer::U8(v) => v.capacity(),
+        };
+        capacity * self.format().bytes_per_sample()
+    }
+
     fn format_mismatch(&self, requested: TileFormat) -> EngineError {
         EngineError::invalid(
             "sample type",
@@ -649,6 +661,20 @@ mod tests {
     }
 
     #[test]
+    fn allocated_payload_includes_spare_capacity_and_shared_clones() {
+        let mut samples = Vec::with_capacity(64);
+        samples.resize(4, 0.0f32);
+        let capacity = samples.capacity();
+        let tile =
+            Tile::from_samples(TileCoord::new(0, 0, 0), layout(1, 1, 0, 4), samples).unwrap();
+        assert_eq!(tile.byte_len(), 16);
+        assert_eq!(tile.allocated_byte_len(), capacity * 4);
+        let clone = tile.clone();
+        assert!(tile.shares_buffer_with(&clone));
+        assert_eq!(clone.allocated_byte_len(), tile.allocated_byte_len());
+    }
+
+    #[test]
     fn extent_levels() {
         let e = Extent::new(8192, 5464); // 45 MP
         assert_eq!(e.at_level(1), Extent::new(4096, 2732));
@@ -740,12 +766,14 @@ mod tests {
         assert!(
             Tile::from_samples(TileCoord::new(0, 0, 0), layout(1, 1, 0, 2), vec![0u16]).is_err()
         );
-        assert!(Tile::zeroed(
-            TileCoord::new(0, 0, 0),
-            TileFormat::U8,
-            layout(300, 1, 0, 1)
-        )
-        .is_err());
+        assert!(
+            Tile::zeroed(
+                TileCoord::new(0, 0, 0),
+                TileFormat::U8,
+                layout(300, 1, 0, 1)
+            )
+            .is_err()
+        );
         assert!(
             Tile::zeroed(TileCoord::new(0, 0, 0), TileFormat::U8, layout(1, 1, 64, 1)).is_err()
         );

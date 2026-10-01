@@ -149,6 +149,7 @@ impl GpuCompositor {
             state: doc.state(),
             key: doc.key(),
             pass: None,
+            style_pass: None,
             cancel: None,
         };
         let mut job = comp.job(dref, coord)?;

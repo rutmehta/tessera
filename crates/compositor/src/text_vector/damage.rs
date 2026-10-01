@@ -236,12 +236,14 @@ impl Compositor {
         doc: &Document,
         coord: TileCoord,
         pass: Option<&super::smart_filters::FilterPass>,
+        style_pass: Option<&super::style_pass::StylePass>,
         cancel: Option<&engine_api::jobs::CancellationToken>,
     ) -> EngineResult<Tile> {
         let dref = DocRef {
             state: doc.state(),
             key: doc.key(),
             pass,
+            style_pass,
             cancel,
         };
         // Validate before level scaling or tile-origin arithmetic.

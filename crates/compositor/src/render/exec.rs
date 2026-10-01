@@ -40,6 +40,7 @@ impl Compositor {
                 state: doc.state(),
                 key: doc.key(),
                 pass: None,
+                style_pass: None,
                 cancel: None,
             },
             coord,
