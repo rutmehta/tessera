@@ -73,3 +73,8 @@ Use a document with at least three layers; note the layer count before each step
 19. Double-click a layer name (rename field) or a Properties text field: ⌫ deletes text and Space types a space;
     no layer is deleted, no pan.
 20. With the eye button focused, press B then V: tools switch as before (B5-21 step 6 still holds).
+
+## Note for the foreground run (from the 2026-09-30 background attempt)
+
+- The inspector focus trace records only while the Tessera window is the key window, and it stops after 32 key presses. The foreground FKA-on run must rotate trace files per checklist section (A–F): pass a fresh `--inspector-focus-trace` path per launch, or relaunch between sections.
+- Background-delivered keys produce an empty trace even though the app acts on them; see evidence/2026-09-30/keycheck-dd4953c4/GUI-RESULTS.md.
