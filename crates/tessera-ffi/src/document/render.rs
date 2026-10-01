@@ -828,6 +828,18 @@ impl Renderer {
         self.trim_filters.store(true, Ordering::Relaxed);
     }
 
+    pub(crate) fn thumbnail_mip_stats(&self) -> (u64, u64) {
+        let gpu = match &*self.backend.lock().expect("render backend") {
+            Backend::Gpu(g) => g.resident.mip_cache_probe(),
+            _ => (0, 0),
+        };
+        let cpu = self
+            .thumb_comp
+            .get_or_init(|| super::fonts::compositor(128 << 20))
+            .mip_cache_probe();
+        (gpu.0 + cpu.0, gpu.1 + cpu.1)
+    }
+
     pub(crate) fn thumbnail_renders(&self) -> u64 {
         self.thumb_renders.load(Ordering::SeqCst)
     }

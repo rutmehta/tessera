@@ -2431,6 +2431,14 @@ impl DocumentSession {
         Ok(self.shared.lock()?.live().state().clone())
     }
 
+    /// Enable instance-local test diagnostics: cumulative (mip hits, mip rebuilds).
+    /// Includes resident and persistent CPU thumbnail caches. Call before rendering
+    /// to establish a baseline. Not exported over UniFFI.
+    #[doc(hidden)]
+    pub fn thumbnail_mip_stats(&self) -> (u64, u64) {
+        self.shared.render.thumbnail_mip_stats()
+    }
+
     /// Thumbnails rendered so far (cache misses).
     #[doc(hidden)]
     pub fn thumbnail_renders(&self) -> u64 {

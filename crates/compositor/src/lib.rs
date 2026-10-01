@@ -26,6 +26,7 @@ pub mod edit;
 pub mod format;
 pub mod geom;
 pub mod gpu;
+mod mip_probe;
 pub mod psd;
 pub mod raster;
 pub mod render;

@@ -122,6 +122,7 @@ pub struct Compositor {
     filter_pass_limits: smart_filters::FilterPassLimits,
     cache: RenderCache,
     pub(crate) stats: Counters,
+    mip_probe: crate::mip_probe::MipProbe,
     latest: Mutex<HashMap<(u64, TileCoord), (u64, u64)>>,
     /// Whether dirty-rect (sub-tile) recompositing is enabled.
     pub partial_updates: bool,
@@ -136,6 +137,7 @@ impl Compositor {
             filter_pass_limits: smart_filters::FilterPassLimits::default(),
             cache: RenderCache::new(cache_budget),
             stats: Counters::default(),
+            mip_probe: Default::default(),
             latest: Mutex::new(HashMap::new()),
             partial_updates: true,
         }
@@ -146,6 +148,13 @@ impl Compositor {
     /// transform allocations or memory used by other compositor instances.
     pub fn set_filter_pass_limits(&mut self, limits: smart_filters::FilterPassLimits) {
         self.filter_pass_limits = limits;
+    }
+
+    /// Enable test diagnostics and return cumulative (mip hits, mip rebuilds).
+    /// Only subsequent work is counted; production callers leave this disabled.
+    #[doc(hidden)]
+    pub fn mip_cache_probe(&self) -> (u64, u64) {
+        self.mip_probe.snapshot()
     }
 
     /// Current counters.
@@ -258,6 +267,7 @@ impl Compositor {
             coord,
         };
         if let Some(t) = self.cache_get(&key) {
+            self.mip_probe.hit();
             return Ok(Some(t));
         }
         let le = raster.extent().at_level(level);
@@ -310,6 +320,7 @@ impl Compositor {
         } else {
             self.mip_float(doc, node, part, raster, coord, (w, h), ce, &kids)?
         };
+        self.mip_probe.rebuild();
         self.stats.mips.fetch_add(1, Ordering::Relaxed);
         self.cache_put(key, tile.clone());
         Ok(Some(tile))
