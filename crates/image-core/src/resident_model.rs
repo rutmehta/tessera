@@ -664,3 +664,39 @@ fn cfa_resident_scheduler_matches_cpu_and_reuses_fullstrength() {
     }));
     resumed.render_region(&image, &s, 0, rect).unwrap();
 }
+
+#[test]
+fn legacy_ca_without_profile_resident_matches_cpu() {
+    let r = Renderer::with_ops(
+        Arc::new(Model::default()),
+        Arc::new(TileCache::new(0)),
+        RendererConfig::default(),
+    );
+    let cpu = Renderer::new(RendererConfig::default());
+    let image = common::synthetic(7777, 129, 97, common::RGGB, [3, 5, 121, 89]);
+    let mut s = DevelopSettings::default();
+    s.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+    s.lens.remove_chromatic_aberration = false;
+    s.lens.legacy_ca_red = Some(100.);
+    s.lens.legacy_ca_blue = Some(-100.);
+    assert!(!crate::resident_export_lens_supported(&s.lens));
+    assert!(pipeline_cpu::has_m2_settings(&s));
+    let rect = PixelRect::full(image.level_extent(0));
+    let a = r
+        .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    let b = cpu
+        .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    assert_eq!(a.len(), b.len());
+    for (a, b) in a.iter().zip(&b) {
+        let err = a
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(b.samples::<f32>().unwrap())
+            .map(|(a, b)| (a - b).abs())
+            .fold(0., f32::max);
+        assert!(err <= 0.005, "legacy CA resident error {err}");
+    }
+}

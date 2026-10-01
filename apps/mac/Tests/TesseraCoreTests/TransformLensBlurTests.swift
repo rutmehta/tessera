@@ -10,6 +10,20 @@ import TesseraFFI
 final class TransformLensBlurTests: XCTestCase {
     private func json(_ obj: [String: Any]) -> String { DevelopController.encode(obj)! }
 
+    func testSavedMatrixClearedByModeAndGuidePatches() {
+        let saved: [String: Any] = ["geometry": ["upright": ["mode": "auto", "homography_mode": "auto", "homography": [[1,0,0],[0,1,0],[0,0,1]]]]]
+        let g = UprightGuide(start: (0.1, 0.1), end: (0.2, 0.9))
+        for mode in UprightMode.allCases {
+            let next = DevelopController.merge(saved, UprightControls.patch(mode: mode, guides: [g,g]), keepNulls: false)
+            XCTAssertNil(DevelopController.value(in: next, at: ["geometry", "upright", "homography"]))
+            XCTAssertNil(DevelopController.value(in: next, at: ["geometry", "upright", "homography_mode"]))
+        }
+        var editor = UprightGuides([g,g])
+        editor.move(0, end: true, to: (0.3,0.8))
+        let next = DevelopController.merge(saved, editor.patch, keepNulls: false)
+        XCTAssertNil(DevelopController.value(in: next, at: ["geometry", "upright", "homography"]))
+    }
+
     // MARK: Upright
 
     func testUprightButtonsWriteTheirModeAndClearGuides() {
