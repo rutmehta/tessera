@@ -4,6 +4,12 @@ import TesseraCore
 /// Opt-in P19 diagnostic; no production layout changes or screen capture.
 @MainActor
 enum FilterLayoutReproduction {
+    // Geometry arguments allow the diagnostic's target to be tested on other displays.
+    static func viewportTarget(visibleFrame: NSRect, scale: CGFloat,
+                               hostSize: NSSize, viewportSize: NSSize) -> NSSize {
+        NSSize(width: 3840, height: 2160)
+    }
+
     static func log(_ text: String) {
         FileHandle.standardError.write(Data("filter-layout: \(text)\n".utf8))
     }
@@ -50,9 +56,12 @@ enum FilterLayoutReproduction {
         // Both interpretations: literal 3840×2160 host points, then the historical 4K device viewport.
         for mode in ["host-points", "viewport-pixels"] {
             let scale = window.backingScaleFactor
+            let pixels = viewportTarget(visibleFrame: window.screen?.visibleFrame ?? window.frame,
+                                        scale: scale, hostSize: window.frame.size,
+                                        viewportSize: viewport.bounds.size)
             let target = mode == "host-points" ? NSSize(width: 3840, height: 2160) :
-                NSSize(width: 3840 / scale + window.frame.width - viewport.bounds.width,
-                       height: 2160 / scale + window.frame.height - viewport.bounds.height)
+                NSSize(width: pixels.width / scale + window.frame.width - viewport.bounds.width,
+                       height: pixels.height / scale + window.frame.height - viewport.bounds.height)
             for size in [target, initial.size] {
                 log("BEFORE \(mode) requested=\(size) sheet=\(window.attachedSheet != nil)")
                 sheet.set(gaussian.params[0], .number(9), final: false)

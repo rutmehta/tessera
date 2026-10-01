@@ -7,6 +7,22 @@ import TesseraFFI
 /// B5-selftest-window: which launches get the background self-test host.
 @MainActor
 final class SelfTestHostTests: XCTestCase {
+    func testViewportTargetFitsNonRetinaVisibleFrameAfterMeasuredPanels() {
+        let target = FilterLayoutReproduction.viewportTarget(
+            visibleFrame: NSRect(x: 0, y: 0, width: 3840, height: 2130), scale: 1,
+            hostSize: NSSize(width: 1440, height: 984),
+            viewportSize: NSSize(width: 916, height: 907))
+        XCTAssertEqual(target, NSSize(width: 3316, height: 2053))
+    }
+
+    func testViewportTargetCapsRetinaDisplayAt4K() {
+        let target = FilterLayoutReproduction.viewportTarget(
+            visibleFrame: NSRect(x: 0, y: 0, width: 3000, height: 1600), scale: 2,
+            hostSize: NSSize(width: 1440, height: 984),
+            viewportSize: NSSize(width: 916, height: 907))
+        XCTAssertEqual(target, NSSize(width: 3840, height: 2160))
+    }
+
     func testLiveDocumentFilterSheetResizeP19() async throws {
         _ = NSApplication.shared
         let model = AppModel()
