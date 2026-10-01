@@ -58,7 +58,7 @@ final class LightroomImportAccessibilityTests: XCTestCase {
     func testReportExposesCountsWarningsAndReadOnlyMarkdown() async throws {
         let report = LrcatReport(catalogPath: "/Fixture.lrcat", cancelled: false, imported: 4, resumed: 1,
             virtualCopies: 2, skipped: [LrcatSkip(name: "lost.jpg", path: "/lost.jpg", reason: "original not found")],
-            unsupported: [LrcatIssue(category: "Develop", reason: warning, count: 3, examples: ["portrait.jpg"])],
+            unsupported: [LrcatIssue(category: "Develop", reason: warning, count: 9, examples: ["/photos/portrait.jpg", "/photos/two.jpg", "/photos/three.jpg", "/photos/four.jpg", "/photos/five.jpg"])],
             albums: 5, albumGroups: 6, smartAlbums: 7, keywords: 8,
             selection: LrcatSelectionCounts(rejects: 0, keeps: 0, undecided: 0, grade1: 0, grade2: 0, grade3: 0, marked: 0),
             libraryPath: "/Photos/library.json", bundlePath: "/Photos/bundle", indexed: 5, seconds: 0.1)
@@ -71,7 +71,7 @@ final class LightroomImportAccessibilityTests: XCTestCase {
                 XCTAssertTrue(summary.contains(count), summary)
             }
             let warnings = try value("document.import.report.warnings", in: nodes)
-            for text in [warning, "Develop", "3", "portrait.jpg", "lost.jpg", "original not found"] {
+            for text in [warning, "Develop", "9", "/photos/portrait.jpg", "/photos/two.jpg", "/photos/three.jpg", "/photos/four.jpg", "/photos/five.jpg", "lost.jpg", "original not found"] {
                 XCTAssertTrue(warnings.contains(text), warnings)
             }
             let fidelity = try value("document.import.report.fidelity", in: nodes)
@@ -81,6 +81,15 @@ final class LightroomImportAccessibilityTests: XCTestCase {
             let text = try XCTUnwrap(nodes.first { $0.accessibilityIdentifier?() == "document.import.report.markdown" })
             XCTAssertEqual(text.accessibilityRole?(), .textArea)
             XCTAssertFalse(text.isAccessibilitySelectorAllowed?(NSSelectorFromString("setAccessibilityValue:")) ?? true)
+        }
+    }
+
+    func testFidelityExposesFailureBeforeSamplesExist() async throws {
+        let importer = LightroomImportController()
+        importer.step = .fidelity
+        importer.error = "Fidelity preview failed: " + warning
+        try await host(LightroomImportSheet(importer: importer)) { nodes in
+            XCTAssertTrue(try value("document.import.report.fidelity", in: nodes).contains(warning))
         }
     }
 

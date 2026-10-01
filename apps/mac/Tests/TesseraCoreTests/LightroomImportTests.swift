@@ -6,6 +6,40 @@ import TesseraFFI
 /// Lightroom import (M2-13b): the mapping tables behind the sheet, the fidelity grid's sort and
 /// "looks different" filter, and the Markdown report written next to library.json.
 final class LightroomImportTests: XCTestCase {
+    func testProgressETARateLimitAndPhaseReset() {
+        var estimate = LightroomImportEstimate()
+        func progress(_ done: UInt32, _ total: UInt32 = 100, _ phase: LrcatPhase = .writingEdits) -> LrcatProgress {
+            LrcatProgress(phase: phase, done: done, total: total, current: "fixture.jpg")
+        }
+        XCTAssertTrue(estimate.update(progress(0), elapsed: 0))
+        XCTAssertNil(estimate.remainingSeconds)
+        XCTAssertTrue(estimate.update(progress(25), elapsed: 10))
+        XCTAssertEqual(estimate.remainingSeconds, 30)
+        XCTAssertFalse(estimate.update(progress(50), elapsed: 10.49))
+        XCTAssertEqual(estimate.remainingSeconds, 30)
+        XCTAssertTrue(estimate.update(progress(50), elapsed: 10.5))
+        XCTAssertEqual(estimate.remainingSeconds, 10.5)
+        XCTAssertFalse(estimate.update(progress(0, 100, .indexing), elapsed: 10.6))
+        XCTAssertTrue(estimate.update(progress(0, 100, .indexing), elapsed: 11))
+        XCTAssertNil(estimate.remainingSeconds)
+        XCTAssertTrue(estimate.update(progress(50, 100, .indexing), elapsed: 16))
+        XCTAssertEqual(estimate.remainingSeconds, 5)
+        XCTAssertTrue(estimate.update(progress(100, 100, .indexing), elapsed: 17))
+        XCTAssertNil(estimate.remainingSeconds)
+        XCTAssertTrue(estimate.update(progress(0, 0, .finished), elapsed: 18))
+        XCTAssertNil(estimate.remainingSeconds)
+    }
+
+    func testAllFailedFidelityReportPreservesRendererReason() {
+        let reason = "operator \"fixture\" not implemented by the CPU reference renderer"
+        let failed = LrcatFidelitySample(catalogId: 1, name: "fixture.jpg", path: "/fixture.jpg",
+            status: .failed, message: reason, deltaEMean: 0, deltaEP95: 0,
+            lightroomJpeg: Data(), tesseraJpeg: Data())
+        let markdown = LightroomImportReport.markdown(report: report(folder: "/Photos"),
+            fidelity: LrcatFidelity(renderer: "CPU", previewsAvailable: true, samples: [failed]))
+        XCTAssertTrue(markdown.contains(reason))
+    }
+
     private func options(library: String = "/Volumes/Old Drive/Photos") -> LrcatOptions {
         LrcatOptions(libraryFolder: library,
                      relocations: [LrcatRelocation(from: "/Volumes/Old Drive/Photos/", to: "/Volumes/Old Drive/Photos"),
