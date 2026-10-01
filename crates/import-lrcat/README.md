@@ -163,3 +163,71 @@ Saved solutions carry their mode and are cleared on mode/guide edits. Legacy CA
 is gated to Adobe PV1/2 and zero values do not create fields or history. Shared
 standalone sidecar import/export supports both families; all settings are recorded
 in one import-authored history entry. Invalid matrices fail Recipe validation.
+## LR-2 tone curves, monochrome, and legacy controls
+
+Catalog Lua and XMP imports run the additive `lr2` pass after retained-source
+capture. It records settings through `Recipe::edit`, preserving history replay.
+Successful, fully represented keys leave `lrcat_develop_source.properties`;
+malformed and unrepresentable values keep their exact original Lua literal or
+XMP fragment. No schema/version bump or new dependency is required.
+
+- `ExtendedToneCurvePV2012` and its Red/Green/Blue variants populate the existing
+  master/channel point curves. Both axes divide by 255. Finite, strictly ordered
+  x and nondecreasing y in 0..255 are supported. The extended key takes precedence
+  over the corresponding ordinary curve when both are supplied. Out-of-domain
+  HDR coordinates and decreasing curves remain retained with the named limitation;
+  they are never clamped into a different curve. The existing CPU operator uses
+  Tessera's logarithmic curve domain, not a claimed Adobe pixel-exact transfer.
+- `ConvertToGrayscale` and all eight `GrayMixer*` values populate optional
+  `/settings/color/monochrome: { enabled, mixer }`. This reuses `HueBands`; there
+  was no B&W field in `DevelopSettings` (the document-layer 3x3 channel mixer
+  cannot encode eight hue bands). Missing means no effect and the JSON member
+  is omitted. Disabled mixers survive recipe JSON/history round trips.
+  The CPU computes linear Rec.2020 luminance Y = .2627R + .6780G + .0593B,
+  then Y' = Y * (1 + mixer(h) * saturation). Mixer values divide by 100;
+  linear interpolation uses RGB hue anchors 0,30,60,120,180,240,270,300 degrees,
+  wrapping to red at 360. Saturation is clamped (max-min)/max; neutrals keep Y.
+  Conversion precedes ordinary color adjustments, so intentional color grading
+  may tint the result. An explicit B&W approximation diagnostic distinguishes
+  this deterministic operator from Adobe's profile-dependent B&W response.
+  The GPU parameter builder declines enabled monochrome instead of silently
+  rendering color; callers must use their CPU fallback. GPU B&W is not implemented.
+- `AutoToneDigest*` remains exact retained metadata with an explicit diagnostic:
+  a digest does not specify the slider values produced by Auto Tone. Already
+  explicit tone sliders continue to render normally. `DepthMapInfo` also remains
+  exact retained metadata; it does not contain a usable depth raster by itself.
+  Depth-helper lookup/regeneration belongs to LR-5/LR-6, not this pass.
+
+For catalog process revisions 1/2 (including `5.7` / PV2010), the following
+**heuristics** fill existing tone fields only when the corresponding `*2012`
+key is absent. Revision 3+ never activates stale legacy controls. Exact legacy
+source is deliberately retained, since combining brightness and exposure loses
+information and these operators are not mathematically equivalent to Adobe's.
+
+| Legacy input | Tessera tone field | Approximation |
+| --- | --- | --- |
+| Exposure, Brightness | exposure | Exposure + (Brightness - 50)/50 EV; absent defaults 0 and 50, result clamped to -10..10 |
+| Contrast | contrast | Contrast - 25, clamped to -100..100 |
+| FillLight | shadows | +FillLight |
+| HighlightRecovery (or Recovery) | highlights | -Recovery |
+| Shadows (or Blacks) | blacks | -Blacks |
+
+The defaults and scale choices above are lane heuristics, **not Adobe's published
+conversion algorithm**. Brightness is not exposure gain; Fill Light includes
+shadow structure, Recovery may reconstruct clipped channels, black clipping
+changes the toe, and legacy contrast has different centering. Exact PV2010
+operators cannot be established from these slider values alone without the
+legacy rendering specification/calibration. The importer emits `PV2010
+approximation` when it applies these mappings. Modern fields win independent
+of source ordering, even in a legacy-version row.
+
+Adobe documents the different control semantics in its
+[Lightroom tone/color reference](https://helpx.adobe.com/ie/lightroom-classic/desktop/process-and-develop-photos/image-tone-color.html)
+and [process-version reference](https://helpx.adobe.com/dk/lightroom-classic/desktop/process-and-develop-photos/develop-module-options.html).
+Those sources establish the semantic differences; they do not substantiate the
+heuristic coefficients or Adobe pixel parity.
+
+This is catalog-import support. Native recipe JSON round trips preserve the
+optional monochrome field; standalone sidecar CRS export of that new field is
+not implemented in this lane. Old builds ignore the optional field and therefore
+do not render its B&W effect.
