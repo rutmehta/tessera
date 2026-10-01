@@ -34,7 +34,9 @@ pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 
 /// Every schema 4 feature, by diagnostic name.
 const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
-    ("retouch", |r| !r.settings.locals.retouch.is_empty()),
+    ("retouch", |r| {
+        !r.settings.locals.retouch.is_empty() || !r.history.base.locals.retouch.is_empty()
+    }),
     ("point_colors", |r| {
         !r.settings.color.point_colors.is_empty()
     }),

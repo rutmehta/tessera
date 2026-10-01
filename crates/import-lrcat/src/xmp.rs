@@ -44,7 +44,10 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     Ok((recipe, warnings))
 }
 
-pub(crate) fn parse_without_retouch(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
+pub(crate) fn parse_without_retouch(
+    text: &str,
+    process_version: &str,
+) -> EngineResult<(Recipe, Vec<String>)> {
     parse_inner(text, process_version, false)
 }
 

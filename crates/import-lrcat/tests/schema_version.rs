@@ -13,9 +13,9 @@ fn imported_recipes_bump_only_for_retouch() {
     for catalog in [synthetic, fixture.catalog] {
         for image in import_lrcat::import(&catalog).unwrap().images {
             let recipe = &image.recipe;
-            // Both known fixtures contain zero schema-4 features from any lane.
-            assert!(v4_features_used(recipe).is_empty());
-            let expected = 3;
+            let retouch = !recipe.settings.locals.retouch.is_empty();
+            assert_eq!(v4_features_used(recipe).contains(&"retouch"), retouch);
+            let expected = if retouch { 4 } else { 3 };
             assert_eq!(required_schema_version(recipe), expected);
             let written: serde_json::Value =
                 serde_json::from_slice(&recipe.to_json().unwrap()).unwrap();

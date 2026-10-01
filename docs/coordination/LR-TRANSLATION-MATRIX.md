@@ -12,11 +12,6 @@ field or operator the existing recipe cannot express. Lane assignments for
 unnamed residual features are LR-2 for tone/color and LR-7 for geometry/metadata;
 the coordinator should review these assignments before implementation.
 
-- `approximate`: recipe fields are populated, exact source remains in
-  `lrcat_develop_source`, and an info-level `approximate: <reason>` diagnostic
-  explains the unverified Adobe convention. These mappings emit no user-facing
-  warnings. `translated` requires Adobe-rendered synthetic-chart or public
-  DNG+XMP evidence for the convention; a real user catalog is never evidence.
 - `retained`: exact source is kept, including partially decoded structures and
   inactive values. It does not mean nothing renders.
 - `unsupported-diagnostic`: unsupported source yields a diagnostic and is kept.

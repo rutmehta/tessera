@@ -6,9 +6,9 @@ mod common;
 use engine_api::id::Digest;
 
 const N: i64 = 2_000;
-/// LR-3d retains exact RetouchInfo source plus approximate info diagnostics,
-/// consolidates import history, and writes these 200 feature rows as schema 4.
-const GOLDEN: &str = "7022e432ed77c0c42227de06f331090e8a43d4e06ca4749959f136a26b659763";
+/// LR-3e retains exact RetouchInfo source plus shared approximate diagnostics,
+/// uses decoder Import XMP/xmp provenance, and writes these 200 rows as schema 4.
+const GOLDEN: &str = "87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();

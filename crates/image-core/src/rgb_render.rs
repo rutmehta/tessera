@@ -116,7 +116,7 @@ impl Renderer {
                     ParamHash::of(stage, &(&settings.detail, &settings.locals.retouch))
                 }
                 StageId::Detail => ParamHash::of(stage, &settings.detail),
-                StageId::Tone => ParamHash::of(stage, &settings.tone),
+                StageId::Tone => settings.stage_hashes()[StageId::Tone as usize].1,
                 StageId::Color => ParamHash::of(stage, &settings.color),
                 StageId::Locals => {
                     let mut locals = settings.locals.clone();
@@ -227,8 +227,7 @@ impl Renderer {
                     } else {
                         toned
                     };
-                    ops
-                        .run_image(stage, &Op::ToneExtra(&settings.tone), toned, cancel)?
+                    ops.run_image(stage, &Op::ToneExtra(&settings.tone), toned, cancel)?
                 }
                 StageId::Color => run(Op::Color(&settings.color_after_curves()))?,
                 StageId::Locals => pipeline_cpu::locals_image(

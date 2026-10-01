@@ -70,3 +70,35 @@ impl std::fmt::Debug for dyn RetouchRenderer {
         f.write_str("RetouchRenderer")
     }
 }
+
+/// Solve on target-level pixels and lift only changed cells. Zero deltas never
+/// touch the original bits (including signed zero). The box footprint matches
+/// Image::downsample_crop, including partial cells at odd image boundaries.
+pub(crate) fn apply_retouch_scaled(
+    image: crate::Image,
+    spots: &[RetouchOperation],
+    renderer: Option<&dyn RetouchRenderer>,
+    scale: u32,
+) -> EngineResult<crate::Image> {
+    if scale <= 1 || !spots.iter().any(|op| op.enabled && op.opacity > 0.0) {
+        return apply_retouch(image, spots, renderer);
+    }
+    let (width, height) = (image.width(), image.height());
+    let reduced = image.downsample_crop([0, 0, width, height], scale)?;
+    let edited = apply_retouch(reduced.clone(), spots, renderer)?;
+    let mut planes = image.into_planes();
+    for ((out, before), after) in planes.iter_mut().zip(reduced.planes()).zip(edited.planes()) {
+        for y in 0..height {
+            for x in 0..width {
+                let cell = ((y / scale) * reduced.width() + x / scale) as usize;
+                if before[cell].to_bits() != after[cell].to_bits() {
+                    let delta = after[cell] - before[cell];
+                    if delta != 0.0 {
+                        out[(y * width + x) as usize] += delta;
+                    }
+                }
+            }
+        }
+    }
+    crate::Image::new(width, height, planes)
+}
