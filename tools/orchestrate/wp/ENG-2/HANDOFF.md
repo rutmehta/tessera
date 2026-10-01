@@ -1,5 +1,84 @@
 # ENG-2 — Document state publication without the render lock
 
+## ENG-2b review follow-up (2026-10-01)
+
+Local commits on top of `a312c3c0`, with no rebase:
+
+- `a5cc2eaf` — regression tests (M1/M2/M3 fail on the original implementation).
+- `d6c788b6` — panic-unwind publication guard.
+- `c9e903d5` — draft and frame publication cost reductions; final tested Rust source.
+- The documentation commit containing this follow-up is the final ENG-2b tip.
+
+Every ENG-2b commit carries the requested Claude Opus 5.5 co-author trailer.
+The earlier ENG-2 report below is preserved as historical evidence.
+
+- **M1:** `StateGuard::drop` publishes only when changed and not unwinding.
+  The `catch_unwind` regression mutates a document under the edit guard, then
+  panics before edit metadata completes. Readers keep the exact pre-edit state;
+  the edit mutex remains poisoned. This prevents partial publication; it does
+  not attempt to recover a poisoned editing session.
+- **M2:** the live publication is `Arc<DocState>`, with no second mutation stamp.
+  Draft ticks no longer clone a `Document` for publication, and thus do not copy
+  its history map or damage deque. Committed history retains the original stamp
+  and reuse logic. The regression observes historical-state strong counts across
+  publication: the original code adds a history reference (3 -> 4), the final code
+  adds none. This is a deterministic ownership check, not a drag latency benchmark.
+- **M3:** reader preview geometry holds only viewport and first-surface dimensions.
+  No published view owns IOSurface Arcs. Frame presentation advances its private
+  ring cursor under the edit mutex without rebuilding the model publication.
+  The regression renders an actual frame, checks publication Arc identity, and
+  checks that only the local variable and live ring retain the surface.
+- **Concurrent confirm:** 64 rounds overlap snapshot acquisition with a writer
+  paused after document mutation and before commit publication. Snapshots retain
+  the exact prior `Arc<DocState>` and its opacity 0.75 after the writer completes
+  opacity 0.25. A temporary mutation restoring edit-lock acquisition fails on the
+  250 ms deadline. The mutant was restored before final gates.
+- Lock order remains edit -> publication only. Model readers still clone the
+  published Arc without an edit/backend lock. Commit publication remains inside
+  the edit guard's lifetime. Both duplicate-frame regressions remain unchanged.
+- Only `tessera-ffi` Rust source is changed; no other engine crate was touched.
+  No dependencies, Cargo.lock, board, apps/mac files, app launch, push, or merge.
+  B5-48 continues to own the Swift confirm-time call-site work.
+
+Validation: **correctness and static gates pass; performance gates remain non-green.**
+
+- Full serial FFI aggregate: **exit 101; 570 passed, 1 failed, 31 ignored**
+  across 51 result blocks including doc-tests. The sole failure is
+  `document_liquify_ui::brush_latency_on_a_20_megapixel_layer`: p95 **465.1 ms**
+  versus 250 ms, median 306.5 ms. Develop frame delivery passes in this run.
+  All six viewport tests pass. `evidence/eng2b-full.log`.
+- Isolated serial Liquify retry: **exit 101**, p95 **608.6 ms**, median 363.3 ms,
+  max 1048.6 ms. The 250 ms threshold is unchanged. This retry had no other
+  ENG-2b build or test active; other host lanes were not stopped. Host contention
+  is not established as the cause. `evidence/eng2b-liquify-isolated.log`.
+- Isolated serial Develop retry: **exit 101**, **98/120 at L2** versus the
+  required 108/120; render p90 7.2 ms, maximum 2978.6 ms. It passed in the
+  aggregate. `evidence/eng2b-develop-isolated.log`. Both performance retries ran
+  one at a time after the aggregate, with unchanged limits and `CI` unset.
+  The failed retries are retained; neither is presented as a green gate.
+- Focused correctness: 10 passed, one opt-in measurement ignored.
+- Clippy, all `tessera-ffi` targets, `CARGO_INCREMENTAL=0`, `-D warnings`: exit 0.
+- `cargo fmt --all -- --check` and `git diff --check`: exit 0.
+- Fresh debug dylib + UniFFI CLI regeneration into `/tmp/eng2b-bindings`:
+  Swift, C header, and modulemap all byte-identical to tracked app bindings.
+  No generated output was copied into `apps/mac`.
+- Evidence: `evidence/eng2b-{red,m1,m2,focused,concurrent-mutant,clippy,bindings}.log`.
+
+Reproduction commands (export the environment from the original handoff below first):
+
+```sh
+cargo test --locked -p tessera-ffi --no-fail-fast -- --test-threads=1
+cargo test --locked -p tessera-ffi --test document_liquify_ui brush_latency_on_a_20_megapixel_layer -- --exact --nocapture --test-threads=1
+cargo test --locked -p tessera-ffi --test develop export_batch_does_not_starve_slider_drag -- --exact --nocapture --test-threads=1
+CARGO_INCREMENTAL=0 cargo clippy --locked -p tessera-ffi --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+All Cargo commands use `--locked`, the external ENG-2 target directory,
+`CARGO_BUILD_JOBS=3`, and `RAYON_NUM_THREADS=3`.
+
+---
+
 **Status: implementation complete and locally committed; aggregate validation is non-green
 on two performance gates. Coordinator review is required before integration.**
 
