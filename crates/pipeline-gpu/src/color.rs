@@ -65,3 +65,14 @@ fn build_parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod lr2_tests {
+    #[test]
+    fn grayscale_requires_cpu_instead_of_silently_rendering_color() {
+        let s: engine_api::recipe::settings::ColorSettings = serde_json::from_value(
+            serde_json::json!({"grayscale":{"enabled":true,"mixer":{}}}),
+        ).unwrap();
+        assert!(super::parameters(&s, &mut vec![0.;9]).is_err());
+    }
+}

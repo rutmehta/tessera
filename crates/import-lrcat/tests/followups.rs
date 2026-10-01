@@ -178,14 +178,12 @@ fn lua_rows_retain_only_unknown_key_source() {
     assert!(x.unknown.contains_key("sidecar_xmp"));
 }
 
-// 6. The extended-range tone curve has no slot in the recipe and is not
-// translated here: one named limitation per image (grouped in the plan
-// report), never an "unknown key" entry, source retained.
+// 6. Out-of-domain extended curves remain a named, lossless limitation.
 #[test]
-fn extended_tone_curves_are_one_named_limitation() {
+fn out_of_domain_extended_curves_are_one_named_limitation() {
     let edited = "s = { Exposure2012 = 1,
 	ExtendedToneCurveName2012 = \"Custom\",
-	ExtendedToneCurvePV2012 = { 0, 0, 128, 150, 255, 255 },
+	ExtendedToneCurvePV2012 = { 0, 0, 128, 150, 300, 350 },
 	ExtendedToneCurvePV2012Blue = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Green = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Red = { 0, 0, 255, 255 } }";
@@ -194,7 +192,7 @@ fn extended_tone_curves_are_one_named_limitation() {
 	ExtendedToneCurvePV2012Blue = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Green = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Red = { 0, 0, 255, 255 } }";
-    for (text, keys) in [(edited, 5), (identity, 4)] {
+    for (text, keys) in [(edited, 2), (identity, 0)] {
         let (recipe, warnings) = lua_develop::parse(text, "15.4").unwrap();
         assert_eq!(recipe.settings.tone.exposure, 1.0);
         let ext: Vec<_> = warnings
@@ -327,7 +325,7 @@ fn develop_rows_are_ordered_and_orphans_and_null_ids_do_not_block() {
 
 #[test]
 fn identity_master_with_edited_channel_still_warns() {
-    let (_, notes) = lua_develop::parse("s = { ExtendedToneCurveName2012 = 'Linear', ExtendedToneCurvePV2012 = {0,0,255,255}, ExtendedToneCurvePV2012Red = {0,0,128,150,255,255} }", "15.4").unwrap();
+    let (_, notes) = lua_develop::parse("s = { ExtendedToneCurveName2012 = 'Linear', ExtendedToneCurvePV2012 = {0,0,255,255}, ExtendedToneCurvePV2012Red = {0,0,128,150,300,350} }", "15.4").unwrap();
     assert_eq!(
         notes
             .iter()
@@ -354,17 +352,13 @@ fn pending_sources_are_exact_even_when_inactive_or_identity() {
         ("RetouchInfo", "{ 'opaque' }"),
         ("PointColors", "{ 'opaque' }"),
         ("ExtendedToneCurveName2012", "'Linear'"),
-        ("ExtendedToneCurvePV2012", "{0, 0, 255, 255}"),
-        ("ExtendedToneCurvePV2012Red", "{0, 0, 255, 255}"),
-        ("ExtendedToneCurvePV2012Green", "{0, 0, 255, 255}"),
-        ("ExtendedToneCurvePV2012Blue", "{0, 0, 255, 255}"),
         ("UprightFuture", "{ Exact = 'yes' }"),
     ];
     cases.extend(
         lua_develop::KEY_MAP
             .iter()
             .filter(|(k, _)| {
-                k.starts_with("Upright") || engine_api::recipe::CrsKey::from_xmp_name(k).is_none()
+                (k.starts_with("Upright") || engine_api::recipe::CrsKey::from_xmp_name(k).is_none()) && *k != "ConvertToGrayscale" && !k.starts_with("GrayMixer")
             })
             .map(|(k, _)| (*k, "0")),
     );
@@ -437,7 +431,7 @@ fn xmp_extended_identity_is_silent_and_edits_use_named_limitation() {
             0,
         ),
         (
-            "<rdf:li>0, 0</rdf:li><rdf:li>128, 150</rdf:li><rdf:li>255, 255</rdf:li>",
+            "<rdf:li>0, 0</rdf:li><rdf:li>128, 150</rdf:li><rdf:li>300, 350</rdf:li>",
             1,
         ),
     ] {
@@ -448,10 +442,10 @@ fn xmp_extended_identity_is_silent_and_edits_use_named_limitation() {
             "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'>{fragment}</rdf:Description></rdf:RDF>"
         );
         let (r, notes) = import_lrcat::develop(1, &packet, "15.4").unwrap();
-        assert_eq!(
+        if count > 0 { assert_eq!(
             r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"],
             fragment
-        );
+        ); } else { assert!(r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"].is_null()); }
         assert_eq!(notes.len(), count, "{notes:?}");
         if count > 0 {
             assert_eq!(notes[0], lua_develop::EXTENDED_TONE_CURVE_NOTE);
