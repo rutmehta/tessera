@@ -2,7 +2,7 @@
 
 Date: 2026-10-01. Branch: `codex/perf-1-styles`. Investigated base: `ebae08bb`. Owner: Codex Machine A; Claude retains all merges. Machine B retains app-side export spans/routing.
 
-Status: **minimal RED test scaffolding authored, UNRUN; implementation not started**. See [SOURCE-PLAN.md](SOURCE-PLAN.md), especially the final coordinator-reviewed scope correction, which supersedes optional alternatives earlier in that document.
+Status: **observed RED at ad4b7165: 4 passed, 2 expected source-count failures; implementation not started**. See [RED-RESULT.md](RED-RESULT.md), which supersedes historical UNRUN statements below. See [SOURCE-PLAN.md](SOURCE-PLAN.md), especially the final coordinator-reviewed scope correction, which supersedes optional alternatives earlier in that document.
 
 Confirmed source finding: output-tile style emission repeatedly constructs full-canvas source/effect planes. The report's 14MP / 83s measurement is loaded diagnostic evidence, not a controlled baseline or a measurement taken by this lane.
 
