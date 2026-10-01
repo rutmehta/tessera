@@ -315,8 +315,8 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
         }
     }
 
-    // Interchange vertical y/j loops so each kernel tap reads and updates
-    // contiguous rows. Reset this destination row before accumulating taps;
+    // Interchange vertical x/j loops within each row so each kernel tap reads
+    // contiguous rows. Reset the destination row before accumulating taps;
     // each pixel still receives weights in the original ascending order.
     for y in 0..src.h {
         checkpoint(cancel)?;
