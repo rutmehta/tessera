@@ -249,3 +249,143 @@ review the unresolved coverage and non-green broad gate before deciding to merge
 
 Research links and the precise recipe/render contract are in the linked design
 note. No public source rows were copied into fixtures.
+
+
+# LR-4c review correction handoff — 2026-10-01
+
+This section supersedes earlier LR-4/LR-4b conclusions on schema compatibility,
+source promotion, Adobe dab/color coverage, and the prior non-green gate.
+
+Rebased all 15 existing commits without squashing onto origin/main
+`87536669ea555535ebb6622a17848f2b0fb530f3`, including LR-SCHEMA `02ae8196`.
+The matrix add/add conflict retained the main inventory; LR-4 rows are now
+reconciled with the approximation ruling. Implementation:
+`dd2d906598539476af5ce801af779747b54ea1ac`; final neutral-metadata correction:
+`71dc8ce8e6a266702bce354caeb743e52f3b230e`.
+
+## Tests-first evidence
+
+The initial four RED commits precede implementation: `9ff48063`, `72350c9f`, `c15c7abb`,
+`e8965b96`. The `red-lr4c-{core,approximate,ffi,matrix,brush-erase,picker,metadata}.log`
+files show the exercised regressions. Initial compile/setup failures are retained
+under explicitly named harness/failure logs and are not claimed as valid RED.
+The FFI journal test was corrected to record history before asserting the stored
+schema; the ensuing RED exposed the intended schema gap.
+
+## Review disposition
+
+| Review item | Result |
+| --- | --- |
+| Blocker 1: nested GPU failure | Admission rejects active nested, AI/depth and four-bound components before resident dispatch. A GPU compositor session falls back to CPU; opaque L0/L2 pixels match exactly. Fractional-alpha L2 also has a separate 1e-7 roundoff bound. |
+| Blocker 2: range semantics/source | Scalar and four-bound luminance use documented sRGB-display-encoded Rec.2020 Y. CPU, resident scalar shader and FFI picker agree. Audited luminance/color/depth imports retain exact source with field-specific info diagnostics and no warnings. |
+| Blocker 3: older writer corruption | Three conditional v4 predicates cover disabled components, nested groups and luminance bounds, including history base and retouch areas. Default remains 3. First-lane importer/equality tests and FFI journal regression are complete. |
+| Recursive AI/depth consumers | Camera Raw, smart-preview and MCP guards walk active leaves recursively. Disabled branches are skipped. |
+| FFI mask editing/metadata | Disabled brushes are not painted; nested groups have a Group type, full tree JSON and enabled flag. Disabled components are not reported rendered. Invalid nested children are dropped individually. |
+| Component range inversion | Applies (not seed) intersect range, including range-owned inversion, instead of complementing the combined wrapper. |
+| Recursion/memory | At most 8 component levels, root=1; source codec/audit also bounded. CPU recycles planes and adopts the first child; external composition adopts owned buffers and borrows immutable cached rasters. |
+| Metadata promotion | IDs, sync IDs, names/version, MaskValue, Midpoint/Roundness and neutral local toning no longer defeat the audit. Their assumptions remain explicit. |
+| Rotated radial aspect | Uses the permitted approximate disposition: existing normalized-coordinate rotation is documented, source retained, info diagnostic emitted. Adobe pixel-space ellipse fidelity is not claimed. |
+| Upright frame | Synthetic guided-Upright test proves masks execute in sensor-oriented pre-geometry coordinates. LR-7 must preserve ordering or transform coordinates. |
+| LR-4b dab/color ruling | Individual d/r/f/h stamps, zero-value subtracting paint, PointModels/AreaModels and Type 1 color now map to fields as approximate; invented Lua/XMP and import-to-CPU fixtures cover them. |
+| Matrix ruling | Approximate guard verifies fields, exact source, info reason and zero warnings, with independent negative controls. MaskActive, Masks and CorrectionRangeMask rows updated; other main rows preserved. |
+
+The 44-group golden remains 81,809 bytes with SHA-256
+`aec3a2eb9f1a31a1596d063b27ba785ae1d55219ba1931745c79a7cf9d8043cb`.
+The 2,000-row golden remains
+`d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8`.
+Four formerly opaque LR-4b brush/color fixture pins intentionally changed to
+include mapped fields and approximation info; the other pins remain unchanged.
+Fields omitted by default, full-tree cache hashing and composition conventions
+are preserved.
+
+Detailed assumptions and integration contract:
+[LR-4C-PARAMETRIC-MASKS.md](../../../../docs/coordination/LR-4C-PARAMETRIC-MASKS.md).
+No Adobe-rendered parity is claimed. Resource reconstruction remains LR-5/LR-6.
+Machine A must regenerate the additive FFI bindings (Group variant / enabled
+field) before Swift integration; this lane runs no Swift gate or app.
+
+
+## Validation and boundaries
+
+The clean command removed outputs for all twelve touched packages before the
+broad test build (`gate-lr4c-clean.log`). `run-lr4c-synthetic-gate.py` records the
+exact package list and explicit test-name exclusions. It runs the ten requested
+packages plus mask-ai and merge with `--locked --no-fail-fast --test-threads=1`,
+CARGO_BUILD_JOBS=3 and RAYON_NUM_THREADS=3, using the lane's external target.
+RAW-dependent integration files are excluded in full, including unrelated tests
+in those files; the exclusions are therefore broader than just RAW test names.
+External RAW environment paths point to an absent directory, and optional image
+fixture variables are unset. The broad gate used no real catalog or RAW fixture. See the interrupted
+post-gate target-selection incident below; it prevents a synthetic-only claim
+for the entire session.
+
+- Clippy: all twelve packages, all targets, no deps, `-D warnings`: passed
+  (`gate-lr4c-clippy.log`). Two initial lint failures (redundant unit expression,
+  excessive f32 literal precision) are retained separately. The metadata and
+  import-render tests passed again after those behavior-preserving fixes
+  (`gate-lr4c-post-lint.log`).
+- Formatting: `cargo fmt --all --check` passed (`gate-lr4c-fmt.log`, empty output).
+- Export workflow: `cargo test --locked -p export --test workflow --
+  --test-threads=1`: 3 passed in 1.01 seconds, including the previous timeout case
+  (`gate-lr4c-export-workflow.log`). Earlier LR-4 failure logs remain intact.
+- Earlier focused run: two fixture issues were corrected transparently. The
+  compositor L2 fractional-alpha comparison differed by 5.96e-8; it now tests
+  opaque equality exactly and fractional-alpha roundoff separately at 1e-7.
+  The mask-cache test still supplied a linear-luminance threshold and was updated
+  to the documented perceptual range. Their original log is
+  `lr4c-focused-before-fixture-update.log`. No timing threshold was changed.
+
+All commits carry the requested coauthor trailer. Local only: no push. No
+Cargo.lock, dependency manifest, board, Swift, app or real-catalog changes.
+`LR-RULINGS-FROM-A.md` is the pre-existing untracked coordinator input and is not
+staged or modified by this lane.
+
+
+The completed broad run (`gate-lr4c-synthetic.log`) ran 323 test/doc suites in
+3359.65 seconds: **1,803 passed, 2 failed, 43 ignored, 160 filtered out**. It is
+not a green broad gate. The two failures and disposition are:
+
+1. The 2,000-row golden exposed an over-broad audit trigger for neutral
+   `MaskValue=1`. Added RED commit `f7e60ae8` and a narrow regression
+   (`red-lr4c-neutral-metadata.log`); the fix keeps the legacy flat envelope while
+   accepting that field in other audited shapes. The original digest pin is
+   unchanged. The first isolated golden rerun before the fix also failed
+   (`gate-lr4c-golden-rerun.log`).
+2. Existing Liquify 20MP brush latency: broad p95 **321.0 ms**; isolated serial
+   rerun p95 **307.3 ms**, both above the existing 250 ms threshold. The rerun log
+   is `gate-lr4c-liquify-rerun.log`. No threshold or Liquify code was changed.
+   Frame-delivery tests passed. This timing gate remains non-green on this host.
+
+Progress messages that initially said the golden and Liquify passed were based
+on incomplete log tails; the final full-log audit found both failures, and the
+user was explicitly corrected. The complete logs, not those interim statements,
+are the validation record.
+
+
+Final affected-code verification after the neutral-metadata correction:
+
+- Complete import-lrcat suite: **91 passed, 0 failed, 1 ignored**
+  (`gate-lr4c-import-final.log`). Both original goldens and matrix/schema guards
+  pass without changing their pins.
+- Same twelve-package feature selection as the broad gate, restricted to importer
+  golden and the three FFI LR-4/4b/4c import-render targets: **14 passed**, RAW
+  golden explicitly filtered, exit 0 (`gate-lr4c-final-regressions.log`).
+- Final all-twelve-package/all-target Clippy `-D warnings`: exit 0
+  (`gate-lr4c-clippy-final.log`). Final fmt and diff whitespace checks: exit 0.
+- The full hour-long broad run was not repeated after this narrow source-audit
+  correction. Its original two failures remain visible in the log; the golden
+  failure is fixed and reverified, while the unrelated Liquify timing failure
+  remains reproducible in the isolated serial rerun.
+
+### Interrupted target-selection incident
+
+The first post-fix multi-package command selected `--test golden` and thereby
+also selected pipeline-cpu's identically named RAW target. It was missing the
+broad wrapper's RAW exclusion/environment safeguards. That RAW test started and
+was terminated with SIGTERM as soon as detected; it may have read a repository
+RAW before termination. This violated the user's synthetic-only boundary. No
+real catalog was accessed and no image source was modified. The interrupted
+log is `lr4c-interrupted-mistargeted-regressions.log`; it is not a completed or
+synthetic gate. The final successful rerun used both `--skip raw_fixture_goldens`
+and an absent `PIPELINE_RAW_FIXTURES` path. Do not claim this entire session was
+RAW-free.
