@@ -1,5 +1,81 @@
 # B5-39 — unified layout harness on the colour stack
 
+## 2026-10-01 follow-up — fixed 2× offscreen OCR
+
+This follow-up is **commits on top of `992e0cbd`**, with no additional rebase.
+The earlier reconciliation/rebase description below is historical.
+
+### RED reproduction on Machine B
+
+`00751ce7` (`test(B5-39):`) adds a test-only `NonRetinaCacheView` around the
+real populated Masks host. It overrides only the legacy bitmap allocator to
+return one pixel per point, simulating the failing non-Retina cache on this
+Retina machine. Panel content, Vision settings, and the full-label predicate
+(`words.contains(label) || words.contains(label + "v")`) are unchanged.
+
+The release test exited 1 with **11 assertions failing**: eight pixel-dimension
+assertions plus three OCR assertions. All four images logged scale `1.0`:
+288×720 or 380×720 pixels for the corresponding point dimensions.
+
+- 288-light: `full label 'Subtract' is not painted`; recognized `v)(Subtract`.
+- 380-light: `full label 'Subtract' is not painted`; recognized `(Subtract`.
+- 380-light also missed full-label `Add`; recognized `Addv)`.
+
+This reproduces A's failure class and the `Subtract` failures at both widths,
+including `(Subtract`, but not A's exact set of missed labels: B recognized
+`Intersect` in this simulated run. See `evidence/ocr-scale/red-1x.log`.
+
+### Fix and repeat verification
+
+`LayoutProbeHarness.bitmap` now allocates an explicit RGBA bitmap at twice the
+view's point dimensions and sets its logical `size` before `cacheDisplay`.
+Drawing therefore targets 2× pixels independently of the display's backing
+scale, without upscaling an already rendered 1× image. Vision and optional PNG
+evidence consume this same bitmap. The retained 1× fixture catches reversion to
+the screen-dependent allocator. Every Masks capture asserts both pixel dimensions
+and logs pixels, points, and scale. No full-label matching was loosened.
+
+Five consecutive serial release invocations of `MasksPanelLayoutTests` passed:
+
+| Run | Tests | Failures | XCTest duration |
+| --- | ---: | ---: | ---: |
+| 1 | 1 | 0 | 1.120 s |
+| 2 | 1 | 0 | 1.055 s |
+| 3 | 1 | 0 | 0.998 s |
+| 4 | 1 | 0 | 1.018 s |
+| 5 | 1 | 0 | 1.009 s |
+
+Each invocation covers 288/380 points in light/dark: **20 captures total**, all
+logging scale `2.0` (576×1440 and 760×1440 pixels). No retries or exclusions.
+See `evidence/ocr-scale/green-1.log` through `green-5.log`.
+
+Commands (from the repository root):
+
+```sh
+(cd apps/mac && swift test -c release -Xswiftc -enable-testing --filter MasksPanelLayoutTests)
+# Repeat the command above five consecutive times.
+export PATH="$HOME/.cargo/bin:$PATH"
+cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
+```
+
+The required FFI build and unmodified Swift gate exited **0** and printed
+**SWIFT GATE OK**. Debug build: 8.63 s. XCTest: **878 tests, 3 skipped, zero
+failures**, 168.123 s (168.193 s suite wall time). Swift Testing: **5 tests in
+2 suites passed**, 0.024 s. FFI regeneration produced no tracked source changes.
+Existing LibRaw and Swift weak-variable compiler warnings remain in the logs.
+See `evidence/ocr-scale/ffi.log`, `swift-gate.log`, and `swift-gate-tests.log`.
+
+Local sequence: `00751ce7` is RED; `30209036` is the fixed-scale helper;
+the following `docs(B5-39):` commit records this handoff and verification logs.
+All three commit messages end with the requested co-author trailer.
+
+Only test sources, this handoff, and evidence change in this follow-up. Product
+sources, Rust, `Cargo.lock`, and `board.json` remain unchanged. No GUI app launch,
+concurrent builds, rebase, push, or merge. Native non-Retina Machine A verification
+remains for A; the local regression uses the explicit 1× cache fixture.
+
+---
+
 Branch: `wp/B5-39`. Base: `origin/wp/B5-30b` at
 `73461d02ba3180c7112996ac2ca841d64c3759a3` (B5-30 `69728b71` → B5-30c
 `2f024d9c` → rebased B5-30b). Local commits only.

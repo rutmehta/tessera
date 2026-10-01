@@ -1,0 +1,23 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.09s)
+Test Suite 'Selected tests' started at 2026-10-01 05:13:29.954.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 05:13:29.955.
+Test Suite 'MasksPanelLayoutTests' started at 2026-10-01 05:13:29.955.
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [16.52, 0.33525, 1.2407080000000001]; GPU [26.635208000000002, 0.683125, 0.789584]
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' passed (1.018 seconds).
+Test Suite 'MasksPanelLayoutTests' passed at 2026-10-01 05:13:30.973.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.018 (1.018) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 05:13:30.973.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.018 (1.018) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 05:13:30.973.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.018 (1.019) seconds
+masks-components-288-light: OCR bitmap 576×1440 pixels / 288×720 points; scale=2.0
+masks-components-288-dark: OCR bitmap 576×1440 pixels / 288×720 points; scale=2.0
+masks-components-380-light: OCR bitmap 760×1440 pixels / 380×720 points; scale=2.0
+masks-components-380-dark: OCR bitmap 760×1440 pixels / 380×720 points; scale=2.0
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
