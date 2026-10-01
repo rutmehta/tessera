@@ -210,3 +210,84 @@ fn batch_chain_matches_cpu() {
         );
     }
 }
+
+/// B5-32: sharpening can leave signed RGB with nearly cancelling luminance.
+/// Tone's gain must approach its derivative at black, rather than magnifying
+/// cancellation in softplus(z-center) - softplus(-center).
+#[test]
+fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
+    use engine_api::recipe::settings::ToneSettings;
+    let settings = ToneSettings {
+        exposure: 0.3,
+        contrast: 11.,
+        highlights: -17.,
+        shadows: 9.,
+        whites: 5.,
+        blacks: -3.,
+        ..Default::default()
+    };
+    let pixels: Vec<[f32; 3]> = [1e-7f32, 4e-7, 1e-6, 1e-5]
+        .map(|y| {
+            [
+                -0.007,
+                -0.006,
+                (y + 0.2627 * 0.007 + 0.678 * 0.006) / 0.0593,
+            ]
+        })
+        .to_vec();
+    let layout = TileLayout {
+        extent: Extent::new(4, 1),
+        halo: 0,
+        channels: 3,
+    };
+    let data = (0..3)
+        .flat_map(|c| pixels.iter().map(move |p| p[c]))
+        .collect();
+    let input = Tile::from_samples(TileCoord::new(0, 0, 0), layout, data).unwrap();
+    let expected: Vec<[f64; 3]> = pixels
+        .iter()
+        .map(|p| {
+            // Isolate evaluation of the tone function from input rounding: the
+            // exposure and luminance boundary is f32 in both real backends.
+            let rgb = p.map(|v| v * settings.exposure.exp2());
+            let y = (0.2627 * rgb[0] + 0.678 * rgb[1] + 0.0593 * rgb[2]) as f64;
+            assert!(y > 0.);
+            let initial = (y / 0.18).ln_1p();
+            let slope = (f64::from(settings.contrast) / 100.).exp2();
+            let z = slope * initial + (1. - slope) * 2. * 2f64.ln() * -(-initial).exp_m1();
+            let softplus = |v: f64| v.max(0.) + (-v.abs()).exp().ln_1p();
+            let mut out = z;
+            for (amount, center, upper) in [
+                (-3., 0.25, false),
+                (9., 0.8, false),
+                (-17., 1.5, true),
+                (5., 2.5, true),
+            ] {
+                let integral = softplus(z - center) - softplus(-center);
+                out += 0.2 * amount / 100. * if upper { integral } else { z - integral };
+            }
+            rgb.map(|v| f64::from(v) * 0.18 * out.exp_m1() / y)
+        })
+        .collect();
+    let cpu = CpuStageOp
+        .run(StageId::Tone, &Op::Tone(&settings), input.clone())
+        .unwrap();
+    let actual = gpu()
+        .run(StageId::Tone, &Op::Tone(&settings), input)
+        .unwrap();
+    let mut failures = Vec::new();
+    for (name, result) in [("CPU", cpu), ("GPU", actual)] {
+        let samples = result.samples::<f32>().unwrap();
+        let mut error = 0f64;
+        for (i, rgb) in expected.iter().enumerate() {
+            for c in 0..3 {
+                error = error.max((f64::from(samples[c * 4 + i]) - rgb[c]).abs());
+            }
+        }
+        eprintln!("near-zero signed tone {name}: max absolute={error}");
+        if error > 1e-5 {
+            failures.push((name, error));
+        }
+    }
+    assert!(failures.is_empty(), "tone cancellation: {failures:?}");
+}
