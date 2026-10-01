@@ -696,6 +696,21 @@ fn legacy_ca_without_profile_resident_matches_cpu() {
     let b = cpu
         .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
         .unwrap();
+    let mut without_ca = s.clone();
+    without_ca.lens.legacy_ca_red = None;
+    without_ca.lens.legacy_ca_blue = None;
+    let baseline = cpu
+        .render_region_as(&image, &without_ca, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    assert!(
+        a.iter().zip(&baseline).any(|(a, b)| a
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(b.samples::<f32>().unwrap())
+            .any(|(a, b)| (a - b).abs() > 1e-5)),
+        "legacy CA must visibly affect the output"
+    );
     assert_eq!(a.len(), b.len());
     for (a, b) in a.iter().zip(&b) {
         let err = a

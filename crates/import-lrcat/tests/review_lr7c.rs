@@ -14,9 +14,9 @@ fn approximate_retains_exact_source_without_warnings_and_one_import_edit() {
         "'1,0,0,0,1,0,0.2,0,1'"
     );
     for key in ["ChromaticAberrationR", "UprightTransform_1"] {
-        let d = &r.unknown["translation_diagnostics"][key];
-        assert_eq!(d["level"], "info");
-        assert!(d["message"].as_str().unwrap().starts_with("approximate: "));
+        let d = import_lrcat::diagnostics::entries(&r);
+        assert_eq!(d[key][0].level, "info");
+        assert!(d[key][0].reason.starts_with("approximate: "));
     }
     assert_eq!(r.history.entries.len(), 1);
     assert!(matches!(
@@ -120,4 +120,24 @@ fn unknown_frame_family_members_do_not_change_the_known_mapping() {
         "'future'"
     );
     assert!(w.iter().any(|w| w.contains("UprightCenterFuture")));
+}
+
+#[test]
+fn lr7d_pv2012_ignored_ca_is_info_not_warning() {
+    let (r, w) = lua_develop::parse("s = { ChromaticAberrationR = 35 }", "15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    let entries = import_lrcat::diagnostics::entries(&r);
+    assert!(
+        entries["ChromaticAberrationR"][0]
+            .reason
+            .contains("ignored (PV2012+)")
+    );
+    assert!(r.settings.lens.legacy_ca_red.is_none());
+}
+
+#[test]
+fn lr7d_hooks_finish_one_replayable_import_transaction() {
+    let (r,_) = lua_develop::parse("s = { Exposure2012 = 0.5, ChromaticAberrationR = 35, PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1' }", "5.7").unwrap();
+    assert_eq!(r.history.entries.len(), 1);
+    assert_eq!(r.history.state_at(r.history.head).unwrap(), r.settings);
 }

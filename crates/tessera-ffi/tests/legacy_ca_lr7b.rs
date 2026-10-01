@@ -71,3 +71,26 @@ fn synthetic_catalog_ca_reaches_cpu_render() {
     eprintln!("LR-7b import/render maximum error {max_error:.8}; tolerance 0.001");
     assert!(max_error < 0.001, "{max_error}");
 }
+
+#[test]
+fn lr7d_ffi_mode_change_clears_saved_matrix() {
+    use tessera_ffi::{Engine, ImageQuery};
+    let dir = tempfile::tempdir().unwrap();
+    let photos = dir.path().join("photos");
+    std::fs::create_dir(&photos).unwrap();
+    image::RgbImage::new(16, 16)
+        .save(photos.join("synthetic.png"))
+        .unwrap();
+    let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let row = engine.list_images(ImageQuery::default()).unwrap().remove(0);
+    let session = engine.open_develop_session(row.id).unwrap();
+    session.set_settings(r#"{"geometry":{"upright":{"mode":"auto","homography_mode":"auto","homography":[[1,0,0],[0,1,0],[0.2,0,1]]}}}"#.into(), false).unwrap();
+    session
+        .set_settings(r#"{"geometry":{"upright":{"mode":"level"}}}"#.into(), false)
+        .unwrap();
+    let r: serde_json::Value = serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+    assert!(r["geometry"]["upright"]["homography"].is_null());
+}

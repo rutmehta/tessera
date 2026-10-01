@@ -153,6 +153,33 @@ mod v4_feature_predicates {
         assert_eq!(reloaded.to_json().unwrap(), bytes);
     }
 
+    #[test]
+    fn lr7d_homography() {
+        assert_bumped_only_when_present("upright_homography", |r| {
+            r.settings.geometry.upright.homography =
+                Some([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
+        });
+    }
+    #[test]
+    fn lr7d_mode_tag() {
+        assert_bumped_only_when_present("upright_homography_mode", |r| {
+            r.settings.geometry.upright.homography_mode =
+                Some(crate::recipe::settings::UprightMode::Auto);
+        });
+    }
+    #[test]
+    fn lr7d_red() {
+        assert_bumped_only_when_present("legacy_ca_red", |r| {
+            r.settings.lens.legacy_ca_red = Some(35.)
+        });
+    }
+    #[test]
+    fn lr7d_blue() {
+        assert_bumped_only_when_present("legacy_ca_blue", |r| {
+            r.settings.lens.legacy_ca_blue = Some(-25.)
+        });
+    }
+
     fn written_version(bytes: &[u8]) -> u64 {
         serde_json::from_slice::<Value>(bytes).unwrap()["schema_version"]
             .as_u64()
