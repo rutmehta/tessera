@@ -1,0 +1,53 @@
+B5-32b validation, 2026-10-01
+Base: b07993a1125b49468e44e20a5aab3c718e86ccfe
+Test commit: 7d7ea714
+Environment: PATH="$HOME/.cargo/bin:$PATH"; CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-32
+PIPELINE_RAW_FIXTURES=/Users/rutmehta/Developer/lightroom/fixtures/raw
+
+Initial cargo test --release -p filters -p pipeline-gpu: exit 101
+Existing fixture_level3_tolerance_per_operator_and_output could not find fixtures/raw in the new worktree.
+Reran unchanged tests with the existing shared RAW fixture directory via PIPELINE_RAW_FIXTURES.
+
+cargo test --release -p filters -p pipeline-gpu: exit 0
+66 suites; 290 passed, 0 failed, 21 ignored
+
+cargo test --release -p filters --test camera_raw_gpu bright_value_stage_isolation -- --nocapture: exit 0
+1 passed; 0 failed; 0 ignored; 9 filtered out. Metal stage measurements:
+curve=false stage=neutral: max=0.00000029802322 pixel=67701 channel=0 GPU=0.95312476 CPU=0.95312506
+curve=false stage=sharpen: max=0.00000047683716 pixel=40671 channel=0 GPU=1.0189509 CPU=1.0189514
+curve=false stage=dehaze: max=0.0000010752119 pixel=67703 channel=0 GPU=-0.0007142257 CPU=-0.0007153009
+curve=false stage=sharpen+dehaze: max=0.00000059604645 pixel=2353 channel=0 GPU=1.0750239 CPU=1.0750245
+curve=false stage=rich-no-sharpen: max=0.000010728836 pixel=29048 channel=0 GPU=1.2338699 CPU=1.2338806
+curve=false stage=rich-no-dehaze: max=0.000025331974 pixel=29642 channel=2 GPU=0.6061697 CPU=0.60614437
+curve=false stage=rich-no-presence: max=0.000013947487 pixel=29642 channel=2 GPU=0.8162446 CPU=0.81623065
+curve=false stage=rich: max=0.000024616718 pixel=29642 channel=2 GPU=0.6059643 CPU=0.6059397
+curve=true stage=neutral: max=0.0000014156103 pixel=20963 channel=0 GPU=0.042967618 CPU=0.042969033
+curve=true stage=sharpen: max=0.0000018924475 pixel=12872 channel=0 GPU=-0.063237764 CPU=-0.06323587
+curve=true stage=dehaze: max=0.000002404675 pixel=56671 channel=0 GPU=0.008689525 CPU=0.00868712
+curve=true stage=sharpen+dehaze: max=0.0000020116568 pixel=24681 channel=0 GPU=0.04126303 CPU=0.041261017
+curve=true stage=rich-no-sharpen: max=0.000062949955 pixel=2357 channel=0 GPU=0.004182175 CPU=0.004119225
+curve=true stage=rich-no-dehaze: max=0.020483017 pixel=10703 channel=2 GPU=17.680172 CPU=17.700655
+curve=true stage=rich-no-presence: max=0.0043850243 pixel=10703 channel=2 GPU=0.4546297 CPU=0.45024467
+curve=true stage=rich: max=0.020483017 pixel=10703 channel=2 GPU=17.680172 CPU=17.700655
+
+cargo clippy --all-targets -p filters -p pipeline-gpu -- -D warnings: exit 0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 50.02s
+cargo fmt --all -- --check: exit 0, no output
+
+Live: standalone neutral/sharpen/dehaze/sharpen+dehaze at 5e-6 for both profile curves;
+existing rich-chain scaled 0.002 and absolute 0.025 tolerances unchanged.
+Rich isolation variants record maxima without an unmet absolute assertion.
+Ignored: f64 tone diagnostic (unmet 1e-5); existing 24 MP timing benchmark.
+24 MP retains main sampled scaled 0.002 guard; full-frame max is logged, not bounded at 0.01.
+Neither ignored diagnostic was explicitly run in B5-32b.
+
+Historical evidence from wp/B5-32 HANDOFF.md and VALIDATION.txt, not rerun here:
+Baseline tone CPU 1.8405e-5, GPU 0.00511713; 24 MP full-frame max 6.1408234.
+Dropped tone fix worsened 24 MP full-frame max to 16.488846.
+One input ulp moved CPU by 0.08395004 with dropped fix; pre-fix gap 0.10030365.
+The current stage run reproduces baseline rich-chain max 0.020483017.
+A/Codex engine follow-up: clamp texture/clarity signed-luminance divisor or evaluate before sharpening.
+
+Build/gate commands ran serially. No Swift gate (no Swift changes).
+No pipeline-cpu tests modified; pipeline-cpu not an additional gate target.
+No product source, board.json, or Cargo.lock changes. Local commits only.
