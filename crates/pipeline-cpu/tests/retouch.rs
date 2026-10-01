@@ -50,3 +50,51 @@ fn spots_without_registered_renderer_fail_explicitly() {
     );
     assert_eq!((baseline.width(), baseline.height()), (128, 80));
 }
+
+#[test]
+fn lr3d_sensor_coordinates_precede_rotation_crop_and_lens_profile() {
+    use std::sync::Arc;
+    let profile = lens::Profile {
+        camera: None, maker: "synthetic".into(), model: "synthetic".into(),
+        samples: vec![lens::CalibrationSample { distortion: lens::BrownConrady { k1: 0.12, ..Default::default() }, ..Default::default() }],
+    };
+    let image = Image::new(80,48,vec![(0..3840).map(|i| (i%80) as f32/100.0).collect();3]).unwrap();
+    let transplant = |w: u32,h: u32,p: &mut [Vec<f32>],_: &[RetouchOperation]| {
+        assert_eq!((w,h),(80,48),"spot coordinate frame is unrotated active image");
+        for plane in p { for y in 20..28 { for x in 16..24 { plane[y*80+x] = plane[y*80+x+40]; } } }
+        Ok(())
+    };
+    let mut corrected = image.planes().to_vec();
+    transplant(80,48,&mut corrected,&[]).unwrap();
+    let corrected = Image::new(80,48,corrected).unwrap();
+    for orientation in 5..=8 {
+        let mut s = DevelopSettings::default();
+        s.detail.sharpening.amount = 0.0;
+        s.detail.noise_reduction.color = 0.0;
+        s.tone.contrast = 20.0;
+        s.geometry.orientation = orientation;
+        s.geometry.crop.rect.left = 0.1;
+        s.geometry.crop.rect.right = 0.9;
+        s.geometry.crop.rect.top = 0.1;
+        s.geometry.crop.rect.bottom = 0.9;
+        let context = pipeline_cpu::LensContext { profile: Some(&profile), retouch: Some(Arc::new(transplant)), ..Default::default() };
+        let expected = pipeline_cpu::render_linear_scaled_with_lens(&s,&RenderSource::Rgb(&corrected),1,&context).unwrap();
+        s.locals.retouch.push(RetouchOperation {
+            id:RetouchId(1), kind: RetouchKind::Clone{source_offset:[0.5,0.0]},
+            target:RetouchTarget::Area{components:vec![]}, opacity:100.0, feather:0.0, enabled:true,
+        });
+        let actual = pipeline_cpu::render_linear_scaled_with_lens(&s,&RenderSource::Rgb(&image),1,&context).unwrap();
+        assert_eq!(actual.planes(),expected.planes(),"orientation {orientation}");
+    }
+}
+
+#[test]
+fn lr3d_retouch_invalidates_detail_checkpoint() {
+    let original = DevelopSettings::default();
+    let mut edited = original.clone();
+    edited.locals.retouch.push(RetouchOperation {
+        id:RetouchId(1), kind: RetouchKind::Clone{source_offset:[0.5,0.0]},
+        target:RetouchTarget::Area{components:vec![]}, opacity:100.0, feather:0.0, enabled:true,
+    });
+    assert_eq!(original.first_dirty_stage(&edited),Some(engine_api::stage::StageId::Detail));
+}

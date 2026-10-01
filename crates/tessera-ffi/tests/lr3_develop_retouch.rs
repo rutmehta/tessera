@@ -179,7 +179,8 @@ fn develop_matches_direct_clone_and_heal_kernels_bit_for_bit() {
     let baseline =
         render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&image), 1).unwrap();
     for heal in [false, true] {
-        let expected = direct_kernel(&baseline, heal);
+        let corrected = direct_kernel(&image, heal);
+        let expected = render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&corrected), 1).unwrap();
         let context = pipeline_cpu::LensContext {
             retouch: Some(Arc::new(brush::render_retouch)),
             ..Default::default()
@@ -212,14 +213,16 @@ fn develop_graph_registers_renderer_and_invalidates_retouch_memo() {
     let renderer =
         Renderer::new(Default::default()).with_retouch_renderer(Arc::new(brush::render_retouch));
     let token = engine_api::jobs::CancellationToken::new();
-    let baseline = renderer
+    renderer
         .render_rgb_linear(&raw, 0, &DevelopSettings::default(), &token)
         .unwrap();
     for heal in [false, true] {
         let actual = renderer
             .render_rgb_linear(&raw, 0, &settings(heal), &token)
             .unwrap();
-        assert_bits(&actual, &direct_kernel(&baseline, heal));
+        let corrected = direct_kernel(&image(), heal);
+        let expected = render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&corrected), 1).unwrap();
+        assert_bits(&actual, &expected);
     }
     let error = Renderer::new(Default::default())
         .render_rgb_linear(&raw, 0, &settings(false), &token)
@@ -542,7 +545,9 @@ fn lr3d_duplicate_strokes_form_one_union_mask() {
     strokes.push(strokes[0].clone());
     let mut twice = input.planes().to_vec();
     brush::render_retouch(128,80,&mut twice,&s.locals.retouch).unwrap();
-    assert_eq!(once, twice, "one spot must not compound 50% opacity into 75%");
+    for (a,b) in once.iter().flatten().zip(twice.iter().flatten()) {
+        assert_eq!(a,b, "one spot must not compound 50% opacity into 75%");
+    }
 }
 
 #[test]
@@ -552,4 +557,45 @@ fn lr3d_scaled_render_invokes_retouch_at_target_resolution() {
         brush::render_retouch(w,h,p,spots)
     })), ..Default::default() };
     pipeline_cpu::render_linear_scaled_with_lens(&settings(false), &RenderSource::Rgb(&image()), 4, &context).unwrap();
+}
+
+#[test]
+fn lr3d_two_spots_have_independent_feather_and_opacity() {
+    let plane = (0..80).flat_map(|_| (0..128).map(|x| if x >= 64 {1.0} else {0.0})).collect();
+    let mut pixels = vec![plane;3];
+    let mut spots = settings(false).locals.retouch;
+    let mut second = spots[0].clone();
+    second.id = RetouchId(2);
+    second.opacity = 25.0;
+    let RetouchTarget::Area { components } = &mut second.target else {panic!()};
+    let MaskKind::Brush { strokes } = &mut components[0].kind else {panic!()};
+    strokes[0].points = vec![[0.25,0.2,1.0]];
+    strokes[0].feather = 100.0;
+    spots.push(second);
+    brush::render_retouch(128,80,&mut pixels,&spots).unwrap();
+    // Independent analytic footprint: diameter 16px; sample center is (+.5,+.5).
+    // The first spot's solid core is 50%; second has a 9px smoothstep ramp.
+    assert_eq!(pixels[0][40*128+32],0.5);
+    let t = (8.5_f32 - 0.5_f32.sqrt()) / 9.0;
+    let expected = 0.25 * t*t*(3.0-2.0*t);
+    assert!((pixels[0][16*128+32]-expected).abs()<1e-6);
+    assert_eq!(pixels[0][5*128+5],0.0);
+}
+
+#[test]
+fn lr3d_all_strokes_in_a_spot_read_the_same_source_snapshot() {
+    let plane = (0..80).flat_map(|_| (0..128).map(|x| (x/32) as f32 * 0.4)).collect();
+    let mut pixels = vec![plane;3];
+    let mut spots = settings(false).locals.retouch;
+    spots[0].kind = RetouchKind::Clone { source_offset: [-0.25,0.0] };
+    let RetouchTarget::Area { components } = &mut spots[0].target else {panic!()};
+    let MaskKind::Brush { strokes } = &mut components[0].kind else {panic!()};
+    strokes[0].radius = 0.03;
+    strokes[0].feather = 0.0;
+    let mut second = strokes[0].clone();
+    second.points[0][0] = 0.5;
+    strokes.push(second);
+    brush::render_retouch(128,80,&mut pixels,&spots).unwrap();
+    assert!((pixels[0][40*128+32]-0.2).abs()<1e-6);
+    assert!((pixels[0][40*128+64]-0.6).abs()<1e-6, "second stroke must clone original 0.4, not edited 0.2");
 }
