@@ -66,6 +66,21 @@ fn difference(a: &Tile, b: &Tile) -> f32 {
     }
 }
 
+// Optional exact planar f32 capture for ENG-1c attribution. No reference or
+// tolerance changes: capture precedes the normal assertion, including on RED.
+fn dump_image(dir: &std::ffi::OsStr, name: &str, image: &pipeline_cpu::Image) {
+    use std::io::Write;
+    let dir = std::path::Path::new(dir);
+    std::fs::create_dir_all(dir).unwrap();
+    let mut file =
+        std::io::BufWriter::new(std::fs::File::create(dir.join(format!("{name}.f32"))).unwrap());
+    file.write_all(&image.width().to_le_bytes()).unwrap();
+    file.write_all(&image.height().to_le_bytes()).unwrap();
+    for value in image.planes().iter().flatten() {
+        file.write_all(&value.to_le_bytes()).unwrap();
+    }
+}
+
 /// Audit every stage on the first real sensor/output tile of each renderer
 /// batch, as well as comparing every final pixel of the level-3 image.
 struct Audited {
@@ -80,6 +95,10 @@ impl StageOp for Audited {
         input: pipeline_cpu::Image,
         cancel: &CancellationToken,
     ) -> EngineResult<pipeline_cpu::Image> {
+        let capture = std::env::var_os("ENG1C_CAPTURE").filter(|_| stage == StageId::Tone);
+        if let Some(dir) = &capture {
+            dump_image(dir, "input", &input);
+        }
         let expected = CpuStageOp.run_image(stage, op, input.clone(), cancel)?;
         let actual = self.gpu.run_image(stage, op, input, cancel)?;
         assert_eq!(
@@ -96,6 +115,10 @@ impl StageOp for Audited {
                 (a - b).abs()
             })
             .fold(0.0f32, f32::max);
+        if let Some(dir) = &capture {
+            dump_image(dir, "cpu", &expected);
+            dump_image(dir, "gpu", &actual);
+        }
         assert!(diff <= 1e-4, "image {stage:?}: {diff:e}");
         let mut errors = self.errors.lock().unwrap();
         errors[stage.index()] = Some(errors[stage.index()].unwrap_or(0.0).max(diff));
