@@ -840,3 +840,242 @@ mod tests {
         assert!(p.windows(2).all(|v| v[1] >= v[0]));
     }
 }
+
+#[cfg(test)]
+mod eng1_conditioning_tests {
+    use super::*;
+
+    const SIDE: usize = 27;
+    const N: usize = SIDE * SIDE;
+    const CENTER: usize = 13 * SIDE + 13;
+    // Engineering sensitivity target selected for ENG-1. This is scene-linear
+    // RGB, not the separate 0.01 encoded Camera Raw CPU/GPU parity ceiling.
+    const SENSITIVITY_LIMIT: f32 = 1e-4;
+
+    fn scene(center: [f32; 3]) -> Vec<f32> {
+        let mut out = vec![0.0; 3 * N];
+        for y in 0..SIDE {
+            for x in 0..SIDE {
+                let level = 0.125 + ((3 * x + 5 * y) % 4) as f32 * 0.0625;
+                for c in 0..3 {
+                    out[c * N + y * SIDE + x] = level;
+                }
+            }
+        }
+        for c in 0..3 {
+            out[c * N + CENTER] = center[c];
+        }
+        out
+    }
+
+    fn center_rgb(data: &[f32]) -> [f32; 3] {
+        [data[CENTER], data[N + CENTER], data[2 * N + CENTER]]
+    }
+
+    fn render(input: &[f32], texture: f32) -> Vec<f32> {
+        let mut out = input.to_vec();
+        presence(
+            &mut out,
+            SIDE,
+            SIDE,
+            &ToneSettings {
+                texture,
+                ..ToneSettings::default()
+            },
+        );
+        assert!(
+            out.iter().all(|v| v.is_finite()),
+            "nonfinite presence result"
+        );
+        out
+    }
+
+    fn triplet() -> [[f32; 3]; 3] {
+        let zero = [0.678_f32, -0.2627_f32, 0.0];
+        let negative = [zero[0], zero[1].next_down(), zero[2]];
+        let positive = [zero[0], zero[1].next_up(), zero[2]];
+        assert_eq!(
+            luma(zero),
+            0.0,
+            "fixture must cancel in existing luma order"
+        );
+        assert!(luma(negative) < 0.0, "negative fixture classification");
+        assert!(luma(positive) > 0.0, "positive fixture classification");
+        [negative, zero, positive]
+    }
+
+    // Observe only the unchanged upstream Texture request. This deliberately
+    // reuses guided/range/encode; it is a branch-validity witness, NOT an RGB
+    // oracle or a proposed gain/divisor formula. Compute fields once per input.
+    struct RequestWitness {
+        z: f32,
+        lo: f32,
+        hi: f32,
+        fine_minus_mid: f32,
+    }
+
+    impl RequestWitness {
+        fn new(input: &[f32]) -> Self {
+            let z: Vec<_> = (0..N)
+                .map(|i| encode(luma([input[i], input[N + i], input[2 * N + i]]).max(0.0)))
+                .collect();
+            let fine = guided(&z, &z, SIDE, SIDE, 1, 0.001);
+            let mid = guided(&z, &z, SIDE, SIDE, 3, 0.001);
+            let (lo, hi) = range(&z, SIDE, SIDE, 1);
+            Self {
+                z: z[CENTER],
+                lo: lo[CENTER],
+                hi: hi[CENTER],
+                fine_minus_mid: fine[CENTER] - mid[CENTER],
+            }
+        }
+
+        fn adjusted(&self, texture: f32) -> f32 {
+            let delta = texture.clamp(-100.0, 100.0) / 100.0 * self.fine_minus_mid;
+            (self.z + delta).clamp(self.lo, self.hi)
+        }
+    }
+
+    fn max_delta(a: &[f32], b: &[f32]) -> (f32, usize) {
+        assert_eq!(a.len(), b.len());
+        let mut worst = (0.0_f32, 0);
+        for (i, (&a, &b)) in a.iter().zip(b).enumerate() {
+            assert!(a.is_finite() && b.is_finite());
+            let delta = (a - b).abs();
+            if delta > worst.0 {
+                worst = (delta, i);
+            }
+        }
+        worst
+    }
+
+    #[test]
+    fn sign_crossing_one_input_ulp_has_bounded_presence_response() {
+        let [negative, zero, positive] = triplet();
+        let inputs = [scene(negative), scene(zero), scene(positive)];
+        let request = RequestWitness::new(&inputs[2]);
+        assert!(
+            request.adjusted(-100.0) > request.z,
+            "fixture must request a non-neutral positive center adjustment"
+        );
+        let outputs = inputs.each_ref().map(|input| render(input, -100.0));
+        // Preserve the current nonpositive-luminance skip as an explicit
+        // behavior, while testing the adjacent positive branch for stability.
+        assert_eq!(
+            center_rgb(&outputs[0]).map(f32::to_bits),
+            negative.map(f32::to_bits)
+        );
+        assert_eq!(
+            center_rgb(&outputs[1]).map(f32::to_bits),
+            zero.map(f32::to_bits)
+        );
+        for pair in 0..2 {
+            let input_delta = max_delta(&inputs[pair], &inputs[pair + 1]).0;
+            let (delta, i) = max_delta(&outputs[pair], &outputs[pair + 1]);
+            assert!(
+                delta <= SENSITIVITY_LIMIT,
+                "sign pair {pair}: input_delta={input_delta}, output_delta={delta}, channel={}, pixel=({}, {})",
+                i / N,
+                i % N % SIDE,
+                i % N / SIDE
+            );
+        }
+    }
+
+    #[test]
+    fn almost_noop_presence_preserves_signed_rgb_continuity() {
+        let input = scene(triplet()[2]);
+        let neutral = render(&input, 0.0);
+        assert_eq!(neutral, input, "zero Texture must retain exact RGB");
+        let request = RequestWitness::new(&input);
+        assert!(request.z > 0.0);
+        let ulp = request.z.next_up() - request.z;
+        let texture = (0..=96)
+            .find_map(|k| {
+                let texture = -100.0 * 2.0_f32.powi(-k);
+                let delta = request.adjusted(texture) - request.z;
+                (delta > 0.0 && delta <= 4.0 * ulp).then_some(texture)
+            })
+            .expect("fixture must produce a changed request within four encoded ulps");
+        let changed = render(&input, texture);
+        let a = center_rgb(&neutral);
+        let b = center_rgb(&changed);
+        let (delta, channel) = max_delta(&a, &b);
+        assert!(
+            delta <= SENSITIVITY_LIMIT,
+            "almost no-op texture={texture}, encoded_delta={}, RGB_delta={delta}, channel={channel}",
+            request.adjusted(texture) - request.z
+        );
+        let unchanged_texture = (1..=32)
+            .map(|k| texture * 2.0_f32.powi(-k))
+            .find(|&t| t != 0.0 && request.adjusted(t) == request.z)
+            .expect("fixture must also exercise exact no-change with nonzero control");
+        let unchanged = render(&input, unchanged_texture);
+        assert_eq!(
+            center_rgb(&unchanged).map(f32::to_bits),
+            center_rgb(&input).map(f32::to_bits),
+            "unchanged encoded request must retain exact signed center RGB"
+        );
+    }
+
+    #[test]
+    fn all_eligible_positive_one_ulp_neighbors_have_bounded_response() {
+        // Fixed input set. The historical vector is diagnostic input only,
+        // never an Adobe output oracle or a chosen conditioning equation.
+        let centers = [triplet()[2], [-0.006959494, -0.005868249, 0.097931265]];
+        let mut worst = (0.0_f32, 0usize, 0usize, false, 0usize, 0.0_f32);
+        for (case, center) in centers.into_iter().enumerate() {
+            assert!(luma(center) > 0.0, "base case {case} must have positive Y");
+            let input = scene(center);
+            let request = RequestWitness::new(&input);
+            assert!(
+                request.adjusted(-100.0) > request.z,
+                "case {case} must be active"
+            );
+            let baseline = render(&input, -100.0);
+            let mut eligible = 0;
+            for channel in 0..3 {
+                for up in [false, true] {
+                    let mut neighbor = center;
+                    neighbor[channel] = if up {
+                        center[channel].next_up()
+                    } else {
+                        center[channel].next_down()
+                    };
+                    if luma(neighbor) <= 0.0 {
+                        continue;
+                    }
+                    eligible += 1;
+                    let neighbor_input = scene(neighbor);
+                    let output = render(&neighbor_input, -100.0);
+                    let (delta, i) = max_delta(&baseline, &output);
+                    if delta > worst.0 {
+                        worst = (
+                            delta,
+                            case,
+                            channel,
+                            up,
+                            i,
+                            max_delta(&input, &neighbor_input).0,
+                        );
+                    }
+                }
+            }
+            assert!(eligible > 0, "case {case} must exercise positive neighbors");
+        }
+        // Assert only after scanning every eligible fixed neighbor, so the
+        // first bad result cannot conceal a worse case in the same fixture set.
+        assert!(
+            worst.0 <= SENSITIVITY_LIMIT,
+            "worst RGB_delta={}, case={}, perturbed_channel={}, next_up={}, output_channel={}, pixel=({}, {}), input_delta={}",
+            worst.0,
+            worst.1,
+            worst.2,
+            worst.3,
+            worst.4 / N,
+            worst.4 % N % SIDE,
+            worst.4 % N / SIDE,
+            worst.5
+        );
+    }
+}
