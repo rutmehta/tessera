@@ -1,0 +1,3 @@
+### External canvas evidence remains partial — 2026-10-01 12:37 UTC heartbeat
+
+Main445131fc adds B5-30 evidence only, measured on dc30a179 on Machine B. Read `ONSCREEN-EDGE-ALPHA.md`: reported red/grey and linear-light alpha baselines pass;50% profile agreement is not interpolation proof. Requested75%/150% matrix remains blocked/unmeasured because current zoom steps lack these values, and the capture path has a resampling confound. No renderer failure or full on-screen qualification is established. Original measurements/crops are preserved; exact-zoom access and verified1:1 capture are the existing UI owner's next actions. Codex did not rerun GUI, alter zoom or claim a new test result. Mailbox/approval/runtime-handoff state unchanged.
