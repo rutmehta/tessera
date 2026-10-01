@@ -271,9 +271,7 @@ mod perf1_tests {
             })],
             true,
         );
-        let (_, pixels) = Compositor::new(8 << 20)
-            .render_level_rgba(&doc, 0)
-            .unwrap();
+        let (_, pixels) = Compositor::new(8 << 20).render_level_rgba(&doc, 0).unwrap();
         assert_eq!(pixels.len(), 513 * 259 * 4);
         // Independent analytic oracle: zero source fill; opaque normal overlay
         // on a binary alpha rectangle. Dyadic colors are exactly representable.
@@ -281,12 +279,11 @@ mod perf1_tests {
         // not substitute for the pending frozen blur/morphology oracle.
         for y in 0..259usize {
             for x in 0..513usize {
-                let expected: [f32; 4] =
-                    if (17..497).contains(&x) && (11..248).contains(&y) {
-                        [0.25, 0.5, 0.75, 1.0]
-                    } else {
-                        [0.0; 4]
-                    };
+                let expected: [f32; 4] = if (17..497).contains(&x) && (11..248).contains(&y) {
+                    [0.25, 0.5, 0.75, 1.0]
+                } else {
+                    [0.0; 4]
+                };
                 let start = (y * 513 + x) * 4;
                 for channel in 0..4 {
                     assert_eq!(
