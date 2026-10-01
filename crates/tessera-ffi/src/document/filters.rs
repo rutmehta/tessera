@@ -2208,7 +2208,15 @@ fn bake(
     let LayerKind::SmartObject(so) = &layer.kind else {
         return Ok(None);
     };
-    let nodes = at_preview_level(nodes_of(so)?, b.canvas_level)?;
+    let nodes = nodes_of(so)?;
+    // Match preview_plan: full-resolution adapters keep detail even when
+    // the canvas is zoomed out, so opening/closing the sheet cannot change it.
+    let detail_level = if full_resolution(&nodes) {
+        0
+    } else {
+        b.canvas_level
+    };
+    let nodes = at_preview_level(nodes, detail_level)?;
     let canvas = b.base.canvas;
     let previous = {
         let i = q.lock();
@@ -2504,11 +2512,13 @@ fn bake_key(l: &Layer) -> String {
 
 /// Camera Raw presentation is level-specific: a finer bake includes detail
 /// (and can contain level-0 refinements) that must not leak into a zoomed-out
-/// frame. Other stacks retain their existing finer-level cache reuse.
+/// frame. Full-resolution stacks keep detail at every zoom and, like other
+/// non-Camera-Raw stacks, retain their existing finer-level cache reuse.
 fn canvas_bake_key(l: &Layer, level: u8) -> String {
     let mut key = bake_key(l);
     if let LayerKind::SmartObject(so) = &l.kind
         && so.filters.iter().any(|f| f.enabled && f.name == CAMERA_RAW)
+        && !nodes_of(so).is_ok_and(|nodes| full_resolution(&nodes))
     {
         key.push_str(&format!("|camera-raw-level:{level}"));
     }
