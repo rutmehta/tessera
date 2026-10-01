@@ -6,10 +6,8 @@ mod common;
 use engine_api::id::Digest;
 
 const N: i64 = 2_000;
-/// LR-2b sidecar imports monochrome in the first history edit in 1,200 rows.
-/// Settings/source are unchanged; 800 untranslated rows remain byte-identical.
-/// The baseline sidecar/importer audit is tools/orchestrate/wp/LR-2/compat.sh.
-const GOLDEN: &str = "174e43107e23125fb0477cad9376a144a35c28a7966de355ebe87314a98c8fee";
+/// Re-pinned for tagged retained-source envelopes; exact per-key tests cover source spelling.
+const GOLDEN: &str = "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();

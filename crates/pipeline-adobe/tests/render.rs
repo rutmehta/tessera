@@ -55,3 +55,22 @@ fn lr2b_legacy_and_hdr_reach_standalone_adobe_render() {
         assert!((*x - 3f32.powf(2.2)).abs() < 0.0001, "{x}");
     }
 }
+
+#[test]
+fn lr2c_channel_curve_toning_survives_monochrome_conversion() {
+    use engine_api::recipe::settings::{Curve, CurvePoint, MonochromeSettings};
+    let source = Image::new(4, 4, vec![vec![0.2; 16]; 3]).unwrap();
+    let mut s = DevelopSettings::default();
+    s.color.monochrome = Some(MonochromeSettings {
+        enabled: true,
+        ..Default::default()
+    });
+    s.tone.curves.red = Curve(vec![
+        CurvePoint { x: 0., y: 0. },
+        CurvePoint { x: 1., y: 0.5 },
+    ]);
+    let result = render_linear_scaled(&s, &RenderSource::Rgb(&source), 1).unwrap();
+    assert!((result.planes()[0][0] - result.planes()[1][0]).abs() > 0.01);
+    let result = pipeline_cpu::render_linear_scaled(&s, &RenderSource::Rgb(&source), 1).unwrap();
+    assert!((result.planes()[0][0] - result.planes()[1][0]).abs() > 0.01);
+}
