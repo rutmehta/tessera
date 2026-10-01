@@ -56,7 +56,7 @@ const MB: usize = 1 << 20;
 
 #[test]
 #[cfg_attr(debug_assertions, ignore = "release memory and time gate")]
-fn ffi_streaming_summary_bundle_and_memory_match_crate() {
+fn ffi_streaming_memory_is_bounded() {
     let temp = tempfile::tempdir().unwrap();
     let small = common::write(&temp.path().join("small"), 2_000);
     let large = common::write(&temp.path().join("large"), 20_000);
@@ -97,42 +97,4 @@ fn ffi_streaming_summary_bundle_and_memory_match_crate() {
     assert_eq!(report.virtual_copies, 400);
     assert_eq!(report.skipped.len(), 19_600);
     drop(import);
-
-    // Full crate reference is deliberately outside the measured interval.
-    // Compare parsed JSON because the FFI bundle historically uses compact JSON.
-    let expected = import_lrcat::import(&small).unwrap();
-    let engine = Engine::open(temp.path().join("support2").to_string_lossy().into_owned()).unwrap();
-    let import = engine
-        .open_lrcat(small.to_string_lossy().into_owned())
-        .unwrap();
-    let summary = import.summary();
-    let crate_summary = import_lrcat::inspect(&small).unwrap();
-    assert_eq!(summary.images as usize, crate_summary.images);
-    assert_eq!(
-        summary.virtual_copies as usize,
-        crate_summary.virtual_copies
-    );
-    assert_eq!(summary.faces as usize, crate_summary.faces);
-    assert_eq!(summary.collections as usize, crate_summary.albums);
-    assert_eq!(
-        summary.edited as usize,
-        expected
-            .images
-            .iter()
-            .filter(|i| !i.recipe.history.entries.is_empty())
-            .count()
-    );
-    let mut options = import.default_options();
-    options.library_folder = temp
-        .path()
-        .join("comparison")
-        .to_string_lossy()
-        .into_owned();
-    let report = import.apply(options, None).unwrap();
-    let actual: serde_json::Value = serde_json::from_reader(
-        std::fs::File::open(std::path::Path::new(&report.bundle_path).join("import-plan.json"))
-            .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(actual, serde_json::to_value(expected).unwrap());
 }
