@@ -61,3 +61,7 @@ PERF-4 Gaussian apply (P19): 723 ms at 24 MP. SIMD/reusable-buffer separable CPU
 PERF-5 Memory ceilings: Camera Raw preview peaks at 7 GiB and the Export Flat UI suite at 7.5 GiB. Identify the dominant allocations and add explicit bounds (reuse or streaming), with counting-allocator tests.
 
 Machine B keeps the app-side lanes (P16/P20 export main-thread spans, B5-33). Coordinate any shared file (tessera-ffi) through the coordinator.
+
+## Engine correctness lanes
+
+ENG-1 Texture/Clarity conditioning (from Machine B's B5-32 diagnosis, `origin/wp/B5-32` HANDOFF): sharpening can produce signed RGB with nearly cancelling luminance; texture/clarity then divide by that luminance, so one input ulp moves the output by ~0.08 and CPU vs GPU diverge (worst 6–16 encoded units above 1.0 at 24 MP). Fix the conditioning, not the precision: clamp the luminance divisor to a floor (e.g. max(|L|, ε) with a documented ε) or evaluate texture/clarity on the pre-sharpen luminance; keep CPU and GPU identical; re-run every Develop golden (expect tiny deltas only on previously ill-conditioned pixels; document them); then tighten the Camera Raw resident-chain CPU/GPU tolerance to absolute 0.01. Do NOT take B5-32's pipeline-cpu/pipeline-gpu numerics commits (635f69d8) — they were declined.
