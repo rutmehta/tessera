@@ -32,6 +32,10 @@ pub(super) fn has_styles(state: &DocState) -> bool {
 
 impl Compositor {
     pub(super) fn source_raster(&self, doc: DocRef<'_>) -> EngineResult<Raster> {
+        #[cfg(test)]
+        self.stats
+            .source_raster_build_calls
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let e = doc.state.canvas;
         let mut raster = Raster::new(e, 4, Depth::F32, 0.0);
         let (nx, ny) = e.tile_grid(TILE_SIZE);
@@ -90,7 +94,7 @@ impl<'a> TileJob<'a> {
         #[cfg(test)]
         self.comp
             .stats
-            .style_evaluations
+            .style_render_calls
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let planes = styles::render(&raster, &layer.props.styles, self.doc.state.global_light)?;
         let source = self.comp.effect_samples(&raster, self.coord)?;
@@ -253,9 +257,17 @@ mod perf1_tests {
         // full source and effects for every output tile. This assertion is a
         // work invariant, not a claim that a failure has already been observed.
         assert_eq!(
-            compositor.stats.style_evaluations.load(Ordering::Relaxed),
+            compositor
+                .stats
+                .source_raster_build_calls
+                .load(Ordering::Relaxed),
             1,
-            "one immutable styled source must be evaluated once per full-level pass"
+            "one immutable styled source raster must be built once per full-level pass"
+        );
+        assert_eq!(
+            compositor.stats.style_render_calls.load(Ordering::Relaxed),
+            1,
+            "one immutable style stack must be rendered once per full-level pass"
         );
     }
 
