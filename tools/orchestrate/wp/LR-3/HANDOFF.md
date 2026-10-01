@@ -1,5 +1,61 @@
 # LR-3: retouch translation — renderer integration blocked
 
+## LR-3b follow-up (2026-10-01): dependency ruling cannot resolve
+
+Started on `380a17b0` without rebase. Local RED commit:
+`a1d7e5fff0e1a64117f470aaa05692c8d6be850e`.
+The new `pipeline-cpu/tests/retouch.rs` constructs synthetic heal and clone
+spots and calls `render_linear_scaled`; it fails at the expected settings
+validator rejection. It also asserts that the clone destination changes, to
+catch a renderer that accepts settings but silently drops spots.
+
+The authorized `brush = { path = "../brush" }` addition to
+`crates/pipeline-cpu/Cargo.toml` was attempted. `cargo metadata --offline
+--format-version 1` exits 101 with `cyclic package dependency`:
+
+```text
+pipeline-cpu -> brush -> compositor -> merge -> pipeline-cpu
+```
+
+These are active normal dependencies, not just test edges. In particular,
+`merge/src/raw.rs` uses `pipeline_cpu::{DemosaicAlgorithm, Image, demosaic}`;
+compositor uses merge's layer alignment/blending implementation. The added
+edge alone cannot build. No extraction or dependency removal was attempted.
+The invalid manifest addition was removed, and `git diff Cargo.lock` plus
+the manifest diff are empty: no new edge, version bumps or external crates.
+
+**Still blocked:** the single-edge-only lockfile restriction must change to
+break the cycle, or the integration design must change. A broader existing-crate
+cycle fix was requested from the user; no answer had been received when this
+evidence was written. No `feat(LR-3b)` commit is warranted. This is deliberately
+a RED branch, not a merge-ready feature.
+
+Current rendering behavior is unchanged: direct brush operators work as
+documented below, while Develop CPU rejects nonempty retouch. No parity or
+catalog-to-Develop GREEN result is claimed. GPU dispatch was not changed;
+source inspection of image-core's resident entry points and shared
+`Renderer::validate_settings` shows the existing CPU-validator guard remains.
+No GPU retouch rendering or fallback was implemented or runtime-verified.
+
+LR-3b checks use the user's `$HOME/.cache/tessera-target/LR-3-retouch` target
+and `CARGO_BUILD_JOBS=3`, `RAYON_NUM_THREADS=3`:
+
+- RED: `cargo test --locked -p pipeline-cpu --test retouch -- --nocapture`:
+  0 passed, 1 failed, expected `InvalidArgument` for settings. An initial
+  fixture compile error (`RetouchId` takes `u32`) was corrected before this run.
+- PASS: `cargo fmt --all --check`.
+- PASS: `cargo clippy --locked -p pipeline-cpu --test retouch -- -D warnings`.
+- PASS: `git diff --check`.
+- The full five-package test/clippy gates, parity and synthetic catalog render
+  test are pending implementation; prior LR-3 gates below are historical and
+  are not LR-3b verification. No latency retry was run for this follow-up.
+
+No board, mailbox, Swift gate, app, real catalog, or externally supplied ruling
+file was modified. Follow-up commit messages use the requested Claude Opus 5.5
+coauthor trailer. Local only.
+
+---
+
 **Status: PARTIAL; full Rust gate has a Liquify latency failure. Do not merge as
 app-visible retouch support.** Translation and an explicit CPU-operator render test are
 implemented. Full Develop integration is blocked by the no-new-dependency rule.
