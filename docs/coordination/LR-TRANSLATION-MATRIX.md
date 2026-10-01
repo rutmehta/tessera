@@ -17,6 +17,9 @@ the coordinator should review these assignments before implementation.
 - `unsupported-diagnostic`: unsupported source yields a diagnostic and is kept.
   Diagnostics depend on shape/value: nil Lua values may skip codec warnings;
   identity extended curves and their names are retained without warnings.
+- `approximate`: recipe fields present, exact source retained in `lrcat_develop_source`,
+  info diagnostic beginning `approximate: `, and zero user-facing warnings.
+  Unverified Adobe conventions must use this status.
 - `translated`: the valid synthetic example populates an existing field without
   per-key retained source/diagnostics. This does not assert pixel parity for Adobe.
 - `approximate`: the valid synthetic example populates the recipe path (its value
@@ -64,7 +67,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `ConvertToGrayscale` | `/settings/color/monochrome/enabled` | LR-2 | approximate | `true` |
 | `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic | — |
 | `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
-| `DepthMapInfo` | MISSING: imported depth resource reference/calibration; LR-6 regeneration bookkeeping RED | LR-6 | unsupported-diagnostic | — |
+| `DepthMapInfo` | `/settings/effects/lens_blur/depth` | LR-6 | approximate | `{ DepthSource = "synthetic", BaseRawDepthTable = "synthetic-id" }` |
 | `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic | — |
 | `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
@@ -87,7 +90,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `HighlightRecovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
 | `IncrementalTemperature` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
 | `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
-| `LensBlur` | `/settings/effects/lens_blur` (LR-6 Lua/XMP acceptance RED; full-fidelity source contract unresolved) | LR-6 | retained | — |
+| `LensBlur` | `/settings/effects/lens_blur` | LR-6 | approximate | `{ Active = true, BlurAmount = 37, FocalRange = "10 20 60 80", BokehShape = 0 }` |
 | `LensProfileIsEmbedded` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic | — |
 | `MaskGroupBasedCorrections` | `/settings/locals/adjustments` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
@@ -203,15 +206,13 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   Missing resources use the existing subject/sky/background/prompted backend.
   Person sub-parts use subject with a per-part info limitation. Adobe conventions
   remain approximate, with exact source retained. Unknown subtypes remain opaque.
-- **LR-6:** `LensBlur` has amount, focus_range, bokeh string and depth_model.
-  It lacks an imported depth-map handle/calibration, detailed Adobe bokeh controls
-  and dedicated regenerated-depth provenance. A model reference is not a depth
-  raster. Existing native/simple XMP decoding does not settle Adobe fidelity.
-  The 2026-10-01 binding assignment moves `DepthMapInfo` to LR-6. Synthetic
-  Lua/XMP translation and regeneration-bookkeeping probes are committed RED;
-  neither row is promoted to translated. See
-  `tools/orchestrate/wp/LR-6/HANDOFF.md` for source-contract blockers and the
-  existing `image-core::DepthProvider` inference/injection seam.
+- **LR-6b:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
+  optional selection/resource provenance, mask-store key and deferred regeneration,
+  exact source retention, and info-only diagnostics. Adobe units, enum order,
+  helper encoding and calibration remain unverified. See
+  `tools/orchestrate/wp/LR-6/HANDOFF.md` for each interpretation and uncertainty.
+  `image-core::DepthProvider::prepare_lens_blur_depth` resolves caller-associated
+  grayscale resources or regenerates through the explicitly installed provider.
 - **LR-7:** optional `geometry.upright.homography` stores a unit-image
   source-to-output map, tagged by `homography_mode`. Selected matrices,
   center/focal framing and complete four-segment guide sets are approximate.

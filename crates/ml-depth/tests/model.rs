@@ -2,6 +2,7 @@ use ml_depth::{DepthEstimator, DepthStore, MODEL_SHA256};
 use ml_runtime::{ModelRegistry, SessionOptions};
 use std::path::PathBuf;
 #[test]
+#[ignore = "opt-in cached model inference; never part of the default LR gate"]
 fn cached_model_fixture_and_partition() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let cache = std::env::var_os("TESSERA_DEPTH_MODELS")
