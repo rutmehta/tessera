@@ -41,3 +41,19 @@ LR-7 Upright / geometry (`Upright*`, `UprightFourSegments*`, `UprightTransform*`
 - HANDOFF lists exact hashes, measured numbers, limitations, and what Machine B must know for 29c compatibility.
 
 Report lane completions on the mailbox with the branch hash. The coordinator reviews independently and merges in dependency order (LR-0 → LR-1/2/3/7 → LR-4 → LR-5/6).
+
+## Phase 2 (after the LR lanes, or in parallel if workers are free): engine performance lanes
+
+Source: Machine B's release-build profiling report, `origin/wp/B5-prof` (`tools/orchestrate/wp/B5-prof/REPORT.md`), measured under load (diagnostic, not baselines). Same ground rules as above; branches `codex/perf-<n>-<slug>`; every lane needs a reproducible benchmark test (ignored, release) with before/after numbers in HANDOFF, and a correctness golden test proving identical output.
+
+PERF-1 Layer-style export (P15): a styled 14 MP Export Flat takes 83 s. Cache style effect planes by layer revision and avoid re-evaluating repeated blurs. Target 5–10×, identical pixels.
+
+PERF-2 Camera Raw global preview (P19 + P11): the 100%-zoom global-settings preview takes 10.2 s and multi-GB. Cache compatible intermediates (demosaic/colour stages that don't depend on the changed setting) across preview submits; bound memory explicitly. Target 2–5×.
+
+PERF-3 Vector drag (P13 + P19): 152 ms per frame at 20 MP with 4.9 GiB peak RSS. Reuse vector tiles, dirty regions and resident buffers across drag frames. Target < 80 ms and a bounded RSS.
+
+PERF-4 Gaussian apply (P19): 723 ms at 24 MP. SIMD/reusable-buffer separable CPU path or exact-parity GPU separable path. Target 2–4×, pixel-identical within 1/65535.
+
+PERF-5 Memory ceilings: Camera Raw preview peaks at 7 GiB and the Export Flat UI suite at 7.5 GiB. Identify the dominant allocations and add explicit bounds (reuse or streaming), with counting-allocator tests.
+
+Machine B keeps the app-side lanes (P16/P20 export main-thread spans, B5-33). Coordinate any shared file (tessera-ffi) through the coordinator.
