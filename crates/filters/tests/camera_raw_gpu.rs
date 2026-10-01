@@ -772,3 +772,15 @@ fn lr4c_nested_ai_rejected_by_cpu_parser() {
     assert!(matches!(filters::camera_raw::parse(&json!({"settings":settings})),
         Err(engine_api::EngineError::Unsupported { .. })));
 }
+
+#[test]
+fn lr4c_ai_and_depth_decline_admission_without_dispatch() {
+    for kind in [json!({"kind":"subject"}),json!({"kind":"depth","range":[0,1]})] {
+        for nested in [false,true] {
+            let c = if nested { json!({"kind":"brush","strokes":[],"group":[kind]}) } else { kind };
+            let mut settings = resident_settings();
+            settings.locals.adjustments = serde_json::from_value(json!([{"components":[c]}])).unwrap();
+            assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+        }
+    }
+}

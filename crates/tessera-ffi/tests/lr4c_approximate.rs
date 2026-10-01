@@ -65,3 +65,15 @@ fn lr4c_documented_metadata_does_not_block_approximation() {
     assert_eq!(r.settings.locals.adjustments.len(),1);
     assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
 }
+
+#[test]
+fn lr4c_zero_value_paint_erases_prior_selection() {
+    let source = r#"s={MaskGroupBasedCorrections={{CorrectionMasks={
+        {What="Mask/Gradient",FullX=0,FullY=0,ZeroX=1,ZeroY=0},
+        {What="Mask/Paint",MaskValue=0,Radius=0.12,Flow=1,CenterWeight=1,Dabs={"d 0.125 0.5"}}
+    }}}}"#;
+    let (r,w) = lua_develop::parse(source,"15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    let image = pipeline_cpu::Image::new(4,1,vec![vec![0.2;4];3]).unwrap();
+    assert_eq!(pipeline_cpu::masks::rasterize(&image,&r.settings.locals.adjustments[0],Default::default()).unwrap(),vec![0.,0.625,0.375,0.125]);
+}

@@ -443,3 +443,16 @@ fn camera_linear_tail_plan_keeps_prefix_immutable_and_geometry_editable() {
     settings.lens.chromatic_aberration_scale = 50.;
     assert!(snapshot.resident_tail_plan(&settings).is_err());
 }
+
+#[test]
+fn lr4c_nested_ai_and_depth_need_original_before_proxy_delivery() {
+    let (_, proxy, mut s) = fixture(32,24);
+    let renderer = Renderer::new(Default::default());
+    for kind in [MaskKind::Subject { model:None }, MaskKind::Depth { range:[0.,1.],feather:0.,model:None }] {
+        let mut wrapper = MaskComponent::new(MaskKind::Brush { strokes:vec![] });
+        wrapper.group = Some(vec![MaskComponent::new(kind)]);
+        s.locals.adjustments = vec![LocalAdjustment { components:vec![wrapper],..Default::default() }];
+        let error = renderer.render_region(&proxy,&s,0,PixelRect::full(proxy.active_extent())).unwrap_err();
+        assert!(error.to_string().contains("original required: AI/depth masks"), "{error}");
+    }
+}
