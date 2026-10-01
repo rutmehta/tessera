@@ -864,3 +864,130 @@ fn lr3d_inactive_spots_are_identity_at_reduced_resolution() {
         assert_bits(&actual, &expected);
     }
 }
+
+/// LR-3e: real Metal-selected session, CPU spot bridge, automatic Upright and
+/// repeated manual geometry edits. Timings are reported, never thresholded.
+#[test]
+#[cfg(target_os = "macos")]
+fn lr3e_gpu_spot_upright_frames() {
+    use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RgbSource, TileCache};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let (w, h) = (768, 512);
+    let plane: Vec<_> = (0..w * h)
+        .map(|i| {
+            let (x, y) = ((i % w) as f32, (i / w) as f32);
+            if (y - 0.17 * x).rem_euclid(32.) < 4. {
+                0.8
+            } else {
+                0.1
+            }
+        })
+        .collect();
+    let raw = RawImage::from_rgb(
+        engine_api::id::ImageId(9305),
+        RgbSource::from_linear_rec2020(Image::new(w, h, vec![plane; 3]).unwrap()).unwrap(),
+    )
+    .unwrap();
+    let gpu = Arc::new(pipeline_gpu::GpuStageOp::new(Arc::new(
+        pipeline_gpu::GpuContext::new().unwrap(),
+    )));
+    let l0 = Arc::new(AtomicUsize::new(0));
+    let calls = l0.clone();
+    let renderer = Renderer::with_ops(gpu, Arc::new(TileCache::new(64 << 20)), Default::default())
+        .with_retouch_renderer(Arc::new(
+            move |rw: u32, rh: u32, p: &mut [Vec<f32>], spots: &[RetouchOperation]| {
+                if rw == w {
+                    calls.fetch_add(1, Ordering::Relaxed);
+                }
+                brush::render_retouch(rw, rh, p, spots)
+            },
+        ));
+    let mut s = settings(false);
+    s.geometry.upright.mode = engine_api::recipe::settings::UprightMode::Level;
+    let rect = PixelRect::full(raw.active_extent());
+    let mut timings = Vec::new();
+    let mut counts = Vec::new();
+    for rotate in [0., 1., 2., 3., 4.] {
+        s.geometry.transform.rotate = rotate;
+        let start = std::time::Instant::now();
+        let tiles = renderer
+            .render_region_as(&raw, &s, 2, rect, RenderOutput::SceneLinear)
+            .unwrap();
+        assert!(!tiles.is_empty());
+        timings.push(start.elapsed().as_secs_f64() * 1000.);
+        counts.push(l0.load(Ordering::Relaxed));
+    }
+    eprintln!(
+        "LR-3e Metal session 768x512, L2, clone + Upright Level: frame ms {timings:?}; L0 solves {counts:?}"
+    );
+    assert_eq!(counts, vec![1; 5]);
+}
+
+#[test]
+fn lr3e_real_spot_scaled_support_is_local() {
+    let (w, h) = (257, 193);
+    let input = Image::new(
+        w,
+        h,
+        vec![
+            (0..w * h)
+                .map(|i| 0.1 + (i * 73 % 997) as f32 / 1300.)
+                .collect();
+            3
+        ],
+    )
+    .unwrap();
+    let context = pipeline_cpu::LensContext {
+        retouch: Some(Arc::new(brush::render_retouch)),
+        ..Default::default()
+    };
+    for heal in [false, true] {
+        let mut s = settings(heal);
+        s.tone.clarity = 17.;
+        s.tone.texture = 11.;
+        s.tone.contrast = 23.;
+        s.color.vibrance = 21.;
+        let mut empty = s.clone();
+        empty.locals.retouch.clear();
+        for scale in [2, 4] {
+            let expected = pipeline_cpu::render_linear_scaled_with_lens(
+                &empty,
+                &RenderSource::Rgb(&input),
+                scale,
+                &context,
+            )
+            .unwrap();
+            let actual = pipeline_cpu::render_linear_scaled_with_lens(
+                &s,
+                &RenderSource::Rgb(&input),
+                scale,
+                &context,
+            )
+            .unwrap();
+            let mut changed = false;
+            let mut checked = 0;
+            for (a, b) in actual.planes().iter().zip(expected.planes()) {
+                for y in 0..actual.height() {
+                    for x in 0..actual.width() {
+                        let i = (y * actual.width() + x) as usize;
+                        changed |= a[i].to_bits() != b[i].to_bits();
+                        // Radius 0.0625 of the short edge, plus a conservative
+                        // 32-input-pixel feather/filter margin and two sample cells.
+                        let margin = (0.0625 * h as f32).ceil() as u32 + 32 + 2 * scale;
+                        if (x * scale).abs_diff(w / 4) > margin
+                            || (y * scale).abs_diff(h / 2) > margin
+                        {
+                            assert_eq!(
+                                a[i].to_bits(),
+                                b[i].to_bits(),
+                                "heal={heal}, scale={scale}, ({x},{y})"
+                            );
+                            checked += 1;
+                        }
+                    }
+                }
+            }
+            assert!(changed && checked > 1000);
+        }
+    }
+}
