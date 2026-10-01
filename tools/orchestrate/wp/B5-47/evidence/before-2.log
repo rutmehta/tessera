@@ -1,0 +1,21 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-01 11:15:21.054.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 11:15:21.055.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 11:15:21.055.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2606, y1: 1734 })
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/DocumentExportFlatTests.swift:442: error: -[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress] : XCTAssertLessThan failed: ("27.19402313232422") is not less than ("20.0") - 18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/DocumentExportFlatTests.swift:457: error: -[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress] : XCTAssertLessThan failed: ("23.951053619384766") is not less than ("20.0") - Main export span: export_flat_main_busy: fixture
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Tests/TesseraCoreTests/DocumentExportFlatTests.swift:457: error: -[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress] : XCTAssertLessThan failed: ("27.19402313232422") is not less than ("20.0") - Main export span: export_flat_main_busy: fixture
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' failed (20.181 seconds).
+Test Suite 'DocumentExportFlatTests' failed at 2026-10-01 11:15:41.236.
+	 Executed 1 test, with 3 failures (0 unexpected) in 20.181 (20.181) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 11:15:41.236.
+	 Executed 1 test, with 3 failures (0 unexpected) in 20.181 (20.181) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 11:15:41.236.
+	 Executed 1 test, with 3 failures (0 unexpected) in 20.181 (20.182) seconds
+B5-47 BASELINES [["load1": [17.9462890625, 16.8291015625], "seconds": 3.631640076637268, "busyTotalMs": 16.19100570678711, "busyMsPerSecond": 4.4583178302678155, "scenario": "idle", "busyP95Ms": 0.17499923706054688, "busyMaxMs": 2.053976058959961, "count": 182], ["count": 584, "busyMaxMs": 23.951053619384766, "busyMsPerSecond": 546.0817709261283, "load1": [15.8818359375, 15.8818359375], "busyTotalMs": 2058.9035749435425, "seconds": 3.770321011543274, "busyP95Ms": 11.660933494567871, "scenario": "edit"], ["count": 169, "busyMaxMs": 27.19402313232422, "seconds": 1.9035239219665527, "busyTotalMs": 42.31441020965576, "load1": [15.41064453125, 15.41064453125], "busyP95Ms": 0.09310245513916016, "scenario": "export", "busyMsPerSecond": 22.229513231407278]]
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

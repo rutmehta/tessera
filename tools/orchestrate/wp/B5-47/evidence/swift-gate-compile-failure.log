@@ -1,0 +1,6 @@
+Compact gate output; full local log: swift-gate-compile-failure.full.log
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+     |                 |- error: sending 'self' risks causing data races [#SendingRisksDataRace]
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-47/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift:1221:17: error: sending 'self' risks causing data races [#SendingRisksDataRace]
+     |                 |- error: sending 'self' risks causing data races [#SendingRisksDataRace]
+SWIFT GATE FAILED (exit 1):

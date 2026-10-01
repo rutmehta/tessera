@@ -1,0 +1,506 @@
+[
+  {
+    "dropped": 0,
+    "exportMinusBaseline": {
+      "edit": {
+        "busyMaxMs": -12.436985969543457,
+        "busyMsPerSecond": -515.7766122162462,
+        "busyP95Ms": -12.448906898498535,
+        "durationAdjustedTotalMs": -1047.1369357553551
+      },
+      "idle": {
+        "busyMaxMs": 14.160990715026855,
+        "busyMsPerSecond": 15.412478676487162,
+        "busyP95Ms": 0.05710124969482422,
+        "durationAdjustedTotalMs": 31.290631082211686
+      }
+    },
+    "minimumProgressIntervalMs": 100.72204156313092,
+    "namedMainSpans": {
+      "export_flat_completion_end": {
+        "count": 1,
+        "maxMs": 0.4456249298527837,
+        "totalMs": 0.4456249298527837
+      },
+      "export_flat_hud_update_end": {
+        "count": 8,
+        "maxMs": 4.552499973215163,
+        "totalMs": 7.220958475954831
+      },
+      "export_flat_progress_end": {
+        "count": 5,
+        "maxMs": 4.562208312563598,
+        "totalMs": 6.36895839124918
+      },
+      "export_flat_setup_end": {
+        "count": 1,
+        "maxMs": 0.577750033698976,
+        "totalMs": 0.577750033698976
+      }
+    },
+    "run": "after-1",
+    "scenarios": {
+      "edit": {
+        "busyMaxMs": 26.947975158691406,
+        "busyMsPerSecond": 532.520932903571,
+        "busyP95Ms": 12.545943260192871,
+        "busyTotalMs": 2227.6681661605835,
+        "count": 566,
+        "load1": [
+          9.103515625,
+          9.17529296875
+        ],
+        "scenario": "edit",
+        "seconds": 4.1832499504089355
+      },
+      "export": {
+        "busyMaxMs": 14.51098918914795,
+        "busyMsPerSecond": 16.74432068732469,
+        "busyP95Ms": 0.09703636169433594,
+        "busyTotalMs": 33.99455547332764,
+        "count": 158,
+        "load1": [
+          9.4013671875,
+          9.4013671875
+        ],
+        "scenario": "export",
+        "seconds": 2.0302140712738037
+      },
+      "idle": {
+        "busyMaxMs": 0.34999847412109375,
+        "busyMsPerSecond": 1.3318420108375293,
+        "busyP95Ms": 0.03993511199951172,
+        "busyTotalMs": 5.793333053588867,
+        "count": 185,
+        "load1": [
+          9.4609375,
+          9.103515625
+        ],
+        "scenario": "idle",
+        "seconds": 4.349865078926086
+      }
+    },
+    "snapshotCount": 1,
+    "snapshotOnMainCount": 0
+  },
+  {
+    "dropped": 0,
+    "exportMinusBaseline": {
+      "edit": {
+        "busyMaxMs": -33.743977546691895,
+        "busyMsPerSecond": -503.9038731384633,
+        "busyP95Ms": -12.009978294372559,
+        "durationAdjustedTotalMs": -910.7008902807248
+      },
+      "idle": {
+        "busyMaxMs": 4.966020584106445,
+        "busyMsPerSecond": 7.026902638030318,
+        "busyP95Ms": 0.041961669921875,
+        "durationAdjustedTotalMs": 12.699657274933761
+      }
+    },
+    "minimumProgressIntervalMs": 101.31187504157424,
+    "namedMainSpans": {
+      "export_flat_completion_end": {
+        "count": 1,
+        "maxMs": 0.3899583825841546,
+        "totalMs": 0.3899583825841546
+      },
+      "export_flat_hud_update_end": {
+        "count": 8,
+        "maxMs": 0.4921667277812958,
+        "totalMs": 2.2990000434219837
+      },
+      "export_flat_progress_end": {
+        "count": 5,
+        "maxMs": 0.3384166629984975,
+        "totalMs": 1.4670001110062003
+      },
+      "export_flat_setup_end": {
+        "count": 1,
+        "maxMs": 0.6147082895040512,
+        "totalMs": 0.6147082895040512
+      }
+    },
+    "run": "after-2",
+    "scenarios": {
+      "edit": {
+        "busyMaxMs": 39.03698921203613,
+        "busyMsPerSecond": 512.3368201318485,
+        "busyP95Ms": 12.094974517822266,
+        "busyTotalMs": 2220.3304767608643,
+        "count": 605,
+        "load1": [
+          10.32177734375,
+          10.1357421875
+        ],
+        "scenario": "edit",
+        "seconds": 4.333732008934021
+      },
+      "export": {
+        "busyMaxMs": 5.293011665344238,
+        "busyMsPerSecond": 8.43294699338518,
+        "busyP95Ms": 0.08499622344970703,
+        "busyTotalMs": 15.240788459777832,
+        "count": 141,
+        "load1": [
+          10.1357421875,
+          13.24755859375
+        ],
+        "scenario": "export",
+        "seconds": 1.8072909116744995
+      },
+      "idle": {
+        "busyMaxMs": 0.32699108123779297,
+        "busyMsPerSecond": 1.4060443553548614,
+        "busyP95Ms": 0.04303455352783203,
+        "busyTotalMs": 6.231546401977539,
+        "count": 184,
+        "load1": [
+          10.009765625,
+          10.0888671875
+        ],
+        "scenario": "idle",
+        "seconds": 4.431970000267029
+      }
+    },
+    "snapshotCount": 1,
+    "snapshotOnMainCount": 0
+  },
+  {
+    "dropped": 0,
+    "exportMinusBaseline": {
+      "edit": {
+        "busyMaxMs": -17.35103130340576,
+        "busyMsPerSecond": -479.99438246216744,
+        "busyP95Ms": -11.687159538269043,
+        "durationAdjustedTotalMs": -882.7211641169632
+      },
+      "idle": {
+        "busyMaxMs": 4.9179792404174805,
+        "busyMsPerSecond": 6.544844243170049,
+        "busyP95Ms": 0.026941299438476562,
+        "durationAdjustedTotalMs": 12.036125297259346
+      }
+    },
+    "minimumProgressIntervalMs": 104.70945830456913,
+    "namedMainSpans": {
+      "export_flat_completion_end": {
+        "count": 1,
+        "maxMs": 0.3624584060162306,
+        "totalMs": 0.3624584060162306
+      },
+      "export_flat_hud_update_end": {
+        "count": 8,
+        "maxMs": 0.4736250266432762,
+        "totalMs": 2.350374939851463
+      },
+      "export_flat_progress_end": {
+        "count": 5,
+        "maxMs": 0.32162503339350224,
+        "totalMs": 1.5569584211334586
+      },
+      "export_flat_setup_end": {
+        "count": 1,
+        "maxMs": 0.5750833079218864,
+        "totalMs": 0.5750833079218864
+      }
+    },
+    "run": "after-3",
+    "scenarios": {
+      "edit": {
+        "busyMaxMs": 22.547006607055664,
+        "busyMsPerSecond": 487.99115380584607,
+        "busyP95Ms": 11.76309585571289,
+        "busyTotalMs": 2138.7442350387573,
+        "count": 588,
+        "load1": [
+          13.1484375,
+          12.73583984375
+        ],
+        "scenario": "edit",
+        "seconds": 4.382752060890198
+      },
+      "export": {
+        "busyMaxMs": 5.195975303649902,
+        "busyMsPerSecond": 7.9967713436786285,
+        "busyP95Ms": 0.07593631744384766,
+        "busyTotalMs": 14.706254005432129,
+        "count": 147,
+        "load1": [
+          12.6767578125,
+          12.6767578125
+        ],
+        "scenario": "export",
+        "seconds": 1.8390239477157593
+      },
+      "idle": {
+        "busyMaxMs": 0.2779960632324219,
+        "busyMsPerSecond": 1.4519271005085792,
+        "busyP95Ms": 0.048995018005371094,
+        "busyTotalMs": 6.330966949462891,
+        "count": 184,
+        "load1": [
+          12.9873046875,
+          13.1484375
+        ],
+        "scenario": "idle",
+        "seconds": 4.360388994216919
+      }
+    },
+    "snapshotCount": 1,
+    "snapshotOnMainCount": 0
+  },
+  {
+    "dropped": 0,
+    "exportMinusBaseline": {
+      "edit": {
+        "busyMaxMs": 4.651904106140137,
+        "busyMsPerSecond": -514.6063694537204,
+        "busyP95Ms": -11.281967163085938,
+        "durationAdjustedTotalMs": -1018.5856115938775
+      },
+      "idle": {
+        "busyMaxMs": 27.894020080566406,
+        "busyMsPerSecond": 17.9922669374864,
+        "busyP95Ms": -0.026941299438476562,
+        "durationAdjustedTotalMs": 35.61297587889269
+      }
+    },
+    "minimumProgressIntervalMs": 105.29016668442637,
+    "namedMainSpans": {
+      "export_flat_completion_end": {
+        "count": 1,
+        "maxMs": 0.4533750470727682,
+        "totalMs": 0.4533750470727682
+      },
+      "export_flat_hud_update_end": {
+        "count": 7,
+        "maxMs": 2.8945000376552343,
+        "totalMs": 3.689791657961905
+      },
+      "export_flat_progress_end": {
+        "count": 5,
+        "maxMs": 0.09808328468352556,
+        "totalMs": 0.395958311855793
+      },
+      "export_flat_setup_end": {
+        "count": 1,
+        "maxMs": 3.1387500930577517,
+        "totalMs": 3.1387500930577517
+      }
+    },
+    "run": "before-1",
+    "scenarios": {
+      "edit": {
+        "busyMaxMs": 24.270057678222656,
+        "busyMsPerSecond": 536.9102949636417,
+        "busyP95Ms": 11.377930641174316,
+        "busyTotalMs": 2020.2414989471436,
+        "count": 588,
+        "load1": [
+          11.69580078125,
+          13.1611328125
+        ],
+        "scenario": "edit",
+        "seconds": 3.7627170085906982
+      },
+      "export": {
+        "busyMaxMs": 28.921961784362793,
+        "busyMsPerSecond": 22.303925509921324,
+        "busyP95Ms": 0.0959634780883789,
+        "busyTotalMs": 44.14725303649902,
+        "count": 168,
+        "load1": [
+          19.07373046875,
+          19.07373046875
+        ],
+        "scenario": "export",
+        "seconds": 1.9793490171432495
+      },
+      "idle": {
+        "busyMaxMs": 1.0279417037963867,
+        "busyMsPerSecond": 4.311658572434924,
+        "busyP95Ms": 0.12290477752685547,
+        "busyTotalMs": 15.587210655212402,
+        "count": 182,
+        "load1": [
+          12.36572265625,
+          11.69580078125
+        ],
+        "scenario": "idle",
+        "seconds": 3.6151310205459595
+      }
+    },
+    "snapshotCount": 1,
+    "snapshotOnMainCount": 0
+  },
+  {
+    "dropped": 0,
+    "exportMinusBaseline": {
+      "edit": {
+        "busyMaxMs": 3.242969512939453,
+        "busyMsPerSecond": -523.8522576947211,
+        "busyP95Ms": -11.567831039428711,
+        "durationAdjustedTotalMs": -997.1653040980887
+      },
+      "idle": {
+        "busyMaxMs": 25.140047073364258,
+        "busyMsPerSecond": 17.77119540113946,
+        "busyP95Ms": -0.08189678192138672,
+        "durationAdjustedTotalMs": 33.82789556801096
+      }
+    },
+    "minimumProgressIntervalMs": 103.69083331897855,
+    "namedMainSpans": {
+      "export_flat_completion_end": {
+        "count": 1,
+        "maxMs": 0.45674992725253105,
+        "totalMs": 0.45674992725253105
+      },
+      "export_flat_hud_update_end": {
+        "count": 7,
+        "maxMs": 1.10616663005203,
+        "totalMs": 1.9501667702570558
+      },
+      "export_flat_progress_end": {
+        "count": 5,
+        "maxMs": 0.13224990107119083,
+        "totalMs": 0.4395415307953954
+      },
+      "export_flat_setup_end": {
+        "count": 1,
+        "maxMs": 1.3352499809116125,
+        "totalMs": 1.3352499809116125
+      }
+    },
+    "run": "before-2",
+    "scenarios": {
+      "edit": {
+        "busyMaxMs": 23.951053619384766,
+        "busyMsPerSecond": 546.0817709261283,
+        "busyP95Ms": 11.660933494567871,
+        "busyTotalMs": 2058.9035749435425,
+        "count": 584,
+        "load1": [
+          15.8818359375,
+          15.8818359375
+        ],
+        "scenario": "edit",
+        "seconds": 3.770321011543274
+      },
+      "export": {
+        "busyMaxMs": 27.19402313232422,
+        "busyMsPerSecond": 22.229513231407278,
+        "busyP95Ms": 0.09310245513916016,
+        "busyTotalMs": 42.31441020965576,
+        "count": 169,
+        "load1": [
+          15.41064453125,
+          15.41064453125
+        ],
+        "scenario": "export",
+        "seconds": 1.9035239219665527
+      },
+      "idle": {
+        "busyMaxMs": 2.053976058959961,
+        "busyMsPerSecond": 4.4583178302678155,
+        "busyP95Ms": 0.17499923706054688,
+        "busyTotalMs": 16.19100570678711,
+        "count": 182,
+        "load1": [
+          17.9462890625,
+          16.8291015625
+        ],
+        "scenario": "idle",
+        "seconds": 3.631640076637268
+      }
+    },
+    "snapshotCount": 1,
+    "snapshotOnMainCount": 0
+  },
+  {
+    "dropped": 0,
+    "exportMinusBaseline": {
+      "edit": {
+        "busyMaxMs": 1.2519359588623047,
+        "busyMsPerSecond": -525.5349390689951,
+        "busyP95Ms": -11.551856994628906,
+        "durationAdjustedTotalMs": -1024.0300330782964
+      },
+      "idle": {
+        "busyMaxMs": 24.653911590576172,
+        "busyMsPerSecond": 14.476831613759275,
+        "busyP95Ms": -0.12385845184326172,
+        "durationAdjustedTotalMs": 28.208800698521337
+      }
+    },
+    "minimumProgressIntervalMs": 105.67558335606009,
+    "namedMainSpans": {
+      "export_flat_completion_end": {
+        "count": 1,
+        "maxMs": 0.4406666848808527,
+        "totalMs": 0.4406666848808527
+      },
+      "export_flat_hud_update_end": {
+        "count": 7,
+        "maxMs": 3.1158332712948322,
+        "totalMs": 3.8350000977516174
+      },
+      "export_flat_progress_end": {
+        "count": 5,
+        "maxMs": 0.07720838766545057,
+        "totalMs": 0.32287510111927986
+      },
+      "export_flat_setup_end": {
+        "count": 1,
+        "maxMs": 3.607333404943347,
+        "totalMs": 3.607333404943347
+      }
+    },
+    "run": "before-3",
+    "scenarios": {
+      "edit": {
+        "busyMaxMs": 24.505972862243652,
+        "busyMsPerSecond": 545.8767373689051,
+        "busyP95Ms": 11.63792610168457,
+        "busyTotalMs": 2054.6308755874634,
+        "count": 601,
+        "load1": [
+          14.13671875,
+          13.64501953125
+        ],
+        "scenario": "edit",
+        "seconds": 3.763909935951233
+      },
+      "export": {
+        "busyMaxMs": 25.757908821105957,
+        "busyMsPerSecond": 20.341798299909975,
+        "busyP95Ms": 0.08606910705566406,
+        "busyTotalMs": 39.636969566345215,
+        "count": 169,
+        "load1": [
+          15.67529296875,
+          15.67529296875
+        ],
+        "scenario": "export",
+        "seconds": 1.9485479593276978
+      },
+      "idle": {
+        "busyMaxMs": 1.1039972305297852,
+        "busyMsPerSecond": 5.8649666861507,
+        "busyP95Ms": 0.20992755889892578,
+        "busyTotalMs": 21.445274353027344,
+        "count": 182,
+        "load1": [
+          14.67138671875,
+          14.13671875
+        ],
+        "scenario": "idle",
+        "seconds": 3.6565040349960327
+      }
+    },
+    "snapshotCount": 1,
+    "snapshotOnMainCount": 0
+  }
+]

@@ -1,0 +1,18 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-01 11:36:46.443.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 11:36:46.446.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 11:36:46.446.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2606, y1: 1734 })
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' passed (21.620 seconds).
+Test Suite 'DocumentExportFlatTests' passed at 2026-10-01 11:37:08.067.
+	 Executed 1 test, with 0 failures (0 unexpected) in 21.620 (21.621) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 11:37:08.067.
+	 Executed 1 test, with 0 failures (0 unexpected) in 21.620 (21.621) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 11:37:08.067.
+	 Executed 1 test, with 0 failures (0 unexpected) in 21.620 (21.623) seconds
+B5-47 BASELINES [["load1": [10.009765625, 10.0888671875], "seconds": 4.431970000267029, "busyMaxMs": 0.32699108123779297, "busyP95Ms": 0.04303455352783203, "scenario": "idle", "count": 184, "busyTotalMs": 6.231546401977539, "busyMsPerSecond": 1.4060443553548614], ["busyTotalMs": 2220.3304767608643, "count": 605, "busyMaxMs": 39.03698921203613, "busyP95Ms": 12.094974517822266, "load1": [10.32177734375, 10.1357421875], "scenario": "edit", "seconds": 4.333732008934021, "busyMsPerSecond": 512.3368201318485], ["scenario": "export", "busyP95Ms": 0.08499622344970703, "seconds": 1.8072909116744995, "busyMsPerSecond": 8.43294699338518, "count": 141, "busyTotalMs": 15.240788459777832, "load1": [10.1357421875, 13.24755859375], "busyMaxMs": 5.293011665344238]]
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

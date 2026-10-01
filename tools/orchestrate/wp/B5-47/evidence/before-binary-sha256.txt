@@ -1,0 +1,1 @@
+8ef5842b52699dfb2f83285bee95878b770e4756a30c8c06b48d80931aa7e734  apps/mac/.build/arm64-apple-macosx/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests
