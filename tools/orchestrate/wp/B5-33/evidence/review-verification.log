@@ -1,0 +1,60 @@
+RED (exit 1)
+Build complete! (181.58s)
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:148: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDAttachesToExportingDocumentWindow] : XCTAssertNotNil failed - HUD belongs to the exporting document window
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:149: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDAttachesToExportingDocumentWindow] : XCTAssertNil failed: "<_TtC7TesseraP33_3716BF021B45288CD5D30894D2FF284622FlatExportProgressView: 0x8d4d76580>" - HUD must not use another window
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 960x600 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of first.png"]")
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:118: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertFalse failed - 960x600 export HUD overlaps inspector header
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 960x600 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of second.png", "Cancel export of first.png"]")
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 1280x800 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of first.png"]")
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:118: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertFalse failed - 1280x800 export HUD overlaps inspector header
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 1280x800 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of first.png", "Cancel export of second.png"]")
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 1440x900 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of first.png"]")
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:118: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertFalse failed - 1440x900 export HUD overlaps inspector header
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 1440x900 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of first.png", "Cancel export of second.png"]")
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 1728x1117 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of first.png"]")
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:118: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertFalse failed - 1728x1117 export HUD overlaps inspector header
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:119: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - 1728x1117 export HUD must stay inside viewport
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:122: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertTrue failed - HUD container must be exposed to AX
+apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:126: error: -[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize] : XCTAssertEqual failed: ("["Cancel"]") is not equal to ("["Cancel export of first.png", "Cancel export of second.png"]")
+	 Executed 2 tests, with 30 failures (0 unexpected) in 7.674 (7.675) seconds
+	 Executed 2 tests, with 30 failures (0 unexpected) in 7.674 (7.675) seconds
+	 Executed 2 tests, with 30 failures (0 unexpected) in 7.674 (7.676) seconds
+
+Selected GREEN (exit 0)
+Build complete! (166.71s)
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.440 (0.440) seconds
+	 Executed 2 tests, with 0 failures (0 unexpected) in 7.751 (7.751) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.306 (0.307) seconds
+	 Executed 11 tests, with 0 failures (0 unexpected) in 8.497 (8.498) seconds
+	 Executed 11 tests, with 0 failures (0 unexpected) in 8.497 (8.499) seconds
+
+Required gate (exit 1; stalled xctest terminated)
+Build complete! (33.94s)
+	 Executed 2 tests, with 2 tests skipped and 0 failures (0 unexpected) in 0.379 (0.379) seconds
+SWIFT GATE FAILED (exit 1):
+MasksPanelLayoutTests.testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth
+
+Capture retry (exit 1)
+Build complete! (0.23s)
+could not create image from window
+apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:88: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTUnwrap failed: expected non-nil value of type "CGImageSourceRef"
+	 Executed 1 test, with 1 failure (0 unexpected) in 1.565 (1.565) seconds
+	 Executed 1 test, with 1 failure (0 unexpected) in 1.565 (1.565) seconds
+	 Executed 1 test, with 1 failure (0 unexpected) in 1.565 (1.566) seconds
+
+Environment: screen capture preflight true; screen locked 1; one display.
+Stall sample: main in XCTWaiter; 80 dispatch threads blocked in NSAnimation._runBlocking.

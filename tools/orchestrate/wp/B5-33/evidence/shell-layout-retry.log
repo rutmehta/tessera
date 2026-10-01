@@ -1,0 +1,21 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-01 02:05:04.036.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 02:05:04.036.
+Test Suite 'ShellLayoutTests' started at 2026-10-01 02:05:04.037.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-33/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:194: error: -[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize] : XCTAssertTrue failed - 2 inspector layout failures:
+document-1280x800-stack-history-open historyBody overlaps historyHeader: {{900, 432}, {288, 168}} / {{992, 768}, {288, 32}}
+document-1280x800-properties-history-open region historyBody not laid out
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' failed (49.477 seconds).
+Test Suite 'ShellLayoutTests' failed at 2026-10-01 02:05:53.514.
+	 Executed 1 test, with 1 failure (0 unexpected) in 49.477 (49.478) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 02:05:53.514.
+	 Executed 1 test, with 1 failure (0 unexpected) in 49.477 (49.478) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 02:05:53.514.
+	 Executed 1 test, with 1 failure (0 unexpected) in 49.477 (49.479) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+
+FOCUSED_EXIT=1

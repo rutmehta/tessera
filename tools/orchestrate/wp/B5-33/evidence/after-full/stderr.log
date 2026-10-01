@@ -1,0 +1,23 @@
+2026-10-01 01:30:44.691 Tessera[79233:47818982] Sparkle updates not configured for this build
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2606, y1: 1734 })
+filter-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+filter-selftest: check filter menu ok
+filter-perf: start: document 5212 × 3468 16-bit, backend Metal (Apple M4 Max), footprint 2864 MiB
+filter-perf: smart filter applied, footprint 4231 MiB
+filter-perf: RESULT p19 fit (L1) smart filter drag value→frame: n 30 p50 143.89 ms p95 808.43 ms max 1232.03 ms
+filter-perf: RESULT p19 fit footprint before 4421 MiB, peak 8388 MiB, 2 s after 6066 MiB
+filter-perf: viewport 1920 × 1080 pt @2x
+filter-selftest: check 4K viewport resize ok
+filter-perf: RESULT p19 100% 4K (L0) smart filter drag value→frame: n 30 p50 284.02 ms p95 917.84 ms max 1027.96 ms
+filter-perf: RESULT p19 100% 4K footprint before 6616 MiB, peak 8089 MiB, 2 s after 5425 MiB
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: 18 MP smart filter export 0: ok in 5.65 s, 347 main-thread spans (Exported perf-flat-0.png (PNG, sRGB))
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 0: n 347 p50 0.02 ms p95 0.34 ms max 93.68 ms; export 5.65 s
+filter-selftest: check 18 MP smart filter export 0 ok
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: 18 MP smart filter export 1: FAILED in 7.31 s, 432 main-thread spans (Export Flat: No space left on device (os error 28) at path "/Users/rutmehta/Developer/lightroom/.worktrees/B5-33/tools/orchestrate/wp/B5-33/evidence/after-full/out/.tmpSnb363")
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 1: n 432 p50 0.02 ms p95 0.91 ms max 42.87 ms; export 7.31 s
+filter-selftest: check 18 MP smart filter export 1 FAIL
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 4608, y1: 3072 })
+filter-perf: styled document 4608 × 3072, layers ["caption", "Layer 1"]
+document: frames composited on the CPU (styles in the resident document program require CPU composition)

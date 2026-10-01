@@ -89,6 +89,74 @@ final class ShellLayoutTests: XCTestCase {
         XCTAssert(failures.isEmpty, "\(failures.count) layout failures:\n" + failures.joined(separator: "\n"))
     }
 
+    /// B5-33: a progress HUD must leave editing chrome reachable without resizing the canvas.
+    func testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize() throws {
+        DocumentInspectorProbe.isEnabled = true
+        defer { DocumentInspectorProbe.isEnabled = false }
+        for size in ShellHarness.sizes {
+            let dir = try scratch()
+            let model = try ShellHarness.model(.document, scratch: dir)
+            DocumentInspectorProbe.frames = [:]
+            let (window, host) = ShellHarness.window(model, size: size, dark: true)
+            defer { window.orderOut(nil); window.contentViewController = nil }
+            let ws = model.documents
+            ws.exportWindow = window
+            let doc = try XCTUnwrap(ws.current)
+            let viewport = try XCTUnwrap(doc.viewport)
+            let before = viewport.convert(viewport.bounds, to: host)
+            let contentBefore = window.contentLayoutRect
+            let options = try XCTUnwrap(DocumentInspectorProbe.frames["toolOptions"])
+            let header = try XCTUnwrap(DocumentInspectorProbe.frames["tabBar"])
+            let tag = "\(Int(size.width))x\(Int(size.height))"
+            var tasks: [FlatExportTask] = []
+            for name in ["first.png", "second.png"] {
+                tasks.append(try XCTUnwrap(ws.startExportFlat(doc, ExportFlatSettings(), to: dir.appendingPathComponent(name))))
+                host.layoutSubtreeIfNeeded()
+                let hud = try XCTUnwrap(exportHUD(in: host))
+                let rect = hud.convert(hud.bounds, to: host)
+                XCTAssertFalse(rect.intersects(options), "\(tag) export HUD overlaps tool options bar")
+                XCTAssertFalse(rect.intersects(header), "\(tag) export HUD overlaps inspector header")
+                XCTAssertTrue(before.contains(rect), "\(tag) export HUD must stay inside viewport")
+                XCTAssertEqual(viewport.convert(viewport.bounds, to: host), before, "HUD must not resize viewport")
+                XCTAssertEqual(window.contentLayoutRect, contentBefore)
+                XCTAssertTrue(hud.isAccessibilityElement(), "HUD container must be exposed to AX")
+                let hit = hud.hitTest(NSPoint(x: hud.frame.minX + 2, y: hud.frame.minY + 2))
+                XCTAssertTrue(hit === hud || hit?.isDescendant(of: hud) == true, "HUD owns its clicks")
+                let buttons = nativeViews(hud).compactMap { $0 as? NSButton }
+                XCTAssertEqual(Set(buttons.compactMap { $0.accessibilityLabel() }),
+                               Set(tasks.map { "Cancel export of \($0.fileName)" }))
+            }
+            for task in tasks { ws.cancelExportFlat(task) }
+        }
+    }
+
+    func testExportHUDAttachesToExportingDocumentWindow() throws {
+        let dir = try scratch()
+        let model = try ShellHarness.model(.document, scratch: dir)
+        let (window, host) = ShellHarness.window(model, size: ShellHarness.sizes[1], dark: true)
+        defer { window.orderOut(nil); window.contentViewController = nil }
+        let other = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+                             styleMask: [.titled], backing: .buffered, defer: false)
+        other.isReleasedWhenClosed = false
+        defer { other.close() }
+        let ws = model.documents
+        // The diagnostic fallback must not override the real exporting document's window.
+        ws.exportWindow = other
+        let task = try XCTUnwrap(ws.startExportFlat(try XCTUnwrap(ws.current), ExportFlatSettings(),
+                                                   to: dir.appendingPathComponent("owned.png")))
+        defer { ws.cancelExportFlat(task) }
+        XCTAssertNotNil(exportHUD(in: host), "HUD belongs to the exporting document window")
+        XCTAssertNil(exportHUD(in: try XCTUnwrap(other.contentView)), "HUD must not use another window")
+    }
+
+    private func nativeViews(_ view: NSView) -> [NSView] {
+        [view] + view.subviews.flatMap { nativeViews($0) }
+    }
+
+    private func exportHUD(in view: NSView) -> NSView? {
+        nativeViews(view).first { $0.accessibilityIdentifier() == "document-export-progress" }
+    }
+
     /// WP B5-16: the document window at every size with every inspector sub-tab (Stack · Properties ·
     /// Channels) and History expanded and collapsed, with snapshots and history rows present: root and
     /// column containment, no overlapping actionable siblings, nothing under the toolbar, and the

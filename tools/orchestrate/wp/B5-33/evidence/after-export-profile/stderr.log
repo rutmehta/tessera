@@ -1,0 +1,32 @@
+2026-10-01 02:14:00.995 Tessera[78115:48471272] Sparkle updates not configured for this build
+selftest-host: host window 38148
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2606, y1: 1734 })
+filter-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+filter-selftest: check filter menu ok
+filter-perf: start: document 5212 × 3468 16-bit, backend Metal (Apple M4 Max), footprint 2365 MiB
+filter-perf: smart filter applied, footprint 4373 MiB
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: 18 MP smart filter export 0: ok in 3.20 s, 185 main-thread spans (Exported perf-flat-0.png (PNG, sRGB))
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 0: n 185 p50 0.02 ms p95 0.77 ms max 104.70 ms; export 3.20 s
+filter-selftest: check 18 MP smart filter export 0 ok
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: 18 MP smart filter export 1: ok in 2.45 s, 190 main-thread spans (Exported perf-flat-1.png (PNG, sRGB))
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 1: n 190 p50 0.02 ms p95 0.78 ms max 13.05 ms; export 2.45 s
+filter-selftest: check 18 MP smart filter export 1 ok
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2304, y1: 1536 })
+filter-perf: styled document 4608 × 3072, layers ["caption", "Layer 1"]
+document: frames composited on the CPU (styles in the resident document program require CPU composition)
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: styled 14 MP export 0: ok in 97.71 s, 4986 main-thread spans (Exported perf-flat-0.png (PNG, sRGB))
+filter-perf: RESULT p16 styled 14 MP main-thread spans during Export Flat 0: n 4986 p50 0.02 ms p95 0.05 ms max 41.05 ms; export 97.71 s
+filter-selftest: check styled 14 MP export 0 ok
+filter-selftest: check Export Flat avoids App Nap ok
+filter-perf: styled 14 MP export 1: ok in 102.51 s, 5214 main-thread spans (Exported perf-flat-1.png (PNG, sRGB))
+filter-perf: RESULT p16 styled 14 MP main-thread spans during Export Flat 1: n 5214 p50 0.02 ms p95 0.05 ms max 29.05 ms; export 102.51 s
+filter-selftest: check styled 14 MP export 1 ok
+filter-selftest: cancel at 31 % → finished in 5115 ms
+filter-selftest: check cancelled ok
+filter-selftest: check destination kept ok
+filter-selftest: check no temporary file ok
+filter-perf: done, footprint 13227 MiB
+filter-selftest: done, 0 failure(s)

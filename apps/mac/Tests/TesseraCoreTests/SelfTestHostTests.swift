@@ -1,9 +1,28 @@
+import AppKit
 import XCTest
 @testable import Tessera
 
 /// B5-selftest-window: which launches get the background self-test host.
 @MainActor
 final class SelfTestHostTests: XCTestCase {
+    func testBackgroundHostResizesWithoutClampingToItsInitialContentSize() {
+        _ = NSApplication.shared
+        let window = SelfTestHost.makeWindow(model: AppModel())
+        defer { window.close() }
+        XCTAssertFalse(window.canBecomeKey)
+        XCTAssertFalse(window.canBecomeMain)
+        XCTAssertFalse(window.isVisible)
+        // Exercise the real hosting hierarchy in both directions, including the 4K resize.
+        // Never order the window, activate the application, or capture the screen.
+        for size in [NSSize(width: 2400, height: 1300), NSSize(width: 1440, height: 900),
+                     NSSize(width: 2800, height: 1500)] {
+            window.setFrame(NSRect(origin: window.frame.origin, size: size), display: true)
+            window.contentView?.layoutSubtreeIfNeeded()
+            XCTAssertEqual(window.frame.width, size.width, accuracy: 1)
+            XCTAssertEqual(window.frame.height, size.height, accuracy: 1)
+        }
+    }
+
     func testArgumentFlagsInBothForms() {
         XCTAssertTrue(SelfTestHost.requested(["Tessera", "--vector-selftest=/tmp/x"], environment: [:]))
         XCTAssertTrue(SelfTestHost.requested(["Tessera", "--camera-raw-selftest", "/tmp/x"], environment: [:]))
