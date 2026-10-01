@@ -15,8 +15,8 @@ BEFORE app built at `01dd0b55`; AFTER source is `c9bc561c`.
   cancellation is forwarded once the snapshot exists; abandoning a reservation releases it.
   Native calls never occur while the new reservation/preparation locks are held. Two deterministic
   tests close the document before starting the worker, including cancellation with a preexisting destination.
-- **Snapshot timing:** the menu export includes edits committed before the worker acquires its
-  snapshot; later edits do not affect it. This differs from taking the snapshot synchronously at click time.
+- **Snapshot timing:** edits committed between confirm and snapshot acquisition are included.
+  The menu export includes edits committed before the worker acquires its snapshot; later edits do not affect it. This differs from taking the snapshot synchronously at click time.
 - Progress is latest-value coalesced, at most one pending main-queue delivery and at most 10 Hz,
   including phase changes. Identical displayed percent/phase pairs are skipped. Completion cancels
   pending publication and remains immediate. Existing fixed-width monospaced labels remain.
@@ -178,3 +178,47 @@ ignored by the package evidence `.gitignore`. Compact measurement summaries, sou
 provenance hashes, load samples, test/gate logs, and attributed stacks are retained for review.
 Historical filenames containing `green` are not success claims; `test-cold-start-green.log` records
 an intermediate failure and the validation account above supersedes it.
+
+## Machine A review follow-up (S1–S3)
+
+- S1: The fixture's whole-runloop and named-span 20 ms bounds are opt-in via the existing
+  `TESSERA_FILTER_PERF` environment flag (the same presence check as `FilterSelfTest.perfMode`).
+  Run those bounds only on a quiet host. Default execution still checks successful export,
+  exactly one snapshot, snapshot off main, and progress publications at least 95 ms apart.
+  Prior 22.3/27.9 ms loaded-host failures are not evidence that the wall-clock bound is reliable.
+- S2: A deterministic prepare → committed visibility edit → snapshot test compares exported
+  pixels with the edited state, proves that state differs from the pre-edit state, and restores
+  visibility after acquisition to verify the snapshot remains fixed. Edits committed between
+  confirm and snapshot acquisition are included. Publishing the committed `Arc<DocState>`
+  through a short engine lock remains Machine A's ENG-2; no engine fix is included here.
+- S3: Delivery attempts, including skipped identical displayed percent/phase pairs, consume
+  the throttle interval. A virtual-clock scheduler regression drains callbacks between 100
+  duplicate deliveries in 89.1 ms after the old interval expires; at most one wakes main.
+
+### Next work: B5-47 (suggested by Machine A, not implemented)
+
+Use a layer-only HUD (text and bar layers with accessibility overrides), or a borderless
+child window outside the SwiftUI tree. Then remeasure on a quiet host with an idle/edit
+control baseline, measuring export-attributable spans. The whole-main-thread <8 ms target
+remains open; this review follow-up does not claim a new performance measurement.
+
+### Review validation (2026-10-01)
+
+- Tests first: `af001484` introduced the scheduler seam and regressions. Before the fix,
+  the duplicate test deterministically observed 100 main deliveries instead of at most one;
+  the new snapshot semantics test passed. See `evidence/review/red.log`.
+- Required command: `export PATH="$HOME/.cargo/bin:$PATH"`, with the existing isolated
+  `CARGO_TARGET_DIR="$HOME/.cache/tessera-target/B5-40"`, then
+  `cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh`.
+  Exit 0 and **SWIFT GATE OK**: 894 XCTest tests, 3 skipped, zero failures; 5 Swift Testing
+  tests passed. See `evidence/review/swift-gate.log`.
+- Three sequential `swift test -c release --skip-build --filter DocumentExportFlatTests`
+  runs passed, each with 13 tests and zero failures, with `TESSERA_FILTER_PERF` unset.
+  A single task-owned `cargo build --locked -p tessera-ffi --lib -j 2` ran concurrently
+  throughout all three runs using the same external target's separate debug profile.
+  Load1 samples were 47.14–49.20. Cargo was intentionally stopped after the tests;
+  this was a load generator, not an additional completed build gate. No other job was stopped.
+  See `evidence/review/export-loaded-{1,2,3}.log`, `cargo-load.log`, and `load.jsonl`.
+- Optional cancellation nits were not implemented. No Rust, board.json, Cargo.lock,
+  GUI launch, rebase, push, or merge in this follow-up. Swift/FFI builds were serial;
+  only the requested prebuilt-test/Cargo-load check overlapped.
