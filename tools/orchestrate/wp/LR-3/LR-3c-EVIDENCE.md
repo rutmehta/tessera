@@ -1,5 +1,9 @@
 # LR-3c: caller-owned retouch rendering
 
+Historical evidence for LR-3c. Superseded by [LR-3d-EVIDENCE.md](LR-3d-EVIDENCE.md)
+and the current [HANDOFF.md](HANDOFF.md). The stage-order and source-retention
+claims below describe the reviewed older implementation, not LR-3d.
+
 This lane starts at `634d3fbc` on `wp/LR-3-retouch`, without rebase. Option A
 breaks the dependency problem without changing any dependency edges.
 Implementation: `cf85e2ca`. Regression tests: `664423b7`. Final preview/admission
@@ -42,7 +46,7 @@ nonzero operation-level feather return errors; they are not discarded.
 | `tessera-ffi/src/backend.rs::Backend::renderer` | Registers brush for CPU/GPU backend calibration and every renderer returned through `Engine::develop_renderer`; session/request snapshots retain it. |
 | `tessera-ffi/src/lib.rs::Engine::open` | Registers brush on the general `PreviewStore`; edited CFA and LinearRaw library previews pass its Arc through their CPU render contexts. Unregistered stores reject retouch even on a cache hit. |
 | `tessera-ffi/src/lrcat_fidelity.rs::fidelity_renderer` | Registers brush on the independent CPU fidelity renderer, including native/Adobe JPEG retouch (whose old path called reference functions directly). |
-| `tessera-ffi/src/smart_preview_thumbnail.rs` | Registers brush on the independent thumbnail renderer. The existing camera-linear proxy admission guard still requires the original for retouch. |
+| `tessera-ffi/src/smart_preview_thumbnail.rs` | The camera-linear proxy admission guard rejects retouch before renderer registration. Registering brush downstream does not make smart-preview spot thumbnails render; the original is required. |
 | `tessera-ffi/src/export.rs::ExportOptions::settings` | Supplies the Arc to file/batch export settings. Export selects the CPU scene stage for spots, then preserves output profile/encoding, DNG and enhancement handling. |
 | `tessera-ffi/src/export.rs::Engine::render_for_print` | Uses the explicit `render_pixels_with_retouch` context entry point. |
 | `export/src/hdr.rs` | Passes the file export's Arc into the scene render before HDR output processing. |
