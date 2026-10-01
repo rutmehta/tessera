@@ -209,6 +209,112 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
     }
 }
 
+/// Compare individual stages with identical sRGB primaries and either the
+/// B5-28 transfer curve or its linear twin. Collect all cases before asserting
+/// so a failure still identifies which stage/curve combination first diverges.
+/// Rich-chain maxima are diagnostics pending the A/Codex engine follow-up:
+/// clamp the texture/clarity signed-luminance divisor or run presence before
+/// sharpening. Baseline rich-chain max is 0.0205; 24 MP full-frame max is 6.14.
+/// Existing rich-chain tolerances remain in the resident-chain test.
+#[test]
+fn bright_value_stage_isolation_with_and_without_profile_curve() {
+    use color_mgmt::{Builtin, Registry};
+    use compositor::document::ColorProfile;
+    let gpu = pipeline_gpu::GpuContext::new().unwrap();
+    let extent = Extent::new(259, 263);
+    let (raster, data) = pixels(extent);
+    let input = upload(&gpu, &data);
+    let mut registry = Registry::new();
+    let srgb = registry.builtin(Builtin::Srgb).unwrap();
+    let linear = registry.linearized_rgb(&srgb).unwrap().unwrap();
+    let mut failures = Vec::new();
+    for curve in [false, true] {
+        let context = FilterContext {
+            profile: Some(ColorProfile::from_icc(
+                "sRGB stage isolation",
+                if curve {
+                    srgb.icc_bytes()
+                } else {
+                    linear.icc_bytes()
+                }
+                .to_vec(),
+            )),
+            level: 0,
+            canvas: extent,
+        };
+        assert_eq!(
+            filters::camera_raw::profile_curves(&context)
+                .unwrap()
+                .is_identity(),
+            !curve
+        );
+        for stage in [
+            "neutral",
+            "sharpen",
+            "dehaze",
+            "sharpen+dehaze",
+            "rich-no-sharpen",
+            "rich-no-dehaze",
+            "rich-no-presence",
+            "rich",
+        ] {
+            let mut settings = resident_settings();
+            settings.detail.sharpening.amount = 0.;
+            settings.detail.noise_reduction.color = 0.;
+            if stage.contains("sharpen") {
+                settings.detail.sharpening.amount = 57.;
+            }
+            if stage.contains("dehaze") {
+                settings.tone.dehaze = 9.;
+            }
+            if stage.starts_with("rich") {
+                settings = rich_settings();
+                if stage == "rich-no-sharpen" {
+                    settings.detail.sharpening.amount = 0.;
+                }
+                if stage == "rich-no-presence" {
+                    settings.tone.texture = 0.;
+                    settings.tone.clarity = 0.;
+                }
+                if stage == "rich-no-dehaze" {
+                    settings.tone.dehaze = 0.;
+                }
+            }
+            let value = json!({"settings": settings});
+            let cpu = cpu_reference(&raster, &value, &context);
+            let output =
+                camera_raw_gpu::evaluate(&gpu.device, &gpu.queue, &input, extent, &value, &context)
+                    .unwrap();
+            let actual = readback(&gpu, &output, extent.area() * 16);
+            let mut worst = (0f32, 0usize, 0usize, 0f32, 0f32);
+            for (i, p) in actual.iter().enumerate() {
+                let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
+                assert_eq!(p[3].to_bits(), data[i][3].to_bits());
+                for c in 0..3 {
+                    assert!(p[c].is_finite());
+                    let gap = (p[c] - expected[c]).abs();
+                    if gap > worst.0 {
+                        worst = (gap, i, c, p[c], expected[c]);
+                    }
+                }
+            }
+            eprintln!(
+                "curve={curve} stage={stage}: max={} pixel={} channel={} GPU={} CPU={}",
+                worst.0, worst.1, worst.2, worst.3, worst.4
+            );
+            // Standalone stages meet this bound on unchanged main numerics.
+            // Rich combinations record their maxima without an unmet bound.
+            if !stage.starts_with("rich") && worst.0 >= 5e-6 {
+                failures.push(format!("curve={curve} stage={stage}: {worst:?}"));
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "standalone absolute 5e-6 parity failures: {failures:#?}"
+    );
+}
+
 #[test]
 fn display_p3_signed_hdr_and_transparent_rgb_match_cpu() {
     use color_mgmt::{Builtin, Registry};
@@ -348,6 +454,10 @@ fn invalid_buffer_and_unsupported_settings_fail_without_dispatch() {
     ));
 }
 
+/// Full-frame error is recorded, not asserted against the unmet 0.01 bound.
+/// Baseline full-frame max: 6.14 (small rich-chain max: 0.0205). A/Codex engine
+/// follow-up: clamp the texture/clarity signed-luminance divisor or evaluate
+/// texture/clarity before sharpening. Preserve main's sampled relative guard.
 #[test]
 #[ignore = "24MP CPU/GPU timing; run explicitly in release on Metal"]
 fn bench_24mp_cpu_gpu() {
@@ -386,20 +496,25 @@ fn bench_24mp_cpu_gpu() {
         "24MP CPU={cpu_time:?} GPU={gpu_time:?} (cold pipelines included, upload/readback excluded)"
     );
     let actual = readback(&gpu, &output, extent.area() * 16);
-    for i in (0..actual.len()).step_by(997) {
+    let mut max_absolute = 0f32;
+    let mut worst = (0usize, 0usize, 0f32, 0f32);
+    for (i, pixel) in actual.iter().enumerate() {
         let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
-        assert_eq!(actual[i][3].to_bits(), data[i][3].to_bits());
+        assert_eq!(pixel[3].to_bits(), data[i][3].to_bits());
         for c in 0..3 {
-            // Encoded samples (B5-28): absolute in [-1, 1], relative beyond,
-            // as in resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha.
-            let scale = expected[c].abs().max(1.);
-            assert!(
-                (actual[i][c] - expected[c]).abs() / scale < 0.002,
-                "{i}/{c}: {:?} vs {expected:?}",
-                actual[i]
-            );
+            assert!(pixel[c].is_finite());
+            let gap = (pixel[c] - expected[c]).abs();
+            if i % 997 == 0 {
+                let scale = expected[c].abs().max(1.);
+                assert!(gap / scale < 0.002, "{i}/{c}: {pixel:?} vs {expected:?}");
+            }
+            if gap > max_absolute {
+                max_absolute = gap;
+                worst = (i, c, pixel[c], expected[c]);
+            }
         }
     }
+    eprintln!("24MP all-pixel max absolute={max_absolute}, worst={worst:?}");
 }
 
 fn resident_settings() -> DevelopSettings {
