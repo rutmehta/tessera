@@ -385,6 +385,25 @@ final class DocumentAdaptiveWideAngleTests: XCTestCase {
         m.cancel()
     }
 
+    @MainActor func testLateSliderTraceCannotEraseFinalApplyError() async throws {
+        let w = try await fisheyeWorkspace(lines: [(CGPoint(x: 20, y: 10), CGPoint(x: 20, y: 80))])
+        defer { w.m.cancel(); w.doc.close() }
+        let m = w.m
+        let t = ScriptedTracer(delays: [0.8, 0], failure: "outside the camera's field of view")
+        m.tracer = { json, _, _ in try t.trace(json) { [] } }
+        m.setFocal(30)
+        await waitFor("slider trace to start") { t.started == 1 }
+        var ended: Result<DocumentChange, Error>?
+        m.onApplied = { ended = $0 }
+        m.ok()
+        await waitFor("failed final apply") { ended != nil }
+        XCTAssertEqual(m.error, "Constraint 1: outside the camera's field of view")
+        let deadline = Date().addingTimeInterval(1.2)
+        while Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(m.error, "Constraint 1: outside the camera's field of view",
+                       "A pre-OK slider trace and its preview must not clear the final apply error")
+    }
+
     /// OK pressed while a slider re-trace is still pending commits curves traced for the released focal length.
     @MainActor func testOKDuringAPendingRetraceCommitsTheFinalFocal() async throws {
         let w = try await fisheyeWorkspace(smartObject: true, lines: [(CGPoint(x: 20, y: 10), CGPoint(x: 20, y: 80))])
