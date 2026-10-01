@@ -1,0 +1,7 @@
+PASS expected exit 1: ''
+PASS expected exit 1: 'develop-selftest: 30 tone frames'
+PASS expected exit 1: 'develop-selftest: done, 1 failures'
+PASS expected exit 1: 'hdr-selftest: done, 0 failures'
+PASS expected exit 0: 'develop-selftest: done, 0 failures'
+PASS expected exit 1: 'develop-selftest: FAIL missing frames\ndevelop-selftest: done, 0 failures'
+6 runner contract cases passed; no capture invoked

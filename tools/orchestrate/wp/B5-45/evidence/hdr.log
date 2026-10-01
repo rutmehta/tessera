@@ -1,0 +1,8 @@
+pid 44487
+killed 44487
+front before: "LSDisplayName"="loginwindow"
+front after:  "LSDisplayName"="loginwindow"
+selftest-host: host window 48807
+hdr-selftest: N/A key-window keyboard routing (never-key host; controller paths exercised)
+hdr-selftest: EDR 1.2× now, 16.0× max; ring RGBA16F; engine headroom 1.2×; frame peak 1.20; 4 headroom frames at L1, render median 4.6 ms, p90 4.9 ms, max 8.1 ms; backend Metal (Apple M4 Max); history: HDR On
+hdr-selftest: done, 0 failures

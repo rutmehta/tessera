@@ -1,0 +1,5 @@
+pid 45199
+front before: "LSDisplayName"="loginwindow"
+front after:  "LSDisplayName"="loginwindow"
+selftest-host: host window 48813
+develop-selftest: FAIL missing successful completion (early exit, timeout, or failed check)

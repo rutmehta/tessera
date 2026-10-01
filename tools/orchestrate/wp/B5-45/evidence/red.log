@@ -1,0 +1,20 @@
+Build complete! (298.58s)
+Test Suite 'SelfTestHostTests' started at 2026-10-01 10:46:34.864.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testArgumentFlagsInBothForms]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testArgumentFlagsInBothForms]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testBackgroundHostResizesWithoutClampingToItsInitialContentSize]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testBackgroundHostResizesWithoutClampingToItsInitialContentSize]' passed (1.456 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testEnvironmentSelfTests]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testEnvironmentSelfTests]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-45/apps/mac/Tests/TesseraCoreTests/SelfTestHostTests.swift:34: error: -[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost] : XCTAssertTrue failed - --develop-selftest
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-45/apps/mac/Tests/TesseraCoreTests/SelfTestHostTests.swift:34: error: -[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost] : XCTAssertTrue failed - --develop-panels-selftest
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-45/apps/mac/Tests/TesseraCoreTests/SelfTestHostTests.swift:34: error: -[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost] : XCTAssertTrue failed - --hdr-selftest
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-45/apps/mac/Tests/TesseraCoreTests/SelfTestHostTests.swift:34: error: -[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost] : XCTAssertTrue failed - --masks-selftest
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLibraryDevelopFlagsRequestBackgroundHost]' failed (0.001 seconds).
+Test Case '-[TesseraCoreTests.SelfTestHostTests testOtherLaunchesAreNotSelfTests]' started.
+Test Case '-[TesseraCoreTests.SelfTestHostTests testOtherLaunchesAreNotSelfTests]' passed (0.000 seconds).
+Test Suite 'SelfTestHostTests' failed at 2026-10-01 10:46:36.322.
+	 Executed 5 tests, with 4 failures (0 unexpected) in 1.458 (1.459) seconds
+	 Executed 5 tests, with 4 failures (0 unexpected) in 1.458 (1.459) seconds
+	 Executed 5 tests, with 4 failures (0 unexpected) in 1.458 (1.460) seconds

@@ -1,0 +1,8 @@
+pid 43836
+killed 43836
+front before: "LSDisplayName"="loginwindow"
+front after:  "LSDisplayName"="loginwindow"
+selftest-host: host window 48801
+develop-selftest: N/A key-window keyboard routing (never-key host; controller paths exercised)
+develop-selftest: 60 tone frames at L1, engine sink median 2.9 ms, p90 4.1 ms, max 10.7 ms (not app input-to-display); backend Metal (Apple M4 Max); residency unavailable; history: Exposure +1.50
+develop-selftest: done, 0 failures
