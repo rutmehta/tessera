@@ -1,5 +1,4 @@
 import AppKit
-import ImageIO
 import SwiftUI
 import Vision
 import XCTest
@@ -62,9 +61,11 @@ final class MasksPanelLayoutTests: XCTestCase {
                 XCTAssertFalse(NSApp.isActive)
                 XCTAssertEqual(host.view.bounds.width, width, accuracy: 1, tag)
                 XCTAssertTrue(ShellLayoutAudit.containmentViolations(in: host.view, columnContent: true).isEmpty, tag)
-                let imageURL = scratch.appendingPathComponent(tag + ".png")
-                try ShellHarness.capture(window, to: imageURL)
-                let words = try renderedWords(imageURL)
+                // Render the actual hosting view offscreen. WindowServer capture may be unavailable
+                // on a background build machine, and is not needed to check the painted labels.
+                let bitmap = try XCTUnwrap(host.view.bitmapImageRepForCachingDisplay(in: host.view.bounds))
+                host.view.cacheDisplay(in: host.view.bounds, to: bitmap)
+                let words = try renderedWords(try XCTUnwrap(bitmap.cgImage))
                 for label in ["Components", "Add", "Subtract", "Intersect"] {
                     // Vision can join the adjacent menu chevron to the full word as "v".
                     // Accept that glyph only; never expand a truncated prefix such as "Sub…".
@@ -74,7 +75,8 @@ final class MasksPanelLayoutTests: XCTestCase {
                 if let captureDirectory = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"] {
                     let directory = URL(fileURLWithPath: captureDirectory)
                     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                    try FileManager.default.copyItem(at: imageURL, to: directory.appendingPathComponent(tag + ".png"))
+                    let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                    try png.write(to: directory.appendingPathComponent(tag + ".png"))
                 }
             }
         }
@@ -84,9 +86,7 @@ final class MasksPanelLayoutTests: XCTestCase {
         await controller.close()
     }
 
-    private func renderedWords(_ url: URL) throws -> Set<String> {
-        let source = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
-        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+    private func renderedWords(_ image: CGImage) throws -> Set<String> {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["en-US"]

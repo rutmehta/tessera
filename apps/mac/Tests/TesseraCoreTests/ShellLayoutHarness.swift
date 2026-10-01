@@ -19,6 +19,12 @@ enum ShellHarness {
     static let sizes: [CGSize] = [CGSize(width: 960, height: 600), CGSize(width: 1280, height: 800),
                                   CGSize(width: 1440, height: 900), CGSize(width: 1728, height: 1117)]
 
+    // Worktree gates share the xctest preferences domain. In particular, another process can
+    // collapse History while this process measures its expanded geometry. Use the same explicit
+    // app-directory isolation as the app, with a private store for this test process.
+    private static let defaultsDirectory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("tessera-layout-defaults-\(UUID().uuidString)")
+
     static var repoRoot: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -26,6 +32,9 @@ enum ShellHarness {
 
     /// Never become the active app: no Dock icon, no focus change for the person at the Mac.
     static func prepare() {
+        precondition(AppDefaultsIsolation.installForLaunch(
+            arguments: ["TesseraTests", "--app-dir", defaultsDirectory.path], environment: [:]) != nil,
+            "The layout harness requires an isolated preferences store")
         NSApplication.shared.setActivationPolicy(.prohibited)
     }
 
