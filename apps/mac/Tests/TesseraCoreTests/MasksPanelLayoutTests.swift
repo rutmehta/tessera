@@ -56,6 +56,7 @@ final class MasksPanelLayoutTests: XCTestCase {
                 for _ in 0..<3 {
                     window.setContentSize(CGSize(width: width, height: 720))
                     host.view.layoutSubtreeIfNeeded()
+                    ShellHarness.useTimerAnimations(in: host.view)
                     try await Task.sleep(for: .milliseconds(100))
                 }
                 XCTAssertFalse(NSApp.isActive)
