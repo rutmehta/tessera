@@ -736,3 +736,21 @@ fn resident_matches_cpu_evaluator_on_encoded_samples_across_profiles() {
         assert!(max_error < 0.002, "{builtin:?}: {max_error}");
     }
 }
+
+#[test]
+fn lr4b_four_bounds_choose_cpu_before_resident_dispatch() {
+    use engine_api::recipe::{LocalAdjustment, MaskComponent, MaskKind};
+    let mut settings = resident_settings();
+    let mut c = MaskComponent::new(MaskKind::LuminanceRange {
+        range: [0.25, 0.5],
+        smoothness: 0.,
+    });
+    c.luminance_bounds = Some([0., 0.25, 0.5, 1.]);
+    settings.locals.adjustments = vec![LocalAdjustment {
+        components: vec![c],
+        ..Default::default()
+    }];
+    assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+    settings.locals.adjustments[0].components[0].enabled = false;
+    assert!(camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+}

@@ -36,3 +36,10 @@ fn lr4b_invalid_bounds_are_rejected_before_rendering() {
         assert!(rasterize(&i, &g, MaskOptions::default()).is_err());
     }
 }
+
+#[test]
+fn lr4b_disabled_parent_suppresses_invalid_bounds_in_descendants() {
+    let g:LocalAdjustment=serde_json::from_value(json!({"components":[{"kind":"brush","strokes":[],"enabled":false,"group":[{"kind":"luminance_range","range":[0.25,0.5],"luminance_bounds":[1.,0.25,0.5,0.]}]}]})).unwrap();
+    let i = Image::new(1, 1, vec![vec![0.4]; 3]).unwrap();
+    assert_eq!(rasterize(&i, &g, MaskOptions::default()).unwrap(), vec![0.]);
+}
