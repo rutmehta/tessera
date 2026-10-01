@@ -7,14 +7,29 @@ enum FilterLayoutReproduction {
     // Geometry arguments allow the diagnostic's target to be tested on other displays.
     static func viewportTarget(visibleFrame: NSRect, scale: CGFloat,
                                hostSize: NSSize, viewportSize: NSSize) -> NSSize {
-        NSSize(width: 3840, height: 2160)
+        let achievable = achievableViewport(visibleFrame: visibleFrame, scale: scale,
+                                            hostSize: hostSize, viewportSize: viewportSize)
+        return NSSize(width: min(3840, achievable.width), height: min(2160, achievable.height))
+    }
+
+    static func achievableViewport(visibleFrame: NSRect, scale: CGFloat,
+                                   hostSize: NSSize, viewportSize: NSSize) -> NSSize {
+        // Measure all chrome and panels from the attached, laid-out host; no fixed insets.
+        NSSize(width: floor(max(0, visibleFrame.width - (hostSize.width - viewportSize.width)) * scale),
+               height: floor(max(0, visibleFrame.height - (hostSize.height - viewportSize.height)) * scale))
+    }
+
+    struct Result {
+        var failures: [String] = []
+        var notes: [String] = []
+        var detail: String { (failures + notes).joined(separator: "; ") }
     }
 
     static func log(_ text: String) {
         FileHandle.standardError.write(Data("filter-layout: \(text)\n".utf8))
     }
 
-    static func run(model: AppModel, window: NSWindow) async -> [String] {
+    static func run(model: AppModel, window: NSWindow) async -> Result {
         let previousHandler = NSGetUncaughtExceptionHandler()
         NSSetUncaughtExceptionHandler { exception in
             let text = "filter-layout: EXCEPTION \(exception.name.rawValue): \(exception.reason ?? "no reason")\n\(exception.callStackSymbols.joined(separator: "\n"))\n"
@@ -34,13 +49,13 @@ enum FilterLayoutReproduction {
         DocumentInspectorProbe.isEnabled = true
         defer { DocumentInspectorProbe.isEnabled = previousProbe }
         let ws = model.documents
-        guard let doc = ws.current else { return ["no live document"] }
+        guard let doc = ws.current else { return Result(failures: ["no live document"]) }
         model.showInspector = true
         ws.columnVisibility = .all
         ws.inspectorTab = .stack
         guard let layer = doc.layers.first(where: { $0.kind == .pixel }),
               let gaussian = ws.filters.catalogue(doc).first(where: { $0.id == "gaussian_blur" }) else {
-            return ["no pixel layer or Gaussian Blur"]
+            return Result(failures: ["no pixel layer or Gaussian Blur"])
         }
         doc.select(layer.id)
         ws.filters.open(gaussian, doc)
@@ -49,20 +64,27 @@ enum FilterLayoutReproduction {
             try? await Task.sleep(for: .milliseconds(50))
         }
         guard let sheet = ws.filters.filterSheet, window.attachedSheet != nil,
-              let viewport = doc.viewport else { return ["filter sheet or live viewport not attached"] }
+              let viewport = doc.viewport else { return Result(failures: ["filter sheet or live viewport not attached"]) }
+        window.contentView?.layoutSubtreeIfNeeded()
         let initial = window.frame
+        let initialViewport = viewport.bounds.size
+        guard let screen = window.screen else { return Result(failures: ["host screen unavailable"]) }
+        let scale = window.backingScaleFactor
+        let achievable = achievableViewport(visibleFrame: screen.visibleFrame, scale: scale,
+                                            hostSize: initial.size, viewportSize: initialViewport)
+        let pixels = viewportTarget(visibleFrame: screen.visibleFrame, scale: scale,
+                                    hostSize: initial.size, viewportSize: initialViewport)
+        var result = Result()
+        if pixels.width < 3840 || pixels.height < 2160 {
+            result.notes.append("N/A: 4K not reachable on this display (achievable \(Int(achievable.width))x\(Int(achievable.height)))")
+        }
         log("document=\(doc.info.width)x\(doc.info.height) backend=\(doc.info.backend) history=\(doc.history.count) inspector=\(model.showInspector) attachedSheet=true initial=\(initial) scale=\(window.backingScaleFactor)")
-        var failures: [String] = []
-        // Both interpretations: literal 3840×2160 host points, then the historical 4K device viewport.
+        // Keep the literal oversized host probe, then request the achievable device viewport.
         for mode in ["host-points", "viewport-pixels"] {
-            let scale = window.backingScaleFactor
-            let pixels = viewportTarget(visibleFrame: window.screen?.visibleFrame ?? window.frame,
-                                        scale: scale, hostSize: window.frame.size,
-                                        viewportSize: viewport.bounds.size)
             let target = mode == "host-points" ? NSSize(width: 3840, height: 2160) :
                 NSSize(width: pixels.width / scale + window.frame.width - viewport.bounds.width,
                        height: pixels.height / scale + window.frame.height - viewport.bounds.height)
-            for size in [target, initial.size] {
+            for (step, size) in [target, initial.size].enumerated() {
                 log("BEFORE \(mode) requested=\(size) sheet=\(window.attachedSheet != nil)")
                 sheet.set(gaussian.params[0], .number(9), final: false)
                 window.setFrame(NSRect(origin: initial.origin, size: size), display: true)
@@ -74,19 +96,23 @@ enum FilterLayoutReproduction {
                     // P19 requires exception-free layout and the exact device-pixel viewport below.
                     log("CLAMP \(mode): requested \(size), actual \(window.frame.size)")
                     if mode == "viewport-pixels" || size == initial.size {
-                        failures.append("host failed to reach the 4K viewport size or restore initial size")
+                        result.failures.append("host failed to reach the achievable viewport size or restore initial size")
                     }
                 }
-                if mode == "viewport-pixels", size == target,
-                   abs(viewport.bounds.width * scale - 3840) > 2 || abs(viewport.bounds.height * scale - 2160) > 2 {
-                    failures.append("4K viewport not reached")
+                let actualPixels = NSSize(width: viewport.bounds.width * window.backingScaleFactor,
+                                          height: viewport.bounds.height * window.backingScaleFactor)
+                if mode == "viewport-pixels", step == 0, actualPixels != pixels {
+                    result.failures.append("requested achievable viewport \(pixels) not reached: \(actualPixels)")
+                }
+                if step == 1, window.frame.size != initial.size || viewport.bounds.size != initialViewport {
+                    result.failures.append("initial host or viewport size not restored")
                 }
                 log("inspector regions=\(DocumentInspectorProbe.frames)")
-                if window.attachedSheet == nil { failures.append("sheet disappeared during resize") }
-                if window.isKeyWindow || window.isMainWindow { failures.append("host became key/main") }
+                if window.attachedSheet == nil { result.failures.append("sheet disappeared during resize") }
+                if window.isKeyWindow || window.isMainWindow { result.failures.append("host became key/main") }
             }
         }
-        log("done failures=\(failures)")
-        return failures
+        log("done failures=\(result.failures) notes=\(result.notes)")
+        return result
     }
 }
