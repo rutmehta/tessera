@@ -620,6 +620,9 @@ fn catalog_copy_indexes_eight_accessible_references() {
         report.indexed,
         preview.missing,
         report.seconds
+    );
+}
+
 /// B5-29c: the plan report groups per-image develop warnings ("N images
 /// (first: image ID): reason"); the summary still counts every image and
 /// names the first one as an example.
