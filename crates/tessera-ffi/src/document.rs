@@ -969,7 +969,7 @@ impl std::ops::DerefMut for StateGuard<'_> {
 }
 impl Drop for StateGuard<'_> {
     fn drop(&mut self) {
-        if self.changed {
+        if self.changed && !std::thread::panicking() {
             // Prepare and destroy views OUTSIDE the publication lock. Its only
             // work is swapping/cloning an Arc; no render, traversal or COW here.
             let previous = self
