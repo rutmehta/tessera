@@ -14,6 +14,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### External Swift gate failure — 2026-10-01 09:06 UTC heartbeat
+
+Batch21-3e39eb06 Swift gate exited1: summary reports888 XCTest cases,3 skipped,4 failures and names `MasksPanelLayoutTests.testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth`; separate Swift Testing5 cases passed. Rust/Clippy/fmt0 and binding drift0 do not override this failure. Existing coordinator's strict Swift build remains active (PID38029 under parent11928); no completed strict result or overall acceptance verified. Main remains0c6ab1c7. Codex does not duplicate app/GUI repair or compiler work; mailbox has no new request/handoff.
+
 ### Retained-source dependency landed — 2026-10-01 08:40 UTC heartbeat
 
 Main advanced to0c6ab1c7, integrating B5-29c/29d and retained-source parity/resume corrections. External batch20-0c6ab1c7 exits now show Rust/Clippy/fmt/Swift0 and binding drift0; earlier failed attempts remain above/below as historical evidence. Reused LR-0 Astra worker completed read-only comparison, preserved8d61adce: LR-2 plan now uses tagged `.properties` lexical Lua strings, handles descriptor variants and explicitly guards retention eligibility when promoting CrsKey entries. No implementation approval is inferred; Adobe conversion math remains unresolved. External batch21 parent11928/cargo11932 owns compiler/runtime, evidence batch21-3e39eb06; no Codex runtime launch. Mailbox zero pending and no verified runtime handoff. Claude A coordinator discrepancy remains unresolved.
