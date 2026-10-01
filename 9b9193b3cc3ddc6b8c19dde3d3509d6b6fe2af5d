@@ -1,0 +1,1 @@
+22:55 UTC: main cc25514f integrates ENG-2. External exact 2e2440bb batch38 release gates all0, Swift915/3skip/0fail; Rust Liquify and Develop pass. Combined cc25514f not independently gated here. Prior B failed gates preserved. Board updated; PERF runtime handoff absent.
