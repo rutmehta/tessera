@@ -232,3 +232,64 @@ fn shared_means_benchmark() {
         old[6], new[6]
     );
 }
+
+/// Exercise the recombination boundary with controlled guided-band rounding:
+/// CPU has exactly zero delta; the GPU fine band differs from mid by one z ulp.
+/// This deliberately isolates recombination from the platform's summation order.
+#[test]
+fn presence_zero_delta_vs_one_ulp_matches_cpu_below_floor() {
+    let ctx = crate::GpuContext::new().unwrap();
+    let rgb = [-0.00825019_f32, -0.02218884, 0.2977606];
+    let lum = 0.2627 * rgb[0] + 0.678 * rgb[1] + 0.0593 * rgb[2];
+    assert!(lum > 0. && lum < 1e-3);
+    // A single-pixel CPU image has identical fine/mid bands, hence delta = 0.
+    let input = Image::new(1, 1, rgb.iter().map(|&v| vec![v]).collect()).unwrap();
+    let settings = ToneSettings {
+        texture: 100.,
+        ..Default::default()
+    };
+    let cpu = pipeline_cpu::tone_extra_image(&input, &settings).unwrap();
+    for (c, &v) in rgb.iter().enumerate() {
+        assert!((cpu.planes()[c][0] - v).abs() < 1e-5);
+    }
+    let z = (1.0 + lum / 0.18).ln() / (1.0_f32 + 1.0 / 0.18).ln();
+    let ulp = z.next_up() - z;
+    assert_eq!((z + ulp).to_bits(), z.to_bits() + 1);
+    let upload = |values: &[[f32; 4]]| {
+        ctx.device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("controlled presence bands"),
+                contents: bytemuck::cast_slice(values),
+                usage: wgpu::BufferUsages::STORAGE,
+            })
+    };
+    let src = upload(&[[rgb[0], rgb[1], rgb[2], 0.]; 3]);
+    // Neighbour range permits the one-ulp adjustment at the centre.
+    let guide = upload(&[
+        [z.next_down(), 0., 0., 0.],
+        [z, 0., 0., 0.],
+        [z.next_up(), 0., 0., 0.],
+    ]);
+    let mid = upload(&[[z, 0., 0., 0.]; 3]);
+    let fine = upload(&[[z.next_up(), 0., 0., 0.]; 3]);
+    let (pipeline, mean_pipeline) = pipelines(&ctx).unwrap();
+    let mut job = Job {
+        ctx: &ctx,
+        pipeline,
+        mean_pipeline,
+        encoder: ctx.device.create_command_encoder(&Default::default()),
+        p: [3., 1., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0.],
+        bytes: 48,
+        pending: Vec::new(),
+    };
+    let result = job.pass(6, 0, &[&src, &guide, &fine, &mid, &mid]);
+    let actual = job.read(&result).unwrap()[1];
+    let gap = (0..3)
+        .map(|c| (actual[c] - cpu.planes()[c][0]).abs())
+        .fold(0_f32, f32::max);
+    eprintln!(
+        "zero/one-ulp presence: L={lum}, z={z}, ulp={ulp}, CPU={:?}, GPU={actual:?}, gap={gap}",
+        cpu.planes()
+    );
+    assert!(gap <= 0.01, "zero-delta bypass discontinuity: {gap}");
+}

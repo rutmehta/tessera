@@ -232,10 +232,7 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
 /// Compare individual stages with identical sRGB primaries and either the
 /// B5-28 transfer curve or its linear twin. Collect all cases before asserting
 /// so a failure still identifies which stage/curve combination first diverges.
-/// Rich-chain maxima are diagnostics pending the A/Codex engine follow-up:
-/// clamp the texture/clarity signed-luminance divisor or run presence before
-/// sharpening. Baseline rich-chain max is 0.0205; 24 MP full-frame max is 6.14.
-/// Existing rich-chain tolerances remain in the resident-chain test.
+/// Every rich-chain stage asserts the conditioned absolute 0.01 bound.
 #[test]
 fn bright_value_stage_isolation_with_and_without_profile_curve() {
     use color_mgmt::{Builtin, Registry};
@@ -323,15 +320,20 @@ fn bright_value_stage_isolation_with_and_without_profile_curve() {
                 worst.0, worst.1, worst.2, worst.3, worst.4
             );
             // Standalone stages meet this bound on unchanged main numerics.
-            // Rich combinations record their maxima without an unmet bound.
-            if !stage.starts_with("rich") && worst.0 >= 5e-6 {
+            // Rich combinations retain the absolute resident-chain ceiling.
+            let bound = if stage.starts_with("rich") {
+                0.01
+            } else {
+                5e-6
+            };
+            if worst.0 > bound {
                 failures.push(format!("curve={curve} stage={stage}: {worst:?}"));
             }
         }
     }
     assert!(
         failures.is_empty(),
-        "standalone absolute 5e-6 parity failures: {failures:#?}"
+        "stage parity failures (standalone 5e-6, rich 0.01): {failures:#?}"
     );
 }
 
