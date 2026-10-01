@@ -343,5 +343,5 @@ fn lr6c_diagnostics_describe_only_translated_fields() {
     );
     let (off, _) =
         import_lrcat::develop(1, "s = { LensBlur = { Active = false } }", "15.4").unwrap();
-    assert!(off.unknown.get("lrcat_translation_diagnostics").is_none());
+    assert!(!off.unknown.contains_key("lrcat_translation_diagnostics"));
 }
