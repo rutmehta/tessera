@@ -14,6 +14,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### External gate failure and retry — 2026-10-01 08:05 UTC heartbeat
+
+Batch20 `d56218a6` failed: Rust101/Clippy101/fmt1/Swift gate2; binding drift0 does not make this passing. Rust log identifies an unclosed delimiter in `crates/tessera-ffi/tests/lrcat.rs` (function starting537/println615); Swift preflight reports missing fixtures/raw. The existing Claude A coordinator already owns a retry at `7501d410`, parent86203/cargo86209, evidence `batch20-7501d410`; no retry outcome verified. Codex does not duplicate its repair or runtime. Main555e4999 and the outstanding coordination blocker remain unchanged.
+
 ### Runtime hold — 2026-10-01 07:55 UTC heartbeat
 
 External batch20 parent76994/cargo77000 is running Release tests for import-lrcat/tessera-cli/tessera-ffi, with evidence under `/Volumes/betterSSD/tessera-validation/batch20-d56218a6`. No completed gate exit was verified. Main remains555e4999; mailbox has no new request or peer receipt. Previously reported coordinator discrepancy persists; Codex runtime remains held, without duplicate launches or wakeups.
