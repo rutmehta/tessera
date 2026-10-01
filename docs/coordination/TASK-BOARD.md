@@ -19,6 +19,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### B ENG-1f 24MP acceptance failure — 2026-10-01 21:39 UTC
+
+Published ENG-1f `3e565432`, tested source2e6182d0, reports normal gates457passed/24ignored plus FFI562passed/29ignored and Clippy/fmt0. However explicitly executed ignored24MP Metal test exits101: all-pixel absolute RGB gap0.01663196 exceeds unchanged0.01 at pixel4,999,168 (redGPU0.5281682/CPU0.51153624). Sampled scaled0.002 passed but skipped the worst pixel; finiteRGB/bit-exactalpha passed. This is a new required acceptance blocker, not excused by green default suites or the earlier resident guard ruling. No new24MP presence-off result. Shared-host56.0736sCPU/1.97505sGPU excludesupload/readback and is diagnostic, not accepted benchmark. Peer reports durable archive hashes verified at /Users/rutmehta/tessera-evidence/ENG-1/; A has read the committed handoff, not rerun B's evidence. Main87536669 unchanged; no ENG-1 merge. Next: B/coordinator resolve all-pixel0.01 failure before acceptance; do not weaken it or relabel ignored coverage. External A cargo/clippy active; runtime handoff remains absent.
+
 ### External document accessibility integration and review wave — 2026-10-01 21:24 UTC
 
 Main `87536669` merges B5-42/42b document accessibility identifiers and replaces deprecated row lookup. Read batch35-67ba0c29 exact exits/raw log: Swift0/strict0/drift0,915XCTest/3skipped/0failures. Main additionally contains LR-SCHEMA and coordinator docs absent from that tested tree; combined-main gates remain unverified. Background hosted tests are not actual keyboard/GUI acceptance. B5-42c press-action audit and row-index test remain follow-ups.
