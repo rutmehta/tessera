@@ -360,6 +360,7 @@ mod tests {
     };
     use engine_api::tile::Extent;
     use std::sync::atomic::AtomicBool;
+    use std::time::Instant;
     fn fixture(w: u32, h: u32) -> Raster {
         let mut r = Raster::new(Extent::new(w, h), 4, Depth::F32, 0.0);
         r.edit_region(Rect::of_extent(r.extent()), 1, |x, y, p| {
@@ -367,6 +368,149 @@ mod tests {
         })
         .unwrap();
         r
+    }
+
+    /// Frozen copy of the pre-PERF-4 scalar kernel and pass order. Keep this
+    /// independent of `gaussian_kernel` and `convolve` so loop changes are
+    /// checked against the baseline arithmetic.
+    fn baseline_gaussian(src: &Buffer, sigma: f32) -> Vec<[f32; 4]> {
+        let radius = (3.0 * sigma).ceil() as i32;
+        let mut kernel: Vec<f32> = (-radius..=radius)
+            .map(|x| (-0.5 * (x as f32 / sigma).powi(2)).exp())
+            .collect();
+        let total: f32 = kernel.iter().sum();
+        for weight in &mut kernel {
+            *weight /= total;
+        }
+
+        let mut a = src.pixels.clone();
+        let mut b = src.pixels.clone();
+        for vertical in [false, true] {
+            for y in 0..src.h {
+                for x in 0..src.w {
+                    let mut sum = [0.0; 4];
+                    for (j, &weight) in kernel.iter().enumerate() {
+                        let d = j as i32 - radius;
+                        let sx = x as i32 + if vertical { 0 } else { d };
+                        let sy = y as i32 + if vertical { d } else { 0 };
+                        let input = if vertical { &a } else { &src.pixels };
+                        let pixel = input[
+                            sy.clamp(0, src.h as i32 - 1) as usize * src.w
+                                + sx.clamp(0, src.w as i32 - 1) as usize,
+                        ];
+                        for c in 0..4 {
+                            sum[c] += weight * pixel[c];
+                        }
+                    }
+                    b[y * src.w + x] = sum;
+                }
+            }
+            std::mem::swap(&mut a, &mut b);
+        }
+        a
+    }
+
+    fn gaussian_fixture(w: usize, h: usize) -> Buffer {
+        Buffer {
+            w,
+            h,
+            pixels: (0..w * h)
+                .map(|i| {
+                    let x = (i % w) as f32;
+                    let y = (i / w) as f32;
+                    [
+                        (x * 0.17 - y * 0.09).sin() * 1.8,
+                        ((x * 7.0 + y * 11.0) % 29.0) / 13.0 - 0.7,
+                        (y * 0.21).cos() * 2.2,
+                        0.13 + ((x + 2.0 * y) % 17.0) / 23.0,
+                    ]
+                })
+                .collect(),
+        }
+    }
+
+    fn assert_close_pixels(actual: &[[f32; 4]], expected: &[[f32; 4]], context: &str) {
+        assert_eq!(actual.len(), expected.len());
+        let mut max_error = 0.0_f32;
+        let mut worst = (0, 0, 0.0_f32, 0.0_f32);
+        for (i, (a, e)) in actual.iter().zip(expected).enumerate() {
+            for c in 0..4 {
+                let error = (a[c] - e[c]).abs();
+                if error > max_error {
+                    max_error = error;
+                    worst = (i, c, a[c], e[c]);
+                }
+            }
+        }
+        assert!(
+            max_error <= 1.0 / 65_535.0,
+            "{context}: max error {max_error} at pixel/channel {:?}",
+            worst
+        );
+    }
+
+    #[test]
+    fn gaussian_matches_frozen_baseline_for_edges_hdr_and_fractional_alpha() {
+        let cancel = AtomicBool::new(false);
+        for (w, h, sigma) in [(3, 2, 0.5), (9, 5, 1.25), (47, 23, 12.0)] {
+            let src = gaussian_fixture(w, h);
+            let expected = baseline_gaussian(&src, sigma);
+            let actual = convolve(&src, &gaussian_kernel(sigma), &cancel).unwrap();
+            assert_close_pixels(
+                &actual.pixels,
+                &expected,
+                &format!("{w}x{h}, sigma={sigma}"),
+            );
+            let repeated = convolve(&src, &gaussian_kernel(sigma), &cancel).unwrap();
+            assert_eq!(actual.pixels, repeated.pixels);
+        }
+    }
+
+    #[test]
+    #[ignore = "24 MP r12 paired CPU benchmark; diagnostic under load, not a CI timing gate"]
+    fn benchmark_gaussian_r12_24mp_against_frozen_baseline() {
+        const W: usize = 6000;
+        const H: usize = 4000;
+        const SIGMA: f32 = 12.0;
+        const TRIALS: usize = 3;
+        let host = std::env::var("PERF4_HOST").unwrap_or_else(|_| "unspecified".into());
+        let load = std::env::var("PERF4_LOAD").unwrap_or_else(|_| "unspecified".into());
+        eprintln!("PERF4 host={host} load={load} dimensions={W}x{H} sigma={SIGMA} trials={TRIALS}");
+
+        let src = gaussian_fixture(W, H);
+        let kernel = gaussian_kernel(SIGMA);
+        let cancel = AtomicBool::new(false);
+        let mut baseline_ms = Vec::with_capacity(TRIALS);
+        let mut optimized_ms = Vec::with_capacity(TRIALS);
+
+        for trial in 0..TRIALS {
+            let start = Instant::now();
+            let expected = baseline_gaussian(&src, SIGMA);
+            let baseline_elapsed = start.elapsed();
+
+            let start = Instant::now();
+            let actual = convolve(&src, &kernel, &cancel).unwrap();
+            let optimized_elapsed = start.elapsed();
+            assert_close_pixels(
+                &actual.pixels,
+                &expected,
+                &format!("benchmark trial {trial}"),
+            );
+            baseline_ms.push(baseline_elapsed.as_secs_f64() * 1000.0);
+            optimized_ms.push(optimized_elapsed.as_secs_f64() * 1000.0);
+            eprintln!(
+                "PERF4 trial={trial} baseline_ms={:.3} optimized_ms={:.3}",
+                baseline_ms[trial], optimized_ms[trial]
+            );
+        }
+        baseline_ms.sort_by(f64::total_cmp);
+        optimized_ms.sort_by(f64::total_cmp);
+        let speedup = baseline_ms[1] / optimized_ms[1];
+        eprintln!(
+            "PERF4 median_baseline_ms={:.3} median_optimized_ms={:.3} speedup={speedup:.3}x",
+            baseline_ms[1], optimized_ms[1]
+        );
+        assert!(speedup >= 2.0, "PERF-4 target is at least 2x; got {speedup:.3}x");
     }
     #[test]
     fn gaussian_identity_and_scalar_reference() {
