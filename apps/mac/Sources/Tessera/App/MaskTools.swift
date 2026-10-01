@@ -499,6 +499,7 @@ final class MaskTools: LibraryObserver {
     // MARK: Self-test (`--masks-selftest`)
 
     @ObservationIgnored private var selfTestRan = false
+    @ObservationIgnored private var selfTestFailures = 0
     @ObservationIgnored private var selfTestFrames: [DevelopFrame]?
 
     /// Steps a drag once per display frame and summarises the engine's frame times.
@@ -511,6 +512,10 @@ final class MaskTools: LibraryObserver {
         }
         try? await Task.sleep(for: .milliseconds(700))
         let frames = selfTestFrames ?? []
+        if frames.isEmpty {
+            selfTestFailures += 1
+            SelfTestHost.logLibraryResult("masks-selftest", "FAIL no frames for \(name)")
+        }
         selfTestFrames = nil
         let drag = (frames.count > 1 ? Array(frames.dropLast()) : frames).map(\.renderMs).sorted()
         let levels = Set(frames.map(\.level)).sorted().map { "L\($0)" }.joined(separator: "/")
@@ -524,7 +529,11 @@ final class MaskTools: LibraryObserver {
     private func runSelfTest(_ d: DevelopController) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
-            guard let self, self.develop === d else { return }
+            guard let self, self.develop === d else {
+                SelfTestHost.logLibraryResult("masks-selftest", "FAIL controller lost before test")
+                SelfTestHost.finishLibraryTest("masks-selftest", failures: 1)
+                return
+            }
             self.setActive(true)
             var lines: [String] = []
             lines.append(await self.measure(d, "linear gradient", 30) { i in
@@ -554,6 +563,11 @@ final class MaskTools: LibraryObserver {
             let line = "masks-selftest: " + lines.joined(separator: "; ") + "; masks \(self.list.groups.count); backend \(d.info.backend)"
             FileHandle.standardError.write(Data((line + "\n").utf8))
             self.model.statusMessage = line
+            if lines.count != 4 || self.list.groups.count != 2 {
+                self.selfTestFailures += 1
+                SelfTestHost.logLibraryResult("masks-selftest", "FAIL expected four measurements and two masks")
+            }
+            SelfTestHost.finishLibraryTest("masks-selftest", failures: self.selfTestFailures)
         }
     }
 }

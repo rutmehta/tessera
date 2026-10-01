@@ -468,9 +468,14 @@ final class DevelopTools: LibraryObserver {
         ]
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
-            guard let self, self.develop === d else { return }
+            guard let self, self.develop === d else {
+                SelfTestHost.logLibraryResult("develop-panels-selftest", "FAIL controller lost before test")
+                SelfTestHost.finishLibraryTest("develop-panels-selftest", failures: 1)
+                return
+            }
             self.apply(GradeRange.shadows.wheelPatch(hue: 230, saturation: 0), final: true, label: "Shadows Grade")
             var lines: [String] = []
+            var failures = 0
             for (name, control, from, to) in drags {
                 self.selfTestFrames = []
                 for i in 0...40 {
@@ -480,6 +485,10 @@ final class DevelopTools: LibraryObserver {
                 }
                 try? await Task.sleep(for: .milliseconds(600))
                 let frames = self.selfTestFrames ?? []
+                if frames.isEmpty {
+                    failures += 1
+                    SelfTestHost.logLibraryResult("develop-panels-selftest", "FAIL no frames for \(name)")
+                }
                 // Every frame but the refinement after the final commit.
                 let drag = (frames.count > 1 ? Array(frames.dropLast()) : frames).map(\.renderMs).sorted()
                 let levels = Set(frames.map(\.level)).sorted().map { "L\($0)" }.joined(separator: "/")
@@ -500,6 +509,7 @@ final class DevelopTools: LibraryObserver {
                 self.setCropAngle(3.5, settled: true)
                 if crop == "commit" { self.commitCrop() }
             }
+            SelfTestHost.finishLibraryTest("develop-panels-selftest", failures: failures)
         }
     }
 
