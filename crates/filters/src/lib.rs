@@ -598,6 +598,8 @@ mod tests {
         let cancel = AtomicBool::new(false);
         let mut baseline_ms = Vec::with_capacity(TRIALS);
         let mut optimized_ms = Vec::with_capacity(TRIALS);
+        let mut baseline_digest_reference = None;
+        let mut optimized_digest_reference = None;
 
         for trial in 0..TRIALS {
             let (baseline_elapsed, baseline_digest, optimized_elapsed, optimized_digest) =
@@ -638,14 +640,24 @@ mod tests {
                         optimized_digest,
                     )
                 };
-            assert_eq!(
-                optimized_digest, baseline_digest,
-                "trial {trial}: whole-output digest mismatch"
-            );
+            if let Some(expected) = baseline_digest_reference {
+                assert_eq!(
+                    baseline_digest, expected,
+                    "baseline output changed at trial {trial}"
+                );
+            }
+            if let Some(expected) = optimized_digest_reference {
+                assert_eq!(
+                    optimized_digest, expected,
+                    "optimized output changed at trial {trial}"
+                );
+            }
+            baseline_digest_reference = Some(baseline_digest);
+            optimized_digest_reference = Some(optimized_digest);
             baseline_ms.push(baseline_elapsed.as_secs_f64() * 1000.0);
             optimized_ms.push(optimized_elapsed.as_secs_f64() * 1000.0);
             eprintln!(
-                "PERF4 trial={trial} baseline_ms={:.3} optimized_ms={:.3} digest={baseline_digest:016x}",
+                "PERF4 trial={trial} baseline_ms={:.3} optimized_ms={:.3} baseline_digest={baseline_digest:016x} optimized_digest={optimized_digest:016x}",
                 baseline_ms[trial], optimized_ms[trial],
             );
         }
