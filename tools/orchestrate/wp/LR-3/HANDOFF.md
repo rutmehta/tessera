@@ -1,256 +1,162 @@
-# LR-3: retouch translation and caller-owned rendering
+# LR-3d: retouch review follow-up
 
-## LR-3c (2026-10-01): Option A implemented
+Local-only lane `wp/LR-3-retouch`. Do not force-push from Machine B.
 
-Local commits on top of `634d3fbc`, without rebase:
+The authorized rebase replayed all ten lane commits without conflicts onto
+`c7254291` (including LR-SCHEMA `02ae8196`). No commits were squashed.
+The detached timing baseline is `87536669`, the `origin/main` observed when the
+comparison worktree was created; its intervening merge is B5-42/42b accessibility.
+The two base commits have identical Rust crates and Cargo manifests/lockfile.
 
-- `cf85e2ca`: caller-owned brush retouch integration, FFI/MCP construction sites,
-  CPU/GPU host routing, file/HDR/print export.
-- `664423b7`: real-brush RED-to-GREEN, bit-identical clone/heal kernels,
-  synthetic catalog-to-Develop, missing-renderer, GPU, export and MCP regressions.
-- `53964430`: complete library/JPEG-preview wiring, preservation through FFI
-  admission, full-source detail retouch, and headless session regressions.
+## Current commits and checks
 
-One `pipeline_cpu::RetouchRenderer` trait with one planar-buffer rendering
-method is supplied as `Arc<dyn RetouchRenderer>`. Engine assembly registers
-`brush::render_retouch`; there is no global/static retouch registry and no new
-Cargo dependency edge. Missing renderers and unsupported operations fail
-explicitly. Retouch executes after locals and before effects/geometry.
+- `36a30ea4`, `bb4d3353`, `a9845aed`, `6b54a3ee`: RED regressions.
+- `6693781e`: stage order, CPU host equality, union masks, reduced-resolution
+  solves, source/history/diagnostics and conditional-schema fixes.
+- `72be4015`: preserve inactive-spot identity in reduced-resolution previews.
+- The final `docs(LR-3d):` commit records verification below and in
+  [LR-3d-EVIDENCE.md](LR-3d-EVIDENCE.md).
 
-The original LR-3b RED assertions now pass with brush registered in the FFI
-integration suite. Keeping the real-brush test in FFI is necessary because a
-pipeline-cpu test dependency on brush would recreate the same dependency cycle.
-The pipeline-cpu test covers the mandatory no-renderer error instead.
+Focused import, schema/journal, geometry, MCP and real-brush integration tests
+pass. The final twelve-package functional gate passed: 1,514 passed, zero
+failures; clippy with warnings denied and fmt passed. RAW-fixture tests and the
+two isolated timing tests were filtered from that broad gate. Serial Liquify
+latency failed on both base (p95 344.2 ms) and tip (375.4 ms), against 250 ms.
+The RAW-dependent export/slider comparison remains blocked by the synthetic-only
+constraint; no exception was received. Blocker 4 is therefore only partially
+resolved. Full commands, exclusions and timings are in the evidence file.
+Earlier LR-3/LR-3b/LR-3c gate reports are historical, not evidence for this tip.
 
-See [LR-3c-EVIDENCE.md](LR-3c-EVIDENCE.md) for the full construction-site audit,
-coverage, limitations and gate evidence. The earlier blocked/RED reports below
-are historical and are superseded by this section.
+## Rendering contract
 
-**Gate status: NOT GREEN.** The five-package suite finished with 921 passed,
-2 failed, 34 ignored. Liquify latency failed again in isolation (p95 416.2 ms
-versus a 250 ms limit; initial p95 548.6 ms). The export/slider serial retry also failed: 105/120 frames at L2,
-below the required 108/120; initial run had 0/120. Focused retouch tests, FFI/MCP assembly tests, clippy with warnings
-denied and formatting pass. See the evidence file for exact failure metrics.
+The caller-owned `pipeline_cpu::RetouchRenderer` trait remains the dependency
+boundary. Engine assembly passes `Arc::new(brush::render_retouch)`; no dependency
+edge, manifest or lockfile changed. Missing renderers and unsupported enabled
+operations fail explicitly, including on preview cache hits.
 
-No Cargo manifest/lockfile delta against `634d3fbc`. No board, Swift gate, app,
-push, rebase or real-catalog fixture was involved. The externally supplied
-`LR-RULINGS-FROM-A.md` remains untracked and untouched. All new commits use the
-requested Claude Opus 5.5 coauthor trailer.
+All three Develop paths apply retouch to scene-linear pixels **before Detail,
+Tone, colour and local adjustments**. Retouch participates in the Detail cache
+key; Locals hashes only local adjustments. Native GPU-selected sessions use a
+CPU f32 chain for retouch, including downstream operators, and tests compare
+all output bits to the CPU-selected session. Adobe process selection and DCP
+wrappers survive that host fallback. This proves backend routing equality, not
+Adobe render equivalence.
 
----
+One spot uses one union mask and one immutable source/destination snapshot.
+Separate paths cannot compound spot opacity or clone pixels modified by an
+earlier path in that same spot. Heal solves the union once using the existing
+Poisson kernel. Separate spots still execute in recipe order.
 
-## LR-3b follow-up (2026-10-01): dependency ruling cannot resolve
+## Approximate import and schema
 
-Started on `380a17b0` without rebase. Local RED commit:
-`a1d7e5fff0e1a64117f470aaa05692c8d6be850e`.
-The new `pipeline-cpu/tests/retouch.rs` constructs synthetic heal and clone
-spots and calls `render_linear_scaled`; it fails at the expected settings
-validator rejection. It also asserts that the clone destination changes, to
-catch a renderer that accepts settings but silently drops spots.
+`RetouchAreas` and `RetouchInfo` are **approximate**, not translated: recipe
+fields are populated, exact Lua/XMP source remains in `lrcat_develop_source`,
+and each nonempty successfully mapped key gets an info diagnostic with an
+`approximate: ...` reason and zero importer warnings for that key. Unsupported
+keys keep their existing diagnostics. Empty aliases do not get approximate
+entries. Import produces one history entry with `Author::Import`, including
+both the decoder's settings and retouch; replay validation passes.
 
-The authorized `brush = { path = "../brush" }` addition to
-`crates/pipeline-cpu/Cargo.toml` was attempted. `cargo metadata --offline
---format-version 1` exits 101 with `cyclic package dependency`:
+The matrix guard checks field presence, source retention, an info/approximate
+entry for that key, and no warnings. Four separate negative tests remove each
+required condition. All inherited main rows remain in the matrix.
 
-```text
-pipeline-cpu -> brush -> compositor -> merge -> pipeline-cpu
-```
+LR-DIAG was absent from main when this lane worked. The sole temporary writer is
+private `retouch::push_approximate(recipe, adobe_key, field, lane, reason)`, marked
+with the exact LR-DIAG TODO. It appends and deduplicates entries without replacing
+another key's list or the diagnostics object. At the LR-DIAG rebase, replace the
+private shim with `use crate::diagnostics::push_approximate;` and use
+`diagnostics::entries(recipe)` in the matrix reader. Do not invent another
+channel. LR-DIAG/Machine A owns B5-46's separate “Approximate translations” report
+group; no Swift/report UI change or gate is part of this lane.
 
-These are active normal dependencies, not just test edges. In particular,
-`merge/src/raw.rs` uses `pipeline_cpu::{DemosaicAlgorithm, Image, demosaic}`;
-compositor uses merge's layer alignment/blending implementation. The added
-edge alone cannot build. No extraction or dependency removal was attempted.
-The invalid manifest addition was removed, and `git diff Cargo.lock` plus
-the manifest diff are empty: no new edge, version bumps or external crates.
+This was the first real `V4_FEATURE_PREDICATES` entry on main:
+`("retouch", |r| !r.settings.locals.retouch.is_empty())`. The base
+`RECIPE_SCHEMA_VERSION` remains 3. Retouch recipes serialize as 4; other imports
+stay 3. The predicate harness and FFI journal test cover the bump. Import schema
+expectations and the affected synthetic golden were updated, and sidecar/merge
+round-trip equality ignores only the projected schema version. The schema 4
+bump remains sticky on re-save, as LR-SCHEMA specifies.
 
-**Still blocked:** the single-edge-only lockfile restriction must change to
-break the cycle, or the integration design must change. A broader existing-crate
-cycle fix was requested from the user; no answer had been received when this
-evidence was written. No `feat(LR-3b)` commit is warranted. This is deliberately
-a RED branch, not a merge-ready feature.
+Final 2,000-image synthetic golden:
+`7022e432ed77c0c42227de06f331090e8a43d4e06ca4749959f136a26b659763`.
+Its 200 retouch rows now retain source, carry info diagnostics, have one import
+history entry, and write schema 4. Recompute on LR-6 merge; do not take a side.
 
-Current rendering behavior is unchanged: direct brush operators work as
-documented below, while Develop CPU rejects nonempty retouch. No parity or
-catalog-to-Develop GREEN result is claimed. GPU dispatch was not changed;
-source inspection of image-core's resident entry points and shared
-`Renderer::validate_settings` shows the existing CPU-validator guard remains.
-No GPU retouch rendering or fallback was implemented or runtime-verified.
+## Coordinate and encoding boundary
 
-LR-3b checks use the user's `$HOME/.cache/tessera-target/LR-3-retouch` target
-and `CARGO_BUILD_JOBS=3`, `RAYON_NUM_THREADS=3`:
+Coordinates are normalized to the **current Develop input frame**, before the
+common lens-distortion/output geometry map and crop. For CFA RAW this is the
+unrotated active image (masked sensor margins removed); file EXIF orientation
+is applied by presentation/export afterward. Rendered RGB may already be upright
+because its decoder consumed EXIF orientation before Develop. Radius is relative
+to input width; source offset is explicit source minus the first destination.
 
-- RED: `cargo test --locked -p pipeline-cpu --test retouch -- --nocapture`:
-  0 passed, 1 failed, expected `InvalidArgument` for settings. An initial
-  fixture compile error (`RetouchId` takes `u32`) was corrected before this run.
-- PASS: `cargo fmt --all --check`.
-- PASS: `cargo clippy --locked -p pipeline-cpu --test retouch -- -D warnings`.
-- PASS: `git diff --check`.
-- The full five-package test/clippy gates, parity and synthetic catalog render
-  test are pending implementation; prior LR-3 gates below are historical and
-  are not LR-3b verification. No latency retry was run for this follow-up.
+This convention, Adobe feather/flow behavior and the healing solver are not
+verified against an Adobe-rendered synthetic chart or public DNG+XMP pair.
+They remain approximate with exact source retained. No user catalog is evidence.
+Tests pin supported crop rotation plus a synthetic lens profile and EXIF 5–8
+export behavior. Recipe-level `geometry.orientation` remains explicitly
+unsupported; this lane does not silently implement it as file orientation.
 
-No board, mailbox, Swift gate, app, real catalog, or externally supplied ruling
-file was modified. Follow-up commit messages use the requested Claude Opus 5.5
-coauthor trailer. Local only.
+The LR-3c allow-list rejected LrC 11+ fields including `Seed`, `CenterValue`,
+`MaskDigest` and `Mask/Circle`; those spots stayed retained. LR-3d now accepts
+`Seed`/`MaskDigest` as provenance (preserved exactly in source), and plain
+`Mask/Circle` geometry with `CenterX`, `CenterY`, and `Radius`, as approximate.
+`CenterValue`, other unknown mask fields, unsupported circle encodings,
+variable-radius/pressure commands, inverted/subtractive masks, unresolved
+sources, OffsetY-only sources, unknown methods, cloud/generative/remove modes,
+and conflicting nonempty aliases remain retained atomically. This is not a
+claim to accept every LrC 11+ spot.
 
----
+## Performance and remaining PERF work
 
-**Status: PARTIAL; full Rust gate has a Liquify latency failure. Do not merge as
-app-visible retouch support.** Translation and an explicit CPU-operator render test are
-implemented. Full Develop integration is blocked by the no-new-dependency rule.
-The CPU reference renderer currently rejects nonempty retouch recipes.
+CPU scaled renders reduce the scene-linear buffer before active retouch.
+Disabled/zero-opacity spots keep the no-retouch sampling order and remain an
+identity; a renderer is still required for every nonempty list. Image-core M2
+already supplies target-level pixels; MCP now honors the requested retouch
+preview edge instead of solving its fixed larger preview. JPEG fidelity already
+builds its target-sized input. Scaled export and library previews inherit the
+CPU reduction. Full-resolution export still intentionally renders full detail.
+Depth planes are reduced consistently when supplied to the scaled CPU path.
 
-## Commits and ownership
+The CPU bridge transfers ownership of planar storage instead of cloning the full
+frame. Brush output reuses one tile buffer rather than reading the same raster
+tile per pixel; spot application touches only its dirty rectangle. Raster
+snapshots share tile storage, and one union heal avoids per-stroke solves.
 
-- Branch: `wp/LR-3-retouch`; local only, never pushed.
-- Starting HEAD: `87ff1ff173e4d6d2053a534b7cfd9343aef906e1`, the brief-only
-  successor of the requested base `e6c3e5da`.
-- RED: `68a042a976daed9b350a8835a27dc363b73759f9`.
-- Additional regression tests: `1b2b067f9653c9abb3f9e7e42638a814fcb4fadd`.
-- Implementation: `31562ff18e38100489f5f79f3fd96c393b665004`.
-- The documentation commit follows the implementation; its hash is in the final
-  agent summary and branch HEAD.
+**PERF follow-up remains:** the detail/loupe path retains the full sensor to keep
+remote clone sources available and can re-develop/re-solve the full RAW frame on
+each request. Add source-aware windows and a bounded per-level prefix/retouch
+memo. Further reduce raster/working-frame storage and Poisson scratch allocation,
+and add cancellation during long solves. No low-latency loupe or Adobe solver
+parity claim is made by this lane.
 
-All commit messages carry the requested Claude Fable 5.1 coauthor trailer.
-No dependency manifest, Cargo.lock, board, mailbox, Swift source or gate, or app
-launch was involved. No personal catalog was accessed; new fixtures are entirely
-synthetic. The externally supplied `LR-RULINGS-FROM-A.md` was left untouched.
+## Explicit errors and construction-site limits
 
-## Implemented
+These sites still reject spots rather than render; they are acceptable deferred
+integration work, not silent drops:
 
-`crates/import-lrcat/src/retouch.rs` consumes the existing retained-source
-contract. Supported Lua tables, legacy comma-separated RetouchInfo strings, and
-XMP RDF resources become existing heal/clone operations in
-`settings.locals.retouch`. Explicit normalized source coordinates become source
-minus destination offsets. Circles use a one-point brush target; simple paint
-paths preserve ordered dabs. Radius is relative to image width. Adobe 0–1
-opacity/feather/flow become recipe percentages. Feather is applied on the target,
-with no second operation-level feather.
+- `apps/tessera-cli/src/media.rs` thumbnail and scene-linear paths, and CLI export
+  when no caller-owned renderer is supplied.
+- `crates/filters/src/camera_raw.rs` camera-raw smart filter.
+- Public `export::render_pixels` without a retouch context; callers that have a
+  renderer use `render_pixels_with_retouch`.
+- Camera-linear smart previews, including smart-preview thumbnails: the prefix
+  admission guard requires the original **before** renderer registration.
+- Retouch file export combined with AI masks, raw denoise or depth hooks, and the
+  standalone managed GPU export wrapper. Ordinary registered file/print/HDR
+  exports route through the CPU retouch context.
 
-A complete supported property is removed from `lrcat_develop_source.properties`
-and its stale CRS diagnostic is removed. Unsupported properties retain their
-source. Empty-only values preserve existing output; matching nonempty aliases
-apply once, and conflicting aliases remain retained. A proper import-history
-edit keeps settings and history replay consistent. No recipe schema changed.
+The LR-3c construction-site audit remains useful, but its smart-preview
+registration must not be read as successful spot rendering from a proxy.
 
-Shared-file changes are small: one module registration; Lua uses an untranslated
-XMP decode before rebuilding exact Lua retention, then calls the translator;
-XMP has an additive wrapper calling the same translator after source retention.
-The ordinary sidecar decoder and the existing CPU brush operators are unchanged.
+## Coordinator merge notes
 
-## RED / GREEN evidence
-
-At `68a042a9`, four mapping tests failed because zero operations were imported;
-the malformed-source retention test passed. The synthetic catalog/CPU test also
-failed at the expected zero-versus-one operation assertion. The two later edge
-regressions failed against the initial translator draft (unknown method was
-accepted; inherited XML prefixes were not resolved) before implementation fixes.
-All seven mapping/retention tests now pass.
-
-The end-to-end test writes a synthetic catalog, replaces one develop row, imports
-it, then explicitly adapts its decoded target to the existing `brush::Stroke`
-CPU clone operator on a synthetic 128×80 raster. It does not use the application's
-Develop dispatch. Destination is (32, 40), source is (96, 40), radius is 8 px,
-opacity is 50%, and feather is 50%.
-
-Measured:
-
-- Affected-region centroid error: **0.00000000 px**, limit ≤ 1 px.
-- Center channel value: **0.50000000**, absolute tolerance 1e-5.
-- Feather shoulder: **0.17323937**, absolute tolerance 1e-5 against the independent
-  reference `0.5 * smoothstep((8.5 - sqrt(6.5² + 0.5²)) / 5)`.
-- Pixel outside the footprint remains exactly zero.
-- Retouch keys are absent from the fixture's retained-source map.
-
-No RED assertion was weakened. The feather assertion was tightened from an
-interval to the independent numerical reference. Clippy-only assertion spelling
-changes preserve behavior. The recipe-history invariant failure discovered by
-the catalog test was fixed by using `Recipe::edit`.
-
-## Gates
-
-Environment for every Cargo command:
-
-```sh
-export PATH="$HOME/.cargo/bin:$PATH"
-export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-3-retouch
-export CARGO_BUILD_JOBS=3
-export RAYON_NUM_THREADS=3
-```
-
-- PASS: `cargo clippy --locked -p import-lrcat -p engine-api -p tessera-ffi --all-targets -- -D warnings`
-- PASS: `cargo fmt --all --check`
-- PASS: `git diff --check`
-- FAIL: `cargo test --locked -p import-lrcat -p engine-api -p tessera-ffi -- --test-threads=3`
-  stopped at the unmodified `document_liquify_ui::brush_latency_on_a_20_megapixel_layer`.
-  Initial run: median 289.8 ms, p95 **583.7 ms**, threshold **< 250 ms**.
-  Isolated retry (`--exact --nocapture --test-threads=1`) also failed: median
-  212.4 ms, p95 **266.1 ms**. No threshold or renderer code was changed. This is
-  a measured failure on this shared Mac, not a proven LR-3 regression or a claim
-  that contention is the sole cause.
-- PASS: all 32 remaining FFI test binaries, using `--no-fail-fast` to finish
-  coverage after the original Cargo invocation stopped: **204 passed, 16 ignored**.
-- PASS: `cargo test --locked --doc -p import-lrcat -p engine-api -p tessera-ffi`
-  (these three packages currently have zero doc tests).
-
-The initial gate recorded **523 passed, 1 failed, 15 ignored**. Together with the
-continuation, **727 tests passed, 31 were ignored, and one unique test failed**;
-the isolated retry reproduced that same failure. The full gate is NOT green.
-All seven LR-3 mapping tests and the synthetic CPU import/render test pass.
-Compact evidence is in [EVIDENCE.md](EVIDENCE.md); full raw logs are archived on
-Machine B under `$CARGO_TARGET_DIR/lr3-evidence/`.
-
-`tessera-ffi` is included because it already depends on both importer and brush;
-only a new test file is added there. This avoids adding even a test dependency.
-The existing LibRaw C++ build emits `sprintf` deprecation messages; Rust clippy
-with warnings denied passes. Swift gates and live app verification are deferred
-to the coordinator, as instructed.
-
-## B5-29c compatibility
-
-A comparison against starting HEAD generated the same 20-image synthetic catalog
-shape, normalized only each recipe's catalog-path-derived image ID, and compared
-the serialized JSON byte slices per image. **18 of 20 images were byte-identical.**
-Only synthetic IDs 1003 and 1013 changed; both contain now-translated RetouchInfo.
-Their changed paths are limited to:
-
-- `/recipe/settings/locals/retouch`
-- `/recipe/history/entries` and `/recipe/history/head`
-- `/recipe/crs:RetouchInfo`
-- `/recipe/lrcat_develop_source/properties/RetouchInfo`
-
-The 2,000-image golden includes 200 such structure rows. It was re-pinned after
-this comparison; streaming/import/PlanJson byte equality remains tested.
-
-- Previous digest: `d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8`
-- New digest: `8dd7443a4a62f86c4133d2ee8bbb2036c1790912ed21070d799d1a8dd87c16c4`
-
-Other lanes merging this change must regenerate their combined synthetic golden
-if their own translations affect these rows. Do not revert this digest change
-without also accounting for the newly translated retouch records. Retention
-policy for other keys is untouched.
-
-## Blocked and unrepresentable
-
-**Merge blocker:** `image-core/src/rgb_render.rs` dispatches local adjustments,
-not retouch. `pipeline_cpu::validate_settings` rejects nonempty retouch, so the
-newly imported operations can make a CPU-reference Develop request refuse the
-recipe. The explicit CPU brush test is not proof of working application render.
-
-Neither image-core nor pipeline-cpu depends on brush. Adding pipeline-cpu→brush
-would create the cycle brush→compositor→merge→pipeline-cpu. A clean image-core
-integration needs a new dependency or an agreed dispatch/extraction design.
-Stopped at this boundary under the user's dependency instruction; Cargo.lock
-and manifests were not touched.
-
-Conservatively retained variants include missing/unresolved source coordinates,
-OffsetY-only source encodings (semantics not established), variable-radius or
-pressure dab commands, center-weight and other unknown mask fields, inverted or
-subtractive masks, seed/heal-version metadata, unknown methods, generative/remove
-modes, and conflicting nonempty aliases. Empty-only retouch lists retain their
-previous output. This is not complete coverage of every Adobe retouch encoding.
-
-Heal kind and offsets are mapped, but Adobe healing solver parity is unverified;
-Tessera's existing operator uses Poisson blending. The pixel test covers clone,
-not Adobe-vs-Tessera healing equivalence. Real Adobe renders, rotated/cropped
-coordinate conventions, and undocumented encodings were not used as fixtures.
+- `lua_develop.rs`: keep `parse_without_retouch`; preserve LR-4's
+  `masks_translated` hook after it when merging that lane.
+- LR-DIAG: replace the marked shim/reader with the shared helper/entries API.
+- LR-6 `golden.rs`: regenerate combined output; do not choose either digest.
+- Local changes only. No board.json, Swift gate, app launch, push, or personal
+  catalog access. All new fixtures are synthetic. Every LR-3d commit ends with
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.

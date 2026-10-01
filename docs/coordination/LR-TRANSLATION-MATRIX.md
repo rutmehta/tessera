@@ -12,6 +12,11 @@ field or operator the existing recipe cannot express. Lane assignments for
 unnamed residual features are LR-2 for tone/color and LR-7 for geometry/metadata;
 the coordinator should review these assignments before implementation.
 
+- `approximate`: recipe fields are populated, exact source remains in
+  `lrcat_develop_source`, and an info-level `approximate: <reason>` diagnostic
+  explains the unverified Adobe convention. These mappings emit no user-facing
+  warnings. `translated` requires Adobe-rendered synthetic-chart or public
+  DNG+XMP evidence for the convention; a real user catalog is never evidence.
 - `retained`: exact source is kept, including partially decoded structures and
   inactive values. It does not mean nothing renders.
 - `unsupported-diagnostic`: unsupported source yields a diagnostic and is kept.
@@ -116,8 +121,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `PointColors` | `/settings/color/point_colors` | LR-1 | approximate | `{{ SrcHue=0, SrcSat=0.9, SrcLum=0.5, HueShift=0.5 }}` |
 | `RangeMaskMapInfo` | MISSING: Adobe range-mask resource mapping; candidate /settings/locals/adjustments | LR-4 | unsupported-diagnostic | — |
 | `RedEyeInfo` | MISSING: red-eye correction operator in /settings/locals/retouch | LR-3 | unsupported-diagnostic | — |
-| `RetouchAreas` | `/settings/locals/retouch` | LR-3 | retained | — |
-| `RetouchInfo` | `/settings/locals/retouch` | LR-3 | retained | — |
+| `RetouchAreas` | `/settings/locals/retouch` | LR-3 | approximate | `{{centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType='clone',opacity=0.5,feather=0.5}}` |
+| `RetouchInfo` | `/settings/locals/retouch` | LR-3 | approximate | `{'centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType=heal'}` |
 | `SDRBlend` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
 | `SDRBrightness` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
 | `SDRClarity` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
@@ -187,9 +192,13 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   needs coordination with LR-5/6; it is not a tone curve.
 - **LR-3:** `RetouchOperation` supports heal/clone offsets, remove/skin, opacity,
   feather, enabled and targets made from mask components or mask IDs. Brush
-  strokes carry pressure/radius/flow/erase. This can express spots/strokes once
-  Adobe encoding and coordinate conventions are decoded. No dedicated red-eye
-  operator or Adobe cloud-generated patch/resource is represented.
+  strokes carry pressure/radius/flow/erase. LR-3d renders explicit-source
+  heal/clone spots before Detail/Tone with one union mask per spot; imported
+  conventions remain approximate, with exact source and info diagnostics kept.
+  Plain Mask/Circle and Seed/MaskDigest provenance are accepted; CenterValue
+  and other unknown semantics stay retained. No dedicated red-eye operator or
+  Adobe cloud-generated patch/resource is represented; enabled remove/skin
+  operations still fail explicitly in this Develop adapter.
 - **LR-4:** disabled components, nested trees (at most eight component levels),
   four-bound display luminance, scalar depth, individual brush dabs and color
   models decode with source retained and info diagnostics. Adobe blend codes,

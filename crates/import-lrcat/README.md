@@ -110,29 +110,32 @@ The catalog adapter reads `RetouchAreas` / `RetouchInfo` from
 `recipe.unknown["lrcat_develop_source"].properties` after the ordinary decoder.
 Supported explicit-source heal/clone circles and simple `Mask/Paint` paths become
 `settings.locals.retouch`. Legacy comma-separated `RetouchInfo` strings, Lua
-resource tables, and XMP RDF resource/list forms are accepted. Source coordinates
-are normalized; the offset is source minus destination (the first dab for paths).
-Circles use a one-point brush target so radius remains relative to image width on
-non-square images. Adobe 0–1 opacity/feather/flow become recipe percentages;
-feather lives on the brush target, with no second operation-level feather.
+spot tables, and XMP resources with explicit source coordinates are supported.
+Circles and simple paint paths use width-normalized radii and source offsets.
+Plain `Mask/Circle`, `Seed`, and `MaskDigest` are accepted as approximate geometry
+or retained provenance; `CenterValue` and unknown semantics remain retained.
 
-A property is consumed only if every item is supported. Unknown fields/methods,
-missing source coordinates, conflicting aliases, generative/remove modes,
-`OffsetY`-only source encodings, variable-radius/pressure dab commands, inverted
-or subtractive paint masks, and solver-version/seed metadata remain retained.
-Empty-only lists retain their existing output. Nonempty equivalent aliases apply
-once. Translation records an import history edit, preserving recipe validation
-and undo. Inputs without a successful retouch translation are unchanged.
+Both keys are **approximate**: Adobe healing, feather and orientation conventions
+have not been verified with Adobe-rendered synthetic charts or public DNG+XMP
+pairs. The exact source stays in `lrcat_develop_source`. A shared-format info
+entry in `lrcat_translation_diagnostics` explains the approximation; successfully
+mapped keys emit no warnings. Unsupported keys retain their source/diagnostics.
+One `Author::Import` history entry contains the complete imported settings.
 
-The synthetic CPU test in `tessera-ffi/tests/lr3_retouch_import.rs` imports a
-fixture catalog and explicitly feeds the decoded target to `brush::Stroke`.
-It verifies placement, source offset, opacity, and feather on a 128×80 raster.
-This is **not application integration**: the current Develop renderer does not
-yet dispatch `settings.locals.retouch`, and `pipeline_cpu::validate_settings`
-rejects nonempty retouch. Do not merge this as app-visible retouch support before
-that integration is implemented. Adobe healing solver parity and the
-undocumented source variants listed above are unverified. Existing brush healing
-uses Poisson blending; its output is not asserted equivalent to Adobe's solver.
+Registered Develop CPU and GPU-host paths execute retouch before Detail/Tone;
+nonempty retouch requires schema 4 on serialization (base schema stays 3).
+The caller-owned brush renderer must be supplied; standalone calls without it
+fail explicitly. Camera-linear smart-preview admission still requires originals.
+
+Coordinates use the current Develop input frame before common lens distortion
+and crop: unrotated active pixels for CFA RAW, possibly already-oriented decoded
+pixels for rendered RGB. File EXIF rotation follows RAW rendering. Healing uses
+Tessera's Poisson solver with one union mask and immutable source per spot; no
+Adobe solver parity is asserted. Synthetic regressions cover import/history,
+source retention, render ordering, two independent spots, backend equality,
+scaled rendering, and rotation/crop/lens-profile behavior. See
+[LR-3 handoff](../../tools/orchestrate/wp/LR-3/HANDOFF.md) for unsupported sites and
+remaining full-sensor loupe performance work.
 
 Schema references: [ExifTool CRS tags](https://exiftool.org/TagNames/XMP.html#crs)
 and [go-xmp CRS types](https://pkg.go.dev/github.com/mholt/go-xmp/models/crs).
