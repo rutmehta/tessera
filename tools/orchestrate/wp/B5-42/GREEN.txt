@@ -1,0 +1,80 @@
+Focused command: TESSERA_AX_MAP=1 swift test -c release -Xswiftc -enable-testing --filter DocumentAccessibilityTests
+Executed 5 tests, with 0 failures (0 unexpected) in 13.808 seconds.
+70 hosted audit scenarios; 1199 interactive control observations; 373 distinct identifiers.
+
+AX AUDIT window.stack: 67 interactive controls
+AX AUDIT window.properties: 49 interactive controls
+AX AUDIT window.channels: 50 interactive controls
+AX AUDIT channels.rename: 11 interactive controls
+AX AUDIT toolbar: 9 interactive controls
+AX AUDIT inspector.brushes: 17 interactive controls
+AX AUDIT properties.brightness_contrast: 4 interactive controls
+AX AUDIT properties.levels: 10 interactive controls
+AX AUDIT properties.curves: 6 interactive controls
+AX AUDIT properties.exposure: 4 interactive controls
+AX AUDIT properties.vibrance: 3 interactive controls
+AX AUDIT properties.hue_saturation: 5 interactive controls
+AX AUDIT properties.color_balance: 8 interactive controls
+AX AUDIT properties.black_white: 10 interactive controls
+AX AUDIT properties.photo_filter: 5 interactive controls
+AX AUDIT properties.channel_mixer: 9 interactive controls
+AX AUDIT properties.color_lookup: 4 interactive controls
+AX AUDIT properties.invert: 1 interactive controls
+AX AUDIT properties.posterize: 2 interactive controls
+AX AUDIT properties.threshold: 2 interactive controls
+AX AUDIT properties.gradient_map: 11 interactive controls
+AX AUDIT properties.selective_color: 8 interactive controls
+AX AUDIT properties.shadows_highlights: 11 interactive controls
+AX AUDIT properties.hdr_toning: 11 interactive controls
+AX AUDIT properties.desaturate: 1 interactive controls
+AX AUDIT properties.match_color: 6 interactive controls
+AX AUDIT properties.replace_color: 7 interactive controls
+AX AUDIT properties.equalize: 2 interactive controls
+AX AUDIT properties.auto: 7 interactive controls
+AX AUDIT fill.solid: 2 interactive controls
+AX AUDIT fill.gradient: 11 interactive controls
+AX AUDIT fill.pattern: 1 interactive controls
+AX AUDIT properties.group: 3 interactive controls
+AX AUDIT properties.text: 20 interactive controls
+AX AUDIT text.editing: 30 interactive controls
+AX AUDIT options.move: 21 interactive controls
+AX AUDIT options.marquee: 29 interactive controls
+AX AUDIT options.ellipseMarquee: 29 interactive controls
+AX AUDIT options.lasso: 29 interactive controls
+AX AUDIT options.polygonLasso: 29 interactive controls
+AX AUDIT options.magneticLasso: 29 interactive controls
+AX AUDIT options.quickSelect: 29 interactive controls
+AX AUDIT options.wand: 31 interactive controls
+AX AUDIT options.objectSelect: 27 interactive controls
+AX AUDIT options.brush: 31 interactive controls
+AX AUDIT options.eraser: 30 interactive controls
+AX AUDIT options.cloneStamp: 31 interactive controls
+AX AUDIT options.heal: 31 interactive controls
+AX AUDIT options.gradient: 21 interactive controls
+AX AUDIT options.crop: 21 interactive controls
+AX AUDIT options.type: 27 interactive controls
+AX AUDIT options.eyedropper: 23 interactive controls
+AX AUDIT options.hand: 23 interactive controls
+AX AUDIT options.zoom: 21 interactive controls
+AX AUDIT options.rectangleShape: 27 interactive controls
+AX AUDIT options.ellipseShape: 26 interactive controls
+AX AUDIT options.polygonShape: 28 interactive controls
+AX AUDIT options.lineShape: 24 interactive controls
+AX AUDIT options.pen: 26 interactive controls
+AX AUDIT options.pathSelect: 23 interactive controls
+AX AUDIT options.directSelect: 21 interactive controls
+AX AUDIT options.remove: 7 interactive controls
+AX AUDIT options.contentAwareMove: 5 interactive controls
+AX AUDIT layers.actions: 20 interactive controls
+AX AUDIT properties.shape: 26 interactive controls
+AX AUDIT options.freeTransform: 10 interactive controls
+AX AUDIT transform.warp: 11 interactive controls
+AX AUDIT transform.perspective: 8 interactive controls
+AX AUDIT transform.puppet: 11 interactive controls
+AX AUDIT transform.contentAwareScale: 7 interactive controls
+
+Required gate: cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
+Build complete! (34.54s)
+Executed 896 tests, with 3 tests skipped and 0 failures (0 unexpected) in 205.621 (205.701) seconds
+Test run with 5 tests in 2 suites passed after 0.024 seconds.
+SWIFT GATE OK
