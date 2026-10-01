@@ -163,37 +163,52 @@ Saved solutions carry their mode and are cleared on mode/guide edits. Legacy CA
 is gated to Adobe PV1/2 and zero values do not create fields or history. Shared
 standalone sidecar import/export supports both families; all settings are recorded
 in one import-authored history entry. Invalid matrices fail Recipe validation.
-## LR-2 / LR-2b tone curves, monochrome, and legacy controls
 
-Catalog Lua and XMP imports run the additive `lr2` pass after retained-source
-capture and use `Recipe::edit` for history. No schema/process version or dependency
-change is required. Exact translations leave pending source; approximate legacy
-operators retain original source for later fidelity improvements.
+## LR-2c tone curves, monochrome, and legacy controls
 
-- ExtendedToneCurvePV2012 and Red/Green/Blue use `/settings/tone/curves` for SDR.
-  Finite ordered x and nondecreasing y outside 0..255 instead populate optional
-  `/settings/tone/curves_extended`, without clamping. Both axes divide by 255;
-  extended keys win per channel, and the extended block replaces ordinary curves
-  in native CPU/GPU and Adobe CPU rendering. Malformed curves stay retained.
+Catalog Lua and XMP run the additive `lr2` pass once, after exact source capture.
+The complete imported settings have one replayable initial history edit. The Lua
+path skips LR-2 on its generated XMP packet and applies it to the original Lua
+values after retention. Unrelated imports and inactive LR-2 defaults preserve
+main's original recipe bytes and 2,000-row golden digest.
+
+- Nonidentity ExtendedToneCurvePV2012{,Red,Green,Blue} populate only
+  `/settings/tone/curves_extended`, and only with HDREditMode=1. Both axes divide
+  by 255 without clipping signed/HDR knots. `/settings/tone/curves` is never
+  overwritten; identity extended curves are provenance-only. Malformed curves
+  stay retained with a warning. The selected extended block replaces the normal
+  block during rendering; omitted channels in that block are identity.
 - ConvertToGrayscale and GrayMixer* populate optional
-  `/settings/color/monochrome {enabled,mixer}`. CPU and GPU implement the same
-  eight-band luminance mix, followed by ordinary color adjustments. Sidecar
-  reads/writes ConvertToGrayscale and all eight GrayMixer CRS properties,
-  including disabled state. Adobe profile-dependent B&W fidelity remains
-  explicitly approximate; matching the CPU algorithm on GPU does not prove
-  matching Adobe.
-- Adobe PV1/2 legacy Exposure/Brightness/Contrast/FillLight/Recovery/Blacks use
-  optional `/settings/tone/legacy_pv2010`; they never fill PV2012 fields.
-  Modern-key precedence and alias priority are unchanged. Exposure2012 suppresses
-  Exposure and Brightness together; other modern tone keys suppress their legacy
-  counterpart. Later process revisions leave legacy keys untranslated.
-  Exposure uses the documented EV multiplier. The remaining operators execute
-  dedicated approximations because Adobe's numerical operators/calibration and
-  RAW recovery internals are unpublished; see
-  [the reference specification](../pipeline-cpu/LEGACY_PV2010.md) for exact
-  equations, per-parameter reasons, CPU reference goldens and GPU fallback guard.
-- AutoToneDigest* stays in exact retained source and internal per-property
-  diagnostics but is omitted from import report warnings (and hence the host's
-  “Not fully supported” list). It has no render effect.
-- DepthMapInfo remains retained metadata; raster resolution/regeneration belongs
-  to LR-5/LR-6.
+  `/settings/color/monochrome {enabled,mixer}`. Disabled B&W with a zero mixer is
+  a strict settings/history/hash no-op. A nonzero disabled mixer remains editable
+  but has no pixel effect. Sidecar CRS read/write supports the same optional block.
+  B&W conversion now precedes point/channel curves; grading and other colour
+  controls follow, so channel-curve toning survives. CPU/GPU use the same mix.
+- Adobe PV1/2 uses `/settings/tone/legacy_pv2010`, never PV2012 slider heuristics.
+  The Adobe family check excludes native revision 2. Legacy values win when
+  both spellings occur; stale modern tone sliders are cleared for this branch.
+  HighlightRecovery precedes Recovery; Shadows precedes Blacks. Shadows=5 is
+  stored as legacy blacks=5, not converted into modern blacks=-5. Brightness is
+  a bounded midtone operator, not an exposure offset.
+- All active LR-2 mappings are `approximate`: the recipe contains numeric fields,
+  exact source remains in `lrcat_develop_source`, and
+  `lrcat_develop_diagnostics` contains `{key, level:"info", message:"approximate: <reason>"}`.
+  Approximation emits **zero user-facing warnings**. Public Adobe documentation
+  supports the control meanings but does not establish calibrated render parity.
+  See [the reference specification](../pipeline-cpu/LEGACY_PV2010.md).
+- AutoToneDigest* is silently retained cache metadata. DepthMapInfo remains with
+  LR-5/LR-6. Other unsupported controls retain their existing diagnostic behavior;
+  the [matrix](../../docs/coordination/LR-TRANSLATION-MATRIX.md) gives dispositions.
+- Native GPU legacy Tone uses the existing CPU-stage fallback. Legacy recipes
+  decline resident/fused tone dispatch; Adobe compatibility stages remain CPU.
+  Synthetic full GPU-session parity is tested alongside operator/batch parity.
+
+`DevelopSettings::required_schema_version_lr2()` returns 4 only for enabled
+monochrome, `curves_extended`, or `legacy_pv2010`; otherwise 3. The shared
+LR-SCHEMA helper was not on the rebased main. **Coordinator merge hook:** register
+this predicate with that helper before shipping/persisting these new fields;
+LR-2c does not independently change global schema read/write policy. The shared
+helper must enforce v4 writes and older-build refusal while preserving v3 bytes.
+
+Run `bash tools/orchestrate/wp/LR-2/gates-c.sh` from the workspace root. This is
+the LR-2c gate; older LR-2b audit scripts record superseded contracts.

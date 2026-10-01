@@ -138,3 +138,115 @@ all other targets passed. After a test-only correction for ruling 3, that entire
 The implementation was unchanged; unaffected targets were not rerun.
 All-target clippy `-D warnings`, workspace fmt, synthetic E2E and the baseline
 byte-identity/golden audit passed.
+
+---
+
+# LR-2c — Machine B review follow-through (2026-10-01)
+
+This appendix supersedes the LR-2/LR-2b behavior and gate claims above.
+STEP 0 completed: fetched origin and rebased all eight prior lane commits, without
+squashing, onto `02ae81960e104376bcfa6545d39515c3d1592454` (origin/main at fetch).
+The sole conflict was the matrix add/add. The final matrix keeps all 107 main
+keys and adds Recovery/Blacks aliases. No import-hook conflict occurred on this
+main revision. No push, board, Cargo.lock, dependency, Swift, app, or real-catalog
+operation was performed. The untracked supplied rulings file remains untouched.
+
+## Review blockers
+
+1. **Implemented:** dedicated `legacy_pv2010` operators from LR-2b retained;
+   unverified mappings now keep exact source and per-key info-level
+   `approximate: <reason>` diagnostics, with no user-facing approximation warning.
+   `AutoToneDigest*` remains silently retained cache metadata.
+2. **Fixed:** extended curves never mutate ordinary curves. Nonidentity extended
+   source populates `curves_extended` only with HDREditMode=1; identity/inactive
+   source stays retained without altering settings. Tests combine both curve keys.
+3. **Fixed:** disabled B&W/zero mixer and identity extended curves are strict
+   settings/history/cache no-ops. `tests/golden.rs` is restored verbatim from main,
+   digest `d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8`.
+   No re-pin. The no-op/hash/history regression is a Cargo integration test.
+   `point-color-compat.txt` is absent on this main/branch and has not been created
+   or changed; coordinator should retain LR-1's file unchanged when merging.
+4. **Fixed:** legacy Tone reaches `cpu_fallback` in both standalone and batched
+   GPU dispatch. Legacy recipes decline resident/fused tone dispatch. Synthetic
+   native and Adobe GPU sessions render legacy+B&W+channel curves successfully
+   and agree with CPU within the existing 1e-4 operator tolerance; direct legacy
+   single-stage/batch outputs are exactly equal. A pure-B&W resident regression
+   also passes with/without local tone under the established 0.002 f16 bound.
+   Resident chains split into supported fused runs around pre-curve B&W so the
+   effects tail never falls through to an unsupported scalar dispatch.
+   LR-2b's GPU monochrome kernel remains supported; no colour-stage rejection is
+   reintroduced.
+5. **Fixed:** matrix `approximate` guard checks recipe path, exact source literal,
+   per-key info reason and zero warnings, including negative controls. Grayscale,
+   all mixers, active extended curves and all legacy operators are approximate.
+   Residual Clarity, CurveRefineSaturation, GrainSeed, Incremental*, SDR*,
+   ToggleStyleAmount/Digest, AutoTone and AutoWhiteVersion have explicit
+   retained/unsupported dispositions; no invented Adobe calibration claim.
+
+## Major findings
+
+- Shadows=5 is stored unchanged as legacy blacks=5; current blacks stays zero.
+  The dedicated black operator uses the original control, not a -5 offset.
+- Brightness remains the LR-2b rational midtone operator; no exposure heuristic.
+- PV2010 source wins over stale PV2012 controls; the modern controls are neutral
+  in that branch. Modern process rows do not activate legacy settings. Native
+  revision 2 does not pass the Adobe-family gate.
+- B&W conversion now precedes point/channel curves across standalone CPU,
+  Adobe compatibility, host GPU and resident GPU render paths. Ordinary colour
+  controls follow. Channel-curve toning survives; B&W/mixer changes invalidate
+  tone-stage caches only when enabled. Unaffected hashes retain their old form.
+  Adobe ordering/calibration is unverified: this is an explicit Tessera reference
+  order and is covered by the info-only approximate status.
+- LR-2 executes once for Lua source; generated XMP skips that pass. Changes are
+  consolidated into the import's single replayable initial edit, with undo/redo
+  tests. Unchanged imports retain their prior history bytes.
+- The LR-1 point-colour implementation is not on this main. This branch already
+  clears `ordinary.monochrome` before its colour-neutral check. Keep that clear
+  alongside LR-1's point-colour-only check when integrating; preserve both Lua
+  and README hooks from LR-1/LR-7.
+
+## Schema ruling: coordinator integration hook
+
+The shared LR-SCHEMA `required_schema_version` helper is **not** on the rebased
+main. Per the explicitly authorized fallback, LR-2c supplies
+`DevelopSettings::required_schema_version_lr2()` and tests: v4 for enabled
+monochrome, `curves_extended` or `legacy_pv2010`; v3 when absent (also for disabled
+monochrome). Register its maximum with all other lane predicates in the shared
+helper at merge. This lane does not independently change global reader/writer
+policy. Do not ship/persist new-field recipes until the shared v4 writer and
+older-build-refusal policy is integrated. No claim is made that this branch
+alone already writes v4.
+
+## Tests-first and validation
+
+RED commit: `85662ed3`. Runtime RED reproduced inactive settings/hash/history
+changes, curve overwrite, approximation warnings, wrong legacy precedence,
+legacy GPU rejection, lost channel toning and unrecognized matrix status.
+Additional RED cases exposed the B&W resident-chain/effects fallback and a
+digest-only PV2010 row changing modern settings; both are covered and fixed. The
+new schema-predicate test initially failed compilation because the API was absent.
+Main's golden failed before the compatibility fixes and was never re-pinned.
+Some superseded LR-2b assertions intentionally required warnings, source removal,
+modern precedence, or GPU rejection; those now assert the binding LR-2c contract.
+Two source-retention assertions also addressed the wrong JSON location
+(`Recipe::unknown` serializes flattened); they now inspect the real retained map.
+
+The reproducible gate is `tools/orchestrate/wp/LR-2/gates-c.sh`. It cleans touched
+crates before testing the requested six crates plus the changed image-core and
+pipeline-adobe crates. It lists 23 external-RAW exclusions explicitly; ignored
+benchmarks remain ignored. Only synthetic media/catalog fixtures are used.
+Detailed final outcomes and durable log locations follow in EVIDENCE-C.md.
+
+Implementation commit: `c2df1958`. The broad gate also exposed a stale FFI test
+expectation from before LR-2b expanded Adobe support to PV1–6. Its exact error
+expectation now matches that supported range; revision 99 is still rejected, and
+the no-writer-construction assertion remains intact. The focused rerun passed.
+The Liquify latency assertion failed under load and in an isolated serial rerun;
+no threshold or assertion was weakened. See EVIDENCE-C.md for measurements and
+the final gate outcome.
+
+Final six-crate gate: **1115 passed, 1 failed, 47 ignored, 37 filtered**.
+The sole failure is the unchanged Liquify p95<250 ms timing check (266.9 ms
+in the final run; 600.0 ms isolated serial). All lane regressions passed.
+Eight-crate Clippy `-D warnings` and `cargo fmt --all --check` passed.
+The gate is not fully green; see EVIDENCE-C.md for all runs and exclusions.

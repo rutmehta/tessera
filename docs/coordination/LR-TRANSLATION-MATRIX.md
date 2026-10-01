@@ -54,36 +54,36 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `AutoToneDigest*` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `AutoToneDigestNoSat` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `AutoWhiteVersion` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
-| `Brightness` | MISSING: PV2010 brightness operator; /settings/tone/curves/rgb only an approximation | LR-2 | unsupported-diagnostic | — |
+| `Brightness` | `/settings/tone/legacy_pv2010/brightness` | LR-2 | approximate | `75` |
 | `ChromaticAberrationB` | `/settings/lens/legacy_ca_blue` | LR-7 | approximate | `-25` |
 | `ChromaticAberrationR` | `/settings/lens/legacy_ca_red` | LR-7 | approximate | `35` |
 | `Clarity` | /settings/tone/clarity (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
 | `CompatibleVersion` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
-| `Contrast` | /settings/tone/contrast (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
-| `ConvertToGrayscale` | MISSING: monochrome mode in /settings/color (saturation is not equivalent) | LR-2 | unsupported-diagnostic | — |
+| `Contrast` | `/settings/tone/legacy_pv2010/contrast` | LR-2 | approximate | `50` |
+| `ConvertToGrayscale` | `/settings/color/monochrome/enabled` | LR-2 | approximate | `true` |
 | `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic | — |
 | `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
 | `DepthMapInfo` | MISSING: imported depth resource reference/calibration; LensBlur.depth_model identifies a model | LR-2 | unsupported-diagnostic | — |
 | `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic | — |
 | `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
-| `Exposure` | /settings/tone/exposure (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
+| `Exposure` | `/settings/tone/legacy_pv2010/exposure` | LR-2 | approximate | `1` |
 | `ExtendedToneCurveName2012` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | retained | — |
-| `ExtendedToneCurvePV2012` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | unsupported-diagnostic | — |
-| `ExtendedToneCurvePV2012Blue` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | unsupported-diagnostic | — |
-| `ExtendedToneCurvePV2012Green` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | unsupported-diagnostic | — |
-| `ExtendedToneCurvePV2012Red` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | unsupported-diagnostic | — |
-| `FillLight` | /settings/tone/shadows (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
+| `ExtendedToneCurvePV2012` | `/settings/tone/curves_extended/rgb` | LR-2 | approximate | `{0,0,255,300,510,600}` |
+| `ExtendedToneCurvePV2012Blue` | `/settings/tone/curves_extended/blue` | LR-2 | approximate | `{0,0,255,300,510,600}` |
+| `ExtendedToneCurvePV2012Green` | `/settings/tone/curves_extended/green` | LR-2 | approximate | `{0,0,255,300,510,600}` |
+| `ExtendedToneCurvePV2012Red` | `/settings/tone/curves_extended/red` | LR-2 | approximate | `{0,0,255,300,510,600}` |
+| `FillLight` | `/settings/tone/legacy_pv2010/fill_light` | LR-2 | approximate | `30` |
 | `GrainSeed` | MISSING: explicit seed in /settings/effects/grain | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerAqua` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerBlue` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerGreen` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerMagenta` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerOrange` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerPurple` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerRed` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `GrayMixerYellow` | MISSING: monochrome channel mixer in /settings/color (HSL luminance is not equivalent) | LR-2 | unsupported-diagnostic | — |
-| `HighlightRecovery` | /settings/tone/highlights (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
+| `GrayMixerAqua` | `/settings/color/monochrome/mixer/aqua` | LR-2 | approximate | `25` |
+| `GrayMixerBlue` | `/settings/color/monochrome/mixer/blue` | LR-2 | approximate | `25` |
+| `GrayMixerGreen` | `/settings/color/monochrome/mixer/green` | LR-2 | approximate | `25` |
+| `GrayMixerMagenta` | `/settings/color/monochrome/mixer/magenta` | LR-2 | approximate | `25` |
+| `GrayMixerOrange` | `/settings/color/monochrome/mixer/orange` | LR-2 | approximate | `25` |
+| `GrayMixerPurple` | `/settings/color/monochrome/mixer/purple` | LR-2 | approximate | `25` |
+| `GrayMixerRed` | `/settings/color/monochrome/mixer/red` | LR-2 | approximate | `25` |
+| `GrayMixerYellow` | `/settings/color/monochrome/mixer/yellow` | LR-2 | approximate | `25` |
+| `HighlightRecovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
 | `IncrementalTemperature` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
 | `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
 | `LensBlur` | `/settings/effects/lens_blur` | LR-6 | retained | — |
@@ -124,7 +124,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `SDRHighlights` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
 | `SDRShadows` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
 | `SDRWhites` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `Shadows` | /settings/tone/blacks (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
+| `Shadows` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate | `5` |
 | `ToggleStyleAmount` | MISSING: style toggle state/digest; candidate /settings/camera_profile/look/amount | LR-2 | unsupported-diagnostic | — |
 | `ToggleStyleDigest` | MISSING: style toggle state/digest; candidate /settings/camera_profile/look/amount | LR-2 | unsupported-diagnostic | — |
 | `ToneCurve` | MISSING: legacy curve process semantics/name; candidate /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
@@ -157,6 +157,9 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `UprightTransform_5` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightVersion` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
 | `Version` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
+
+| `Blacks` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate | `5` |
+| `Recovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
 
 ## Per-lane representation notes
 
