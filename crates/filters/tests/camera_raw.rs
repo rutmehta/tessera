@@ -152,6 +152,9 @@ fn decoded_fixture(builtin: Builtin) -> (RawImage, Raster, FilterContext, Transf
 /// (measured worst 5.3e-5, Adobe RGB).
 const GOLDEN_TOLERANCE: f32 = 0.0001;
 
+#[path = "support/conditioning_golden.rs"]
+mod conditioning_golden;
+
 /// The library Develop render of the same PNG (scene-linear Rec.2020, then the
 /// document profile's matrix and TRC) is what the filter must produce.
 fn assert_golden(builtin: Builtin) {
@@ -181,9 +184,11 @@ fn assert_golden(builtin: Builtin) {
         let filter = node(&settings, amount);
         let roundtrip: SmartFilter =
             serde_json::from_slice(&serde_json::to_vec(&filter).unwrap()).unwrap();
+        conditioning_golden::begin();
         let output = CompositorFilters
             .evaluate(&input, &roundtrip, &context)
             .unwrap();
+        conditioning_golden::check(&format!("{builtin:?}-{}", amount.unwrap_or(1.)), &output);
         if amount == Some(0.) {
             assert!(output.shares_all_tiles_with(&input));
         }

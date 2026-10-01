@@ -1,0 +1,47 @@
+[
+  {
+    "golden": "canon-cr3",
+    "pixels": 250000,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "outside_predicate": 0,
+    "stored_png_changed_pixels": 0,
+    "stored_png_max_delta": 0
+  },
+  {
+    "golden": "fuji-raf",
+    "pixels": 249696,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "outside_predicate": 0,
+    "stored_png_changed_pixels": 0,
+    "stored_png_max_delta": 0
+  },
+  {
+    "golden": "nikon-nef",
+    "pixels": 568568,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "outside_predicate": 0,
+    "stored_png_changed_pixels": 0,
+    "stored_png_max_delta": 0
+  },
+  {
+    "golden": "sample",
+    "pixels": 282968,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "outside_predicate": 0,
+    "stored_png_changed_pixels": 0,
+    "stored_png_max_delta": 0
+  },
+  {
+    "golden": "sony-arw",
+    "pixels": 252150,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "outside_predicate": 0,
+    "stored_png_changed_pixels": 0,
+    "stored_png_max_delta": 0
+  }
+]
