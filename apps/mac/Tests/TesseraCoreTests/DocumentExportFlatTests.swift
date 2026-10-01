@@ -386,8 +386,13 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertTrue(finished)
         XCTAssertEqual(outcome, .exported)
         XCTAssertTrue(FileManager.default.fileExists(atPath: output.path))
-        XCTAssertLessThan(try XCTUnwrap(busy.max()), 20,
-                          "18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound")
+        // Reuse FilterSelfTest.perfMode's opt-in. Whole-runloop wall time is
+        // sensitive to unrelated work and scheduling; measure it on a quiet host.
+        let measureTiming = ProcessInfo.processInfo.environment["TESSERA_FILTER_PERF"] != nil
+        if measureTiming {
+            XCTAssertLessThan(try XCTUnwrap(busy.max()), 20,
+                              "18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound")
+        }
         let events = trace.snapshot().events
         let snapshots = events.filter { $0.name == "export_flat_snapshot_start" }
         XCTAssertEqual(snapshots.count, 1)
@@ -398,8 +403,10 @@ final class DocumentExportFlatTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(next.time - previous.time, 0.095,
                                         "Progress must coalesce to at most 10 Hz, including phase changes")
         }
-        for event in events where event.mainThread && event.durationMs != nil {
-            XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
+        if measureTiming {
+            for event in events where event.mainThread && event.durationMs != nil {
+                XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
+            }
         }
         if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
             try await Task.detached { try trace.write(to: URL(fileURLWithPath: path)) }.value

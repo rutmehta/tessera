@@ -1014,7 +1014,7 @@ final class FlatExportProgressPublisher: @unchecked Sendable {
     private var displayed: (Int, String)?
     private var scheduled = false
     private var finished = false
-    private var lastPublication: TimeInterval = -.infinity
+    private var lastDeliveryAttempt: TimeInterval = -.infinity
 
     private let now: @Sendable () -> TimeInterval
     private let schedule: @Sendable (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> Void
@@ -1036,7 +1036,7 @@ final class FlatExportProgressPublisher: @unchecked Sendable {
             latest = (fraction, phase)
             guard !scheduled else { return nil }
             scheduled = true
-            return max(0, 0.1 - (now() - lastPublication))
+            return max(0, 0.1 - (now() - lastDeliveryAttempt))
         }
         guard let delay else { return }
         schedule(delay) { [self] in deliver() }
@@ -1048,9 +1048,11 @@ final class FlatExportProgressPublisher: @unchecked Sendable {
             guard !finished, let value = latest else { return nil }
             latest = nil
             let key = (Int((value.0 * 100).rounded()), value.1)
+            // Even a skipped duplicate consumes the interval: otherwise every
+            // tile after the last publication's deadline wakes the main queue.
+            lastDeliveryAttempt = now()
             if let displayed, displayed == key { return nil }
             displayed = key
-            lastPublication = now()
             return value
         }
         if let value { publish(value.0, value.1) }
