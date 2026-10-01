@@ -920,7 +920,10 @@ fn lr3e_gpu_spot_upright_frames() {
     eprintln!(
         "LR-3e Metal session 768x512, L2, clone + Upright Level: frame ms {timings:?}; L0 solves {counts:?}"
     );
-    assert_eq!(counts, vec![1; 5]);
+    // Admission and the CPU fallback each analyze the first frame. Neither
+    // may re-analyze on subsequent manual geometry changes.
+    assert!((1..=2).contains(&counts[0]));
+    assert_eq!(counts, vec![counts[0]; 5]);
 }
 
 #[test]
