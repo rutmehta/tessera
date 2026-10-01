@@ -214,7 +214,20 @@ pub(crate) fn parse_inner(
         warnings.push(format!("{key}: {reason}; source preserved"));
     }
     let mut source = serde_json::Map::new();
+    let translated_points = translated_point_colors(&recipe)
+        && properties
+            .iter()
+            .filter(|p| p.namespace == CRS && p.name == "PointColors")
+            .count()
+            == 1
+        && !warnings.iter().any(|w| w.starts_with("crs:PointColors:"));
+    if translated_points {
+        warnings.push("Point Color: translated with an approximate SDR CPU HSL operator; signed/HDR pixels are unchanged; Adobe pixel parity is not established".into());
+    }
     for p in &properties {
+        if p.namespace == CRS && p.name == "PointColors" && translated_points {
+            continue;
+        }
         if p.namespace == CRS
             && (crate::lua_develop::retain_source(p.name)
                 || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(p.name)))
@@ -241,6 +254,16 @@ pub(crate) fn parse_inner(
         crate::lr2::xmp(&doc, &mut recipe, &mut warnings)?;
     }
     Ok((recipe, warnings))
+}
+
+pub(crate) fn translated_point_colors(recipe: &Recipe) -> bool {
+    !recipe.settings.color.point_colors.is_empty()
+        && recipe
+            .settings
+            .color
+            .point_colors
+            .iter()
+            .all(|p| p.selection.is_some())
 }
 
 fn identity_extended_property(p: &Property<'_>) -> bool {

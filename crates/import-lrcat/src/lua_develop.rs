@@ -27,6 +27,8 @@
 //! Red/Green/Blue/Name siblings) is retained by the adapter. The additive LR-2
 //! pass translates SDR and HDR curves and removes their pending source;
 //! malformed/nonmonotone curves keep the named limitation and source.
+#[path = "lua_point_colors.rs"]
+mod point_colors;
 use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
@@ -701,6 +703,14 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     // the exact Adobe spelling even for inactive or currently decoded values.
     recipe.unknown.remove("lrcat_develop_source");
     let mut source = Map::new();
+    let translated_points = crate::xmp::translated_point_colors(&recipe)
+        && table
+            .fields
+            .iter()
+            .filter(|(k, _)| matches!(k, LuaKey::Str(s) if s == "PointColors"))
+            .count()
+            == 1
+        && !warnings.iter().any(|w| w.starts_with("crs:PointColors:"));
     let mut kept = Map::new();
     let mut entries = Vec::new();
     if !table.items.is_empty() {
@@ -714,6 +724,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             && (retain_source(name)
                 || keep.contains(&i)
                 || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(name)))
+            && !(name == "PointColors" && translated_points && !keep.contains(&i))
         {
             source.insert(name.clone(), raw.clone());
         }
@@ -852,6 +863,9 @@ fn to_xmp(table: &LuaTable) -> (String, Vec<String>, Vec<usize>) {
         let name = format!("{prefix}:{crs}");
         let rendered = match value {
             LuaValue::Nil => continue,
+            LuaValue::Table(t) if key == "PointColors" => point_colors::sequence(t)
+                .and_then(|t| element(&name, &t))
+                .map(|e| body.push_str(&e)),
             LuaValue::Table(t) => element(&name, t).map(|e| body.push_str(&e)),
             scalar => scalar_text(scalar).map(|v| attrs.push_str(&format!(" {name}=\"{v}\""))),
         };

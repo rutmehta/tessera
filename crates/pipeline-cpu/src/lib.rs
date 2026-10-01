@@ -7,6 +7,7 @@ pub mod masks;
 pub use locals::{adjust_local, blend_local, locals_image};
 mod color_detail;
 mod geometry_effects;
+mod point_color;
 mod tone_extra;
 pub use color_detail::{DETAIL_HALO, color, detail, detail_halo};
 pub use geometry_effects::{effects, effects_in_crop, geometry};

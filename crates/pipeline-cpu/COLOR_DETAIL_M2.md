@@ -9,8 +9,8 @@ formulas, not a claim of Adobe pixel equivalence, camera-noise calibration,
 Richardson–Lucy deconvolution, neural NR, or cross-platform libm bit identity.
 
 Scope follows docs/01 §2.3–2.7 and docs/07 §5. Tone curves belong to the Tone
-operator, not this module. Point Color and LUT are explicitly rejected rather
-than silently ignored. **B&W treatment and per-band B&W mix are absent from
+operator, not this module. Point Color uses the CPU reference described in
+[POINT_COLOR.md](POINT_COLOR.md); LUT is explicitly rejected. **B&W treatment and per-band B&W mix are absent from
 `ColorSettings` and `DevelopSettings`**; no implicit recipe fields are invented.
 Saturation −100 removes chroma, but is not a B&W treatment/mix implementation.
 

@@ -227,3 +227,20 @@ synthetic matrix input context (legacy process version or HDR mode).
 
 Run `bash tools/orchestrate/wp/LR-2/gates-e.sh` from the workspace root for the
 LR-2e synthetic gate. Earlier scripts and handoffs are historical evidence.
+
+### LR-1 Point Color
+
+`PointColors` now maps through the shared sidecar codec into
+`/settings/color/point_colors`: Lua SDK tables (including contiguous explicit
+array indices), equivalent RDF resources, and 19-number XMP swatch sequences.
+The existing point shifts/range are reused; an optional `selection` stores
+source HSL and all twelve feather boundaries. A successfully translated,
+nonempty single property is removed from `lrcat_develop_source`; partial,
+unknown, malformed and placeholder shapes remain retained. Other keys keep
+the 29c source contract. No dependency or recipe version changes are required.
+
+The import report labels rendering approximate. The SDK does not specify
+Adobe's color-space/range/shift math, and this lane had no Adobe pixel oracle.
+See [Point Color CPU reference](../pipeline-cpu/POINT_COLOR.md) for formulas,
+source links, supported limits, unchanged signed/HDR pixels, and the synthetic
+reference tolerance. This is not a claim of Lightroom render parity.

@@ -466,6 +466,10 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.color.hsl = s.color.hsl.clone();
     supported.color.grading = s.color.grading.clone();
     supported.color.monochrome = s.color.monochrome.clone();
+    for point in &s.color.point_colors {
+        point.validate()?;
+    }
+    supported.color.point_colors = s.color.point_colors.clone();
     supported.effects.vignette = s.effects.vignette.clone();
     supported.effects.grain = s.effects.grain.clone();
     supported.geometry = s.geometry.clone();

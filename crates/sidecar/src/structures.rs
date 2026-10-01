@@ -1,13 +1,16 @@
 //! Structured settings with explicit, granular native RDF extensions.
 //!
 //! Interoperability boundary: ExifTool documents PointColors and RetouchInfo as
-//! string sequences, but not their string grammar. OkLCh samples and native
+//! string sequences. PointColors decoding additionally supports the 19-number
+//! grammar and SDK resource fields (see point_colors.rs). OkLCh samples and native
 //! retouch targets have no established Adobe equivalent. Their resource items
 //! below are Tessera extensions, NOT Adobe-compatible point colours/healing.
 //! LensBlur uses the documented Active/BlurAmount fields; normalized depth,
 //! arbitrary bokeh names and model identities remain in ts fields. We deliberately
 //! do not guess Adobe's four-value FocalRange or numeric BokehShape semantics.
 //! No opaque recipe JSON, invented CRS subfields, or cached pixels are emitted.
+#[path = "point_colors.rs"]
+mod point_colors;
 use super::resource;
 use crate::xml::*;
 use engine_api::{error::EngineResult, recipe::CrsKey};
@@ -216,10 +219,22 @@ pub(super) fn decode(key: CrsKey, tree: &Tree) -> EngineResult<Value> {
             {
                 return decode(CrsKey::RetouchAreas, tree);
             }
+            if key == CrsKey::PointColors
+                && tree
+                    .items(n)
+                    .iter()
+                    .any(|item| !point_colors::is_native(tree, item))
+            {
+                point_colors::validate_list(tree, n)?;
+            }
             let mut values = Vec::new();
             for item in tree.items(n) {
                 if key == CrsKey::PointColors {
-                    values.push(read_native(tree, item)?);
+                    values.push(if point_colors::is_native(tree, item) {
+                        read_native(tree, item)?
+                    } else {
+                        serde_json::to_value(point_colors::decode(tree, item)?)?
+                    });
                     continue;
                 }
                 let mut v = json!({});

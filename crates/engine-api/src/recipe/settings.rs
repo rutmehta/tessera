@@ -914,6 +914,55 @@ pub struct PointColor {
     pub luminance_shift: f32,
     /// Range width, `0..=100`.
     pub range: f32,
+    /// Adobe HSL selection and its independent feather boundaries. When present,
+    /// this replaces `source_lch` for selection; see pipeline-cpu/POINT_COLOR.md.
+    /// Omitted for native OkLCh points, preserving their serialized representation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selection: Option<PointColorSelection>,
+}
+
+/// Typed selection for imported Point Color. A single native range width cannot
+/// represent three asymmetric, independently feathered source ranges.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PointColorSelection {
+    /// Source hue in degrees, saturation and luminance in 0..=1.
+    pub source_hsl: [f32; 3],
+    /// Each range is [lower-none, lower-full, upper-full, upper-none] in 0..=1.
+    /// Hue is relative to the source, centered at 0.5 with circular wrapping.
+    pub hue: [f32; 4],
+    /// Saturation membership limits.
+    pub saturation: [f32; 4],
+    /// Luminance membership limits.
+    pub luminance: [f32; 4],
+}
+
+impl PointColor {
+    /// Shared import/render validation, before any pixels are changed.
+    pub fn validate(&self) -> crate::EngineResult<()> {
+        let valid = |v: f32, lo: f32, hi: f32| v.is_finite() && (lo..=hi).contains(&v);
+        let mut ok = self.source_lch.iter().all(|v| v.is_finite())
+            && valid(self.hue_shift, -360.0, 360.0)
+            && valid(self.saturation_shift, -100.0, 100.0)
+            && valid(self.luminance_shift, -100.0, 100.0)
+            && valid(self.range, 0.0, 100.0);
+        if let Some(s) = &self.selection {
+            ok &= valid(s.source_hsl[0], 0.0, 360.0)
+                && valid(s.source_hsl[1], 0.0, 1.0)
+                && valid(s.source_hsl[2], 0.0, 1.0);
+            for range in [s.hue, s.saturation, s.luminance] {
+                ok &= range.iter().all(|v| valid(*v, 0.0, 1.0))
+                    && range.windows(2).all(|p| p[0] <= p[1]);
+            }
+        }
+        if !ok {
+            return Err(crate::EngineError::invalid(
+                "point color",
+                "invalid sample, shift or feather range",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// A 3D LUT applied with a strength.

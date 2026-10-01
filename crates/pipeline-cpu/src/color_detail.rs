@@ -8,11 +8,14 @@ use engine_api::{
 /// Perceptual colour in linear Rec.2020/D65; processes interior and halo.
 pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
     validate_tile(tile)?;
-    if !s.point_colors.is_empty() || s.lut.is_some() {
+    if s.lut.is_some() {
         return Err(engine_api::EngineError::invalid(
             "color",
-            "Point Color and LUT are not implemented in M2",
+            "LUT is not implemented in M2",
         ));
+    }
+    for point in &s.point_colors {
+        point.validate()?;
     }
     finite(&[
         s.vibrance,
@@ -47,7 +50,16 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
     if ordinary == ColorSettings::default() {
         return Ok(());
     }
-    crate::map_rgb(tile, |rgb| {
+    let mut base = s.clone();
+    base.point_colors.clear();
+    let only_points = base == ColorSettings::default();
+    crate::map_rgb(tile, |mut rgb| {
+        for point in &s.point_colors {
+            rgb = crate::point_color::apply(rgb, point);
+        }
+        if only_points {
+            return rgb;
+        }
         let [mut l, a, b] = to_lab(rgb);
         let mut c = a.hypot(b);
         let mut h = b.atan2(a).to_degrees().rem_euclid(360.0);
@@ -634,7 +646,11 @@ mod tests {
         };
         assert!(color(&mut t, &c).is_err());
         c = ColorSettings::default();
-        c.point_colors.push(Default::default());
+        c.point_colors
+            .push(engine_api::recipe::settings::PointColor {
+                hue_shift: f32::NAN,
+                ..Default::default()
+            });
         assert!(color(&mut t, &c).is_err());
         c = ColorSettings::default();
         c.lut = Some(Default::default());
