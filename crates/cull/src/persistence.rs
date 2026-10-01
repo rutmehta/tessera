@@ -13,6 +13,7 @@ pub(crate) fn optional_bytes(path: &Path) -> EngineResult<Option<Vec<u8>>> {
 }
 
 pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
+    Sidecar::ensure_writable_destination(path)?;
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -30,6 +31,7 @@ pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
     Ok(())
 }
 pub(crate) fn restore(path: &Path, bytes: &Option<Vec<u8>>) -> EngineResult<()> {
+    Sidecar::ensure_writable_destination(path)?;
     match bytes {
         Some(bytes) => atomic_write(path, bytes),
         None => match fs::remove_file(path) {
@@ -102,7 +104,8 @@ pub(crate) fn write_changes(index: &Index, changes: &[Change], forward: bool) ->
                 }
             }
         }
-        if optional_bytes(&paths.xmp)?.is_none()
+        if !Sidecar::is_lightroom_owned(&info.path)
+            && optional_bytes(&paths.xmp)?.is_none()
             && optional_bytes(&info.path.with_extension("xmp"))?.is_some()
         {
             paths.xmp = info.path.with_extension("xmp");

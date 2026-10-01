@@ -146,6 +146,7 @@ fn atomic_local_with_sync(
     bytes: &[u8],
     sync: impl FnOnce(&Path) -> Result<()>,
 ) -> Result<()> {
+    sidecar::Sidecar::ensure_writable_destination(path)?;
     let parent = path
         .parent()
         .ok_or_else(|| failure("missing local parent"))?;
@@ -551,6 +552,8 @@ fn publish_sync_sidecars(
     xmp_path: &Path,
     mut publish: impl FnMut(&Path, &[u8]) -> Result<()>,
 ) -> Result<()> {
+    sidecar::Sidecar::ensure_writable_destination(recipe_path)?;
+    sidecar::Sidecar::ensure_writable_destination(xmp_path)?;
     let doc = validate_local_document(&pending.recipe)?;
     doc.recipe.validate()?;
     doc.recipe.to_json()?;

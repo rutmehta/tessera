@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
+    Sidecar::ensure_writable_destination(path)?;
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -54,6 +55,114 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
         let _ = fs::remove_file(&temp);
     }
     result.map_err(|e| EngineError::io_at(path, &e))
+}
+
+// Resolve existing prefixes too: sidecar directories usually do not exist yet.
+fn resolved_path(path: &Path) -> PathBuf {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(path)
+    };
+    for ancestor in absolute.ancestors() {
+        if let Ok(resolved) = fs::canonicalize(ancestor) {
+            let suffix = absolute.strip_prefix(ancestor).unwrap();
+            return if suffix.as_os_str().is_empty() {
+                resolved
+            } else {
+                resolved.join(suffix)
+            };
+        }
+    }
+    absolute
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct DirectoryVersion {
+    modified: Option<std::time::SystemTime>,
+    len: u64,
+    #[cfg(unix)]
+    identity: (u64, u64, i64, i64),
+}
+
+type CatalogDirectories = std::collections::HashMap<PathBuf, (DirectoryVersion, bool)>;
+static CATALOG_DIRECTORIES: std::sync::OnceLock<std::sync::Mutex<CatalogDirectories>> =
+    std::sync::OnceLock::new();
+
+// Re-list only changed directories. Without this, checking shared ancestors on
+// every recipe read/write makes culling quadratic in the number of files.
+fn contains_catalog(path: &Path) -> bool {
+    let metadata = match fs::metadata(path) {
+        Ok(metadata) if metadata.is_dir() => metadata,
+        Ok(_) => return false,
+        Err(error) => return error.kind() == io::ErrorKind::PermissionDenied,
+    };
+    #[cfg(unix)]
+    use std::os::unix::fs::MetadataExt;
+    let version = DirectoryVersion {
+        modified: metadata.modified().ok(),
+        len: metadata.len(),
+        #[cfg(unix)]
+        identity: (
+            metadata.dev(),
+            metadata.ino(),
+            metadata.ctime(),
+            metadata.ctime_nsec(),
+        ),
+    };
+    let cache = CATALOG_DIRECTORIES.get_or_init(Default::default);
+    if let Ok(cache) = cache.lock()
+        && let Some((previous, found)) = cache.get(path)
+        && previous == &version
+    {
+        return *found;
+    }
+    let found = match fs::read_dir(path) {
+        Ok(mut entries) => entries.any(|entry| match entry {
+            Ok(entry) => entry
+                .path()
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("lrcat")),
+            Err(_) => true, // Do not publish when directory ownership cannot be checked.
+        }),
+        Err(_) => true,
+    };
+    if let Ok(mut cache) = cache.lock() {
+        if cache.len() >= 8192 {
+            cache.clear();
+        }
+        cache.insert(path.to_path_buf(), (version, found));
+    }
+    found
+}
+
+fn owned_root(path: &Path) -> Option<PathBuf> {
+    path.ancestors()
+        .filter(|ancestor| {
+            let name = ancestor
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_ascii_lowercase();
+            name.ends_with(".lrdata")
+                || name.ends_with(".lrcat")
+                || name.ends_with(".lrcat-data")
+                || name.contains("lightroom catalog previews")
+                || name.contains("smart previews")
+                // A catalog's containing directory is owned too, even without a bundle suffix.
+                || contains_catalog(ancestor)
+        })
+        .last()
+        .map(Path::to_path_buf)
+}
+
+fn lightroom_root(path: &Path) -> Option<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(path)
+    };
+    owned_root(&resolved_path(path)).or_else(|| owned_root(&absolute))
 }
 
 /// Paths associated with one image.
@@ -125,9 +234,46 @@ impl RecipeDocument {
 pub struct Sidecar;
 
 impl Sidecar {
-    /// Derive XMP and recipe paths for an image.
+    /// Lightroom bundles and catalog directories are immutable source locations.
+    pub fn is_lightroom_owned(path: impl AsRef<Path>) -> bool {
+        lightroom_root(path.as_ref()).is_some()
+    }
+
+    /// Shared preflight for every sidecar publisher, including raw-byte restore/sync.
+    /// Checks lexical and resolved paths before creating directories or temporary files.
+    pub fn ensure_writable_destination(path: impl AsRef<Path>) -> EngineResult<()> {
+        if Self::is_lightroom_owned(path) {
+            return Err(EngineError::invalid(
+                "sidecar",
+                "Lightroom-owned locations are read-only; no adjacent sidecar was written",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Resolve an existing prefix without creating the destination's parent directories.
+    pub fn resolved_destination(path: impl AsRef<Path>) -> PathBuf {
+        resolved_path(path.as_ref())
+    }
+
+    /// Derive XMP and recipe paths for an image. Lightroom-owned sources use the
+    /// existing .edits store outside the outermost protected tree. Full canonical
+    /// paths key these private documents, preventing same-name/extension collisions.
     pub fn paths(image_path: impl AsRef<Path>) -> SidecarPaths {
         let image = image_path.as_ref();
+        if let Some(root) = lightroom_root(image) {
+            let store = root
+                .parent()
+                .unwrap_or(Path::new("/"))
+                .join(".edits")
+                .join("lightroom");
+            let key = blake3::hash(resolved_path(image).as_os_str().as_encoded_bytes()).to_hex();
+            let store = store.join(&key[..2]);
+            return SidecarPaths {
+                xmp: store.join(format!("{key}.xmp")),
+                recipe: store.join(format!("{key}.json")),
+            };
+        }
         let mut xmp = image.as_os_str().to_os_string();
         xmp.push(".xmp");
         let recipe = image

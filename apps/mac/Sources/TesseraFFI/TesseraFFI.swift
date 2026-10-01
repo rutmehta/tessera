@@ -20812,7 +20812,7 @@ public struct LrcatReport: Equatable, Hashable {
     public var catalogPath: String
     public var cancelled: Bool
     /**
-     * Photos whose sidecars were written in this run.
+     * Photos whose recipes were saved in this run.
      */
     public var imported: UInt32
     /**
@@ -20842,7 +20842,7 @@ public struct LrcatReport: Equatable, Hashable {
     // declare one manually.
     public init(catalogPath: String, cancelled: Bool, 
         /**
-         * Photos whose sidecars were written in this run.
+         * Photos whose recipes were saved in this run.
          */imported: UInt32, 
         /**
          * Photos already imported by an earlier, interrupted run.

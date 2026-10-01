@@ -39,6 +39,14 @@ pub(crate) fn document(path: &Path, id: ImageId) -> EngineResult<RecipeDocument>
 
 pub(crate) struct Sidecars;
 impl SidecarReader for Sidecars {
+    fn additional_stamp_paths(&self, path: &Path) -> Vec<PathBuf> {
+        if Sidecar::is_lightroom_owned(path) {
+            let paths = Sidecar::paths(path);
+            vec![paths.recipe, paths.xmp]
+        } else {
+            Vec::new()
+        }
+    }
     fn read(&self, path: &Path) -> EngineResult<SidecarData> {
         let mut data = SidecarData::default();
         let xmp = xmp_path(path);

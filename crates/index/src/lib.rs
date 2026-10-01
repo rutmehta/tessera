@@ -265,7 +265,7 @@ impl Core {
                 .ok()
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map_or(0, |d| d.as_nanos() as i64);
-            let stamp = sidecar_stamp(path)?;
+            let stamp = sidecar_stamp(path, sidecars.additional_stamp_paths(path))?;
             let old: Option<(i64, i64, String)> = self
                 .conn
                 .query_row(
@@ -588,6 +588,10 @@ fn delete_file_rows(tx: &rusqlite::Transaction, file_id: i64, dry_run: bool) -> 
 
 /// Source for sidecar metadata. Implemented by the sidecar crate later.
 pub trait SidecarReader: Send + Sync {
+    /// App-owned recipe locations must also invalidate the rebuildable index.
+    fn additional_stamp_paths(&self, _path: &Path) -> Vec<std::path::PathBuf> {
+        Vec::new()
+    }
     fn read(&self, path: &Path) -> engine_api::error::EngineResult<SidecarData>;
 }
 /// No-op sidecar reader used until sidecar integration is available.
@@ -627,7 +631,7 @@ pub struct Metadata {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
 }
-fn sidecar_stamp(path: &Path) -> Result<String> {
+fn sidecar_stamp(path: &Path, additional: Vec<std::path::PathBuf>) -> Result<String> {
     let mut appended = path.as_os_str().to_os_string();
     appended.push(".xmp");
     let mut recipe_name = path.file_stem().unwrap_or_default().to_os_string();
@@ -642,7 +646,10 @@ fn sidecar_stamp(path: &Path) -> Result<String> {
         std::path::PathBuf::from(appended),
         path.with_extension("xmp"),
         recipe,
-    ] {
+    ]
+    .into_iter()
+    .chain(additional)
+    {
         match std::fs::read(&p) {
             Ok(bytes) => {
                 hash.update(&[1]);

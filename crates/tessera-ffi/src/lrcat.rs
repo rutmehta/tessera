@@ -226,7 +226,7 @@ pub trait LrcatProgressListener: Send + Sync {
 pub struct LrcatReport {
     pub catalog_path: String,
     pub cancelled: bool,
-    /// Photos whose sidecars were written in this run.
+    /// Photos whose recipes were saved in this run.
     pub imported: u32,
     /// Photos already imported by an earlier, interrupted run.
     pub resumed: u32,
@@ -1146,6 +1146,7 @@ impl LrcatImport {
                 "the library folder must not be inside the Lightroom catalog files",
             ));
         }
+        Sidecar::ensure_writable_destination(&library_folder)?;
         std::fs::create_dir_all(&library_folder)?;
         let library_path = library_folder.join("library.json");
         let bundle = bundle_dir(&library_folder, &self.catalog);
@@ -1243,6 +1244,18 @@ impl LrcatImport {
             .iter()
             .filter(|r| r.outcome == Outcome::Import)
             .collect();
+        let protected = work
+            .iter()
+            .filter(|r| Sidecar::is_lightroom_owned(&r.path))
+            .count();
+        if protected > 0 {
+            report.unsupported.push(LrcatIssue {
+                category: "Read-only originals".into(),
+                reason: "Lightroom-owned originals are read-only: no adjacent sidecar was written; recipes and metadata use Tessera's .edits/lightroom store outside the protected tree".into(),
+                count: protected as u32,
+                examples: vec![],
+            });
+        }
         report
             .skipped
             .extend(resolved.iter().filter_map(|r| match &r.outcome {
@@ -1445,6 +1458,7 @@ impl LrcatImport {
 // Writing.
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    Sidecar::ensure_writable_destination(path)?;
     let parent = path.parent().unwrap_or(Path::new("."));
     let mut temp = tempfile::NamedTempFile::new_in(parent)?;
     std::io::Write::write_all(&mut temp, bytes)?;

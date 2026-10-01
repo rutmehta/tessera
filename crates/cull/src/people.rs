@@ -119,7 +119,7 @@ pub fn name_person_admitted(
             admit(id, &image)?;
             let mut path = Sidecar::paths(&image).xmp;
             let mut old = crate::persistence::optional_bytes(&path)?;
-            if old.is_none() {
+            if old.is_none() && !Sidecar::is_lightroom_owned(&image) {
                 let legacy = image.with_extension("xmp");
                 if let Some(bytes) = crate::persistence::optional_bytes(&legacy)? {
                     let folder = image.parent().unwrap_or(Path::new("."));

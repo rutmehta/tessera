@@ -896,6 +896,7 @@ impl PeopleFile {
     }
 
     fn restore(&self) -> Result<()> {
+        sidecar::Sidecar::ensure_writable_destination(&self.path)?;
         use std::io::Write;
         if let Some(bytes) = &self.bytes {
             let mut file = tempfile::NamedTempFile::new_in(
