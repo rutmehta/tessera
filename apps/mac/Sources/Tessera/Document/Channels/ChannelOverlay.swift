@@ -33,7 +33,7 @@ enum ChannelImages {
 
     /// The composite with hidden components removed; a single visible component as grey (Photoshop's
     /// single-channel view).
-    static func components(_ s: IOSurfaceRef, _ v: ComponentVisibility, space: CGColorSpace = DocumentDisplayColor.srgb.space) -> CGImage? {
+    static func components(_ s: IOSurfaceRef, _ v: ComponentVisibility, space: CGColorSpace) -> CGImage? {
         let w = IOSurfaceGetWidth(s), h = IOSurfaceGetHeight(s), stride = IOSurfaceGetBytesPerRow(s)
         guard w > 0, h > 0 else { return nil }
         let on = [v.red, v.green, v.blue]
@@ -51,7 +51,7 @@ enum ChannelImages {
         IOSurfaceUnlock(s, .readOnly, nil)
         guard let provider = CGDataProvider(data: Data(out) as CFData) else { return nil }
         return CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: w * 4,
-                       space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                       space: space,
                        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
                        provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
     }
@@ -75,7 +75,7 @@ final class ChannelOverlayController {
             backdrop = true
             let key = "\(doc.id):\(doc.info.epoch):\(comps.red)\(comps.green)\(comps.blue)"
             if composite?.key != key, let sid = try? doc.backend.compositeThumbnail(maxPx: px), let s = IOSurfaceLookup(sid),
-               let cg = ChannelImages.components(s, comps) {
+               let cg = ChannelImages.components(s, comps, space: doc.displayColor.space) {
                 composite = (key, cg)
             }
             image = composite?.image

@@ -40,7 +40,21 @@ final class DocumentController: Identifiable {
     var zoomChangedAt: Date?
 
     /// Reports a message (the status bar).
-    @ObservationIgnored var report: ((String) -> Void)?
+    @ObservationIgnored var report: ((String) -> Void)? {
+        didSet { deliverPendingDisplayDiagnostic() }
+    }
+    @ObservationIgnored private var pendingDisplayDiagnostic: String?
+
+    /// Defer past the workspace's synchronous “Opened …” message. Keep the warning if the
+    /// callback disappears before delivery; consume it once when a callback is available.
+    private func deliverPendingDisplayDiagnostic() {
+        guard report != nil, pendingDisplayDiagnostic != nil else { return }
+        Task { @MainActor [weak self] in
+            guard let self, let report = self.report, let message = self.pendingDisplayDiagnostic else { return }
+            self.pendingDisplayDiagnostic = nil
+            report(message)
+        }
+    }
     /// The viewport presenting frames of this document.
     @ObservationIgnored weak var viewport: DocumentViewportView?
     /// Viewport state kept per document, so switching tabs keeps each document's zoom and position.
@@ -70,6 +84,7 @@ final class DocumentController: Identifiable {
 
     /// B5-30: re-reads the document profile (open, Assign / Convert to Profile, undo across them).
     private func refreshDisplayColor() {
+        pendingDisplayDiagnostic = nil
         let icc: Data?
         do { icc = try backend.displayProfileICC() } catch {
             icc = nil
@@ -83,8 +98,9 @@ final class DocumentController: Identifiable {
         displayColor = DocumentDisplayColor.resolve(icc: icc, name: info.profileName)
         if let d = displayColor.diagnostic {
             NSLog("%@", d)
-            report?(d)
+            pendingDisplayDiagnostic = d
         }
+        deliverPendingDisplayDiagnostic()
         viewport?.displayColorDidChange()
     }
 

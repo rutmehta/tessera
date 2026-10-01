@@ -121,7 +121,7 @@ final class DocumentChannels {
                                 ComponentVisibility(red: false, green: true, blue: false),
                                 ComponentVisibility(red: false, green: false, blue: true)]
                 images = variants.map { v in
-                    ChannelImages.components(s, v).map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
+                    ChannelImages.components(s, v, space: doc.displayColor.space).map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
                 }
             }
             componentThumbs = (key, images)

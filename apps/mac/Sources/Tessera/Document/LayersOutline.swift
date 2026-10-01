@@ -254,7 +254,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         var thumb: NSImage?
         let backend = doc.backend, id = n.id, px = Self.thumbnailPx
         if n.kind != .adjustment {
-            thumb = thumbnail(key: "l\(n.id):\(n.revision)", slot: "l\(n.id)") { try? backend.layerThumbnail(id: id, maxPx: px) }
+            thumb = thumbnail(key: "l\(n.id):\(n.revision)", slot: "l\(n.id)", space: doc.displayColor.space) { try? backend.layerThumbnail(id: id, maxPx: px) }
         }
         let mask = n.hasMask ? thumbnail(key: "m\(n.id):\(n.revision):\(n.maskEnabled)", slot: "m\(n.id)") {
             try? backend.maskThumbnail(id: id, maxPx: px)
@@ -303,12 +303,12 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     /// A cached thumbnail, or (on a miss) the slot's previous image while the new one renders off the
     /// main thread (thumbnails of large layers take tens of milliseconds); the row refreshes when it lands.
-    private func thumbnail(key: String, slot: String, fetch: @escaping @Sendable () -> UInt32?) -> NSImage? {
+    private func thumbnail(key: String, slot: String, space: CGColorSpace = DocumentDisplayColor.srgb.space, fetch: @escaping @Sendable () -> UInt32?) -> NSImage? {
         if let image = thumbnailCache.cached(key) {
             thumbnailLoader.shown[slot] = image
             return image
         }
-        thumbnailLoader.load(key: key, slot: slot, fetch: fetch) { [weak self] image in
+        thumbnailLoader.load(key: key, slot: slot, space: space, fetch: fetch) { [weak self] image in
             guard let self, let image else { return }
             self.thumbnailCache.store(key, image)
             self.refreshRows(showing: key)
@@ -497,7 +497,7 @@ struct ThumbnailCache {
         IOSurfaceUnlock(s, .readOnly, nil)
         guard let provider = CGDataProvider(data: data as CFData),
               let cg = CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: stride,
-                               space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                               space: space,
                                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
                                provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
         else { return nil }
@@ -540,7 +540,7 @@ final class LayerThumbnailLoader {
         queue.async { [weak self] in
             // Skipped when a newer revision of the slot was asked for meanwhile.
             let image = latest.isLatest(slot, key)
-                ? fetch().flatMap { IOSurfaceLookup($0) }.flatMap { ThumbnailCache.image(from: $0) } : nil
+                ? fetch().flatMap { IOSurfaceLookup($0) }.flatMap { ThumbnailCache.image(from: $0, space: space) } : nil
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard let self, self.generation == gen else { return }
