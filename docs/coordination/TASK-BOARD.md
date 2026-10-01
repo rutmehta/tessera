@@ -1,5 +1,9 @@
 # Tessera task board — Machine A coordinator
 
+## LR/ENG ownership reassigned — 2026-10-01 15:52 UTC
+
+Main brief `87ff1ff1` assigns LR-0..7 and ENG-1/2 to Machine B Codex. Its assertion that A never started is contradicted by the published inventory, source candidates, audits and test drafts below. A preserves all work and starts no additional LR/ENG tasks; B is the implementation owner, with prior A artifacts available for reuse. No `origin/wp/LR-*` or `origin/wp/ENG-*` branches were visible at this fetch; that absence does not prove B is idle. Handoff status is being published to B with exact branches/hashes and UNRUN limits; peer receipt remains unverified. PERF ownership/candidates stay with A pending coordinator reconciliation and the existing explicit runtime handoff. Historical owner rows below describe artifact authorship, not permission to duplicate B work.
+
 ## Codex performance lanes — 2026-10-01
 
 Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. LR-2 `SOURCE-PLAN.md` is committed on the style branch and records the new brief `1a6f01e5` grayscale/PV2010 gaps; Adobe presence does not prove active counters, and the raw-map contract landed through main `0c6ab1c7`; source reconciliation is preserved at `8d61adce` on the style branch. Integrated KEY_MAP is201 (58 passthrough), superseding LR-0's199/56 snapshot; dated LR-0 addendum at `7f0590b7` independently reconciles the counts and status amendments; coordinator matrix approval remains pending. PERF-2/3 source design is also committed on the style branch. No peer receipt for LR status/result has been verified.
