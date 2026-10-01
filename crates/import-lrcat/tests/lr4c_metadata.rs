@@ -12,11 +12,16 @@ fn lr4c_documented_keys_each_admit_a_renderable_approximation() {
         ("", r#"CorrectionSyncID="invented","#),
         ("", "LocalToningHue=0,LocalToningSaturation=0,"),
     ] {
-        let row = format!(r#"s={{MaskGroupBasedCorrections={{{{{correction}CorrectionMasks={{{{What="Mask/Gradient",FullX=0,FullY=0,ZeroX=1,ZeroY=0,{mask}}}}}}}}}}}"#);
-        let (r,w) = lua_develop::parse(&row,"15.4").unwrap();
+        let row = format!(
+            r#"s={{MaskGroupBasedCorrections={{{{{correction}CorrectionMasks={{{{What="Mask/Gradient",FullX=0,FullY=0,ZeroX=1,ZeroY=0,{mask}}}}}}}}}}}"#
+        );
+        let (r, w) = lua_develop::parse(&row, "15.4").unwrap();
         assert!(w.is_empty(), "{mask} {correction}: {w:?}");
-        assert_eq!(r.settings.locals.adjustments.len(),1);
+        assert_eq!(r.settings.locals.adjustments.len(), 1);
         assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
-        assert!(r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_string());
+        assert!(
+            r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"]
+                .is_string()
+        );
     }
 }

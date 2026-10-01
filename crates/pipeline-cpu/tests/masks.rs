@@ -103,7 +103,13 @@ fn brush_interpolates_path_in_pixel_metric() {
 #[test]
 fn luminance_and_depth_ranges() {
     let values = vec![0., 0.25, 0.5, 0.75, 1.];
-    let i = Image::new(5, 1, vec![values.clone(); 3]).unwrap();
+    // Linear inputs encode to display luminance [0, .25, .5, .75, 1].
+    let i = Image::new(
+        5,
+        1,
+        vec![vec![0., 0.05087609, 0.21404114, 0.52252155, 1.]; 3],
+    )
+    .unwrap();
     let g = group(MaskKind::LuminanceRange {
         range: [0.5, 0.75],
         smoothness: 100.,

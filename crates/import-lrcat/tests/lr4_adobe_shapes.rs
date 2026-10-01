@@ -14,7 +14,8 @@ fn lr4_adobe_aggregate_and_range_mask_spelling() {
             ..
         }
     ));
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
 }
 #[test]
 fn lr4_unverified_type_and_feather_keep_exact_source() {

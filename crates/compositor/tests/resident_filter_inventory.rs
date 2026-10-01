@@ -297,6 +297,9 @@ fn median_fallback_keeps_unrelated_uploaded_pages() {
 }
 
 fn document(filters: Vec<SmartFilter>) -> Document {
+    document_with_alpha(filters, false)
+}
+fn document_with_alpha(filters: Vec<SmartFilter>, opaque: bool) -> Document {
     let e = Extent::new(17, 13);
     let mut raster = Raster::new(e, 4, Depth::F32, 0.0);
     raster
@@ -305,7 +308,11 @@ fn document(filters: Vec<SmartFilter>) -> Document {
                 x as f32 / 19.0,
                 y as f32 / 17.0,
                 0.25,
-                [0.0, 0.25, 0.5, 1.0][((x + y) % 4) as usize],
+                if opaque {
+                    1.0
+                } else {
+                    [0.0, 0.25, 0.5, 1.0][((x + y) % 4) as usize]
+                },
             ]
         })
         .unwrap();
@@ -463,14 +470,31 @@ fn automatic_transform_kinds_and_three_stage_nested_stack() {
 #[test]
 fn lr4c_nested_camera_raw_uses_cpu_fallback_with_identical_pixels() {
     let gpu = GpuCompositor::new().unwrap();
-    let settings = serde_json::json!({"lens":{"profile":"none","remove_chromatic_aberration":false},
+    let settings = serde_json::json!({"lens":{"profile":{"kind":"none"},"remove_chromatic_aberration":false},
         "locals":{"adjustments":[{"params":{"exposure":1},"components":[{
         "kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]}]}]}});
-    let doc = document(vec![filter("camera_raw", serde_json::json!({"settings":settings}))]);
+    // Opaque input isolates mask routing from unrelated premultiply/unpremultiply
+    // rounding of fractional-alpha GPU composites at reduced pyramid levels.
+    let doc = document_with_alpha(
+        vec![filter(
+            "camera_raw",
+            serde_json::json!({"settings":settings}),
+        )],
+        true,
+    );
     let mut cpu = Compositor::new(1 << 20);
     cpu.set_filter_evaluator(Arc::new(filters::CompositorFilters));
     let mut renderer = ResidentRenderer::new(&gpu).unwrap();
-    renderer.set_filter_evaluator(Arc::new(filters::CompositorFilters)).unwrap();
+    renderer
+        .set_filter_evaluator(Arc::new(filters::CompositorFilters))
+        .unwrap();
     compare(&doc, &mut renderer, &cpu, 0.0);
     assert!(renderer.filter_fallbacks() > 0);
+    // The existing fractional-alpha source exercises premultiplication too;
+    // its reduced GPU composite may differ by one f32 ULP independently of masks.
+    let rgba = document(vec![filter(
+        "camera_raw",
+        serde_json::json!({"settings":settings}),
+    )]);
+    compare(&rgba, &mut renderer, &cpu, 1e-7);
 }

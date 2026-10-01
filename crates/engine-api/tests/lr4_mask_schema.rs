@@ -46,7 +46,10 @@ fn lr4c_eight_levels_allowed_ninth_rejected() {
         parent.group = Some(vec![c]);
         c = parent;
     }
-    let mut g = engine_api::recipe::LocalAdjustment { components: vec![c], ..Default::default() };
+    let mut g = engine_api::recipe::LocalAdjustment {
+        components: vec![c],
+        ..Default::default()
+    };
     assert!(g.validate_mask_tree().is_ok());
     let mut parent = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
     parent.group = Some(g.components);

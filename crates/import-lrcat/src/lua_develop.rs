@@ -697,8 +697,6 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     };
     let (packet, notes, keep) = to_xmp(&table);
     let (mut recipe, mut warnings) = crate::xmp::parse_unrecorded(&packet, process_version)?;
-    let masks_translated = !recipe.settings.locals.adjustments.is_empty()
-        && !recipe.unknown.contains_key("crs:MaskGroupBasedCorrections");
     // The packet was generated from the literal; it is not source data.
     recipe.unknown.remove("sidecar_xmp");
     // Never derive retention from decoder diagnostics: future translators need
@@ -715,7 +713,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     for (i, (key, _)) in table.fields.iter().enumerate() {
         let raw = Value::from(text[spans[i].clone()].trim());
         if let LuaKey::Str(name) = key
-            && ((retain_source(name) && !(name == "MaskGroupBasedCorrections" && masks_translated))
+            && (retain_source(name)
                 || keep.contains(&i)
                 || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(name)))
         {

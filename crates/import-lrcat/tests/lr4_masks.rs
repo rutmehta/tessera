@@ -73,7 +73,7 @@ fn lr4_explicit_luminance_and_depth_bounds_translate() {
                 .get("lrcat_develop_source")
                 .and_then(|v| v.get("properties"))
                 .and_then(|v| v.get("MaskGroupBasedCorrections"))
-                .is_none()
+                .is_some()
         );
     }
 }

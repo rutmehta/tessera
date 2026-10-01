@@ -8,7 +8,16 @@ use serde_json::json;
 fn lr4b_asymmetric_bounds_roundtrip_and_render() {
     let value = json!({"components":[{"kind":"luminance_range","range":[0.25,0.5],"luminance_bounds":[0.0,0.25,0.5,1.0]}]});
     let g: LocalAdjustment = serde_json::from_value(value).unwrap();
-    let data = vec![0., 0.0625, 0.125, 0.25, 0.5, 0.75, 0.875, 1.];
+    let data = vec![
+        0.,
+        0.0051556684,
+        0.014349875,
+        0.05087609,
+        0.21404114,
+        0.52252155,
+        0.7388447,
+        1.,
+    ];
     let i = Image::new(8, 1, vec![data; 3]).unwrap();
     let mask = rasterize(&i, &g, MaskOptions::default()).unwrap();
     for (got, want) in mask

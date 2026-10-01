@@ -23,7 +23,8 @@ fn lr4b_four_bounds_translate_and_promote() {
         let c = serde_json::to_value(&r.settings.locals.adjustments[0].components[0]).unwrap();
         assert_eq!(c["kind"], "luminance_range");
         assert_eq!(c["luminance_bounds"], json!([0.1f32, 0.3f32, 0.6f32, 1f32]));
-        assert!(!r.unknown.contains_key("lrcat_develop_source"));
+        assert!(r.unknown.contains_key("lrcat_develop_source"));
+        assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
     }
 }
 #[test]
@@ -53,7 +54,8 @@ fn lr4b_radial_flipped_is_complement_of_invert_not_a_second_toggle() {
                     r.settings.locals.adjustments[0].components[0].invert,
                     inverted
                 );
-                assert!(!r.unknown.contains_key("lrcat_develop_source"));
+                assert!(r.unknown.contains_key("lrcat_develop_source"));
+                assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
             }
         }
     }
@@ -77,7 +79,8 @@ fn lr4b_subtype_depth_and_luminance() {
                 serde_json::to_value(&r.settings.locals.adjustments[0].components[0]).unwrap()["kind"],
                 kind
             );
-            assert!(!r.unknown.contains_key("lrcat_develop_source"));
+            assert!(r.unknown.contains_key("lrcat_develop_source"));
+            assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
         }
     }
 }

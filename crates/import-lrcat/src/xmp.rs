@@ -99,7 +99,7 @@ pub(crate) fn parse_inner(
     let foreign_mask_extensions = mask_properties.len() == 1
         && mask_properties[0]
             .node
-            .is_some_and(crate::mask_source::fully_translated);
+            .is_some_and(crate::mask_source::audited_approximation);
     let original = decode_with_mask_audit(text, foreign_mask_extensions)?;
     let verified_native = properties.iter().any(|p| {
         p.namespace == CRS && p.name == "ProcessVersion" && ProcessVersion::from_crs(p.raw).is_ok()
@@ -216,7 +216,7 @@ pub(crate) fn parse_inner(
     {
         recipe.process_version = catalog_version;
     }
-    let masks_translated = crate::mask_source::renderable(&recipe.settings.locals.adjustments)
+    let masks_approximate = crate::mask_source::renderable(&recipe.settings.locals.adjustments)
         && !warnings
             .iter()
             .any(|w| w.starts_with("crs:MaskGroupBasedCorrections:"))
@@ -228,7 +228,8 @@ pub(crate) fn parse_inner(
         && properties.iter().any(|p| {
             p.namespace == CRS
                 && p.name == "MaskGroupBasedCorrections"
-                && p.node.is_some_and(crate::mask_source::fully_translated)
+                && p.node
+                    .is_some_and(crate::mask_source::audited_approximation)
         });
     for p in &properties {
         let Some(key) = CrsKey::from_xmp(p.namespace, p.name) else {
@@ -242,7 +243,20 @@ pub(crate) fn parse_inner(
             // The codec reports the reason; add the legacy per-property payload
             // without duplicating its warning.
             retain(&mut recipe, &qualified, p.raw);
-        } else if key == CrsKey::MaskGroupBasedCorrections && !masks_translated {
+        } else if key == CrsKey::MaskGroupBasedCorrections && masks_approximate {
+            if let Some(node) = p.node {
+                let notes = recipe
+                    .unknown
+                    .entry("lrcat_develop_diagnostics".into())
+                    .or_insert_with(|| json!([]));
+                if let (Some(notes), serde_json::Value::Array(new)) = (
+                    notes.as_array_mut(),
+                    crate::mask_source::approximation_diagnostics(node),
+                ) {
+                    notes.extend(new);
+                }
+            }
+        } else if key == CrsKey::MaskGroupBasedCorrections {
             diagnostics.push((
                 qualified,
                 p.raw,
@@ -273,8 +287,7 @@ pub(crate) fn parse_inner(
     }
     for p in &properties {
         if p.namespace == CRS
-            && ((crate::lua_develop::retain_source(p.name)
-                && !(p.name == "MaskGroupBasedCorrections" && masks_translated))
+            && (crate::lua_develop::retain_source(p.name)
                 || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(p.name)))
         {
             source.insert(p.name.to_string(), json!(&text[p.range.clone()]));

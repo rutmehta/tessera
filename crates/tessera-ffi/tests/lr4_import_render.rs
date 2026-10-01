@@ -54,7 +54,7 @@ fn lr4_lua_depth_local_exposure() {
 #[test]
 fn lr4_lua_luminance_local_exposure() {
     render(
-        r#"{ What = "Mask/Range", CorrectionRangeMask = { LumMin = 0.2, LumMax = 0.3, LumFeather = 0 } }"#,
+        r#"{ What = "Mask/Range", CorrectionRangeMask = { LumMin = 0.5, LumMax = 0.6, LumFeather = 0 } }"#,
         &[0.5; 4],
         None,
     );

@@ -76,6 +76,7 @@ impl From<MaskCombine> for MaskCombineMode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
 pub enum MaskComponentType {
+    Group,
     Subject,
     Sky,
     Background,
@@ -108,6 +109,7 @@ pub enum AiMaskState {
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct MaskComponentInfo {
+    pub enabled: bool,
     pub kind: MaskComponentType,
     pub combine: MaskCombineMode,
     pub invert: bool,
@@ -325,12 +327,7 @@ fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
     }
     if let Some(children) = &c.group {
         let mut out = c.clone();
-        out.group = Some(
-            children
-                .iter()
-                .map(renderable_component)
-                .collect::<Option<Vec<_>>>()?,
-        );
+        out.group = Some(children.iter().filter_map(renderable_component).collect());
         return Some(out);
     }
     let kind = match &c.kind {
@@ -547,7 +544,11 @@ fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupIn
             .components
             .iter()
             .map(|c| {
-                let key = ai_key(&c.kind);
+                let key = if c.group.is_none() && g.enabled && c.enabled {
+                    ai_key(&c.kind)
+                } else {
+                    None
+                };
                 let state = match &key {
                     None => AiMaskState::NotAi,
                     Some(k) => match ai.get(k) {
@@ -564,14 +565,28 @@ fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupIn
                     },
                 };
                 MaskComponentInfo {
-                    kind: component_type(&c.kind),
+                    enabled: c.enabled,
+                    kind: if c.group.is_some() {
+                        MaskComponentType::Group
+                    } else {
+                        component_type(&c.kind)
+                    },
                     combine: c.combine.into(),
                     invert: c.invert,
-                    title: component_title(&c.kind),
-                    definition_json: serde_json::to_string(&c.kind).unwrap_or_default(),
+                    title: if c.group.is_some() {
+                        "Group".into()
+                    } else {
+                        component_title(&c.kind)
+                    },
+                    definition_json: if c.group.is_some() {
+                        serde_json::to_string(c)
+                    } else {
+                        serde_json::to_string(&c.kind)
+                    }
+                    .unwrap_or_default(),
                     ai: state,
                     ai_key: key,
-                    rendered: renderable_component(c).is_some(),
+                    rendered: g.enabled && c.enabled && renderable_component(c).is_some(),
                 }
             })
             .collect(),
@@ -1541,7 +1556,8 @@ impl DevelopSession {
         };
         let g = find_group(&mut st.live.locals.adjustments, id)?;
         let index = match g.components.iter().rposition(|c| {
-            c.group.is_none()
+            c.enabled
+                && c.group.is_none()
                 && matches!(c.kind, MaskKind::Brush { .. })
                 && c.combine == MaskCombine::Add
                 && !c.invert
@@ -1636,7 +1652,9 @@ impl DevelopSession {
                 amount: 12.0,
             },
             RangeKind::Luminance => {
-                let l = (0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]).max(0.0);
+                let l = pipeline_cpu::masks::display_encoded_luminance(
+                    (0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]).max(0.0),
+                );
                 MaskKind::LuminanceRange {
                     range: [(l * 0.5).min(1.0), (l * 2.0).min(1.0)],
                     smoothness: 50.0,
@@ -1971,16 +1989,29 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
         std::fs::create_dir(&photos).unwrap();
-        image::RgbImage::from_pixel(2, 2, image::Rgb([64,64,64])).save(photos.join("gray.png")).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([64, 64, 64]))
+            .save(photos.join("gray.png"))
+            .unwrap();
         let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
-        engine.index_folder(photos.to_string_lossy().into_owned()).unwrap();
-        let id = engine.list_images(crate::ImageQuery::default()).unwrap().remove(0).id;
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
         let session = engine.clone().open_develop_session(id).unwrap();
-        let rgb = session.sample_prelocal(0.5,0.5).unwrap();
-        session.add_range_mask(None, RangeKind::Luminance, 0.5,0.5, MaskCombineMode::Add).unwrap();
+        let rgb = session.sample_prelocal(0.5, 0.5).unwrap();
+        session
+            .add_range_mask(None, RangeKind::Luminance, 0.5, 0.5, MaskCombineMode::Add)
+            .unwrap();
         let group = session.shared.lock().unwrap().live.locals.adjustments[0].clone();
-        let image = pipeline_cpu::Image::new(1,1,rgb.map(|v|vec![v]).to_vec()).unwrap();
-        assert_eq!(pipeline_cpu::masks::rasterize(&image,&group,Default::default()).unwrap(), vec![1.]);
+        let image = pipeline_cpu::Image::new(1, 1, rgb.map(|v| vec![v]).to_vec()).unwrap();
+        assert_eq!(
+            pipeline_cpu::masks::rasterize(&image, &group, Default::default()).unwrap(),
+            vec![1.]
+        );
         session.close().unwrap();
     }
     #[test]
@@ -1988,23 +2019,43 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
         std::fs::create_dir(&photos).unwrap();
-        image::RgbImage::from_pixel(2, 2, image::Rgb([120,80,40])).save(photos.join("synthetic.png")).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(photos.join("synthetic.png"))
+            .unwrap();
         let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
-        engine.index_folder(photos.to_string_lossy().into_owned()).unwrap();
-        let id = engine.list_images(crate::ImageQuery::default()).unwrap().remove(0).id;
-        let session = engine.open_develop_session(id).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let session = engine.clone().open_develop_session(id).unwrap();
         {
             let mut st = session.shared.edit_lock().unwrap();
             st.live.locals.adjustments = serde_json::from_value(serde_json::json!([{"id":17,"components":[{"kind":"brush","strokes":[],"enabled":false}]}])).unwrap();
         }
-        session.begin_brush_stroke(Some(17), BrushSettings { radius:0.1, feather:0., flow:100., erase:false }).unwrap();
+        session
+            .begin_brush_stroke(
+                Some(17),
+                BrushSettings {
+                    radius: 0.1,
+                    feather: 0.,
+                    flow: 100.,
+                    erase: false,
+                },
+            )
+            .unwrap();
         {
             let st = session.shared.lock().unwrap();
             let g = &st.live.locals.adjustments[0];
             assert_eq!(g.components.len(), 2);
             assert!(!g.components[0].enabled);
             assert!(g.components[1].enabled);
-            assert!(matches!(&g.components[0].kind, MaskKind::Brush { strokes } if strokes.is_empty()));
+            assert!(
+                matches!(&g.components[0].kind, MaskKind::Brush { strokes } if strokes.is_empty())
+            );
         }
         session.close().unwrap();
     }
@@ -2013,7 +2064,8 @@ mod tests {
         let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[
             {"kind":"brush","strokes":[],"enabled":false},
             {"kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]}
-        ]})).unwrap();
+        ]}))
+        .unwrap();
         let info = group_info(&g, &HashMap::new());
         assert!(!info.components[0].rendered);
         assert_eq!(info.components[1].title, "Group");
@@ -2024,7 +2076,8 @@ mod tests {
         let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[
             {"kind":"brush","strokes":[],"group":[
                 {"kind":"linear","start":[0,0],"end":[1,0]},
-                {"kind":"color_range","samples":[],"amount":10}]}]})).unwrap();
+                {"kind":"color_range","samples":[],"amount":10}]}]}))
+        .unwrap();
         let sanitized = renderable_group(&g);
         assert_eq!(sanitized.components.len(), 1);
         assert_eq!(sanitized.components[0].group.as_ref().unwrap().len(), 1);

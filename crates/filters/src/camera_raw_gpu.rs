@@ -37,15 +37,15 @@ fn supported_settings(s: &DevelopSettings) -> EngineResult<bool> {
             .iter()
             .filter(|g| g.enabled)
             .flat_map(|g| &g.components)
-            .flat_map(engine_api::recipe::MaskComponent::active_leaves)
-            .any(|c| c.luminance_bounds.is_some())
+            .filter(|c| c.enabled)
+            .any(|c| c.group.is_some() || c.kind.is_ai() || c.luminance_bounds.is_some())
         && RgbOpticsPlan::new(s, Extent::new(64, 64), None)?.is_some())
 }
 
 /// Settings-only capability. Device/frame resource limits are checked by
 /// evaluate. Invalid/unsupported engine schema is an error, not a fallback hint.
 pub fn supports(value: &serde_json::Value) -> EngineResult<bool> {
-    supported_settings(&parse(value)?.settings)
+    supported_settings(&crate::camera_raw::parse_for_admission(value)?.settings)
 }
 
 /// Develop caller-owned, tight interleaved straight RGBA, on the same Metal

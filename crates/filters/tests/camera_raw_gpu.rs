@@ -760,7 +760,8 @@ fn lr4c_nested_group_declined_before_gpu_dispatch() {
     let mut settings = resident_settings();
     settings.locals.adjustments = serde_json::from_value(json!([{"components":[{
         "kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]
-    }]}])).unwrap();
+    }]}]))
+    .unwrap();
     assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
 }
 #[test]
@@ -768,18 +769,29 @@ fn lr4c_nested_ai_rejected_by_cpu_parser() {
     let mut settings = resident_settings();
     settings.locals.adjustments = serde_json::from_value(json!([{"components":[{
         "kind":"brush","strokes":[],"group":[{"kind":"subject"}]
-    }]}])).unwrap();
-    assert!(matches!(filters::camera_raw::parse(&json!({"settings":settings})),
-        Err(engine_api::EngineError::Unsupported { .. })));
+    }]}]))
+    .unwrap();
+    assert!(matches!(
+        filters::camera_raw::parse(&json!({"settings":settings})),
+        Err(engine_api::EngineError::Unsupported { .. })
+    ));
 }
 
 #[test]
 fn lr4c_ai_and_depth_decline_admission_without_dispatch() {
-    for kind in [json!({"kind":"subject"}),json!({"kind":"depth","range":[0,1]})] {
-        for nested in [false,true] {
-            let c = if nested { json!({"kind":"brush","strokes":[],"group":[kind]}) } else { kind };
+    for kind in [
+        json!({"kind":"subject"}),
+        json!({"kind":"depth","range":[0,1]}),
+    ] {
+        for nested in [false, true] {
+            let c = if nested {
+                json!({"kind":"brush","strokes":[],"group":[kind.clone()]})
+            } else {
+                kind.clone()
+            };
             let mut settings = resident_settings();
-            settings.locals.adjustments = serde_json::from_value(json!([{"components":[c]}])).unwrap();
+            settings.locals.adjustments =
+                serde_json::from_value(json!([{"components":[c]}])).unwrap();
             assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
         }
     }

@@ -201,7 +201,13 @@ fn mask_coverage(
     recipe: &Recipe,
     group: &LocalAdjustment,
 ) -> EngineResult<f32> {
-    if group.components.iter().any(|c| c.kind.is_ai()) {
+    if group.enabled
+        && group
+            .components
+            .iter()
+            .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+            .any(|c| c.kind.is_ai())
+    {
         return Err(unsupported(
             "AI mask components require inference/cache inputs absent from ToolCall; procedural masks are supported",
         ));

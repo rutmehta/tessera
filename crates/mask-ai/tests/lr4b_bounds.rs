@@ -13,7 +13,12 @@ fn lr4b_external_composition_keeps_four_bounds_and_inverts_once() {
         components: vec![MaskComponent::new(MaskKind::Subject { model: None }), c],
         ..Default::default()
     };
-    let input = Image::new(4, 1, vec![vec![0.125, 0.25, 0.5, 0.75]; 3]).unwrap();
+    let input = Image::new(
+        4,
+        1,
+        vec![vec![0.014349875, 0.05087609, 0.21404114, 0.52252155]; 3],
+    )
+    .unwrap();
     let plane = mask_ai::compose(&input, &g, |_, _, _| Ok(vec![0.5; 4].into())).unwrap();
     for (got, want) in plane.iter().zip([0.25, 0., 0., 0.25]) {
         assert!((got - want).abs() < 1e-6, "{got} != {want}");

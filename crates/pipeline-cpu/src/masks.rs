@@ -10,6 +10,8 @@
 //! uses `a*(1-alpha)`. Paths interpolate pressure and position at quarter-radius
 //! spacing, with a quarter-pixel minimum. Coordinates outside [-16,16], radii
 //! outside [1e-6,16], and more than one million interpolated stamps are rejected.
+//! Luminance bands select sRGB-display-encoded Rec.2020 luminance, before
+//! geometry (including Upright); depth uses the supplied normalized plane.
 //! Luminance/depth bands have exterior smoothstep shoulders of smoothness/200;
 //! color selection uses the nearest Euclidean OkLab distance, tolerance amount/100,
 //! with an interior smoothstep shoulder controlled by `color_smoothness`.
@@ -55,7 +57,7 @@ pub fn rasterize(
 ) -> EngineResult<Vec<f32>> {
     group.validate_mask_tree()?;
     validate(input, group, options)?;
-    let mut out = rasterize_components(input, &group.components, options)?;
+    let mut out = rasterize_components(input, &group.components, options, &mut Vec::new())?;
     if !group.components.iter().any(|c| c.enabled) {
         return Ok(out);
     }
@@ -73,18 +75,17 @@ fn rasterize_components(
     input: &Image,
     components: &[MaskComponent],
     options: MaskOptions<'_>,
+    pool: &mut Vec<Vec<f32>>,
 ) -> EngineResult<Vec<f32>> {
     let w = input.width() as usize;
     let h = input.height() as usize;
-    let mut out = vec![0.; w * h];
-    if !components.iter().any(|c| c.enabled) {
-        return Ok(out);
-    }
+    let mut out: Option<Vec<f32>> = None;
     for (index, component) in components.iter().filter(|c| c.enabled).enumerate() {
-        let plane = if let Some(components) = &component.group {
-            rasterize_components(input, components, options)?
+        let mut plane = if let Some(components) = &component.group {
+            rasterize_components(input, components, options, pool)?
         } else {
-            let mut plane = vec![0.; w * h];
+            let mut plane = pool.pop().unwrap_or_else(|| vec![0.; w * h]);
+            plane.fill(0.);
             match component.kind {
                 MaskKind::Linear { start, end } => {
                     let dx = end[0] - start[0];
@@ -158,7 +159,7 @@ fn rasterize_components(
                 }
                 MaskKind::LuminanceRange { range, smoothness } => {
                     for (i, v) in plane.iter_mut().enumerate() {
-                        let y = luminance(input, i);
+                        let y = display_encoded_luminance(luminance(input, i));
                         *v = if let Some([outer_low, low, high, outer_high]) =
                             component.luminance_bounds
                         {
@@ -218,22 +219,29 @@ fn rasterize_components(
             }
             plane
         };
-        for (a, mut b) in out.iter_mut().zip(plane) {
-            if component.invert {
-                b = 1. - b;
+        if component.invert {
+            for b in &mut plane {
+                *b = 1. - *b;
             }
-            *a = if index == 0 {
-                b
-            } else {
-                match component.combine {
+        }
+        if index == 0 {
+            out = Some(plane);
+        } else {
+            for (a, &b) in out.as_mut().unwrap().iter_mut().zip(&plane) {
+                *a = match component.combine {
                     MaskCombine::Add => f32::max(*a, b),
                     MaskCombine::Subtract => *a * (1. - b),
                     MaskCombine::Intersect => *a * b,
-                }
-            };
+                };
+            }
+            pool.push(plane);
         }
     }
-    Ok(out)
+    Ok(out.unwrap_or_else(|| {
+        let mut plane = pool.pop().unwrap_or_else(|| vec![0.; w * h]);
+        plane.fill(0.);
+        plane
+    }))
 }
 // Band is fully selected inside the inclusive range, with exterior shoulders
 // of width smoothness/200. HDR luminance is not clipped into the range.
@@ -245,6 +253,15 @@ fn band(v: f32, range: [f32; 2], shoulder: f32) -> f32 {
         0.
     } else {
         smooth(1. - d / shoulder)
+    }
+}
+/// Extended sRGB transfer of linear Rec.2020 Y for perceptual mask thresholds.
+/// HDR and negative values stay outside the unit interval, not clipped into a band.
+pub fn display_encoded_luminance(y: f32) -> f32 {
+    if y <= 0.0031308 {
+        12.92 * y
+    } else {
+        1.055 * y.powf(1. / 2.4) - 0.055
     }
 }
 fn luminance(input: &Image, i: usize) -> f32 {

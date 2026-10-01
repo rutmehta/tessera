@@ -172,7 +172,7 @@ fn lr4_nested_ranges_hash_the_actual_rgb() {
     let cache = MaskRasterCache::new(1 << 20);
     let mut wrapper = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
     wrapper.group = Some(vec![MaskComponent::new(MaskKind::LuminanceRange {
-        range: [0.1, 0.3],
+        range: [0.4, 0.6],
         smoothness: 0.,
     })]);
     let group = LocalAdjustment {

@@ -7,8 +7,8 @@ fn lr4b_import_cpu_four_bounds_radial_and_subtypes() {
         (
             r#"What="Mask/RangeMask", CorrectionRangeMask={Type=2,LumRange="0 0.25 0.5 1"}"#,
             r#"<crs:What>Mask/RangeMask</crs:What><crs:CorrectionRangeMask crs:Type="2" crs:LumRange="0 0.25 0.5 1"/>"#,
-            vec![0.125, 0.25, 0.5, 0.75],
-            vec![0.1875, 0.5, 1., 1.125],
+            vec![0.014349875, 0.05087609, 0.21404114, 0.52252155],
+            vec![0.021524812, 0.10175218, 0.428_082_3, 0.783_782_3],
             None,
         ),
         (
@@ -23,8 +23,8 @@ fn lr4b_import_cpu_four_bounds_radial_and_subtypes() {
             r#"<crs:What>Mask/RangeMask</crs:What><crs:CorrectionRangeMask crs:Type="2" crs:LumMin="0.25" crs:LumMax="0.5"/>"#,
             // Interior samples avoid the pre-existing f32 luma rounding at a
             // discontinuous hard bound; four-bound endpoints are tested above.
-            vec![0.125, 0.375, 0.4375, 0.75],
-            vec![0.125, 0.75, 0.875, 0.75],
+            vec![0.014349875, 0.116016135, 0.16068268, 0.52252155],
+            vec![0.014349875, 0.23203227, 0.32136536, 0.52252155],
             None,
         ),
         (
@@ -47,7 +47,8 @@ fn lr4b_import_cpu_four_bounds_radial_and_subtypes() {
             xmp::parse(&xml, "15.4").unwrap().0,
         ] {
             assert_eq!(recipe.settings.locals.adjustments.len(), 1);
-            assert!(!recipe.unknown.contains_key("lrcat_develop_source"));
+            assert!(recipe.unknown.contains_key("lrcat_develop_source"));
+            assert!(recipe.unknown["lrcat_develop_diagnostics"].is_array());
             let img = Image::new(4, 1, vec![input.clone(); 3]).unwrap();
             let out = locals_image(
                 &img,

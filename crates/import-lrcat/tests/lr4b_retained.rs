@@ -1,16 +1,17 @@
 #[path = "common/lr4b_retained.rs"]
 mod fixtures;
 #[test]
-fn lr4b_untranslated_recipes_remain_byte_identical_to_a88440a4() {
-    // Captured on a detached a88440a4, before this implementation. Never repin.
+fn lr4c_approximate_promotions_and_untranslated_byte_pins() {
+    // LR-4c intentionally promotes only brush/color indices 0,1,7,8.
+    // Other values remain pinned to a88440a4; malformed/unknown forms do not change.
     let expected = [
         (
-            6788,
-            "526f514ac420bcc431d51d7344e00e98a7b851f1ecd4bc6457f4cfbfda4e1e6c",
+            8715,
+            "817d3beffd7daded3d41f8f9063d5cebb9eca83f6529b6f8491bff6d61bb9cbb",
         ),
         (
-            6726,
-            "39762cf23901076eef0c0f4277fcd1da81683d571eb1e23aa7f5068ef6f45daf",
+            8332,
+            "3eb9af24b3a9ce579ef30009696f104e68b85bb4596be89796c805d1c88bd506",
         ),
         (
             6653,
@@ -33,12 +34,12 @@ fn lr4b_untranslated_recipes_remain_byte_identical_to_a88440a4() {
             "efeb750fcfd403097091448cca65d3db40c1e6e52e83c6d6c2e84f539abf79c4",
         ),
         (
-            7400,
-            "ad11b1ce578c71b292ac7d27e274df906caf4d9aa39c790f2771ce5e80e63893",
+            8785,
+            "6c0d7c8610e5c5468fb7fcae0262e7b7ad908d9145696beac15a1cb98333f225",
         ),
         (
-            7667,
-            "225f8eb30213fdb941022bc8565c0177665eb2eb3774e9d4138ad7ae9575bbed",
+            9317,
+            "09f355b0d9730ef395a047e093704a1a9737bc2022d09b8235278dbd7849b74b",
         ),
         (
             7271,
@@ -49,8 +50,9 @@ fn lr4b_untranslated_recipes_remain_byte_identical_to_a88440a4() {
             "062f71e400c5a9864cdb477f77dac3dfbbf66f98954ef9cb26b9b30f36b87a82",
         ),
     ];
-    for ((size, digest), (want_size, want_digest)) in fixtures::digests().into_iter().zip(expected)
-    {
+    let got = fixtures::digests();
+    eprintln!("LR-4c audited fixture digests: {got:#?}");
+    for ((size, digest), (want_size, want_digest)) in got.into_iter().zip(expected) {
         assert_eq!(size, want_size);
         assert_eq!(digest, want_digest);
     }

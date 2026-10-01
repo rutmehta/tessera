@@ -147,9 +147,9 @@ pub enum MaskKind {
         /// Strokes.
         strokes: Vec<BrushStroke>,
     },
-    /// Luminance range.
+    /// Perceptual luminance range, evaluated before geometry.
     LuminanceRange {
-        /// `[low, high]` in `0..=1`.
+        /// `[low, high]` in sRGB-display-encoded Rec.2020 luminance, `0..=1`.
         range: [f32; 2],
         /// Smoothness, `0..=100`.
         #[serde(default)]
@@ -351,10 +351,10 @@ impl LocalAdjustment {
         let mut count = 0usize;
         while let Some((c, depth, parent_enabled)) = stack.pop() {
             count += 1;
-            if depth > 64 || count > 65_536 {
+            if depth >= 8 || count > 65_536 {
                 return Err(crate::EngineError::invalid(
                     "mask",
-                    "mask tree exceeds 64 levels or 65536 components",
+                    "mask tree exceeds 8 levels or 65536 components",
                 ));
             }
             let enabled = parent_enabled && c.enabled;

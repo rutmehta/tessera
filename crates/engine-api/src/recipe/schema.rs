@@ -58,7 +58,44 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
         r.settings.tone.curves_extended.is_some()
     }),
     ("legacy_pv2010", |r| r.settings.tone.legacy_pv2010.is_some()),
+    ("mask_component_disabled", |r| {
+        mask_feature(r, |c| !c.enabled)
+    }),
+    ("mask_groups", |r| mask_feature(r, |c| c.group.is_some())),
+    ("mask_luminance_bounds", |r| {
+        mask_feature(r, |c| c.luminance_bounds.is_some())
+    }),
 ];
+
+fn mask_feature(recipe: &Recipe, uses: fn(&super::MaskComponent) -> bool) -> bool {
+    // Include disabled subtrees and retouch areas: re-enabling them must not
+    // expose data already discarded by an older writer. The history base is
+    // typed settings too; JSON patches themselves preserve unknown fields.
+    [&recipe.settings, &recipe.history.base]
+        .into_iter()
+        .any(|settings| {
+            let mut stack: Vec<_> = settings
+                .locals
+                .adjustments
+                .iter()
+                .flat_map(|g| &g.components)
+                .collect();
+            for op in &settings.locals.retouch {
+                if let super::mask::RetouchTarget::Area { components } = &op.target {
+                    stack.extend(components);
+                }
+            }
+            while let Some(c) = stack.pop() {
+                if uses(c) {
+                    return true;
+                }
+                if let Some(children) = &c.group {
+                    stack.extend(children);
+                }
+            }
+            false
+        })
+}
 
 /// Lowest schema version that can represent `recipe` (3 or 4).
 pub fn required_schema_version(recipe: &Recipe) -> u32 {
@@ -247,25 +284,40 @@ mod v4_feature_predicates {
     }
 
     fn mask_recipe(r: &mut Recipe, component: serde_json::Value) {
-        r.settings.locals.adjustments.push(serde_json::from_value(serde_json::json!({
-            "components": [component]
-        })).unwrap());
+        r.settings.locals.adjustments.push(
+            serde_json::from_value(serde_json::json!({
+                "components": [component]
+            }))
+            .unwrap(),
+        );
     }
 
     #[test]
     fn lr4c_disabled_component_requires_v4() {
-        assert_bumped_only_when_present("mask_component_disabled", |r| mask_recipe(r,
-            serde_json::json!({"kind":"brush","strokes":[],"enabled":false})));
+        assert_bumped_only_when_present("mask_component_disabled", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"brush","strokes":[],"enabled":false}),
+            )
+        });
     }
     #[test]
     fn lr4c_nested_group_requires_v4() {
-        assert_bumped_only_when_present("mask_groups", |r| mask_recipe(r,
-            serde_json::json!({"kind":"brush","strokes":[],"group":[]})));
+        assert_bumped_only_when_present("mask_groups", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"brush","strokes":[],"group":[]}),
+            )
+        });
     }
     #[test]
     fn lr4c_luminance_bounds_requires_v4() {
-        assert_bumped_only_when_present("mask_luminance_bounds", |r| mask_recipe(r,
-            serde_json::json!({"kind":"luminance_range","range":[0.2,0.8],"luminance_bounds":[0.1,0.2,0.8,0.9]})));
+        assert_bumped_only_when_present("mask_luminance_bounds", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"luminance_range","range":[0.2,0.8],"luminance_bounds":[0.1,0.2,0.8,0.9]}),
+            )
+        });
     }
 
     #[test]

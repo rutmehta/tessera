@@ -107,53 +107,59 @@ fn compose_components(
     ai: &mut impl FnMut(&MaskKind, u32, u32) -> engine_api::EngineResult<Arc<[f32]>>,
 ) -> engine_api::EngineResult<Vec<f32>> {
     let (w, h) = (input.width(), input.height());
-    let mut out = vec![0f32; w as usize * h as usize];
+    let mut out: Option<Vec<f32>> = None;
     for (index, c) in components.iter().filter(|c| c.enabled).enumerate() {
-        let plane: Arc<[f32]> = if let Some(children) = &c.group {
+        // Own procedural/subtree buffers so the first child becomes the
+        // accumulator without a Vec -> Arc -> Vec copy at every tree level.
+        // External cached AI planes remain borrowed and are never mutated.
+        let external;
+        let plane: std::borrow::Cow<'_, [f32]> = if let Some(children) = &c.group {
             compose_components(input, children, ai)?.into()
+        } else if c.kind.is_ai() {
+            external = ai(&c.kind, w, h)?;
+            std::borrow::Cow::Borrowed(external.as_ref())
         } else {
-            match c.kind.is_ai() {
-                true => ai(&c.kind, w, h)?,
-                false => {
-                    // Preserve additive leaf parameters; this compositor owns
-                    // inversion/combination and applies them exactly once below.
-                    let mut leaf = c.clone();
-                    leaf.invert = false;
-                    leaf.combine = MaskCombine::Add;
-                    let single = LocalAdjustment {
-                        components: vec![leaf],
-                        ..Default::default()
-                    };
-                    pipeline_cpu::masks::rasterize(
-                        input,
-                        &single,
-                        pipeline_cpu::masks::MaskOptions::default(),
-                    )?
-                    .into()
-                }
-            }
+            let mut leaf = c.clone();
+            leaf.invert = false;
+            leaf.combine = MaskCombine::Add;
+            let single = LocalAdjustment {
+                components: vec![leaf],
+                ..Default::default()
+            };
+            pipeline_cpu::masks::rasterize(
+                input,
+                &single,
+                pipeline_cpu::masks::MaskOptions::default(),
+            )?
+            .into()
         };
-        if plane.len() != out.len() || plane.iter().any(|v| !(0.0..=1.0).contains(v)) {
+        if plane.len() != w as usize * h as usize || plane.iter().any(|v| !(0.0..=1.0).contains(v))
+        {
             return Err(engine_api::EngineError::invalid(
                 "mask",
                 "invalid segmentation raster",
             ));
         }
-        // Composition exactly as `pipeline_cpu::masks::rasterize`.
-        for (a, &b) in out.iter_mut().zip(plane.iter()) {
-            let b = if c.invert { 1.0 - b } else { b };
-            *a = if index == 0 {
-                b
-            } else {
-                match c.combine {
+        if index == 0 {
+            let mut owned = plane.into_owned();
+            if c.invert {
+                for v in &mut owned {
+                    *v = 1. - *v;
+                }
+            }
+            out = Some(owned);
+        } else {
+            for (a, &b) in out.as_mut().unwrap().iter_mut().zip(plane.iter()) {
+                let b = if c.invert { 1.0 - b } else { b };
+                *a = match c.combine {
                     MaskCombine::Add => a.max(b),
                     MaskCombine::Subtract => *a * (1.0 - b),
                     MaskCombine::Intersect => *a * b,
-                }
-            };
+                };
+            }
         }
     }
-    Ok(out)
+    Ok(out.unwrap_or_else(|| vec![0.; w as usize * h as usize]))
 }
 /// EXIF orientation: displayed normalized point → stored (sensor) point, as
 /// the loupe shader samples.
