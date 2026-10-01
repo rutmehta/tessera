@@ -1,0 +1,42 @@
+     Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/point_colors-074420969a7a69a9)
+
+running 9 tests
+test native_point_color_keeps_oklch_semantics_and_signed_headroom ... ok
+test point_color_noop_is_bit_exact_and_settings_are_accepted ... ok
+test point_color_range_width_luminance_feather_and_hue_seam ... ok
+test point_color_shifts_saturation_luminance_and_wraps_hue ... ok
+test point_color_reference_swatch_full_half_feather_and_excluded ... ok
+test point_color_rejects_invalid_ranges_without_mutating_tile ... ok
+test sampled_colour_always_gets_full_weight ... FAILED
+test point_color_is_continuous_across_sdr_ceiling ... FAILED
+test point_membership_uses_original_pixel ... FAILED
+
+failures:
+
+---- sampled_colour_always_gets_full_weight stdout ----
+
+thread 'sampled_colour_always_gets_full_weight' (53692495) panicked at crates/pipeline-cpu/tests/point_colors.rs:137:13:
+S=0.9 L=0.5: [0.89000547, 0.0055461824, 0.003935933] != [0.89000547, 0.21404114, 0.0039359406]
+
+---- point_color_is_continuous_across_sdr_ceiling stdout ----
+
+thread 'point_color_is_continuous_across_sdr_ceiling' (53692488) panicked at crates/pipeline-cpu/tests/point_colors.rs:161:5:
+[0.99899995, 0.5995, 0.19999999] vs [1.001, 0.2, 0.2]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- point_membership_uses_original_pixel stdout ----
+
+thread 'point_membership_uses_original_pixel' (53692494) panicked at crates/pipeline-cpu/tests/point_colors.rs:151:5:
+assertion `left == right` failed
+  left: [0.48585013, 0.5225216, 0.05087608]
+ right: [0.5225216, 0.42642596, 0.05087608]
+
+
+failures:
+    point_color_is_continuous_across_sdr_ceiling
+    point_membership_uses_original_pixel
+    sampled_colour_always_gets_full_weight
+
+test result: FAILED. 6 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p pipeline-cpu --test point_colors`

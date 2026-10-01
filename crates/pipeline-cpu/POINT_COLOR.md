@@ -5,7 +5,7 @@ the HSL mixer and grading. `pipeline-adobe` delegates its final color stage to
 this path. This is a deterministic Tessera approximation, **not verified Adobe
 pixel equivalence**. Adobe's internal color space, shift curves, range-amount
 curve and overlap behavior are not specified by the SDK; no Adobe render oracle
-was available in this lane. The import report explicitly says so.
+was available in this lane. The non-warning `tessera_import_info.PointColors` metadata records this limitation.
 
 ## Representation and decoding
 
@@ -41,11 +41,15 @@ The latter is an independent implementation, not an Adobe format specification.
 Order: source H/S/L, three shifts, range amount, then the four H/S/L limits.
 Lua accepts positional arrays and contiguous explicit numeric indices.
 All samples, shifts and boundaries must be finite and in range; unordered
-limits, partial samples, missing feather ranges, unknown fields, extra sequence
+limits, partial samples, incomplete feather ranges, unknown fields, extra sequence
 children, malformed numbers and mixed valid/invalid swatch lists fail atomically.
-The exact original source is retained for these cases. Absent SDK feather
-ranges are not guessed. All-`-1` placeholder records, Variance, and
-future layouts remain unsupported and retained.
+The exact original source is retained for these cases. Absent SDK feather tables
+use `[0, 0.25, 0.75, 1]` independently for H/S/L. The SDK declares the tables
+optional but does not publish their defaults; these are explicit Tessera
+reference defaults. Complete 19-number all-`-1` placeholder records are skipped,
+so valid swatches in the same list translate. Variance and future layouts remain
+unsupported and retained. Catalog import requires Adobe PV3+; PV1/2 retains the
+source and reports an unsupported warning before constructing recipe history.
 
 After successful translation of a single nonempty PointColors property, only
 that property's pending-source entry is removed. Other retained keys are
@@ -56,35 +60,51 @@ PointColors strings. Original source XMP remains available for unchanged exports
 
 ## CPU reference math
 
-For an imported point, convert SDR linear Rec.2020 RGB to ordinary HSL. Hue is
-in degrees and saturation/luminance in [0,1]. Signed/HDR pixels outside [0,1]
-and achromatic pixels are left unchanged by imported points. This restriction
-avoids destructive clipping but means those pixels are not translated with
-Adobe fidelity. Native OkLCh points have a separate unbounded working-space path.
+For an imported point, clamp linear Rec.2020 working RGB to [0,1] for the
+selection/adjustment coordinate, apply the sRGB transfer function per channel,
+then convert that gamma-encoded RGB to ordinary HSL. This corrects the linear
+versus gamma mismatch (encoded .5 is about .214 linear), but does **not** establish
+Adobe's exact primaries/transfer function. The working primaries stay Rec.2020;
+Adobe's internal color space remains unverified. Native OkLCh points retain their
+separate unbounded working-space path.
 
 For each point in recipe order:
 
-1. Hue membership is `0.5 + wrap_signed(h - source_hue)/360`, with circular
-   distance in [-180,180). Saturation/luminance membership uses their values.
-2. Set width = `range / 50`. For each membership value x centered at source c,
-   evaluate the feather at `c + (x-c)/width`. Hue's center is 0.5. Zero width
-   selects only the source (absolute coordinate tolerance 1e-7).
+1. Compute membership from the **original pixel entering the Point Color stage**,
+   never the previous point's output. Hue membership is
+   `0.5 + wrap_signed(h - source_hue)/360`; saturation and luminance are
+   `0.5 + sat - source_sat` and `0.5 + lum - source_lum`.
+2. Set width = `range / 50`. All three sample-relative coordinates are centered
+   at .5; evaluate each feather at `.5 + (x-.5)/width`. Zero width selects only
+   the source (coordinate tolerance 1e-7). The sample sits at the full-weight
+   center for the default ranges, including high/low saturation and luminance.
 3. Feather [a,b,c,d] is zero outside [a,d], one on [b,c], and cubic smoothstep
-   `t*t*(3-2*t)` on either shoulder. Equal limits implement a hard boundary.
-   Multiply the three memberships to obtain w.
-4. Set `h += w*hue_shift`, `s *= 1+w*saturation_shift/100`,
-   `l *= 1+w*luminance_shift/100`; clamp s/l to [0,1], then convert to RGB.
+   `t*t*(3-2*t)` on either shoulder. Multiply H/S/L memberships for weight w.
+4. Apply the weighted shifts to the current gamma-encoded pixel in recipe order:
+   `h += w*hue_shift`, `s *= 1+w*saturation_shift/100`,
+   `l *= 1+w*luminance_shift/100`; clamp s/l to [0,1], then convert back through
+   RGB and the inverse transfer function.
+5. Add back `input - clamp(input,0,1)` per channel. Signed/HDR residuals survive,
+   and crossing 1.0 no longer switches the entire operation off. This is a
+   continuous SDR reference extension, not an Adobe HDR implementation.
 
-No-op and excluded points return the original floats without a color-space
-roundtrip. Validation precedes all pixel mutation. Native OkLCh selection uses
-Euclidean distance in `[L,2C,h/180]` with circular hue distance, smoothstep
-falloff from zero to `range/100`, and the same hue/chroma/lightness shift rules.
-Points are sequential, so a later point selects the output of the preceding
-one. Adobe's overlap/compositing semantics are unverified.
+No-op and excluded points return the original floats without a roundtrip.
+Validation precedes pixel mutation. Native OkLCh membership also uses the
+original pixel: Euclidean distance in `[L,2C,h/180]` with circular hue distance,
+smoothstep falloff from zero to `range/100`, and the same shift rules.
+Only adjustment composition remains sequential; Adobe overlap semantics are
+unverified.
+
+GPU tile, whole-image and mixed-chain paths route Point Color to CPU; fused
+chains reject it as a capability, and renderer resident capability returns false
+so preview/export callers take the established nonresident path. GPU shader
+parameter validation remains strict. The fallback color stage is bit-identical
+to CPU; surrounding GPU stages retain their existing numerical tolerances.
 
 ## Hand-computed parity cases
 
-Tests use a per-channel absolute tolerance of **2e-6 in linear working RGB**.
+The RGB triples below are gamma-encoded coordinates; tests apply the inverse
+transfer to input and expected output. Tests use a per-channel absolute tolerance of **2e-6 in linear working RGB**.
 This is parity with these independent arithmetic references, not Lightroom.
 
 - RGB [.75,.25,.25] is HSL [0,.5,.5]. A full-weight +30 degree hue shift gives
@@ -99,4 +119,5 @@ This is parity with these independent arithmetic references, not Lightroom.
 
 Coverage also includes wrap at red, narrower range, invalid-range atomicity,
 recipe JSON roundtrip, numeric-XMP/Lua equivalence, and synthetic SQLite catalog
-import through the full CPU renderer. GPU Point Color is outside this lane.
+import through the full CPU renderer, original-pixel selection, the 0.999/1.001
+seam, and GPU fallback rendering. Exact Adobe pixel parity remains open.

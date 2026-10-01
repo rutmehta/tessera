@@ -162,9 +162,11 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 
 ## Per-lane representation notes
 
-- **LR-1:** `PointColor` has source LCH, hue/saturation/luminance shifts and one
-  range scalar. It has no independent hue/saturation/luminance range bounds or
-  feather field. Native round-trip support is not an Adobe PointColors decoder.
+- **LR-1:** `PointColor` retains native source LCH and shifts; optional `selection`
+  carries imported HSL and independent sample-relative H/S/L feather limits.
+  LR-1b translates supported SDK/19-number swatches, supplies
+  reference defaults for absent range tables, and skips all-−1 placeholders.
+  Variance and unknown fields remain retained; rendering is an HSL approximation.
 - **LR-2:** `ToneCurves` contains normalized rgb/red/green/blue/luminance curves
   and parametric controls. It lacks an extended HDR domain and curve names.
   PV2010 exposure/contrast/clarity and recovery/fill/black controls cannot be
