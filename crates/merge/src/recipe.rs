@@ -39,6 +39,7 @@ pub fn auto_recipe(image: &LinearImage) -> Result<Recipe> {
 /// Complete native Recipe, including history/unknown fields, as an XMP property.
 /// Standard CRS companions give other readers a best-effort starting rendition.
 pub fn recipe_xmp(recipe: &Recipe) -> Result<String> {
+    recipe.ensure_writable().map_err(|e| e.to_string())?;
     let json = serde_json::to_string(recipe).map_err(|e| e.to_string())?;
     let escaped = json
         .replace('&', "&amp;")

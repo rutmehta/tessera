@@ -28,22 +28,45 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[];
 
 /// Lowest schema version that can represent `recipe` (3 or 4).
 pub fn required_schema_version(recipe: &Recipe) -> u32 {
-    let _ = recipe;
-    unimplemented!("LR-SCHEMA")
+    if active_predicates().iter().any(|(_, uses)| uses(recipe)) {
+        RECIPE_SCHEMA_VERSION_V4
+    } else {
+        RECIPE_SCHEMA_VERSION
+    }
 }
 
-/// Names of the schema 4 features `recipe` uses, in list order.
+/// Names of the schema 4 features `recipe` uses, in list order (diagnostics).
 pub fn v4_features_used(recipe: &Recipe) -> Vec<&'static str> {
-    let _ = recipe;
-    unimplemented!("LR-SCHEMA")
+    active_predicates()
+        .iter()
+        .filter(|(_, uses)| uses(recipe))
+        .map(|(name, _)| *name)
+        .collect()
 }
 
-/// Newest stored `schema_version` this build will write.
+/// Newest stored `schema_version` this build will write: 3 until the first
+/// schema 4 feature is registered, then 4.
 pub fn max_writable_schema_version() -> u32 {
-    unimplemented!("LR-SCHEMA")
+    if active_predicates().is_empty() {
+        RECIPE_SCHEMA_VERSION
+    } else {
+        RECIPE_SCHEMA_VERSION_V4
+    }
 }
 
-#[allow(dead_code)]
+/// Version every serialisation writes: `max(schema_version, required)` when a
+/// schema 4 feature is used, otherwise the stored version unchanged, so
+/// existing documents (including in-memory legacy versions) stay
+/// byte-identical.
+pub(crate) fn written_schema_version(recipe: &Recipe) -> u32 {
+    let required = required_schema_version(recipe);
+    if required > RECIPE_SCHEMA_VERSION {
+        recipe.schema_version.max(required)
+    } else {
+        recipe.schema_version
+    }
+}
+
 fn active_predicates() -> &'static [FeaturePredicate] {
     #[cfg(test)]
     if let Some(predicates) = test_override::current() {

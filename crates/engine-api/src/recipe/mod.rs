@@ -8,8 +8,10 @@
 //! Forward compatibility: every struct is `#[serde(default)]`, so older
 //! documents load into newer builds; unknown top-level members are preserved
 //! verbatim in [`Recipe::unknown`]. A build refuses to *write* a document
-//! whose `schema_version` is newer than [`RECIPE_SCHEMA_VERSION`], so it can
-//! never silently drop fields it does not understand.
+//! whose `schema_version` is newer than it can write
+//! ([`max_writable_schema_version`]), so it can never silently drop fields it
+//! does not understand. Every serialisation writes the version the content
+//! needs ([`schema`]): schema 4 only when a schema 4 feature is used.
 
 pub mod crs;
 pub mod history;
@@ -45,6 +47,9 @@ use crate::stage::{canonical_json, ParamHash, StageId};
 ///   ([`CameraProfileRef`], [`LensProfileRef`]; schema-1 strings still load),
 ///   and [`Recipe::provenance`] was added.
 /// - 3: contracts 1.3. Typed source kind (legacy absence means raw).
+///
+/// Schema 4 ([`RECIPE_SCHEMA_VERSION_V4`]) is conditional: written only for
+/// recipes using a feature listed in [`schema`].
 pub const RECIPE_SCHEMA_VERSION: u32 = 3;
 
 /// Source decoding route. Legacy recipes without this field are raw.
@@ -229,7 +234,10 @@ pub struct IdCounters {
 }
 
 /// The per-image edit document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// `Serialize` is hand-written (below) so every serialisation, including
+/// envelopes that embed a recipe, writes [`schema::written_schema_version`].
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(default)]
 pub struct Recipe {
     /// Schema version of this document.
@@ -271,6 +279,52 @@ impl Default for Recipe {
             provenance: Provenance::default(),
             unknown: BTreeMap::new(),
         }
+    }
+}
+
+impl Serialize for Recipe {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // Same members, order and attributes as the struct; exhaustive
+        // destructuring makes a new field a compile error here.
+        #[derive(Serialize)]
+        struct Wire<'a> {
+            schema_version: u32,
+            image_id: &'a Option<ImageId>,
+            source_kind: &'a SourceKind,
+            process_version: &'a ProcessVersion,
+            settings: &'a DevelopSettings,
+            selection: &'a Selection,
+            history: &'a History,
+            ids: &'a IdCounters,
+            provenance: &'a Provenance,
+            #[serde(flatten)]
+            unknown: &'a BTreeMap<String, Value>,
+        }
+        let Recipe {
+            schema_version: _,
+            image_id,
+            source_kind,
+            process_version,
+            settings,
+            selection,
+            history,
+            ids,
+            provenance,
+            unknown,
+        } = self;
+        Wire {
+            schema_version: schema::written_schema_version(self),
+            image_id,
+            source_kind,
+            process_version,
+            settings,
+            selection,
+            history,
+            ids,
+            provenance,
+            unknown,
+        }
+        .serialize(serializer)
     }
 }
 
@@ -436,16 +490,27 @@ impl Recipe {
         Ok(recipe)
     }
 
-    /// Serializes the document (pretty, stable member order). Fails with
-    /// [`EngineError::SchemaVersion`] for documents from a newer schema.
-    pub fn to_json(&self) -> EngineResult<Vec<u8>> {
-        if self.schema_version > RECIPE_SCHEMA_VERSION {
+    /// Fails with [`EngineError::SchemaVersion`] when this build must not
+    /// write the document: its stored `schema_version` is newer than
+    /// [`max_writable_schema_version`]. Every recipe write calls this (via
+    /// [`Recipe::to_json`] or directly) before serialising.
+    pub fn ensure_writable(&self) -> EngineResult<()> {
+        let supported = max_writable_schema_version();
+        if self.schema_version > supported {
             return Err(EngineError::SchemaVersion {
                 document: "recipe".into(),
                 found: self.schema_version,
-                supported: RECIPE_SCHEMA_VERSION,
+                supported,
             });
         }
+        Ok(())
+    }
+
+    /// Serializes the document (pretty, stable member order), writing the
+    /// schema version its content requires without changing `self`. Fails
+    /// with [`EngineError::SchemaVersion`] for documents from a newer schema.
+    pub fn to_json(&self) -> EngineResult<Vec<u8>> {
+        self.ensure_writable()?;
         Ok(serde_json::to_vec_pretty(self)?)
     }
 }

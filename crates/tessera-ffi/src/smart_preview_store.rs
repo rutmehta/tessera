@@ -352,7 +352,7 @@ fn validate_recipe(id: ImageId, bytes: &[u8]) -> StoreResult<()> {
         .and_then(|recipe| recipe.get("schema_version"))
         .and_then(serde_json::Value::as_u64)
         .ok_or_else(|| StoreError::Corrupt("recipe schema version is missing or invalid".into()))?;
-    if schema_version > u64::from(engine_api::recipe::RECIPE_SCHEMA_VERSION) {
+    if schema_version > u64::from(engine_api::recipe::max_writable_schema_version()) {
         return Err(StoreError::Corrupt(format!(
             "unsupported future recipe schema {schema_version}"
         )));

@@ -484,6 +484,13 @@ pub(crate) fn save_local_recipe(journal: &mut SmartPreviewJournal, recipe: &Reci
     ] {
         value["recipe"][key] = updated[key].clone();
     }
+    // A schema 4 feature bumps the stored version (LR-SCHEMA); otherwise the
+    // envelope's own version bytes are retained.
+    if engine_api::recipe::required_schema_version(recipe)
+        > engine_api::recipe::RECIPE_SCHEMA_VERSION
+    {
+        value["recipe"]["schema_version"] = updated["schema_version"].clone();
+    }
     journal
         .save_recipe(serde_json::to_vec(&value).map_err(failure)?)
         .map_err(failure)?;
