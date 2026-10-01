@@ -29,15 +29,15 @@ final class TransformLensBlurTests: XCTestCase {
     func testUprightButtonsWriteTheirModeAndClearGuides() {
         XCTAssertEqual(UprightMode.allCases.map(\.rawValue), ["off", "auto", "guided", "level", "vertical", "full"])
         for m in UprightMode.allCases where m != .guided {
-            XCTAssertEqual(json(UprightControls.patch(mode: m)), #"{"geometry":{"upright":{"guides":[],"mode":"\#(m.rawValue)"}}}"#)
+            XCTAssertEqual(json(UprightControls.patch(mode: m)), #"{"geometry":{"upright":{"guides":[],"homography":null,"homography_mode":null,"mode":"\#(m.rawValue)"}}}"#)
             XCTAssertEqual(UprightControls.historyLabel(m), "Upright: \(m.title)")
         }
         let g = UprightGuide(start: (0.2, 0.1), end: (0.25, 0.9))
         XCTAssertEqual(json(UprightControls.patch(mode: .guided, guides: [g, g])),
-                       #"{"geometry":{"upright":{"guides":[{"end":[0.25,0.9],"start":[0.2,0.1]},{"end":[0.25,0.9],"start":[0.2,0.1]}],"mode":"guided"}}}"#)
-        XCTAssertEqual(json(UprightControls.patch(mode: .auto, guides: [g])), #"{"geometry":{"upright":{"guides":[],"mode":"auto"}}}"#,
+                       #"{"geometry":{"upright":{"guides":[{"end":[0.25,0.9],"start":[0.2,0.1]},{"end":[0.25,0.9],"start":[0.2,0.1]}],"homography":null,"homography_mode":null,"mode":"guided"}}}"#)
+        XCTAssertEqual(json(UprightControls.patch(mode: .auto, guides: [g])), #"{"geometry":{"upright":{"guides":[],"homography":null,"homography_mode":null,"mode":"auto"}}}"#,
                        "the engine rejects guides outside Guided")
-        XCTAssertEqual(json(UprightControls.resetPatch), #"{"geometry":{"upright":{"guides":[],"mode":"off"}}}"#)
+        XCTAssertEqual(json(UprightControls.resetPatch), #"{"geometry":{"upright":{"guides":[],"homography":null,"homography_mode":null,"mode":"off"}}}"#)
         XCTAssertEqual(json(UprightControls.constrainCropPatch(true)), #"{"geometry":{"constrain_crop":true}}"#)
         XCTAssertEqual(UprightControls.mode(in: ["geometry": ["upright": ["mode": "vertical"]]]), .vertical)
         XCTAssertEqual(UprightControls.mode(in: [:]), .off)
@@ -49,7 +49,7 @@ final class TransformLensBlurTests: XCTestCase {
         XCTAssertNil(e.add(UprightGuide(start: (0.5, 0.5), end: (0.502, 0.5))), "a click is not a guide")
         XCTAssertEqual(e.add(UprightGuide(start: (0.1, 0.1), end: (0.12, 0.9))), 0)
         XCTAssertFalse(e.isComplete)
-        XCTAssertEqual(json(e.patch), #"{"geometry":{"upright":{"guides":[],"mode":"off"}}}"#, "one guide cannot be Guided")
+        XCTAssertEqual(json(e.patch), #"{"geometry":{"upright":{"guides":[],"homography":null,"homography_mode":null,"mode":"off"}}}"#, "one guide cannot be Guided")
         XCTAssertEqual(e.historyLabel, "Upright: Off")
         e.add(UprightGuide(start: (0.9, 0.1), end: (0.88, 0.9)))
         XCTAssertTrue(e.isComplete)
@@ -74,7 +74,7 @@ final class TransformLensBlurTests: XCTestCase {
         let stored = (DevelopController.value(in: settings, at: UprightControls.guidesPath) as? [[String: Any]])?.count
         XCTAssertEqual(stored, 3)
         e.removeAll()
-        XCTAssertEqual(json(e.patch), #"{"geometry":{"upright":{"guides":[],"mode":"off"}}}"#)
+        XCTAssertEqual(json(e.patch), #"{"geometry":{"upright":{"guides":[],"homography":null,"homography_mode":null,"mode":"off"}}}"#)
         XCTAssertNil(UprightGuide(json: ["start": [0.1], "end": [0.2, 0.3]]), "malformed guides are skipped")
     }
 

@@ -411,6 +411,8 @@ pub fn has_m2_settings(s: &DevelopSettings) -> bool {
         || s.color != Default::default()
         || s.effects != Default::default()
         || s.geometry != Default::default()
+        || s.lens.legacy_ca_red.unwrap_or(0.) != 0.
+        || s.lens.legacy_ca_blue.unwrap_or(0.) != 0.
         || s.lens.manual_distortion != 0.
         || s.lens.manual_vignetting != 0.
         || s.lens.defringe_purple.amount != 0.

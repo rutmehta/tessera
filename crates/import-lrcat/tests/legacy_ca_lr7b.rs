@@ -18,7 +18,11 @@ fn legacy_ca_lua_and_xmp_translate_independently() {
                 let value = serde_json::to_value(&recipe).unwrap();
                 assert_eq!(
                     value["settings"]["lens"][field].as_f64(),
-                    Some(amount as f64),
+                    if amount == 0 {
+                        None
+                    } else {
+                        Some(amount as f64)
+                    },
                     "{key}: {warnings:?}"
                 );
                 assert!(!recipe.unknown.contains_key(&format!("crs:{key}")));

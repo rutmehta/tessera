@@ -19,6 +19,7 @@ use std::{
 };
 #[derive(Default)]
 struct Model {
+    allow_host_fallback: bool,
     disable_cfa: bool,
     cache: Mutex<HashMap<MemoKey, Tile>>,
     matrix_pixels: std::sync::atomic::AtomicU64,
@@ -56,6 +57,9 @@ fn cpu(tile: &ResidentTile) -> Tile {
 }
 impl StageOp for Model {
     fn run(&self, _stage: StageId, _op: &Op<'_>, _input: Tile) -> EngineResult<Tile> {
+        if self.allow_host_fallback {
+            return CpuStageOp.run(_stage, _op, _input);
+        }
         panic!("resident graph must not invoke host stage execution")
     }
     fn begin_resident(&self) -> Option<Box<dyn ResidentBatch + '_>> {
@@ -668,7 +672,10 @@ fn cfa_resident_scheduler_matches_cpu_and_reuses_fullstrength() {
 #[test]
 fn legacy_ca_without_profile_resident_matches_cpu() {
     let r = Renderer::with_ops(
-        Arc::new(Model::default()),
+        Arc::new(Model {
+            allow_host_fallback: true,
+            ..Model::default()
+        }),
         Arc::new(TileCache::new(0)),
         RendererConfig::default(),
     );
@@ -681,6 +688,7 @@ fn legacy_ca_without_profile_resident_matches_cpu() {
     s.lens.legacy_ca_blue = Some(-100.);
     assert!(!crate::resident_export_lens_supported(&s.lens));
     assert!(pipeline_cpu::has_m2_settings(&s));
+    assert!(!r.can_render_resident(&image, &s).unwrap());
     let rect = PixelRect::full(image.level_extent(0));
     let a = r
         .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)

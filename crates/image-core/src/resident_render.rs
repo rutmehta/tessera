@@ -485,6 +485,10 @@ impl Renderer {
             || !s.locals.adjustments.is_empty()
             || s.effects.lens_blur.is_some()
             || self.depth_visualisation
+            // Manual legacy CA cannot use an unplanned resident prefix: it must
+            // run after demosaic and before the camera/white-balance matrix.
+            || ((s.lens.legacy_ca_red.unwrap_or(0.) != 0.
+                || s.lens.legacy_ca_blue.unwrap_or(0.) != 0.) && r.lens.is_none())
             // Geometry is resident only through an export lens plan's map.
             || (s.geometry != Default::default()
                 && r.lens.is_none())
@@ -631,6 +635,9 @@ impl Renderer {
     ) -> EngineResult<Option<pipeline_cpu::UprightAnalysis>> {
         cancel.check()?;
         use engine_api::recipe::settings::UprightMode;
+        if settings.geometry.upright.has_saved_solution() {
+            return Ok(None);
+        }
         if !matches!(
             settings.geometry.upright.mode,
             UprightMode::Off | UprightMode::Guided

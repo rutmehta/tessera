@@ -774,6 +774,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
 /// Unknown future keys are pending by definition; this also covers additions to KEY_MAP.
 pub(crate) fn retain_source(key: &str) -> bool {
     key.starts_with("Upright")
+        || matches!(key, "ChromaticAberrationR" | "ChromaticAberrationB")
         || key.starts_with("ExtendedToneCurve")
         || matches!(
             key,

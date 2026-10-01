@@ -1130,9 +1130,28 @@ pub struct Upright {
     /// Omitted when absent to preserve pre-existing recipe serialization/hashes.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub homography: Option<[[f64; 3]; 3]>,
+    /// Mode for which the saved solution was produced. Absent on old recipes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub homography_mode: Option<UprightMode>,
 }
 
 impl Upright {
+    /// Whether a saved solution can replace analysis for the current mode.
+    pub fn has_saved_solution(&self) -> bool {
+        self.mode != UprightMode::Off
+            && self.homography.is_some()
+            && self.homography_mode.is_none_or(|mode| mode == self.mode)
+    }
+    /// Interactive mode/guide edits invalidate a solution, including same-mode guide edits.
+    pub fn invalidate_after_edit(&mut self, before: &Self) {
+        if (self.mode != before.mode || self.guides != before.guides)
+            && self.homography == before.homography
+        {
+            self.homography = None;
+            self.homography_mode = None;
+        }
+    }
+
     /// Reject nonfinite/singular maps and projective poles across the source frame.
     pub fn valid_homography(h: &[[f64; 3]; 3]) -> bool {
         if h.iter().flatten().any(|v| !v.is_finite()) {

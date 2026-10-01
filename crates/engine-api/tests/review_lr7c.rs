@@ -28,11 +28,23 @@ fn mode_changes_invalidate_saved_matrix() {
 #[test]
 fn guide_changes_invalidate_saved_matrix() {
     let mut r = saved();
-    r.edit(EditMeta::user("guides", 0), |s| {
-        s.geometry.upright.guides.push(GuideLine {
+    r.settings.geometry.upright.mode = UprightMode::Guided;
+    r.settings.geometry.upright.homography_mode = Some(UprightMode::Guided);
+    r.settings.geometry.upright.guides = vec![
+        GuideLine {
             start: [0.1, 0.1],
             end: [0.2, 0.9],
-        })
+        },
+        GuideLine {
+            start: [0.9, 0.1],
+            end: [0.8, 0.9],
+        },
+    ];
+    r.history.base = r.settings.clone();
+    r.history.entries.clear();
+    r.history.head = None;
+    r.edit(EditMeta::user("guides", 0), |s| {
+        s.geometry.upright.guides[0].end = [0.3, 0.8];
     })
     .unwrap();
     assert!(r.settings.geometry.upright.homography.is_none());

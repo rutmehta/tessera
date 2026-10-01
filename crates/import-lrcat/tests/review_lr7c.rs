@@ -55,3 +55,69 @@ fn center_focal_frame_is_used_and_mode_is_tagged() {
         serde_json::json!([[0., -1., 1.], [1., 0., 0.5], [0., 0., 1.]])
     );
 }
+
+#[test]
+fn focal_scale_conjugates_translation() {
+    let (r,_) = lua_develop::parse("s = { PerspectiveUpright = 1, UprightCenterNormX = 0.25, UprightCenterNormY = 0.75, UprightFocalLength35mm = 70, UprightTransform_1 = '1,0,0.1,0,1,0.2,0,0,1' }","15.4").unwrap();
+    let h = r.settings.geometry.upright.homography.unwrap();
+    assert!((h[0][2] - 0.2).abs() < 1e-12);
+    assert!((h[1][2] - 0.4).abs() < 1e-12);
+}
+
+#[test]
+fn catalog_process_version_gates_ca_even_when_xmp_claims_legacy() {
+    let xml = r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"><rdf:Description crs:ProcessVersion="5.7" crs:ChromaticAberrationR="35"/></rdf:RDF>"#;
+    let (r, _) = import_lrcat::xmp::parse(xml, "15.4").unwrap();
+    assert!(r.settings.lens.legacy_ca_red.is_none());
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["ChromaticAberrationR"].is_string());
+    r.validate().unwrap();
+}
+
+#[test]
+fn invalid_frame_metadata_is_not_silently_defaulted() {
+    for pair in [
+        "UprightFocalLength35mm = -1",
+        "UprightCenterNormX = 'NaN'",
+        "UprightCenterNormY = 2",
+    ] {
+        let (r, w) = lua_develop::parse(
+            &format!(
+                "s = {{ PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0,0,1', {pair} }}"
+            ),
+            "15.4",
+        )
+        .unwrap();
+        assert!(r.settings.geometry.upright.homography.is_none());
+        assert!(
+            w.iter().any(|w| w.contains("invalid center/focal frame")),
+            "{w:?}"
+        );
+    }
+}
+
+#[test]
+fn framed_matrix_poles_are_checked_in_the_actual_image_domain() {
+    // The pole qx=2/3 is outside the centered [-0.5,0.5] source frame,
+    // even though it lies in the unframed [0,1] square.
+    let (r,w)=lua_develop::parse("s = { PerspectiveUpright = 1, UprightCenterNormX = 0.5, UprightCenterNormY = 0.5, UprightTransform_1 = '1,0,0,0,1,0,-1.5,0,1' }","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    assert_eq!(
+        r.settings.geometry.upright.homography,
+        Some([[0.25, 0., 0.375], [-0.75, 1., 0.375], [-1.5, 0., 1.75]])
+    );
+    r.validate().unwrap();
+}
+
+#[test]
+fn unknown_frame_family_members_do_not_change_the_known_mapping() {
+    let (r,w)=lua_develop::parse("s = { PerspectiveUpright = 1, UprightCenterFuture = 'future', UprightTransform_1 = '0,-1,1,1,0,0,0,0,1' }","15.4").unwrap();
+    assert_eq!(
+        r.settings.geometry.upright.homography,
+        Some([[0., -1., 1.], [1., 0., 0.], [0., 0., 1.]])
+    );
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["properties"]["UprightCenterFuture"],
+        "'future'"
+    );
+    assert!(w.iter().any(|w| w.contains("UprightCenterFuture")));
+}

@@ -483,7 +483,7 @@ impl ResolvedLens {
             || s.defringe_purple.amount != 0.
             || s.defringe_green.amount != 0.
             || (analyzed.is_none()
-                && g.upright.homography.is_none()
+                && !g.upright.has_saved_solution()
                 && !matches!(g.upright.mode, UprightMode::Off | UprightMode::Guided))
             || g.orientation != 1
             || g.constrain_crop

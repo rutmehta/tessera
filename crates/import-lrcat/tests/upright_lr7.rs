@@ -2,7 +2,7 @@ use import_lrcat::lua_develop;
 use serde_json::json;
 
 #[test]
-fn solved_upright_is_translated_and_removed_from_pending_source() {
+fn solved_upright_is_approximate_and_retained() {
     let (r, w) = lua_develop::parse("s = { PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1', PerspectiveVertical = 20, PerspectiveHorizontal = -10, PerspectiveRotate = 2, PerspectiveScale = 110, PerspectiveAspect = 5, PerspectiveX = 3, PerspectiveY = -4 }", "15.4").unwrap();
     r.validate().unwrap();
     let restored = engine_api::recipe::Recipe::from_json(&r.to_json().unwrap()).unwrap();
@@ -17,7 +17,7 @@ fn solved_upright_is_translated_and_removed_from_pending_source() {
         g["transform"],
         json!({"vertical":20.,"horizontal":-10.,"rotate":2.,"scale":110.,"aspect":5.,"offset_x":3.,"offset_y":-4.})
     );
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
     assert!(!w.iter().any(|w| w.contains("UprightTransform_1")), "{w:?}");
 }
 
@@ -26,7 +26,7 @@ fn guided_segments_translate_atomically() {
     let (r, _) = lua_develop::parse("s = { PerspectiveUpright = 5, UprightFourSegmentsCount = 2, UprightFourSegments_0 = '0.1,0.1,0.2,0.9', UprightFourSegments_1 = '0.9,0.1,0.8,0.9' }", "15.4").unwrap();
     assert_eq!(r.settings.geometry.upright.guides.len(), 2);
     assert_eq!(r.settings.geometry.upright.guides[0].end, [0.2, 0.9]);
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn xmp_solved_upright_uses_same_mapping() {
     assert!(
         serde_json::to_value(&r.settings.geometry).unwrap()["upright"]["homography"].is_array()
     );
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown.contains_key("lrcat_develop_source"));
 }
 
 #[test]

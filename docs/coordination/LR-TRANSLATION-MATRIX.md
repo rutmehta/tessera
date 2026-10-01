@@ -17,6 +17,10 @@ the coordinator should review these assignments before implementation.
 - `unsupported-diagnostic`: unsupported source yields a diagnostic and is kept.
   Diagnostics depend on shape/value: nil Lua values may skip codec warnings;
   identity extended curves and their names are retained without warnings.
+- `approximate`: recipe fields are populated, exact source remains in
+  `lrcat_develop_source`, and `translation_diagnostics` records an info-level
+  `approximate: <reason>` message. No user-facing warnings for that mapping.
+  Unverified Adobe conventions must use this status.
 - `translated`: the valid synthetic example populates an existing field without
   per-key retained source/diagnostics. This does not assert pixel parity for Adobe.
 - `approximate`: the valid synthetic example populates the recipe path (its value
@@ -38,7 +42,8 @@ the generic invalid/duplicate diagnostics below still apply to every one of them
 The fifth column is a literal synthetic Lua value, mandatory for `translated`
 and `approximate` rows. The cheap `translation_matrix` integration test imports each such row via
 `lua_develop::parse`, checks retention and diagnostics, and verifies the recipe
-JSON pointer exists. It also checks inventory coverage against KEY_MAP and named
+JSON pointer exists. Approximate rows require an exact retained literal, an
+info-level `approximate: ` diagnostic, and zero warnings. It also checks inventory coverage against KEY_MAP and named
 extended curves. A negative control proves that falsely claiming PointColors is
 translated fails. Test-only fixture rows prove the `approximate` checks, one
 negative per condition (field, source, diagnostic, warnings); no real row is
@@ -54,8 +59,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `AutoToneDigestNoSat` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `AutoWhiteVersion` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `Brightness` | MISSING: PV2010 brightness operator; /settings/tone/curves/rgb only an approximation | LR-2 | unsupported-diagnostic | — |
-| `ChromaticAberrationB` | `/settings/lens/legacy_ca_blue` | LR-7 | translated | `-25` |
-| `ChromaticAberrationR` | `/settings/lens/legacy_ca_red` | LR-7 | translated | `35` |
+| `ChromaticAberrationB` | `/settings/lens/legacy_ca_blue` | LR-7 | approximate | `-25` |
+| `ChromaticAberrationR` | `/settings/lens/legacy_ca_red` | LR-7 | approximate | `35` |
 | `Clarity` | /settings/tone/clarity (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
 | `CompatibleVersion` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
 | `Contrast` | /settings/tone/contrast (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
@@ -64,6 +69,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
 | `DepthMapInfo` | MISSING: imported depth resource reference/calibration; LensBlur.depth_model identifies a model | LR-2 | unsupported-diagnostic | — |
 | `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic | — |
+| `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
+| `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `Exposure` | /settings/tone/exposure (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
 | `ExtendedToneCurveName2012` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | retained | — |
 | `ExtendedToneCurvePV2012` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | unsupported-diagnostic | — |
@@ -131,27 +138,27 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `ToneCurveName2012` | MISSING: curve preset name; points belong in /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
 | `ToneCurveRed` | MISSING: legacy curve process semantics/name; candidate /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
 | `Upright*` | MISSING: arbitrary Upright family members/solve state in /settings/geometry | LR-7 | retained | — |
-| `UprightCenterMode` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightCenterNormX` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightCenterNormY` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
+| `UprightCenterMode` | `/settings/geometry/upright/homography` | LR-7 | approximate | `1` |
+| `UprightCenterNormX` | `/settings/geometry/upright/homography` | LR-7 | approximate | `0.25` |
+| `UprightCenterNormY` | `/settings/geometry/upright/homography` | LR-7 | approximate | `0.75` |
 | `UprightDependentDigest` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightFocalLength35mm` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightFocalMode` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
+| `UprightFocalLength35mm` | `/settings/geometry/upright/homography` | LR-7 | approximate | `70` |
+| `UprightFocalMode` | `/settings/geometry/upright/homography` | LR-7 | approximate | `1` |
 | `UprightFourSegments*` | MISSING: arbitrary Upright family members/solve state in /settings/geometry | LR-7 | retained | — |
-| `UprightFourSegmentsCount` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightFourSegments_0` | /settings/geometry/upright/guides (endpoint conversion required) | LR-7 | unsupported-diagnostic | — |
-| `UprightFourSegments_1` | /settings/geometry/upright/guides (endpoint conversion required) | LR-7 | unsupported-diagnostic | — |
-| `UprightFourSegments_2` | /settings/geometry/upright/guides (endpoint conversion required) | LR-7 | unsupported-diagnostic | — |
-| `UprightFourSegments_3` | /settings/geometry/upright/guides (endpoint conversion required) | LR-7 | unsupported-diagnostic | — |
+| `UprightFourSegmentsCount` | `/settings/geometry/upright/guides` | LR-7 | approximate | `4` |
+| `UprightFourSegments_0` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
+| `UprightFourSegments_1` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
+| `UprightFourSegments_2` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
+| `UprightFourSegments_3` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
 | `UprightPreview` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
 | `UprightTransform*` | MISSING: arbitrary Upright family members/solve state in /settings/geometry | LR-7 | retained | — |
-| `UprightTransformCount` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightTransform_0` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightTransform_1` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightTransform_2` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightTransform_3` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightTransform_4` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightTransform_5` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
+| `UprightTransformCount` | solution inventory metadata retained | LR-7 | retained | — |
+| `UprightTransform_0` | inactive Off solution retained; no rendered effect | LR-7 | retained | — |
+| `UprightTransform_1` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
+| `UprightTransform_2` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
+| `UprightTransform_3` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
+| `UprightTransform_4` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
+| `UprightTransform_5` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightVersion` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
 | `Version` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
 
@@ -188,14 +195,24 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   It lacks an imported depth-map handle/calibration, detailed Adobe bokeh controls
   and dedicated regenerated-depth provenance. A model reference is not a depth
   raster. Existing native/simple XMP decoding does not settle Adobe fidelity.
-- **LR-7:** `GeometrySettings` has crop/orientation/constrain_crop, Upright
-  mode/guides and seven transform sliders. There is no arbitrary 3x3 homography,
-  saved solve center/focal metadata or multiple Upright solutions. Four-segment
-  endpoints can target guides, but solve metadata cannot. Perspective sliders
-  already translate; their existence does not implement UprightTransform_*.
-  Cloud distraction removal needs an explicit user-facing unsupported explanation;
-  LR-7 reports "requires Adobe cloud; not translatable" verbatim for enabled
-  EnableDistractionRemoval, GenerativeRemove and GenerativeFill (LR-7b regression-tested).
+- **LR-7:** optional `geometry.upright.homography` stores a unit-image
+  source-to-output map, tagged by `homography_mode`. Selected matrices,
+  center/focal framing and complete four-segment guide sets are approximate.
+  Imported matrices use row-major source-to-output order; when center/focal
+  metadata is present, the assumed frame is `(u-cx, v-cy)/(f35/35)` on both axes.
+  Missing centers default to 0.5 and missing focal length to 35mm. Mode flags
+  signal saved frame metadata; their Adobe enum semantics remain unverified.
+  The matrix is conjugated into unit coordinates at import. This does not
+  establish Adobe's aspect-ratio or sensor-rotation convention. CA sign and
+  radial units are also unverified. All exact source is retained and info-level
+  diagnostics explain the approximation without user-facing warnings.
+  Legacy CA applies only to Adobe PV1/2; zero values are absent. Mode/guide edits
+  clear saved solutions. Cloud-generated pixels require Adobe's rendered output.
+
+The same `approximate` rule applies to LR-1 PointColors and LR-2 legacy tone
+or extended-curve notes: populating a recipe field alone is not evidence of Adobe
+convention fidelity. Retained structures may remain `retained`; any promotion to
+`translated` needs public DNG+XMP or Adobe-rendered synthetic reference evidence.
 
 ## Diagnostic and source-contract boundaries (29c compatibility)
 

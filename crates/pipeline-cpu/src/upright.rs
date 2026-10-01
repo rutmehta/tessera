@@ -37,7 +37,7 @@ pub(crate) fn undistort(
 }
 /// Conjugate the saved unit-frame map into the renderer's [-1, 1] frame.
 pub(crate) fn saved_inverse(s: &GeometrySettings) -> EngineResult<Option<Homography>> {
-    if s.upright.mode == UprightMode::Off {
+    if !s.upright.has_saved_solution() {
         return Ok(None);
     }
     let Some(h) = s.upright.homography else {

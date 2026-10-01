@@ -59,6 +59,83 @@ impl XmpPacket {
                 owned.push((PRIVATE, NATIVE_REVISION_PROPERTY));
             }
         }
+        // Canonical CRS for external readers, plus a hash-bound exact native companion.
+        // Rewriting clears old center/focal metadata because homography is unit-frame.
+        if recipe.settings.geometry.upright != imported.recipe.settings.geometry.upright
+            || recipe.settings.geometry.upright.homography.is_some()
+                && tree
+                    .value(
+                        CRS,
+                        &format!(
+                            "UprightTransform_{}",
+                            upright_index(recipe.settings.geometry.upright.mode)
+                        ),
+                    )
+                    .is_none()
+        {
+            for key in geometry_keys() {
+                if key.starts_with("Upright") {
+                    owned.push((CRS, key));
+                }
+            }
+            let u = &recipe.settings.geometry.upright;
+            if u.has_saved_solution() {
+                let name = format!("crs:UprightTransform_{}", upright_index(u.mode));
+                let csv = u
+                    .homography
+                    .unwrap()
+                    .iter()
+                    .flatten()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                body += &text(&name, &csv);
+            }
+            if !u.guides.is_empty() {
+                body += &text("crs:UprightFourSegmentsCount", &u.guides.len().to_string());
+                for (i, g) in u.guides.iter().enumerate() {
+                    body += &text(
+                        &format!("crs:UprightFourSegments_{i}"),
+                        &g.start
+                            .iter()
+                            .chain(&g.end)
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    );
+                }
+            }
+        }
+        for (key, v) in [
+            ("ChromaticAberrationR", recipe.settings.lens.legacy_ca_red),
+            ("ChromaticAberrationB", recipe.settings.lens.legacy_ca_blue),
+        ] {
+            let original_value = match key {
+                "ChromaticAberrationR" => imported.recipe.settings.lens.legacy_ca_red,
+                _ => imported.recipe.settings.lens.legacy_ca_blue,
+            };
+            if tree.property(CRS, key).is_some() && v == original_value {
+                continue;
+            }
+            owned.push((CRS, key));
+            if let Some(v) = v {
+                body += &text(&format!("crs:{key}"), &v.to_string());
+            }
+        }
+        owned.push((PRIVATE, "GeometryLens"));
+        if recipe.settings.geometry.upright.homography.is_some()
+            || recipe.settings.lens.legacy_ca_red.is_some()
+            || recipe.settings.lens.legacy_ca_blue.is_some()
+        {
+            body += &text(
+                "ts:GeometryLens",
+                &serde_json::to_string(&json!({
+                    "upright": recipe.settings.geometry.upright,
+                    "legacy_ca_red": recipe.settings.lens.legacy_ca_red,
+                    "legacy_ca_blue": recipe.settings.lens.legacy_ca_blue
+                }))?,
+            );
+        }
         // Refresh the companion after all CRS edits, including retained opaque data.
         owned.push((PRIVATE, "LensProfileSource"));
         body += &text(
@@ -125,6 +202,59 @@ impl XmpPacket {
         recipe
             .unknown
             .insert("sidecar_xmp".into(), Value::String(self.xml.clone()));
+        let properties: Vec<_> = geometry_keys()
+            .into_iter()
+            .filter_map(|key| tree.value(CRS, key).map(|v| (key, v)))
+            .collect();
+        let mut source = serde_json::Map::new();
+        for desc in tree.descriptions() {
+            for a in &desc.attrs {
+                if a.ns == CRS && geometry_keys().contains(&a.local.as_str()) {
+                    source.insert(a.local.clone(), json!(&self.xml[a.span.clone()]));
+                }
+            }
+            for &i in &desc.children {
+                let n = &tree.nodes[i];
+                if n.ns == CRS && geometry_keys().contains(&n.local.as_str()) {
+                    source.insert(n.local.clone(), json!(&self.xml[n.span.clone()]));
+                }
+            }
+        }
+        if !source.is_empty() {
+            recipe.unknown.insert(
+                "lrcat_develop_source".into(),
+                json!({"shape":"xmp-fragments","properties":source}),
+            );
+        }
+        crate::geometry::apply(
+            &mut recipe,
+            &mut warnings,
+            properties.iter().map(|(k, v)| (*k, v.as_str())),
+        )?;
+        if tree.value(PRIVATE, "ExportHash").as_deref() == Some(crs_hash(&tree)?.as_str())
+            && let Some(raw) = tree.value(PRIVATE, "GeometryLens")
+        {
+            let v: Value = serde_json::from_str(&raw)?;
+            recipe.settings.geometry.upright = serde_json::from_value(v["upright"].clone())?;
+            recipe.settings.lens.legacy_ca_red =
+                serde_json::from_value(v["legacy_ca_red"].clone())?;
+            recipe.settings.lens.legacy_ca_blue =
+                serde_json::from_value(v["legacy_ca_blue"].clone())?;
+            let base = recipe.history.base.clone();
+            recipe.history.entries.clear();
+            recipe.history.head = None;
+            recipe.history.record(
+                &base,
+                &recipe.settings,
+                EditMeta {
+                    label: "Import XMP".into(),
+                    author: Author::Import {
+                        source: "xmp".into(),
+                    },
+                    ..EditMeta::default()
+                },
+            )?;
+        }
         recipe.validate()?;
         Ok(ImportedRecipe { recipe, warnings })
     }
@@ -532,4 +662,41 @@ fn num_field(tree: &Tree, n: &Node, name: &str, default: f64) -> EngineResult<f6
     } else {
         number(&s)
     }
+}
+
+fn upright_index(mode: engine_api::recipe::settings::UprightMode) -> usize {
+    use engine_api::recipe::settings::UprightMode::*;
+    match mode {
+        Off => 0,
+        Auto => 1,
+        Full => 2,
+        Level => 3,
+        Vertical => 4,
+        Guided => 5,
+    }
+}
+fn geometry_keys() -> Vec<&'static str> {
+    vec![
+        "ChromaticAberrationR",
+        "ChromaticAberrationB",
+        "UprightTransform_0",
+        "UprightTransform_1",
+        "UprightTransform_2",
+        "UprightTransform_3",
+        "UprightTransform_4",
+        "UprightTransform_5",
+        "UprightFourSegmentsCount",
+        "UprightFourSegments_0",
+        "UprightFourSegments_1",
+        "UprightFourSegments_2",
+        "UprightFourSegments_3",
+        "UprightCenterMode",
+        "UprightCenterNormX",
+        "UprightCenterNormY",
+        "UprightFocalMode",
+        "UprightFocalLength35mm",
+        "EnableDistractionRemoval",
+        "GenerativeRemove",
+        "GenerativeFill",
+    ]
 }
