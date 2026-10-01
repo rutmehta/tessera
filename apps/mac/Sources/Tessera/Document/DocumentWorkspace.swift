@@ -1130,6 +1130,26 @@ final class FlatExportProgressView: NSView {
         if changedRows { arrangeRows() }
     }
 
+    override func resize(withOldSuperviewSize oldSize: NSSize) {
+        super.resize(withOldSuperviewSize: oldSize)
+        placeInViewport()
+    }
+
+    override func accessibilityHitTest(_ point: NSPoint) -> Any? {
+        // AX invokes AppKit views synchronously on main, but this SDK entry point
+        // lacks actor isolation. Keep the non-Sendable AX result in this call.
+        nonisolated(unsafe) var result: Any?
+        MainActor.assumeIsolated {
+            for id in order {
+                if let row = rows[id], row.accessibilityFrame().contains(point) {
+                    result = row.accessibilityHitTest(point)
+                    break
+                }
+            }
+        }
+        return result ?? super.accessibilityHitTest(point)
+    }
+
     func placeInViewport() {
         guard let parent = superview else { return }
         let inset = Theme.Space.m
@@ -1244,6 +1264,12 @@ final class FlatExportProgressView: NSView {
             self.workspace = workspace
             super.init(frame: .zero)
             wantsLayer = true
+            setAccessibilityElement(true)
+            setAccessibilityRole(.group)
+            // CATextLayer draws in its own coordinates; match the flipped row so
+            // glyphs remain upright while frames are measured from the top.
+            name.isGeometryFlipped = true
+            phase.isGeometryFlipped = true
             name.font = Theme.NSFonts.body
             name.fontSize = Theme.NSFonts.body.pointSize
             name.truncationMode = .middle
@@ -1270,13 +1296,29 @@ final class FlatExportProgressView: NSView {
 
         override func accessibilityChildren() -> [Any]? { [nameAX, phaseAX, progressAX, cancel] }
 
+        override func accessibilityHitTest(_ point: NSPoint) -> Any? {
+            nonisolated(unsafe) var result: Any?
+            MainActor.assumeIsolated {
+                for child in [nameAX, phaseAX, progressAX] where child.accessibilityFrame().contains(point) {
+                    result = child
+                    break
+                }
+                if result == nil, cancel.accessibilityFrame().contains(point) {
+                    result = NSAccessibility.unignoredDescendant(of: cancel)
+                }
+            }
+            return result ?? super.accessibilityHitTest(point)
+        }
+
         func update(_ task: FlatExportTask) {
             if self.task !== task {
                 self.task?.progressChanged = nil
                 self.task = task
                 task.progressChanged = { [weak self] in self?.publish() }
+                setAccessibilityLabel("Export of \(task.fileName)")
                 progressAX.setAccessibilityLabel("Export progress for \(task.fileName)")
                 cancel.setAccessibilityLabel("Cancel export of \(task.fileName)")
+                cancel.cell?.setAccessibilityLabel("Cancel export of \(task.fileName)")
                 CATransaction.begin()
                 CATransaction.setDisableActions(true)
                 let title = "Exporting \(task.fileName)"

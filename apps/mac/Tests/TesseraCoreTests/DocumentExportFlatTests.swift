@@ -454,7 +454,9 @@ final class DocumentExportFlatTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(next.time - previous.time, 0.095,
                                         "Progress must coalesce to at most 10 Hz, including phase changes")
         }
-        for event in events where event.mainThread && event.durationMs != nil {
+        // MainThreadSpans events are the same whole-runloop samples guarded above.
+        for event in events where event.mainThread && event.durationMs != nil
+            && (measureTiming || !event.name.hasPrefix("export_flat_main_busy")) {
             XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
         }
         if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {

@@ -56,12 +56,16 @@ final class FlatExportHUDTests: XCTestCase {
         XCTAssertTrue(text.contains("Exporting layers.png"))
         let elements = accessibility(host)
         XCTAssertTrue(elements.contains { ($0.accessibilityValue() as? String) == "Encoding 63 %" })
+        XCTAssertTrue(elements.contains { ($0.accessibilityValue() as? String) == "Exporting layers.png" })
+        XCTAssertTrue(elements.contains { $0.accessibilityLabel() == "Cancel export of layers.png" })
         XCTAssertTrue(elements.contains { $0.accessibilityIdentifier() == "document-export-progress" })
         let group = try XCTUnwrap(elements.first { $0.accessibilityLabel() == "Export of layers.png" })
         XCTAssertEqual(group.accessibilityRole(), .group)
         for element in elements where element.accessibilityRole() == .staticText || element.accessibilityRole() == .progressIndicator || element.accessibilityRole() == .button {
             let frame = element.accessibilityFrame()
-            let hit = host.accessibilityHitTest(NSPoint(x: frame.midX, y: frame.midY)) as? any NSAccessibilityProtocol
+            // Unordered windows return the window from AppKit root hit-testing.
+            // Reachability above uses the root tree; exercise our routing on its HUD.
+            let hit = hud.accessibilityHitTest(NSPoint(x: frame.midX, y: frame.midY)) as? any NSAccessibilityProtocol
             XCTAssertEqual(hit?.accessibilityRole(), element.accessibilityRole())
             XCTAssertEqual(hit?.accessibilityLabel(), element.accessibilityLabel())
             XCTAssertEqual(hit?.accessibilityValue() as? NSObject, element.accessibilityValue() as? NSObject)
