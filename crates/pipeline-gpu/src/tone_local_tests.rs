@@ -360,5 +360,5 @@ fn regression() {
         );
         worst = worst.max(gap);
     }
-    assert!(worst <= 0.01, "zero-delta bypass discontinuity: {worst}");
+    assert!(worst <= 1e-5, "zero-delta bypass discontinuity: {worst}");
 }

@@ -334,7 +334,7 @@ fn bright_value_stage_isolation_with_and_without_profile_curve() {
             } else {
                 5e-6
             };
-            if worst.0 > bound {
+            if worst.0 >= bound {
                 failures.push(format!("curve={curve} stage={stage}: {worst:?}"));
             }
         }
