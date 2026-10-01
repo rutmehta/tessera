@@ -15,15 +15,12 @@ final class DocumentPanelButtonKeySafetyTests: XCTestCase {
 
     override func setUp() async throws {
         priorState = GlobalState()
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
     }
 
     override func tearDown() async throws {
         for window in windows {
-            window.orderOut(nil)
-            window.contentViewController = nil
-            window.contentView = nil
-            window.close()
+            LayoutProbeHarness.dispose(window)
         }
         windows = []
         priorState?.restore()
@@ -66,25 +63,21 @@ final class DocumentPanelButtonKeySafetyTests: XCTestCase {
     }
 
     private func plainWindow() -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200),
                               styleMask: .titled, backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
         windows.append(window)
         return window
     }
 
     private func settle(_ view: NSView) {
-        view.layoutSubtreeIfNeeded()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.25))
-        view.layoutSubtreeIfNeeded()
+        LayoutProbeHarness.settle(view)
     }
 
     private func hostInspector(_ workspace: DocumentWorkspace) -> (NSWindow, NSView) {
         let size = NSSize(width: 288, height: 848)
-        let controller = NSHostingController(rootView: DocumentInspector(workspace: workspace))
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+        let controller = NSHostingController(rootView: LayoutProbeHarness.root(DocumentInspector(workspace: workspace)))
+        let window = LayoutProbeHarness.window(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: .titled, backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
         windows.append(window)
         window.contentViewController = controller
         window.setContentSize(size)
