@@ -157,7 +157,7 @@ final class LightroomImportTests: XCTestCase {
                          outsideLibrary: 0, libraryPath: "", libraryExists: false, unsupported: [], estimatedBytes: 0)
     }
 
-    private func report(folder: String, cancelled: Bool = false) -> LrcatReport {
+    private func report(folder: String, cancelled: Bool = false, approximate: [LrcatIssue] = []) -> LrcatReport {
         LrcatReport(catalogPath: "/Lr/Fixture.lrcat", cancelled: cancelled, imported: 4, resumed: 1, virtualCopies: 1,
                     skipped: [LrcatSkip(name: "lost-01.jpg", path: "/Photos/2026/portraits/lost-01.jpg",
                                         reason: "original not found (relocate its folder if the drive moved)"),
@@ -165,6 +165,7 @@ final class LightroomImportTests: XCTestCase {
                     unsupported: [LrcatIssue(category: "Develop settings", reason: "crs:FutureKnob: unknown key; source preserved",
                                              count: 1, examples: ["ceremony-01.jpg"]),
                                   LrcatIssue(category: "Smart collections", reason: "rule is kept | cannot run", count: 1, examples: ["Blue label"])],
+                    approximate: approximate,
                     albums: 2, albumGroups: 1, smartAlbums: 2, keywords: 6,
                     selection: LrcatSelectionCounts(rejects: 1, keeps: 3, undecided: 1, grade1: 1, grade2: 1, grade3: 1, marked: 2),
                     libraryPath: folder + "/library.json", bundlePath: folder + "/.tessera-import/Fixture-1234abcd",
@@ -213,6 +214,27 @@ final class LightroomImportTests: XCTestCase {
         ])
         XCTAssertTrue(md.contains("only read, never written"))
         XCTAssertTrue(md.hasSuffix("\n"))
+        XCTAssertFalse(md.contains("Approximate translations"), "no group without approximate entries")
+    }
+
+    func testReportMarkdownGroupsApproximateTranslationsPerAdobeKey() {
+        let approximate = [
+            LrcatIssue(category: "Exposure2012", reason: "exposure response unverified", count: 4,
+                       examples: ["/Photos/a.jpg", "/Photos/b.jpg"]),
+            LrcatIssue(category: "PointColors", reason: "hue range | feather unverified", count: 1, examples: ["/Photos/a.jpg"]),
+        ]
+        let r = report(folder: "/Photos", approximate: approximate)
+        let md = LightroomImportReport.markdown(report: r)
+        let lines = md.components(separatedBy: "\n")
+        XCTAssertTrue(lines.contains("## Approximate translations (2)"), md)
+        XCTAssertTrue(lines.contains("| Exposure2012 | 4 | exposure response unverified | /Photos/a.jpg, /Photos/b.jpg |"), md)
+        XCTAssertTrue(lines.contains("| PointColors | 1 | hue range \\| feather unverified | /Photos/a.jpg |"), md)
+        // A separate group: not counted among the unsupported items.
+        XCTAssertTrue(lines.contains("## Not fully supported (2)"), md)
+        XCTAssertEqual(LightroomImportReport.approximateLines(r), [
+            "Exposure2012: 4 photos; e.g. exposure response unverified; /Photos/a.jpg, /Photos/b.jpg",
+            "PointColors: 1 photo; e.g. hue range | feather unverified; /Photos/a.jpg",
+        ])
     }
 
     func testCancelledReportSaysHowToResumeAndIsWrittenBesideLibraryJSON() throws {

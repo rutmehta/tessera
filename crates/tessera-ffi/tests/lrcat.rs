@@ -324,6 +324,7 @@ fn apply_writes_sidecars_library_and_index_and_resumes() {
         (report.imported, report.resumed, report.virtual_copies),
         (5, 0, 1)
     );
+    assert!(report.approximate.is_empty(), "{:?}", report.approximate);
     assert_eq!(
         (
             report.albums,

@@ -19,6 +19,14 @@ the coordinator should review these assignments before implementation.
   identity extended curves and their names are retained without warnings.
 - `translated`: the valid synthetic example populates an existing field without
   per-key retained source/diagnostics. This does not assert pixel parity for Adobe.
+- `approximate`: the valid synthetic example populates the recipe path (its value
+  differs from an empty row's), the exact source stays in
+  `recipe.unknown["lrcat_develop_source"]`, at least one info-level entry for the
+  key is recorded through `import_lrcat::diagnostics::push_approximate` (stored in
+  `recipe.unknown["lrcat_translation_diagnostics"]`, read with `entries()`), and
+  the import has zero warnings. The in-app import report lists these keys in a
+  separate "Approximate translations" group. Promote to `translated` only with
+  evidence from an Adobe-rendered synthetic chart or a public DNG+XMP.
 
 The table enumerates every unmapped KEY_MAP member, the five pending structures,
 all named extended curves, legacy CRS CA keys, brief-named families and nested
@@ -28,11 +36,13 @@ keys. Other recognized KEY_MAP entries already translate (or feed AUX provenance
 the generic invalid/duplicate diagnostics below still apply to every one of them.
 
 The fifth column is a literal synthetic Lua value, mandatory for `translated`
-rows. The cheap `translation_matrix` integration test imports each such row via
+and `approximate` rows. The cheap `translation_matrix` integration test imports each such row via
 `lua_develop::parse`, checks retention and diagnostics, and verifies the recipe
 JSON pointer exists. It also checks inventory coverage against KEY_MAP and named
 extended curves. A negative control proves that falsely claiming PointColors is
-translated fails. Add representative structured fixtures when promoting a
+translated fails. Test-only fixture rows prove the `approximate` checks, one
+negative per condition (field, source, diagnostic, warnings); no real row is
+`approximate` until a lane converts. Add representative structured fixtures when promoting a
 structure; a scalar or empty payload is not proof of full structure coverage.
 
 | Adobe key | Existing recipe path or missing field | Lane | Status | Synthetic Lua value |

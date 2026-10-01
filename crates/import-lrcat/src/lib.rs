@@ -1,5 +1,6 @@
 //! Read-only Lightroom catalog translation. No original photos or catalogs are changed.
 //! The import plan is explicit: callers decide when and where to persist it.
+pub mod diagnostics;
 #[cfg(feature = "fixture")]
 pub mod fixture;
 pub mod lua;

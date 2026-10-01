@@ -234,6 +234,10 @@ pub struct LrcatReport {
     pub virtual_copies: u32,
     pub skipped: Vec<LrcatSkip>,
     pub unsupported: Vec<LrcatIssue>,
+    /// Approximate translations of the photos written or resumed (information,
+    /// not warnings): one entry per Adobe key, `category` = the key, `count` =
+    /// photos, `reason` = the first photo's reason, `examples` = up to five paths.
+    pub approximate: Vec<LrcatIssue>,
     pub albums: u32,
     pub album_groups: u32,
     pub smart_albums: u32,
@@ -513,6 +517,27 @@ fn issue(category: &str, reason: String, count: usize, examples: Vec<String>) ->
         reason,
         count: count as u32,
         examples: examples.into_iter().take(5).collect(),
+    }
+}
+
+/// Count one photo's approximate translations (`import_lrcat::diagnostics`)
+/// into per-Adobe-key groups; the first photo's reason is the example.
+fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) {
+    for (key, entries) in import_lrcat::diagnostics::entries(recipe) {
+        match issues.iter_mut().find(|i| i.category == key) {
+            Some(group) => {
+                group.count += 1;
+                if group.examples.len() < 5 {
+                    group.examples.push(display_path(path));
+                }
+            }
+            None => issues.push(issue(
+                &key,
+                entries[0].reason.clone(),
+                1,
+                vec![display_path(path)],
+            )),
+        }
     }
 }
 
@@ -1274,6 +1299,7 @@ impl LrcatImport {
                 .count() as u32,
             skipped: vec![],
             unsupported: self.summary.unsupported.clone(),
+            approximate: vec![],
             albums: merge.albums,
             album_groups: merge.groups,
             smart_albums: merge.smart_albums,
@@ -1329,6 +1355,7 @@ impl LrcatImport {
             if state.done.contains(&image.catalog_id) {
                 report.resumed += 1;
                 count_selection(&mut report.selection, &selection);
+                note_approximate(&mut report.approximate, &image.recipe, &r.path);
                 continue;
             }
             if let Some(delay) = delay {
@@ -1402,6 +1429,7 @@ impl LrcatImport {
                         }
                     }
                     count_selection(&mut report.selection, &selection);
+                    note_approximate(&mut report.approximate, &image.recipe, &r.path);
                     state.done.insert(image.catalog_id);
                     if report.imported.is_multiple_of(50) {
                         state.write(&state_file)?;
@@ -1413,6 +1441,9 @@ impl LrcatImport {
             }
         }
         state.write(&state_file)?;
+        report
+            .approximate
+            .sort_by(|a, b| a.category.cmp(&b.category));
         if report.cancelled {
             // library.json is merged only when every photo is done.
             report.albums = 0;
@@ -1851,6 +1882,103 @@ mod lrcat_resume_tests {
                     .all(|i| i.count == 1 && i.reason.starts_with("image "))
             );
         }
+    }
+
+    /// A synthetic approximate import: the spooled records carry diagnostics
+    /// written through the shared channel, as a converted lane would produce.
+    #[test]
+    fn approximate_translations_populate_the_report() {
+        use import_lrcat::diagnostics::push_approximate;
+        use std::io::{Seek, SeekFrom, Write};
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let mut import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options().unwrap();
+        let photos = fixture.photos.canonicalize().unwrap();
+        options.relocations[0].to = photos.to_string_lossy().into_owned();
+        options.library_folder = photos.to_string_lossy().into_owned();
+        let first = resolve(&import.plan, &options)
+            .unwrap()
+            .into_iter()
+            .find(|r| r.outcome == Outcome::Import)
+            .unwrap();
+        {
+            let import = Arc::get_mut(&mut import).unwrap();
+            let mut spool = import.spool.reopen().unwrap();
+            for index in 0..import.records.len() {
+                let mut image = import.read_image(index).unwrap();
+                push_approximate(
+                    &mut image.recipe,
+                    "Exposure2012",
+                    "/settings/tone/exposure",
+                    "LR-2",
+                    "fixture: exposure response unverified",
+                );
+                if index == first.index {
+                    for reason in ["fixture: hue range unverified", "second reason"] {
+                        push_approximate(
+                            &mut image.recipe,
+                            "PointColors",
+                            "/settings/color/point_colors",
+                            "LR-1",
+                            reason,
+                        );
+                    }
+                }
+                let bytes = serde_json::to_vec(&image).unwrap();
+                let offset = spool.seek(SeekFrom::End(0)).unwrap();
+                spool.write_all(&bytes).unwrap();
+                import.records[index] = (offset, bytes.len());
+            }
+        }
+        let report = import.apply(options.clone(), None).unwrap();
+        assert!(report.imported > 1);
+        let keys: Vec<_> = report.approximate.iter().map(|i| &i.category).collect();
+        assert_eq!(keys, ["Exposure2012", "PointColors"]);
+        let exposure = &report.approximate[0];
+        assert_eq!(exposure.count, report.imported);
+        assert_eq!(exposure.reason, "fixture: exposure response unverified");
+        assert_eq!(exposure.examples.len(), report.imported.min(5) as usize);
+        let point = &report.approximate[1];
+        assert_eq!(point.count, 1);
+        assert_eq!(point.reason, "fixture: hue range unverified");
+        assert_eq!(point.examples, [display_path(&first.path)]);
+        // Information only: nothing is added to the warnings.
+        assert!(
+            report
+                .unsupported
+                .iter()
+                .all(|i| !i.reason.contains("unverified"))
+        );
+        // A re-run resumes every photo; resumed photos are counted too.
+        let again = import.apply(options, None).unwrap();
+        assert_eq!((again.imported, again.resumed), (0, report.imported));
+        assert_eq!(again.approximate, report.approximate);
+    }
+
+    #[test]
+    fn approximate_groups_count_every_photo_but_cap_examples_at_five() {
+        let mut recipe = Recipe::default();
+        import_lrcat::diagnostics::push_approximate(&mut recipe, "K", "/f", "LR-2", "first");
+        let mut later = recipe.clone();
+        import_lrcat::diagnostics::push_approximate(&mut later, "K", "/f", "LR-2", "later");
+        let mut issues = vec![];
+        for n in 0..7 {
+            let recipe = if n == 0 { &recipe } else { &later };
+            note_approximate(&mut issues, recipe, Path::new(&format!("/p/{n}.jpg")));
+        }
+        note_approximate(&mut issues, &Recipe::default(), Path::new("/p/plain.jpg"));
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].count, 7);
+        assert_eq!(issues[0].reason, "first");
+        assert_eq!(
+            issues[0].examples,
+            ["/p/0.jpg", "/p/1.jpg", "/p/2.jpg", "/p/3.jpg", "/p/4.jpg"]
+        );
     }
 
     #[test]
