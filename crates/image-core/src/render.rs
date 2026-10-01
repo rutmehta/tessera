@@ -732,7 +732,8 @@ impl Renderer {
         r.cache_lens = true;
         // Local EV can amplify resident f16 checkpoints beyond the linear
         // tolerance. Keep this barrier's upstream in-flight computation f32.
-        r.allow_resident = settings.locals.adjustments.is_empty();
+        r.allow_resident =
+            settings.locals.adjustments.is_empty() && settings.locals.retouch.is_empty();
         let e = image.level_extent(level);
         let all = Self::tiles_for(image, level, PixelRect::full(e));
         let scalar_optics = !self.is_adobe()
@@ -783,7 +784,8 @@ impl Renderer {
             }
             wb
         };
-        let mut developed = wb;
+        let mut developed =
+            pipeline_cpu::apply_retouch(wb, &settings.locals.retouch, self.retouch.as_deref())?;
         let pre_curve = settings.color_before_curves();
         let post_curve = settings.color_after_curves();
         let mut point_effects = settings.effects.clone();
@@ -804,13 +806,6 @@ impl Renderer {
                 && !pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled)
             {
                 continue;
-            }
-            if stage == StageId::Effects {
-                developed = pipeline_cpu::apply_retouch(
-                    developed,
-                    &settings.locals.retouch,
-                    self.retouch.as_deref(),
-                )?;
             }
             if stage == StageId::Effects
                 && (settings.effects.lens_blur.is_some() || self.depth_visualisation)
@@ -864,6 +859,17 @@ impl Renderer {
         cancel: &CancellationToken,
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
+        // A retouch session uses one CPU f32 chain on either selected backend.
+        // Avoid mixing the spot's CPU result with GPU rounding in Detail/Tone.
+        // Preserve Adobe process selection and any resolved DCP profile.
+        let cpu;
+        let renderer = if settings.locals.retouch.is_empty() {
+            self
+        } else {
+            let fallback = self.for_backend(Arc::new(CpuStageOp));
+            cpu = fallback.prepare_dcp(image, settings)?.unwrap_or(fallback);
+            &cpu
+        };
         cancel.check()?;
         let Some(first) = coords.first() else {
             return Ok(());
@@ -880,16 +886,16 @@ impl Renderer {
                 "coordinates must share one level and lie inside cropped output",
             ));
         }
-        let developed = self.develop_before_geometry(image, settings, level, cancel)?;
-        let resolved = self.resolve_interactive_lens(image, settings)?;
+        let developed = renderer.develop_before_geometry(image, settings, level, cancel)?;
+        let resolved = renderer.resolve_interactive_lens(image, settings)?;
         let geometry_only = resolved
             .plan(settings, image.metadata())?
             .is_some_and(|p| p.map.as_ref().is_none_or(|m| m.lens.is_none()));
-        let analyzed = self.interactive_upright_analysis(image, settings, cancel)?;
+        let analyzed = renderer.interactive_upright_analysis(image, settings, cancel)?;
         let developed = if let Some(analyzed) = analyzed {
             resolved.apply_geometry_with_upright(&developed, settings, &analyzed)?
         } else if geometry_only {
-            self.ops.run_image(
+            renderer.ops.run_image(
                 StageId::Geometry,
                 &Op::Geometry(&settings.geometry),
                 developed,
@@ -906,7 +912,7 @@ impl Renderer {
             }
             let mut t = developed.tile(TileCoord::new(0, coord.x, coord.y), 0, 1)?;
             cancel.check()?;
-            if self.depth_visualisation {
+            if renderer.depth_visualisation {
                 t = if output == RenderOutput::Display {
                     Tile::from_samples(
                         coord,
@@ -920,7 +926,7 @@ impl Renderer {
                     Tile::from_samples(coord, t.layout(), t.samples::<f32>()?.to_vec())?
                 };
             } else if let Some(display) = output.display_op(settings.output.gamut_mapping) {
-                t = self.ops.run(StageId::Output, &display, t)?;
+                t = renderer.ops.run(StageId::Output, &display, t)?;
                 t = if display.is_encoded_display() {
                     Tile::from_samples(coord, t.layout(), t.samples::<u8>()?.to_vec())?
                 } else {

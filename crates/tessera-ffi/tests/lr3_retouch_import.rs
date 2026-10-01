@@ -24,7 +24,7 @@ fn lr3_synthetic_catalog_clone_pixels() {
         .unwrap()
         .recipe;
     assert_eq!(recipe.settings.locals.retouch.len(), 1);
-    assert!(!recipe.unknown.contains_key("lrcat_develop_source"));
+    assert!(recipe.unknown.contains_key("lrcat_develop_source"));
     let op = &recipe.settings.locals.retouch[0];
     let RetouchTarget::Area { components } = &op.target else {
         panic!()

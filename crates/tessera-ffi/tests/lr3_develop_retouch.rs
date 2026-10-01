@@ -112,6 +112,9 @@ fn image() -> Image {
     .unwrap()
 }
 fn direct_kernel(base: &Image, heal: bool) -> Image {
+    direct_kernel_spots(base, heal, false)
+}
+fn direct_kernel_spots(base: &Image, heal: bool, second: bool) -> Image {
     use brush::{Brush, CloneSource, InputPoint, PaintMode, Stroke, Tip};
     use compositor::{Depth, Raster, Rect};
     let extent = engine_api::tile::Extent::new(128, 80);
@@ -154,6 +157,35 @@ fn direct_kernel(base: &Image, heal: bool) -> Image {
         .unwrap();
     stroke.finish().unwrap();
     stroke.apply(&mut raster, rect, 2).unwrap();
+    if second {
+        // Independent pixel-space reference for a second, softer, 25% spot.
+        let source = CloneSource {
+            offset: [64.0, 0.0],
+            source: None,
+        };
+        let mut stroke = Stroke::new(
+            Brush {
+                size: 16.0,
+                opacity: 0.25,
+                flow: 1.0,
+                tip: Tip::round(0.0),
+                mode: if heal {
+                    PaintMode::Heal(source)
+                } else {
+                    PaintMode::Clone(source)
+                },
+                ..Default::default()
+            },
+            &raster,
+            1,
+        )
+        .unwrap();
+        stroke
+            .add_point(InputPoint::at(32.0, 16.0).pressure(1.0))
+            .unwrap();
+        stroke.finish().unwrap();
+        stroke.apply(&mut raster, rect, 3).unwrap();
+    }
     let planes = (0..3)
         .map(|c| {
             (0..80)
@@ -179,14 +211,32 @@ fn develop_matches_direct_clone_and_heal_kernels_bit_for_bit() {
     let baseline =
         render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&image), 1).unwrap();
     for heal in [false, true] {
-        let corrected = direct_kernel(&image, heal);
-        let expected = render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&corrected), 1).unwrap();
+        let mut settings = settings(heal);
+        let mut second = settings.locals.retouch[0].clone();
+        second.id = RetouchId(2);
+        second.opacity = 25.0;
+        let RetouchTarget::Area { components } = &mut second.target else {
+            panic!()
+        };
+        let MaskKind::Brush { strokes } = &mut components[0].kind else {
+            panic!()
+        };
+        strokes[0].points = vec![[0.25, 0.2, 1.0]];
+        strokes[0].feather = 100.0;
+        settings.locals.retouch.push(second);
+        settings.tone.contrast = 17.0;
+        settings.color.saturation = 12.0;
+        let mut downstream = settings.clone();
+        downstream.locals.retouch.clear();
+        let corrected = direct_kernel_spots(&image, heal, true);
+        let expected =
+            render_linear_scaled(&downstream, &RenderSource::Rgb(&corrected), 1).unwrap();
         let context = pipeline_cpu::LensContext {
             retouch: Some(Arc::new(brush::render_retouch)),
             ..Default::default()
         };
         let actual = pipeline_cpu::render_linear_scaled_with_lens(
-            &settings(heal),
+            &settings,
             &RenderSource::Rgb(&image),
             1,
             &context,
@@ -221,7 +271,12 @@ fn develop_graph_registers_renderer_and_invalidates_retouch_memo() {
             .render_rgb_linear(&raw, 0, &settings(heal), &token)
             .unwrap();
         let corrected = direct_kernel(&image(), heal);
-        let expected = render_linear_scaled(&DevelopSettings::default(), &RenderSource::Rgb(&corrected), 1).unwrap();
+        let expected = render_linear_scaled(
+            &DevelopSettings::default(),
+            &RenderSource::Rgb(&corrected),
+            1,
+        )
+        .unwrap();
         assert_bits(&actual, &expected);
     }
     let error = Renderer::new(Default::default())
@@ -243,7 +298,23 @@ fn gpu_retouch_routes_through_cpu_stage() {
     )));
     let renderer = Renderer::with_ops(gpu, Arc::new(TileCache::new(16 << 20)), Default::default())
         .with_retouch_renderer(Arc::new(brush::render_retouch));
-    let s = settings(false);
+    let mut s = settings(false);
+    s.tone.contrast = 23.0;
+    s.locals
+        .adjustments
+        .push(engine_api::recipe::mask::LocalAdjustment {
+            components: vec![MaskComponent::new(MaskKind::Radial {
+                center: [0.25, 0.5],
+                radii: [0.2, 0.7],
+                angle: 0.0,
+                feather: 25.0,
+            })],
+            params: engine_api::recipe::mask::LocalParams {
+                exposure: 0.5,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
     assert!(!renderer.can_render_resident(&raw, &s).unwrap());
     let rect = PixelRect::full(raw.active_extent());
     let baseline = renderer
@@ -263,10 +334,20 @@ fn gpu_retouch_routes_through_cpu_stage() {
             .zip(&baseline)
             .any(|(a, b)| a.samples::<f32>().unwrap() != b.samples::<f32>().unwrap())
     );
-    let cpu = Renderer::new(Default::default()).with_retouch_renderer(Arc::new(brush::render_retouch));
-    let expected = cpu.render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear).unwrap();
-    for (a,b) in got.iter().zip(&expected) {
-        assert_eq!(a.samples::<f32>().unwrap(), b.samples::<f32>().unwrap());
+    let cpu =
+        Renderer::new(Default::default()).with_retouch_renderer(Arc::new(brush::render_retouch));
+    let expected = cpu
+        .render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    for (a, b) in got.iter().zip(&expected) {
+        for (a, b) in a
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(b.samples::<f32>().unwrap())
+        {
+            assert_eq!(a.to_bits(), b.to_bits());
+        }
     }
     let i = got[0].layout().index(0, 32, 40).unwrap();
     assert!(got[0].samples::<f32>().unwrap()[i] > baseline[0].samples::<f32>().unwrap()[i] + 0.1);
@@ -514,9 +595,15 @@ fn lr3d_retouch_precedes_tone_and_local_adjustments() {
     s.tone.contrast = 35.0;
     s.locals.adjustments.push(LocalAdjustment {
         components: vec![MaskComponent::new(MaskKind::Radial {
-            center: [0.25, 0.5], radii: [0.24, 1.0], angle: 0.0, feather: 0.0,
+            center: [0.25, 0.5],
+            radii: [0.24, 1.0],
+            angle: 0.0,
+            feather: 0.0,
         })],
-        params: LocalParams { exposure: 1.0, ..Default::default() },
+        params: LocalParams {
+            exposure: 1.0,
+            ..Default::default()
+        },
         ..Default::default()
     });
     // Source is already scene linear and default WB is identity. Retouch first,
@@ -525,77 +612,207 @@ fn lr3d_retouch_precedes_tone_and_local_adjustments() {
     let mut no_spots = s.clone();
     no_spots.locals.retouch.clear();
     let expected = render_linear_scaled(&no_spots, &RenderSource::Rgb(&corrected), 1).unwrap();
-    let context = pipeline_cpu::LensContext { retouch: Some(Arc::new(brush::render_retouch)), ..Default::default() };
-    let actual = pipeline_cpu::render_linear_scaled_with_lens(&s, &RenderSource::Rgb(&input), 1, &context).unwrap();
+    let context = pipeline_cpu::LensContext {
+        retouch: Some(Arc::new(brush::render_retouch)),
+        ..Default::default()
+    };
+    let actual =
+        pipeline_cpu::render_linear_scaled_with_lens(&s, &RenderSource::Rgb(&input), 1, &context)
+            .unwrap();
     assert_bits(&actual, &expected);
-    let raw = image_core::RawImage::from_rgb(engine_api::id::ImageId(88), image_core::RgbSource::from_linear_rec2020(input).unwrap()).unwrap();
-    let renderer = image_core::Renderer::new(Default::default()).with_retouch_renderer(Arc::new(brush::render_retouch));
-    let actual = renderer.render_rgb_linear(&raw, 0, &s, &engine_api::jobs::CancellationToken::new()).unwrap();
+    let raw = image_core::RawImage::from_rgb(
+        engine_api::id::ImageId(88),
+        image_core::RgbSource::from_linear_rec2020(input).unwrap(),
+    )
+    .unwrap();
+    let renderer = image_core::Renderer::new(Default::default())
+        .with_retouch_renderer(Arc::new(brush::render_retouch));
+    let actual = renderer
+        .render_rgb_linear(&raw, 0, &s, &engine_api::jobs::CancellationToken::new())
+        .unwrap();
     assert_bits(&actual, &expected);
 }
 
 #[test]
 fn lr3d_duplicate_strokes_form_one_union_mask() {
     let input = image();
-    let mut s = settings(false);
-    let mut once = input.planes().to_vec();
-    brush::render_retouch(128,80,&mut once,&s.locals.retouch).unwrap();
-    let RetouchTarget::Area { components } = &mut s.locals.retouch[0].target else { panic!() };
-    let MaskKind::Brush { strokes } = &mut components[0].kind else { panic!() };
-    strokes.push(strokes[0].clone());
-    let mut twice = input.planes().to_vec();
-    brush::render_retouch(128,80,&mut twice,&s.locals.retouch).unwrap();
-    for (a,b) in once.iter().flatten().zip(twice.iter().flatten()) {
-        assert_eq!(a,b, "one spot must not compound 50% opacity into 75%");
+    for heal in [false, true] {
+        let mut s = settings(heal);
+        let mut once = input.planes().to_vec();
+        brush::render_retouch(128, 80, &mut once, &s.locals.retouch).unwrap();
+        let RetouchTarget::Area { components } = &mut s.locals.retouch[0].target else {
+            panic!()
+        };
+        let MaskKind::Brush { strokes } = &mut components[0].kind else {
+            panic!()
+        };
+        strokes.push(strokes[0].clone());
+        let mut twice = input.planes().to_vec();
+        brush::render_retouch(128, 80, &mut twice, &s.locals.retouch).unwrap();
+        for (a, b) in once.iter().flatten().zip(twice.iter().flatten()) {
+            assert_eq!(a, b, "one spot must not compound 50% opacity into 75%");
+        }
     }
 }
 
 #[test]
 fn lr3d_scaled_render_invokes_retouch_at_target_resolution() {
-    let context = pipeline_cpu::LensContext { retouch: Some(Arc::new(|w,h,p: &mut [Vec<f32>], spots: &[RetouchOperation]| {
-        assert_eq!((w,h), (32,20));
-        brush::render_retouch(w,h,p,spots)
-    })), ..Default::default() };
-    pipeline_cpu::render_linear_scaled_with_lens(&settings(false), &RenderSource::Rgb(&image()), 4, &context).unwrap();
+    let context = pipeline_cpu::LensContext {
+        retouch: Some(Arc::new(
+            |w, h, p: &mut [Vec<f32>], spots: &[RetouchOperation]| {
+                assert_eq!((w, h), (32, 20));
+                brush::render_retouch(w, h, p, spots)
+            },
+        )),
+        ..Default::default()
+    };
+    pipeline_cpu::render_linear_scaled_with_lens(
+        &settings(false),
+        &RenderSource::Rgb(&image()),
+        4,
+        &context,
+    )
+    .unwrap();
 }
 
 #[test]
 fn lr3d_two_spots_have_independent_feather_and_opacity() {
-    let plane = (0..80).flat_map(|_| (0..128).map(|x| if x >= 64 {1.0} else {0.0})).collect();
-    let mut pixels = vec![plane;3];
+    let plane = (0..80)
+        .flat_map(|_| (0..128).map(|x| if x >= 64 { 1.0 } else { 0.0 }))
+        .collect();
+    let mut pixels = vec![plane; 3];
     let mut spots = settings(false).locals.retouch;
     let mut second = spots[0].clone();
     second.id = RetouchId(2);
     second.opacity = 25.0;
-    let RetouchTarget::Area { components } = &mut second.target else {panic!()};
-    let MaskKind::Brush { strokes } = &mut components[0].kind else {panic!()};
-    strokes[0].points = vec![[0.25,0.2,1.0]];
+    let RetouchTarget::Area { components } = &mut second.target else {
+        panic!()
+    };
+    let MaskKind::Brush { strokes } = &mut components[0].kind else {
+        panic!()
+    };
+    strokes[0].points = vec![[0.25, 0.2, 1.0]];
     strokes[0].feather = 100.0;
     spots.push(second);
-    brush::render_retouch(128,80,&mut pixels,&spots).unwrap();
+    brush::render_retouch(128, 80, &mut pixels, &spots).unwrap();
     // Independent analytic footprint: diameter 16px; sample center is (+.5,+.5).
     // The first spot's solid core is 50%; second has a 9px smoothstep ramp.
-    assert_eq!(pixels[0][40*128+32],0.5);
+    assert_eq!(pixels[0][40 * 128 + 32], 0.5);
     let t = (8.5_f32 - 0.5_f32.sqrt()) / 9.0;
-    let expected = 0.25 * t*t*(3.0-2.0*t);
-    assert!((pixels[0][16*128+32]-expected).abs()<1e-6);
-    assert_eq!(pixels[0][5*128+5],0.0);
+    let expected = 0.25 * t * t * (3.0 - 2.0 * t);
+    assert!((pixels[0][16 * 128 + 32] - expected).abs() < 1e-6);
+    assert_eq!(pixels[0][5 * 128 + 5], 0.0);
 }
 
 #[test]
 fn lr3d_all_strokes_in_a_spot_read_the_same_source_snapshot() {
-    let plane = (0..80).flat_map(|_| (0..128).map(|x| (x/32) as f32 * 0.4)).collect();
-    let mut pixels = vec![plane;3];
+    let plane = (0..80)
+        .flat_map(|_| (0..128).map(|x| (x / 32) as f32 * 0.4))
+        .collect();
+    let mut pixels = vec![plane; 3];
     let mut spots = settings(false).locals.retouch;
-    spots[0].kind = RetouchKind::Clone { source_offset: [-0.25,0.0] };
-    let RetouchTarget::Area { components } = &mut spots[0].target else {panic!()};
-    let MaskKind::Brush { strokes } = &mut components[0].kind else {panic!()};
+    spots[0].kind = RetouchKind::Clone {
+        source_offset: [-0.25, 0.0],
+    };
+    let RetouchTarget::Area { components } = &mut spots[0].target else {
+        panic!()
+    };
+    let MaskKind::Brush { strokes } = &mut components[0].kind else {
+        panic!()
+    };
     strokes[0].radius = 0.03;
     strokes[0].feather = 0.0;
     let mut second = strokes[0].clone();
     second.points[0][0] = 0.5;
     strokes.push(second);
-    brush::render_retouch(128,80,&mut pixels,&spots).unwrap();
-    assert!((pixels[0][40*128+32]-0.2).abs()<1e-6);
-    assert!((pixels[0][40*128+64]-0.6).abs()<1e-6, "second stroke must clone original 0.4, not edited 0.2");
+    brush::render_retouch(128, 80, &mut pixels, &spots).unwrap();
+    assert!((pixels[0][40 * 128 + 32] - 0.2).abs() < 1e-6);
+    assert!(
+        (pixels[0][40 * 128 + 64] - 0.6).abs() < 1e-6,
+        "second stroke must clone original 0.4, not edited 0.2"
+    );
+}
+
+fn lr3d_metadata(orientation: u16) -> raw_decode::RawMetadata {
+    raw_decode::RawMetadata {
+        make: "test".into(),
+        model: "test".into(),
+        lens: None,
+        iso: 100.,
+        shutter_s: 0.01,
+        aperture: 4.,
+        focal_mm: 50.,
+        capture_time: 0,
+        orientation,
+        width: 32,
+        height: 24,
+        cfa_layout: raw_decode::CfaLayout::Bayer([[0, 1], [3, 2]]),
+        black_levels: [0.; 4],
+        white_level: 65535,
+        as_shot_wb: [1.; 4],
+        camera_to_xyz: engine_api::color::ColorMatrix3::IDENTITY,
+        cam_xyz: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.], [0., 0., 0.]],
+        rgb_cam: [[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.]],
+        default_crop: [3, 1, 26, 22],
+        has_gain_map: false,
+        has_opcode_list: false,
+        opcode_lists: [None, None, None],
+    }
+}
+
+#[test]
+fn lr3d_exif_five_to_eight_orients_retouch_after_sensor_crop_and_distortion() {
+    let cfa = raw_decode::CfaImage::from_linear(
+        32,
+        24,
+        (0..768)
+            .map(|i| if i % 32 < 16 { 0.1 } else { 0.8 })
+            .collect(),
+    )
+    .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let mut recipe = engine_api::recipe::Recipe::default();
+    recipe
+        .edit(engine_api::recipe::EditMeta::user("synthetic", 0), |s| {
+            *s = settings(false);
+            s.geometry.crop.rect.left = 0.1;
+            s.geometry.crop.rect.right = 0.9;
+            s.geometry.crop.angle = 7.0;
+            s.lens.manual_distortion = 10.0;
+        })
+        .unwrap();
+    for orientation in 5..=8 {
+        let metadata = lr3d_metadata(orientation);
+        let image = export::ExportImage {
+            source: RenderSource::Cfa {
+                image: &cfa,
+                metadata: &metadata,
+            },
+            name: "synthetic",
+            sequence: orientation as usize,
+            date: "",
+            metadata: None,
+        };
+        let mut options = export::ExportSettings {
+            format: export::Format::Png,
+            output_dir: dir.path().into(),
+            retouch: Some(Arc::new(brush::render_retouch)),
+            ..Default::default()
+        };
+        let path = export::export_one(&image, &recipe, &options).unwrap();
+        let sensor = image::open(path).unwrap().to_rgb8();
+        options.apply_orientation = true;
+        options.naming = "{name}-oriented-{seq}".into();
+        let path = export::export_one(&image, &recipe, &options).unwrap();
+        let oriented = image::open(path).unwrap().to_rgb8();
+        let expected = match orientation {
+            5 => image::imageops::rotate90(&image::imageops::flip_vertical(&sensor)),
+            6 => image::imageops::rotate90(&sensor),
+            7 => image::imageops::rotate90(&image::imageops::flip_horizontal(&sensor)),
+            8 => image::imageops::rotate270(&sensor),
+            _ => unreachable!(),
+        };
+        assert_eq!(oriented.dimensions(), expected.dimensions());
+        assert_eq!(oriented.as_raw(), expected.as_raw(), "EXIF {orientation}");
+    }
 }

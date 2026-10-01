@@ -60,36 +60,59 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         // Empty values do not justify altering previously retained recipes.
         return Ok(());
     };
+    // Rebuild the single import edit from its original base, including retouch.
+    // This translator runs only while constructing a fresh imported recipe.
+    let mut settings = recipe.settings.clone();
+    settings.locals.retouch = ops;
+    recipe.settings = recipe.history.base.clone();
+    recipe.history.entries.clear();
+    recipe.history.head = None;
     recipe.edit(
         EditMeta {
-            label: "Import Lightroom retouch".into(),
+            label: "Import Lightroom".into(),
             author: Author::Import {
                 source: "lightroom-classic".into(),
             },
             ..EditMeta::default()
         },
-        |s| s.locals.retouch = ops,
+        |s| *s = settings,
     )?;
-    for (key, _) in decoded {
+    for (key, ops) in decoded {
+        if ops.is_empty() {
+            continue;
+        }
         let qualified = format!("crs:{key}");
         recipe.unknown.remove(&qualified);
         warnings.retain(|w| !w.starts_with(&format!("{qualified}:")));
-        if let Some(properties) = recipe
-            .unknown
-            .get_mut("lrcat_develop_source")
-            .and_then(|s| s.get_mut("properties"))
-            .and_then(Value::as_object_mut)
-        {
-            properties.remove(key);
-        }
-    }
-    if recipe.unknown["lrcat_develop_source"]["properties"]
-        .as_object()
-        .is_some_and(Map::is_empty)
-    {
-        recipe.unknown.remove("lrcat_develop_source");
+        push_approximate(
+            recipe,
+            key,
+            "/settings/locals/retouch",
+            "LR-3",
+            "approximate: Adobe healing, feather and orientation conventions are unverified; coordinates use the Develop input frame before output lens distortion and crop",
+        );
     }
     Ok(())
+}
+
+// TODO(LR-DIAG): replace with import_lrcat::diagnostics::push_approximate
+fn push_approximate(recipe: &mut Recipe, adobe_key: &str, field: &str, lane: &str, reason: &str) {
+    let entry = serde_json::json!({"level":"info", "status":"approximate", "lane":lane, "field":field, "reason":reason});
+    let diagnostics = recipe
+        .unknown
+        .entry("lrcat_translation_diagnostics".into())
+        .or_insert_with(|| Value::Object(Map::new()));
+    let Some(diagnostics) = diagnostics.as_object_mut() else {
+        return;
+    };
+    let entries = diagnostics
+        .entry(adobe_key)
+        .or_insert_with(|| Value::Array(Vec::new()));
+    if let Some(entries) = entries.as_array_mut()
+        && !entries.contains(&entry)
+    {
+        entries.push(entry);
+    }
 }
 
 fn literal(value: LuaValue) -> Option<Value> {
@@ -255,6 +278,8 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
         "feather",
         "masks",
         "method",
+        "seed",
+        "maskdigest",
     ];
     if fields.keys().any(|k| !allowed.contains(&k.as_str())) {
         return None;
@@ -323,9 +348,13 @@ fn stroke(value: &Value, feather: f32) -> Option<BrushStroke> {
         "maskinverted",
         "maskvalue",
         "masksyncid",
+        "maskdigest",
+        "seed",
+        "centerx",
+        "centery",
     ];
     if fields.keys().any(|k| !allowed.contains(&k.as_str()))
-        || fields.get("what")?.as_str()? != "Mask/Paint"
+        || !matches!(fields.get("what")?.as_str()?, "Mask/Paint" | "Mask/Circle")
     {
         return None;
     }
@@ -343,6 +372,16 @@ fn stroke(value: &Value, feather: f32) -> Option<BrushStroke> {
         }
     }
     let radius = bounded(number(&fields, "radius")?, 1e-6, 1.0)?;
+    if fields.get("what")?.as_str()? == "Mask/Circle" {
+        let center = point(&fields, "centerx", "centery")?;
+        return Some(BrushStroke {
+            points: vec![[center[0], center[1], 1.0]],
+            radius,
+            feather,
+            flow: percent(&fields, "flow", 1.0)?,
+            erase: false,
+        });
+    }
     let mut points = Vec::new();
     for dab in fields.get("dabs")?.as_array()? {
         let tokens: Vec<_> = dab.as_str()?.split_whitespace().collect();

@@ -323,6 +323,37 @@ fn render_linear_impl(
     }
     rgb = crate::optics::profile_vignette(&rgb, &settings.lens, &correction)?;
     rgb = crate::optics::point_corrections(&rgb, &settings.lens)?;
+    // Retouch operates in the unrotated scene-linear active image before Detail
+    // and Tone. Preview spots use target-level pixels, never a full-sensor solve.
+    let early_scale = if !settings.locals.retouch.is_empty() {
+        scale
+    } else {
+        1
+    };
+    let reduced_depth = if early_scale > 1 {
+        depth
+            .map(|(plane, _)| {
+                Image::new(rgb.width(), rgb.height(), vec![plane.to_vec()])?
+                    .downsample_crop([0, 0, rgb.width(), rgb.height()], early_scale)
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    let depth = depth.map(|(plane, options)| {
+        (
+            reduced_depth
+                .as_ref()
+                .map_or(plane, |image| image.planes()[0].as_slice()),
+            options,
+        )
+    });
+    if early_scale > 1 {
+        rgb = rgb.downsample_crop([0, 0, rgb.width(), rgb.height()], early_scale)?;
+        crop = [0, 0, rgb.width(), rgb.height()];
+    }
+    let scale = scale / early_scale;
+    rgb = crate::apply_retouch(rgb, &settings.locals.retouch, context.retouch.as_deref())?;
     if crate::detail_halo(&settings.detail) > 0 || settings.detail != Default::default() {
         let workers = std::thread::available_parallelism().map_or(1, usize::from);
         rgb = detail_image(&rgb, &settings.detail, workers)?;
@@ -358,7 +389,6 @@ fn render_linear_impl(
                 ..Default::default()
             },
         )?;
-        rgb = crate::apply_retouch(rgb, &settings.locals.retouch, context.retouch.as_deref())?;
         if let Some(blur) = &settings.effects.lens_blur {
             let (plane, options) =
                 depth.ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;

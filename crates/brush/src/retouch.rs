@@ -7,7 +7,7 @@ use engine_api::{
         MaskKind,
         mask::{MaskCombine, RetouchKind, RetouchOperation, RetouchTarget},
     },
-    tile::Extent,
+    tile::{Extent, TILE_SIZE},
 };
 
 /// Apply explicit-source brush spots in recipe order to scene-linear planar RGB.
@@ -53,6 +53,7 @@ pub fn render_retouch(
         if components.is_empty() {
             return Err(invalid());
         }
+        let mut union: Option<Stroke> = None;
         for component in components {
             if component.invert || component.combine != MaskCombine::Add {
                 return Err(invalid());
@@ -88,11 +89,8 @@ pub fn render_retouch(
                     opacity: op.opacity / 100.0,
                     flow: stroke.flow / 100.0,
                     tip: Tip::round(1.0 - stroke.feather / 100.0),
-                    mode: if heal {
-                        PaintMode::Heal(source)
-                    } else {
-                        PaintMode::Clone(source)
-                    },
+                    // Rasterize all paths before solving/compositing the spot.
+                    mode: PaintMode::Clone(source),
                     ..Brush::default()
                 };
                 let mut render = Stroke::new(brush, &raster, 1)?;
@@ -102,16 +100,33 @@ pub fn render_retouch(
                     )?;
                 }
                 render.finish()?;
-                render.apply(&mut raster, rect, 2)?;
+                if let Some(union) = &mut union {
+                    union.union_retouch_mask(&render);
+                } else {
+                    union = Some(render);
+                }
             }
         }
+        if let Some(mut union) = union
+            && let Some(dirty) = union.finish_retouch(heal)
+        {
+            union.apply(&mut raster, dirty, 2)?;
+        }
     }
-    // Raster tile reads are planar and lossless at F32 depth.
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = raster.pixel(x, y);
-            for c in 0..3 {
-                planes[c][y as usize * width as usize + x as usize] = pixel[c];
+    // Reuse one tile-sized buffer; do not decode the same tile per pixel or
+    // allocate a second full-frame planar result.
+    let mut buffer = Vec::new();
+    for ty in 0..height.div_ceil(TILE_SIZE) {
+        for tx in 0..width.div_ceil(TILE_SIZE) {
+            raster.read_tile(tx, ty, &mut buffer)?;
+            let layout = raster.layout(tx, ty);
+            for (c, plane) in planes.iter_mut().enumerate() {
+                for y in 0..layout.extent.height {
+                    let dest = ((ty * TILE_SIZE + y) * width + tx * TILE_SIZE) as usize;
+                    let source = c * layout.plane_len() + y as usize * layout.stride();
+                    let count = layout.extent.width as usize;
+                    plane[dest..dest + count].copy_from_slice(&buffer[source..source + count]);
+                }
             }
         }
     }

@@ -1,7 +1,7 @@
 //! Caller-owned retouch bridge; implementations may live above the CPU dependency graph.
 use engine_api::{EngineError, EngineResult, recipe::mask::RetouchOperation};
 
-/// Render ordered spots into scene-linear planar RGB, after locals and before effects.
+/// Render ordered spots into scene-linear planar RGB, before Detail, Tone and local adjustments.
 pub trait RetouchRenderer: Send + Sync {
     /// Preserve dimensions and plane lengths; return errors for unsupported operations.
     fn render(
@@ -43,9 +43,10 @@ pub fn apply_retouch(
             "recipe has retouch spots but no renderer is registered",
         )
     })?;
-    let mut planes = image.planes().to_vec();
-    renderer.render(image.width(), image.height(), &mut planes, spots)?;
-    crate::Image::new(image.width(), image.height(), planes)
+    let (width, height) = (image.width(), image.height());
+    let mut planes = image.into_planes();
+    renderer.render(width, height, &mut planes, spots)?;
+    crate::Image::new(width, height, planes)
 }
 
 /// Validate settings with the supplied capability, without executing any pixel work.

@@ -84,7 +84,14 @@ impl DevelopSettings {
             (StageId::Lens, self.lens.param_hash()),
             (StageId::CameraProfile, self.camera_profile.param_hash()),
             (StageId::WhiteBalance, self.white_balance.param_hash()),
-            (StageId::Detail, self.detail.param_hash()),
+            (
+                StageId::Detail,
+                if self.locals.retouch.is_empty() {
+                    self.detail.param_hash()
+                } else {
+                    ParamHash::of(StageId::Detail, &(&self.detail, &self.locals.retouch))
+                },
+            ),
             (
                 StageId::Tone,
                 if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
@@ -101,7 +108,11 @@ impl DevelopSettings {
                 },
             ),
             (StageId::Color, self.color.param_hash()),
-            (StageId::Locals, self.locals.param_hash()),
+            (StageId::Locals, {
+                let mut locals = self.locals.clone();
+                locals.retouch.clear();
+                locals.param_hash()
+            }),
             (StageId::Effects, self.effects.param_hash()),
             (StageId::Geometry, self.geometry.param_hash()),
             (StageId::Output, self.output.param_hash()),
