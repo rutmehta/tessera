@@ -1569,6 +1569,30 @@ mod frame_cancellation_tests {
 
     #[test]
     #[cfg(target_os = "macos")]
+    fn eng2_requests_before_snapshot_do_not_render_twice() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "synthetic".into());
+        let mut state = session.shared.lock().unwrap();
+        state.view.surfaces.push(Arc::new(Surface::create_rgba8(3, 2).unwrap()));
+        let renderer = &session.shared.render;
+        renderer.request(Vec::new(), false, 0);
+        // The worker has claimed the first request but cannot snapshot until
+        // this edit guard is released. The second request is already covered
+        // by that future snapshot, so it must not cause a duplicate frame.
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while renderer.signal().active_frame.is_none() {
+            assert!(Instant::now() < deadline, "worker did not claim frame");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        renderer.request(Vec::new(), false, 0);
+        drop(state);
+        session.wait_idle();
+        assert_eq!(renderer.records().len(), 1, "duplicate frame for requests already captured by one snapshot");
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
     fn eng2_getters_do_not_wait_for_inflight_render() {
         use std::sync::mpsc;
         let dir = tempfile::tempdir().unwrap();
