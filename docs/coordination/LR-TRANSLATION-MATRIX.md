@@ -259,3 +259,31 @@ Downstream lanes must keep untranslated inputs byte-identical, make small additi
 codec edits, and update the matrix only with valid synthetic import evidence.
 This guard is deliberately not a render, full catalog, XMP parity, or complete
 Adobe-schema test; those remain acceptance work for the translation lanes.
+
+
+## LR-4b branch rows (reconciled at rebase)
+
+# LR-4b translation matrix — Machine B
+
+This file was absent at `a88440a4`; these are LR-4b rows only. Merge into the
+coordinator's complete matrix without replacing other lanes' rows.
+
+| Adobe form | Recipe path under `settings.locals.adjustments[].components[]` | Lane | Status |
+| --- | --- | --- | --- |
+| `Mask/Paint`, `Dabs` (`d`, `r`, `f`, `h`), `Radius`, `Flow`, `CenterWeight`, `MaskValue` | No faithful existing brush operator established | LR-4b | **Blocked / source-retained**. Existing brush uses linear flow and smoothstep feather; public measured Adobe model differs. No approximation shipped. |
+| `CorrectionRangeMask` color `PointModels` / `AreaModels`, `ColorAmount`, `Type=1` | Existing `color_range` expects OkLab samples and Euclidean tolerance | LR-4b | **Blocked / source-retained**. Sample color space, area-model encoding and amount-to-selection function not established; RGB-looking tuples are not assumed to be OkLab. |
+| `CorrectionRangeMask.LumRange` | `kind=luminance_range`, `range=[low,high]`, optional `luminance_bounds=[low_feather,low,high,high_feather]` | LR-4b | **Translated** for four finite, ordered 0..1 values. CPU smoothstep shoulders; GPU explicitly declines to existing CPU route. Synthetic semantics verified; Adobe pixel parity unmeasured. |
+| `CorrectionRangeMask.Type=2` | `kind=luminance_range` | LR-4b | **Translated** when accompanied by supported four-bound or scalar luminance geometry. |
+| `CorrectionRangeMask.Type=3` | `kind=depth` | LR-4b | **Translated** with explicit scalar depth bounds. Runtime same-level depth plane remains required; resource recovery is LR-5/LR-6. |
+| `CorrectionRangeMask.Type=1` | Color range | LR-4b | **Blocked** with color models above. Unknown type codes remain unchanged/source-retained. |
+| `Mask/CircularGradient.Flipped` | `invert = !Flipped` | LR-4b | **Translated**. When `MaskInverted` is also present, it must equal `!Flipped`; the same inversion is applied once. Conflicting flags retain source atomically. Absence preserves prior behavior. |
+| `Mask/Image` | — | LR-5 | Out of this lane; unchanged/source-retained. |
+
+Source promotion still requires the entire parent key to pass LR-4's structural
+and renderability audits. Unknown metadata, duplicates, incompatible range
+families and malformed geometry prevent promotion. This is not a claim that all
+Adobe range-mask packets now translate. Original XMP packets remain preserved
+independently of per-key promotion.
+
+See [LR-4b contract and limits](LR-4B-PARAMETRIC-MASKS.md) and the
+[local handoff](../../tools/orchestrate/wp/LR-4/HANDOFF.md) for evidence and gates.

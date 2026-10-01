@@ -1,5 +1,10 @@
 # LR-4 parametric mask extension
 
+> LR-4b follow-up: four-bound luminance, explicit luminance/depth type codes and
+> radial `Flipped` now have additional coverage. See
+> [LR-4b contract and remaining blockers](LR-4B-PARAMETRIC-MASKS.md).
+> The text below records the original LR-4 state at `a88440a4`.
+
 This is partial Adobe-format coverage, not a claim of Adobe pixel parity.
 All committed fixtures are invented. No catalog or original image was used.
 

@@ -1,3 +1,118 @@
+# LR-4b follow-up — Machine B, local only
+
+**Partial completion.** Four-bound luminance and radial inversion are implemented;
+range subtype dispatch covers luminance and scalar depth. Adobe brush and color
+models remain blocked by the full-fidelity requirement; no guessed decoder or
+approximate operator was promoted. The original LR-4 handoff follows below.
+
+Base: `a88440a4`, branch `wp/LR-4-parametric-masks`, no rebase. The supplied
+`LR-RULINGS-FROM-A.md` remains untracked and untouched. No push/mailbox/board,
+Cargo.lock, dependency, Swift, app or real-catalog changes/access.
+
+## LR-4b requested items
+
+| Item | Outcome |
+| --- | --- |
+| 1. Brush `Dabs` | **Blocked/source-retained.** `d/r/f/h` grammar evidence exists, but the current linear-flow/smoothstep brush is not Adobe's measured operator. No unverified mapping was shipped as full fidelity. |
+| 2. Color sampled/point/area models | **Blocked/source-retained.** Neither Adobe sample color space nor the area-model/amount selection function is established as Tessera's OkLab-distance operator. |
+| 3. Four-bound `LumRange` | **Implemented** with optional `MaskComponent.luminance_bounds`, default absent/omitted, CPU independent smoothstep shoulders, JSON/native-XMP round trip. |
+| 4. Subtype-coded ranges | **Partial**: Type 2 luminance and Type 3 scalar depth translate; Type 1 color stays blocked. Unknown codes remain unchanged. |
+| 5. Radial `Flipped` | **Implemented** as the complement of `MaskInverted`. Matching paired flags apply once; conflicts retain source. |
+
+Synthetic Lua and XMP import-to-CPU exposure fixtures cover the implemented forms.
+They prove the stated engine semantics, **not Adobe pixel parity**. Depth fixtures
+supply an invented same-level depth plane. `Mask/Image` remains LR-5.
+
+## LR-4b representation and consumers
+
+- `luminance_bounds: Option<[f32;4]>` is the only new recipe field. No format or
+  contract version bump. Old builds parse it away and use the two-bound fallback;
+  they cannot render the new shoulders faithfully.
+- CPU validates active ordered bounds and handles collapsed shoulders. Disabled
+  ancestors suppress inactive geometry validation while structural limits remain.
+- FFI normalization and external/AI composition retain the additive field.
+- GPU metadata explicitly rejects four-bound masks. Camera Raw's capability
+  predicate declines them before dispatch, selecting the existing CPU fallback.
+- A complete-parent structural audit gates new foreign decoding. A failed audit
+  or renderability check uses prior mask-decoder behavior, preserving untranslated
+  recipes as well as exact source envelopes. Native typed fields still round-trip.
+- All new fixtures are invented. The 44-group fixture is untouched; eleven
+  unsupported Lua/XMP recipes are pinned against a detached `a88440a4` baseline.
+  The temporary baseline worktree was removed after collecting its digests.
+
+See [LR-4b contract, evidence and blockers](../../../../docs/coordination/LR-4B-PARAMETRIC-MASKS.md)
+and [matrix rows](../../../../docs/coordination/LR-TRANSLATION-MATRIX.md). The matrix
+file was absent on the base commit; the new file contains LR-4b rows only and must
+be merged with the coordinator's full matrix rather than replacing other lanes.
+
+## LR-4b commit/evidence sequence
+
+- `1f4ca976`: RED importer 3 failures, schema 1, CPU 2, GPU 1, native-XMP 1,
+  import/render 1. See `red-lr4b-{forms,schema,cpu,gpu,sidecar,e2e}.log`.
+- `6ca578f7`: mixed/ambiguous four-bound payload RED; `red-lr4b-ambiguous.log`.
+- `b49f1900`: external composition, GPU capability fallback and disabled-tree RED;
+  baseline-pinned byte tests and extended subtype pixel cases.
+- `0da696a9`: RED unknown sibling/parent fields preserve old atomic behavior;
+  `red-lr4b-untranslated.log`.
+- `760b984b`: implementation; final validation evidence accompanies the docs commit.
+
+Later consumer/source-audit RED checks ran against the then-uncommitted
+implementation of the earlier tests. Some later test commits reference the new
+field before its implementation commit, intentionally following the tests-first
+sequence. No passing test is claimed for those intermediate committed trees.
+
+Every commit has the requested Claude Opus 5.5 co-author trailer. All remain local.
+
+## LR-4b gates
+
+- Completed synthetic `cargo test --locked --no-fail-fast` across nine crates:
+  **1202 passed, 1 failed, 30 ignored, 141 filtered**, 208 harness/doc-test result
+  summaries; 2926.52 seconds. Exit 101, **not a green gate**.
+  `gate-lr4b-synthetic.log` contains the command, exclusions and full results.
+- Sole broad-run failure: existing FFI
+  `document_liquify_ui::brush_latency_on_a_20_megapixel_layer`, p95 **388.8 ms**
+  against **<250 ms**. Exact compiled test rerun alone with test threads=1 and
+  Rayon threads=3 also failed: p95 **318.2 ms**, 52.92 seconds, exit 101.
+  See `gate-lr4b-latency-rerun.log`. Shared host load was present, but the rerun
+  does not establish a passing result or prove load was the sole cause. No
+  Liquify implementation or threshold changed in this lane.
+- All LR-4b mapping, source-promotion/retention, schema round-trip, native-XMP,
+  CPU render, external composition, disabled-tree and GPU fallback tests passed.
+  Eight invented Lua/XMP exposure scenes measured maximum absolute channel error
+  **0**, tolerance **1e-6** (`green-lr4b-pixels.log`). This is engine-semantics
+  validation, not an Adobe pixel-parity result.
+- The unchanged 44-group golden passed (81,809 bytes; SHA-256
+  `aec3a2eb9f1a31a1596d063b27ba785ae1d55219ba1931745c79a7cf9d8043cb`).
+  All eleven baseline-pinned unsupported Lua/XMP recipes passed byte comparison.
+- Clippy across the same nine crates, all targets, `--locked --no-deps -- -D warnings`:
+  **passed**, 41.84 seconds (`gate-lr4b-clippy.log`).
+- `cargo fmt --all --check`: **passed** (`gate-lr4b-fmt.log` is empty on success).
+  `git diff --check`: **passed**.
+
+The initial focused and two preliminary broad runs were interrupted for consumer
+and source-compatibility fixes. They are **not completed green gates**. Their logs
+are retained separately. One scalar-luminance pixel fixture initially sampled
+exactly at a hard bound; pre-existing f32 luma rounding selected the other side.
+The final scalar fixture uses interior samples; the four-bound test still covers
+endpoints and fractional shoulders. No production luma calculation was changed.
+`red-lr4b-pixels-boundary.log` records that fixture failure.
+
+Run the final synthetic gate with:
+
+```sh
+python3 tools/orchestrate/wp/LR-4/run-lr4b-synthetic-gate.py
+```
+
+It selects the nine touched crates: import-lrcat, engine-api, sidecar,
+pipeline-cpu, pipeline-gpu, tessera-ffi, ml-depth, mask-ai and filters. Test files
+that can reach RAW fixtures are excluded by printed name filters; optional RAW
+fixture environment paths point to an absent lane-local path. Some synthetic
+checks in those mixed files are consequently excluded too. This is not an
+unrestricted workspace/RAW gate. Commands use `--locked`, the prescribed target,
+3 build jobs, 3 Rayon threads, debug info=0, incremental=0, test threads=1.
+
+---
+
 # LR-4 parametric masks — local handoff (partial coverage)
 
 Status: partial Adobe-format coverage. The additive group/enabled representation

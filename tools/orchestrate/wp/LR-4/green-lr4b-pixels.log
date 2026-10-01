@@ -1,0 +1,14 @@
+
+running 1 test
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+test lr4b_import_cpu_four_bounds_radial_and_subtypes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
