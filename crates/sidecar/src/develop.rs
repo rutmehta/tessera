@@ -230,7 +230,7 @@ impl XmpPacket {
             )?;
             if decoded
                 .iter()
-                .any(|entry| entry.reason.starts_with("approximate: "))
+                .any(|entry| matches!(entry.kind, crate::GeometryEntryKind::Approximate { .. }))
                 && !source.is_empty()
             {
                 recipe.unknown.insert(

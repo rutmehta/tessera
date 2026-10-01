@@ -5,13 +5,20 @@ pub(crate) fn apply<'a>(
     properties: impl Iterator<Item = (&'a str, &'a str)>,
 ) -> engine_api::EngineResult<()> {
     for entry in sidecar::apply_adobe_geometry(recipe, warnings, properties)? {
-        crate::diagnostics::push_approximate(
-            recipe,
-            &entry.adobe_key,
-            &entry.field,
-            "LR-7",
-            &entry.reason,
-        );
+        match entry.kind {
+            sidecar::GeometryEntryKind::Approximate { field } => {
+                crate::diagnostics::push_approximate(
+                    recipe,
+                    &entry.adobe_key,
+                    &field,
+                    "LR-7",
+                    &entry.reason,
+                );
+            }
+            sidecar::GeometryEntryKind::Ignored => {
+                crate::diagnostics::push_ignored(recipe, &entry.adobe_key, "LR-7", &entry.reason);
+            }
+        }
     }
     Ok(())
 }

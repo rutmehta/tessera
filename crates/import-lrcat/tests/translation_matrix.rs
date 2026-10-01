@@ -109,7 +109,10 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         }
         let notes = diagnostics::entries(&recipe)
             .remove(key)
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|note| note.status == "approximate")
+            .collect::<Vec<_>>();
         if approximate {
             if !warnings.is_empty() {
                 return Err(format!("{key}: approximate key has warnings: {warnings:?}"));
@@ -133,10 +136,9 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
                 ));
             }
             // Lane is free-form; the field must name the row's recipe path.
-            if !notes
-                .iter()
-                .any(|n| n.level == "info" && n.status == "approximate" && n.field == path)
-            {
+            if !notes.iter().any(|n| {
+                n.level == "info" && n.status == "approximate" && n.field.as_deref() == Some(path)
+            }) {
                 return Err(format!(
                     "{key}: approximate diagnostics name no entry for field {path}: {notes:?}"
                 ));

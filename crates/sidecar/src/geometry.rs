@@ -28,17 +28,24 @@ fn numbers<const N: usize>(raw: &str) -> Option<[f64; N]> {
 
 /// Information returned to the catalog importer; sidecar owns no diagnostics channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ApproximateEntry {
+pub struct GeometryEntry {
     pub adobe_key: String,
-    pub field: String,
+    pub kind: GeometryEntryKind,
     pub reason: String,
+}
+
+/// Whether decoding populated a field or intentionally ignored a source value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GeometryEntryKind {
+    Approximate { field: String },
+    Ignored,
 }
 
 pub fn apply<'a>(
     recipe: &mut Recipe,
     warnings: &mut Vec<String>,
     properties: impl Iterator<Item = (&'a str, &'a str)>,
-) -> EngineResult<Vec<ApproximateEntry>> {
+) -> EngineResult<Vec<GeometryEntry>> {
     // Decode only into an uncommitted import transaction. Existing history is immutable.
     if !recipe.history.entries.is_empty() {
         return Err(engine_api::EngineError::invalid(
@@ -222,7 +229,7 @@ pub fn apply<'a>(
             !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
         });
     }
-    let mut approximate = Vec::new();
+    let mut entries = Vec::new();
     for key in &consumed {
         let (field, applied) = match key.as_str() {
             "ChromaticAberrationR" => (
@@ -254,9 +261,15 @@ pub fn apply<'a>(
         } else {
             "approximate: Adobe row-major source-to-output matrix and normalized center/focal frame or guide convention are unverified"
         };
-        approximate.push(ApproximateEntry {
+        entries.push(GeometryEntry {
             adobe_key: key.clone(),
-            field: field.into(),
+            kind: if applied {
+                GeometryEntryKind::Approximate {
+                    field: field.into(),
+                }
+            } else {
+                GeometryEntryKind::Ignored
+            },
             reason: reason.into(),
         });
     }
@@ -268,5 +281,5 @@ pub fn apply<'a>(
             warnings.push(note);
         }
     }
-    Ok(approximate)
+    Ok(entries)
 }
