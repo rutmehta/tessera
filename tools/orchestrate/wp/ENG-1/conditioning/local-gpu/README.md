@@ -118,3 +118,7 @@ Candidate `cargo clippy --locked --all-targets -p pipeline-cpu -p pipeline-gpu
 The compressed dumps were independently reread to verify their hashes, row
 counts, maxima and failing indices. `git apply --check candidate.patch` and
 `git diff --check` also pass. See `VALIDATION.txt` for the compact gate record.
+
+The compressed per-pixel dumps are external evidence, not test inputs. ENG-1d
+moved them to the scratchpad archive; see HANDOFF.md for the absolute path and
+SHA-256 hashes. They are no longer shipped in the repository.

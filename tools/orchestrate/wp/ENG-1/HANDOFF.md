@@ -1,20 +1,25 @@
 # ENG-1 — Texture/Clarity conditioning
 
-Branch: `wp/ENG-1-texture-clarity`. Local commits only; ready for coordinator review with the rendering changes and validation limits below. No push, mailbox, board, dependency, lockfile, Swift gate, or app launch.
+Branch: `wp/ENG-1-texture-clarity`. Local commits only; M1 is implemented, but merge is blocked by the unchanged 0.002 scaled guard detailed in ENG-1d below. No push, mailbox, board, dependency, lockfile, Swift gate, or app launch.
+
+**Current acceptance data is in the ENG-1d section below; preceding lane
+measurements are retained as historical evidence.**
 
 ## Result
 
 CPU and GPU now use the identical presence gain:
 
 ```text
-gain = finite(decode(adjusted) / max(abs(luminance), 1e-3))
+gain = finite(L >= epsilon ? decode(adjusted) / L
+                           : 1 + (decode(adjusted) - L) / epsilon)
+epsilon = 1e-3
 ```
 
-The floor is **0.1% of scene-linear Rec.2020 white (1.0)**. It is a separate policy constant from the guided-filter epsilon, despite their equal numeric values. Only the texture/clarity recombination divisor changed. Guided filters, tone math, operator ordering, profile curves, sharpening, and import/recipe semantics are unchanged. Nonpositive luminance and unchanged adjusted log luminance retain their existing bypasses. Above the floor, the original arithmetic is preserved.
+The floor is **0.1% of scene-linear Rec.2020 white (1.0)**. It is a separate policy constant from the guided-filter epsilon, despite their equal numeric values. Only the texture/clarity gain recombination changed. Guided filters, tone math, operator ordering, profile curves, sharpening, and import/recipe semantics are unchanged. Nonpositive luminance retains its existing bypass. Above the floor, original arithmetic and the unchanged-log bypass are preserved. Below the floor, the continuous expression is evaluated even for unchanged adjusted log luminance. The final ENG-1d section supersedes historical floor-policy measurements below.
 
 The retained resident-chain scaled bound of 0.002 passes, and its absolute ceiling is tightened from 0.025 to **0.01**. The explicit 24 MP test now asserts **absolute 0.01 over all 72 million RGB samples**, in addition to the original sampled scaled guard, all-pixel finite RGB, and exact alpha. Metal was available; these were real GPU runs, not skips.
 
-The declined `635f69d8` numerics changes were not cherry-picked or reimplemented. The product changes are confined to `pipeline-cpu/src/tone_extra.rs`, `pipeline-gpu/src/presence.wgsl`, and `pipeline-cpu/TONE_M2.md`.
+The declined `635f69d8` numerics changes were not cherry-picked or reimplemented. The product changes are confined to four files: `pipeline-cpu/src/tone_extra.rs`, `pipeline-gpu/src/presence.wgsl`, `pipeline-gpu/src/tone_local.wgsl`, and `pipeline-cpu/TONE_M2.md`.
 
 ## Test-first history
 
@@ -239,8 +244,8 @@ release tests retain their existing status.
 
 ## ENG-1c — exact Tone attribution and omitted local GPU path
 
-Read [the ENG-1c report](conditioning/local-gpu/README.md), including the full
-compressed before/candidate per-pixel dumps and [predicate JSON](conditioning/local-gpu/report.json).
+Read [the ENG-1c report](conditioning/local-gpu/README.md), with the archived
+before/candidate per-pixel dumps referenced by SHA-256 below and [predicate JSON](conditioning/local-gpu/report.json).
 
 The clean release fixture reproduces `image Tone: 2.846853e-4`. Exactly one
 pixel exceeds 1e-4: 69802, (307,113), in the 615x410 Sony image. It is itself
@@ -255,9 +260,9 @@ The adapter's f16 capability is unused by both f32 presence shaders.
 
 This contradicts the ruling's inference that all-inside-support necessarily
 means an intended CPU/GPU delta. Clarification was requested before changing
-production code. The branch retains its production/reference code unchanged;
-`conditioning/local-gpu/candidate.patch` proposes the omitted floor. This is
-**not an integrated or green branch** while that decision is pending.
+production code. That historical candidate is now integrated by ENG-1c; the branch subsequently
+passed the unchanged fixture bound. ENG-1d validation below supersedes the
+candidate-only status and records gates on this worktree.
 
 Test-first commit: `8a418fa2`, with the required co-author trailer. The new
 near-black local-path regression fails before the production fix at 1.5453927e-4.
@@ -274,9 +279,8 @@ See the report for candidate gate results and exact reproduction commands.
 
 Candidate gates completed: release **456 passed, 0 failed, 24 ignored,
 0 filtered** in 93 suites; clippy all targets with `-D warnings` **exit 0**;
-fmt **exit 0**. These results apply to the isolated proposed patch, not to
-unchanged production in the branch. Applying it awaits resolution of the
-case-split contradiction above.
+fmt **exit 0**. Those historical results applied to the isolated candidate. ENG-1c subsequently
+integrated that patch; ENG-1d below records validation of the current worktree.
 
 ### Per-golden conditioning footprint (requested by Machine A review)
 
@@ -299,3 +303,165 @@ No golden moved outside the conditioning footprint. Photographic RAW goldens: 0 
 ### ENG-1c outcome (coordinator)
 
 Case (3) of Machine A's ruling: a CPU/GPU formulation mismatch. `tone_local.wgsl` (whole-image GPU tone path used by `fixture_level3_tolerance_per_operator_and_output`) still divided by raw luminance; the single pixel over 1e-4 (index 69,802, (307,113), L = 8.22e-4) is the conditioning seed itself. The validated candidate patch is applied as a production fix: identical `max(abs(L), 1e-3)` floor. After a clean rebuild (`cargo clean -p pipeline-cpu -p pipeline-gpu -p filters`) the fixture passes at the unchanged 1e-4 bound. The fixture's CPU reference is computed at runtime, so no stored reference changed. A transient `white_balance_v2` RAW-open failure in the first full run passed 3/3 when re-run alone; full no-fail-fast run recorded below.
+
+## ENG-1d — continuous recombination and actual-worktree gates (2026-10-01)
+
+**M1 fixed; not merge-green.** The full required release run on the actual
+worktree fails only the resident test's existing **0.002 scaled guard**.
+Its **0.01 absolute ceiling passes**. No bound has been relaxed or removed.
+This section supersedes the earlier attenuating-floor policy and gate status.
+
+### Formula and test-first evidence
+
+All three sites (`tone_extra.rs`, `presence.wgsl`, `tone_local.wgsl`) now use:
+
+```text
+epsilon = PRESENCE_LUMA_FLOOR = 1e-3
+if L > 0:
+    gain = L >= epsilon ? decode(adjusted)/L
+                        : 1 + (decode(adjusted) - L)/epsilon
+```
+
+The above-floor unchanged-log bypass and arithmetic are preserved exactly.
+Below the floor no `adjusted != z` special case remains. Nonpositive luminance
+still bypasses presence. The shared numeric epsilon stays separate from the
+guided-filter epsilon. Production/policy changes remain confined to **4 files**:
+the three implementations and `pipeline-cpu/TONE_M2.md`.
+
+The pre-existing **L = 0 discontinuity** is deliberately not fixed: the
+nonpositive bypass can meet a large gain (approximately 180x in the reviewed
+case) immediately above zero. It predates ENG-1 and remains outside this ruling.
+
+- `c6bb544f`: first RED test plus enforcing each rich-chain stage's 0.01 bound.
+- `79f9a01e`: extend the test to both GPU recombination paths; RED rerun with
+  the three original production files from `5b0871ae`, then restore the fix.
+- `e7d9cd3c`: continuous formula and six attribution-approved synthetic references.
+- Final `docs(ENG-1d):` commit: this record and removal of unused evidence dumps.
+
+`presence_zero_delta_vs_one_ulp_matches_cpu_below_floor` uses a signed centre
+sample at L = 0.0004458446. A one-pixel CPU image makes fine/mid identical,
+so its delta is exactly zero. Controlled GPU guided-band buffers differ by
+one log-luminance ulp (1.1641532e-10); the neighbour range permits it. The local
+production mode-6 shader and resident production `presence_from` helper both
+execute on Metal. The test copies no gain formula; it isolates recombination
+from platform-dependent guided sums and asserts each path against CPU at 0.01.
+
+| GPU path | RED gap | GREEN gap |
+| --- | ---: | ---: |
+| Local | 0.16500479 | 0.00000059604645 |
+| Resident | 0.16500479 | 0.000000059604645 |
+
+### Regenerated conditioning table
+
+Compared against the same historical pre-conditioning baseline `d0172365`
+(stored files at `927c94f1`). Exact RGBA f32 comparisons retain the same active
+pre-fix seed predicate `0 < abs(L) < 1e-3`, same radius **11**, alpha identity,
+and bit-identical global dehaze airlight/confidence requirements. The sole seed
+remains pixel 2101, (29,8). The audit explicitly excludes historical zero-delta
+bypasses from the seed set even though the new formula evaluates them below
+floor; outside-support changes would still fail acceptance.
+
+| Golden | Changed pixels / 4,403 | Max encoded delta | Max distance | Outside predicate |
+| --- | ---: | ---: | ---: | ---: |
+| sRGB, amount 1 | 38 | 0.000294983387 | 8 | 0 |
+| sRGB, amount 0.35 | 38 | 0.0001032352448 | 8 | 0 |
+| sRGB, amount 0 | 0 | 0 | n/a | 0 |
+| Display P3, amount 1 | 57 | 0.0002828836441 | 8 | 0 |
+| Display P3, amount 0.35 | 55 | 9.900331497e-05 | 8 | 0 |
+| Display P3, amount 0 | 0 | 0 | n/a | 0 |
+| Adobe RGB, amount 1 | 44 | 0.0002887845039 | 8 | 0 |
+| Adobe RGB, amount 0.35 | 42 | 0.0001010894775 | 8 | 0 |
+| Adobe RGB, amount 0 | 0 | 0 | n/a | 0 |
+
+**274 changed pixels, zero outside predicate; maximum distance 8.** Six
+nonzero-opacity references were accepted only after this audit passed. All
+zero-opacity references and photographic PNGs are unchanged. Every accepted
+reference matches `after_sha256` in [report.json](conditioning/report.json);
+every historical file matches its `before_sha256`. The audit was rerun in
+verification mode and reproduced both reports. Attribution unit tests: 3/3.
+
+Photographic RAW captures with `fixtures/raw` present throughout:
+
+| RAW | Pixels | Changed vs PNG | Changed pre/post | Max delta | Outside predicate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Canon CR3 | 250,000 | 0 | 0 | 0 | 0 |
+| Fuji RAF | 249,696 | 0 | 0 | 0 | 0 |
+| Nikon NEF | 568,568 | 0 | 0 | 0 | 0 |
+| DNG | 282,968 | 0 | 0 | 0 | 0 |
+| Sony ARW | 252,150 | 0 | 0 | 0 | 0 |
+
+Both historical and new builds passed exact stored-PNG checks. The normal
+full release run also passed `raw_fixture_goldens`. See
+[raw-report.json](conditioning/raw-report.json). Captures/build logs are in
+`/tmp/eng1d-audit-v3`; the audit never rewrites photographic references.
+
+### Full actual-worktree validation and remaining blocker
+
+Code/test/golden tip tested: `e7d9cd3cb59b9e7cf46edd45c5ea0929933ecd03`,
+on top of `5b0871ae`, without rebasing. The subsequent docs commit changes no
+Rust, WGSL, tests, or goldens. This was the actual worktree, not a candidate
+checkout. All runs used the requested external target, three Cargo jobs and
+three Rayon threads; `ENG1_CAPTURE`, `PIPELINE_RAW_FIXTURES`, and
+`PIPELINE_GPU_ALL_FIXTURES` were unset for normal gates. The RAW symlink stayed
+present. Exact commands:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/ENG-1-texture-clarity
+export CARGO_BUILD_JOBS=3
+export RAYON_NUM_THREADS=3
+unset ENG1_CAPTURE PIPELINE_RAW_FIXTURES PIPELINE_GPU_ALL_FIXTURES
+cargo clean -p pipeline-cpu -p pipeline-gpu -p filters
+cargo clean --release -p pipeline-cpu -p pipeline-gpu -p filters
+cargo test -p pipeline-cpu -p pipeline-gpu -p filters --release --no-fail-fast
+cargo clippy -p pipeline-cpu -p pipeline-gpu -p filters --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+The requested plain clean removed 392 files / 146.4 MiB. The additional
+release clean removed 784 files / 1.4 GiB, avoiding the stale release artifacts
+previously observed in ENG-1c.
+
+- Full release: **exit 101; 93 suites; 456 passed, 1 failed, 24 ignored,
+  0 filtered**. Sole failing target: `filters --test camera_raw_gpu`.
+- `resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha`: amount
+  0 → 0; amount 0.35 → 0.0016056895; amount 1 → **0.00458771** (both absolute
+  and scaled). The amount-1 result passes 0.01 but fails the existing 0.002
+  scaled assertion. Running the built `camera_raw_gpu` binary alone reproduced
+  it exactly: **9 passed, 1 failed, 1 ignored**, exit 101.
+- Stage isolation: every stage asserts its bound and passes (standalone 5e-6,
+  rich 0.01). Encoded rich and rich-no-dehaze peak at pixel 10703, blue,
+  GPU 0.4807913 / CPU 0.4762036. **Rich-no-presence is already 0.0043850243**
+  at that pixel, GPU 0.4546297 / CPU 0.45024467. This points to the pre-existing
+  tone precision limitation documented above; the old attenuating floor had
+  kept the full-chain discrepancy under the tighter scaled guard. Tone math
+  was not changed and the guard was not weakened. Further numerical work
+  requires a scope decision; merge remains blocked meanwhile.
+- `fixture_level3_tolerance_per_operator_and_output`: **PASS** at unchanged
+  1e-4. The near-black local-path regression and new one-ulp test pass.
+- `white_balance_v2`: **3 passed**, no `LibRaw error -100009`; no retry needed.
+- Clippy all targets, `-D warnings`: **exit 0**.
+- Fmt and `git diff --check`: **exit 0**.
+- Ignored diagnostics/benchmarks, including the standalone tone reference and
+  explicit 24 MP benchmark, retain their status; their old measurements above
+  are historical and are not represented as current ENG-1d results.
+
+Compact record: [VALIDATION-ENG-1d.txt](VALIDATION-ENG-1d.txt). Full logs are
+archived under the evidence directory below in `eng1d/`.
+
+### External compressed evidence
+
+No test reads the two compressed ENG-1c per-pixel dumps. They were moved out
+of the repository to:
+
+```text
+/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/eng1-evidence/
+```
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| before-diff.csv.gz | 2157613 | `4c5903908684dc77f85f28ffa0362116bbb58f1507208e44b59096f8ed22da26` |
+| after-diff.csv.gz | 2157630 | `7ea5dd9a4feaf3701980c7769678127f8a6915d2d52f18ce99f4d0e98769b718` |
+
+All ENG-1d commits end with the requested Claude Opus 5.5 co-author trailer.
+No Cargo.lock, board.json, dependency, or app changes; local commits only.
