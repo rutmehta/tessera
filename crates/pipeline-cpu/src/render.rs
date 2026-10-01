@@ -34,7 +34,17 @@ pub fn render_scaled(
     source: &RenderSource<'_>,
     scale: u32,
 ) -> EngineResult<Rgb8Image> {
-    let rgb = render_linear_scaled(settings, source, scale)?;
+    render_scaled_with_context(settings, source, scale, &Default::default())
+}
+
+/// Display render with caller-owned lens and retouch capabilities.
+pub fn render_scaled_with_context(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+) -> EngineResult<Rgb8Image> {
+    let rgb = render_linear_scaled_with_lens(settings, source, scale, context)?;
     let mut out = Rgb8Image::new(rgb.width(), rgb.height());
     for coord in rgb.coords() {
         let tile = crate::display(
@@ -193,9 +203,9 @@ fn render_linear_impl(
     if depth.is_some() {
         let mut without_blur = settings.clone();
         without_blur.effects.lens_blur = None;
-        validate_settings(&without_blur)?;
+        crate::validate_settings_with_retouch(&without_blur, context.retouch.as_deref())?;
     } else {
-        validate_settings(settings)?;
+        crate::validate_settings_with_retouch(settings, context.retouch.as_deref())?;
     }
     if scale == 0 {
         return Err(EngineError::invalid("scale", "must be positive"));
@@ -348,6 +358,7 @@ fn render_linear_impl(
                 ..Default::default()
             },
         )?;
+        rgb = crate::apply_retouch(rgb, &settings.locals.retouch, context.retouch.as_deref())?;
         if let Some(blur) = &settings.effects.lens_blur {
             let (plane, options) =
                 depth.ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;
@@ -414,7 +425,8 @@ fn detail_image(
 
 /// Whether a recipe needs M2 neighbourhood, colour, effect or geometry passes.
 pub fn has_m2_settings(s: &DevelopSettings) -> bool {
-    !s.locals.adjustments.is_empty()
+    !s.locals.retouch.is_empty()
+        || !s.locals.adjustments.is_empty()
         || crate::detail_halo(&s.detail) > 0
         || s.detail != Default::default()
         || s.color != Default::default()
@@ -436,6 +448,12 @@ pub fn has_m2_settings(s: &DevelopSettings) -> bool {
 /// Reject changed out-of-scope controls instead of silently ignoring them.
 /// Public so tiled renderers built on these operators apply the same scope.
 pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
+    if !s.locals.retouch.is_empty() {
+        return Err(EngineError::invalid(
+            "retouch",
+            "recipe has retouch spots but no renderer is registered",
+        ));
+    }
     use engine_api::recipe::settings::HighlightReconstruction;
     if !matches!(
         s.demosaic.method,

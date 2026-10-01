@@ -22,6 +22,8 @@
 #![warn(missing_docs)]
 #![allow(clippy::needless_range_loop, clippy::too_many_arguments)]
 
+mod retouch;
+pub use retouch::render_retouch;
 pub mod abr;
 pub mod api;
 pub mod dynamics;

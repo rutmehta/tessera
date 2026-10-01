@@ -266,7 +266,8 @@ impl ThumbnailJob {
             cache_budget_bytes: 0,
             process_version: document.recipe.process_version,
             ..Default::default()
-        });
+        })
+        .with_retouch_renderer(std::sync::Arc::new(brush::render_retouch));
         let key = cache_key(
             self.slot,
             &self.identity,

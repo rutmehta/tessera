@@ -1,4 +1,6 @@
 //! Scalar f32 reference operators. See OPERATORS.md for formulas and scope.
+mod retouch;
+pub use retouch::{RetouchRenderer, apply_retouch, validate_settings_with_retouch};
 mod color;
 mod denoise;
 pub use denoise::*;
@@ -48,7 +50,7 @@ pub use render::{
     RenderSource, Rgb8Image, has_m2_settings, render, render_linear_before_geometry,
     render_linear_scaled, render_linear_scaled_resolved, render_linear_scaled_with_denoise,
     render_linear_scaled_with_depth, render_linear_scaled_with_hooks,
-    render_linear_scaled_with_lens, render_scaled, validate_settings,
+    render_linear_scaled_with_lens, render_scaled, render_scaled_with_context, validate_settings,
 };
 mod mosaic;
 pub use color::{

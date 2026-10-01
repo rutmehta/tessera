@@ -57,7 +57,16 @@ pub(crate) fn render(
     develop.output.proof_profile = None;
     develop.output.hdr = false;
     develop.output.hdr_headroom_stops = 0.0;
-    let scene = pipeline_cpu::render_linear_scaled(&develop, &image.source, settings.render_scale)?;
+    let context = pipeline_cpu::LensContext {
+        retouch: settings.retouch.clone(),
+        ..Default::default()
+    };
+    let scene = pipeline_cpu::render_linear_scaled_with_lens(
+        &develop,
+        &image.source,
+        settings.render_scale,
+        &context,
+    )?;
     let mut rgb = image::Rgb32FImage::new(scene.width(), scene.height());
     let a = pipeline_cpu::hdr_sigmoid_ln_a(headroom).exp();
     let p = pipeline_cpu::SigmoidSettings::default().contrast;

@@ -262,7 +262,8 @@ fn render(path: &Path, recipe: &Recipe, edge: u32) -> Result<RgbImage> {
     let renderer = image_core::Renderer::new(image_core::RendererConfig {
         process_version: recipe.process_version,
         ..Default::default()
-    });
+    })
+    .with_retouch_renderer(std::sync::Arc::new(brush::render_retouch));
     let tiles = renderer.render_region(
         &raw,
         &recipe.settings,
