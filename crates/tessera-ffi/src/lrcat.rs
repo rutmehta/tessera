@@ -512,7 +512,7 @@ fn issue(category: &str, reason: String, count: usize, examples: Vec<String>) ->
         category: category.into(),
         reason,
         count: count as u32,
-        examples: examples.into_iter().take(3).collect(),
+        examples: examples.into_iter().take(5).collect(),
     }
 }
 
@@ -536,10 +536,10 @@ fn duplicate_keywords(plan: &CatalogMetadata) -> BTreeMap<String, usize> {
 
 /// Unsupported or partially supported catalog content, grouped by reason.
 fn unsupported(plan: &CatalogMetadata, history: usize) -> Vec<LrcatIssue> {
-    let name_of: HashMap<i64, &str> = plan
+    let path_of: HashMap<i64, &Path> = plan
         .images
         .iter()
-        .map(|i| (i.catalog_id, i.display_name.as_str()))
+        .map(|i| (i.catalog_id, i.path.as_path()))
         .collect();
     let mut groups: BTreeMap<(String, String), (usize, Vec<String>)> = BTreeMap::new();
     for line in &plan.report {
@@ -557,10 +557,17 @@ fn unsupported(plan: &CatalogMetadata, history: usize) -> Vec<LrcatIssue> {
         let (category, reason, example, n) = match develop {
             Some((n, id, reason)) => (
                 "Develop settings",
-                if reason.contains("imported as unedited") { format!("image {id}: {reason}") } else { reason.to_owned() },
+                if reason.contains("imported as unedited")
+                    || reason == "duplicate Adobe_images id; last-write-wins"
+                    || reason == "duplicate develop image id; last-write-wins"
+                {
+                    format!("image {id}: {reason}")
+                } else {
+                    reason.to_owned()
+                },
                 id.parse::<i64>()
                     .ok()
-                    .and_then(|id| name_of.get(&id).map(|s| s.to_string()))
+                    .and_then(|id| path_of.get(&id).map(|path| display_path(path)))
                     .unwrap_or_else(|| format!("image {id}")),
                 n,
             ),

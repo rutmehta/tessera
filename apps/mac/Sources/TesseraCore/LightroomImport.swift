@@ -216,6 +216,43 @@ public struct FidelityGrid: Equatable, Sendable {
     }
 }
 
+// MARK: Progress
+
+/// Phase-local rate: writing and indexing have different totals. Elapsed time is monotonic
+/// seconds since this import started; a fresh value is created on every import/resume.
+public struct LightroomImportEstimate: Sendable {
+    public private(set) var remainingSeconds: Double?
+    private var phase: LrcatPhase?
+    private var phaseStarted: Double = 0
+    private var lastUpdate: Double?
+
+    public init() {}
+
+    /// Also gates publication of the progress snapshot, including phase changes, to 2 Hz.
+    public mutating func update(_ progress: LrcatProgress, elapsed: Double) -> Bool {
+        guard elapsed.isFinite, elapsed >= 0,
+              lastUpdate.map({ elapsed - $0 >= 0.5 }) ?? true else { return false }
+        lastUpdate = elapsed
+        if phase != progress.phase {
+            phase = progress.phase
+            phaseStarted = elapsed
+        }
+        remainingSeconds = nil
+        if (progress.phase == .writingEdits || progress.phase == .indexing),
+           progress.done > 0, progress.done < progress.total, elapsed > phaseStarted {
+            remainingSeconds = (elapsed - phaseStarted) * Double(progress.total - progress.done) / Double(progress.done)
+        }
+        return true
+    }
+
+    public var detail: String {
+        guard let seconds = remainingSeconds else { return "" }
+        let duration = seconds < 60 ? String(format: "%.0f s", ceil(seconds))
+                                   : String(format: "%.0f min", ceil(seconds / 60))
+        return " · Step ETA: " + duration
+    }
+}
+
 // MARK: Report
 
 public enum LightroomImportReport {
@@ -305,6 +342,8 @@ public enum LightroomImportReport {
             } else {
                 out.append("ΔE2000 against Lightroom's cached previews; \"looks different\" means mean ≥ "
                            + "\(fmt(FidelityGrid.meanThreshold)) or 95th percentile ≥ \(fmt(FidelityGrid.p95Threshold)).")
+            }
+            if !f.samples.isEmpty {
                 out.append("")
                 out.append("| Photo | Mean ΔE | 95th pct ΔE | |")
                 out.append("| --- | ---: | ---: | --- |")
