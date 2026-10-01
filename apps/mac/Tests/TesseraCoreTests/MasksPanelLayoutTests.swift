@@ -50,7 +50,13 @@ final class MasksPanelLayoutTests: XCTestCase {
                                       styleMask: [.titled, .closable], backing: .buffered, defer: false)
                 window.isReleasedWhenClosed = false
                 window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                window.contentViewController = host
+                // Simulate the legacy cache allocation on a non-Retina display, even on Retina.
+                // The OCR helper must allocate its own 2× target instead of inheriting this 1× cache.
+                let nonRetinaView = NonRetinaCacheView(frame: NSRect(x: 0, y: 0, width: width, height: 720))
+                host.view.frame = nonRetinaView.bounds
+                host.view.autoresizingMask = [.width, .height]
+                nonRetinaView.addSubview(host.view)
+                window.contentView = nonRetinaView
                 window.orderBack(nil)
                 defer { LayoutProbeHarness.dispose(window) }
                 window.setContentSize(CGSize(width: width, height: 720))
@@ -60,7 +66,10 @@ final class MasksPanelLayoutTests: XCTestCase {
                 XCTAssertTrue(ShellLayoutAudit.containmentViolations(in: host.view, columnContent: true).isEmpty, tag)
                 // Render the actual hosting view offscreen. WindowServer capture may be unavailable
                 // on a background build machine, and is not needed to check the painted labels.
-                let bitmap = try LayoutProbeHarness.bitmap(host.view)
+                let bitmap = try LayoutProbeHarness.bitmap(nonRetinaView)
+                print("\(tag): OCR bitmap \(bitmap.pixelsWide)×\(bitmap.pixelsHigh) pixels / \(Int(nonRetinaView.bounds.width))×\(Int(nonRetinaView.bounds.height)) points; scale=\(CGFloat(bitmap.pixelsWide) / nonRetinaView.bounds.width)")
+                XCTAssertEqual(bitmap.pixelsWide, Int(width * 2), "\(tag): OCR requires 2 pixels per point")
+                XCTAssertEqual(bitmap.pixelsHigh, 1440, "\(tag): OCR requires 2 pixels per point")
                 let words = try renderedWords(try XCTUnwrap(bitmap.cgImage))
                 for label in ["Components", "Add", "Subtract", "Intersect"] {
                     // Vision can join the adjacent menu chevron to the full word as "v".
@@ -93,5 +102,19 @@ final class MasksPanelLayoutTests: XCTestCase {
             (observation.topCandidates(1).first?.string ?? "")
                 .split(whereSeparator: { $0.isWhitespace }).map(String.init)
         })
+    }
+}
+
+/// Only changes the legacy display-cache allocator; the panel and its drawing remain real.
+@MainActor
+private final class NonRetinaCacheView: NSView {
+    override func bitmapImageRepForCachingDisplay(in rect: NSRect) -> NSBitmapImageRep? {
+        let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                      pixelsWide: Int(rect.width), pixelsHigh: Int(rect.height),
+                                      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                      isPlanar: false, colorSpaceName: .deviceRGB,
+                                      bytesPerRow: 0, bitsPerPixel: 0)
+        bitmap?.size = rect.size
+        return bitmap
     }
 }
