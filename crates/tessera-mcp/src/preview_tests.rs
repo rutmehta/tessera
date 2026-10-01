@@ -271,5 +271,13 @@ fn retouch_is_registered_for_mcp_rgb_and_graph_previews() {
         let before = cache.display(id, path, &Recipe::default(), None).unwrap();
         let after = cache.display(id, path, &recipe, None).unwrap();
         assert!(after.get_pixel(32, 40)[0] > before.get_pixel(32, 40)[0] + 20);
+        let source = cache.source(rgb_id, path).unwrap();
+        let Decoded::Rgb { full, .. } = &*source else { panic!() };
+        let expected = pipeline_cpu::render_scaled_with_context(
+            &recipe.settings, &RenderSource::Rgb(full), 4, &retouch_context(),
+        ).unwrap();
+        let small = cache.display(id, path, &recipe, Some(32)).unwrap();
+        assert_eq!(small.dimensions(),expected.dimensions());
+        assert!(small.as_raw() == expected.as_raw(), "retouch must run at requested preview resolution for {id:?}");
     }
 }
