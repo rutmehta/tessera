@@ -187,3 +187,84 @@ impl Renderer {
         )
     }
 }
+
+impl DepthProvider {
+    /// Resolve opaque catalog resource IDs through a caller-owned association.
+    /// Only independently decodable grayscale PNG/TIFF resources are accepted;
+    /// proprietary helper tables are cache misses, never interpreted as paths.
+    /// Rasters live exclusively in mask-store. Regeneration uses this provider,
+    /// so a model-backed provider must be installed explicitly by the caller.
+    pub fn prepare_lens_blur_depth(
+        &self,
+        recipe: &mut engine_api::recipe::Recipe,
+        input: &Image,
+        store: &ml_depth::DepthStore,
+        mut resolve: impl FnMut(&str) -> Option<Vec<u8>>,
+    ) -> EngineResult<DepthMap> {
+        let mut settings = recipe.settings.clone();
+        let blur = settings
+            .effects
+            .lens_blur
+            .as_mut()
+            .ok_or_else(|| error("LensBlur missing"))?;
+        let state = blur.depth.get_or_insert_with(Default::default);
+        if let Some(key) = state.mask_key
+            && let Some(depth) = DepthMap::cached(store, &key)
+            && (depth.width(), depth.height()) == (input.width(), input.height())
+        {
+            return Ok(depth);
+        }
+        let mut imported = None;
+        for id in [&state.base_layered_depth_table, &state.base_raw_depth_table]
+            .into_iter()
+            .flatten()
+        {
+            let Some(bytes) = resolve(id) else { continue };
+            let Ok(format) = image::guess_format(&bytes) else {
+                continue;
+            };
+            if !matches!(format, image::ImageFormat::Png | image::ImageFormat::Tiff) {
+                continue;
+            }
+            let Ok(decoded) = image::load_from_memory_with_format(&bytes, format) else {
+                continue;
+            };
+            if !matches!(
+                decoded.color(),
+                image::ColorType::L8 | image::ColorType::L16
+            ) || (decoded.width(), decoded.height()) != (input.width(), input.height())
+            {
+                continue;
+            }
+            let values = decoded.to_luma32f().into_raw();
+            imported = Some(
+                DepthMap::from_normalized_inverse(input.width(), input.height(), values)
+                    .map_err(error)?,
+            );
+            break;
+        }
+        let regenerated = imported.is_none();
+        let depth = match imported {
+            Some(depth) => depth,
+            None => {
+                self.validate_model(blur.depth_model.as_ref())?;
+                self.estimate(input)?
+            }
+        };
+        let key = depth.resource_key();
+        depth.store(store, &key).map_err(error)?;
+        if DepthMap::cached(store, &key).as_ref() != Some(&depth) {
+            return Err(error("depth resource was not retained by mask-store"));
+        }
+        state.mask_key = Some(key);
+        state.regenerate = false;
+        recipe.edit(Default::default(), |s| *s = settings)?;
+        // Engine API owns JSON persistence; no raster is serialized here.
+        recipe.record_translation_info("DepthMapInfo", if regenerated {
+            "regenerated depth: complete via image-core depth provider; relative inverse depth, Adobe calibration unverified"
+        } else {
+            "approximate: imported grayscale PNG/TIFF depth into mask-store; white interpreted as near, calibration/direction unverified"
+        });
+        Ok(depth)
+    }
+}
