@@ -491,3 +491,105 @@ fn cancel_then_resume_and_existing_edits_are_kept() {
     let doc = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&kept).recipe).unwrap();
     assert_eq!(doc.last_writer.machine_id, "lightroom-import");
 }
+
+#[test]
+fn catalog_import_indexes_only_references_but_open_folder_indexes_everything() {
+    let s = setup();
+    let photos = s.fixture.photos.canonicalize().unwrap();
+    let source = photos.join("2026/wedding/ceremony-01.jpg");
+    // Include siblings and descendants of a catalog folder, plus another root child.
+    for relative in [
+        "2026/wedding/unrelated.jpg",
+        "2026/wedding/extra/nested.jpg",
+        "other/unrelated.jpg",
+    ] {
+        let path = photos.join(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::copy(&source, path).unwrap();
+    }
+    let report = s.import.apply(relocated(&s), None).unwrap();
+    let imported = s.engine.list_images(ImageQuery::default()).unwrap();
+    assert_eq!(
+        imported.len(),
+        5,
+        "unrelated originals must not enter the catalog index"
+    );
+    assert_eq!(report.indexed, 5);
+    assert!(
+        imported
+            .iter()
+            .all(|image| !image.path.contains("unrelated") && !image.path.contains("nested"))
+    );
+    assert_eq!(s.import.apply(relocated(&s), None).unwrap().indexed, 0);
+
+    // Exercise the exact FFI entry point used by normal Open Folder.
+    s.engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let all = s.engine.list_images(ImageQuery::default()).unwrap();
+    assert_eq!(all.len(), 8);
+}
+
+/// Run only against an explicitly supplied catalog COPY. Stage referenced originals
+/// under disposable mapped roots so apply cannot write beside personal originals.
+#[test]
+#[ignore = "requires TESSERA_LRCAT_COPY and eight accessible originals"]
+fn catalog_copy_indexes_eight_accessible_references() {
+    let catalog = PathBuf::from(std::env::var("TESSERA_LRCAT_COPY").unwrap());
+    assert!(catalog.canonicalize().unwrap().starts_with("/private/tmp"));
+    let before = std::fs::read(&catalog).unwrap();
+    let source = import_lrcat::import(&catalog).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let engine = Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+    let import = engine
+        .clone()
+        .open_lrcat(catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let mut options = import.default_options();
+    let mut accessible = std::collections::BTreeSet::new();
+    for image in &source.images {
+        if image.master_image.is_none() && image.path.is_file() {
+            accessible.insert(image.path.clone());
+        }
+    }
+    assert_eq!(accessible.len(), 8, "accessible catalog originals changed");
+    // Longest root wins, matching importer relocation semantics.
+    options
+        .relocations
+        .sort_by_key(|r| std::cmp::Reverse(r.from.len()));
+    let original_roots = options.relocations.clone();
+    for (n, relocation) in options.relocations.iter_mut().enumerate() {
+        relocation.to = temp
+            .path()
+            .join(format!("root-{n}"))
+            .to_string_lossy()
+            .into_owned();
+        std::fs::create_dir_all(&relocation.to).unwrap();
+    }
+    for path in &accessible {
+        let n = original_roots
+            .iter()
+            .position(|r| path.starts_with(&r.from))
+            .unwrap();
+        let target = Path::new(&options.relocations[n].to)
+            .join(path.strip_prefix(&original_roots[n].from).unwrap());
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::copy(path, target).unwrap();
+    }
+    options.library_folder = temp.path().join("library").to_string_lossy().into_owned();
+    let preview = import.plan(options.clone()).unwrap();
+    assert_eq!(preview.to_import, 8);
+    let report = import.apply(options, None).unwrap();
+    assert_eq!(report.indexed, 8);
+    assert_eq!(engine.list_images(ImageQuery::default()).unwrap().len(), 8);
+    assert_eq!(std::fs::read(catalog).unwrap(), before);
+    println!(
+        "catalog_photos={} accessible={} imported={} indexed={} missing={} seconds={:.3}",
+        source.images.len(),
+        accessible.len(),
+        report.imported,
+        report.indexed,
+        preview.missing,
+        report.seconds
+    );
+}
