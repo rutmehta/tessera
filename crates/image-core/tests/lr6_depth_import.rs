@@ -51,6 +51,13 @@ fn provider() -> DepthProvider {
     )
 }
 
+fn stored_provider(root: &std::path::Path) -> DepthProvider {
+    // A fallback with the wrong extent makes bypassing the store fail. This
+    // provider cannot load a model even if weights happen to be installed.
+    DepthProvider::from_map(DepthMap::from_normalized_inverse(1, 1, vec![0.]).unwrap())
+        .with_store(DepthStore::new(root.join("previews/depth-cache"), 100000).unwrap())
+}
+
 #[test]
 fn imports_decodable_resource_into_store_and_uses_reference_after_reload() {
     let temp = tempfile::tempdir().unwrap();
@@ -95,8 +102,8 @@ fn imports_decodable_resource_into_store_and_uses_reference_after_reload() {
         .unwrap();
     assert_eq!(cached, depth);
     assert!(!String::from_utf8(json).unwrap().contains("inverse_depth"));
-    let renderer = Renderer::new(RendererConfig::default())
-        .with_depth(Arc::new(DepthProvider::from_map(cached)));
+    let renderer =
+        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
     assert!(
         renderer
             .apply_depth_effects(&input(), &restored.settings)
@@ -186,11 +193,21 @@ fn synthetic_import_to_cpu_render() {
     )
     .unwrap();
     let provider = DepthProvider::from_map(depth);
+    let imported_history = recipe.history.clone();
     provider
         .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| None)
         .unwrap();
-    let renderer = Renderer::new(RendererConfig::default())
-        .with_depth(Arc::new(DepthProvider::from_support(temp.path()).unwrap()));
+    assert_eq!(recipe.history.entries.len(), 1);
+    assert_eq!(
+        recipe.history.entries[0].meta,
+        imported_history.entries[0].meta
+    );
+    assert!(matches!(
+        recipe.history.entries[0].meta.author,
+        engine_api::recipe::Author::Import { .. }
+    ));
+    let renderer =
+        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
     let out = renderer
         .apply_depth_effects(&input(), &recipe.settings)
         .unwrap();
@@ -201,7 +218,13 @@ fn synthetic_import_to_cpu_render() {
         contrast(&out.planes()[0][128..]) < 0.35,
         "at least 50% reduction of 0.7 input contrast"
     );
-    let restored = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
+    let saved = temp.path().join("recipe.json");
+    std::fs::write(&saved, recipe.to_json().unwrap()).unwrap();
+    drop(renderer);
+    drop(store);
+    let restored = Recipe::from_json(&std::fs::read(saved).unwrap()).unwrap();
+    let renderer =
+        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
     let again = renderer
         .apply_depth_effects(&input(), &restored.settings)
         .unwrap();
@@ -233,9 +256,9 @@ fn lr6c_renderer_reads_persisted_depth_without_estimating() {
         .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| None)
         .unwrap();
     let restored = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
-    // This support directory has no model weights. The stored map is sufficient.
-    let renderer = Renderer::new(RendererConfig::default())
-        .with_depth(Arc::new(DepthProvider::from_support(temp.path()).unwrap()));
+    // The fallback has the wrong extent; only the persisted map can render.
+    let renderer =
+        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
     let actual = renderer
         .apply_depth_effects(&input(), &restored.settings)
         .unwrap();

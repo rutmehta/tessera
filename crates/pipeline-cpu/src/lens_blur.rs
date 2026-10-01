@@ -94,9 +94,12 @@ pub fn lens_blur(
         control(|a| a.bokeh_shape, 0.),
         control(|a| a.focal_range_source, 0.),
     ];
-    if numbers.iter().any(|n| !n.is_finite())
+    if settings
+        .focus_falloff
+        .is_some_and(|v| v.iter().any(|n| !n.is_finite() || *n < 0.))
+        || numbers.iter().any(|n| !n.is_finite())
         || adobe.and_then(|a| a.focal_range).is_some_and(|range| {
-            range.iter().any(|n| !bounded(*n, 0., 1.)) || range.windows(2).any(|w| w[0] > w[1])
+            range.iter().any(|n| !n.is_finite()) || range.windows(2).any(|w| w[0] > w[1])
         })
     {
         return Err(engine_api::EngineError::invalid(
@@ -124,11 +127,12 @@ pub fn lens_blur(
     let h = image.height() as usize;
     let n = w * h;
     let distance = |d: f32| {
-        if let Some([a, b, c, e]) = adobe.and_then(|a| a.focal_range) {
+        if let Some([near, far]) = settings.focus_falloff {
+            let [b, c] = settings.focus_range;
             if d < b {
-                ((b - d) / (b - a).max(f32::EPSILON)).min(1.)
+                ((b - d) / near.max(f32::EPSILON)).min(1.)
             } else if d > c {
-                ((d - c) / (e - c).max(f32::EPSILON)).min(1.)
+                ((d - c) / far.max(f32::EPSILON)).min(1.)
             } else {
                 0.
             }

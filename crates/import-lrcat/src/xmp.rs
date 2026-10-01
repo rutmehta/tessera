@@ -460,71 +460,78 @@ fn approximate_depth(
     properties: &[Property<'_>],
     warnings: &mut Vec<String>,
 ) -> EngineResult<()> {
-    use engine_api::recipe::settings::{LensBlur, LensBlurDepth};
+    use engine_api::recipe::settings::LensBlurDepth;
     let mut info = Vec::new();
-    let mut settings = recipe.settings.clone();
+    let active = recipe.settings.effects.lens_blur.is_some();
     for p in properties.iter().filter(|p| p.namespace == CRS) {
-        if p.name == "LensBlur" {
-            info.push(
-                json!({"level":"info", "key":"LensBlur", "message": LENS_BLUR_APPROXIMATION}),
-            );
+        if !matches!(p.name, "LensBlur" | "DepthMapInfo") {
+            continue;
         }
-        if p.name != "DepthMapInfo" {
+        let Some(n) = p.node else { continue };
+        let n = n
+            .children()
+            .find(|c| c.has_tag_name((RDF, "Description")))
+            .unwrap_or(n);
+        let value = |name| {
+            n.attribute((CRS, name)).map(str::to_string).or_else(|| {
+                n.children()
+                    .find(|c| c.has_tag_name((CRS, name)))
+                    .and_then(|c| c.text())
+                    .map(str::to_string)
+            })
+        };
+        if p.name == "LensBlur" {
+            if !active {
+                continue;
+            }
+            for (field, reason) in LENS_BLUR_FIELDS {
+                if value(field).is_some() {
+                    info.push(json!({"level":"info", "key":"LensBlur", "field":field, "message":format!("approximate: {reason}; Adobe convention unverified; exact source retained")}));
+                }
+            }
+            continue;
+        }
+        warnings.retain(|w| !w.starts_with("crs:DepthMapInfo:"));
+        recipe.unknown.remove("crs:DepthMapInfo");
+        if !active {
+            info.push(json!({"level":"info", "key":"DepthMapInfo", "message":"retained source: no active Lens Blur; depth metadata may belong to a depth-range mask"}));
             continue;
         }
         let mut depth = LensBlurDepth {
             regenerate: true,
             ..Default::default()
         };
-        if let Some(n) = p.node {
-            let n = n
-                .children()
-                .find(|c| c.has_tag_name((RDF, "Description")))
-                .unwrap_or(n);
-            let value = |name| {
-                n.attribute((CRS, name)).map(str::to_string).or_else(|| {
-                    n.children()
-                        .find(|c| c.has_tag_name((CRS, name)))
-                        .and_then(|c| c.text())
-                        .map(str::to_string)
-                })
-            };
-            depth.depth_source = value("DepthSource");
-            depth.base_raw_depth_table = value("BaseRawDepthTable");
-            depth.base_raw_depth_input_digest = value("BaseRawDepthInputDigest");
-            depth.base_raw_depth_version = value("BaseRawDepthVersion");
-            depth.base_layered_depth_table = value("BaseLayeredDepthTable");
-            depth.base_layered_depth_input_digest = value("BaseLayeredDepthInputDigest");
-            depth.base_layered_depth_version = value("BaseLayeredDepthVersion");
-            depth.base_highlight_guide_table = value("BaseHighlightGuideTable");
-            depth.base_highlight_guide_input_digest = value("BaseHighlightGuideInputDigest");
-            depth.base_highlight_guide_version = value("BaseHighlightGuideVersion");
+        depth.depth_source = value("DepthSource");
+        depth.base_raw_depth_table = value("BaseRawDepthTable");
+        depth.base_raw_depth_input_digest = value("BaseRawDepthInputDigest");
+        depth.base_raw_depth_version = value("BaseRawDepthVersion");
+        depth.base_layered_depth_table = value("BaseLayeredDepthTable");
+        depth.base_layered_depth_input_digest = value("BaseLayeredDepthInputDigest");
+        depth.base_layered_depth_version = value("BaseLayeredDepthVersion");
+        depth.base_highlight_guide_table = value("BaseHighlightGuideTable");
+        depth.base_highlight_guide_input_digest = value("BaseHighlightGuideInputDigest");
+        depth.base_highlight_guide_version = value("BaseHighlightGuideVersion");
+        for (field, reason) in DEPTH_FIELDS {
+            if value(field).is_some() {
+                info.push(json!({"level":"info", "key":"DepthMapInfo", "field":field, "message":format!("approximate: {reason}; Adobe encoding/calibration unverified; exact source retained")}));
+            }
         }
-        settings
+        recipe.set_lens_blur_depth(depth)?;
+    }
+    if active {
+        if recipe
+            .settings
             .effects
             .lens_blur
-            .get_or_insert_with(|| LensBlur {
-                amount: 0.,
-                ..Default::default()
-            })
-            .depth = Some(depth);
-        warnings.retain(|w| !w.starts_with("crs:DepthMapInfo:"));
-        recipe.unknown.remove("crs:DepthMapInfo");
-        info.push(json!({"level":"info", "key":"DepthMapInfo", "message": "approximate: DepthSource is opaque provenance; BaseRawDepthTable and BaseLayeredDepthTable are opaque resolver IDs (layered preferred); InputDigest and Version are association/provenance only; BaseHighlightGuideTable is a guide, never depth. Encoding, calibration and direction unverified; regenerated depth pending via image-core ml-depth unless resource resolves."}));
-    }
-    if let Some(blur) = &mut settings.effects.lens_blur {
-        if blur.amount > 0. && blur.depth.is_none() && !info.is_empty() {
-            blur.depth = Some(LensBlurDepth {
+            .as_ref()
+            .is_some_and(|b| b.depth.is_none())
+        {
+            recipe.set_lens_blur_depth(LensBlurDepth {
                 regenerate: true,
                 ..Default::default()
-            });
+            })?;
         }
-        if blur.depth.as_ref().is_some_and(|d| d.regenerate) {
-            info.push(json!({"level":"info", "key":"DepthMapInfo", "message":"regenerated depth: pending; no decoded Adobe resource supplied; image-core provider performs opt-in regeneration"}));
-        }
-    }
-    if settings != recipe.settings {
-        recipe.edit(Default::default(), |s| *s = settings)?;
+        info.push(json!({"level":"info", "key":"DepthMapInfo", "message":"regenerated depth: pending; no decoded Adobe resource supplied; image-core provider performs opt-in regeneration"}));
     }
     if !info.is_empty() {
         recipe
@@ -534,7 +541,100 @@ fn approximate_depth(
     Ok(())
 }
 
-const LENS_BLUR_APPROXIMATION: &str = "approximate: Active gates the effect; BlurAmount is percent radius. FocalRange is four percent near-to-far endpoints: outer endpoints saturate blur, inner endpoints delimit sharp focus. BokehShape 0/1/2/3/4 maps circle/bubble/5-blade/ring/cat-eye; other values fall back to circle. BokehShapeDetail is percent radial pupil weighting; BokehAspect is signed percent log2 axis stretch; BokehRotation is degrees; HighlightsBoost is percent gain; HighlightsThreshold is percent scene-linear luminance; CatEyeAmount is percent clipping multiplied by CatEyeScale/100; SphericalAberration is signed percent radial pupil weighting. Version, FocalRangeSource, SampledArea, SampledRange and SubjectRange are selection provenance; explicit FocalRange remains authoritative. All numeric units, enum ordering, transfer functions and selection encodings are unverified Adobe conventions; exact source retained.";
+const LENS_BLUR_FIELDS: &[(&str, &str)] = &[
+    ("Active", "true enables Lens Blur"),
+    (
+        "BlurAmount",
+        "percentage of native maximum blur radius; Adobe image-size scaling unknown",
+    ),
+    (
+        "FocalRange",
+        "percent near-to-far endpoints populate native focus range and unclamped shoulder widths; linear ramps assumed",
+    ),
+    (
+        "BokehShape",
+        "0/1/2/3/4 approximated as circle/bubble/5-blade/ring/cat-eye; other values use circle",
+    ),
+    ("BokehShapeDetail", "percent radial pupil weighting"),
+    ("BokehAspect", "signed percent log2 axis stretch"),
+    (
+        "BokehRotation",
+        "degrees in the image plane; rotation origin and sign assumed",
+    ),
+    (
+        "HighlightsBoost",
+        "percent highlight gain; Adobe tone curve unknown",
+    ),
+    (
+        "HighlightsThreshold",
+        "percent scene-linear luminance threshold; Adobe transfer function unknown",
+    ),
+    ("CatEyeAmount", "percent radial pupil clipping"),
+    ("CatEyeScale", "CatEyeAmount multiplier divided by 100"),
+    (
+        "SphericalAberration",
+        "signed percent radial pupil weighting, not a wave-optics model",
+    ),
+    (
+        "Version",
+        "string provenance only; does not select a renderer",
+    ),
+    (
+        "FocalRangeSource",
+        "numeric selection provenance only; enum unknown",
+    ),
+    (
+        "SampledArea",
+        "string selection provenance only; coordinate encoding unknown",
+    ),
+    (
+        "SampledRange",
+        "string selection provenance only; native focus range is authoritative",
+    ),
+    (
+        "SubjectRange",
+        "string selection provenance only; native focus range is authoritative",
+    ),
+];
+const DEPTH_FIELDS: &[(&str, &str)] = &[
+    (
+        "DepthSource",
+        "opaque source provenance; no model or enum inferred",
+    ),
+    ("BaseRawDepthTable", "opaque resolver ID, never a path"),
+    (
+        "BaseRawDepthInputDigest",
+        "association metadata; digest algorithm unknown",
+    ),
+    (
+        "BaseRawDepthVersion",
+        "opaque version provenance; does not select a decoder",
+    ),
+    (
+        "BaseLayeredDepthTable",
+        "opaque resolver ID preferred over raw; never a path",
+    ),
+    (
+        "BaseLayeredDepthInputDigest",
+        "layered association metadata; digest algorithm unknown",
+    ),
+    (
+        "BaseLayeredDepthVersion",
+        "opaque layered version provenance",
+    ),
+    (
+        "BaseHighlightGuideTable",
+        "opaque guide resource ID; never interpreted as depth",
+    ),
+    (
+        "BaseHighlightGuideInputDigest",
+        "guide association metadata; digest algorithm unknown",
+    ),
+    (
+        "BaseHighlightGuideVersion",
+        "opaque guide version provenance",
+    ),
+];
 
 #[cfg(test)]
 mod tests {

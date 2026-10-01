@@ -144,7 +144,7 @@ fn approximate_lens_controls_and_depth_reference_roundtrip_in_native_xmp() {
     let mut recipe = Recipe::default();
     recipe.edit(Default::default(), |s| {
         s.effects.lens_blur = Some(serde_json::from_value(json!({
-            "amount":37., "focus_range":[0.2,0.6], "bokeh":"circle",
+            "amount":37., "focus_range":[0.2,0.6], "focus_falloff":[0.8,0.8], "bokeh":"circle",
             "adobe":{"active":true,"version":"1","focal_range":[0.1,0.2,0.6,0.8],"highlights_boost":25.,"bokeh_aspect":10.,"sampled_area":"  0.2 0.3  "},
             "depth":{"base_raw_depth_table":"opaque & <id>","mask_key":vec![1;32],"regenerate":false}
         })).unwrap());

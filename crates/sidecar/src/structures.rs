@@ -137,7 +137,7 @@ pub(super) fn encode(key: CrsKey, v: &Value) -> EngineResult<String> {
             for k in ["focus_range", "bokeh", "depth_model"] {
                 body += &native(&format!("ts:{k}"), &v[k]);
             }
-            for k in ["adobe", "depth"] {
+            for k in ["focus_falloff", "adobe", "depth"] {
                 if !v[k].is_null() {
                     body += &native(&format!("ts:{k}"), &v[k]);
                 }
@@ -199,7 +199,7 @@ pub(super) fn decode(key: CrsKey, tree: &Tree) -> EngineResult<Value> {
             }
             let mut v = serde_json::to_value(engine_api::recipe::settings::LensBlur::default())?;
             v["amount"] = real(tree, n, "BlurAmount", 50.0)?;
-            for k in ["focus_range", "bokeh", "depth_model"] {
+            for k in ["focus_range", "focus_falloff", "bokeh", "depth_model"] {
                 if node(tree, n, PRIVATE, k).is_some() {
                     v[k] = native_field(tree, n, k)?;
                 }
@@ -243,8 +243,9 @@ pub(super) fn decode(key: CrsKey, tree: &Tree) -> EngineResult<Value> {
                 {
                     return Err(error("invalid LensBlur FocalRange"));
                 }
-                let range: Vec<_> = range.iter().map(|v| (v / 100.).clamp(0., 1.)).collect();
-                v["focus_range"] = json!([range[1], range[2]]);
+                let range: Vec<_> = range.iter().map(|v| v / 100.).collect();
+                v["focus_range"] = json!([range[1].clamp(0., 1.), range[2].clamp(0., 1.)]);
+                v["focus_falloff"] = json!([range[1] - range[0], range[3] - range[2]]);
                 adobe.insert("focal_range".into(), json!(range));
             }
             if let Some(shape) = adobe.get("bokeh_shape").and_then(Value::as_f64) {

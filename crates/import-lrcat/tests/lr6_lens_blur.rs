@@ -116,6 +116,21 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         let (recipe, warnings) =
             import_lrcat::develop(1, &format!("s = {{ LensBlur = {raw} }}"), "15.4").unwrap();
         assert!(warnings.is_empty(), "{source_key}: {warnings:?}");
+        let records = recipe.unknown["lrcat_translation_diagnostics"]
+            .as_array()
+            .unwrap();
+        assert_eq!(
+            records
+                .iter()
+                .filter(|d| d["field"] == source_key
+                    && d["level"] == "info"
+                    && d["message"]
+                        .as_str()
+                        .is_some_and(|s| s.starts_with("approximate: ")))
+                .count(),
+            1,
+            "{source_key}"
+        );
         let json = serde_json::to_value(&recipe).unwrap();
         assert!(
             !json["settings"]["effects"]["lens_blur"]["adobe"][target].is_null(),
@@ -156,6 +171,21 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         )
         .unwrap();
         assert!(warnings.is_empty(), "{source_key}: {warnings:?}");
+        let records = recipe.unknown["lrcat_translation_diagnostics"]
+            .as_array()
+            .unwrap();
+        assert_eq!(
+            records
+                .iter()
+                .filter(|d| d["field"] == source_key
+                    && d["level"] == "info"
+                    && d["message"]
+                        .as_str()
+                        .is_some_and(|s| s.starts_with("approximate: ")))
+                .count(),
+            1,
+            "{source_key}"
+        );
         let json = serde_json::to_value(&recipe).unwrap();
         assert_eq!(
             json["settings"]["effects"]["lens_blur"]["depth"][target],
@@ -190,6 +220,9 @@ fn focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretati
         assert!(warnings.is_empty());
         let blur = recipe.settings.effects.lens_blur.unwrap();
         assert_eq!(blur.focus_range, [0.32, 0.64]);
+        let widths = blur.focus_falloff.unwrap();
+        assert!((widths[0] - 0.8).abs() < 1e-6);
+        assert!((widths[1] - 0.8).abs() < 1e-6);
         assert_eq!(
             blur.adobe.unwrap().focal_range,
             Some([-0.48, 0.32, 0.64, 1.44])
