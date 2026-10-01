@@ -7,6 +7,8 @@
 @group(0) @binding(4) var<storage, read> e: array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> out: array<vec4<f32>>;
 @group(0) @binding(6) var<storage, read> p: array<f32>;
+// Match CPU tone_extra.rs and resident presence.wgsl: 0.1% of white.
+const PRESENCE_LUMA_FLOOR: f32 = 1e-3;
 fn finite(v:f32)->f32 { return clamp(v,-3.402823466e38,3.402823466e38); }
 fn luma(v:vec3<f32>)->f32 { return finite(0.2627*v.x + 0.678*v.y + 0.0593*v.z); }
 fn encode(v:f32)->f32 {
@@ -91,7 +93,7 @@ fn main(@builtin(global_invocation_id) id:vec3<u32>) {
         let adjusted=clamp(z+delta,lo,hi);
         var result=rgb;
         if lum>0.0 && adjusted!=z {
-            let gain=finite(decode(adjusted)/lum);
+            let gain=finite(decode(adjusted)/max(abs(lum), PRESENCE_LUMA_FLOOR));
             result=vec3<f32>(finite(rgb.x*gain),finite(rgb.y*gain),finite(rgb.z*gain));
         }
         out[i]=vec4<f32>(result,0.0);
