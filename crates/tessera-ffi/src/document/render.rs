@@ -50,6 +50,22 @@ pub(crate) struct View {
     pub generation: u64,
 }
 
+/// Reader-visible preview inputs. No ring cursor or IOSurface ownership.
+#[derive(Clone, Copy)]
+pub(crate) struct PreviewView {
+    pub viewport: Option<Viewport>,
+    pub surface_size: Option<(u32, u32)>,
+}
+
+impl From<&View> for PreviewView {
+    fn from(view: &View) -> Self {
+        Self {
+            viewport: view.viewport,
+            surface_size: view.surfaces.first().map(|s| (s.width(), s.height())),
+        }
+    }
+}
+
 impl Default for View {
     fn default() -> Self {
         Self {
@@ -1161,9 +1177,11 @@ fn present_frame(
         // Cancelled partial CPU output is not published. Its ring slot is reused;
         // cpu_present clears aborted copies and successful copies overwrite all src.
         cancel.check()?;
-        // Publish only into the ring this frame was rendered for.
+        // Publish only into the ring this frame was rendered for. Advancing
+        // the private ring cursor changes no reader-visible state, so it must
+        // not rebuild the model publication or retain surface Arcs there.
         {
-            let mut st = shared.lock()?;
+            let mut st = shared.state.lock().map_err(failure)?;
             cancel.check()?;
             if st.closed
                 || st.view.generation != generation

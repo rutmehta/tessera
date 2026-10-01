@@ -540,7 +540,7 @@ impl DocumentSession {
     pub fn text_layer(&self, layer: u64) -> Result<TextLayerRecord> {
         let st = self.shared.read()?;
         st.open()?;
-        let live = st.live().state();
+        let live = st.live();
         let (model, transform, _) = text_of(live, layer)?;
         // The committed layer may not exist yet (a draft that adds it).
         let revision = find(st.doc.state(), layer).map_or(0, |l| l.content_rev);

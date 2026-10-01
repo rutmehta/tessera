@@ -873,20 +873,19 @@ impl State {
     }
 }
 
-/// Immutable session read view. Both documents share their Arc<DocState>;
+/// Immutable session read view. The live draft is only an Arc<DocState>;
 /// holding this view never holds either the edit lock or the render backend.
 /// Keep the committed document separate from the live interactive draft.
 struct PublishedState {
     doc: Arc<Document>,
-    live: Arc<Document>,
+    live: Arc<DocState>,
     doc_stamp: (u64, u64),
-    live_stamp: (u64, u64),
     path: Option<PathBuf>,
     title: String,
     source_image_id: Option<String>,
     saved_node: Option<u64>,
     pending: Vec<Pending>,
-    view: render::View,
+    view: render::PreviewView,
     selected: Vec<u64>,
     epoch: u64,
     labels: HashMap<u64, String>,
@@ -900,29 +899,20 @@ impl PublishedState {
         // ring or selection change. Never retain the mutable CowDoc Arc:
         // that would force a new compositor cache namespace on every edit.
         let doc_stamp = st.doc.stamp();
-        let live_doc = st.scratch.as_ref().unwrap_or(&st.doc);
-        let live_stamp = live_doc.stamp();
         let doc = previous
             .filter(|p| p.doc_stamp == doc_stamp)
             .map_or_else(|| Arc::new((*st.doc).clone()), |p| p.doc.clone());
-        let live = if live_stamp == doc_stamp {
-            doc.clone()
-        } else {
-            previous
-                .filter(|p| p.live_stamp == live_stamp)
-                .map_or_else(|| Arc::new((**live_doc).clone()), |p| p.live.clone())
-        };
+        let live = st.live().state().clone();
         Self {
             doc,
             live,
             doc_stamp,
-            live_stamp,
             path: st.path.clone(),
             title: st.title.clone(),
             source_image_id: st.source_image_id.clone(),
             saved_node: st.saved_node,
             pending: st.pending.iter().map(|(key, _)| *key).collect(),
-            view: st.view.clone(),
+            view: (&st.view).into(),
             selected: st.selected.clone(),
             epoch: st.epoch,
             labels: st.labels.clone(),
@@ -931,7 +921,7 @@ impl PublishedState {
         }
     }
 
-    fn live(&self) -> &Document {
+    fn live(&self) -> &Arc<DocState> {
         &self.live
     }
     fn dirty(&self) -> bool {
@@ -1489,7 +1479,7 @@ impl DocumentSession {
     pub fn info(&self) -> Result<DocumentInfo> {
         let st = self.shared.read()?;
         let mut cached = self.shared.selection_bounds.lock().map_err(failure)?;
-        let selection_bounds = match st.live().state().selection.clone() {
+        let selection_bounds = match st.live().selection.clone() {
             None => None,
             Some(sel) => match &*cached {
                 Some((seen, b)) if seen.upgrade().is_some_and(|s| Arc::ptr_eq(&s, &sel)) => *b,
@@ -1501,8 +1491,7 @@ impl DocumentSession {
             },
         };
         drop(cached);
-        let doc = st.live();
-        let s = doc.state();
+        let s = st.live();
         let h = st.doc.history();
         let current = h.current();
         let parent = h.nodes().find(|n| n.id == current).and_then(|n| n.parent);
@@ -1539,13 +1528,7 @@ impl DocumentSession {
     pub fn layers(&self) -> Result<Vec<LayerNode>> {
         let st = self.shared.read()?;
         let mut out = Vec::new();
-        flatten_nodes(
-            &st.live().state().root,
-            None,
-            0,
-            &st.unlinked_masks,
-            &mut out,
-        );
+        flatten_nodes(&st.live().root, None, 0, &st.unlinked_masks, &mut out);
         Ok(out)
     }
 
@@ -2144,7 +2127,7 @@ impl DocumentSession {
     /// canvas is smaller). Zoomed viewports allocate surfaces of their own
     /// size and name the region with `set_viewport`.
     pub fn plan_surface(&self, width: u32, height: u32) -> Result<DocSurfacePlan> {
-        let canvas = self.shared.read()?.live().state().canvas;
+        let canvas = self.shared.read()?.live().canvas;
         let level = (0..render::MAX_VIEW_LEVEL)
             .rev()
             .find(|&l| {
@@ -2363,7 +2346,7 @@ impl DocumentSession {
         let state = {
             let st = self.shared.read()?;
             st.open()?;
-            st.live().state().clone()
+            st.live().clone()
         };
         Ok(Arc::new(DocFlatExport {
             state: Mutex::new(Some(state)),
@@ -2569,7 +2552,7 @@ impl DocumentSession {
     /// The live document state (tests compare against the CPU compositor).
     #[doc(hidden)]
     pub fn document_state(&self) -> Result<Arc<DocState>> {
-        Ok(self.shared.read()?.live().state().clone())
+        Ok(self.shared.read()?.live().clone())
     }
 
     /// Enable instance-local test diagnostics: cumulative (mip hits, mip rebuilds).
@@ -2925,10 +2908,7 @@ mod publication_tests {
             count,
             "publishing a drag tick cloned history (and the Document damage log)"
         );
-        assert_eq!(
-            next.live().state().find(LayerId(id)).unwrap().props.opacity,
-            0.25
-        );
+        assert_eq!(next.live().find(LayerId(id)).unwrap().props.opacity, 0.25);
     }
 
     #[test]
@@ -2957,16 +2937,7 @@ mod publication_tests {
             draft.doc.state().find(LayerId(id)).unwrap().props.opacity,
             1.0
         );
-        assert_eq!(
-            draft
-                .live()
-                .state()
-                .find(LayerId(id))
-                .unwrap()
-                .props
-                .opacity,
-            0.25
-        );
+        assert_eq!(draft.live().find(LayerId(id)).unwrap().props.opacity, 0.25);
         session.commit("opacity".into()).unwrap();
         assert_eq!(
             session
@@ -3006,16 +2977,7 @@ mod publication_tests {
                 )
                 .is_err()
         );
-        assert_eq!(
-            draft
-                .live()
-                .state()
-                .find(LayerId(id))
-                .unwrap()
-                .props
-                .opacity,
-            0.25
-        );
+        assert_eq!(draft.live().find(LayerId(id)).unwrap().props.opacity, 0.25);
     }
 
     #[test]
@@ -3072,6 +3034,7 @@ mod publication_tests {
             let writer_session = session.clone();
             let writer = std::thread::spawn(move || {
                 writer_session.set_opacity(id, 0.75, false).unwrap();
+                let prior = writer_session.document_state().unwrap();
                 writer_session
                     .history_move(|doc| {
                         let mut props = doc.state().find(LayerId(id)).unwrap().props.clone();
@@ -3081,13 +3044,13 @@ mod publication_tests {
                             props,
                         })?;
                         // Commit is in progress, after mutation but before publication.
-                        ready_tx.send(()).unwrap();
+                        ready_tx.send(prior).unwrap();
                         release_rx.recv().unwrap();
                         Ok(true)
                     })
                     .unwrap();
             });
-            ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let prior = ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
             let reader_session = session.clone();
             let reader = std::thread::spawn(move || {
                 let export = reader_session
@@ -3107,6 +3070,7 @@ mod publication_tests {
             reader.join().unwrap();
             let export = acquired.expect("confirm acquisition waited for an in-progress commit");
             let snapshot = export.state.lock().unwrap();
+            assert!(Arc::ptr_eq(snapshot.as_ref().unwrap(), &prior));
             assert_eq!(
                 snapshot
                     .as_ref()

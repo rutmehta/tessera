@@ -2043,7 +2043,7 @@ impl DocumentSession {
         let (sel, canvas) = {
             let st = self.shared.read()?;
             st.open()?;
-            let s = st.live().state();
+            let s = st.live();
             (s.selection.clone(), s.canvas)
         };
         let Some(sel) = sel else {

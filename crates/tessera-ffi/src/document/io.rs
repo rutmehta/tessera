@@ -953,7 +953,7 @@ impl DocumentSession {
     /// `None` for sRGB (see [`display_icc`]). No pixel work.
     pub fn display_profile_icc(&self) -> Result<Option<Vec<u8>>> {
         let st = self.shared.read()?;
-        display_icc(st.live().state().profile.as_ref())
+        display_icc(st.live().profile.as_ref())
     }
 }
 
