@@ -84,7 +84,7 @@ impl LrcatImport {
             let i = &self.plan.images[r.index];
             (
                 !with_preview(i.catalog_id),
-                i.recipe.history.entries.is_empty(),
+                !self.edited[r.index],
                 i.catalog_id,
             )
         });
@@ -101,7 +101,7 @@ impl LrcatImport {
                 break;
             }
             let r = pool[i];
-            let image = &self.plan.images[r.index];
+            let image = self.read_image(r.index)?;
             let mut sample = LrcatFidelitySample {
                 catalog_id: image.catalog_id,
                 name: image.display_name.clone(),
@@ -113,7 +113,7 @@ impl LrcatImport {
                 lightroom_jpeg: vec![],
                 tessera_jpeg: vec![],
             };
-            if let Err(e) = self.compare(image, &r.path, thumb_px, &mut sample) {
+            if let Err(e) = self.compare(&image, &r.path, thumb_px, &mut sample) {
                 sample.status = LrcatFidelityStatus::Failed;
                 sample.message = e.to_string();
             }

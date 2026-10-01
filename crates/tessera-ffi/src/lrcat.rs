@@ -2,7 +2,8 @@
 //!
 //! `Engine::open_lrcat` reads the catalog once (through `import-lrcat`, which
 //! copies it to temporary storage and opens the copy read-only) and returns an
-//! `LrcatImport`. Its calls are the sheet's steps:
+//! `LrcatImport`. Full image records are streamed to temporary storage; only
+//! mapping metadata stays in memory. Its calls are the sheet's steps:
 //!
 //! - `summary()`: counts, unsupported items with reasons, a disk estimate, and
 //!   whether the catalog is locked / Lightroom is running.
@@ -23,7 +24,7 @@ use engine_api::{
     id::ImageId,
     recipe::{Mark, Recipe, Selection as CoreSelection},
 };
-use import_lrcat::{ImportPlan, Keyword, Library, previews::PreviewIndex};
+use import_lrcat::{Keyword, Library, previews::PreviewIndex};
 use serde::{Deserialize, Serialize};
 use sidecar::{MarkPreset, RecipeDocument, Sidecar, XmpPacket};
 use std::{
@@ -245,35 +246,68 @@ pub struct LrcatReport {
     pub seconds: f64,
 }
 
+/// Only fields used by mapping, summary and library merge. Full records,
+/// including recipes and all source rows, remain exclusively in the spool.
+pub(crate) struct CatalogMetadata {
+    schema_version: String,
+    roots: Vec<import_lrcat::SourceRow>,
+    folders: Vec<import_lrcat::SourceRow>,
+    pub(crate) images: Vec<ImageMetadata>,
+    library: Library,
+    stacks: Vec<import_lrcat::Stack>,
+    report: Vec<String>,
+}
+
+pub(crate) struct ImageMetadata {
+    pub(crate) catalog_id: i64,
+    path: PathBuf,
+    master_image: Option<i64>,
+    display_name: String,
+    image_id: Option<ImageId>,
+    selection: CoreSelection,
+    keywords: Vec<i64>,
+    rating: Option<i64>,
+    pick: Option<i64>,
+    color_label: Option<String>,
+    faces: usize,
+}
+
 /// A parsed catalog. Create with `Engine::open_lrcat`.
 #[derive(uniffi::Object)]
 pub struct LrcatImport {
     pub(crate) engine: Arc<Engine>,
     pub(crate) catalog: PathBuf,
-    pub(crate) plan: ImportPlan,
+    pub(crate) plan: CatalogMetadata,
     pub(crate) previews: Option<PreviewIndex>,
     pub(crate) cancel: AtomicBool,
     summary: LrcatSummary,
+    pub(crate) edited: Vec<bool>,
+    spool: tempfile::NamedTempFile,
+    storage: tempfile::TempDir,
+    records: Vec<(u64, usize)>,
 }
 
 /// Counts and diagnostics without an engine (for a quick look at a catalog).
 #[uniffi::export]
 pub fn inspect_lrcat(path: String) -> Result<LrcatSummary> {
-    let plan = import_lrcat::import(&path)?;
+    let (plan, stats, _, _) = stream_catalog(Path::new(&path), None, None)?;
     let catalog = Path::new(&path).canonicalize()?;
     let previews = PreviewIndex::open(&catalog).ok().flatten();
-    Ok(summarize(&catalog, &plan, previews.as_ref()))
+    Ok(summarize(&catalog, &plan, previews.as_ref(), &stats))
 }
 
 #[uniffi::export]
 impl Engine {
     /// Reads (a temporary copy of) the catalog. Blocking: call off the main thread.
     pub fn open_lrcat(self: Arc<Self>, path: String) -> Result<Arc<LrcatImport>> {
-        let plan = import_lrcat::import(&path)?;
+        let storage = tempfile::tempdir()?;
+        let mut spool = tempfile::NamedTempFile::new_in(storage.path())?;
+        let (plan, stats, edited, records) =
+            stream_catalog(Path::new(&path), Some(&mut spool), Some(storage.path()))?;
         let catalog = Path::new(&path).canonicalize()?;
         // The preview cache is optional; an unreadable one only disables fidelity.
         let previews = PreviewIndex::open(&catalog).ok().flatten();
-        let summary = summarize(&catalog, &plan, previews.as_ref());
+        let summary = summarize(&catalog, &plan, previews.as_ref(), &stats);
         Ok(Arc::new(LrcatImport {
             engine: self,
             catalog,
@@ -281,6 +315,10 @@ impl Engine {
             previews,
             cancel: AtomicBool::new(false),
             summary,
+            edited,
+            spool,
+            storage,
+            records,
         }))
     }
 }
@@ -306,7 +344,7 @@ fn relocations(options: &LrcatOptions) -> Result<Vec<(PathBuf, PathBuf)>> {
         .collect()
 }
 
-pub(crate) fn root_paths(plan: &ImportPlan) -> Vec<PathBuf> {
+pub(crate) fn root_paths(plan: &CatalogMetadata) -> Vec<PathBuf> {
     plan.roots
         .iter()
         .filter_map(|r| r.get("absolutePath").and_then(|v| v.as_str()))
@@ -345,13 +383,13 @@ fn map_mark(label: &str, options: &LrcatOptions) -> Option<String> {
     }
 }
 
-fn mapped_selection(image: &import_lrcat::ImportedImage, options: &LrcatOptions) -> CoreSelection {
-    let mut s = image.selection.clone();
-    s.mark = image
-        .color_label
-        .as_deref()
-        .and_then(|l| map_mark(l, options))
-        .map(Mark::new);
+fn mapped_selection(
+    selection: &CoreSelection,
+    label: Option<&str>,
+    options: &LrcatOptions,
+) -> CoreSelection {
+    let mut s = selection.clone();
+    s.mark = label.and_then(|l| map_mark(l, options)).map(Mark::new);
     s.normalized()
 }
 
@@ -385,7 +423,7 @@ pub(crate) struct Resolved {
     pub outcome: Outcome,
 }
 
-pub(crate) fn resolve(plan: &ImportPlan, options: &LrcatOptions) -> Result<Vec<Resolved>> {
+pub(crate) fn resolve(plan: &CatalogMetadata, options: &LrcatOptions) -> Result<Vec<Resolved>> {
     let roots = root_paths(plan);
     let moves = relocations(options)?;
     let mut stems: HashMap<(PathBuf, String), String> = HashMap::new();
@@ -483,7 +521,7 @@ fn keyword_names(list: &[Keyword], out: &mut BTreeMap<i64, String>) {
     }
 }
 
-fn duplicate_keywords(plan: &ImportPlan) -> BTreeMap<String, usize> {
+fn duplicate_keywords(plan: &CatalogMetadata) -> BTreeMap<String, usize> {
     let mut names = BTreeMap::new();
     keyword_names(&plan.library.keywords, &mut names);
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
@@ -495,25 +533,34 @@ fn duplicate_keywords(plan: &ImportPlan) -> BTreeMap<String, usize> {
 }
 
 /// Unsupported or partially supported catalog content, grouped by reason.
-fn unsupported(plan: &ImportPlan) -> Vec<LrcatIssue> {
+fn unsupported(plan: &CatalogMetadata, history: usize) -> Vec<LrcatIssue> {
     let name_of: HashMap<i64, &str> = plan
         .images
         .iter()
         .map(|i| (i.catalog_id, i.display_name.as_str()))
         .collect();
-    let mut groups: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    let mut groups: BTreeMap<(String, String), (usize, Vec<String>)> = BTreeMap::new();
     for line in &plan.report {
-        let (category, reason, example) = match line
+        // Develop entries are `image <id>: <reason>` or, grouped by the
+        // importer, `<n> images (first: image <id>): <reason>`.
+        let develop = line
             .strip_prefix("image ")
             .and_then(|rest| rest.split_once(": "))
-        {
-            Some((id, reason)) => (
+            .map(|(id, reason)| (1, id, reason))
+            .or_else(|| {
+                let (n, rest) = line.split_once(" images (first: image ")?;
+                let (id, reason) = rest.split_once("): ")?;
+                Some((n.parse().ok()?, id, reason))
+            });
+        let (category, reason, example, n) = match develop {
+            Some((n, id, reason)) => (
                 "Develop settings",
-                reason.to_owned(),
+                if reason.contains("imported as unedited") { format!("image {id}: {reason}") } else { reason.to_owned() },
                 id.parse::<i64>()
                     .ok()
                     .and_then(|id| name_of.get(&id).map(|s| s.to_string()))
                     .unwrap_or_else(|| format!("image {id}")),
+                n,
             ),
             None => match line.strip_prefix("missing table ") {
                 // Optional tables absent in older catalogs: one informational line.
@@ -521,19 +568,18 @@ fn unsupported(plan: &ImportPlan) -> Vec<LrcatIssue> {
                     "Catalog",
                     "optional tables are not in this catalog (older Lightroom version); nothing to import from them".to_owned(),
                     table.to_owned(),
+                    1,
                 ),
-                None => ("Catalog", line.clone(), String::new()),
+                None => ("Catalog", line.clone(), String::new(), 1),
             },
         };
-        groups
-            .entry((category.into(), reason))
-            .or_default()
-            .push(example);
+        let group = groups.entry((category.into(), reason)).or_default();
+        group.0 += n;
+        group.1.push(example);
     }
     let mut out: Vec<LrcatIssue> = groups
         .into_iter()
-        .map(|((category, reason), examples)| {
-            let n = examples.len();
+        .map(|((category, reason), (n, examples))| {
             let examples = examples.into_iter().filter(|e| !e.is_empty()).collect();
             issue(&category, reason, n, examples)
         })
@@ -563,22 +609,17 @@ fn unsupported(plan: &ImportPlan) -> Vec<LrcatIssue> {
     let faces: Vec<String> = plan
         .images
         .iter()
-        .filter(|i| !i.faces.is_empty())
+        .filter(|i| i.faces > 0)
         .map(|i| i.display_name.clone())
         .collect();
     if !faces.is_empty() {
         out.push(issue(
             "Faces",
             "face regions are preserved in the import bundle; named people become keywords and library people".into(),
-            plan.images.iter().map(|i| i.faces.len()).sum(),
+            plan.images.iter().map(|i| i.faces).sum(),
             faces,
         ));
     }
-    let history: usize = plan
-        .images
-        .iter()
-        .map(|i| i.history.len() + i.snapshots.len())
-        .sum();
     if history > 0 {
         out.push(issue(
             "History",
@@ -629,26 +670,120 @@ fn catalog_locked(catalog: &Path) -> bool {
     })
 }
 
-fn estimated_bytes(plan: &ImportPlan) -> u64 {
-    let recipes: usize = plan
-        .images
-        .iter()
-        .filter(|i| i.master_image.is_none())
-        .map(|i| {
-            serde_json::to_vec_pretty(&RecipeDocument {
-                recipe: i.recipe.clone(),
-                ..Default::default()
-            })
-            .map_or(0, |v| v.len())
-                + 2048 // XMP packet
-        })
-        .sum();
-    let bundle = serde_json::to_vec(plan).map_or(0, |v| v.len());
-    let library = serde_json::to_vec_pretty(&plan.library).map_or(0, |v| v.len());
-    (recipes + bundle + library) as u64
+/// Heavy recipes and original history rows live in the spool, never in this
+/// metadata plan. Aggregate values are captured before dropping those rows.
+#[derive(Default)]
+struct StreamStats {
+    edited: u32,
+    history: usize,
+    estimated_bytes: u64,
 }
 
-fn summarize(catalog: &Path, plan: &ImportPlan, previews: Option<&PreviewIndex>) -> LrcatSummary {
+type StreamedCatalog = (CatalogMetadata, StreamStats, Vec<bool>, Vec<(u64, usize)>);
+
+fn stream_catalog(
+    path: &Path,
+    spool: Option<&mut tempfile::NamedTempFile>,
+    storage: Option<&Path>,
+) -> Result<StreamedCatalog> {
+    use std::io::Write;
+    let mut writer = spool.map(|f| std::io::BufWriter::with_capacity(1 << 20, f));
+    let mut offset = 11u64; // {"images":[
+    if let Some(w) = &mut writer {
+        w.write_all(b"{\"images\":[")?;
+    }
+    let mut images = Vec::new();
+    let mut records = Vec::new();
+    let mut edited = Vec::new();
+    let mut stats = StreamStats::default();
+    let plan = import_lrcat::import_each_with_storage(
+        path,
+        storage,
+        |_| Ok(()),
+        |image| {
+            let bytes = serde_json::to_vec(&image)?;
+            if !images.is_empty() {
+                offset += 1;
+                if let Some(w) = &mut writer {
+                    w.write_all(b",")?;
+                }
+            }
+            if let Some(w) = &mut writer {
+                w.write_all(&bytes)?;
+            }
+            records.push((offset, bytes.len()));
+            offset += bytes.len() as u64;
+            let is_edited = !image.recipe.history.entries.is_empty();
+            stats.edited += u32::from(is_edited);
+            edited.push(is_edited);
+            stats.history += image.history.len() + image.snapshots.len();
+            if image.master_image.is_none() {
+                stats.estimated_bytes += serde_json::to_vec_pretty(&RecipeDocument {
+                    recipe: image.recipe.clone(),
+                    ..Default::default()
+                })?
+                .len() as u64
+                    + 2048;
+            }
+            images.push(ImageMetadata {
+                catalog_id: image.catalog_id,
+                path: image.path,
+                master_image: image.master_image,
+                display_name: image.display_name,
+                image_id: image.recipe.image_id,
+                selection: image.selection,
+                keywords: image.keywords,
+                rating: image.rating,
+                pick: image.pick,
+                color_label: image.color_label,
+                faces: image.faces.len(),
+            });
+            Ok(())
+        },
+    )?;
+    // Serialize only catalog-wide metadata. The image records already in the
+    // spool form the same JSON value as import(), including all unknown fields.
+    let mut metadata = serde_json::to_value(&plan).map_err(failure)?;
+    metadata
+        .as_object_mut()
+        .expect("plan object")
+        .remove("images");
+    let suffix = serde_json::to_vec(&metadata).map_err(failure)?;
+    if let Some(w) = &mut writer {
+        w.write_all(b"],")?;
+        w.write_all(&suffix[1..])?;
+        w.flush()?;
+    }
+    stats.estimated_bytes += offset + 2 + (suffix.len() - 1) as u64;
+    stats.estimated_bytes += serde_json::to_vec_pretty(&plan.library)
+        .map_err(failure)?
+        .len() as u64;
+    if let Some(storage) = storage {
+        let large = storage.join("large");
+        if large.is_dir() {
+            for entry in std::fs::read_dir(large)? {
+                stats.estimated_bytes += entry?.metadata()?.len();
+            }
+        }
+    }
+    let plan = CatalogMetadata {
+        schema_version: plan.schema_version,
+        roots: plan.roots,
+        folders: plan.folders,
+        images,
+        library: plan.library,
+        stacks: plan.stacks,
+        report: plan.report,
+    };
+    Ok((plan, stats, edited, records))
+}
+
+fn summarize(
+    catalog: &Path,
+    plan: &CatalogMetadata,
+    previews: Option<&PreviewIndex>,
+    stats: &StreamStats,
+) -> LrcatSummary {
     let mut names = BTreeMap::new();
     keyword_names(&plan.library.keywords, &mut names);
     LrcatSummary {
@@ -665,25 +800,21 @@ fn summarize(catalog: &Path, plan: &ImportPlan, previews: Option<&PreviewIndex>)
             .iter()
             .filter(|i| i.master_image.is_some())
             .count() as u32,
-        edited: plan
-            .images
-            .iter()
-            .filter(|i| !i.recipe.history.entries.is_empty())
-            .count() as u32,
+        edited: stats.edited,
         keywords: names.len() as u32,
         collections: plan.library.albums.len() as u32,
         collection_sets: plan.library.album_groups.len() as u32,
         smart_collections: plan.library.smart_albums.len() as u32,
         stacks: plan.stacks.len() as u32,
-        faces: plan.images.iter().map(|i| i.faces.len()).sum::<usize>() as u32,
+        faces: plan.images.iter().map(|i| i.faces).sum::<usize>() as u32,
         previews: previews.map_or(0, |p| {
             plan.images
                 .iter()
                 .filter(|i| p.lrprev_path(i.catalog_id).is_some_and(|f| f.is_file()))
                 .count() as u32
         }),
-        unsupported: unsupported(plan),
-        estimated_bytes: estimated_bytes(plan),
+        unsupported: unsupported(plan, stats.history),
+        estimated_bytes: stats.estimated_bytes,
         catalog_locked: catalog_locked(catalog),
         lightroom_running: lightroom_running(),
     }
@@ -719,7 +850,7 @@ fn count_selection(counts: &mut LrcatSelectionCounts, s: &CoreSelection) {
     }
 }
 
-fn keyword_rows(plan: &ImportPlan) -> Vec<LrcatKeywordRow> {
+fn keyword_rows(plan: &CatalogMetadata) -> Vec<LrcatKeywordRow> {
     let mut usage: HashMap<i64, u32> = HashMap::new();
     for i in &plan.images {
         for k in &i.keywords {
@@ -910,7 +1041,7 @@ impl LrcatImport {
         let mut counts = LrcatSelectionCounts::default();
         let mut marks: BTreeMap<String, LrcatMarkRow> = BTreeMap::new();
         for image in self.plan.images.iter().filter(|i| i.master_image.is_none()) {
-            let s = mapped_selection(image, &options);
+            let s = mapped_selection(&image.selection, image.color_label.as_deref(), &options);
             count_selection(&mut counts, &s);
             let pick = image.pick.unwrap_or(0).clamp(-1, 1);
             let stars = image.rating.unwrap_or(0);
@@ -1021,10 +1152,31 @@ impl LrcatImport {
         std::fs::create_dir_all(&bundle)?;
         let plan_file = bundle.join("import-plan.json");
         if !plan_file.exists() {
-            write_atomic(
-                &plan_file,
-                &serde_json::to_vec(&self.plan).map_err(failure)?,
-            )?;
+            // Publish every lossless source cell before publishing its references.
+            // Keep the private copies for retries and independent record reads.
+            let large = self.storage.path().join("large");
+            if large.is_dir() {
+                let destination = bundle.join("large");
+                std::fs::create_dir_all(&destination)?;
+                for entry in std::fs::read_dir(large)? {
+                    let entry = entry?;
+                    let mut temporary = tempfile::NamedTempFile::new_in(&destination)?;
+                    std::io::copy(&mut std::fs::File::open(entry.path())?, &mut temporary)?;
+                    temporary.as_file().sync_all()?;
+                    temporary
+                        .persist(destination.join(entry.file_name()))
+                        .map_err(|e| failure(e.error))?;
+                }
+                std::fs::File::open(&destination)?.sync_all()?;
+            }
+            let mut temporary = tempfile::NamedTempFile::new_in(&bundle)?;
+            let mut source = self.spool.reopen()?;
+            std::io::copy(&mut source, &mut temporary)?;
+            temporary.as_file().sync_all()?;
+            temporary
+                .persist(&plan_file)
+                .map_err(|e| failure(e.error))?;
+            std::fs::File::open(&bundle)?.sync_all()?;
         }
         let state_file = bundle.join("state.json");
         let fingerprint = options_fingerprint(&options);
@@ -1097,14 +1249,15 @@ impl LrcatImport {
                 report.cancelled = true;
                 break;
             }
-            let image = &self.plan.images[r.index];
+            let image = self.read_image(r.index)?;
             progress.tick(
                 LrcatPhase::WritingEdits,
                 n as u32,
                 total,
                 &image.display_name,
             );
-            let selection = mapped_selection(image, &options);
+            let selection =
+                mapped_selection(&image.selection, image.color_label.as_deref(), &options);
             if state.done.contains(&image.catalog_id) {
                 report.resumed += 1;
                 count_selection(&mut report.selection, &selection);
@@ -1235,6 +1388,16 @@ impl LrcatImport {
 }
 
 impl LrcatImport {
+    pub(crate) fn read_image(&self, index: usize) -> Result<import_lrcat::ImportedImage> {
+        use std::io::{Read, Seek, SeekFrom};
+        let (offset, length) = self.records[index];
+        let mut file = self.spool.reopen()?;
+        file.seek(SeekFrom::Start(offset))?;
+        let mut bytes = vec![0; length];
+        file.read_exact(&mut bytes)?;
+        serde_json::from_slice(&bytes).map_err(failure)
+    }
+
     /// Import identity (catalog-derived) → app identity (path-derived). Virtual
     /// copies map to their master's photo.
     fn app_ids(&self, resolved: &[Resolved]) -> HashMap<ImageId, ImageId> {
@@ -1249,7 +1412,7 @@ impl LrcatImport {
             .iter()
             .filter_map(|i| {
                 let target = by_catalog.get(&i.master_image.unwrap_or(i.catalog_id))?;
-                Some((i.recipe.image_id?, *target))
+                Some((i.image_id?, *target))
             })
             .collect()
     }
@@ -1384,7 +1547,7 @@ fn find_keyword_mut<'a>(list: &'a mut [Keyword], name: &str) -> Option<&'a mut K
 /// `lightroom` tag so a second run does not duplicate them.
 pub(crate) fn merge_library(
     mut library: Library,
-    plan: &ImportPlan,
+    plan: &CatalogMetadata,
     catalog: &Path,
     ids: &HashMap<ImageId, ImageId>,
     resolved: &[Resolved],
