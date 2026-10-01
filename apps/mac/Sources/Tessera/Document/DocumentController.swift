@@ -84,7 +84,6 @@ final class DocumentController: Identifiable {
 
     /// B5-30: re-reads the document profile (open, Assign / Convert to Profile, undo across them).
     private func refreshDisplayColor() {
-        pendingDisplayDiagnostic = nil
         let icc: Data?
         do { icc = try backend.displayProfileICC() } catch {
             icc = nil
@@ -95,6 +94,7 @@ final class DocumentController: Identifiable {
         let digest = SHA256.hash(data: Data([icc == nil ? 0 : 1]) + (icc ?? Data()))
         guard digest != displayProfileDigest else { return }
         displayProfileDigest = digest
+        pendingDisplayDiagnostic = nil
         displayColor = DocumentDisplayColor.resolve(icc: icc, name: info.profileName)
         if let d = displayColor.diagnostic {
             NSLog("%@", d)

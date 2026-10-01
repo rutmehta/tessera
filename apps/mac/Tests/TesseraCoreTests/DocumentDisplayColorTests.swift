@@ -118,7 +118,7 @@ final class DocumentDisplayColorTests: XCTestCase {
         // The canvas decodes sRGB transfer curves and tags the linearized document primaries.
         let v = viewport(doc)
         XCTAssertEqual(icc(v.layerColorSpace), icc(CGColorSpaceCreateLinearized(doc.displayColor.space)))
-        XCTAssertFalse(v.layerWantsEDR)
+        XCTAssertFalse(v.layerWantsEDR, "P3 uses an SDR linearized-twin layer")
         let metalLayer = try XCTUnwrap(v.layer as? CAMetalLayer)
         metalLayer.drawableSize = CGSize(width: 2, height: 2)
         XCTAssertNotNil(metalLayer.nextDrawable(), "Metal accepts the linearized P3 layer without EDR")
@@ -177,6 +177,7 @@ final class DocumentDisplayColorTests: XCTestCase {
         let doc = try DocumentController(backend: DisplayProfileBackend(base))
         defer { doc.close() }
         let diagnostic = try XCTUnwrap(doc.displayColor.diagnostic)
+        doc.reloadModel() // An unchanged ICC digest must preserve the undelivered warning.
         var messages: [String] = []
         let delivered = expectation(description: "deferred display diagnostic")
         doc.report = { messages.append($0); delivered.fulfill() }
