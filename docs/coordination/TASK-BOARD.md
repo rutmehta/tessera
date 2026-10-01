@@ -6,12 +6,16 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 | Lane | Owner | State | Verified evidence / next action |
 | --- | --- | --- | --- |
-| PERF-1 style export | Codex A / Astra | Test-only `3c74cc40`; runtime held | Two per-operation counters and an analytical overlay are authored and source-reviewed but UNRUN. Each output tile recomputes full source/style planes; frame-local bounded reuse and uncached overbudget fallback remain design. An external batch-16 Swift/Cargo pipeline occupies the shared runtime lane; do not overlap. No speedup claimed. |
+| PERF-1 style export | Codex A / Astra | Tests `21940dde`, reviewed at `073819fc`; runtime held | Per-operation counters, analytic overlay and nested group fixtures are source-reviewed but UNRUN. A/B/A covers cross-call top-level document isolation; same-pass child DocRef collision, live text/shape, blur oracle, cancellation and budget cases remain pending. Each output tile recomputes full source/style planes; frame-local bounded reuse and uncached overbudget fallback remain design. An external batch-16 Swift/Cargo pipeline occupies the shared runtime lane; do not overlap. No speedup claimed. |
 | PERF-4 Gaussian | Codex A / Luna | Candidate `04e481cd`; review-ready, not merged | Focused parity/cancel, full Release filters suite, strict Clippy and fmt pass. Paired 24 MP r12 convolve median ratio 2.2352x (1938.054/867.070 ms). Public apply measured 2180.016→1086.382 ms = 2.0067x, but baseline/final load differs and margin is negligible; not a robust/general whole-apply claim. Exact trials, logs, exits and hashes are in `tools/orchestrate/wp/PERF-4/RESULT.md` and `/Volumes/betterSSD/tessera-validation/perf4/`. |
 | PERF-2/5 Camera Raw and memory | Codex A / Luna source review | Source design committed on style branch | Multiple full-frame conversion buffers identified; report RSS is not live-heap allocation. Coordinate one camera_raw.rs owner; counting-allocator oracles required. |
 | PERF-3 vector drag | Codex A | Source design committed on style branch | Preserve pixel parity and dashed-stroke fallback; no runtime result. |
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
+
+### Source checkpoint — 2026-10-01 06:03 UTC heartbeat
+
+Style branch `073819fc` preserves independent fixture review and live-scene routing findings. LR-2 Adobe-primary research at `e21a7871` documents UI behavior but leaves exact serialized schema and legacy conversion formulas unresolved; no guessed runtime oracle or product implementation. External batch16 parent PID 18601 remains active with Cargo/rustc descendants, so PERF-1 execution stays held. Next action after the complete external pipeline exits: run authored tests and preserve observed RED/analytic results before cache implementation. Main remains `202e7150`; Codex made no main merge. Mailbox reconciliation: 0 pending messages, 75 receipts, 6 historical in-progress, 16 expired, 0 invalid; historical work is not retried and no receipt is ACKed. No new peer receipt or wakeup is claimed.
 
 ## Coordinator reconciliation — 2026-09-30 06:37 UTC
 
