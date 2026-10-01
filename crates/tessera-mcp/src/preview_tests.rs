@@ -293,12 +293,16 @@ fn retouch_is_registered_for_mcp_rgb_and_graph_previews() {
         let mut inactive = recipe.clone();
         inactive.settings.tone.contrast = 35.0;
         inactive.settings.locals.retouch[0].enabled = zero_opacity;
-        if zero_opacity { inactive.settings.locals.retouch[0].opacity = 0.0; }
+        if zero_opacity {
+            inactive.settings.locals.retouch[0].opacity = 0.0;
+        }
         let mut empty = inactive.clone();
         empty.settings.locals.retouch.clear();
         let expected = cache.display(rgb_id, path, &empty, Some(32)).unwrap();
         let actual = cache.display(rgb_id, path, &inactive, Some(32)).unwrap();
-        assert!(actual.as_raw() == expected.as_raw(), "inactive retouch must preserve the preview pipeline");
+        assert!(
+            actual.as_raw() == expected.as_raw(),
+            "inactive retouch must preserve the preview pipeline"
+        );
     }
-
 }
