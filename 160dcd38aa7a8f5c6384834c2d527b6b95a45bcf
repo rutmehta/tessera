@@ -1,0 +1,1 @@
+A20:59: B ENG1d67e18d53 reports full101:456pass1fail24ignore, resident .00458771 exceeds retained scaled .002; no merge acceptance. LR2b acb1a72d handoff no-schema-bump conflicts with main44db24b2 conditional v4; owners must reconcile. Read committed validation and handoffs; not A rerun. Main e8855e6f, mailbox unchanged, external cargo active; PERF runtime handoff pending.
