@@ -174,6 +174,11 @@ final class DocumentWorkspace {
         let doc = try DocumentController(backend: backend)
         doc.report = { [weak self] in self?.say($0) }
         documents.append(doc)
+        // Construct the native controls during document setup, not the first export.
+        // The unattached HUD is reused, including after an export finishes.
+        if preparedExportHUD == nil, (NSApp as NSApplication?) != nil {
+            preparedExportHUD = FlatExportProgressView(workspace: self)
+        }
         select(doc, activateDocument: activateDocument)
     }
 
@@ -649,15 +654,17 @@ final class DocumentWorkspace {
     @ObservationIgnored private let flatExportGroup = DispatchGroup()
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
     @ObservationIgnored private var exportAccessories: [FlatExportProgressView] = []
+    @ObservationIgnored private var preparedExportHUD: FlatExportProgressView?
     // Diagnostic injection: exercise the real progress UI in an unordered test window.
     @ObservationIgnored var exportWindow: NSWindow?
     @ObservationIgnored var exportTrace = PerformanceTrace.shared
 
-    /// Export Flat of `doc` to `url` with `s` without blocking the main thread: the document is snapshotted
-    /// now (later edits are not exported), then composited, converted, encoded and written on a background
+    /// Export Flat of `doc` to `url` with `s` without blocking the main thread: reserve the session now,
+    /// then snapshot, composite, convert, encode and write on a background
     /// task with progress and Cancel in the window. Cancelling leaves the destination untouched (the file is
     /// renamed into place only when complete). Closing the document does not stop the export; quitting
-    /// cancels it. `then` runs on the main actor with the outcome.
+    /// cancels it. The snapshot includes edits committed before the worker acquires it; later edits do not
+    /// affect the export. `then` runs on the main actor with the outcome.
     @discardableResult
     func startExportFlat(_ doc: DocumentController, _ s: ExportFlatSettings, to url: URL,
                          then: (@MainActor (FlatExportTask.Outcome) -> Void)? = nil) -> FlatExportTask? {
@@ -670,16 +677,24 @@ final class DocumentWorkspace {
         let run: @Sendable (@escaping @Sendable (Double, String) -> Void) throws -> Void
         let cancel: @Sendable () -> Void
         if let exporter = backend as? DocumentFlatExporting {
-            let job: DocumentFlatExport
+            let preparation: DocumentFlatExportPreparation
             do {
-                job = try exporter.beginExportFlat(path: path, format: format, quality: quality, color: color)
+                preparation = try exporter.prepareExportFlat(path: path, format: format, quality: quality, color: color)
             } catch {
                 say("Export Flat: \(error.localizedDescription)")
                 then?(.failed(error.localizedDescription))
                 return nil
             }
-            run = { progress in try job.run(progress: progress) }
-            cancel = { job.cancel() }
+            run = { progress in
+                let job: DocumentFlatExport
+                do {
+                    let snapshotSpan = trace.begin("export_flat_snapshot")
+                    defer { trace.end(snapshotSpan) }
+                    job = try preparation.snapshot()
+                }
+                try job.run(progress: progress)
+            }
+            cancel = { preparation.cancel() }
         } else {
             // Backends without a background exporter (the stub): their synchronous export, off the main thread.
             let flag = CancelBox()
@@ -700,12 +715,15 @@ final class DocumentWorkspace {
         let summary = "\(url.lastPathComponent) (\(s.format.title), \(s.color.title))"
         let group = flatExportGroup
         let onProgress: @MainActor @Sendable (Double, String) -> Void = { [weak self, weak task] f, phase in
+            guard let self, let task, self.flatExports.contains(where: { $0 === task }), !task.cancelling else { return }
             let span = trace.begin("export_flat_progress")
             defer { trace.end(span) }
-            task?.update(f, phase)
-            self?.updateExportAccessory()
+            task.update(f, phase)
+            self.updateExportAccessory()
         }
+        let progress = FlatExportProgressPublisher(publish: onProgress)
         let onDone: @MainActor @Sendable (Result<Void, any Error>) -> Void = { [weak self, weak task] result in
+            progress.finish()
             let span = trace.begin("export_flat_completion")
             defer { trace.end(span) }
             guard let task else { return }
@@ -730,7 +748,7 @@ final class DocumentWorkspace {
                 let activity = ProcessInfo.processInfo.beginActivity(
                     options: .userInitiatedAllowingIdleSystemSleep, reason: "Exporting document")
                 defer { ProcessInfo.processInfo.endActivity(activity) }
-                try run { f, phase in Task { @MainActor in onProgress(f, phase) } }
+                try run { f, phase in progress.receive(f, phase) }
             }
             group.leave()
             await onDone(result)
@@ -775,18 +793,25 @@ final class DocumentWorkspace {
     /// contentLayoutRect, resizes the document viewport, and schedules another expensive render/layout.
     /// This native overlay never changes the window, canvas, or hosting view's sizing constraints.
     private func updateExportAccessory() {
+        let span = exportTrace.begin("export_flat_hud_update")
+        defer { exportTrace.end(span) }
         for hud in exportAccessories {
             let tasks = flatExports.filter { $0.progressHost != nil && $0.progressHost === hud.superview }
-            if tasks.isEmpty { hud.removeFromSuperview() }
+            if tasks.isEmpty {
+                hud.removeFromSuperview()
+                if preparedExportHUD == nil { preparedExportHUD = hud }
+            }
         }
         exportAccessories.removeAll { $0.superview == nil }
+        var updated = Set<ObjectIdentifier>()
         for task in flatExports {
-            guard let parent = task.progressHost else { continue }
+            guard let parent = task.progressHost, updated.insert(ObjectIdentifier(parent)).inserted else { continue }
             let hud: FlatExportProgressView
             if let existing = exportAccessories.first(where: { $0.superview === parent }) {
                 hud = existing
             } else {
-                hud = FlatExportProgressView(workspace: self)
+                hud = preparedExportHUD ?? FlatExportProgressView(workspace: self)
+                preparedExportHUD = nil
                 parent.addSubview(hud, positioned: .above, relativeTo: nil)
                 exportAccessories.append(hud)
             }
@@ -979,6 +1004,68 @@ private final class CancelBox: @unchecked Sendable {
     func set() { lock.withLock { value = true } }
 }
 
+/// One pending main-queue delivery per export. Tile callbacks replace the pending
+/// value instead of queuing main-actor tasks. Both phase and percentage changes
+/// obey the 100 ms interval, and identical displayed values never publish again.
+final class FlatExportProgressPublisher: @unchecked Sendable {
+    private let lock = NSLock()
+    private let publish: @MainActor @Sendable (Double, String) -> Void
+    private var latest: (Double, String)?
+    private var displayed: (Int, String)?
+    private var scheduled = false
+    private var finished = false
+    private var lastDeliveryAttempt: TimeInterval = -.infinity
+
+    private let now: @Sendable () -> TimeInterval
+    private let schedule: @Sendable (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> Void
+
+    init(now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+         schedule: @escaping @Sendable (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> Void = { delay, action in
+             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                 MainActor.assumeIsolated { action() }
+             }
+         }, publish: @escaping @MainActor @Sendable (Double, String) -> Void) {
+        self.now = now
+        self.schedule = schedule
+        self.publish = publish
+    }
+
+    func receive(_ fraction: Double, _ phase: String) {
+        let delay: TimeInterval? = lock.withLock {
+            guard !finished else { return nil }
+            latest = (fraction, phase)
+            guard !scheduled else { return nil }
+            scheduled = true
+            return max(0, 0.1 - (now() - lastDeliveryAttempt))
+        }
+        guard let delay else { return }
+        schedule(delay) { [self] in deliver() }
+    }
+
+    @MainActor private func deliver() {
+        let value: (Double, String)? = lock.withLock {
+            scheduled = false
+            guard !finished, let value = latest else { return nil }
+            latest = nil
+            let key = (Int((value.0 * 100).rounded()), value.1)
+            // Even a skipped duplicate consumes the interval: otherwise every
+            // tile after the last publication's deadline wakes the main queue.
+            lastDeliveryAttempt = now()
+            if let displayed, displayed == key { return nil }
+            displayed = key
+            return value
+        }
+        if let value { publish(value.0, value.1) }
+    }
+
+    func finish() {
+        lock.withLock {
+            finished = true
+            latest = nil
+        }
+    }
+}
+
 /// Native lower-right viewport HUD, above the zoom chip. Manual layout deliberately
 /// cannot invalidate the hosting view's size or re-evaluate the document's SwiftUI graph.
 @MainActor
@@ -986,6 +1073,7 @@ private final class FlatExportProgressView: NSView {
     static let rowHeight: CGFloat = 64
     private weak var workspace: DocumentWorkspace?
     private var rows: [UUID: Row] = [:]
+    private var reusableRow: Row?
     private var order: [UUID] = []
     override var isFlipped: Bool { true }
     // Consume events on the HUD background instead of forwarding edits to the viewport.
@@ -1004,22 +1092,39 @@ private final class FlatExportProgressView: NSView {
         setAccessibilityRole(.group)
         setAccessibilityLabel("Document exports")
         setAccessibilityIdentifier("document-export-progress")
+        reusableRow = Row(workspace: workspace)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func update(_ tasks: [FlatExportTask]) {
+        let nextOrder = tasks.map(\.id)
+        let changedRows = order != nextOrder
         let ids = Set(tasks.map(\.id))
         for id in Array(rows.keys) where !ids.contains(id) {
-            rows.removeValue(forKey: id)?.removeFromSuperview()
+            if let row = rows.removeValue(forKey: id) {
+                row.removeFromSuperview()
+                if reusableRow == nil { reusableRow = row }
+            }
         }
-        order = tasks.map(\.id)
+        order = nextOrder
         for task in tasks {
-            let row = rows[task.id] ?? Row(task: task, workspace: workspace)
+            let row: Row
+            if let existing = rows[task.id] {
+                row = existing
+            } else if let reusable = reusableRow {
+                row = reusable
+                reusableRow = nil
+            } else {
+                let trace = workspace?.exportTrace
+                let span = trace?.begin("export_flat_row_create")
+                row = Row(workspace: workspace)
+                trace?.end(span)
+            }
             if row.superview == nil { addSubview(row) }
             rows[task.id] = row
             row.update(task)
         }
-        arrangeRows()
+        if changedRows { arrangeRows() }
     }
 
     func placeInViewport() {
@@ -1030,12 +1135,14 @@ private final class FlatExportProgressView: NSView {
         // Leave the transient zoom chip's bottom-center lane clear.
         let bottom = Theme.Space.l + Theme.Height.large + Theme.Space.m
         autoresizingMask = [.minXMargin, parent.isFlipped ? .minYMargin : .maxYMargin]
-        frame = NSRect(x: parent.bounds.maxX - inset - width,
-                       y: parent.isFlipped ? parent.bounds.maxY - bottom - height : parent.bounds.minY + bottom,
-                       width: width, height: height)
+        let placement = NSRect(x: parent.bounds.maxX - inset - width,
+                               y: parent.isFlipped ? parent.bounds.maxY - bottom - height : parent.bounds.minY + bottom,
+                               width: width, height: height)
+        if frame != placement { frame = placement }
     }
 
     override func setFrameSize(_ newSize: NSSize) {
+        guard newSize != frame.size else { return }
         super.setFrameSize(newSize)
         arrangeRows()
     }
@@ -1057,6 +1164,40 @@ private final class FlatExportProgressView: NSView {
         shape.stroke()
     }
 
+    /// A custom cell keeps NSButton's tracking, keyboard and AX behavior, while
+    /// drawing the small HUD bezel without macOS 26's hosted AppKitButton graph.
+    private final class CancelCell: NSButtonCell {
+        override func drawBezel(withFrame frame: NSRect, in controlView: NSView) {
+            let path = NSBezierPath(roundedRect: frame.insetBy(dx: Theme.Space.hairline, dy: Theme.Space.hairline),
+                                    xRadius: Theme.Radius.control, yRadius: Theme.Radius.control)
+            Theme.Palette.raised.setFill()
+            path.fill()
+            if isHighlighted {
+                Theme.Palette.pressed.setFill()
+                path.fill()
+            }
+            Theme.Palette.hairlineStrong.setStroke()
+            path.lineWidth = Theme.Space.hairline
+            path.stroke()
+        }
+
+        override func drawInterior(withFrame frame: NSRect, in controlView: NSView) {
+            // NSButtonCell's default titleRectForBounds also consults a hosted
+            // sizing view on macOS 26, even when the bezel is custom drawn.
+            let font = Theme.NSFonts.label
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            paragraph.lineBreakMode = .byTruncatingTail
+            let height = ceil(font.ascender - font.descender)
+            let rect = NSRect(x: frame.minX + Theme.Space.xs, y: frame.midY - height / 2,
+                              width: max(0, frame.width - 2 * Theme.Space.xs), height: height)
+            (title as NSString).draw(in: rect, withAttributes: [
+                .font: font, .paragraphStyle: paragraph,
+                .foregroundColor: isEnabled ? Theme.Palette.textPrimary : Theme.Palette.textTertiary,
+            ])
+        }
+    }
+
     private final class Row: NSView {
         private let name = NSTextField(labelWithString: "")
         private let phase = NSTextField(labelWithString: "")
@@ -1066,8 +1207,7 @@ private final class FlatExportProgressView: NSView {
         private weak var workspace: DocumentWorkspace?
         override var isFlipped: Bool { true }
 
-        init(task: FlatExportTask, workspace: DocumentWorkspace?) {
-            self.task = task
+        init(workspace: DocumentWorkspace?) {
             self.workspace = workspace
             super.init(frame: .zero)
             name.font = Theme.NSFonts.body
@@ -1082,18 +1222,23 @@ private final class FlatExportProgressView: NSView {
             progress.maxValue = 1
             progress.style = .bar
             progress.controlSize = .small
-            progress.setAccessibilityLabel("Export progress for \(task.fileName)")
-            cancel.setAccessibilityLabel("Cancel export of \(task.fileName)")
+            cancel.cell = CancelCell(textCell: "Cancel")
+            cancel.setButtonType(.momentaryPushIn)
+            cancel.isBordered = true
             cancel.bezelStyle = .rounded
             cancel.controlSize = .small
             cancel.target = self
             cancel.action = #selector(cancelExport)
             for view in [name, progress, phase, cancel] { addSubview(view) }
-            update(task)
         }
         required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
         func update(_ task: FlatExportTask) {
+            if self.task !== task {
+                self.task = task
+                progress.setAccessibilityLabel("Export progress for \(task.fileName)")
+                cancel.setAccessibilityLabel("Cancel export of \(task.fileName)")
+            }
             let title = "Exporting \(task.fileName)"
             if name.stringValue != title { name.stringValue = title }
             let status = "\(task.phase) \(Int((task.fraction * 100).rounded())) %"
@@ -1103,6 +1248,7 @@ private final class FlatExportProgressView: NSView {
         }
 
         override func setFrameSize(_ newSize: NSSize) {
+            guard newSize != frame.size else { return }
             super.setFrameSize(newSize)
             let gap = Theme.Space.s, inset = Theme.Space.m
             let available = max(0, bounds.width - 2 * inset)

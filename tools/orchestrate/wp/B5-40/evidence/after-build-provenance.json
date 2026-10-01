@@ -1,0 +1,18 @@
+{
+  "archive_sha256": "a370e463f27d9afdd5956472d44f1ccca5ac9b92b2c9b1b92a84fff481c59db0",
+  "cargo_target_dir": "/Users/rutmehta/.cache/tessera-target/B5-40",
+  "commit": "c9bc561c1b7ee3d988369f8cdcef75d3baf69003",
+  "configuration": "release",
+  "linked_binary_sha256": "0f3e8447ef6407d418a3bf844675b5378bad13b7b4b4fded24dca684150222b1",
+  "packaged_binary_sha256": "5bece04919de89e0741d4615f39d6a4e78eb1a1dec92d093ad985fd939c763f4",
+  "rust_configuration": "release",
+  "schema": 1,
+  "source_sha256": "3f83eb4bc92f77b9b6529f71881e7dc210ffe87742b1032e924e160b58a4e362",
+  "swift_bin_dir": "/Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac/build/provenance-swift.cybios/arm64-apple-macosx/release",
+  "swift_description_sha256": "ccd3d0d9453347966b08bf6a43f72eb0f0d2bba1a3ef41256b031501a3adca7d",
+  "seal": {
+    "metadata_sha256": "9e26a240cd80a93d461899ba7a142a602613707e56c38915880026dd3a5694de",
+    "schema": 1,
+    "signed_binary_sha256": "de9e7810bc51b7e13fd5da400643cadfa82381db83c14f5f06649cd836f61ede"
+  }
+}

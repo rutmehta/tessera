@@ -1,0 +1,357 @@
+{
+  "aggregation": "Median of three launch-wise worst spans; both exports retained per fixture per launch. Wall time is median of all exports.",
+  "load_clock": "1 Hz samples; mach_absolute_time to wall-clock anchor, same host session",
+  "fixtures": {
+    "18 MP smart filter": {
+      "run_maxima_ms": [
+        13.18,
+        13.99,
+        11.99
+      ],
+      "median_run_max_ms": 13.18,
+      "worst_observed_ms": 13.99,
+      "median_export_s": 1.885,
+      "load1_min": 7.89404296875,
+      "load1_max": 8.0283203125,
+      "load1_sample_median": 7.982421875,
+      "load1_sample_p95": 8.0283203125
+    },
+    "styled 14 MP": {
+      "run_maxima_ms": [
+        15.44,
+        25.75,
+        122.19
+      ],
+      "median_run_max_ms": 25.75,
+      "worst_observed_ms": 122.19,
+      "median_export_s": 65.745,
+      "load1_min": 7.83642578125,
+      "load1_max": 120.19921875,
+      "load1_sample_median": 44.981201171875,
+      "load1_sample_p95": 109.0365234375
+    }
+  },
+  "runs": [
+    {
+      "run": "after-export-1",
+      "launch_load1": 7.37939453125,
+      "all_load1_min": 7.37939453125,
+      "all_load1_max": 50.185546875,
+      "zero_failures": true,
+      "dropped_events": 0,
+      "exports": [
+        {
+          "fixture": "18 MP smart filter",
+          "index": 0,
+          "spans": 108,
+          "p50_ms": 0.01,
+          "p95_ms": 0.89,
+          "max_ms": 13.18,
+          "wall_s": 1.93,
+          "load1_min": 7.90966796875,
+          "load1_median": 7.90966796875,
+          "load1_max": 7.90966796875,
+          "load_samples": 2
+        },
+        {
+          "fixture": "18 MP smart filter",
+          "index": 1,
+          "spans": 109,
+          "p50_ms": 0.01,
+          "p95_ms": 0.81,
+          "max_ms": 3.76,
+          "wall_s": 1.82,
+          "load1_min": 7.90966796875,
+          "load1_median": 7.90966796875,
+          "load1_max": 7.90966796875,
+          "load_samples": 2
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 0,
+          "spans": 3421,
+          "p50_ms": 0.02,
+          "p95_ms": 0.07,
+          "max_ms": 15.44,
+          "wall_s": 67.17,
+          "load1_min": 7.83642578125,
+          "load1_median": 27.50390625,
+          "load1_max": 41.62646484375,
+          "load_samples": 67
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 1,
+          "spans": 3277,
+          "p50_ms": 0.02,
+          "p95_ms": 0.06,
+          "max_ms": 15.39,
+          "wall_s": 64.99,
+          "load1_min": 38.44384765625,
+          "load1_median": 45.69580078125,
+          "load1_max": 49.3291015625,
+          "load_samples": 64
+        }
+      ],
+      "named": {
+        "export_flat_hud_update_end": {
+          "count": 194,
+          "max_ms": 4.690208355896175,
+          "main_thread": true
+        },
+        "export_flat_setup_end": {
+          "count": 5,
+          "max_ms": 1.2345416471362114,
+          "main_thread": true
+        },
+        "export_flat_snapshot_end": {
+          "count": 5,
+          "max_ms": 0.3136666491627693,
+          "main_thread": false
+        },
+        "export_flat_main_busy: 18 MP smart filter": {
+          "count": 1,
+          "max_ms": 13.183951377868652,
+          "main_thread": true
+        },
+        "export_flat_progress_end": {
+          "count": 183,
+          "max_ms": 4.824875039048493,
+          "main_thread": true
+        },
+        "export_flat_completion_end": {
+          "count": 5,
+          "max_ms": 1.197375007905066,
+          "main_thread": true
+        },
+        "export_flat_work_end": {
+          "count": 5,
+          "max_ms": 67150.913791731,
+          "main_thread": false
+        },
+        "export_flat_main_busy: styled 14 MP": {
+          "count": 13,
+          "max_ms": 15.439033508300781,
+          "main_thread": true
+        }
+      },
+      "snapshot_count": 5,
+      "main_snapshot_count": 0,
+      "minimum_progress_interval_ms": 100.11520842090249
+    },
+    {
+      "run": "after-export-2",
+      "launch_load1": 7.27587890625,
+      "all_load1_min": 7.27587890625,
+      "all_load1_max": 120.19921875,
+      "zero_failures": true,
+      "dropped_events": 0,
+      "exports": [
+        {
+          "fixture": "18 MP smart filter",
+          "index": 0,
+          "spans": 113,
+          "p50_ms": 0.02,
+          "p95_ms": 0.81,
+          "max_ms": 13.99,
+          "wall_s": 2.02,
+          "load1_min": 7.89404296875,
+          "load1_median": 7.938232421875,
+          "load1_max": 7.982421875,
+          "load_samples": 2
+        },
+        {
+          "fixture": "18 MP smart filter",
+          "index": 1,
+          "spans": 109,
+          "p50_ms": 0.01,
+          "p95_ms": 0.72,
+          "max_ms": 3.39,
+          "wall_s": 1.84,
+          "load1_min": 7.982421875,
+          "load1_median": 7.982421875,
+          "load1_max": 7.982421875,
+          "load_samples": 2
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 0,
+          "spans": 3508,
+          "p50_ms": 0.02,
+          "p95_ms": 0.08,
+          "max_ms": 14.36,
+          "wall_s": 68.56,
+          "load1_min": 7.9833984375,
+          "load1_median": 56.80078125,
+          "load1_max": 120.19921875,
+          "load_samples": 68
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 1,
+          "spans": 3348,
+          "p50_ms": 0.02,
+          "p95_ms": 0.09,
+          "max_ms": 25.75,
+          "wall_s": 65.2,
+          "load1_min": 88.07861328125,
+          "load1_median": 92.17724609375,
+          "load1_max": 111.21435546875,
+          "load_samples": 65
+        }
+      ],
+      "named": {
+        "export_flat_hud_update_end": {
+          "count": 196,
+          "max_ms": 5.212916643358767,
+          "main_thread": true
+        },
+        "export_flat_setup_end": {
+          "count": 5,
+          "max_ms": 1.3917082687839866,
+          "main_thread": true
+        },
+        "export_flat_snapshot_end": {
+          "count": 5,
+          "max_ms": 0.25183334946632385,
+          "main_thread": false
+        },
+        "export_flat_main_busy: 18 MP smart filter": {
+          "count": 1,
+          "max_ms": 13.990998268127441,
+          "main_thread": true
+        },
+        "export_flat_progress_end": {
+          "count": 185,
+          "max_ms": 5.4362500086426735,
+          "main_thread": true
+        },
+        "export_flat_completion_end": {
+          "count": 5,
+          "max_ms": 1.1509583564475179,
+          "main_thread": true
+        },
+        "export_flat_work_end": {
+          "count": 5,
+          "max_ms": 68549.5538333198,
+          "main_thread": false
+        },
+        "export_flat_main_busy: styled 14 MP": {
+          "count": 10,
+          "max_ms": 25.753021240234375,
+          "main_thread": true
+        }
+      },
+      "snapshot_count": 5,
+      "main_snapshot_count": 0,
+      "minimum_progress_interval_ms": 100.26500001549721
+    },
+    {
+      "run": "after-export-3",
+      "launch_load1": 6.35009765625,
+      "all_load1_min": 6.35009765625,
+      "all_load1_max": 90.248046875,
+      "zero_failures": true,
+      "dropped_events": 0,
+      "exports": [
+        {
+          "fixture": "18 MP smart filter",
+          "index": 0,
+          "spans": 112,
+          "p50_ms": 0.01,
+          "p95_ms": 0.72,
+          "max_ms": 11.99,
+          "wall_s": 1.95,
+          "load1_min": 8.0283203125,
+          "load1_median": 8.0283203125,
+          "load1_max": 8.0283203125,
+          "load_samples": 2
+        },
+        {
+          "fixture": "18 MP smart filter",
+          "index": 1,
+          "spans": 104,
+          "p50_ms": 0.01,
+          "p95_ms": 0.72,
+          "max_ms": 3.41,
+          "wall_s": 1.78,
+          "load1_min": 8.0283203125,
+          "load1_median": 8.0283203125,
+          "load1_max": 8.0283203125,
+          "load_samples": 2
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 0,
+          "spans": 3413,
+          "p50_ms": 0.02,
+          "p95_ms": 0.09,
+          "max_ms": 122.19,
+          "wall_s": 66.29,
+          "load1_min": 7.94580078125,
+          "load1_median": 26.528076171875,
+          "load1_max": 44.27978515625,
+          "load_samples": 66
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 1,
+          "spans": 3319,
+          "p50_ms": 0.02,
+          "p95_ms": 0.07,
+          "max_ms": 114.85,
+          "wall_s": 64.82,
+          "load1_min": 43.13623046875,
+          "load1_median": 72.253173828125,
+          "load1_max": 89.9208984375,
+          "load_samples": 64
+        }
+      ],
+      "named": {
+        "export_flat_hud_update_end": {
+          "count": 196,
+          "max_ms": 2.769708400592208,
+          "main_thread": true
+        },
+        "export_flat_setup_end": {
+          "count": 5,
+          "max_ms": 2.8331666253507137,
+          "main_thread": true
+        },
+        "export_flat_snapshot_end": {
+          "count": 5,
+          "max_ms": 0.07687497418373823,
+          "main_thread": false
+        },
+        "export_flat_main_busy: 18 MP smart filter": {
+          "count": 1,
+          "max_ms": 11.991024017333984,
+          "main_thread": true
+        },
+        "export_flat_progress_end": {
+          "count": 185,
+          "max_ms": 2.3414583411067724,
+          "main_thread": true
+        },
+        "export_flat_completion_end": {
+          "count": 5,
+          "max_ms": 1.427708426490426,
+          "main_thread": true
+        },
+        "export_flat_work_end": {
+          "count": 5,
+          "max_ms": 66278.76487502363,
+          "main_thread": false
+        },
+        "export_flat_main_busy: styled 14 MP": {
+          "count": 13,
+          "max_ms": 122.19297885894775,
+          "main_thread": true
+        }
+      },
+      "snapshot_count": 5,
+      "main_snapshot_count": 0,
+      "minimum_progress_interval_ms": 100.37233342882246
+    }
+  ]
+}

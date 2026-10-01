@@ -1,0 +1,39 @@
+Test Suite 'Selected tests' started at 2026-10-01 10:52:56.064.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 10:52:56.065.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 10:52:56.065.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' passed (0.078 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' passed (0.030 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testDuplicateProgressWakesMainAtMostOncePerInterval]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testDuplicateProgressWakesMainAtMostOncePerInterval]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' passed (0.055 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' passed (0.097 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts]' passed (0.025 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedSnapshotIncludesEditCommittedAfterPreparation]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedSnapshotIncludesEditCommittedAfterPreparation]' passed (0.030 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' passed (2.594 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' passed (0.065 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' passed (0.072 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' passed (0.028 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' passed (0.041 seconds).
+Test Suite 'DocumentExportFlatTests' passed at 2026-10-01 10:52:59.194.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 3.127 (3.129) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 10:52:59.194.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 3.127 (3.129) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 10:52:59.194.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 3.127 (3.129) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

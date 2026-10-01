@@ -1,0 +1,13 @@
+Test Suite 'Selected tests' started at 2026-10-01 09:19:54.139.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 09:19:54.140.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 09:19:54.140.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac/Tests/TesseraCoreTests/DocumentExportFlatTests.swift:320: error: -[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress] : XCTAssertLessThan failed: ("26.646018028259277") is not less than ("20.0") - 18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac/Tests/TesseraCoreTests/DocumentExportFlatTests.swift:333: error: -[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress] : XCTAssertLessThan failed: ("26.646018028259277") is not less than ("20.0") - Main export span: export_flat_main_busy: fixture
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' failed (3.860 seconds).
+Test Suite 'DocumentExportFlatTests' failed at 2026-10-01 09:19:58.000.
+	 Executed 1 test, with 2 failures (0 unexpected) in 3.860 (3.860) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 09:19:58.000.
+	 Executed 1 test, with 2 failures (0 unexpected) in 3.860 (3.860) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 09:19:58.000.
+	 Executed 1 test, with 2 failures (0 unexpected) in 3.860 (3.861) seconds

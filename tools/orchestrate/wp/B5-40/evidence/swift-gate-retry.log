@@ -1,0 +1,29 @@
++ set -uo pipefail
+++ git rev-parse --show-toplevel
++ root=/Users/rutmehta/Developer/lightroom/.worktrees/B5-40
++ '[' -e /Users/rutmehta/Developer/lightroom/.worktrees/B5-40/fixtures/raw/sample.dng ']'
++ cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac
++ ./build-ffi.sh
++ swift build
++ grep -E 'error:|Build complete'
++ tail -3
+Build complete! (24.88s)
+++ mktemp
++ log=/var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmp.S36M1HWp3W
++ swift test -c release -Xswiftc -enable-testing
++ rc=0
++ grep -E 'Executed .* tests' /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmp.S36M1HWp3W
++ tail -1
+	 Executed 892 tests, with 3 tests skipped and 0 failures (0 unexpected) in 183.784 (183.834) seconds
++ grep -E 'Test run with' /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmp.S36M1HWp3W
++ tail -1
+✔ Test run with 5 tests in 2 suites passed after 0.024 seconds.
+++ grep -E 'error: -\[' /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmp.S36M1HWp3W
+++ sed -E 's/.*-\[[A-Za-z]+\.([A-Za-z]+) ([A-Za-z_0-9]+)\].*/\1.\2/'
+++ sort -u
++ fails=
++ '[' -n '' ']'
++ '[' 0 -ne 0 ']'
++ echo 'SWIFT GATE OK'
+SWIFT GATE OK
++ rm -f /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmp.S36M1HWp3W

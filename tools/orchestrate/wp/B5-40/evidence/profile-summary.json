@@ -1,0 +1,139 @@
+{
+  "aggregation": "Median of three launch-wise worst spans; both exports retained per fixture per launch. Wall time is median of all exports.",
+  "load_clock": "1 Hz samples; mach_absolute_time to wall-clock anchor, same host session",
+  "fixtures": {
+    "18 MP smart filter": {
+      "run_maxima_ms": [
+        14.36
+      ],
+      "median_run_max_ms": 14.36,
+      "worst_observed_ms": 14.36,
+      "median_export_s": 1.935,
+      "load1_min": 6.587890625,
+      "load1_max": 6.78076171875,
+      "load1_sample_median": 6.587890625,
+      "load1_sample_p95": 6.7518310546875
+    },
+    "styled 14 MP": {
+      "run_maxima_ms": [
+        140.41
+      ],
+      "median_run_max_ms": 140.41,
+      "worst_observed_ms": 140.41,
+      "median_export_s": 64.96000000000001,
+      "load1_min": 7.0380859375,
+      "load1_max": 61.32177734375,
+      "load1_sample_median": 53.7333984375,
+      "load1_sample_p95": 59.5341796875
+    }
+  },
+  "runs": [
+    {
+      "run": "after-export-profile",
+      "launch_load1": 6.69482421875,
+      "all_load1_min": 6.587890625,
+      "all_load1_max": 61.32177734375,
+      "zero_failures": true,
+      "dropped_events": 0,
+      "exports": [
+        {
+          "fixture": "18 MP smart filter",
+          "index": 0,
+          "spans": 111,
+          "p50_ms": 0.02,
+          "p95_ms": 0.72,
+          "max_ms": 14.36,
+          "wall_s": 2.0,
+          "load1_min": 6.587890625,
+          "load1_median": 6.587890625,
+          "load1_max": 6.587890625,
+          "load_samples": 2
+        },
+        {
+          "fixture": "18 MP smart filter",
+          "index": 1,
+          "spans": 116,
+          "p50_ms": 0.01,
+          "p95_ms": 0.77,
+          "max_ms": 3.41,
+          "wall_s": 1.87,
+          "load1_min": 6.587890625,
+          "load1_median": 6.684326171875,
+          "load1_max": 6.78076171875,
+          "load_samples": 2
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 0,
+          "spans": 3350,
+          "p50_ms": 0.02,
+          "p95_ms": 0.09,
+          "max_ms": 140.41,
+          "wall_s": 65.89,
+          "load1_min": 7.0380859375,
+          "load1_median": 41.87939453125,
+          "load1_max": 61.32177734375,
+          "load_samples": 66
+        },
+        {
+          "fixture": "styled 14 MP",
+          "index": 1,
+          "spans": 3296,
+          "p50_ms": 0.02,
+          "p95_ms": 0.09,
+          "max_ms": 23.51,
+          "wall_s": 64.03,
+          "load1_min": 50.845703125,
+          "load1_median": 55.10205078125,
+          "load1_max": 58.44140625,
+          "load_samples": 63
+        }
+      ],
+      "named": {
+        "export_flat_hud_update_end": {
+          "count": 196,
+          "max_ms": 4.865416674874723,
+          "main_thread": true
+        },
+        "export_flat_setup_end": {
+          "count": 5,
+          "max_ms": 1.2870833743363619,
+          "main_thread": true
+        },
+        "export_flat_snapshot_end": {
+          "count": 5,
+          "max_ms": 0.03875000402331352,
+          "main_thread": false
+        },
+        "export_flat_main_busy: 18 MP smart filter": {
+          "count": 1,
+          "max_ms": 14.356017112731934,
+          "main_thread": true
+        },
+        "export_flat_progress_end": {
+          "count": 185,
+          "max_ms": 4.345000023022294,
+          "main_thread": true
+        },
+        "export_flat_completion_end": {
+          "count": 5,
+          "max_ms": 4.989166627638042,
+          "main_thread": true
+        },
+        "export_flat_work_end": {
+          "count": 5,
+          "max_ms": 65868.54612501338,
+          "main_thread": false
+        },
+        "export_flat_main_busy: styled 14 MP": {
+          "count": 9,
+          "max_ms": 140.4099464416504,
+          "main_thread": true
+        }
+      },
+      "snapshot_count": 5,
+      "main_snapshot_count": 0,
+      "minimum_progress_interval_ms": 100.42899998370558
+    }
+  ]
+}

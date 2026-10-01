@@ -1,0 +1,98 @@
+{"time": "2026-10-01T07:41:13.603211-04:00", "load1": 10.43017578125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:41:43.733393-04:00", "load1": 9.05712890625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:42:13.868629-04:00", "load1": 8.3798828125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:42:44.008208-04:00", "load1": 6.86669921875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:43:14.130664-04:00", "load1": 6.09375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:43:44.260274-04:00", "load1": 6.01904296875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:44:14.407627-04:00", "load1": 6.89453125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:44:44.552974-04:00", "load1": 7.53271484375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:45:14.695801-04:00", "load1": 6.25927734375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:45:44.835048-04:00", "load1": 5.86767578125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:46:14.956703-04:00", "load1": 5.88720703125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:46:45.090472-04:00", "load1": 5.73828125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:47:15.239068-04:00", "load1": 6.6455078125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:47:45.378504-04:00", "load1": 5.69873046875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:48:15.518082-04:00", "load1": 6.16357421875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:48:45.644363-04:00", "load1": 5.84716796875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:49:15.780649-04:00", "load1": 5.98876953125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:49:45.922241-04:00", "load1": 7.8251953125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:50:16.045923-04:00", "load1": 7.49560546875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:50:46.183293-04:00", "load1": 6.494140625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:51:16.321887-04:00", "load1": 7.51513671875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:51:46.456953-04:00", "load1": 6.61376953125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:52:16.599576-04:00", "load1": 6.765625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:52:46.736359-04:00", "load1": 6.92236328125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:53:16.874292-04:00", "load1": 6.60498046875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:53:47.019734-04:00", "load1": 7.166015625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:54:17.147710-04:00", "load1": 6.9375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:54:47.281841-04:00", "load1": 7.07666015625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:55:17.423781-04:00", "load1": 6.23828125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:55:47.565488-04:00", "load1": 5.7880859375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:56:17.696944-04:00", "load1": 5.36083984375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:56:47.837389-04:00", "load1": 5.837890625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:57:17.972230-04:00", "load1": 6.06103515625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:57:48.099551-04:00", "load1": 5.01806640625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:58:18.249657-04:00", "load1": 53.6044921875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:58:48.405765-04:00", "load1": 37.65673828125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:59:18.565034-04:00", "load1": 28.17236328125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T07:59:48.717969-04:00", "load1": 20.4052734375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:00:18.876527-04:00", "load1": 14.85302734375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:00:49.028132-04:00", "load1": 11.4169921875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:01:19.179613-04:00", "load1": 8.91455078125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:01:49.339655-04:00", "load1": 7.38916015625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:02:19.478177-04:00", "load1": 8.14794921875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:02:49.630357-04:00", "load1": 7.73388671875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:03:19.774208-04:00", "load1": 7.28955078125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:03:49.930647-04:00", "load1": 6.85400390625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:04:20.076476-04:00", "load1": 6.525390625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:04:50.232974-04:00", "load1": 7.78662109375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:05:20.385434-04:00", "load1": 7.19287109375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:05:50.541288-04:00", "load1": 6.42431640625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:06:20.692665-04:00", "load1": 5.82275390625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:06:50.853276-04:00", "load1": 6.61279296875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:07:21.011029-04:00", "load1": 6.2607421875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:07:51.148819-04:00", "load1": 5.78759765625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:08:21.285751-04:00", "load1": 6.45556640625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:08:51.452748-04:00", "load1": 6.7724609375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:09:21.606204-04:00", "load1": 6.056640625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:09:51.766917-04:00", "load1": 7.57177734375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:10:21.918452-04:00", "load1": 7.50390625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:10:52.086329-04:00", "load1": 6.66015625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:11:22.242803-04:00", "load1": 6.59521484375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:11:52.411108-04:00", "load1": 6.50927734375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:12:22.552344-04:00", "load1": 6.74658203125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:12:52.725330-04:00", "load1": 6.1845703125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:13:22.869444-04:00", "load1": 6.4296875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:13:53.023912-04:00", "load1": 7.04638671875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:14:23.172968-04:00", "load1": 8.07958984375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:14:53.324424-04:00", "load1": 7.42333984375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:15:23.467079-04:00", "load1": 7.2763671875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:15:53.685420-04:00", "load1": 16.3994140625, "build_processes": ["98083 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "99421 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:16:24.033711-04:00", "load1": 100.517578125, "build_processes": ["98083 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "99421 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:16:54.237956-04:00", "load1": 225.20947265625, "build_processes": ["98083 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "99421 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:17:25.765019-04:00", "load1": 308.767578125, "build_processes": ["98083 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "99421 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:17:55.934427-04:00", "load1": 281.509765625, "build_processes": ["98083 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "99421 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:18:26.094213-04:00", "load1": 213.80029296875, "build_processes": ["98083 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "99421 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:18:56.291215-04:00", "load1": 140.7158203125, "build_processes": ["98083 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "99421 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:19:26.438566-04:00", "load1": 87.9384765625, "build_processes": ["10422 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build", "10453 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build"], "quiet": false}
+{"time": "2026-10-01T08:19:56.591529-04:00", "load1": 56.06103515625, "build_processes": ["10422 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build", "10453 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build"], "quiet": false}
+{"time": "2026-10-01T08:20:26.727076-04:00", "load1": 38.06005859375, "build_processes": ["10422 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build", "10453 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build"], "quiet": false}
+{"time": "2026-10-01T08:20:56.875964-04:00", "load1": 26.4365234375, "build_processes": ["10422 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build", "10453 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build"], "quiet": false}
+{"time": "2026-10-01T08:21:27.024432-04:00", "load1": 20.375, "build_processes": ["10422 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build", "10453 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build"], "quiet": false}
+{"time": "2026-10-01T08:21:57.182884-04:00", "load1": 31.13916015625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:22:27.339146-04:00", "load1": 21.65380859375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:22:57.535825-04:00", "load1": 16.52880859375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:23:27.690391-04:00", "load1": 12.32666015625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:23:57.847791-04:00", "load1": 10.40625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:24:28.049220-04:00", "load1": 9.90771484375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:24:58.210840-04:00", "load1": 13.8525390625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:25:28.365749-04:00", "load1": 11.0498046875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:25:58.527859-04:00", "load1": 9.20361328125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:26:28.730058-04:00", "load1": 12.57421875, "build_processes": ["14801 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:26:58.886564-04:00", "load1": 23.28759765625, "build_processes": ["14801 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T08:27:29.051122-04:00", "load1": 24.04931640625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:27:59.210825-04:00", "load1": 17.4384765625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:28:29.369490-04:00", "load1": 13.74853515625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:28:59.523610-04:00", "load1": 12.01708984375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T08:29:29.677670-04:00", "load1": 10.28515625, "build_processes": [], "quiet": false}
+tools/orchestrate/wp/B5-40/run-perf.sh: line 10: 84069 Terminated: 15          /usr/bin/python3 "$root/tools/orchestrate/wp/B5-40/wait-quiet.py" "$run/quiet.jsonl"

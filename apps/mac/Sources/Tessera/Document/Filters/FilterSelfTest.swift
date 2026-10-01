@@ -360,7 +360,7 @@ extension FilterSelfTest {
     /// Two Export Flats of `doc` with every main-thread busy span recorded.
     fileprivate func measureExports(_ ws: DocumentWorkspace, _ doc: DocumentController, _ settings: ExportFlatSettings,
                                     _ label: String) async {
-        let spans = MainThreadSpans()
+        let spans = MainThreadSpans(label: label)
         for i in 0..<2 {
             let url = dir.appendingPathComponent("perf-flat-\(i).png")
             try? FileManager.default.removeItem(at: url)
@@ -440,6 +440,21 @@ final class MainThreadSpans: @unchecked Sendable {
     private var observer: CFRunLoopObserver?
     private var began = CFAbsoluteTimeGetCurrent()
     private var spans: [Double] = []
+    private let label: String
+    private let trace: PerformanceTrace
+
+    init(label: String = "fixture", trace: PerformanceTrace = .shared) {
+        self.label = label
+        self.trace = trace
+    }
+
+    private func appendSpan(_ now: Double) {
+        let duration = (now - began) * 1000
+        spans.append(duration)
+        if duration > 8 {
+            trace.record("export_flat_main_busy: " + label, durationMs: duration)
+        }
+    }
 
     func start() {
         spans = []
@@ -448,7 +463,7 @@ final class MainThreadSpans: @unchecked Sendable {
                                                    true, 0) { [weak self] _, activity in
             guard let self else { return }
             let now = CFAbsoluteTimeGetCurrent()
-            if activity == .afterWaiting { self.began = now } else { self.spans.append((now - self.began) * 1000) }
+            if activity == .afterWaiting { self.began = now } else { self.appendSpan(now) }
         }
         observer = o
         CFRunLoopAddObserver(CFRunLoopGetMain(), o, .commonModes)
@@ -458,7 +473,7 @@ final class MainThreadSpans: @unchecked Sendable {
     func stop() -> [Double] {
         if let o = observer { CFRunLoopRemoveObserver(CFRunLoopGetMain(), o, .commonModes) }
         observer = nil
-        spans.append((CFAbsoluteTimeGetCurrent() - began) * 1000)
+        appendSpan(CFAbsoluteTimeGetCurrent())
         return spans
     }
 }

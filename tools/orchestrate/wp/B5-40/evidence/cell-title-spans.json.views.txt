@@ -1,0 +1,8 @@
+FlatExportProgressView
+  Row
+    NSTextField
+      NSTextFieldSimpleLabel
+    NSProgressIndicator
+    NSTextField
+      NSTextFieldSimpleLabel
+    NSButton

@@ -1,0 +1,22 @@
+{"time": "2026-10-01T10:52:44.680398-04:00", "kind": "sample", "load1": 49.19580078125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:45.690639-04:00", "kind": "sample", "load1": 48.779296875, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:46.686172-04:00", "kind": "test-start", "load1": 48.779296875, "cargo_pid": 23358, "cargo_running": true, "run": 1}
+{"time": "2026-10-01T10:52:46.697563-04:00", "kind": "sample", "load1": 48.779296875, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:47.707792-04:00", "kind": "sample", "load1": 48.779296875, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:48.717940-04:00", "kind": "sample", "load1": 48.779296875, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:49.728514-04:00", "kind": "sample", "load1": 48.779296875, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:50.738647-04:00", "kind": "sample", "load1": 47.67578125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:51.744720-04:00", "kind": "sample", "load1": 47.67578125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:52.563799-04:00", "kind": "test-end", "load1": 47.67578125, "cargo_pid": 23358, "cargo_running": true, "run": 1, "test_exit": 0}
+{"time": "2026-10-01T10:52:52.563891-04:00", "kind": "test-start", "load1": 47.67578125, "cargo_pid": 23358, "cargo_running": true, "run": 2}
+{"time": "2026-10-01T10:52:52.759445-04:00", "kind": "sample", "load1": 47.67578125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:53.761321-04:00", "kind": "sample", "load1": 47.67578125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:54.781974-04:00", "kind": "sample", "load1": 47.67578125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:55.620146-04:00", "kind": "test-end", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true, "run": 2, "test_exit": 0}
+{"time": "2026-10-01T10:52:55.620232-04:00", "kind": "test-start", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true, "run": 3}
+{"time": "2026-10-01T10:52:55.792155-04:00", "kind": "sample", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:56.802341-04:00", "kind": "sample", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:57.812481-04:00", "kind": "sample", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:58.822594-04:00", "kind": "sample", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true}
+{"time": "2026-10-01T10:52:59.264742-04:00", "kind": "test-end", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true, "run": 3, "test_exit": 0}
+{"time": "2026-10-01T10:52:59.264935-04:00", "kind": "load-build-intentionally-stopped-after-tests", "load1": 47.14111328125, "cargo_pid": 23358, "cargo_running": true}

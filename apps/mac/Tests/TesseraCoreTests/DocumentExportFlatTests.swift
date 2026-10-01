@@ -74,6 +74,105 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["kept.tif", "support"])
     }
 
+    func testReservedSnapshotIncludesEditCommittedAfterPreparation() async throws {
+        let dir = try temp()
+        let backend = try engineDocument(dir, width: 32, height: 24)
+        defer { backend.close() }
+        let before = dir.appendingPathComponent("before.png").path
+        let expected = dir.appendingPathComponent("expected.png").path
+        let output = dir.appendingPathComponent("reserved.png").path
+        try backend.exportFlat(path: before, format: .png, quality: 90, color: .srgb)
+        let request = try backend.prepareExportFlat(path: output, format: .png, quality: 90, color: .srgb)
+        let layer = try XCTUnwrap(try backend.layers().first?.id)
+        _ = try backend.setVisible(id: layer, visible: false)
+        try backend.exportFlat(path: expected, format: .png, quality: 90, color: .srgb)
+        let job = try await Task.detached { try request.snapshot() }.value
+        // An edit after acquisition must not change the already acquired snapshot.
+        _ = try backend.setVisible(id: layer, visible: true)
+        try await Task.detached { try job.run { _, _ in } }.value
+        XCTAssertNotEqual(try pixels(before), try pixels(expected))
+        XCTAssertEqual(try pixels(output), try pixels(expected))
+    }
+
+    private final class ProgressScheduler: @unchecked Sendable {
+        private let lock = NSLock()
+        private var time: TimeInterval = 0
+        private var pending: [(TimeInterval, @MainActor @Sendable () -> Void)] = []
+        var now: TimeInterval { lock.withLock { time } }
+        func enqueue(_ delay: TimeInterval, _ action: @escaping @MainActor @Sendable () -> Void) {
+            lock.withLock { pending.append((time + delay, action)) }
+        }
+        @MainActor func advance(to instant: TimeInterval) -> Int {
+            let ready = lock.withLock {
+                time = instant
+                let ready = pending.filter { $0.0 <= instant }
+                pending.removeAll { $0.0 <= instant }
+                return ready
+            }
+            for (_, action) in ready { action() }
+            return ready.count
+        }
+    }
+
+    func testDuplicateProgressWakesMainAtMostOncePerInterval() {
+        let scheduler = ProgressScheduler()
+        var publications = 0
+        let publisher = FlatExportProgressPublisher(now: { scheduler.now },
+            schedule: { scheduler.enqueue($0, $1) }) { _, _ in publications += 1 }
+        publisher.receive(0.5, "Rendering")
+        XCTAssertEqual(scheduler.advance(to: 0), 1)
+        // Start after the previous publication's throttle interval expired. Drain
+        // every callback, so a pending callback cannot hide repeated main wakes.
+        var wakes = 0
+        for index in 0..<100 {
+            let time = 1 + Double(index) * 0.0009
+            wakes += scheduler.advance(to: time)
+            publisher.receive(0.5001, "Rendering") // same displayed percentage
+            wakes += scheduler.advance(to: time)
+        }
+        XCTAssertLessThanOrEqual(wakes, 1)
+        XCTAssertEqual(publications, 1)
+        publisher.receive(0.6, "Encoding")
+        _ = scheduler.advance(to: 2)
+        XCTAssertEqual(publications, 2)
+        publisher.finish()
+        publisher.receive(1, "Done")
+        _ = scheduler.advance(to: 3)
+        XCTAssertEqual(publications, 2)
+    }
+
+    func testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts() async throws {
+        let dir = try temp()
+        let backend = try engineDocument(dir)
+        let output = dir.appendingPathComponent("reserved.png")
+        let request = try backend.prepareExportFlat(path: output.path, format: .png, quality: 90, color: .srgb)
+        backend.close()
+        // Deliberately start the worker only after close, avoiding a scheduling-dependent test.
+        try await Task.detached { try request.snapshot().run { _, _ in } }.value
+        let source = try XCTUnwrap(CGImageSourceCreateWithURL(output as CFURL, nil))
+        XCTAssertEqual(CGImageSourceCreateImageAtIndex(source, 0, nil)?.width, 1600)
+        XCTAssertThrowsError(try backend.prepareExportFlat(path: output.path, format: .png, quality: 90, color: .srgb))
+    }
+
+    func testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination() async throws {
+        let dir = try temp()
+        let backend = try engineDocument(dir)
+        let output = dir.appendingPathComponent("kept.png")
+        let original = Data("previous".utf8)
+        try original.write(to: output)
+        let request = try backend.prepareExportFlat(path: output.path, format: .png, quality: 90, color: .srgb)
+        request.cancel()
+        backend.close()
+        let job = try await Task.detached { try request.snapshot() }.value
+        XCTAssertTrue(job.isCancelled)
+        do {
+            try await Task.detached { try job.run { _, _ in } }.value
+            XCTFail("Cancel before snapshot must prevent the write")
+        } catch {}
+        XCTAssertEqual(try Data(contentsOf: output), original)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["kept.png", "support"])
+    }
+
     private func waitFor(_ timeout: Double = 60, _ condition: () -> Bool) async -> Bool {
         let end = Date().addingTimeInterval(timeout)
         while !condition() {
@@ -235,6 +334,90 @@ final class DocumentExportFlatTests: XCTestCase {
         let work = events.filter { $0.name == "export_flat_work_start" }
         XCTAssertEqual(work.count, 1)
         XCTAssertTrue(work.allSatisfy { !$0.mainThread }, "Rendering, encoding and writing must never run on main")
+    }
+
+    /// B5-40: the same developed 18 MP RAW + Gaussian smart filter as FilterSelfTest.
+    /// Catches snapshot acquisition on main and a callback storm from tile progress.
+    func testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress() async throws {
+        _ = NSApplication.shared
+        let dir = try temp()
+        let photos = dir.appendingPathComponent("photos")
+        try FileManager.default.createDirectory(at: photos, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: ShellHarness.repoRoot.appendingPathComponent("fixtures/raw/sample.dng"),
+                                        to: photos.appendingPathComponent("sample.dng"))
+        let library = try await Task.detached {
+            try EngineLibrary.scan(folder: photos, appSupport: dir.appendingPathComponent("support"))
+        }.value
+        defer { withExtendedLifetime(library) {} }
+        let image = try XCTUnwrap(library.items.first?.engineImage)
+        let backend = try await Task.detached {
+            let doc = try EngineDocumentEngine.for(library.engine)
+                .openDocumentFromImage(imageId: image.imageID, developed: true)
+            let engine = try XCTUnwrap(doc as? EngineDocumentBackend)
+            let layer = try XCTUnwrap(try engine.layers().first { $0.kind == .pixel }?.id)
+            _ = try engine.convertForSmartFilters(layer: layer)
+            _ = try engine.applyFilter(layer: layer, filterJson: #"{"id":"gaussian_blur","params":{"radius":8}}"#)
+            return engine
+        }.value
+        let ws = DocumentWorkspace()
+        try ws.install(backend)
+        let doc = try XCTUnwrap(ws.current)
+        defer { ws.discard(doc) }
+        XCTAssertEqual(doc.info.width, 5212)
+        XCTAssertEqual(doc.info.height, 3468)
+        let window = NSWindow(contentRect: NSRect(x: 40, y: 40, width: 1000, height: 700),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        ws.exportWindow = window
+        window.contentView?.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        let trace = PerformanceTrace(enabled: true)
+        ws.exportTrace = trace
+        let spans = MainThreadSpans(trace: trace)
+        var outcome: FlatExportTask.Outcome?
+        spans.start()
+        let output = dir.appendingPathComponent("smart.png")
+        let task = ws.startExportFlat(doc, ExportFlatSettings(), to: output) { outcome = $0 }
+        let hud = window.contentView?.subviews.last
+        let finished = await waitFor(300) { outcome != nil }
+        let busy = spans.stop()
+        XCTAssertNotNil(task)
+        XCTAssertTrue(finished)
+        XCTAssertEqual(outcome, .exported)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: output.path))
+        // Reuse FilterSelfTest.perfMode's opt-in. Whole-runloop wall time is
+        // sensitive to unrelated work and scheduling; measure it on a quiet host.
+        let measureTiming = ProcessInfo.processInfo.environment["TESSERA_FILTER_PERF"] != nil
+        if measureTiming {
+            XCTAssertLessThan(try XCTUnwrap(busy.max()), 20,
+                              "18 MP fixture: no main-thread busy span may exceed the loose 20 ms regression bound")
+        }
+        let events = trace.snapshot().events
+        let snapshots = events.filter { $0.name == "export_flat_snapshot_start" }
+        XCTAssertEqual(snapshots.count, 1)
+        XCTAssertTrue(snapshots.allSatisfy { !$0.mainThread }, "The blocking session snapshot must never run on main")
+        let progress = events.filter { $0.name == "export_flat_progress_start" }
+        XCTAssertGreaterThan(progress.count, 1, "The real fixture must exercise progress publication")
+        for (previous, next) in zip(progress, progress.dropFirst()) {
+            XCTAssertGreaterThanOrEqual(next.time - previous.time, 0.095,
+                                        "Progress must coalesce to at most 10 Hz, including phase changes")
+        }
+        if measureTiming {
+            for event in events where event.mainThread && event.durationMs != nil {
+                XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
+            }
+        }
+        if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
+            try await Task.detached { try trace.write(to: URL(fileURLWithPath: path)) }.value
+            var rows: [String] = []
+            func visit(_ view: NSView, depth: Int) {
+                rows.append(String(repeating: "  ", count: depth) + String(describing: type(of: view)))
+                for child in view.subviews { visit(child, depth: depth + 1) }
+            }
+            if let hud { visit(hud, depth: 0) }
+            try rows.joined(separator: "\n").write(toFile: path + ".views.txt", atomically: true, encoding: .utf8)
+        }
     }
 
 }

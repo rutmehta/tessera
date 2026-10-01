@@ -1,0 +1,61 @@
+{"time": "2026-10-01T05:56:20.396420-04:00", "load1": 9.65625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T05:56:50.532479-04:00", "load1": 8.55517578125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T05:57:20.663706-04:00", "load1": 7.08154296875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T05:57:50.980662-04:00", "load1": 14.8505859375, "build_processes": ["11761 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T05:58:21.246060-04:00", "load1": 63.58544921875, "build_processes": ["11761 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T05:58:51.384972-04:00", "load1": 79.9541015625, "build_processes": ["11761 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T05:59:21.512137-04:00", "load1": 53.7900390625, "build_processes": ["11761 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T05:59:51.642501-04:00", "load1": 35.5693359375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:00:21.760277-04:00", "load1": 25.1171875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:00:51.885324-04:00", "load1": 16.904296875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:01:22.012189-04:00", "load1": 15.63671875, "build_processes": ["20854 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:01:52.161410-04:00", "load1": 11.8994140625, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:02:22.284547-04:00", "load1": 14.02392578125, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:02:52.420822-04:00", "load1": 11.6298828125, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:03:22.542724-04:00", "load1": 8.7685546875, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:03:52.678527-04:00", "load1": 9.58837890625, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:04:22.811086-04:00", "load1": 8.43359375, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:04:52.946310-04:00", "load1": 9.2080078125, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:05:23.077310-04:00", "load1": 8.29296875, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:05:53.204275-04:00", "load1": 7.15869140625, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:06:23.335070-04:00", "load1": 9.4365234375, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:06:53.461609-04:00", "load1": 8.3212890625, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:07:23.595193-04:00", "load1": 7.18359375, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:07:53.727327-04:00", "load1": 7.7021484375, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:08:23.856607-04:00", "load1": 7.52783203125, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:08:53.981684-04:00", "load1": 6.86083984375, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:09:24.118661-04:00", "load1": 6.45751953125, "build_processes": ["21375 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:09:54.242668-04:00", "load1": 5.73046875, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:10:24.433260-04:00", "load1": 8.89306640625, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:10:54.569650-04:00", "load1": 7.80419921875, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:11:24.711037-04:00", "load1": 12.58740234375, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:11:54.842132-04:00", "load1": 9.8779296875, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:12:24.973382-04:00", "load1": 8.2998046875, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:12:55.116242-04:00", "load1": 8.3349609375, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:13:25.247309-04:00", "load1": 9.2802734375, "build_processes": ["20703 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:13:55.385760-04:00", "load1": 9.30224609375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:14:25.515229-04:00", "load1": 8.681640625, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:14:55.666208-04:00", "load1": 6.7421875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:15:25.794457-04:00", "load1": 5.919921875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:15:55.921006-04:00", "load1": 6.16650390625, "build_processes": ["31677 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:16:26.066194-04:00", "load1": 6.2490234375, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:16:56.200574-04:00", "load1": 5.60986328125, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:17:26.331375-04:00", "load1": 6.08203125, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:17:56.460460-04:00", "load1": 6.20849609375, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:18:26.599861-04:00", "load1": 6.6982421875, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:18:56.731990-04:00", "load1": 6.91552734375, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:19:26.864672-04:00", "load1": 7.779296875, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:19:57.062036-04:00", "load1": 8.22314453125, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:20:27.192633-04:00", "load1": 7.56103515625, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:20:57.324058-04:00", "load1": 6.48046875, "build_processes": ["32099 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:21:27.450359-04:00", "load1": 5.82470703125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:21:57.585441-04:00", "load1": 6.34375, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:22:27.716157-04:00", "load1": 6.37548828125, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:22:57.847689-04:00", "load1": 7.25341796875, "build_processes": [], "quiet": false}
+{"time": "2026-10-01T06:23:27.971406-04:00", "load1": 6.08203125, "build_processes": ["35216 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:23:58.132274-04:00", "load1": 6.9921875, "build_processes": ["35216 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo", "35580 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build"], "quiet": false}
+{"time": "2026-10-01T06:24:28.266968-04:00", "load1": 7.4375, "build_processes": ["35216 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:24:58.405587-04:00", "load1": 7.4833984375, "build_processes": ["35216 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:25:28.536117-04:00", "load1": 7.01513671875, "build_processes": ["35216 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:25:58.674972-04:00", "load1": 6.82177734375, "build_processes": ["35216 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}
+{"time": "2026-10-01T06:26:28.810042-04:00", "load1": 6.74267578125, "build_processes": ["35216 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo"], "quiet": false}

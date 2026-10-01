@@ -1,0 +1,4 @@
+ 8:39  up 9 days, 12:27, 2 users, load averages: 8.68 22.71 31.47
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   926Gi   801Gi    81Gi    91%    5.0M  846M    1%   /System/Volumes/Data
+ 8:42  up 9 days, 12:30, 2 users, load averages: 83.61 47.27 39.75
