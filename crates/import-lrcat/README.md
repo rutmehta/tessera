@@ -153,9 +153,13 @@ The rating-rule table test exercises every star threshold and comparison,
 ranges, flags, and compilation against mapped synthetic-catalog selections.
 
 Real Lightroom schema variants and render equivalence remain unverified.
-Resource-backed edits (DCP profiles, arbitrary retouch/Look/LensBlur payloads,
-AI pixel blobs) are not resolved or rendered by this crate. Inspect diagnostics
-before persisting an import.
+Lens Blur controls are imported approximately into native focus/blur fields,
+with exact source retention and per-field info reasons. Inactive Lens Blur and
+standalone DepthMapInfo never enable an effect. Caller-resolved grayscale depth
+resources are stored and rendered through image-core's mask-store integration;
+opaque Adobe helper encodings remain unsupported and require regenerated depth.
+DCP profiles, arbitrary retouch/Look payloads, and AI pixel blobs are not resolved
+or rendered by this crate. Inspect diagnostics before persisting an import.
 
 Run with `CARGO_TARGET_DIR` outside the repository:
 
