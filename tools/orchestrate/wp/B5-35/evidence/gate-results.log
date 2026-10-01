@@ -1,0 +1,27 @@
+TEN LOADED RUNS OK
+edited thumbnail must hit cached mips
+NEGATIVE CONTROL FAILED AS EXPECTED
+RESTORED REGRESSION OK
+COMPOSITOR RELEASE TEST OK
+DEVELOP ISOLATED RETRY EXIT 0
+FFI SERIAL RELEASE TEST EXIT 0
+COMPOSITOR CLIPPY EXIT 0
+FFI CLIPPY EXIT 0
+FMT EXIT 0
+BUILD FFI EXIT 0
+BUILD FFI FINISHED
+
+compositor-clippy:
+    Checking ml-filters v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-35/crates/ml-filters)
+    Checking filters v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-35/crates/filters)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 50.95s
+
+ffi-clippy:
+    Checking uniffi v0.32.2
+    Checking tessera-ffi v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-35/crates/tessera-ffi)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 19s
+
+build-ffi:
+    Finished `release` profile [optimized] target(s) in 0.84s
+     Running `/Users/rutmehta/.cache/tessera-target/B5-35/release/uniffi-bindgen generate --library /Users/rutmehta/.cache/tessera-target/B5-35/release/libtessera_ffi.dylib --language swift --out-dir /Users/rutmehta/Developer/lightroom/.worktrees/B5-35/apps/mac/build/ffi`
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-35/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64

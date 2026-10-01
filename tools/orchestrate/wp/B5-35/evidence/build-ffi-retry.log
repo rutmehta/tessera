@@ -1,0 +1,5 @@
+Build FFI completed successfully; final output excerpt:
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+    Finished `release` profile [optimized] target(s) in 0.92s
+     Running `/Users/rutmehta/.cache/tessera-target/B5-35/release/uniffi-bindgen generate --library /Users/rutmehta/.cache/tessera-target/B5-35/release/libtessera_ffi.dylib --language swift --out-dir /Users/rutmehta/Developer/lightroom/.worktrees/B5-35/apps/mac/build/ffi`
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-35/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64

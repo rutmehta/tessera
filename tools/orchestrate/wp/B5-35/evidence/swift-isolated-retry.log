@@ -1,0 +1,19 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (1.80s)
+Test Suite 'Selected tests' started at 2026-10-01 01:24:21.103.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 01:24:21.105.
+Test Suite 'DocumentSaveSheetProbeTests' started at 2026-10-01 01:24:21.105.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testClosingCapturedParentDuringRealFolderChooserDrainsNativeSheet]' started.
+Test Case '-[TesseraCoreTests.DocumentSaveSheetProbeTests testClosingCapturedParentDuringRealFolderChooserDrainsNativeSheet]' passed (6.544 seconds).
+Test Suite 'DocumentSaveSheetProbeTests' passed at 2026-10-01 01:24:27.649.
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.544 (6.544) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 01:24:27.649.
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.544 (6.544) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 01:24:27.649.
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.544 (6.546) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
