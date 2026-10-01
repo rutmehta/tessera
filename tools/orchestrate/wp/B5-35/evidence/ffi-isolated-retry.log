@@ -1,0 +1,7 @@
+running 1 test
+develop original L2 calibration [first, tone, WB] ms: CPU [906.56125, 538.418542, 517.396458]; GPU [522.011083, 4.680292, 53.727875000000004]
+slider without export: render p50 2.2 ms p90 11.2 ms max 520.2 ms
+slider during export: 120 frames in 2.520885541s (114 at L2): render p50 1.6 ms p90 9.1 ms max 61.2 ms; set→frame p50 1.9 ms p90 9.3 ms max 61.6 ms; export 5 images in 6.229175625s, 0 completed during the drag
+test export_batch_does_not_starve_slider_drag ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 12.79s

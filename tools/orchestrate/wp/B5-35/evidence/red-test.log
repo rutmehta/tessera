@@ -1,0 +1,32 @@
+error[E0599]: no method named `thumbnail_mip_stats` found for struct `Arc<tessera_ffi::DocumentSession>` in the current scope
+   --> crates/tessera-ffi/tests/document_viewport.rs:685:22
+    |
+685 |     let baseline = s.thumbnail_mip_stats();
+    |                      ^^^^^^^^^^^^^^^^^^^ method not found in `Arc<tessera_ffi::DocumentSession>`
+
+error[E0599]: no method named `thumbnail_mip_stats` found for struct `Arc<tessera_ffi::DocumentSession>` in the current scope
+   --> crates/tessera-ffi/tests/document_viewport.rs:688:24
+    |
+688 |     let cold_stats = s.thumbnail_mip_stats();
+    |                        ^^^^^^^^^^^^^^^^^^^ method not found in `Arc<tessera_ffi::DocumentSession>`
+
+error[E0599]: no method named `thumbnail_mip_stats` found for struct `Arc<tessera_ffi::DocumentSession>` in the current scope
+   --> crates/tessera-ffi/tests/document_viewport.rs:698:24
+    |
+698 |     let warm_stats = s.thumbnail_mip_stats();
+    |                        ^^^^^^^^^^^^^^^^^^^ method not found in `Arc<tessera_ffi::DocumentSession>`
+
+error[E0599]: no method named `thumbnail_mip_stats` found for struct `Arc<tessera_ffi::DocumentSession>` in the current scope
+   --> crates/tessera-ffi/tests/document_viewport.rs:712:24
+    |
+712 |         let before = s.thumbnail_mip_stats();
+    |                        ^^^^^^^^^^^^^^^^^^^ method not found in `Arc<tessera_ffi::DocumentSession>`
+
+error[E0599]: no method named `thumbnail_mip_stats` found for struct `Arc<tessera_ffi::DocumentSession>` in the current scope
+   --> crates/tessera-ffi/tests/document_viewport.rs:717:23
+    |
+717 |         let after = s.thumbnail_mip_stats();
+    |                       ^^^^^^^^^^^^^^^^^^^ method not found in `Arc<tessera_ffi::DocumentSession>`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `tessera-ffi` (test "document_viewport") due to 5 previous errors

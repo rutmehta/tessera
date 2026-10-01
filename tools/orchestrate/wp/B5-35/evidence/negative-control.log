@@ -1,0 +1,17 @@
+running 1 test
+composite thumbnail: cold 516.20775ms, after an opacity edit 245.069417ms
+mip counters: baseline (0, 0), cold (0, 350), warm (0, 700)
+
+thread 'composite_thumbnails_reuse_mips_across_edits' (47013927) panicked at crates/tessera-ffi/tests/document_viewport.rs:700:5:
+edited thumbnail must hit cached mips
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test composite_thumbnails_reuse_mips_across_edits ... FAILED
+
+failures:
+
+failures:
+    composite_thumbnails_reuse_mips_across_edits
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.63s
+
+error: test failed, to rerun pass `-p tessera-ffi --test document_viewport`
