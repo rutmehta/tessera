@@ -560,13 +560,17 @@ final class LayersOutlineView: NSOutlineView, KeyOwningControl {
     // AppKit otherwise returns legacy NSOutlineRow proxies which have no identifier or label.
     override func accessibilityChildren() -> [Any]? {
         let rows = (super.accessibilityRows() as NSArray?) ?? []
+        // Object-personality keys use the proxies' hash/isEqual, preserving NSArray's
+        // value matching even though AppKit recreates proxies for each query.
+        let positions = NSMapTable<AnyObject, NSNumber>(keyOptions: [.strongMemory, .objectPersonality],
+                                                       valueOptions: .strongMemory)
+        for (index, row) in rows.enumerated() where positions.object(forKey: row as AnyObject) == nil {
+            positions.setObject(NSNumber(value: index), forKey: row as AnyObject)
+        }
         return super.accessibilityChildren()?.enumerated().map { index, child in
             let proxy = child as AnyObject
-            // AppKit's row proxies lack modern getters and are recreated per query.
-            // Keep NSArray bridging (they do not conform to NSAccessibilityRow) and
-            // use their value equality to locate the row in native accessibility order.
-            let position = rows.index(of: proxy)
-            let nativeIndex = position == NSNotFound ? nil : position
+            // Native proxies lack modern role/index getters; look up their native order.
+            let nativeIndex = positions.object(forKey: proxy)?.intValue
             guard nativeIndex != nil || proxy.accessibilityRole?() == .row else { return child }
             let number = nativeIndex ?? proxy.accessibilityIndex?() ?? index
             guard let row = rowView(atRow: number, makeIfNecessary: false) else { return child }

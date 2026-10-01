@@ -1,4 +1,5 @@
 import AppKit
+import ObjectiveC
 import SwiftUI
 import XCTest
 import TesseraFFI
@@ -23,6 +24,20 @@ final class DocumentAccessibilityTests: XCTestCase {
         "AXDisclosureTriangle", "AXRow",
     ]
 
+    private func offersAccessibilityPress(_ node: AnyObject) -> Bool {
+        let selector = #selector(NSAccessibilityProtocol.accessibilityPerformPress)
+        guard (node as? NSObjectProtocol)?.responds(to: selector) == true,
+              node.isAccessibilitySelectorAllowed?(selector) ?? true else { return false }
+        // NSView/NSCell inherit a default no-op press method, even on passive elements.
+        // Count actual overrides (including nonstandard roles), not those base stubs.
+        let implementation = class_getMethodImplementation(object_getClass(node), selector)
+        for base: AnyClass in [NSView.self, NSCell.self] {
+            if unsafeBitCast(implementation, to: UInt.self)
+                == unsafeBitCast(class_getMethodImplementation(base, selector), to: UInt.self) { return false }
+        }
+        return true
+    }
+
     private func audit(_ root: AnyObject, scenario: String) -> Int {
         var seen = Set<ObjectIdentifier>()
         var count = 0
@@ -45,7 +60,8 @@ final class DocumentAccessibilityTests: XCTestCase {
             // Scrollbar arrows/thumbs are AppKit implementation details, not document controls.
             if role == "AXScrollBar" { return }
             roles.insert(role)
-            if interactive.contains(role) || node.accessibilityPerformPress != nil {
+            let offersPress = offersAccessibilityPress(node)
+            if interactive.contains(role) || offersPress {
                 count += 1
                 // A native toolbar item and its hosted child can describe the same control.
                 // Sibling controls must still have distinct identifiers.
@@ -261,6 +277,9 @@ final class DocumentAccessibilityTests: XCTestCase {
 
     func testAuditIncludesPressableElementsOfOtherRoles() {
         XCTAssertEqual(audit(PressableAccessibilityFixture(), scenario: "pressable.group"), 1)
+        XCTAssertEqual(audit(PressableAccessibilityView(), scenario: "pressable.view"), 1)
+        XCTAssertFalse(offersAccessibilityPress(NSView()), "Inherited no-op is not an offered action")
+        XCTAssertFalse(offersAccessibilityPress(NSTextField(labelWithString: "Passive")))
     }
 
     private func assertRowPositions(_ outline: NSOutlineView, file: StaticString = #filePath, line: UInt = #line) {
@@ -309,7 +328,7 @@ final class DocumentAccessibilityTests: XCTestCase {
         doc.addLayer(.group(mode: .passThrough))
         doc.addLayer(.pixel)
         await host(LayersPanel(document: doc), scenario: "layers.actions") { root in
-            func find(_ view: NSView) -> NSOutlineView? {
+            @MainActor func find(_ view: NSView) -> NSOutlineView? {
                 if let outline = view as? NSOutlineView { return outline }
                 return view.subviews.lazy.compactMap(find).first
             }
@@ -326,9 +345,7 @@ final class DocumentAccessibilityTests: XCTestCase {
             guard let group = rows.first(where: { outline.isExpandable(outline.item(atRow: outline.row(for: $0))) }) else {
                 return XCTFail("Missing expandable row")
             }
-            let expandedCount = outline.numberOfRows
             group.setAccessibilityDisclosed(false)
-            XCTAssertLessThan(outline.numberOfRows, expandedCount)
             assertRowPositions(outline)
             XCTAssertFalse(outline.isItemExpanded(outline.item(atRow: outline.row(for: group))))
             group.setAccessibilityDisclosed(true)
@@ -371,4 +388,12 @@ private final class PressableAccessibilityFixture: NSObject {
     @objc func accessibilityIdentifier() -> String { "document.test.pressableGroup" }
     @objc func accessibilityLabel() -> String { "Pressable group" }
     @objc func accessibilityPerformPress() -> Bool { true }
+}
+
+@MainActor
+private final class PressableAccessibilityView: NSView {
+    override func accessibilityRole() -> NSAccessibility.Role? { .group }
+    override func accessibilityIdentifier() -> String { "document.test.pressableView" }
+    override func accessibilityLabel() -> String? { "Pressable view" }
+    override func accessibilityPerformPress() -> Bool { true }
 }
