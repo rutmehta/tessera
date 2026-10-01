@@ -12,6 +12,8 @@ fn composition_and_inversion() {
         let mut g = group(linear());
         g.components[0].combine = MaskCombine::Subtract;
         g.components.push(MaskComponent {
+            enabled: true,
+            group: None,
             kind: linear(),
             combine: op,
             invert: true,

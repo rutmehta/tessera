@@ -225,7 +225,14 @@ pub enum MaskCombine {
 /// One component of a composite mask.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskComponent {
-    /// What to select.
+    /// Disabled components do not seed or participate in composition.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub enabled: bool,
+    /// Nested composition, when present, replaces `kind`. Older readers ignore
+    /// this field; imported groups use an empty brush as their fallback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<Vec<MaskComponent>>,
+    /// What to select when `group` is absent.
     #[serde(flatten)]
     pub kind: MaskKind,
     /// Combination with previous components (ignored for the first).
@@ -237,10 +244,30 @@ pub struct MaskComponent {
 }
 
 impl MaskComponent {
+    /// Enabled leaves in source order. Nested wrappers override their fallback
+    /// kind; disabled wrappers suppress their entire subtree.
+    pub fn active_leaves(&self) -> impl Iterator<Item = &Self> {
+        let mut stack = vec![self];
+        std::iter::from_fn(move || {
+            while let Some(c) = stack.pop() {
+                if !c.enabled {
+                    continue;
+                }
+                if let Some(children) = &c.group {
+                    stack.extend(children.iter().rev());
+                } else {
+                    return Some(c);
+                }
+            }
+            None
+        })
+    }
     /// An additive, non-inverted component.
     pub fn new(kind: MaskKind) -> Self {
         Self {
             kind,
+            enabled: true,
+            group: None,
             combine: MaskCombine::Add,
             invert: false,
         }
@@ -308,6 +335,28 @@ pub struct LocalAdjustment {
     pub invert: bool,
     /// Parameters.
     pub params: LocalParams,
+}
+
+impl LocalAdjustment {
+    /// Bound recursive render work before allocating per-level alpha planes.
+    /// Includes disabled nodes so toggling cannot bypass structural limits.
+    pub fn validate_mask_tree(&self) -> crate::EngineResult<()> {
+        let mut stack: Vec<_> = self.components.iter().map(|c| (c, 0usize)).collect();
+        let mut count = 0usize;
+        while let Some((c, depth)) = stack.pop() {
+            count += 1;
+            if depth > 64 || count > 65_536 {
+                return Err(crate::EngineError::invalid(
+                    "mask",
+                    "mask tree exceeds 64 levels or 65536 components",
+                ));
+            }
+            if let Some(children) = &c.group {
+                stack.extend(children.iter().map(|c| (c, depth + 1)));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for LocalAdjustment {
@@ -398,4 +447,8 @@ fn hundred() -> f32 {
 
 fn yes() -> bool {
     true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }

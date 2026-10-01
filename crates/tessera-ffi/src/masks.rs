@@ -320,6 +320,19 @@ fn coord(v: f32) -> f32 {
 }
 
 fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
+    if !c.enabled {
+        return Some(c.clone());
+    }
+    if let Some(children) = &c.group {
+        let mut out = c.clone();
+        out.group = Some(
+            children
+                .iter()
+                .map(renderable_component)
+                .collect::<Option<Vec<_>>>()?,
+        );
+        return Some(out);
+    }
     let kind = match &c.kind {
         k @ (MaskKind::Subject { .. } | MaskKind::Sky { .. } | MaskKind::Background { .. }) => {
             k.clone()
@@ -400,6 +413,8 @@ fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
         }
     };
     Some(MaskComponent {
+        enabled: c.enabled,
+        group: None,
         kind,
         combine: c.combine,
         invert: c.invert,
@@ -422,10 +437,19 @@ pub(crate) fn window_locals(
     let (ox, oy) = (wx as f32 / ww.max(1) as f32, wy as f32 / wh.max(1) as f32);
     let map = |p: [f32; 2]| [p[0] * sx - ox, p[1] * sy - oy];
     let mut out = locals.clone();
-    out.adjustments
-        .retain(|g| !g.components.iter().any(|c| c.kind.is_ai()));
+    out.adjustments.retain(|g| {
+        !g.components
+            .iter()
+            .flat_map(MaskComponent::active_leaves)
+            .any(|c| c.kind.is_ai())
+    });
     for g in &mut out.adjustments {
-        for c in &mut g.components {
+        let mut stack: Vec<_> = g.components.iter_mut().collect();
+        while let Some(c) = stack.pop() {
+            if let Some(children) = &mut c.group {
+                stack.extend(children.iter_mut());
+                continue;
+            }
             match &mut c.kind {
                 MaskKind::Linear { start, end } => {
                     let d = [end[0] - start[0], end[1] - start[1]];
@@ -841,6 +865,7 @@ impl AiMaskJob {
                 .adjustments
                 .iter()
                 .flat_map(|g| &g.components)
+                .flat_map(MaskComponent::active_leaves)
                 .any(|c| ai_key(&c.kind).as_deref() == Some(&self.key));
             if uses && !st.closing && !st.closed {
                 // Rasters are part of the mask cache key: re-render.
@@ -983,6 +1008,7 @@ pub(crate) fn ensure_ai_jobs(shared: &Arc<Shared>, settings: &DevelopSettings) {
         .adjustments
         .iter()
         .flat_map(|g| &g.components)
+        .flat_map(MaskComponent::active_leaves)
         .filter_map(|c| ai_key(&c.kind).map(|k| (k, c.kind.clone())))
         .collect();
     if wanted.is_empty() {
@@ -1134,7 +1160,13 @@ fn thumbnail_raster(
     width: u32,
     height: u32,
 ) -> Option<Vec<f32>> {
-    if group.components.is_empty() || !group.components.iter().all(|c| c.kind.is_ai()) {
+    if group.components.is_empty()
+        || !group
+            .components
+            .iter()
+            .flat_map(MaskComponent::active_leaves)
+            .all(|c| c.kind.is_ai())
+    {
         return None;
     }
     let image =
@@ -1341,6 +1373,8 @@ impl DevelopSession {
         let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         g.components.push(MaskComponent {
+            enabled: true,
+            group: None,
             kind,
             combine: combine.into(),
             invert: false,
@@ -1505,7 +1539,10 @@ impl DevelopSession {
         };
         let g = find_group(&mut st.live.locals.adjustments, id)?;
         let index = match g.components.iter().rposition(|c| {
-            matches!(c.kind, MaskKind::Brush { .. }) && c.combine == MaskCombine::Add && !c.invert
+            c.group.is_none()
+                && matches!(c.kind, MaskKind::Brush { .. })
+                && c.combine == MaskCombine::Add
+                && !c.invert
         }) {
             Some(i) => i,
             None if brush.erase => return Err(failure("this mask has no brush to erase from")),
@@ -1610,6 +1647,8 @@ impl DevelopSession {
                 find_group(&mut st.live.locals.adjustments, id)?
                     .components
                     .push(MaskComponent {
+                        enabled: true,
+                        group: None,
                         kind: component,
                         combine: combine.into(),
                         invert: false,
@@ -1726,6 +1765,8 @@ impl DevelopSession {
                 find_group(&mut st.live.locals.adjustments, id)?
                     .components
                     .push(MaskComponent {
+                        enabled: true,
+                        group: None,
                         kind,
                         combine: combine.into(),
                         invert: false,
@@ -2154,6 +2195,8 @@ mod tests {
             components: vec![
                 MaskComponent::new(subject.clone()),
                 MaskComponent {
+                    enabled: true,
+                    group: None,
                     kind: MaskKind::Linear {
                         start: [0.0, 0.0],
                         end: [0.0, 1.0],
@@ -2237,9 +2280,15 @@ mod tests {
 mod lr4_tests {
     use super::*;
     fn tree() -> LocalAdjustment {
-        let mut c = MaskComponent::new(MaskKind::Brush { strokes:vec![] });
-        c.group = Some(vec![MaskComponent::new(MaskKind::Linear { start:[0.25,0.], end:[0.75,0.] })]);
-        LocalAdjustment { components:vec![c], ..Default::default() }
+        let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+        c.group = Some(vec![MaskComponent::new(MaskKind::Linear {
+            start: [0.25, 0.],
+            end: [0.75, 0.],
+        })]);
+        LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        }
     }
     #[test]
     fn lr4_renderable_tree_preserves_group_and_disabled_child() {
@@ -2249,9 +2298,22 @@ mod lr4_tests {
     }
     #[test]
     fn lr4_window_coordinates_include_nested_leaves() {
-        let locals = LocalsSettings { adjustments:vec![tree()], ..Default::default() };
-        let got = window_locals(&locals, engine_api::tile::Extent::new(100,100), (25,0,50,100));
+        let locals = LocalsSettings {
+            adjustments: vec![tree()],
+            ..Default::default()
+        };
+        let got = window_locals(
+            &locals,
+            engine_api::tile::Extent::new(100, 100),
+            (25, 0, 50, 100),
+        );
         let child = &got.adjustments[0].components[0].group.as_ref().unwrap()[0];
-        assert_eq!(child.kind, MaskKind::Linear { start:[0.,0.], end:[1.,0.] });
+        assert_eq!(
+            child.kind,
+            MaskKind::Linear {
+                start: [0., 0.],
+                end: [1., 0.]
+            }
+        );
     }
 }

@@ -332,14 +332,19 @@ fn mask_parameters(group: &LocalAdjustment, extent: Extent) -> EngineResult<Vec<
     use engine_api::recipe::mask::MaskCombine;
     let bounded = |v: f32, lo: f32, hi: f32| v.is_finite() && (lo..=hi).contains(&v);
     let coords = |v: &[f32]| v.iter().all(|&v| bounded(v, -16., 16.));
+    group.validate_mask_tree()?;
+    let count = group.components.iter().filter(|c| c.enabled).count();
     let mut data = vec![
         extent.width as f32,
         extent.height as f32,
-        group.components.len() as f32,
-        f32::from(group.invert),
+        count as f32,
+        f32::from(group.invert && count != 0),
     ];
     let mut stamps = 0usize;
-    for c in &group.components {
+    for c in group.components.iter().filter(|c| c.enabled) {
+        if c.group.is_some() {
+            return Err(invalid("nested mask groups require the CPU mask path"));
+        }
         let start = data.len();
         data.extend([
             0.,
@@ -563,19 +568,31 @@ mod lr4_tests {
     use engine_api::recipe::MaskComponent;
     #[test]
     fn lr4_disabled_components_do_not_seed_gpu_masks() {
-        let mut off = MaskComponent::new(MaskKind::Linear { start:[0.,0.], end:[1.,0.] });
+        let mut off = MaskComponent::new(MaskKind::Linear {
+            start: [0., 0.],
+            end: [1., 0.],
+        });
         off.enabled = false;
-        let on = MaskComponent::new(MaskKind::Linear { start:[1.,0.], end:[0.,0.] });
-        let g = LocalAdjustment { components:vec![off,on], ..Default::default() };
-        let data = mask_parameters(&g, Extent::new(2,1)).unwrap();
-        assert_eq!(data[2],1.);
-        assert_eq!(&data[8..12], &[1.,0.,0.,0.]);
+        let on = MaskComponent::new(MaskKind::Linear {
+            start: [1., 0.],
+            end: [0., 0.],
+        });
+        let g = LocalAdjustment {
+            components: vec![off, on],
+            ..Default::default()
+        };
+        let data = mask_parameters(&g, Extent::new(2, 1)).unwrap();
+        assert_eq!(data[2], 1.);
+        assert_eq!(&data[8..12], &[1., 0., 0., 0.]);
     }
     #[test]
     fn lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry() {
-        let mut c = MaskComponent::new(MaskKind::Brush { strokes:vec![] });
+        let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
         c.group = Some(vec![]);
-        let g = LocalAdjustment { components:vec![c], ..Default::default() };
-        assert!(mask_parameters(&g, Extent::new(2,1)).is_err());
+        let g = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
+        assert!(mask_parameters(&g, Extent::new(2, 1)).is_err());
     }
 }

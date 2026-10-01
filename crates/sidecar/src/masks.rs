@@ -163,6 +163,7 @@ pub(super) fn export_masks(v: &Value) -> EngineResult<String> {
     let locals: Vec<LocalAdjustment> = serde_json::from_value(v.clone())?;
     let mut groups = String::new();
     for local in locals {
+        local.validate_mask_tree()?;
         let v = serde_json::to_value(local)?;
         let mut b = text("crs:What", "Correction")
             + &scalar("crs:CorrectionName", &v["name"])
@@ -200,9 +201,26 @@ fn export_component(c: &Value) -> EngineResult<String> {
         Some("intersect") => "2",
         _ => return Err(error("unknown mask combination")),
     };
-    let mut b = text("crs:MaskActive", "true")
-        + &scalar("crs:MaskInverted", &c["invert"])
+    let mut b = text(
+        "crs:MaskActive",
+        if c["enabled"] == false {
+            "false"
+        } else {
+            "true"
+        },
+    ) + &scalar("crs:MaskInverted", &c["invert"])
         + &text("crs:MaskBlendMode", blend);
+    if let Some(children) = c["group"].as_array() {
+        b += &text("crs:What", "Mask/Group");
+        let component: MaskComponent = serde_json::from_value(c.clone())?;
+        b += &native("ts:GroupFallback", &serde_json::to_value(component.kind)?);
+        let mut body = String::new();
+        for child in children {
+            body += &structure("rdf:li", &export_component(child)?);
+        }
+        b += &seq("crs:Masks", &body);
+        return Ok(b);
+    }
     match kind {
         "linear" => {
             b += &text("crs:What", "Mask/Gradient");
@@ -340,30 +358,39 @@ pub(super) fn import_masks(t: &Tree) -> EngineResult<Value> {
         let mut components = Vec::new();
         if let Some(masks) = child(t, n, CRS, "CorrectionMasks") {
             for c in t.items(masks) {
-                // There is no per-component enabled bit in the recipe. Do not
-                // silently drop it and later overwrite a foreign disabled mask.
-                if !flag(get(t, c, CRS, "MaskActive"), true)? {
-                    return Err(error("disabled mask component retained in XMP"));
-                }
                 components.push(import_component(t, c)?);
             }
         }
-        if child(t, n, CRS, "CorrectionRangeMask").is_some() {
-            return Err(error("group-level range constraint retained in XMP"));
+        if let Some(range) = child(t, n, CRS, "CorrectionRangeMask") {
+            components.push(import_range(t, range)?);
         }
         v["components"] = json!(components);
         let local: LocalAdjustment = serde_json::from_value(v)?;
+        local.validate_mask_tree()?;
         locals.push(local);
     }
     Ok(serde_json::to_value(locals)?)
 }
 fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
+    let mut parent = n.parent;
+    let mut depth = 0;
+    while let Some(i) = parent {
+        if t.nodes[i].ns == CRS && t.nodes[i].local == "Masks" {
+            depth += 1;
+        }
+        if depth > 64 {
+            return Err(error("mask tree exceeds 64 levels"));
+        }
+        parent = t.nodes[i].parent;
+    }
     let what = get(t, n, CRS, "What").unwrap_or_default();
     let native_kind = extension(t, n, "kind")?;
     let kind = native_kind
         .as_ref()
         .and_then(Value::as_str)
         .unwrap_or(match what.as_str() {
+            "Mask/Group" | "Mask/Aggregate" => "group",
+            "Mask/Range" | "Mask/RangeMask" => "range",
             "Mask/Gradient" => "linear",
             "Mask/CircularGradient" => "radial",
             "Mask/Sky" => "sky",
@@ -374,6 +401,26 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
         });
     let mut c = json!({"kind":kind});
     match kind {
+        "range" => {
+            let r = child(t, n, CRS, "CorrectionRangeMask")
+                .ok_or_else(|| error("missing range mask"))?;
+            c = import_range(t, r)?;
+        }
+        "group" => {
+            let masks = child(t, n, CRS, "Masks").ok_or_else(|| error("missing nested masks"))?;
+            c = if let Some(fallback) = extension(t, n, "GroupFallback")? {
+                let kind: engine_api::recipe::MaskKind = serde_json::from_value(fallback)?;
+                serde_json::to_value(kind)?
+            } else {
+                json!({"kind":"brush", "strokes":[]})
+            };
+            c["group"] = json!(
+                t.items(masks)
+                    .into_iter()
+                    .map(|n| import_component(t, n))
+                    .collect::<EngineResult<Vec<_>>>()?
+            );
+        }
         "linear" => {
             c["start"] = json!([num(t, n, "FullX", 0.0)?, num(t, n, "FullY", 0.0)?]);
             c["end"] = json!([num(t, n, "ZeroX", 1.0)?, num(t, n, "ZeroY", 1.0)?]);
@@ -459,12 +506,13 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
         }
         _ => return Err(error(format!("unsupported mask kind {what}"))),
     }
-    if !matches!(kind, "luminance_range" | "color_range" | "depth")
-        && child(t, n, CRS, "CorrectionRangeMask").is_some()
+    if !matches!(kind, "range" | "luminance_range" | "color_range" | "depth")
+        && let Some(range) = child(t, n, CRS, "CorrectionRangeMask")
     {
-        return Err(error("nested range constraint retained in XMP"));
+        let seed: MaskComponent = serde_json::from_value(c)?;
+        c = json!({"kind":"brush", "strokes":[], "group":[seed, import_range(t, range)?]});
     }
-    if child(t, n, CRS, "Masks").is_some() {
+    if kind != "group" && child(t, n, CRS, "Masks").is_some() {
         return Err(error("nested mask group retained in XMP"));
     }
     c["combine"] = json!(
@@ -475,7 +523,50 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
             _ => return Err(error("unsupported mask blend mode")),
         }
     );
-    c["invert"] = json!(flag(get(t, n, CRS, "MaskInverted"), false)?);
+    c["enabled"] = json!(flag(get(t, n, CRS, "MaskActive"), true)?);
+    c["invert"] = json!(
+        c["invert"].as_bool().unwrap_or(false) ^ flag(get(t, n, CRS, "MaskInverted"), false)?
+    );
     let c: MaskComponent = serde_json::from_value(c)?;
     Ok(serde_json::to_value(c)?)
+}
+
+// Only explicit scalar bounds are interpreted. Opaque LumRange/AreaModels and
+// type-number-only encodings remain source-retained; their semantics are not
+// specified by the tag inventory.
+fn import_range(t: &Tree, n: &Node) -> EngineResult<Value> {
+    let lum = get(t, n, CRS, "LumMin").is_some() && get(t, n, CRS, "LumMax").is_some();
+    let depth = get(t, n, CRS, "DepthMin").is_some() && get(t, n, CRS, "DepthMax").is_some();
+    if lum == depth
+        || get(t, n, CRS, "Type").is_some()
+        || child(t, n, CRS, "AreaModels").is_some()
+        || get(t, n, CRS, "LumRange").is_some()
+    {
+        return Err(error("opaque or ambiguous range mask retained in XMP"));
+    }
+    let (kind, lo, hi, feather, key) = if lum {
+        (
+            "luminance_range",
+            "LumMin",
+            "LumMax",
+            "LumFeather",
+            "smoothness",
+        )
+    } else {
+        ("depth", "DepthMin", "DepthMax", "DepthFeather", "feather")
+    };
+    let low = num(t, n, lo, 0.)?;
+    let high = num(t, n, hi, 1.)?;
+    let feather = num(t, n, feather, 0.)?;
+    if !(0. ..=1.).contains(&low) || !(low..=1.).contains(&high) || !(0. ..=100.).contains(&feather)
+    {
+        return Err(error("invalid explicit range bounds"));
+    }
+    let mut c = json!({"kind":kind,"range":[low,high],"combine":"intersect",
+        "invert":flag(get(t,n,CRS,"Invert"),false)?});
+    c[key] = json!(feather);
+    if depth {
+        c["model"] = Value::Null;
+    }
+    Ok(c)
 }

@@ -142,7 +142,7 @@ fn direct_foreign_opaque_and_invalid_fail_atomically() {
     for c in [
         r#"<rdf:li crs:What="Mask/Future"/>"#,
         r#"<rdf:li crs:What="Mask/Paint"><crs:Dabs><rdf:Seq><rdf:li>opaque</rdf:li></rdf:Seq></crs:Dabs></rdf:li>"#,
-        r#"<rdf:li crs:What="Mask/Gradient" crs:MaskActive="False"/>"#,
+        r#"<rdf:li crs:What="Mask/Gradient" crs:MaskActive="not-a-boolean"/>"#,
         r#"<rdf:li crs:What="Mask/Gradient" crs:MaskBlendMode="999"/>"#,
         r#"<rdf:li crs:What="Mask/Gradient" crs:FullX="NaN"/>"#,
     ] {

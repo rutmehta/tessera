@@ -118,16 +118,34 @@ fn lr4_ignored_or_duplicate_fields_never_lose_source() {
     // cannot be declared faithfully translated by choosing only the first.
     let cases = [
         r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = {{ LumMin = 0.1, CorrectionMasks = {{ What = "Mask/Gradient", MaskActive = false }} }} }"#,
-        r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = {{ CorrectionMasks = {{ What = "Mask/Gradient", MaskActive = false, MaskActive = true }} }} }"#,
     ];
+    let duplicate = r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = {{ CorrectionMasks = {{ What = "Mask/Gradient", MaskActive = false, MaskActive = true }} }} }"#;
+    // The Lua parser rejects duplicate keys before a recipe exists.
+    assert!(lua_develop::parse(duplicate, "15.4").is_err());
     for lua in cases {
         let (r, _) = lua_develop::parse(lua, "15.4").unwrap();
-        assert!(r.unknown.get("lrcat_develop_source").and_then(|v|v.get("properties")).and_then(|v|v.get("MaskGroupBasedCorrections")).is_some());
+        assert!(
+            r.unknown
+                .get("lrcat_develop_source")
+                .and_then(|v| v.get("properties"))
+                .and_then(|v| v.get("MaskGroupBasedCorrections"))
+                .is_some()
+        );
     }
 }
 
 #[test]
 fn lr4_nil_untranslated_mask_key_still_has_exact_source() {
-    let (r, _) = lua_develop::parse(r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = nil }"#, "15.4").unwrap();
-    assert_eq!(r.unknown.get("lrcat_develop_source").and_then(|v|v.get("properties")).and_then(|v|v.get("MaskGroupBasedCorrections")), Some(&json!("nil")));
+    let (r, _) = lua_develop::parse(
+        r#"s = { ProcessVersion = "15.4", MaskGroupBasedCorrections = nil }"#,
+        "15.4",
+    )
+    .unwrap();
+    assert_eq!(
+        r.unknown
+            .get("lrcat_develop_source")
+            .and_then(|v| v.get("properties"))
+            .and_then(|v| v.get("MaskGroupBasedCorrections")),
+        Some(&json!("nil"))
+    );
 }

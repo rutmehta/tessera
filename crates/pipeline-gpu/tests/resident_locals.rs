@@ -135,6 +135,8 @@ fn procedural_masks_and_composition_match_cpu() {
         g.amount = 137.;
         g.invert = true;
         g.components.push(MaskComponent {
+            enabled: true,
+            group: None,
             kind: masks[0].clone(),
             combine,
             invert: true,

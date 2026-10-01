@@ -92,22 +92,40 @@ pub fn compose(
     group: &LocalAdjustment,
     mut ai: impl FnMut(&MaskKind, u32, u32) -> engine_api::EngineResult<Arc<[f32]>>,
 ) -> engine_api::EngineResult<Vec<f32>> {
+    group.validate_mask_tree()?;
+    let mut out = compose_components(input, &group.components, &mut ai)?;
+    if group.invert && group.components.iter().any(|c| c.enabled) {
+        for v in &mut out {
+            *v = 1.0 - *v;
+        }
+    }
+    Ok(out)
+}
+fn compose_components(
+    input: &pipeline_cpu::Image,
+    components: &[MaskComponent],
+    ai: &mut impl FnMut(&MaskKind, u32, u32) -> engine_api::EngineResult<Arc<[f32]>>,
+) -> engine_api::EngineResult<Vec<f32>> {
     let (w, h) = (input.width(), input.height());
     let mut out = vec![0f32; w as usize * h as usize];
-    for (index, c) in group.components.iter().enumerate() {
-        let plane: Arc<[f32]> = match c.kind.is_ai() {
-            true => ai(&c.kind, w, h)?,
-            false => {
-                let single = LocalAdjustment {
-                    components: vec![MaskComponent::new(c.kind.clone())],
-                    ..Default::default()
-                };
-                pipeline_cpu::masks::rasterize(
-                    input,
-                    &single,
-                    pipeline_cpu::masks::MaskOptions::default(),
-                )?
-                .into()
+    for (index, c) in components.iter().filter(|c| c.enabled).enumerate() {
+        let plane: Arc<[f32]> = if let Some(children) = &c.group {
+            compose_components(input, children, ai)?.into()
+        } else {
+            match c.kind.is_ai() {
+                true => ai(&c.kind, w, h)?,
+                false => {
+                    let single = LocalAdjustment {
+                        components: vec![MaskComponent::new(c.kind.clone())],
+                        ..Default::default()
+                    };
+                    pipeline_cpu::masks::rasterize(
+                        input,
+                        &single,
+                        pipeline_cpu::masks::MaskOptions::default(),
+                    )?
+                    .into()
+                }
             }
         };
         if plane.len() != out.len() || plane.iter().any(|v| !(0.0..=1.0).contains(v)) {
@@ -128,11 +146,6 @@ pub fn compose(
                     MaskCombine::Intersect => *a * b,
                 }
             };
-        }
-    }
-    if group.invert && !group.components.is_empty() {
-        for v in &mut out {
-            *v = 1.0 - *v;
         }
     }
     Ok(out)

@@ -194,6 +194,20 @@ pub(crate) fn parse_inner(
     {
         recipe.process_version = catalog_version;
     }
+    let masks_translated = crate::mask_source::renderable(&recipe.settings.locals.adjustments)
+        && !warnings
+            .iter()
+            .any(|w| w.starts_with("crs:MaskGroupBasedCorrections:"))
+        && properties
+            .iter()
+            .filter(|p| p.namespace == CRS && p.name == "MaskGroupBasedCorrections")
+            .count()
+            == 1
+        && properties.iter().any(|p| {
+            p.namespace == CRS
+                && p.name == "MaskGroupBasedCorrections"
+                && p.node.is_some_and(crate::mask_source::fully_translated)
+        });
     for p in &properties {
         let Some(key) = CrsKey::from_xmp(p.namespace, p.name) else {
             continue;
@@ -206,7 +220,7 @@ pub(crate) fn parse_inner(
             // The codec reports the reason; add the legacy per-property payload
             // without duplicating its warning.
             retain(&mut recipe, &qualified, p.raw);
-        } else if key == CrsKey::MaskGroupBasedCorrections {
+        } else if key == CrsKey::MaskGroupBasedCorrections && !masks_translated {
             diagnostics.push((
                 qualified,
                 p.raw,
@@ -237,7 +251,8 @@ pub(crate) fn parse_inner(
     }
     for p in &properties {
         if p.namespace == CRS
-            && (crate::lua_develop::retain_source(p.name)
+            && ((crate::lua_develop::retain_source(p.name)
+                && !(p.name == "MaskGroupBasedCorrections" && masks_translated))
                 || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(p.name)))
         {
             source.insert(p.name.to_string(), json!(&text[p.range.clone()]));

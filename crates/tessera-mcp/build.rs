@@ -309,6 +309,9 @@ fn main() {
                 {
                     output.extend(f.into_token_stream())
                 }
+                Item::Fn(f) if file == "recipe/mask.rs" && f.sig.ident == "is_true" => {
+                    output.extend(f.into_token_stream())
+                }
                 // `yes` is already emitted from tools.rs (same body).
                 Item::Fn(f)
                     if file == "document.rs"
