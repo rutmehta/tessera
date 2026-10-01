@@ -28,10 +28,11 @@ final class ShellLayoutTests: XCTestCase {
                               styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         defer { window.close() }
-        let progress = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
+        let progress = TrackedProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
         progress.usesThreadedAnimation = true
         window.contentView?.addSubview(progress)
         ShellHarness.settle(window, size: CGSize(width: 960, height: 600))
+        XCTAssertGreaterThan(progress.stops, 0, "An already running worker must be stopped before changing animation mode")
         XCTAssertFalse(progress.usesThreadedAnimation,
                        "Many background layout windows must not exhaust dispatch workers with animation threads")
     }
@@ -263,5 +264,14 @@ final class ShellLayoutTests: XCTestCase {
             RunLoop.main.run(until: Date().addingTimeInterval(0.2))
             XCTAssertEqual(ws.inspectorTab, tab, "⌃\(c)")
         }
+    }
+}
+
+@MainActor
+private final class TrackedProgressIndicator: NSProgressIndicator {
+    var stops = 0
+    override func stopAnimation(_ sender: Any?) {
+        stops += 1
+        super.stopAnimation(sender)
     }
 }
