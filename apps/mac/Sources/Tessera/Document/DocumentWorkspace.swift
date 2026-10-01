@@ -278,7 +278,7 @@ final class DocumentWorkspace {
         }
     }
 
-    /// Library ▸ Edit in Layers (⌘E): the focused image, developed, as a new document. Engine images
+    /// Library ▸ Edit in Layers (⌘E): reuse the focused image's open document, or open it developed. Engine images
     /// open on their own engine by image id (`open_document_from_image(id, developed: true)`); the stub
     /// takes the file.
     /// Release saved-pixel reservations from completion, never on method return.
@@ -295,6 +295,20 @@ final class DocumentWorkspace {
             publishDocumentLoadStatus(message, policy: statusPublication); completion(.rejected(message)); return
         }
         let what = "Edit \(item.name) in Layers", done = "Editing \(item.name) in layers"
+        // Image opens create fresh backends, so install's backend-identity check cannot reuse them.
+        // Use the recorded source identity, not the library's transient row index or document title.
+        let sourceImageID = (!(engineOverride is StubDocumentEngine) ? item.engineImage?.imageID : nil)
+            ?? item.url.map { "file:\($0.path)" }
+        if let existing = documents.first(where: { doc in
+            if let sourceImageID, doc.info.sourceImageId == sourceImageID { return true }
+            guard let url = item.url, let path = doc.info.path else { return false }
+            return URL(fileURLWithPath: path).standardizedFileURL == url.standardizedFileURL
+        }) {
+            select(existing, activateDocument: activateDocument)
+            publishDocumentLoadStatus(done, policy: statusPublication)
+            completion(.installed)
+            return
+        }
         if !(engineOverride is StubDocumentEngine), let ref = item.engineImage {
             let id = ref.imageID
             load(what, engine: EngineDocumentEngine.for(ref.engine), done: done, statusPublication: statusPublication, activateDocument: activateDocument, completion: completion) {
