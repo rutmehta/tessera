@@ -1,0 +1,106 @@
+diff --git a/crates/tessera-ffi/tests/document_export_flat.rs b/crates/tessera-ffi/tests/document_export_flat.rs
+--- a/crates/tessera-ffi/tests/document_export_flat.rs
++++ b/crates/tessera-ffi/tests/document_export_flat.rs
+@@ -244,7 +244,102 @@ fn export_is_a_snapshot_that_outlives_edits_and_close() {
+             .is_err()
+     );
+ }
+ 
++/// A later committed edit does not change the document captured at confirm.
++#[test]
++fn export_snapshot_excludes_later_committed_edit() {
++    let (dir, engine) = engine();
++    let s = engine.adopt_document(document(900, 600), "confirm-commit".into());
++    let top = s.layers().unwrap()[0].id;
++
++    let before = dir.path().join("before-commit.png");
++    s.export_flat(
++        before.to_string_lossy().into_owned(),
++        ExportFormat::Png,
++        90,
++        ExportColor::Srgb,
++    )
++    .unwrap();
++
++    let out = dir.path().join("confirmed.png");
++    let job = s
++        .begin_export_flat(
++            out.to_string_lossy().into_owned(),
++            ExportFormat::Png,
++            90,
++            ExportColor::Srgb,
++        )
++        .unwrap();
++    s.set_visible(top, false).unwrap();
++    let after = dir.path().join("after-commit.png");
++    s.export_flat(
++        after.to_string_lossy().into_owned(),
++        ExportFormat::Png,
++        90,
++        ExportColor::Srgb,
++    )
++    .unwrap();
++    assert_ne!(png_pixels(&before), png_pixels(&after), "edit must be visible");
++
++    job.run(None).unwrap();
++    assert_eq!(png_pixels(&out), png_pixels(&before));
++    assert_ne!(png_pixels(&out), png_pixels(&after));
++}
++
++/// Export Flat captures the visible interactive scratch state even when the
++/// gesture later returns to its base, commits, and another edit is committed.
++#[test]
++fn export_snapshot_preserves_pending_scratch_pixels_after_later_changes() {
++    let (dir, engine) = engine();
++    let s = engine.adopt_document(document(900, 600), "confirm-scratch".into());
++    let top_layer = s.layers().unwrap().into_iter().next().unwrap();
++    let top = top_layer.id;
++    let base_opacity = top_layer.opacity;
++    let history_before = s.info().unwrap().history_head;
++    s.set_opacity(top, 0.1, true).unwrap();
++    let pending_layer = s.layers().unwrap().into_iter().find(|layer| layer.id == top).unwrap();
++    assert_eq!(pending_layer.opacity, 0.1, "interactive value must be visible");
++    assert_eq!(s.info().unwrap().history_head, history_before, "interactive edit stays pending");
++
++    // This is the visible scratch-state oracle at confirmation time.
++    let scratch = dir.path().join("scratch.png");
++    s.export_flat(
++        scratch.to_string_lossy().into_owned(),
++        ExportFormat::Png,
++        90,
++        ExportColor::Srgb,
++    )
++    .unwrap();
++    let out = dir.path().join("scratch-confirmed.png");
++    let job = s
++        .begin_export_flat(
++            out.to_string_lossy().into_owned(),
++            ExportFormat::Png,
++            90,
++            ExportColor::Srgb,
++        )
++        .unwrap();
++
++    // Return the interactive control to its committed base, commit that
++    // pending gesture, then make a distinct committed change.
++    s.set_opacity(top, base_opacity, true).unwrap();
++    s.commit("Opacity drag returned to base".into()).unwrap();
++    s.set_visible(top, false).unwrap();
++    let after = dir.path().join("after-scratch-change.png");
++    s.export_flat(
++        after.to_string_lossy().into_owned(),
++        ExportFormat::Png,
++        90,
++        ExportColor::Srgb,
++    )
++    .unwrap();
++    assert_ne!(png_pixels(&scratch), png_pixels(&after), "later state must differ");
++
++    job.run(None).unwrap();
++    assert_eq!(png_pixels(&out), png_pixels(&scratch));
++    assert_ne!(png_pixels(&out), png_pixels(&after));
++}
++
+ /// `begin_export_flat` (what the main thread calls) only snapshots; the
+ /// work is in `run`. Frames and edits continue while an export runs on
+ /// another thread.
