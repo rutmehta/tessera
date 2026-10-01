@@ -7,7 +7,7 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 | Lane | Owner | State | Verified evidence / next action |
 | --- | --- | --- | --- |
 | PERF-1 style export | Codex A / Astra | Source design and RED test preparation | Each output tile recomputes full source/style planes. Plan frame-local bounded reuse with serial styled traversal and uncached fallback for overbudget cases. Independent review requires stable nested context identity. No speedup claimed. |
-| PERF-4 Gaussian | Codex A / Luna | Tests committed; execution pending | Test-only `177b0883` adds scalar parity and ignored 24 MP r12 performance gate; parent review requested finite-value and benchmark-order fixes. No RED/GREEN execution yet. External release FFI build holds compiler lane. |
+| PERF-4 Gaussian | Codex A / Luna | Tests committed; execution held | Test-only commits `177b0883`, `a783c018`, and `7c18288b` add frozen scalar parity, finite checks, sigma-zero and degenerate-dimension cases, pre-cancel behavior, and ignored direct/public 24 MP r12 benchmarks. Timed outputs are isolated and full parity is checked outside timing. No RED/GREEN execution yet. External coordinator `swift-test`/`xctest` holds the compiler lane. |
 | PERF-2/5 Camera Raw and memory | Codex A / Luna source review | Source design | Multiple full-frame conversion buffers identified; report RSS is not live-heap allocation. Coordinate one camera_raw.rs owner; counting-allocator oracles required. |
 | PERF-3 vector drag | Codex A | Source investigation queued | Preserve pixel parity and dashed-stroke fallback; no runtime result. |
 
