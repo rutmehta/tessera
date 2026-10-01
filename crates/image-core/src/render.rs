@@ -266,6 +266,7 @@ type GeometryAnalysisMemo = Option<(
 #[derive(Clone)]
 pub struct Renderer {
     geometry_analysis: Arc<Mutex<GeometryAnalysisMemo>>,
+    cpu_retouch: Arc<std::sync::OnceLock<Renderer>>,
     lens_resolution: Arc<Mutex<LensResolutionMemo>>,
     pub(crate) depth: Option<Arc<crate::depth::DepthProvider>>,
     pub(crate) depth_visualisation: bool,
@@ -327,6 +328,7 @@ impl Renderer {
         };
         Self {
             geometry_analysis: Arc::new(Mutex::new(None)),
+            cpu_retouch: Arc::new(std::sync::OnceLock::new()),
             lens_resolution: Arc::new(Mutex::new(None)),
             depth: None,
             depth_visualisation: false,
@@ -420,6 +422,7 @@ impl Renderer {
         renderer: Arc<dyn pipeline_cpu::RetouchRenderer>,
     ) -> Self {
         self.retouch = Some(renderer);
+        self.cpu_retouch = Arc::new(std::sync::OnceLock::new());
         self.rgb_memo = Arc::new(Mutex::new(Default::default()));
         self
     }
@@ -866,7 +869,19 @@ impl Renderer {
         let renderer = if settings.locals.retouch.is_empty() {
             self
         } else {
-            let fallback = self.for_backend(Arc::new(CpuStageOp));
+            let cached = self.cpu_retouch.get_or_init(|| {
+                let mut fallback = self.for_backend(Arc::new(CpuStageOp));
+                // Break ownership of the parent's cell: no self-referential Arc.
+                fallback.cpu_retouch = Arc::new(std::sync::OnceLock::new());
+                fallback
+            });
+            // Snapshot current session capabilities/profile/process settings,
+            // retaining the CPU renderer's backend-specific memo and analysis.
+            let mut fallback = self.clone();
+            fallback.native_ops = cached.native_ops.clone();
+            fallback.rgb_memo = cached.rgb_memo.clone();
+            fallback.geometry_analysis = cached.geometry_analysis.clone();
+            let fallback = fallback.for_process_version(self.config.process_version);
             cpu = fallback.prepare_dcp(image, settings)?.unwrap_or(fallback);
             &cpu
         };
