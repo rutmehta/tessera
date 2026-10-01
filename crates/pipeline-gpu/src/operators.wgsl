@@ -154,6 +154,21 @@ fn demosaic(x: i32, y: i32) -> vec3<f32> {
 // shadow detail to log(1+x) or exp(x)-1. Transcendentals remain GPU f32, not
 // a promise of bit-identical results to the CPU's libm implementation.
 fn log_one_plus(x: f32) -> f32 {
+    if abs(x) < 0.125 {
+        // B5-32: log(1+x) still loses accuracy close to one on Metal, even
+        // with the rounding correction below. Evaluate log1p directly.
+        // Degree nine has remainder < 1.1e-10 on this interval, below f32
+        // rounding error at the endpoints, and tends to x at zero.
+        var r = 1.0 / 9.0;
+        r = -1.0 / 8.0 + x * r;
+        r = 1.0 / 7.0 + x * r;
+        r = -1.0 / 6.0 + x * r;
+        r = 1.0 / 5.0 + x * r;
+        r = -1.0 / 4.0 + x * r;
+        r = 1.0 / 3.0 + x * r;
+        r = -0.5 + x * r;
+        return x * (1.0 + x * r);
+    }
     let u = 1.0 + x;
     if u == 1.0 {
         return x;
@@ -182,6 +197,16 @@ fn softplus(v: f32) -> f32 {
     return max(v, 0.0) + log_one_plus(exp(-abs(v)));
 }
 
+// Same softplus integral as the CPU, without subtracting nearly equal
+// values at black. Signed sharpened RGB can have Y far smaller than any
+// channel; the tone gain's division by Y magnifies that cancellation.
+fn softplus_integral(z: f32, center: f32) -> f32 {
+    if abs(z) < 0.5 {
+        return log_one_plus(exp_minus_one(z) / (1.0 + exp(center)));
+    }
+    return softplus(z - center) - softplus(-center);
+}
+
 fn tone(v: vec3<f32>) -> vec3<f32> {
     let rgb = v * p[25];
     // Exposure-only is also neutral in the CPU reference, even if the host
@@ -202,13 +227,13 @@ fn tone(v: vec3<f32>) -> vec3<f32> {
     var out = z;
     // Preserve black, shadow, highlight, white accumulation order.
     // Amounts are supplied clamped and normalized by the host.
-    let black_region = z - (softplus(z - 0.25) - softplus(-0.25));
+    let black_region = z - softplus_integral(z, 0.25);
     out = out + 0.2 * p[30] * black_region;
-    let shadow_region = z - (softplus(z - 0.8) - softplus(-0.8));
+    let shadow_region = z - softplus_integral(z, 0.8);
     out = out + 0.2 * p[28] * shadow_region;
-    let highlight_region = softplus(z - 1.5) - softplus(-1.5);
+    let highlight_region = softplus_integral(z, 1.5);
     out = out + 0.2 * p[27] * highlight_region;
-    let white_region = softplus(z - 2.5) - softplus(-2.5);
+    let white_region = softplus_integral(z, 2.5);
     out = out + 0.2 * p[29] * white_region;
     let scale = 0.18 * exp_minus_one(out) / y;
     return rgb * scale;

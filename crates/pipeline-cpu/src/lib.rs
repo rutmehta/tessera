@@ -103,14 +103,23 @@ pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
         let z = slope * z + (1.0 - slope) * 2.0 * pivot * -(-z).exp_m1();
 
         let softplus = |v: f32| v.max(0.0) + (-v.abs()).exp().ln_1p();
+        // B5-32: signed RGB after sharpening can have almost zero Y. Avoid
+        // subtracting nearby softplus values: their rounding error is divided
+        // by Y below. This is the same integral, evaluated without cancellation.
+        let small_z = z.abs() < 0.5;
+        let exp_z_minus_one = if small_z { z.exp_m1() } else { 0.0 };
         let mut out = z;
         for (amount, center, upper) in [
-            (settings.blacks, 0.25, false),
+            (settings.blacks, 0.25_f32, false),
             (settings.shadows, 0.8, false),
             (settings.highlights, 1.5, true),
             (settings.whites, 2.5, true),
         ] {
-            let upper_integral = softplus(z - center) - softplus(-center);
+            let upper_integral = if small_z {
+                (exp_z_minus_one / (1.0 + center.exp())).ln_1p()
+            } else {
+                softplus(z - center) - softplus(-center)
+            };
             let region = if upper {
                 upper_integral
             } else {
