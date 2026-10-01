@@ -4,7 +4,6 @@ use engine_api::{
     EngineResult,
     recipe::{
         Recipe,
-        history::{Author, EditMeta},
         settings::{GuideLine, UprightMode},
     },
 };
@@ -27,11 +26,26 @@ fn numbers<const N: usize>(raw: &str) -> Option<[f64; N]> {
     values.iter().all(|v| v.is_finite()).then_some(values)
 }
 
+/// Information returned to the catalog importer; sidecar owns no diagnostics channel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApproximateEntry {
+    pub adobe_key: String,
+    pub field: String,
+    pub reason: String,
+}
+
 pub fn apply<'a>(
     recipe: &mut Recipe,
     warnings: &mut Vec<String>,
     properties: impl Iterator<Item = (&'a str, &'a str)>,
-) -> EngineResult<()> {
+) -> EngineResult<Vec<ApproximateEntry>> {
+    // Decode only into an uncommitted import transaction. Existing history is immutable.
+    if !recipe.history.entries.is_empty() {
+        return Err(engine_api::EngineError::invalid(
+            "geometry import",
+            "existing history must not be rewritten",
+        ));
+    }
     let properties: BTreeMap<_, _> = properties
         .filter(|(key, _)| {
             key.starts_with("Upright")
@@ -47,7 +61,7 @@ pub fn apply<'a>(
         })
         .collect();
     if properties.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
     let mut upright = recipe.settings.geometry.upright.clone();
     let mut consumed = BTreeSet::new();
@@ -201,22 +215,6 @@ pub fn apply<'a>(
     if upright != recipe.settings.geometry.upright || lens != recipe.settings.lens {
         recipe.settings.geometry.upright = upright;
         recipe.settings.lens = lens;
-        // This codec is only invoked during import. Fold all decoded settings into
-        // the existing import transaction, preserving the original history base.
-        let base = recipe.history.base.clone();
-        recipe.history.entries.clear();
-        recipe.history.head = None;
-        recipe.history.record(
-            &base,
-            &recipe.settings,
-            EditMeta {
-                label: "Import Adobe develop".into(),
-                author: Author::Import {
-                    source: "lightroom".into(),
-                },
-                ..EditMeta::default()
-            },
-        )?;
     }
     for key in &consumed {
         recipe.unknown.remove(&format!("crs:{key}"));
@@ -224,40 +222,43 @@ pub fn apply<'a>(
             !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
         });
     }
+    let mut approximate = Vec::new();
     for key in &consumed {
-        let reason = if key.starts_with("ChromaticAberration") {
-            "legacy CA sign and radial units are unverified"
-        } else {
-            "Adobe row-major source-to-output matrix and normalized center/focal frame or guide convention are unverified"
-        };
-        let is_applied = match key.as_str() {
-            "ChromaticAberrationR" => recipe.settings.lens.legacy_ca_red.is_some(),
-            "ChromaticAberrationB" => recipe.settings.lens.legacy_ca_blue.is_some(),
-            _ => true,
-        };
-        if !is_applied {
-            if let Some(diagnostics) = recipe
-                .unknown
-                .get_mut("translation_diagnostics")
-                .and_then(|v| v.as_object_mut())
-            {
-                diagnostics.remove(key);
+        let (field, applied) = match key.as_str() {
+            "ChromaticAberrationR" => (
+                "/settings/lens/legacy_ca_red",
+                recipe.settings.lens.legacy_ca_red.is_some(),
+            ),
+            "ChromaticAberrationB" => (
+                "/settings/lens/legacy_ca_blue",
+                recipe.settings.lens.legacy_ca_blue.is_some(),
+            ),
+            _ if key.starts_with("UprightFourSegments") => {
+                ("/settings/geometry/upright/guides", true)
             }
-            continue;
-        }
-        recipe
-            .unknown
-            .entry("translation_diagnostics".into())
-            .or_insert_with(|| serde_json::json!({}))[key] =
-            serde_json::json!({"level":"info","message":format!("approximate: {reason}")});
-    }
-    if recipe
-        .unknown
-        .get("translation_diagnostics")
-        .and_then(|v| v.as_object())
-        .is_some_and(|v| v.is_empty())
-    {
-        recipe.unknown.remove("translation_diagnostics");
+            _ => ("/settings/geometry/upright/homography", true),
+        };
+        let reason = if !applied {
+            if recipe.process_version.revision >= 3
+                && properties[key.as_str()]
+                    .trim()
+                    .parse::<f32>()
+                    .is_ok_and(|v| v != 0.)
+            {
+                "ignored (PV2012+): legacy CA has no effect in this process version"
+            } else {
+                continue;
+            }
+        } else if key.starts_with("ChromaticAberration") {
+            "approximate: legacy CA sign and radial units are unverified"
+        } else {
+            "approximate: Adobe row-major source-to-output matrix and normalized center/focal frame or guide convention are unverified"
+        };
+        approximate.push(ApproximateEntry {
+            adobe_key: key.clone(),
+            field: field.into(),
+            reason: reason.into(),
+        });
     }
     if !consumed.is_empty() {
         warnings.retain(|w| !w.starts_with("legacy Adobe PV1/2:"));
@@ -267,5 +268,5 @@ pub fn apply<'a>(
             warnings.push(note);
         }
     }
-    Ok(())
+    Ok(approximate)
 }

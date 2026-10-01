@@ -9,7 +9,42 @@ type Import = dyn Fn(&str, &str) -> Result<(Recipe, Vec<String>), String>;
 
 /// The production synthetic import: one Lua row through `lua_develop::parse`.
 fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
-    lua_develop::parse(&format!("s = {{ {key} = {value} }}"), "15.4")
+    let context = if key.starts_with("UprightTransform_") {
+        format!(
+            "PerspectiveUpright = {},",
+            key.trim_start_matches("UprightTransform_")
+        )
+    } else if key.starts_with("UprightFourSegments") {
+        "PerspectiveUpright = 5, UprightFourSegmentsCount = 4, UprightFourSegments_0 = '0.1,0.1,0.2,0.9', UprightFourSegments_1 = '0.9,0.1,0.8,0.9', UprightFourSegments_2 = '0.1,0.1,0.9,0.2', UprightFourSegments_3 = '0.1,0.9,0.9,0.8',".into()
+    } else if key.starts_with("UprightCenter") || key.starts_with("UprightFocal") {
+        "PerspectiveUpright = 1, UprightTransform_1 = '0,-1,0,1,0,0,0,0,1',".into()
+    } else {
+        String::new()
+    };
+    // Replace the context value instead of creating duplicate Adobe properties.
+    let version = if key.starts_with("ChromaticAberration") {
+        "5.7"
+    } else {
+        "15.4"
+    };
+    let context = if key.starts_with("UprightFourSegments") {
+        let mut fields = vec![
+            ("PerspectiveUpright", "5"),
+            ("UprightFourSegmentsCount", "4"),
+            ("UprightFourSegments_0", "'0.1,0.1,0.2,0.9'"),
+            ("UprightFourSegments_1", "'0.9,0.1,0.8,0.9'"),
+            ("UprightFourSegments_2", "'0.1,0.1,0.9,0.2'"),
+            ("UprightFourSegments_3", "'0.1,0.9,0.9,0.8'"),
+        ];
+        fields.retain(|(k, _)| *k != key);
+        fields
+            .into_iter()
+            .map(|(k, v)| format!("{k} = {v},"))
+            .collect::<String>()
+    } else {
+        context
+    };
+    lua_develop::parse(&format!("s = {{ {context} {key} = {value} }}"), version)
         .map_err(|e| format!("{key}: {e}"))
 }
 

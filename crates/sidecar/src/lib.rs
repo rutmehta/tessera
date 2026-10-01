@@ -1,7 +1,7 @@
 //! XMP metadata sidecar synchronization.
 mod develop;
 mod geometry;
-pub use geometry::apply as apply_adobe_geometry;
+pub use geometry::{ApproximateEntry, apply as apply_adobe_geometry};
 mod export_policy;
 mod faces;
 mod store;

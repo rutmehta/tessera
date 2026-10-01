@@ -88,9 +88,15 @@ fn lr7d_ffi_mode_change_clears_saved_matrix() {
     let row = engine.list_images(ImageQuery::default()).unwrap().remove(0);
     let session = engine.open_develop_session(row.id).unwrap();
     session.set_settings(r#"{"geometry":{"upright":{"mode":"auto","homography_mode":"auto","homography":[[1,0,0],[0,1,0],[0.2,0,1]]}}}"#.into(), false).unwrap();
+    let before: serde_json::Value =
+        serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+    assert!(before["geometry"]["upright"]["homography"].is_array());
+    assert_eq!(before["geometry"]["upright"]["homography_mode"], "auto");
     session
         .set_settings(r#"{"geometry":{"upright":{"mode":"level"}}}"#.into(), false)
         .unwrap();
     let r: serde_json::Value = serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+    assert_eq!(r["geometry"]["upright"]["mode"], "level");
     assert!(r["geometry"]["upright"]["homography"].is_null());
+    assert!(r["geometry"]["upright"]["homography_mode"].is_null());
 }

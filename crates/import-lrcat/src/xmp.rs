@@ -24,6 +24,16 @@ struct Property<'a> {
 /// Compatibility diagnostics retain individual properties as well as the exact
 /// original packet, even when a legacy spelling needs normalization for decoding.
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
+    let (mut recipe, warnings) = parse_unrecorded(text, process_version)?;
+    crate::geometry::finish(&mut recipe)?;
+    recipe.validate()?;
+    Ok((recipe, warnings))
+}
+
+pub(crate) fn parse_unrecorded(
+    text: &str,
+    process_version: &str,
+) -> EngineResult<(Recipe, Vec<String>)> {
     let doc = Document::parse(text).map_err(|e| EngineError::Decode {
         format: "xmp".into(),
         message: e.to_string(),
@@ -31,7 +41,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     if doc.root_element().has_tag_name((RDF, "Description")) {
         // Catalog rows commonly store a bare Description, unlike sidecar files.
         let wrapped = format!("<rdf:RDF xmlns:rdf=\"{RDF}\">{text}</rdf:RDF>");
-        let (mut recipe, warnings) = parse(&wrapped, process_version)?;
+        let (mut recipe, warnings) = parse_unrecorded(&wrapped, process_version)?;
         recipe.unknown.insert("sidecar_xmp".into(), json!(text));
         return Ok((recipe, warnings));
     }
@@ -66,7 +76,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             });
         }
     }
-    let original = XmpPacket::parse(text)?.to_recipe()?;
+    let original = XmpPacket::parse(text)?.to_catalog_recipe()?;
     let verified_native = properties.iter().any(|p| {
         p.namespace == CRS && p.name == "ProcessVersion" && ProcessVersion::from_crs(p.raw).is_ok()
     }) && original
@@ -152,7 +162,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     let imported = if normalized == text {
         original
     } else {
-        XmpPacket::parse(normalized)?.to_recipe()?
+        XmpPacket::parse(normalized)?.to_catalog_recipe()?
     };
     let mut recipe = imported.recipe;
     let mut warnings = imported.warnings;
@@ -228,7 +238,6 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             .filter(|p| p.namespace == CRS)
             .map(|p| (p.name, p.raw)),
     )?;
-    recipe.validate()?;
     Ok((recipe, warnings))
 }
 

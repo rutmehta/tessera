@@ -155,6 +155,17 @@ impl XmpPacket {
     /// retained in `Recipe::unknown["sidecar_xmp"]` for lossless later export via
     /// `from_imported_recipe`.
     pub fn to_recipe(&self) -> EngineResult<ImportedRecipe> {
+        self.decode_recipe(true)
+    }
+
+    /// Decode ordinary CRS fields into an uncommitted catalog import transaction.
+    /// The catalog supplies its authoritative process version and geometry hooks,
+    /// then records history once, after all hooks have completed.
+    pub fn to_catalog_recipe(&self) -> EngineResult<ImportedRecipe> {
+        self.decode_recipe(false)
+    }
+
+    fn decode_recipe(&self, standalone: bool) -> EngineResult<ImportedRecipe> {
         let tree = Tree::parse(&self.xml)?;
         let mut recipe = Recipe {
             selection: self.selection()?,
@@ -181,16 +192,7 @@ impl XmpPacket {
         }
         let settings: DevelopSettings = serde_json::from_value(value["settings"].clone())?;
         recipe.process_version = serde_json::from_value(value["process_version"].clone())?;
-        recipe.edit(
-            EditMeta {
-                label: "Import XMP".into(),
-                author: Author::Import {
-                    source: "xmp".into(),
-                },
-                ..EditMeta::default()
-            },
-            |s| *s = settings,
-        )?;
+        recipe.settings = settings;
         recipe.ids.next_mask = recipe
             .settings
             .locals
@@ -220,18 +222,25 @@ impl XmpPacket {
                 }
             }
         }
-        if !source.is_empty() {
-            recipe.unknown.insert(
-                "lrcat_develop_source".into(),
-                json!({"shape":"xmp-fragments","properties":source}),
-            );
+        if standalone {
+            let decoded = crate::geometry::apply(
+                &mut recipe,
+                &mut warnings,
+                properties.iter().map(|(k, v)| (*k, v.as_str())),
+            )?;
+            if decoded
+                .iter()
+                .any(|entry| entry.reason.starts_with("approximate: "))
+                && !source.is_empty()
+            {
+                recipe.unknown.insert(
+                    "lrcat_develop_source".into(),
+                    json!({"shape":"xmp-fragments","properties":source}),
+                );
+            }
         }
-        crate::geometry::apply(
-            &mut recipe,
-            &mut warnings,
-            properties.iter().map(|(k, v)| (*k, v.as_str())),
-        )?;
-        if tree.value(PRIVATE, "ExportHash").as_deref() == Some(crs_hash(&tree)?.as_str())
+        if standalone
+            && tree.value(PRIVATE, "ExportHash").as_deref() == Some(crs_hash(&tree)?.as_str())
             && let Some(raw) = tree.value(PRIVATE, "GeometryLens")
         {
             let v: Value = serde_json::from_str(&raw)?;
@@ -240,11 +249,10 @@ impl XmpPacket {
                 serde_json::from_value(v["legacy_ca_red"].clone())?;
             recipe.settings.lens.legacy_ca_blue =
                 serde_json::from_value(v["legacy_ca_blue"].clone())?;
-            let base = recipe.history.base.clone();
-            recipe.history.entries.clear();
-            recipe.history.head = None;
+        }
+        if standalone {
             recipe.history.record(
-                &base,
+                &recipe.history.base.clone(),
                 &recipe.settings,
                 EditMeta {
                     label: "Import XMP".into(),
@@ -255,7 +263,9 @@ impl XmpPacket {
                 },
             )?;
         }
-        recipe.validate()?;
+        if standalone {
+            recipe.validate()?;
+        }
         Ok(ImportedRecipe { recipe, warnings })
     }
     /// Export a recipe imported from XMP without losing foreign properties.

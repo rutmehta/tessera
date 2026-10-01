@@ -68,9 +68,9 @@ fn lr7d_default_acr_packet_has_no_catalog_bucket() {
     let mut expected = recipe.clone();
     expected.unknown.remove("lrcat_develop_source");
     assert_eq!(recipe.to_json().unwrap(), expected.to_json().unwrap());
-    eprintln!(
-        "ACR default fingerprint {}",
-        blake3::hash(&expected.to_json().unwrap())
+    assert_eq!(
+        blake3::hash(&recipe.to_json().unwrap()).to_hex().as_str(),
+        "bd82c6ac0009c1f11342a8d837117c3c6f598591f43feb7096b1217d8cca0dbb"
     );
 }
 

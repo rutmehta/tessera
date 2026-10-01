@@ -1,8 +1,8 @@
-//! LR-SCHEMA: with no schema 4 feature registered, every imported recipe
-//! (bundled fixture and synthetic catalog) requires and writes schema 3.
+//! LR-SCHEMA: ordinary fixtures remain schema 3; imports using an LR-7
+//! feature require and write schema 4.
 mod common;
 
-use engine_api::recipe::{RECIPE_SCHEMA_VERSION, required_schema_version, v4_features_used};
+use engine_api::recipe::required_schema_version;
 
 #[test]
 fn imported_recipes_require_schema_3() {
@@ -13,13 +13,34 @@ fn imported_recipes_require_schema_3() {
     for catalog in [synthetic, fixture.catalog] {
         for image in import_lrcat::import(&catalog).unwrap().images {
             let recipe = &image.recipe;
-            assert_eq!(required_schema_version(recipe), RECIPE_SCHEMA_VERSION);
-            assert!(v4_features_used(recipe).is_empty(), "{:?}", image.path);
+            let feature = recipe.settings.geometry.upright.homography.is_some()
+                || recipe.settings.geometry.upright.homography_mode.is_some()
+                || recipe.settings.lens.legacy_ca_red.is_some()
+                || recipe.settings.lens.legacy_ca_blue.is_some();
+            let expected = if feature { 4 } else { 3 };
+            assert_eq!(required_schema_version(recipe), expected);
             let written: serde_json::Value =
                 serde_json::from_slice(&recipe.to_json().unwrap()).unwrap();
-            assert_eq!(written["schema_version"], 3);
+            assert_eq!(written["schema_version"], expected);
             seen += 1;
         }
     }
     assert!(seen > 300);
+}
+
+#[test]
+fn lr7d_synthetic_feature_imports_write_v4() {
+    for (row, version) in [
+        ("s = { ChromaticAberrationR = 35 }", "5.7"),
+        ("s = { ChromaticAberrationB = -25 }", "5.7"),
+        (
+            "s = { PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1' }",
+            "15.4",
+        ),
+    ] {
+        let (r, _) = import_lrcat::lua_develop::parse(row, version).unwrap();
+        assert_eq!(required_schema_version(&r), 4);
+        let value: serde_json::Value = serde_json::from_slice(&r.to_json().unwrap()).unwrap();
+        assert_eq!(value["schema_version"], 4);
+    }
 }

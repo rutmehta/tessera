@@ -32,8 +32,19 @@ pub const RECIPE_SCHEMA_VERSION_V4: u32 = 4;
 /// A named schema 4 feature test.
 pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 
-/// Every schema 4 feature, by diagnostic name. Empty until a lane lands one.
-const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[];
+/// Every schema 4 feature, by diagnostic name.
+const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
+    ("upright_homography", |r| {
+        r.settings.geometry.upright.homography.is_some()
+    }),
+    ("upright_homography_mode", |r| {
+        r.settings.geometry.upright.homography_mode.is_some()
+    }),
+    ("legacy_ca_red", |r| r.settings.lens.legacy_ca_red.is_some()),
+    ("legacy_ca_blue", |r| {
+        r.settings.lens.legacy_ca_blue.is_some()
+    }),
+];
 
 /// Lowest schema version that can represent `recipe` (3 or 4).
 pub fn required_schema_version(recipe: &Recipe) -> u32 {
