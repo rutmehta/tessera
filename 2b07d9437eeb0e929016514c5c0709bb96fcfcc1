@@ -1,0 +1,1 @@
+A22:29: main e558c5df ENG1a-h integrated; exact external batch36b all exits0 including24MPbench,915XCTest3skip0fail. Guard approved changed to off<=.02,on<=off+1e-4; original absolute .01 remains unmet and ENG4 open. Preserve historical failure; not full parity/performance claim. Combined-main gates verified. Mailbox unchanged, external builds active, PERF handoff pending.
