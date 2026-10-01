@@ -360,7 +360,8 @@ impl Engine {
         )?);
         let previews =
             previews::PreviewStore::new(Path::new(&app_support_dir).join("previews"), 512 << 20)
-                .map_err(failure)?;
+                .map_err(failure)?
+                .with_retouch_renderer(Arc::new(brush::render_retouch));
         Ok(Arc::new_cyclic(|this| Self {
             db,
             catalog: Mutex::new(Catalog { index, reader }),

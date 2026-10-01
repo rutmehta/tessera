@@ -272,13 +272,14 @@ pub const LOCAL_PARAMS: [&str; 16] = [
 
 // ─────────────────────────────── sanitizing ───────────────────────────────
 
-/// Local adjustments this pipeline draws, sanitized so a recipe cannot fail a
-/// render. Person, landscape and depth components (no model or depth plane
+/// Sanitize the local adjustment controls this pipeline draws.
+/// Person, landscape and depth components (no model or depth plane
 /// here) and defringe / colour overlay are kept in the recipe but not drawn;
-/// retouch operations are not drawn.
+/// retouch operations are preserved for the registered renderer, which reports
+/// unsupported operations explicitly.
 pub(crate) fn renderable_locals(s: &LocalsSettings) -> LocalsSettings {
     LocalsSettings {
-        retouch: Vec::new(),
+        retouch: s.retouch.clone(),
         adjustments: s.adjustments.iter().map(renderable_group).collect(),
     }
 }

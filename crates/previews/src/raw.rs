@@ -105,13 +105,14 @@ impl PreviewStore {
                     .div_ceil(max_px)
                     .max(1);
                 self.renders.fetch_add(1, Ordering::Relaxed);
-                pipeline_cpu::render_scaled(
+                pipeline_cpu::render_scaled_with_context(
                     &settings,
                     &pipeline_cpu::RenderSource::Cfa {
                         image: &cfa,
                         metadata: &metadata,
                     },
                     scale,
+                    &self.render_context(),
                 )?
             }
         };
@@ -152,6 +153,11 @@ impl PreviewStore {
         check: &dyn Fn() -> engine_api::EngineResult<()>,
     ) -> Result<PreviewKey> {
         check()?;
+        // A cached frame is not a substitute for the required render capability.
+        if !settings.locals.retouch.is_empty() {
+            pipeline_cpu::validate_settings_with_retouch(settings, self.retouch.as_deref())?;
+        }
+
         let revision = PreviewKey::for_source(path, max_px, 0, recipe_hash)?;
         if let Some((key, _)) = self.raw_alias(&revision) {
             check()?;
@@ -202,13 +208,14 @@ impl PreviewStore {
             .div_ceil(max_px)
             .max(1);
         self.renders.fetch_add(1, Ordering::Relaxed);
-        let img = pipeline_cpu::render_scaled(
+        let img = pipeline_cpu::render_scaled_with_context(
             settings,
             &pipeline_cpu::RenderSource::Cfa {
                 image: &cfa,
                 metadata: &metadata,
             },
             scale,
+            &self.render_context(),
         )?;
         self.put_image_cancellable(&key, &img, max_px, check)?;
         check()?;
@@ -242,8 +249,12 @@ impl PreviewStore {
         let pixels = rgb.pixels();
         let scale = pixels.width().max(pixels.height()).div_ceil(max_px).max(1);
         self.renders.fetch_add(1, Ordering::Relaxed);
-        let image =
-            pipeline_cpu::render_scaled(settings, &pipeline_cpu::RenderSource::Rgb(pixels), scale)?;
+        let image = pipeline_cpu::render_scaled_with_context(
+            settings,
+            &pipeline_cpu::RenderSource::Rgb(pixels),
+            scale,
+            &self.render_context(),
+        )?;
         self.put_image_cancellable(&key, &image, max_px, check)?;
         check()?;
         Ok(key)

@@ -232,6 +232,22 @@ fn render(path: &Path, recipe: &Recipe, edge: u32) -> Result<RgbImage> {
             ((h as f32 * s).round() as u32).max(1),
         );
         let source = linear_rec2020(&small)?;
+        if !recipe.settings.locals.retouch.is_empty() {
+            let raw = image_core::RawImage::from_rgb(
+                ImageId::default(),
+                image_core::RgbSource::from_linear_rec2020(source)?,
+            )?;
+            let renderer = fidelity_renderer(recipe);
+            let extent = raw.active_extent();
+            let tiles = renderer.render_region(
+                &raw,
+                &recipe.settings,
+                0,
+                image_core::PixelRect::full(extent),
+            )?;
+            return stitch(extent, &tiles);
+        }
+
         if adobe {
             return Ok(image_core::pipeline_adobe::render_scaled(
                 &recipe.settings,
@@ -259,11 +275,7 @@ fn render(path: &Path, recipe: &Recipe, edge: u32) -> Result<RgbImage> {
         level += 1;
     }
     let extent = raw.level_extent(level);
-    let renderer = image_core::Renderer::new(image_core::RendererConfig {
-        process_version: recipe.process_version,
-        ..Default::default()
-    })
-    .with_retouch_renderer(std::sync::Arc::new(brush::render_retouch));
+    let renderer = fidelity_renderer(recipe);
     let tiles = renderer.render_region(
         &raw,
         &recipe.settings,
@@ -271,6 +283,14 @@ fn render(path: &Path, recipe: &Recipe, edge: u32) -> Result<RgbImage> {
         image_core::PixelRect::full(extent),
     )?;
     Ok(orient(stitch(extent, &tiles)?, raw.metadata().orientation))
+}
+
+fn fidelity_renderer(recipe: &Recipe) -> image_core::Renderer {
+    image_core::Renderer::new(image_core::RendererConfig {
+        process_version: recipe.process_version,
+        ..Default::default()
+    })
+    .with_retouch_renderer(std::sync::Arc::new(brush::render_retouch))
 }
 
 fn linear_rec2020(rgb: &RgbImage) -> Result<pipeline_cpu::Image> {
@@ -436,6 +456,52 @@ pub(crate) fn delta_e_stats(a: &RgbImage, b: &RgbImage) -> (f32, f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jpeg_fidelity_renders_retouch_in_native_and_adobe_processes() {
+        use engine_api::{
+            id::RetouchId,
+            recipe::{
+                MaskComponent, MaskKind,
+                mask::{BrushStroke, RetouchKind, RetouchOperation, RetouchTarget},
+            },
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("synthetic.jpg");
+        RgbImage::from_fn(128, 80, |x, _| {
+            image::Rgb([if x >= 64 { 220 } else { 30 }; 3])
+        })
+        .save(&path)
+        .unwrap();
+        for process in [
+            engine_api::recipe::ProcessVersion::NATIVE_CURRENT,
+            engine_api::recipe::ProcessVersion::adobe(6),
+        ] {
+            let mut recipe = Recipe::new(ImageId::default());
+            recipe.process_version = process;
+            let baseline = render(&path, &recipe, 128).unwrap();
+            recipe.settings.locals.retouch.push(RetouchOperation {
+                id: RetouchId(1),
+                kind: RetouchKind::Clone {
+                    source_offset: [0.5, 0.0],
+                },
+                target: RetouchTarget::Area {
+                    components: vec![MaskComponent::new(MaskKind::Brush {
+                        strokes: vec![BrushStroke {
+                            points: vec![[0.25, 0.5, 1.0]],
+                            radius: 0.0625,
+                            ..Default::default()
+                        }],
+                    })],
+                },
+                opacity: 50.0,
+                feather: 0.0,
+                enabled: true,
+            });
+            let edited = render(&path, &recipe, 128).unwrap();
+            assert!(edited.get_pixel(32, 40)[0] > baseline.get_pixel(32, 40)[0] + 20);
+        }
+    }
 
     #[test]
     fn jpeg_fidelity_selects_recipe_process_version() {
