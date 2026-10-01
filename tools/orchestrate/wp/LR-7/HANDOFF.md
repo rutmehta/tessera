@@ -560,3 +560,90 @@ No dependency, Cargo.lock or board.json change. No push or remote write.
 The coordinator-owned untracked `LR-RULINGS-FROM-A.md` is left untouched.
 The remaining integration action is LR-2c's `global.lua` rebaseline and merged
 hook-order qualification after LR-2c actually lands.
+
+## LR-7e — ignored diagnostics and main fingerprint qualification (2026-10-01)
+
+Local-only continuation on `wp/LR-7-upright`, directly on `c7cac521`; no rebase.
+Tests: `d01167ab`; implementation: `41e65318`. The following `docs(LR-7e):`
+commit is the final lane HEAD. All three use the requested co-author trailer.
+
+- Shared `push_ignored(recipe, adobe_key, lane, reason)` stores an info-level
+  `ignored` entry with no `field` member. It shares the approximate writer's
+  append/dedupe/no-clobber implementation. The reader accepts absent fields;
+  existing approximate entries still serialize with their populated field.
+- Sidecar returns a typed `GeometryEntryKind::Ignored` for stale PV2012+ legacy
+  CA. The catalog adapter dispatches it to `push_ignored`; it no longer claims
+  the empty legacy CA field was populated. The matrix guard filters to
+  `status == "approximate"` and tests ignored notes in both row statuses.
+- The known schema fixtures contain zero LR-7 features: the test explicitly
+  expects version 3 for both required and serialized versions. Separate
+  feature-bearing synthetic imports still explicitly require version 4.
+- `crates/sidecar/UNMAPPED.md` now states that standalone XMP imports carry no
+  translation notes. Catalog imports alone persist the decoder's info data.
+- **Lua calls `apply` twice**: first through `xmp::parse_unrecorded` on the
+  generated packet, then after Lua source retention. This is harmless: the
+  assignments are idempotent, shared diagnostics dedupe identical entries,
+  and both calls precede the single `finish` history transaction. The existing
+  one-entry replay test passes. This pass documents rather than changes that
+  ordering.
+
+### Tests-first evidence
+
+Before production edits, the stale-CA regression failed with `approximate`
+instead of `ignored`, and the translated-row guard regression rejected an
+ignored entry. The ignored-only approximate-row negative control already passed
+(the approximate branch already checked status). The helper unit tests failed
+compilation because `push_ignored` did not yet exist. An initial test-only
+BTreeMap mutable-index error was corrected before observing behavioral failures.
+The literal schema assertion and both compatibility packets are additional
+coverage that already passed, not claimed newly failing regressions.
+After implementation, all 55 targeted diagnostics/import/matrix/schema tests
+passed, including ignored-entry dedupe, round-trip and foreign-shape protection.
+
+### Main versus tip: exact packet bytes
+
+Created the requested detached worktree at `/private/tmp/tessera-LR-7e-base`
+from **`ad93e333`**, with target directory
+`$HOME/.cache/tessera-target/LR-7e-base`. A temporary sidecar integration probe
+parsed each packet and serialized `Recipe::to_json()` on both base and LR-7e.
+Both pairs passed direct `cmp`, in addition to equal BLAKE3 fingerprints:
+
+| Packet | Bytes, base and tip | BLAKE3, base and tip |
+| --- | ---: | --- |
+| Original C1 packet (PV15.4, Upright Off, default center/focal keys) | 11075 | `bd82c6ac0009c1f11342a8d837117c3c6f598591f43feb7096b1217d8cca0dbb` |
+| Extended C1 packet | 11276 | `9b94b7dff899062b78c11e353b61aa95735145585db9a59e4396782c92c41de9` |
+
+The extended packet adds `UprightVersion="151388160"`,
+`UprightPreview="false"`, `UprightTransformCount="6"`,
+`UprightTransform_0="1,0,0,0,1,0,0,0,1"`, and
+`ChromaticAberrationR="0"` / `ChromaticAberrationB="0"`.
+Both exact packet literals and main-derived hashes are pinned in
+`crates/sidecar/tests/lr7e_acr_compat.rs`. These are serialized-recipe compatibility
+checks, not Adobe pixel-parity claims. There is no base-versus-tip byte diff.
+The temporary probes were removed, the detached worktree removed, and its
+external target directory cleaned (899 files / 256.2 MiB); both paths were
+verified absent.
+
+### Final LR-7e gates
+
+Environment: `PATH="$HOME/.cargo/bin:$PATH"`,
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-7-upright`,
+`CARGO_BUILD_JOBS=3`, `RAYON_NUM_THREADS=3`.
+Before the final gate, `cargo clean -p import-lrcat -p sidecar -p engine-api`
+removed 10,369 files / 2.1 GiB. No production changes followed the gate.
+
+| Command | Result |
+| --- | --- |
+| `cargo test --locked --release -p import-lrcat -p engine-api -p sidecar -p merge -p tessera-ffi -- --test-threads=3` | **PASS**, exit 0; **918 passed, 0 failed, 30 ignored**, 121 target summaries; clean build 8m 13s |
+| `cargo clippy --locked -p import-lrcat -p engine-api -p sidecar -p merge -p tessera-ffi --all-targets -- -D warnings` | **PASS**, exit 0; 40.48s |
+| `cargo fmt --all -- --check` and `git diff --check` | **PASS**, exit 0 |
+
+The 30 ignores are existing opt-in benchmark, exclusive fixture/runtime and
+real-catalog acceptance tests; no test filter or threshold was added or changed.
+Both release synthetic scale tests (`streaming_import_memory_is_flat_and_time_bounded`
+and `ffi_streaming_memory_is_bounded`) passed. Existing libraw C `sprintf`
+deprecation warnings appeared during compilation; Rust clippy passed with
+warnings denied. No Swift changes, so no Swift gate/build was required.
+No app launch, no real user catalog access, no remote write, and no Cargo.lock or
+board.json changes. The untracked coordinator-owned `LR-RULINGS-FROM-A.md` remains
+untouched. The worktree and target created solely for base comparison were removed.

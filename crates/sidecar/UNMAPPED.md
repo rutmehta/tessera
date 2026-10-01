@@ -60,7 +60,11 @@ Standalone XMP and catalog imports share the geometry decoder. Selected
 fragment is in `unknown.lrcat_develop_source.properties` when geometry was decoded.
 The decoder returns per-key info data; the catalog adapter calls the shared
 `import_lrcat::diagnostics::push_approximate` helper with reasons beginning
-`approximate: `. Sidecar writes no diagnostics bucket. These mappings produce zero user-facing warnings. Invalid inputs
+`approximate: `. Stale PV2012+ legacy CA uses `push_ignored`, with status
+`ignored` and no populated-field claim. **Standalone XMP imports carry no
+translation notes**: sidecar discards the decoder's per-key info data and writes
+no diagnostics bucket. Only catalog imports persist those notes through the
+shared diagnostics API. These mappings produce zero user-facing warnings. Invalid inputs
 still receive warnings and remain retained. Zero CA and stale PV2012+ CA values
 remain source-only and add no history edit.
 
