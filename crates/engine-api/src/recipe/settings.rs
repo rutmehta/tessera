@@ -733,6 +733,32 @@ pub enum DisplayTransform {
     AdobePv6Compat,
 }
 
+/// Original PV2003/PV2010 controls; missing members have no effect.
+/// Exposure is EV. Other operators are independent documented approximations
+/// (see pipeline-cpu/LEGACY_PV2010.md), never PV2012 slider conversions.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LegacyPv2010 {
+    /// Original exposure value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exposure: Option<f32>,
+    /// Original brightness value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brightness: Option<f32>,
+    /// Original contrast value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contrast: Option<f32>,
+    /// Original fill_light value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_light: Option<f32>,
+    /// Original recovery value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<f32>,
+    /// Original blacks value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blacks: Option<f32>,
+}
+
 /// Global tone.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -757,6 +783,12 @@ pub struct ToneSettings {
     pub dehaze: f32,
     /// Curves.
     pub curves: ToneCurves,
+    /// Legacy process branch. Absent means no legacy processing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_pv2010: Option<LegacyPv2010>,
+    /// HDR curves, replacing `curves` when present; knots may exceed 0..1.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub curves_extended: Option<ToneCurves>,
     /// Display transform.
     pub display_transform: DisplayTransform,
 }

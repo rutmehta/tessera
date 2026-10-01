@@ -526,7 +526,7 @@ impl StageOp for GpuStageOp {
             // Presence-only edits do not need a second upload/dispatch/map of
             // every pixel merely to evaluate the default identity curves.
             // Curve validation above is intentionally not bypassed.
-            if s.curves == Default::default() {
+            if s.curves == Default::default() && s.curves_extended.is_none() {
                 return Ok(filtered);
             }
             let curves = engine_api::recipe::settings::ToneSettings {

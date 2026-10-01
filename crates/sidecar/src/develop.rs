@@ -136,6 +136,37 @@ impl XmpPacket {
                 }))?,
             );
         }
+        let mono_keys = [
+            "ConvertToGrayscale",
+            "GrayMixerRed",
+            "GrayMixerOrange",
+            "GrayMixerYellow",
+            "GrayMixerGreen",
+            "GrayMixerAqua",
+            "GrayMixerBlue",
+            "GrayMixerPurple",
+            "GrayMixerMagenta",
+        ];
+        if recipe.settings.color.monochrome != imported.recipe.settings.color.monochrome {
+            for key in mono_keys {
+                owned.push((CRS, key));
+            }
+            if let Some(gray) = &recipe.settings.color.monochrome {
+                body += &text(
+                    "crs:ConvertToGrayscale",
+                    if gray.enabled { "True" } else { "False" },
+                );
+                let b = &gray.mixer;
+                for (key, amount) in mono_keys[1..].iter().zip([
+                    b.red, b.orange, b.yellow, b.green, b.aqua, b.blue, b.purple, b.magenta,
+                ]) {
+                    if !amount.is_finite() || !(-100. ..=100.).contains(&amount) {
+                        return Err(error("monochrome mixer range"));
+                    }
+                    body += &text(&format!("crs:{key}"), &amount.to_string());
+                }
+            }
+        }
         // Refresh the companion after all CRS edits, including retained opaque data.
         owned.push((PRIVATE, "LensProfileSource"));
         body += &text(
@@ -189,6 +220,59 @@ impl XmpPacket {
             if let Err(e) = decode(key, &tree, &mut value) {
                 warnings.push(format!("{key}: {e}; retained in original XMP"));
             }
+        }
+        let mut gray = engine_api::recipe::settings::MonochromeSettings::default();
+        let mut has_gray = false;
+        if let Some(raw) = tree.value(CRS, "ConvertToGrayscale") {
+            match bool_value(&raw) {
+                Ok(enabled) => {
+                    gray.enabled = enabled;
+                    has_gray = true;
+                }
+                Err(e) => warnings.push(format!(
+                    "crs:ConvertToGrayscale: {e}; retained in original XMP"
+                )),
+            }
+        }
+        for (key, target) in [
+            "GrayMixerRed",
+            "GrayMixerOrange",
+            "GrayMixerYellow",
+            "GrayMixerGreen",
+            "GrayMixerAqua",
+            "GrayMixerBlue",
+            "GrayMixerPurple",
+            "GrayMixerMagenta",
+        ]
+        .into_iter()
+        .zip([
+            &mut gray.mixer.red,
+            &mut gray.mixer.orange,
+            &mut gray.mixer.yellow,
+            &mut gray.mixer.green,
+            &mut gray.mixer.aqua,
+            &mut gray.mixer.blue,
+            &mut gray.mixer.purple,
+            &mut gray.mixer.magenta,
+        ]) {
+            if let Some(raw) = tree.value(CRS, key) {
+                match raw
+                    .parse::<f32>()
+                    .ok()
+                    .filter(|v| v.is_finite() && (-100. ..=100.).contains(v))
+                {
+                    Some(v) => {
+                        *target = v;
+                        has_gray = true;
+                    }
+                    None => warnings.push(format!(
+                        "crs:{key}: invalid mixer amount; retained in original XMP"
+                    )),
+                }
+            }
+        }
+        if has_gray {
+            value["settings"]["color"]["monochrome"] = serde_json::to_value(gray)?;
         }
         let settings: DevelopSettings = serde_json::from_value(value["settings"].clone())?;
         recipe.process_version = serde_json::from_value(value["process_version"].clone())?;

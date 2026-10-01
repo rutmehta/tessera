@@ -44,7 +44,15 @@ pub fn render_linear_scaled_with_profile(
     // Profile names are identities, not paths. See ADOBE_COMPAT.md for resolution.
     checked.camera_profile.profile = Default::default();
     pipeline_cpu::validate_settings(&checked)?;
-    crate::curves::validate(&settings.tone.curves)?;
+    let curves = settings
+        .tone
+        .curves_extended
+        .as_ref()
+        .unwrap_or(&settings.tone.curves);
+    crate::curves::validate_domain(curves, settings.tone.curves_extended.is_some())?;
+    if let Some(legacy) = &settings.tone.legacy_pv2010 {
+        pipeline_cpu::legacy_pv2010::validate(legacy)?;
+    }
     let values = [
         &settings.tone.exposure,
         &settings.tone.contrast,
@@ -148,8 +156,9 @@ pub fn render_linear_scaled_with_profile(
     let mut extra = settings.tone.clone();
     // Native guided local-contrast/dehaze and parametric curve are documented
     // approximations. Point curves must not run again on the native log axis.
+    extra.curves_extended = None;
     extra.curves = Default::default();
-    extra.curves.parametric = settings.tone.curves.parametric.clone();
+    extra.curves.parametric = curves.parametric.clone();
     rgb = pipeline_cpu::tone_extra_image(&rgb, &extra)?;
     let to_pro = WorkingSpace::LinearRec2020
         .conversion_to(WorkingSpace::LinearProPhoto, ChromaticAdaptation::Bradford)?;
@@ -159,11 +168,17 @@ pub fn render_linear_scaled_with_profile(
         pipeline_cpu::apply_matrix(&mut tile, to_pro)?;
         pipeline_cpu::map_rgb(&mut tile, |p| {
             let p = if profile.is_none() {
-                p.map(crate::curves::default_tone)
+                p.map(|x| {
+                    if settings.tone.curves_extended.is_some() && !(0. ..=1.).contains(&x) {
+                        x
+                    } else {
+                        crate::curves::default_tone(x)
+                    }
+                })
             } else {
                 p
             };
-            crate::curves::apply(p, &settings.tone.curves)
+            crate::curves::apply_domain(p, curves, settings.tone.curves_extended.is_some())
         })?;
         pipeline_cpu::apply_matrix(&mut tile, from_pro)?;
         rgb.put(&tile)?;

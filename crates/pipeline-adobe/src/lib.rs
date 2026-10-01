@@ -1,4 +1,4 @@
-//! Independent, approximate Adobe PV3–PV6 rendering. See ADOBE_COMPAT.md.
+//! Independent, approximate Adobe PV1–PV6 rendering. See ADOBE_COMPAT.md.
 pub mod curves;
 pub mod dcp;
 pub mod fidelity;
@@ -12,6 +12,11 @@ pub use render::{
 
 /// Scene-linear basic tone operator, before profile/user curves.
 pub fn basic_tone(rgb: [f32; 3], s: &ToneSettings) -> [f32; 3] {
+    let rgb = if let Some(legacy) = &s.legacy_pv2010 {
+        pipeline_cpu::legacy_pv2010::apply(rgb, legacy)
+    } else {
+        rgb
+    };
     let rgb = rgb.map(|v| v * s.exposure.clamp(-10., 10.).exp2());
     let y = luminance(rgb);
     if y <= 0. {

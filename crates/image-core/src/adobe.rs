@@ -12,7 +12,7 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
-/// Adobe PV3–6 approximations. No resident transaction crosses this wrapper:
+/// Adobe PV1–6 approximations. No resident transaction crosses this wrapper:
 /// GPU native stages return host tiles before compatibility CPU work begins.
 pub struct AdobeStageOp {
     native: Arc<dyn StageOp>,
@@ -109,6 +109,9 @@ impl StageOp for AdobeStageOp {
         ) {
             self.count(stage);
             if let Op::Tone(s) = op {
+                if let Some(legacy) = &s.legacy_pv2010 {
+                    pipeline_cpu::legacy_pv2010::validate(legacy)?;
+                }
                 pipeline_cpu::map_rgb(&mut input, |p| pipeline_adobe::basic_tone(p, s))?;
                 return Ok(input);
             }
@@ -143,9 +146,12 @@ impl StageOp for AdobeStageOp {
         match op {
             Op::ToneExtra(s) => {
                 self.count(stage);
+                let curves = s.curves_extended.as_ref().unwrap_or(&s.curves);
+                pipeline_adobe::curves::validate_domain(curves, s.curves_extended.is_some())?;
                 let mut extra = (*s).clone();
+                extra.curves_extended = None;
                 extra.curves = Default::default();
-                extra.curves.parametric = s.curves.parametric.clone();
+                extra.curves.parametric = curves.parametric.clone();
                 let mut output = pipeline_cpu::tone_extra_image(&input, &extra)?;
                 let to_pro = WorkingSpace::LinearRec2020
                     .conversion_to(WorkingSpace::LinearProPhoto, ChromaticAdaptation::Bradford)?;
@@ -155,13 +161,20 @@ impl StageOp for AdobeStageOp {
                     let mut tile = output.tile(coord, 0, 1)?;
                     pipeline_cpu::apply_matrix(&mut tile, to_pro)?;
                     pipeline_cpu::map_rgb(&mut tile, |p| {
-                        pipeline_adobe::curves::apply(
+                        pipeline_adobe::curves::apply_domain(
                             if self.profile.is_none() {
-                                p.map(pipeline_adobe::curves::default_tone)
+                                p.map(|x| {
+                                    if s.curves_extended.is_some() && !(0. ..=1.).contains(&x) {
+                                        x
+                                    } else {
+                                        pipeline_adobe::curves::default_tone(x)
+                                    }
+                                })
                             } else {
                                 p
                             },
-                            &s.curves,
+                            curves,
+                            s.curves_extended.is_some(),
                         )
                     })?;
                     pipeline_cpu::apply_matrix(&mut tile, from_pro)?;

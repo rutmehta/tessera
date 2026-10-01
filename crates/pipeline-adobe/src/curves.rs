@@ -25,6 +25,10 @@ pub fn default_tone(x: f32) -> f32 {
 }
 
 pub fn apply(rgb: [f32; 3], curves: &ToneCurves) -> [f32; 3] {
+    apply_domain(rgb, curves, false)
+}
+/// Signed power encoding extends the existing Adobe approximation to HDR knots.
+pub fn apply_domain(rgb: [f32; 3], curves: &ToneCurves, extended: bool) -> [f32; 3] {
     if [
         &curves.rgb,
         &curves.red,
@@ -37,18 +41,38 @@ pub fn apply(rgb: [f32; 3], curves: &ToneCurves) -> [f32; 3] {
     {
         return rgb;
     }
+    let encode = |v: f32| {
+        if extended {
+            v.signum() * v.abs().powf(1. / 2.2)
+        } else {
+            v.max(0.).powf(1. / 2.2)
+        }
+    };
+    let decode = |v: f32| {
+        if extended {
+            v.signum() * v.abs().powf(2.2)
+        } else {
+            v.max(0.).powf(2.2)
+        }
+    };
+    let evaluate_extended = |x: f32, c: &Curve| {
+        if extended && !c.is_identity() && c.0.first().is_some_and(|p| x < p.x) {
+            c.0[0].y + x - c.0[0].x
+        } else {
+            evaluate(x, c)
+        }
+    };
     let channels = [&curves.red, &curves.green, &curves.blue];
     let mut out = std::array::from_fn(|i| {
-        let x = rgb[i].max(0.).powf(1. / 2.2);
-        evaluate(evaluate(x, &curves.rgb), channels[i])
-            .max(0.)
-            .powf(2.2)
+        let x = encode(rgb[i]);
+        decode(evaluate_extended(
+            evaluate_extended(x, &curves.rgb),
+            channels[i],
+        ))
     });
     let y = crate::luminance(out);
-    if y > 0. && !curves.luminance.is_identity() {
-        let mapped = evaluate(y.powf(1. / 2.2), &curves.luminance)
-            .max(0.)
-            .powf(2.2);
+    if (y > 0. || (extended && y < 0.)) && !curves.luminance.is_identity() {
+        let mapped = decode(evaluate_extended(encode(y), &curves.luminance));
         out = out.map(|v| v * mapped / y);
     }
     out
@@ -91,6 +115,9 @@ fn evaluate(x: f32, curve: &Curve) -> f32 {
     v.clamp(p[j].y.min(p[j + 1].y), p[j].y.max(p[j + 1].y))
 }
 pub fn validate(curves: &ToneCurves) -> EngineResult<()> {
+    validate_domain(curves, false)
+}
+pub fn validate_domain(curves: &ToneCurves, extended: bool) -> EngineResult<()> {
     for curve in [
         &curves.rgb,
         &curves.red,
@@ -102,10 +129,12 @@ pub fn validate(curves: &ToneCurves) -> EngineResult<()> {
             || curve.0.iter().any(|p| {
                 !p.x.is_finite()
                     || !p.y.is_finite()
-                    || !(0. ..=1.).contains(&p.x)
-                    || !(0. ..=1.).contains(&p.y)
+                    || (!extended && (!(0. ..=1.).contains(&p.x) || !(0. ..=1.).contains(&p.y)))
             })
-            || curve.0.windows(2).any(|p| p[0].x >= p[1].x)
+            || curve
+                .0
+                .windows(2)
+                .any(|p| p[0].x >= p[1].x || (extended && p[0].y > p[1].y))
         {
             return Err(EngineError::invalid(
                 "curve",

@@ -421,6 +421,7 @@ pub fn has_m2_settings(s: &DevelopSettings) -> bool {
         || s.tone.clarity != 0.0
         || s.tone.dehaze != 0.0
         || s.tone.curves != Default::default()
+        || s.tone.curves_extended.is_some()
 }
 
 /// Reject changed out-of-scope controls instead of silently ignoring them.
@@ -455,6 +456,7 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.color.saturation = s.color.saturation;
     supported.color.hsl = s.color.hsl.clone();
     supported.color.grading = s.color.grading.clone();
+    supported.color.monochrome = s.color.monochrome.clone();
     supported.effects.vignette = s.effects.vignette.clone();
     supported.effects.grain = s.effects.grain.clone();
     supported.geometry = s.geometry.clone();

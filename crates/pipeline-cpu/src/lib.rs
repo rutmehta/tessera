@@ -74,6 +74,10 @@ pub fn map_rgb(tile: &mut Tile, mut op: impl FnMut([f32; 3]) -> [f32; 3]) -> Eng
 
 /// Scene-linear exposure and monotone, luminance-only tonal adjustments.
 pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
+    if let Some(legacy) = &settings.legacy_pv2010 {
+        legacy_pv2010::validate(legacy)?;
+        map_rgb(tile, |rgb| legacy_pv2010::apply(rgb, legacy))?;
+    }
     let values = [
         settings.exposure,
         settings.contrast,
@@ -128,3 +132,6 @@ pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
 fn luminance(rgb: [f32; 3]) -> f32 {
     0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]
 }
+
+/// Dedicated legacy process reference operators.
+pub mod legacy_pv2010;

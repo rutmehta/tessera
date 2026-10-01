@@ -25,8 +25,8 @@
 //!
 //! The extended-range (HDR) tone curve (`ExtendedToneCurvePV2012` and its
 //! Red/Green/Blue/Name siblings) is retained by the adapter. The additive LR-2
-//! pass then translates renderable 0..255 curves and removes their pending source;
-//! genuinely extended-domain/invalid curves keep the named limitation and source.
+//! pass translates SDR and HDR curves and removes their pending source;
+//! malformed/nonmonotone curves keep the named limitation and source.
 use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
@@ -284,10 +284,8 @@ pub const KEY_MAP: &[(&str, &str)] = &[
     ("Version", "Version"),
 ];
 
-/// The extended-range (HDR) tone curve keys. Tessera's recipe has no extended
-/// curve (engine_api `ToneCurves` holds rgb/red/green/blue/luminance over
-/// 0..=1 only, and `CrsKey` has no `ExtendedToneCurve*`), so they are a named
-/// limitation rather than mapped onto the standard curves.
+/// Extended-range curve keys retained here for the additive LR-2 translator.
+/// The shared CRS table has no HDR domain; `lr2` selects the recipe block.
 pub const EXTENDED_TONE_CURVE_KEYS: &[&str] = &[
     "ExtendedToneCurveName2012",
     "ExtendedToneCurvePV2012",
@@ -296,8 +294,8 @@ pub const EXTENDED_TONE_CURVE_KEYS: &[&str] = &[
     "ExtendedToneCurvePV2012Blue",
 ];
 
-/// The one warning emitted for an image with non-identity extended tone curves.
-pub const EXTENDED_TONE_CURVE_NOTE: &str = "ExtendedToneCurvePV2012 (+Red/Green/Blue): extended-range (HDR) tone curves are not supported by Tessera; not applied, source preserved";
+/// Provisional warning removed by LR-2 after successful curve translation.
+pub const EXTENDED_TONE_CURVE_NOTE: &str = "ExtendedToneCurvePV2012 (+Red/Green/Blue): malformed or nonmonotone tone curve; not applied, source preserved";
 
 /// A table key: an identifier or `["string"]` (both are string keys in Lua),
 /// or `[number]`.

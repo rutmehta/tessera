@@ -322,3 +322,104 @@ fn lr2b_monochrome_gpu_matches_cpu() {
     s.grading.highlights.saturation = 10.;
     compare(StageId::Color, Op::Color(&s), tile(3, 2));
 }
+
+#[test]
+fn lr2b_hdr_curves_match_cpu_and_legacy_is_guarded() {
+    use engine_api::recipe::settings::{Curve, CurvePoint, LegacyPv2010, ToneCurves, ToneSettings};
+    let curve = Curve(vec![
+        CurvePoint { x: -1., y: -0.5 },
+        CurvePoint { x: 0., y: 0. },
+        CurvePoint { x: 1., y: 1.3 },
+        CurvePoint { x: 2., y: 2.3 },
+    ]);
+    for channel in 0..5 {
+        let mut curves = ToneCurves::default();
+        *match channel {
+            0 => &mut curves.rgb,
+            1 => &mut curves.red,
+            2 => &mut curves.green,
+            3 => &mut curves.blue,
+            _ => &mut curves.luminance,
+        } = curve.clone();
+        let s = ToneSettings {
+            curves_extended: Some(curves),
+            ..Default::default()
+        };
+        compare(StageId::Tone, Op::ToneExtra(&s), tile(3, 2));
+        let mut negative = tile(3, 0);
+        for v in negative.samples_mut::<f32>().unwrap() {
+            *v = -v.abs();
+        }
+        compare(StageId::Tone, Op::ToneExtra(&s), negative);
+    }
+    let s = ToneSettings {
+        legacy_pv2010: Some(LegacyPv2010 {
+            exposure: Some(1.),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    assert!(gpu().run(StageId::Tone, &Op::Tone(&s), tile(3, 0)).is_err());
+    use engine_api::jobs::CancellationToken;
+    assert!(
+        gpu()
+            .run_chain_batch(
+                &[(StageId::Tone, Op::Tone(&s))],
+                vec![tile(3, 0)],
+                &CancellationToken::new()
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn lr2b_fused_hdr_monochrome_matches_cpu() {
+    use engine_api::{
+        jobs::CancellationToken,
+        recipe::settings::{
+            ColorSettings, Curve, CurvePoint, HueBands, MonochromeSettings, ToneCurves,
+            ToneSettings,
+        },
+    };
+    let tone = ToneSettings {
+        curves_extended: Some(ToneCurves {
+            rgb: Curve(vec![
+                CurvePoint { x: 0., y: 0. },
+                CurvePoint { x: 2., y: 2.3 },
+            ]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let color = ColorSettings {
+        monochrome: Some(MonochromeSettings {
+            enabled: true,
+            mixer: HueBands {
+                red: 60.,
+                blue: -30.,
+                ..Default::default()
+            },
+        }),
+        ..Default::default()
+    };
+    let chain = [
+        (StageId::Tone, Op::Tone(&tone)),
+        (StageId::Tone, Op::ToneExtra(&tone)),
+        (StageId::Color, Op::Color(&color)),
+    ];
+    let input = vec![tile(3, 0)];
+    let expected = CpuStageOp
+        .run_chain_batch(&chain, input.clone(), &CancellationToken::new())
+        .unwrap();
+    let actual = gpu()
+        .run_chain_batch(&chain, input, &CancellationToken::new())
+        .unwrap();
+    let error = expected[0]
+        .samples::<f32>()
+        .unwrap()
+        .iter()
+        .zip(actual[0].samples::<f32>().unwrap())
+        .map(|(a, b)| (a - b).abs())
+        .fold(0f32, f32::max);
+    assert!(error <= 1e-4, "{error}");
+}

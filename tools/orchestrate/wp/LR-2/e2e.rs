@@ -19,7 +19,11 @@ fn main() {
         "GrayMixerRed",
         "ExtendedToneCurvePV2012",
     ] {
-        assert!(r.unknown["lrcat_develop_source"]["properties"][key].is_null());
+        assert!(
+            r.unknown
+                .get("lrcat_develop_source")
+                .is_none_or(|source| source["properties"][key].is_null())
+        );
     }
     let mut max_error = 0f32;
     for (rgb, expected) in [
@@ -100,4 +104,52 @@ fn main() {
         "synthetic extended curves: 4 catalog imports / 12 channels, maximum absolute error={curve_error:.9}, tolerance=0.000002"
     );
     assert!(curve_error < 2e-6);
+
+    // LR-2b: both optional blocks travel through a synthetic SQLite import,
+    // history round-trip and the CPU operators. No real catalog or RAW input.
+    for (row, input, expected) in [
+        (
+            "s={Exposure=1,Brightness=100,AutoToneDigest='cache'}",
+            0.125,
+            0.4,
+        ),
+        (
+            "s={ExtendedToneCurvePV2012={0,0,510,765}}",
+            7.5555556,
+            50.53086419753086,
+        ),
+    ] {
+        let c = rusqlite::Connection::open(&f.catalog).unwrap();
+        c.execute(
+            "UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='5.7' WHERE image=30",
+            [row],
+        )
+        .unwrap();
+        drop(c);
+        let plan = import_lrcat::import(&f.catalog).unwrap();
+        let r = &plan
+            .images
+            .iter()
+            .find(|i| i.catalog_id == 30)
+            .unwrap()
+            .recipe;
+        let back = engine_api::recipe::Recipe::from_json(&r.to_json().unwrap()).unwrap();
+        assert_eq!(back.settings, r.settings);
+        let mut t = Tile::from_samples(
+            TileCoord::new(0, 0, 0),
+            TileLayout {
+                extent: Extent::new(1, 1),
+                halo: 0,
+                channels: 3,
+            },
+            vec![input; 3],
+        )
+        .unwrap();
+        pipeline_cpu::tone(&mut t, &r.settings.tone).unwrap();
+        pipeline_cpu::tone_extra(&mut t, &r.settings.tone).unwrap();
+        let error = (t.samples::<f32>().unwrap()[0] - expected).abs();
+        assert!(error < 0.0001, "{row}: {error}");
+        assert!(!plan.report.iter().any(|v| v.contains("AutoToneDigest")));
+        println!("LR-2b synthetic field import/render: {row}; max absolute error={error:.9}");
+    }
 }

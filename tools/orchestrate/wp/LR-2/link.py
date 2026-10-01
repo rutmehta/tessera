@@ -24,23 +24,30 @@ def externs(names):
     return result
 
 
-link = ["-L", f"dependency={target / 'debug/deps'}"]
+link = ["-L", f"dependency={target / 'debug/deps'}", "-L", f"dependency={target}"]
 if mode == "compat":
     baseline = target / "lr2-baseline-source"
     baseline.mkdir(exist_ok=True)
     archive = subprocess.run(
-        ["git", "archive", "87ff1ff1", "crates/import-lrcat/src"],
+        ["git", "archive", "26e5cb8a", "crates/import-lrcat/src", "crates/sidecar/src"],
         check=True, capture_output=True,
     ).stdout
     subprocess.run(["tar", "-x", "-C", str(baseline)], input=archive, check=True)
+    sidecar = target / "libsidecar_baseline.rlib"
+    subprocess.run([
+        "rustc", "--edition=2024", "--crate-type", "rlib", "--crate-name",
+        "sidecar_baseline", str(baseline / "crates/sidecar/src/lib.rs"),
+        *link, *externs(["engine_api", "serde", "serde_json", "quick_xml", "blake3"]),
+        "-o", str(sidecar),
+    ], check=True)
     output = target / "libimport_lrcat_baseline.rlib"
     subprocess.run([
         "rustc", "--edition=2024", "--crate-type", "rlib", "--crate-name",
         "import_lrcat_baseline", str(baseline / "crates/import-lrcat/src/lib.rs"),
-        *link, *externs(["library", "engine_api", "sidecar", "rusqlite", "serde",
-                        "serde_json", "tempfile", "roxmltree"]), "-o", str(output),
+        *link, *externs(["library", "engine_api", "rusqlite", "serde",
+                        "serde_json", "tempfile", "roxmltree"]), "--extern", f"sidecar={sidecar}", "-o", str(output),
     ], check=True)
-    args = [*externs(["import_lrcat"]), "--extern", f"import_lrcat_baseline={output}"]
+    args = [*externs(["import_lrcat", "engine_api", "serde_json", "rusqlite", "tempfile"]), "--extern", f"import_lrcat_baseline={output}"]
 elif mode == "e2e":
     args = externs(["engine_api", "import_lrcat", "pipeline_cpu", "rusqlite", "tempfile"])
 else:

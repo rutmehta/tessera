@@ -86,7 +86,11 @@ fn metadata_and_unrepresentable_curves_are_explicit_and_lossless() {
         "ExtendedToneCurvePV2012",
     ] {
         assert!(!r.unknown["lrcat_develop_source"]["properties"][key].is_null());
-        assert!(w.iter().any(|s| s.contains(key)), "{w:?}");
+        assert_eq!(
+            w.iter().any(|s| s.contains(key)),
+            !key.starts_with("AutoToneDigest"),
+            "{w:?}"
+        );
     }
     assert!(r.settings.tone.curves.rgb.0.is_empty());
 }
@@ -130,7 +134,11 @@ fn xmp_and_lua_lr2_settings_match() {
         serde_json::to_value(&xmp.settings).unwrap()["tone"]["legacy_pv2010"]["exposure"],
         1.
     );
-    assert!(xmp.unknown["lrcat_develop_source"]["properties"]["GrayMixerBlue"].is_null());
+    assert!(
+        xmp.unknown
+            .get("lrcat_develop_source")
+            .is_none_or(|source| source["properties"]["GrayMixerBlue"].is_null())
+    );
 }
 
 #[test]
@@ -202,7 +210,35 @@ fn lr2b_digest_is_retained_but_not_a_user_warning() {
     .unwrap();
     assert_eq!(
         r.unknown["lrcat_develop_source"]["properties"]["AutoToneDigest"],
-        "\"opaque\""
+        "'opaque'"
     );
     assert!(!w.iter().any(|v| v.contains("AutoToneDigest")), "{w:?}");
+}
+
+#[test]
+fn lr2b_hdr_channel_precedence_and_signed_knots_match_xmp() {
+    let (lua, _) = parse("s={ToneCurvePV2012Red={0,0,255,200},ExtendedToneCurvePV2012Red={-255,-128,510,600},ExtendedToneCurvePV2012Blue={0,0,255,220}}","15.4").unwrap();
+    let (xmp,_) = import_lrcat::xmp::parse(r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"><crs:ToneCurvePV2012Red><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,200</rdf:li></rdf:Seq></crs:ToneCurvePV2012Red><crs:ExtendedToneCurvePV2012Red><rdf:Seq><rdf:li>-255,-128</rdf:li><rdf:li>510,600</rdf:li></rdf:Seq></crs:ExtendedToneCurvePV2012Red><crs:ExtendedToneCurvePV2012Blue><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,220</rdf:li></rdf:Seq></crs:ExtendedToneCurvePV2012Blue></rdf:Description></rdf:RDF>"#,"15.4").unwrap();
+    assert_eq!(lua.settings, xmp.settings);
+    let extended = lua.settings.tone.curves_extended.as_ref().unwrap();
+    assert_eq!(extended.red.0[0].x, -1.);
+    assert!((extended.red.0[1].y - 600. / 255.).abs() < 1e-6);
+    assert!((extended.blue.0[1].y - 220. / 255.).abs() < 1e-6);
+}
+
+#[test]
+fn lr2b_legacy_modern_precedence_and_alias_order() {
+    let (r,_) = parse("s={Exposure=2,Brightness=75,Contrast=50,FillLight=40,Recovery=10,HighlightRecovery=20,Blacks=5,Shadows=8,Exposure2012=0.25,Contrast2012=10,Shadows2012=15,Highlights2012=-30,Blacks2012=-5}","5.7").unwrap();
+    assert!(r.settings.tone.legacy_pv2010.is_none());
+    assert_eq!(r.settings.tone.exposure, 0.25);
+    let (r, _) = parse(
+        "s={Recovery=10,HighlightRecovery=20,Blacks=5,Shadows=8}",
+        "5.7",
+    )
+    .unwrap();
+    let legacy = r.settings.tone.legacy_pv2010.unwrap();
+    assert_eq!(legacy.recovery, Some(20.));
+    assert_eq!(legacy.blacks, Some(8.));
+    let (r, _) = parse("s={Exposure=1,Brightness=75,Contrast=50}", "15.4").unwrap();
+    assert!(r.settings.tone.legacy_pv2010.is_none());
 }

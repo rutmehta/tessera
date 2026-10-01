@@ -419,17 +419,24 @@ impl Renderer {
         }
         let settings = &checked_depth;
         if self.is_adobe() {
-            if !(3..=6).contains(&self.config.process_version.revision) {
+            if !(1..=6).contains(&self.config.process_version.revision) {
                 return Err(EngineError::invalid(
                     "process_version",
-                    "Adobe PV3–6 required",
+                    "Adobe PV1–6 required",
                 ));
             }
             let mut checked = settings.clone();
             checked.camera_profile.profile = Default::default();
             checked.tone.display_transform = Default::default();
             pipeline_cpu::validate_settings(&checked)?;
-            pipeline_adobe::curves::validate(&settings.tone.curves)
+            pipeline_adobe::curves::validate_domain(
+                settings
+                    .tone
+                    .curves_extended
+                    .as_ref()
+                    .unwrap_or(&settings.tone.curves),
+                settings.tone.curves_extended.is_some(),
+            )
         } else {
             pipeline_cpu::validate_settings(settings)
         }

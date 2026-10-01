@@ -18,11 +18,21 @@ pub(crate) fn parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()
     Ok(())
 }
 fn build_parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()> {
-    if s.monochrome.as_ref().is_some_and(|g| g.enabled) {
-        return Err(EngineError::invalid(
-            "color",
-            "B&W mixer requires CPU rendering",
-        ));
+    if let Some(gray) = &s.monochrome {
+        let b = &gray.mixer;
+        let values = [
+            b.red, b.orange, b.yellow, b.green, b.aqua, b.blue, b.purple, b.magenta,
+        ];
+        if values.iter().any(|v| !v.is_finite()) {
+            return Err(EngineError::invalid(
+                "monochrome",
+                "finite parameters required",
+            ));
+        }
+        if gray.enabled {
+            p[10] = 1.;
+            p[11..19].copy_from_slice(&values);
+        }
     }
     if !s.point_colors.is_empty() || s.lut.is_some() {
         return Err(EngineError::invalid(

@@ -6,9 +6,10 @@ mod common;
 use engine_api::id::Digest;
 
 const N: i64 = 2_000;
-/// LR-2 translates ConvertToGrayscale=false in 1,200 synthetic rows; source-only
-/// inputs remain byte-identical (tools/orchestrate/wp/LR-2/compat.sh).
-const GOLDEN: &str = "ad814642116dda65cf0a49494eee8a5cf034c2d3151cb8c35c69975f8cfd661a";
+/// LR-2b sidecar imports monochrome in the first history edit in 1,200 rows.
+/// Settings/source are unchanged; 800 untranslated rows remain byte-identical.
+/// The baseline sidecar/importer audit is tools/orchestrate/wp/LR-2/compat.sh.
+const GOLDEN: &str = "174e43107e23125fb0477cad9376a144a35c28a7966de355ebe87314a98c8fee";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();

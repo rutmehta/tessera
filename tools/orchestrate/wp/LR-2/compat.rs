@@ -1,3 +1,5 @@
+#[path = "../../../../crates/import-lrcat/tests/common/mod.rs"]
+mod common;
 // Compare serialized recipes to the lane base on unrelated synthetic inputs.
 fn main() {
     let rows = [
@@ -22,6 +24,39 @@ fn main() {
     assert_eq!(a, after.to_json().unwrap());
     total += a.len();
     println!(
-        "29c byte compatibility: 5 synthetic recipes, {total} serialized bytes identical to 87ff1ff1"
+        "29c byte compatibility: 5 synthetic recipes, {total} serialized bytes identical to 26e5cb8a"
+    );
+
+    // Prove the changed bulk golden is confined to already-translated B&W
+    // history, by compiling both the baseline importer and baseline sidecar.
+    let dir = tempfile::tempdir().unwrap();
+    let path = common::write(dir.path(), 2000);
+    let before = import_lrcat_baseline::import(&path).unwrap();
+    let after = import_lrcat::import(&path).unwrap();
+    let mut changed = 0;
+    let mut baseline_bytes = Vec::new();
+    for (mut a, mut b) in before.images.into_iter().zip(after.images) {
+        a.recipe.image_id = None;
+        b.recipe.image_id = None;
+        serde_json::to_writer(&mut baseline_bytes, &a).unwrap();
+        baseline_bytes.push(b'\n');
+        let av = serde_json::to_value(a).unwrap();
+        let bv = serde_json::to_value(b).unwrap();
+        if av != bv {
+            changed += 1;
+            assert_eq!(av["recipe"]["settings"], bv["recipe"]["settings"]);
+            let mut normalized = av.clone();
+            normalized["recipe"]["history"] = bv["recipe"]["history"].clone();
+            assert_eq!(normalized, bv, "bulk golden changed outside history");
+            assert!(!bv["recipe"]["settings"]["color"]["monochrome"].is_null());
+        }
+    }
+    assert_eq!(
+        engine_api::id::Digest::derive("B5-29c golden", &baseline_bytes).to_string(),
+        "ad814642116dda65cf0a49494eee8a5cf034c2d3151cb8c35c69975f8cfd661a"
+    );
+    assert_eq!(changed, 1200);
+    println!(
+        "bulk golden audit: 1200 already-translated monochrome rows change history only; 800 rows remain byte-identical; old golden reproduced"
     );
 }

@@ -126,8 +126,8 @@ fn curve(v: &LuaValue) -> Option<Curve> {
         .iter()
         .map(|p| {
             Some(CurvePoint {
-                x: number(&p[0], 0., 255.)? / 255.,
-                y: number(&p[1], 0., 255.)? / 255.,
+                x: number(&p[0], -f32::MAX, f32::MAX)? / 255.,
+                y: number(&p[1], -f32::MAX, f32::MAX)? / 255.,
             })
         })
         .collect();
@@ -153,20 +153,32 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
     let mut settings = recipe.settings.clone();
     let mut translated = BTreeSet::<String>::new();
     let mut failed_curve = false;
+    // Copy ordinary channels into the extended block so mixed SDR/HDR keys
+    // retain the same per-channel precedence. Extended replaces the whole block.
+    let mut curves = settings.tone.curves.clone();
+    let mut hdr = false;
     for (key, target) in CURVES.into_iter().zip([
-        &mut settings.tone.curves.rgb,
-        &mut settings.tone.curves.red,
-        &mut settings.tone.curves.green,
-        &mut settings.tone.curves.blue,
+        &mut curves.rgb,
+        &mut curves.red,
+        &mut curves.green,
+        &mut curves.blue,
     ]) {
         if let Some(v) = values.get(key) {
             if let Some(c) = curve(v) {
+                hdr |=
+                    c.0.iter()
+                        .any(|p| !(0. ..=1.).contains(&p.x) || !(0. ..=1.).contains(&p.y));
                 *target = c;
                 translated.insert(key.into());
             } else {
                 failed_curve = true;
             }
         }
+    }
+    if hdr {
+        settings.tone.curves_extended = Some(curves);
+    } else {
+        settings.tone.curves = curves;
     }
     if CURVES.iter().any(|k| values.contains_key(*k)) && !failed_curve {
         warnings.retain(|s| s != crate::lua_develop::EXTENDED_TONE_CURVE_NOTE);
@@ -209,77 +221,65 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         }
         settings.color.monochrome = Some(gray);
     }
-    // PV2010 controls are image-adaptive in Adobe. These are deliberately
-    // documented heuristics, not Adobe's unpublished conversion algorithm.
-    if recipe.process_version.revision <= 2 {
+    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+        && recipe.process_version.revision <= 2
+    {
+        use engine_api::recipe::settings::LegacyPv2010;
         let n = |k: &str, min, max| values.get(k).and_then(|v| number(v, min, max));
-        let mut approximate = false;
+        let mut legacy = LegacyPv2010::default();
         if !values.contains_key("Exposure2012") {
-            let exposure = n("Exposure", -5., 5.);
-            let brightness = n("Brightness", -150., 150.);
-            if exposure.is_some() || brightness.is_some() {
-                settings.tone.exposure = (exposure.unwrap_or(0.)
-                    + (brightness.unwrap_or(50.) - 50.) / 50.)
-                    .clamp(-10., 10.);
-                approximate = true;
-            }
+            legacy.exposure = n("Exposure", -5., 5.);
+            legacy.brightness = n("Brightness", -150., 150.);
         }
-        for (legacy, modern, min, max, offset, scale, target) in [
-            (
-                "Contrast",
-                "Contrast2012",
-                -50.,
-                100.,
-                25.,
-                1.,
-                &mut settings.tone.contrast,
-            ),
-            (
-                "FillLight",
-                "Shadows2012",
-                0.,
-                100.,
-                0.,
-                1.,
-                &mut settings.tone.shadows,
-            ),
-            (
-                "HighlightRecovery",
-                "Highlights2012",
-                0.,
-                100.,
-                0.,
-                -1.,
-                &mut settings.tone.highlights,
-            ),
-            (
-                "Shadows",
-                "Blacks2012",
-                0.,
-                100.,
-                0.,
-                -1.,
-                &mut settings.tone.blacks,
-            ),
+        if !values.contains_key("Contrast2012") {
+            legacy.contrast = n("Contrast", -50., 100.);
+        }
+        if !values.contains_key("Shadows2012") {
+            legacy.fill_light = n("FillLight", 0., 100.);
+        }
+        if !values.contains_key("Highlights2012") {
+            legacy.recovery = n("HighlightRecovery", 0., 100.).or_else(|| n("Recovery", 0., 100.));
+        }
+        if !values.contains_key("Blacks2012") {
+            legacy.blacks = n("Shadows", 0., 100.).or_else(|| n("Blacks", 0., 100.));
+        }
+        if legacy.exposure.is_some() {
+            translated.insert("Exposure".into());
+        }
+        // These values are represented, but their Adobe operator is approximate:
+        // retain exact source and replace generic unsupported notes with the reason.
+        for (key, present) in [
+            ("Brightness", legacy.brightness.is_some()),
+            ("Contrast", legacy.contrast.is_some()),
+            ("FillLight", legacy.fill_light.is_some()),
+            ("HighlightRecovery", legacy.recovery.is_some()),
+            ("Recovery", legacy.recovery.is_some()),
+            ("Shadows", legacy.blacks.is_some()),
+            ("Blacks", legacy.blacks.is_some()),
         ] {
-            let alias = match legacy {
-                "HighlightRecovery" => "Recovery",
-                "Shadows" => "Blacks",
-                _ => legacy,
-            };
-            if !values.contains_key(modern)
-                && let Some(v) = n(legacy, min, max).or_else(|| n(alias, min, max))
-            {
-                *target = ((v - offset) * scale).clamp(-100., 100.);
-                approximate = true;
+            if present {
+                warnings.retain(|w| {
+                    !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
+                });
             }
         }
-        if approximate
-            && !warnings
-                .iter()
-                .any(|w| w.starts_with("PV2010 approximation:"))
-        {
-            warnings.push("PV2010 approximation: legacy sliders mapped heuristically; Adobe image-adaptive brightness, recovery and black clipping cannot be reproduced exactly; source preserved".into());
+        if legacy != LegacyPv2010::default() {
+            if [
+                legacy.brightness,
+                legacy.contrast,
+                legacy.fill_light,
+                legacy.recovery,
+                legacy.blacks,
+            ]
+            .iter()
+            .any(Option::is_some)
+                && !warnings
+                    .iter()
+                    .any(|w| w.starts_with("PV2010 approximation:"))
+            {
+                warnings.push("PV2010 approximation: dedicated legacy operators; Adobe brightness/contrast transfer functions, fill-light spatial adaptation, recovery RAW reconstruction are unpublished; blacks uses the public DNG ramp with camera shadow scale assumed one; source preserved".into());
+            }
+            settings.tone.legacy_pv2010 = Some(legacy);
         }
     }
     for key in values
@@ -289,6 +289,9 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         warnings.retain(|w| {
             !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
         });
+        if key.starts_with("AutoToneDigest") {
+            continue;
+        }
         warnings.push(format!("{key}: retained metadata, not a pixel adjustment; digest is not an Auto Tone recipe and depth metadata is not a depth raster; source preserved"));
     }
     if !translated.is_empty() {
@@ -345,4 +348,14 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         )?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[test]
+fn lr2b_native_revision_two_is_not_adobe_pv2010() {
+    let mut recipe = Recipe::default();
+    let mut values = Values::new();
+    values.insert("Exposure".into(), LuaValue::Number("1".into()));
+    apply(&values, &mut recipe, &mut Vec::new()).unwrap();
+    assert!(recipe.settings.tone.legacy_pv2010.is_none());
 }
