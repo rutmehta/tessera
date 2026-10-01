@@ -631,6 +631,11 @@ fn lr3d_retouch_precedes_tone_and_local_adjustments() {
         .render_rgb_linear(&raw, 0, &s, &engine_api::jobs::CancellationToken::new())
         .unwrap();
     assert_bits(&actual, &expected);
+    let extent = raw.active_extent();
+    let tiles = renderer.render_region_as(&raw, &s, 0, image_core::PixelRect::full(extent), image_core::RenderOutput::SceneLinear).unwrap();
+    let mut m2 = Image::new(extent.width, extent.height, vec![vec![0.0; extent.area() as usize];3]).unwrap();
+    for tile in tiles { m2.put(&tile).unwrap(); }
+    assert_bits(&m2,&expected);
 }
 
 #[test]
@@ -814,5 +819,22 @@ fn lr3d_exif_five_to_eight_orients_retouch_after_sensor_crop_and_distortion() {
         };
         assert_eq!(oriented.dimensions(), expected.dimensions());
         assert_eq!(oriented.as_raw(), expected.as_raw(), "EXIF {orientation}");
+    }
+}
+
+#[test]
+fn lr3d_inactive_spots_are_identity_at_reduced_resolution() {
+    let input = image();
+    let context = pipeline_cpu::LensContext { retouch: Some(Arc::new(brush::render_retouch)), ..Default::default() };
+    for zero_opacity in [false, true] {
+        let mut s = settings(false);
+        s.tone.contrast = 35.0;
+        s.locals.retouch[0].enabled = zero_opacity;
+        if zero_opacity { s.locals.retouch[0].opacity = 0.0; }
+        let mut empty = s.clone();
+        empty.locals.retouch.clear();
+        let expected = render_linear_scaled(&empty, &RenderSource::Rgb(&input), 4).unwrap();
+        let actual = pipeline_cpu::render_linear_scaled_with_lens(&s, &RenderSource::Rgb(&input), 4, &context).unwrap();
+        assert_bits(&actual, &expected);
     }
 }
