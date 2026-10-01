@@ -2683,3 +2683,76 @@ where
     }
     Ok(r)
 }
+
+#[cfg(test)]
+mod publication_tests {
+    use super::*;
+
+    #[test]
+    fn eng2_export_snapshot_does_not_wait_for_edit_lock() {
+        use std::{sync::mpsc, time::Duration};
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        let editing = session.shared.lock().unwrap();
+        let other = session.clone();
+        let (tx, rx) = mpsc::channel();
+        let reader = std::thread::spawn(move || {
+            let start = std::time::Instant::now();
+            other.info().unwrap();
+            other.layers().unwrap();
+            other.history_items().unwrap();
+            other.snapshots().unwrap();
+            other.document_state().unwrap();
+            let snapshot = other
+                .begin_export_flat(
+                    "synthetic.png".into(),
+                    ExportFormat::Png,
+                    90,
+                    ExportColor::Srgb,
+                )
+                .unwrap();
+            tx.send((snapshot, start.elapsed())).unwrap();
+        });
+        let result = rx.recv_timeout(Duration::from_millis(250));
+        drop(editing);
+        reader.join().unwrap();
+        let (_, elapsed) = result.expect("export snapshot waited for mutable session state");
+        eprintln!("ENG-2 export snapshot: {elapsed:?}");
+    }
+
+    #[test]
+    fn eng2_confirm_snapshot_excludes_later_commits_and_includes_prior_commit() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        session
+            .add_layer(NewLayer::Pixel, "before".into(), None, None)
+            .unwrap();
+        session.commit("before confirm".into()).unwrap();
+        let export = session
+            .begin_export_flat(
+                "synthetic.png".into(),
+                ExportFormat::Png,
+                90,
+                ExportColor::Srgb,
+            )
+            .unwrap();
+        session
+            .add_layer(NewLayer::Pixel, "after".into(), None, None)
+            .unwrap();
+        session.commit("after confirm".into()).unwrap();
+        let state = export.state.lock().unwrap();
+        let state = state.as_ref().unwrap();
+        assert!(state.root.iter().any(|l| l.props.name == "before"));
+        assert!(!state.root.iter().any(|l| l.props.name == "after"));
+        assert!(
+            session
+                .document_state()
+                .unwrap()
+                .root
+                .iter()
+                .any(|l| l.props.name == "after")
+        );
+    }
+}

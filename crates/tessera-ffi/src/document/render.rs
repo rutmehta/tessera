@@ -555,6 +555,8 @@ type ThumbCache = HashMap<(ThumbKind, u32), (u64, Arc<Surface>)>;
 pub(crate) struct Renderer {
     name: String,
     backend: Mutex<Backend>,
+    #[cfg(test)]
+    read_level_entered: Mutex<Option<std::sync::mpsc::Sender<()>>>,
     signal: Mutex<Signal>,
     cv: Condvar,
     thumbs: Mutex<ThumbCache>,
@@ -607,6 +609,8 @@ impl Renderer {
         Self {
             name,
             backend: Mutex::new(backend),
+            #[cfg(test)]
+            read_level_entered: Mutex::new(None),
             signal: Mutex::new(Signal::default()),
             cv: Condvar::new(),
             thumbs: Mutex::new(HashMap::new()),
@@ -846,6 +850,10 @@ impl Renderer {
 
     /// Renders `level` of `doc` and reads it back (straight RGBA f32).
     pub(crate) fn read_level(&self, doc: &Document, level: u8) -> Result<(u32, u32, Vec<f32>)> {
+        #[cfg(test)]
+        if let Some(entered) = self.read_level_entered.lock().unwrap().take() {
+            entered.send(()).unwrap();
+        }
         let mut backend = self.backend.lock().map_err(failure)?;
         let (e, v) = match &mut *backend {
             Backend::Gpu(g) => {
@@ -1557,6 +1565,49 @@ mod frame_cancellation_tests {
         renderer.stop();
         assert!(current.is_cancelled());
         assert!(!renderer.signal().finish_frame(&current));
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn eng2_getters_do_not_wait_for_inflight_render() {
+        use std::sync::mpsc;
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "synthetic".into());
+        // Inject a stalled backend: read_presented_level must release session
+        // state before it waits here, just as it must during a slow render.
+        let backend = session.shared.render.backend.lock().unwrap();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        *session.shared.render.read_level_entered.lock().unwrap() = Some(entered_tx);
+        let rendering = session.clone();
+        let worker = std::thread::spawn(move || rendering.read_presented_level(0).unwrap());
+        entered_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+        let (tx, rx) = mpsc::channel();
+        let reading = session.clone();
+        let reader = std::thread::spawn(move || {
+            let start = Instant::now();
+            reading.info().unwrap();
+            reading.layers().unwrap();
+            reading.history_items().unwrap();
+            reading.document_state().unwrap();
+            reading
+                .begin_export_flat(
+                    "synthetic.png".into(),
+                    crate::ExportFormat::Png,
+                    90,
+                    crate::ExportColor::Srgb,
+                )
+                .unwrap();
+            tx.send(start.elapsed()).unwrap();
+        });
+        let result = rx.recv_timeout(Duration::from_millis(250));
+        drop(backend);
+        worker.join().unwrap();
+        reader.join().unwrap();
+        let elapsed = result.expect("session getters waited on the stalled render");
+        eprintln!("ENG-2 getter batch: {elapsed:?}");
+        assert!(elapsed < Duration::from_millis(250));
     }
 
     #[test]
