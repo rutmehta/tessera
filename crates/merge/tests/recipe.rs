@@ -34,3 +34,12 @@ fn recipe_is_editable_and_embedded_in_float_dng() {
     let parsed: engine_api::recipe::Recipe = serde_json::from_str(&text).unwrap();
     assert_eq!(parsed, recipe);
 }
+
+/// LR-SCHEMA: embedding the native recipe in a merged DNG is a recipe write and
+/// must refuse a document from a newer schema, like `Recipe::to_json`.
+#[test]
+fn recipe_xmp_refuses_newer_schema() {
+    let recipe = engine_api::recipe::Recipe::from_json(br#"{"schema_version":4}"#).unwrap();
+    assert!(recipe.to_json().is_err());
+    assert!(recipe_xmp(&recipe).is_err());
+}

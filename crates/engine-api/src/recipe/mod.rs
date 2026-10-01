@@ -14,6 +14,7 @@
 pub mod crs;
 pub mod history;
 pub mod mask;
+pub mod schema;
 pub mod selection;
 pub mod settings;
 
@@ -26,6 +27,10 @@ use serde_json::Value;
 pub use crs::{CrsKey, CrsTarget, CrsValueType, XmpNamespace};
 pub use history::{Author, EditMeta, History, HistoryEntry, ParamChange, Snapshot};
 pub use mask::{LocalAdjustment, LocalParams, MaskComponent, MaskKind, RetouchOperation};
+pub use schema::{
+    max_writable_schema_version, required_schema_version, v4_features_used,
+    RECIPE_SCHEMA_VERSION_V4,
+};
 pub use selection::{Decision, Grade, Mark, Selection};
 pub use settings::{CameraProfileRef, DevelopSettings, LensProfileRef, LensProfileSetup};
 
@@ -502,6 +507,75 @@ mod tests {
             Err(EngineError::SchemaVersion { found: 99, .. })
         ));
     }
+
+    /// LR-SCHEMA pin: a schema 4 document loads best-effort (known fields
+    /// default, unknown members preserved, version kept) and every checked
+    /// write refuses it while no schema 4 feature exists. Raw serde is a
+    /// projection, not a write path, and does not refuse.
+    #[test]
+    fn schema_4_documents_load_but_never_write() {
+        let r = Recipe::from_json(
+            br#"{"schema_version":4,"settings":{"tone":{"exposure":0.5},"color":{"point_colors_v4":[1]}},"lens_blur_v4":{"amount":3}}"#,
+        )
+        .unwrap();
+        assert_eq!(r.schema_version, 4);
+        assert_eq!(r.settings.tone.exposure, 0.5);
+        assert_eq!(
+            r.settings.tone.contrast,
+            DevelopSettings::default().tone.contrast
+        );
+        assert_eq!(r.image_id, None);
+        assert_eq!(r.unknown["lens_blur_v4"]["amount"], 3);
+        assert_eq!(r.unknown.len(), 1);
+        assert!(matches!(
+            r.to_json(),
+            Err(EngineError::SchemaVersion {
+                found: 4,
+                supported: 3,
+                ..
+            })
+        ));
+        let raw: Value = serde_json::to_value(&r).unwrap();
+        assert_eq!(raw["schema_version"], 4);
+    }
+
+    /// LR-SCHEMA: serialisation of existing recipes is byte-identical to
+    /// main at 44db24b2 (digests recorded there, before the schema module).
+    #[test]
+    fn serialisation_bytes_are_pinned() {
+        let fixture =
+            Recipe::from_json(include_bytes!("../../tests/fixtures/recipe-1.2.json")).unwrap();
+        let mut legacy = sample();
+        legacy.schema_version = 2;
+        let cases: [(&str, Vec<u8>); 6] = [
+            ("default", Recipe::default().to_json().unwrap()),
+            ("sample", sample().to_json().unwrap()),
+            ("sample compact", serde_json::to_vec(&sample()).unwrap()),
+            ("fixture 1.2", fixture.to_json().unwrap()),
+            ("legacy in memory", legacy.to_json().unwrap()),
+            (
+                "partial",
+                Recipe::from_json(br#"{"settings":{"tone":{"exposure":1.0}},"zz":{"a":1},"aa":2}"#)
+                    .unwrap()
+                    .to_json()
+                    .unwrap(),
+            ),
+        ];
+        let got: Vec<String> = cases
+            .iter()
+            .map(|(name, bytes)| format!("{name} {}", Digest::derive("LR-SCHEMA pin", bytes)))
+            .collect();
+        assert_eq!(got, PINNED_SERIALISATION);
+    }
+
+    const PINNED_SERIALISATION: [&str; 6] = [
+        "default 3f57329d481738be98d31b75551713a375640c16500ab43e15c83ba66ad335a7",
+        "sample 91de48b0ab9032ee76e1d850038fc122c28a895e973fce4e40299ea5a962cc5d",
+        "sample compact 283b4a801fae8d8beed93ef13fd6c70a8e5b49767cc0cc0328f6cb722d66f8c4",
+        "fixture 1.2 69a56ca65ca750fd0f6946002095e5e14bebcec60992012c60ec23d57026b18c",
+        "legacy in memory 7c183437c898e517f51131b4529eff27efa7ed1cafec9b0be7fb127f54322094",
+        "partial a71da65418bee6206f05fa874b161a8506e9003005ce82598bb1aa74e4d61bfe",
+    ];
 
     #[test]
     fn hash_covers_render_state_only() {
