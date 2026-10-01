@@ -236,3 +236,44 @@ python3 tools/orchestrate/wp/ENG-1/conditioning/audit.py --verify-captures --out
 The original ENG-1 standalone ignored tone-precision diagnostic remains outside
 this golden-only follow-up; no claim is made that ENG-1b fixes it. The 11 ignored
 release tests retain their existing status.
+
+## ENG-1c — exact Tone attribution and omitted local GPU path
+
+Read [the ENG-1c report](conditioning/local-gpu/README.md), including the full
+compressed before/candidate per-pixel dumps and [predicate JSON](conditioning/local-gpu/report.json).
+
+The clean release fixture reproduces `image Tone: 2.846853e-4`. Exactly one
+pixel exceeds 1e-4: 69802, (307,113), in the 615x410 Sony image. It is itself
+an active pre-fix seed: L=0.0008220475865527987, bits 3a577eae. **All failing
+pixels satisfy the predicate; none are outside support.** Radius zero suffices.
+
+Nevertheless this is a proven formulation mismatch: `GpuStageOp::run_image`
+calls `tone_local::run`, whose `tone_local.wgsl` still divides by raw luminance.
+ENG-1 only changed the separate resident `presence.wgsl`. The fixture's CPU
+reference is computed at runtime, so no stored expected data exists to update.
+The adapter's f16 capability is unused by both f32 presence shaders.
+
+This contradicts the ruling's inference that all-inside-support necessarily
+means an intended CPU/GPU delta. Clarification was requested before changing
+production code. The branch retains its production/reference code unchanged;
+`conditioning/local-gpu/candidate.patch` proposes the omitted floor. This is
+**not an integrated or green branch** while that decision is pending.
+
+Test-first commit: `8a418fa2`, with the required co-author trailer. The new
+near-black local-path regression fails before the production fix at 1.5453927e-4.
+In a disposable candidate checkout, the unchanged fixture passes with Tone
+maximum 7.748604e-7 and no pixels above 1e-4. The pre-floor CPU trace run also
+passes, independently confirming that the old GPU matches the old CPU policy.
+No 1e-4 bound, runtime reference, stored golden, Cargo.lock, board, or app was
+changed. All commits are local, on top of 6688d478, without rebasing.
+
+Reproduction uses the requested lane environment, plus explicit
+`cargo clean --release -p pipeline-cpu -p pipeline-gpu -p filters` before
+comparing checkouts. Plain clean left stale release artifacts on this host.
+See the report for candidate gate results and exact reproduction commands.
+
+Candidate gates completed: release **456 passed, 0 failed, 24 ignored,
+0 filtered** in 93 suites; clippy all targets with `-D warnings` **exit 0**;
+fmt **exit 0**. These results apply to the isolated proposed patch, not to
+unchanged production in the branch. Applying it awaits resolution of the
+case-split contradiction above.
