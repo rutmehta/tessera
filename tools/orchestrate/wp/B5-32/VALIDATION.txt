@@ -1,0 +1,56 @@
+B5-32 continuation validation, 2026-10-01
+Environment: PATH="$HOME/.cargo/bin:$PATH"; CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-32
+
+cargo test --release -p filters -p pipeline-cpu -p pipeline-gpu: exit 0
+93 suites; 454 passed, 0 failed, 23 ignored
+
+Explicit Metal stage isolation, signed-tone reference, and ignored 24 MP benchmark:
+curve=false stage=neutral: max=0.00000029802322 pixel=67701 channel=0 GPU=0.95312476 CPU=0.95312506
+curve=false stage=sharpen: max=0.00000047683716 pixel=40671 channel=0 GPU=1.0189509 CPU=1.0189514
+curve=false stage=dehaze: max=0.0000010752119 pixel=67703 channel=0 GPU=-0.0007142257 CPU=-0.0007153009
+curve=false stage=sharpen+dehaze: max=0.00000059604645 pixel=2353 channel=0 GPU=1.0750239 CPU=1.0750245
+curve=false stage=rich-no-sharpen: max=0.000010728836 pixel=29048 channel=0 GPU=1.2338699 CPU=1.2338806
+curve=false stage=rich-no-dehaze: max=0.000019937754 pixel=7835 channel=2 GPU=0.00678356 CPU=0.0068034977
+curve=false stage=rich-no-presence: max=0.000011563301 pixel=29382 channel=0 GPU=1.50069 CPU=1.5006784
+curve=false stage=rich: max=0.000019960105 pixel=7835 channel=2 GPU=0.0067835227 CPU=0.006803483
+curve=true stage=neutral: max=0.0000014156103 pixel=20963 channel=0 GPU=0.042967618 CPU=0.042969033
+curve=true stage=sharpen: max=0.0000018924475 pixel=12872 channel=0 GPU=-0.063237764 CPU=-0.06323587
+curve=true stage=dehaze: max=0.000002404675 pixel=56671 channel=0 GPU=0.008689525 CPU=0.00868712
+curve=true stage=sharpen+dehaze: max=0.0000020116568 pixel=24681 channel=0 GPU=0.04126303 CPU=0.041261017
+curve=true stage=rich-no-sharpen: max=0.000062949955 pixel=2357 channel=0 GPU=0.004182175 CPU=0.004119225
+curve=true stage=rich-no-dehaze: max=0.015808105 pixel=10703 channel=2 GPU=17.671354 CPU=17.687162
+curve=true stage=rich-no-presence: max=0.000042401254 pixel=7138 channel=0 GPU=0.02221553 CPU=0.022173129
+curve=true stage=rich: max=0.015808105 pixel=10703 channel=2 GPU=17.671354 CPU=17.687162
+one input blue ulp, CPU only: 17.687162 -> 17.603212, gap=0.08395004
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 4.54s
+near-zero signed tone CPU: max absolute=0.000000010116568277540594
+near-zero signed tone GPU: max absolute=0.0000000226568417499573
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.10s
+24MP CPU=211.2994085s GPU=5.2176375s (cold pipelines included, upload/readback excluded)
+24MP all-pixel max absolute=16.488846, worst=(5112798, 2, 229.05931, 212.57047), legacy sampled max=0.00609684
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 226.47s
+
+cargo clippy --all-targets -p filters -p pipeline-cpu -p pipeline-gpu -- -D warnings: exit 0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 58s
+cargo fmt --all -- --check: exit 0, no output
+
+Initial FFI + Swift gate: exit 1
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-32/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+Build complete! (66.03s)
+	 Executed 861 tests, with 3 tests skipped and 2 failures (0 unexpected) in 439.708 (439.845) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.031 seconds.
+SWIFT GATE FAILED (exit 1):
+DocumentAdaptiveWideAngleTests.testOKSurfacesAFailedFinalTrace
+DocumentHistoryKeyboardTraversalTests.testDocumentSwitchKeepsGlobalHistoryPreferencesAndShowsSelectedDocument
+
+Targeted unchanged rerun of the two failed Swift tests: exit 0
+Test Case '-[TesseraCoreTests.DocumentAdaptiveWideAngleTests testOKSurfacesAFailedFinalTrace]' passed (0.534 seconds).
+Test Case '-[TesseraCoreTests.DocumentHistoryKeyboardTraversalTests testDocumentSwitchKeepsGlobalHistoryPreferencesAndShowsSelectedDocument]' passed (1.606 seconds).
+	 Executed 2 tests, with 0 failures (0 unexpected) in 2.141 (2.141) seconds
+	 Executed 2 tests, with 0 failures (0 unexpected) in 2.141 (2.143) seconds
+
+Full unchanged tools/orchestrate/swift-gate.sh retry: exit 0
+Build complete! (39.35s)
+	 Executed 861 tests, with 3 tests skipped and 0 failures (0 unexpected) in 509.070 (509.378) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.028 seconds.
+SWIFT GATE OK
