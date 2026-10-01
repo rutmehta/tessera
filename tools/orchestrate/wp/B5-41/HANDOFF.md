@@ -51,3 +51,7 @@ cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
 Final focused run using the gate's built binary: **26 Camera Raw tests passed**, including the existing smart-stack detail-note and full-resolution fallback tests. `git diff --check` passed. Rust test/clippy/fmt gates do not apply because no Rust files changed.
 
 No GUI launch or manual screen capture was performed. No Lightroom catalog was opened. `board.json` and `Cargo.lock` are unchanged. All edits and local commits are confined to this worktree; this agent's builds ran serially. The change was not pushed or integrated into main.
+
+## Outcome: DECLINED (Machine A review, 2026-10-01)
+
+Not merged. The baseline drag path already coalesced a continuous drag to one submit via the trailing 120 ms debounce, and release submitted immediately. This branch's first-plus-latest behaviour gives two submits per drag and makes release wait for the in-flight slot (up to 120 ms): a responsiveness regression for no benefit. The "60 final callbacks → 60 submits" measurement is synthetic: in `ValueSlider` only `mouseUp` and the numeric-field commit send `final: true` (once per gesture); drags, arrow/Home/End nudges and option/shift-modified nudges all send `final: false` and go through the debounce. No real input path submitted on every tick. Branch kept as reference only.
