@@ -1,0 +1,6240 @@
+{
+  "viewport.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/viewport.trace",
+    "window_s": null,
+    "window_ms": null,
+    "samples_ms_total": 943.0,
+    "main_on_cpu_ms": 24.0,
+    "threads_top": [
+      [
+        "b5prof_bench-3f93875fc26fc9cc",
+        581.0
+      ],
+      [
+        "document-render",
+        193.0
+      ],
+      [
+        "prof_viewport_vs_full_24mp",
+        139.0
+      ],
+      [
+        "Main Thread",
+        24.0
+      ],
+      [
+        "resident specialization",
+        4.0
+      ],
+      [
+        "jobs-0",
+        1.0
+      ],
+      [
+        "jobs-2",
+        1.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        93.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_bench-3f93875fc26fc9cc]",
+        85.0
+      ],
+      [
+        "b5prof_bench::doc24  [b5prof_bench-3f93875fc26fc9cc]",
+        73.0
+      ],
+      [
+        "AGX::BlitDispatchContext<AGX::HAL200::Encoders, AGX::HAL200::Classes, AGX::HAL200::ObjClasses>::checkDependentBlits(GPUVirtualAddressRange const&, GPUVirtualAdd  [AGXMetalG16X]",
+        37.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        26.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        21.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::render_region  [b5prof_bench-3f93875fc26fc9cc]",
+        17.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        13.0
+      ],
+      [
+        "__proc_info  [libsystem_kernel.dylib]",
+        12.0
+      ],
+      [
+        "iokit_user_client_trap  [IOKit]",
+        10.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "__openat  [dyld]",
+        1.0
+      ],
+      [
+        "invocation function for block in dyld4::Loader::applyFixupsGeneric(Diagnostics&, dyld4::RuntimeState&, unsigned long long, dyld3::Array<void const*> const&, dyl  [dyld]",
+        1.0
+      ],
+      [
+        "__findenv_locked  [libsystem_c.dylib]",
+        1.0
+      ],
+      [
+        "_xpc_dictionary_insert  [libxpc.dylib]",
+        1.0
+      ],
+      [
+        "__CFAllocateObject  [CoreFoundation]",
+        1.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        93.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_bench-3f93875fc26fc9cc]",
+        85.0
+      ],
+      [
+        "b5prof_bench::doc24  [b5prof_bench-3f93875fc26fc9cc]",
+        73.0
+      ],
+      [
+        "AGX::BlitDispatchContext<AGX::HAL200::Encoders, AGX::HAL200::Classes, AGX::HAL200::ObjClasses>::checkDependentBlits(GPUVirtualAddressRange const&, GPUVirtualAdd  [AGXMetalG16X]",
+        37.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        26.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        21.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::render_region  [b5prof_bench-3f93875fc26fc9cc]",
+        17.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        13.0
+      ]
+    ],
+    "incl_main_tessera": [],
+    "top_self_callers": [
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "io_connect_method <- IOConnectCallMethod",
+            71.0
+          ],
+          [
+            "io_connect_method <- IOConnectCallMethod <- <wgpu_hal::metal::Device as wgpu_hal::Device>::create_buffer",
+            14.0
+          ]
+        ]
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut",
+        [
+          [
+            "",
+            83.0
+          ],
+          [
+            "<std::sys::thread::unix::Thread>::new::thread_start",
+            2.0
+          ]
+        ]
+      ],
+      [
+        "b5prof_bench::doc24",
+        [
+          [
+            "<b5prof_bench::prof_viewport_vs_full_24mp::{closure#0} as core::ops::function::FnOnce<()>> <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn() <- test::run_test::{closure#0}",
+            73.0
+          ]
+        ]
+      ],
+      [
+        "AGX::BlitDispatchContext<AGX::HAL200::Encoders, AGX::HAL200::Classes, AGX::HAL200::ObjClasses>::checkDependentBlits(GPUVirtualAddressRange const&, GPUVirtualAdd",
+        [
+          [
+            "<wgpu_hal::metal::CommandEncoder as wgpu_hal::dynamic::command::DynCommandEncoder>::copy_b <- wgpu_core::command::transfer::copy_buffer_to_buffer <- <wgpu_core::command::CommandEncoder>::finish",
+            30.0
+          ],
+          [
+            "<wgpu_hal::metal::CommandEncoder as wgpu_hal::CommandEncoder>::clear_buffer <- <wgpu_core::command::BakedCommands>::initialize_buffer_memory <- <wgpu_core::device::queue::Queue>::submit",
+            5.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "<wgpu_core::global::Global>::queue_write_buffer <- <wgpu::api::queue::Queue>::write_buffer <- <compositor::resident::ResidentRenderer>::materialize",
+            12.0
+          ],
+          [
+            "<wgpu_core::device::queue::Queue>::write_buffer <- <wgpu_core::global::Global>::queue_write_buffer <- <wgpu::api::queue::Queue>::write_buffer",
+            6.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memset",
+        [
+          [
+            "<b5prof_bench::prof_viewport_vs_full_24mp::{closure#0} as core::ops::function::FnOnce<()>> <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn() <- test::run_test::{closure#0}",
+            17.0
+          ],
+          [
+            "",
+            2.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        19.0,
+        11.202
+      ],
+      [
+        6.0,
+        1.53
+      ],
+      [
+        2.0,
+        11.197
+      ]
+    ],
+    "main_span_count": 3,
+    "main_span_detail": [
+      {
+        "ms": 19.0,
+        "start_s": 11.202,
+        "leaf_own": [
+          [
+            "?",
+            17.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            17.0
+          ]
+        ]
+      },
+      {
+        "ms": 6.0,
+        "start_s": 1.53,
+        "leaf_own": [
+          [
+            "__openat",
+            1.0
+          ],
+          [
+            "invocation function for block in dyld4::Loader::applyFixupsGeneric(Diagnostics&, dyld4::RuntimeState&, unsigned long lon",
+            1.0
+          ],
+          [
+            "__findenv_locked",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            5.0
+          ]
+        ]
+      },
+      {
+        "ms": 2.0,
+        "start_s": 11.197,
+        "leaf_own": [
+          [
+            "?",
+            2.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            2.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 11.22 s 00:11.221.508 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "gaussian-redo-to-frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_gaussian_isolated_24mp.trace",
+    "windows_s": [
+      [
+        3.0328011512756348,
+        3.0337560176849365
+      ],
+      [
+        3.866962194442749,
+        3.8689231872558594
+      ],
+      [
+        4.602339029312134,
+        4.603011131286621
+      ]
+    ],
+    "window_ms": 3.587961196899414,
+    "samples_ms_total": 2.0,
+    "self_top_all": [
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        1.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write",
+        [
+          [
+            "<deduplicated_symbol> <- <compositor::resident::ResidentRenderer>::intern_l0 <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::render_region::{closure#11} <- <compositor::resident::ResidentRenderer>::render_region",
+            1.0
+          ]
+        ]
+      ],
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "mach_msg2_internal <- io_connect_method <- IOConnectCallMethod <- IOGPUCommandQueueSubmitCommandBuffers <- -[IOGPUMetalCommandQueue _submitCommandBuffers:count:] <- -[IOGPUMetalCommandQueue submitCommandBuffers:count:] <- -[_MTLCommandQueue _submitAvailableCommandBuffers]",
+            1.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "liquify-undo-to-frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_liquify_isolated_24mp.trace",
+    "windows_s": [
+      [
+        2.132050037384033,
+        2.133355140686035
+      ],
+      [
+        2.350551128387451,
+        2.3514702320098877
+      ],
+      [
+        2.63677716255188,
+        2.6376922130584717
+      ]
+    ],
+    "window_ms": 3.1392574310302734,
+    "samples_ms_total": 1.0,
+    "self_top_all": [
+      [
+        "AGX::ResourceGroupUsage<AGX::HAL200::Encoders, AGX::HAL200::Classes, AGX::HAL200::ObjClasses>::getUsedResourceGroupsAndWriteRanges(AGX::HAL200::ResourceGroupUsageList&, AGXResourceGroupWriteRange (&) [16], unsigned int&, unsigned int&, unsigned int&, bool&)  [AGXMetalG16X]",
+        1.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "AGX::ResourceGroupUsage<AGX::HAL200::Encoders, AGX::HAL200::Classes, AGX::HAL200::ObjClasses>::getUsedResourceGroupsAndWriteRanges(AGX::HAL200::ResourceGroupUsageList&, AGXResourceGroupWriteRange (&) [16], unsigned int&, unsigned int&, unsigned int&, bool&)",
+        [
+          [
+            "AGX::ContextCommon<AGX::HAL200::Encoders, AGX::HAL200::Classes, AGX::HAL200::ObjClasses, AGX::HAL200::DataBufferAllocator>::endCommand() <- AGX::ComputeContext<AGX::HAL200::Encoders, AGX::HAL200::Classes, AGX::HAL200::ObjClasses, AGX::HAL200::CommandEncoding, AGX::HAL200::EncoderComputeServiceClasses>::endComputePass(bool, eAGXDataBufferPools) <- -[AGXG16XFamilyComputeContext deferredEndEncoding] <- -[AGXG16XFamilyCommandBuffer commitEncoder] <- -[IOGPUMetalCommandBuffer encodeSignalEvent:value:] <- -[AGXG16XFamilyCommandBuffer encodeSignalEvent:value:] <- <wgpu_hal::metal::Queue as wgpu_hal::Queue>::submit",
+            1.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "filter-undo-redo-500-cycles.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_filter_undo_repeated_24mp.trace",
+    "windows_s": [
+      [
+        3.654582977294922,
+        4.385094881057739
+      ],
+      [
+        4.402684926986694,
+        6.271375894546509
+      ],
+      [
+        6.286609888076782,
+        9.220139980316162
+      ]
+    ],
+    "window_ms": 5532.732963562012,
+    "samples_ms_total": 2475.0,
+    "self_top_all": [
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        711.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        133.0
+      ],
+      [
+        "__psynch_cvwait  [libsystem_kernel.dylib]",
+        100.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::raster_node  [b5prof_followup-5d248d08350dc754]",
+        97.0
+      ],
+      [
+        "<deduplicated_symbol>  [b5prof_followup-5d248d08350dc754]",
+        83.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        69.0
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [b5prof_followup-5d248d08350dc754]",
+        65.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::render_region::{closure#11}  [b5prof_followup-5d248d08350dc754]",
+        60.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        54.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::render_region  [b5prof_followup-5d248d08350dc754]",
+        51.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "mach_msg2_internal <- io_connect_method <- IOConnectCallMethod <- IOGPUCommandQueueSubmitCommandBuffers <- -[IOGPUMetalCommandQueue _submitCommandBuffers:count:] <- -[IOGPUMetalCommandQueue submitCommandBuffers:count:] <- -[_MTLCommandQueue _submitAvailableCommandBuffers]",
+            552.0
+          ]
+        ]
+      ],
+      [
+        "start_wqthread",
+        [
+          [
+            "qos_class_main",
+            133.0
+          ]
+        ]
+      ],
+      [
+        "__psynch_cvwait",
+        [
+          [
+            "_pthread_cond_wait <- jobs::worker <- std::sys::backtrace::__rust_begin_short_backtrace::<<jobs::ThreadPoolScheduler>::build::{closure#0}, ()> <- <std::thread::lifecycle::spawn_unchecked<<jobs::ThreadPoolScheduler>::build::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            35.0
+          ]
+        ]
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::raster_node",
+        [
+          [
+            "<compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::render_region::{closure#11} <- <compositor::resident::ResidentRenderer>::render_region <- <compositor::resident::ResidentRenderer>::render_viewport <- <tessera_ffi::document::render::GpuBackend>::render_or_refuse <- tessera_ffi::document::render::worker_loop",
+            86.0
+          ]
+        ]
+      ],
+      [
+        "<deduplicated_symbol>",
+        [
+          [
+            "<compositor::resident::ResidentRenderer>::intern_l0 <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::render_region::{closure#11} <- <compositor::resident::ResidentRenderer>::render_region <- <compositor::resident::ResidentRenderer>::render_viewport",
+            70.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "liquify-commit-to-frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_liquify_isolated_24mp.trace",
+    "windows_s": [
+      [
+        2.038546085357666,
+        2.117927074432373
+      ],
+      [
+        2.260650157928467,
+        2.3377280235290527
+      ],
+      [
+        2.474541187286377,
+        2.622490167617798
+      ]
+    ],
+    "window_ms": 304.40783500671387,
+    "samples_ms_total": 1252.0,
+    "self_top_all": [
+      [
+        "filters::liquify::sample  [b5prof_followup-5d248d08350dc754]",
+        368.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, engine_api::tile::Tile)>, engine_api::error::EngineError>>  [b5prof_followup-5d248d08350dc754]",
+        238.0
+      ],
+      [
+        "<filters::liquify::Mesh>::displacement_at  [b5prof_followup-5d248d08350dc754]",
+        213.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineError>>  [b5prof_followup-5d248d08350dc754]",
+        149.0
+      ],
+      [
+        "compositor::raster::load_normalized  [b5prof_followup-5d248d08350dc754]",
+        76.0
+      ],
+      [
+        "tessera_ffi::document::filtering::blended_tiles  [b5prof_followup-5d248d08350dc754]",
+        35.0
+      ],
+      [
+        "<alloc::vec::Vec<u8> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<u8, core::iter::adapters::map::Map<alloc::vec::into_iter::IntoIter<f32>, <filters::liquify::Mesh>::render::{closure#2}::{closure#0}::{closure#1}>>>::from_iter  [b5prof_followup-5d248d08350dc754]",
+        34.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        28.0
+      ],
+      [
+        "<compositor::raster::Raster>::read_tile  [b5prof_followup-5d248d08350dc754]",
+        23.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        12.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "filters::liquify::sample",
+        [
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, engine_api::tile::Tile)>, engine_api::error::EngineError>> <- <std::thread::lifecycle::spawn_unchecked<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, engine_api::tile::Tile)>, engine_api::error::EngineError>>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            327.0
+          ]
+        ]
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, engine_api::tile::Tile)>, engine_api::error::EngineError>>",
+        [
+          [
+            "<std::thread::lifecycle::spawn_unchecked<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, engine_api::tile::Tile)>, engine_api::error::EngineError>>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            238.0
+          ]
+        ]
+      ],
+      [
+        "<filters::liquify::Mesh>::displacement_at",
+        [
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, engine_api::tile::Tile)>, engine_api::error::EngineError>> <- <std::thread::lifecycle::spawn_unchecked<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, engine_api::tile::Tile)>, engine_api::error::EngineError>>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            213.0
+          ]
+        ]
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineError>>",
+        [
+          [
+            "<std::thread::lifecycle::spawn_unchecked<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineError>>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            149.0
+          ]
+        ]
+      ],
+      [
+        "compositor::raster::load_normalized",
+        [
+          [
+            "<compositor::raster::Raster>::read_tile <- std::sys::backtrace::__rust_begin_short_backtrace::<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineError>> <- <std::thread::lifecycle::spawn_unchecked<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineError>>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            55.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "prof_liquify_isolated_24mp.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_liquify_isolated_24mp.trace",
+    "window_s": null,
+    "window_ms": null,
+    "samples_ms_total": 1981.0,
+    "main_on_cpu_ms": 37.0,
+    "threads_top": [
+      [
+        "b5prof_followup-5d248d08350dc754",
+        1294.0
+      ],
+      [
+        "prof_liquify_isolated_24mp",
+        583.0
+      ],
+      [
+        "document-render",
+        60.0
+      ],
+      [
+        "Main Thread",
+        37.0
+      ],
+      [
+        "resident specialization",
+        5.0
+      ],
+      [
+        "jobs-0",
+        1.0
+      ],
+      [
+        "jobs-2",
+        1.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "filters::liquify::sample  [b5prof_followup-5d248d08350dc754]",
+        368.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32,   [b5prof_followup-5d248d08350dc754]",
+        238.0
+      ],
+      [
+        "<filters::liquify::Mesh>::displacement_at  [b5prof_followup-5d248d08350dc754]",
+        216.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineE  [b5prof_followup-5d248d08350dc754]",
+        149.0
+      ],
+      [
+        "compositor::raster::load_normalized  [b5prof_followup-5d248d08350dc754]",
+        138.0
+      ],
+      [
+        "tessera_ffi::document::liquify::read_rgba  [b5prof_followup-5d248d08350dc754]",
+        134.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        129.0
+      ],
+      [
+        "tessera_ffi::document::liquify::proxy_of  [b5prof_followup-5d248d08350dc754]",
+        77.0
+      ],
+      [
+        "b5prof_followup::doc24  [b5prof_followup-5d248d08350dc754]",
+        74.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        50.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "dyld3::MachOFile::trieWalk(Diagnostics&, unsigned char const*, unsigned char const*, char const*)  [dyld]",
+        1.0
+      ],
+      [
+        "__kdebug_trace_string  [dyld]",
+        1.0
+      ],
+      [
+        "invocation function for block in mach_o::Header::forEachSection(void (mach_o::Header::SectionInfo const&, bool&) block_pointer) const  [dyld]",
+        1.0
+      ],
+      [
+        "__sysctl  [libsystem_kernel.dylib]",
+        1.0
+      ],
+      [
+        "_GLOBAL__sub_I_Actor.cpp  [libswift_Concurrency.dylib]",
+        1.0
+      ],
+      [
+        "_GLOBAL__sub_I_ANEProperties.cpp  [ANECompiler]",
+        1.0
+      ],
+      [
+        "std::__1::__murmur2_or_cityhash<unsigned long, 64ul>::operator()[abi:ne190102](void const*, unsigned long) const  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "_GLOBAL__sub_I_checker.cc  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "filters::liquify::sample  [b5prof_followup-5d248d08350dc754]",
+        368.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32,   [b5prof_followup-5d248d08350dc754]",
+        238.0
+      ],
+      [
+        "<filters::liquify::Mesh>::displacement_at  [b5prof_followup-5d248d08350dc754]",
+        216.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineE  [b5prof_followup-5d248d08350dc754]",
+        149.0
+      ],
+      [
+        "compositor::raster::load_normalized  [b5prof_followup-5d248d08350dc754]",
+        138.0
+      ],
+      [
+        "tessera_ffi::document::liquify::read_rgba  [b5prof_followup-5d248d08350dc754]",
+        134.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        129.0
+      ],
+      [
+        "tessera_ffi::document::liquify::proxy_of  [b5prof_followup-5d248d08350dc754]",
+        77.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "_GLOBAL__sub_I_ANEProperties.cpp  [ANECompiler]",
+        1.0
+      ],
+      [
+        "std::__1::__murmur2_or_cityhash<unsigned long, 64ul>::operator()[abi:ne190102](void const*, unsigned long) const  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "std::__1::pair<std::__1::__hash_iterator<std::__1::__hash_node<std::__1::__hash_value_type<std::__1::basic_string_view<char, std::__1::char_traits<char>>, onnx_  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "_GLOBAL__sub_I_onnx_transpose_optimization.cc  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "_GLOBAL__sub_I_checker.cc  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "OUTLINED_FUNCTION_28  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "<std::sync::once_lock::OnceLock<std::sync::reentrant_lock::ReentrantLock<core::cell::RefCell<std::io::buffered::linewriter::LineWriter<std::io::stdio::StdoutRaw  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "std::io::stdio::stdout  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "test::console::get_formatter  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "test::console::run_tests_console  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "test::test_main_static  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "std::rt::lang_start::<()>::{closure#0}  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "std::rt::lang_start_internal  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "main  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "filters::liquify::sample",
+        [
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{clo <- <std::thread::lifecycle::spawn_unchecked<<filters::liquify::Mesh>::render::{closure#2}::{c <- <std::sys::thread::unix::Thread>::new::thread_start",
+            327.0
+          ],
+          [
+            "<std::thread::lifecycle::spawn_unchecked<<filters::liquify::Mesh>::render::{closure#2}::{c <- <std::sys::thread::unix::Thread>::new::thread_start",
+            41.0
+          ]
+        ]
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{closure#2}::{closure#0}, core::result::Result<alloc::vec::Vec<(u32, u32, ",
+        [
+          [
+            "<std::thread::lifecycle::spawn_unchecked<<filters::liquify::Mesh>::render::{closure#2}::{c <- <std::sys::thread::unix::Thread>::new::thread_start",
+            238.0
+          ]
+        ]
+      ],
+      [
+        "<filters::liquify::Mesh>::displacement_at",
+        [
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<<filters::liquify::Mesh>::render::{clo <- <std::thread::lifecycle::spawn_unchecked<<filters::liquify::Mesh>::render::{closure#2}::{c <- <std::sys::thread::unix::Thread>::new::thread_start",
+            213.0
+          ],
+          [
+            "<filters::liquify::Mesh>::apply_brush <- <tessera_ffi::document::DocumentSession>::liquify_brush_points <- <b5prof_followup::prof_liquify_isolated_24mp::{closure#0} as core::ops::function::FnOnce<(",
+            3.0
+          ]
+        ]
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<filters::liquify::read_source::{closure#0}::{closure#0}, core::result::Result<(), engine_api::error::EngineE",
+        [
+          [
+            "<std::thread::lifecycle::spawn_unchecked<filters::liquify::read_source::{closure#0}::{clos <- <std::sys::thread::unix::Thread>::new::thread_start",
+            149.0
+          ]
+        ]
+      ],
+      [
+        "compositor::raster::load_normalized",
+        [
+          [
+            "<compositor::raster::Raster>::read_tile <- tessera_ffi::document::liquify::read_rgba <- <tessera_ffi::document::DocumentSession>::begin_liquify",
+            62.0
+          ],
+          [
+            "<compositor::raster::Raster>::read_tile <- std::sys::backtrace::__rust_begin_short_backtrace::<filters::liquify::read_source::{closur <- <std::thread::lifecycle::spawn_unchecked<filters::liquify::read_source::{closure#0}::{clos",
+            55.0
+          ]
+        ]
+      ],
+      [
+        "tessera_ffi::document::liquify::read_rgba",
+        [
+          [
+            "<tessera_ffi::document::DocumentSession>::begin_liquify <- <b5prof_followup::prof_liquify_isolated_24mp::{closure#0} as core::ops::function::FnOnce<( <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn()",
+            134.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        16.0,
+        2.694
+      ],
+      [
+        13.0,
+        2.678
+      ],
+      [
+        10.0,
+        1.394
+      ],
+      [
+        2.0,
+        2.674
+      ],
+      [
+        1.0,
+        1.41
+      ],
+      [
+        1.0,
+        1.407
+      ]
+    ],
+    "main_span_count": 6,
+    "main_span_detail": [
+      {
+        "ms": 16.0,
+        "start_s": 2.694,
+        "leaf_own": [
+          [
+            "?",
+            14.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            14.0
+          ]
+        ]
+      },
+      {
+        "ms": 13.0,
+        "start_s": 2.678,
+        "leaf_own": [
+          [
+            "?",
+            12.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            12.0
+          ]
+        ]
+      },
+      {
+        "ms": 10.0,
+        "start_s": 1.394,
+        "leaf_own": [
+          [
+            "dyld3::MachOFile::trieWalk(Diagnostics&, unsigned char const*, unsigned char const*, char const*)",
+            1.0
+          ],
+          [
+            "__kdebug_trace_string",
+            1.0
+          ],
+          [
+            "invocation function for block in mach_o::Header::forEachSection(void (mach_o::Header::SectionInfo const&, bool&) block_p",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            5.0
+          ],
+          [
+            "_GLOBAL__sub_I_ANEProperties.cpp",
+            1.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 2.71 s 00:02.709.819 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "stroke-0-undo\u2192frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_paint_undo_repeated_24mp.trace",
+    "windows_s": [
+      [
+        2.310250997543335,
+        2.3112878799438477
+      ]
+    ],
+    "window_ms": 1.0368824005126953,
+    "samples_ms_total": 1.0,
+    "self_top_all": [
+      [
+        "<wgpu_core::track::UsageScope as core::ops::drop::Drop>::drop  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "<wgpu_core::track::UsageScope as core::ops::drop::Drop>::drop",
+        [
+          [
+            "core::ptr::drop_glue::<wgpu_core::track::UsageScope> <- wgpu_core::command::compute::encode_compute_pass <- <wgpu_core::command::CommandEncoder>::finish <- <wgpu_core::global::Global>::command_encoder_finish <- <wgpu::backend::wgpu_core::CoreCommandEncoder as wgpu::dispatch::CommandEncoderInterface>::finish <- <wgpu::api::command_encoder::CommandEncoder>::finish <- <compositor::resident::ResidentRenderer>::present",
+            1.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "prof_filter_undo_repeated_24mp.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_filter_undo_repeated_24mp.trace",
+    "window_s": null,
+    "window_ms": null,
+    "samples_ms_total": 8093.0,
+    "main_on_cpu_ms": 73.0,
+    "threads_top": [
+      [
+        "b5prof_followup-5d248d08350dc754",
+        5699.0
+      ],
+      [
+        "document-render",
+        1531.0
+      ],
+      [
+        "prof_filter_undo_repeated_24mp",
+        723.0
+      ],
+      [
+        "Main Thread",
+        73.0
+      ],
+      [
+        "jobs-3",
+        19.0
+      ],
+      [
+        "jobs-2",
+        16.0
+      ],
+      [
+        "jobs-1",
+        15.0
+      ],
+      [
+        "jobs-0",
+        12.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "filters::convolve  [b5prof_followup-5d248d08350dc754]",
+        3896.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        721.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        423.0
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster  [b5prof_followup-5d248d08350dc754]",
+        282.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        150.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        133.0
+      ],
+      [
+        "__psynch_cvwait  [libsystem_kernel.dylib]",
+        100.0
+      ],
+      [
+        "<tessera_ffi::document::DocumentSession>::write_pixels  [b5prof_followup-5d248d08350dc754]",
+        97.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::raster_node  [b5prof_followup-5d248d08350dc754]",
+        97.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        89.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "0x199cb981d  [dyld]",
+        1.0
+      ],
+      [
+        "lsl::Allocator::AllocationMetadata::AllocationMetadata(lsl::Allocator::AllocationMetadata*, unsigned long long, unsigned long long, unsigned long long)  [dyld]",
+        1.0
+      ],
+      [
+        "dyld3::MachOFile::trieWalk(Diagnostics&, unsigned char const*, unsigned char const*, char const*)  [dyld]",
+        1.0
+      ],
+      [
+        "__kdebug_trace_string  [dyld]",
+        1.0
+      ],
+      [
+        "map_images_nolock  [libobjc.A.dylib]",
+        1.0
+      ],
+      [
+        "__sysctl  [libsystem_kernel.dylib]",
+        1.0
+      ],
+      [
+        "_GLOBAL__sub_I_ANEProperties.cpp  [ANECompiler]",
+        1.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "filters::convolve  [b5prof_followup-5d248d08350dc754]",
+        3896.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        721.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        423.0
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster  [b5prof_followup-5d248d08350dc754]",
+        282.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        150.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        133.0
+      ],
+      [
+        "__psynch_cvwait  [libsystem_kernel.dylib]",
+        100.0
+      ],
+      [
+        "<tessera_ffi::document::DocumentSession>::write_pixels  [b5prof_followup-5d248d08350dc754]",
+        97.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "_GLOBAL__sub_I_ANEProperties.cpp  [ANECompiler]",
+        1.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "filters::convolve",
+        [
+          [
+            "filters::large::gaussian <- filters::cpu::run <- <filters::Effect as filters::Filter>::apply",
+            3896.0
+          ]
+        ]
+      ],
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "io_connect_method <- IOConnectCallMethod",
+            630.0
+          ],
+          [
+            "io_connect_method <- IOConnectCallMethod <- <wgpu_hal::metal::Device as wgpu_hal::Device>::create_buffer",
+            86.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "tessera_ffi::document::filtering::collect_effect_results::<(compositor::geom::Rect, compos <- std::thread::scoped::scope::<tessera_ffi::document::filtering::run_effect::{closure#3}, co <- <tessera_ffi::document::filtering::Spec>::run",
+            60.0
+          ],
+          [
+            "<tessera_ffi::document::filtering::Spec>::run <- <tessera_ffi::document::DocumentSession>::apply_filter <- <b5prof_followup::prof_filter_undo_repeated_24mp::{closure#0} as core::ops::function::FnOn",
+            59.0
+          ]
+        ]
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster",
+        [
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_ <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{cl <- <std::sys::thread::unix::Thread>::new::thread_start",
+            119.0
+          ],
+          [
+            "<tessera_ffi::document::DocumentSession>::apply_filter <- <b5prof_followup::prof_filter_undo_repeated_24mp::{closure#0} as core::ops::function::FnOn <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn()",
+            102.0
+          ]
+        ]
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut",
+        [
+          [
+            "",
+            142.0
+          ],
+          [
+            "<std::sys::thread::unix::Thread>::new::thread_start",
+            8.0
+          ]
+        ]
+      ],
+      [
+        "start_wqthread",
+        [
+          [
+            "",
+            133.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        60.0,
+        9.247
+      ],
+      [
+        9.0,
+        9.309
+      ],
+      [
+        7.0,
+        1.581
+      ]
+    ],
+    "main_span_count": 3,
+    "main_span_detail": [
+      {
+        "ms": 60.0,
+        "start_s": 9.247,
+        "leaf_own": [
+          [
+            "?",
+            57.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            57.0
+          ]
+        ]
+      },
+      {
+        "ms": 9.0,
+        "start_s": 9.309,
+        "leaf_own": [
+          [
+            "?",
+            9.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            9.0
+          ]
+        ]
+      },
+      {
+        "ms": 7.0,
+        "start_s": 1.581,
+        "leaf_own": [
+          [
+            "0x199cb981d",
+            1.0
+          ],
+          [
+            "lsl::Allocator::AllocationMetadata::AllocationMetadata(lsl::Allocator::AllocationMetadata*, unsigned long long, unsigned",
+            1.0
+          ],
+          [
+            "dyld3::MachOFile::trieWalk(Diagnostics&, unsigned char const*, unsigned char const*, char const*)",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            6.0
+          ],
+          [
+            "_GLOBAL__sub_I_ANEProperties.cpp",
+            1.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 9.32 s 00:09.319.231 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "paint-undo-redo-500-cycles.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_paint_undo_repeated_24mp.trace",
+    "windows_s": [
+      [
+        2.3396198749542236,
+        2.6672298908233643
+      ],
+      [
+        2.681025981903076,
+        3.993083953857422
+      ],
+      [
+        4.020481824874878,
+        5.614140033721924
+      ]
+    ],
+    "window_ms": 3233.326196670532,
+    "samples_ms_total": 1435.0,
+    "self_top_all": [
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        463.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        104.0
+      ],
+      [
+        "__psynch_cvwait  [libsystem_kernel.dylib]",
+        71.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::raster_node  [b5prof_followup-5d248d08350dc754]",
+        52.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        43.0
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [b5prof_followup-5d248d08350dc754]",
+        31.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::render_region::{closure#11}  [b5prof_followup-5d248d08350dc754]",
+        29.0
+      ],
+      [
+        "<deduplicated_symbol>  [b5prof_followup-5d248d08350dc754]",
+        29.0
+      ],
+      [
+        "iokit_user_client_trap  [IOKit]",
+        26.0
+      ],
+      [
+        "mach_absolute_time  [libsystem_kernel.dylib]",
+        22.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "mach_msg2_internal <- io_connect_method <- IOConnectCallMethod <- IOGPUCommandQueueSubmitCommandBuffers <- -[IOGPUMetalCommandQueue _submitCommandBuffers:count:] <- -[IOGPUMetalCommandQueue submitCommandBuffers:count:] <- -[_MTLCommandQueue _submitAvailableCommandBuffers]",
+            356.0
+          ]
+        ]
+      ],
+      [
+        "start_wqthread",
+        [
+          [
+            "qos_class_main",
+            104.0
+          ]
+        ]
+      ],
+      [
+        "__psynch_cvwait",
+        [
+          [
+            "_pthread_cond_wait <- jobs::worker <- std::sys::backtrace::__rust_begin_short_backtrace::<<jobs::ThreadPoolScheduler>::build::{closure#0}, ()> <- <std::thread::lifecycle::spawn_unchecked<<jobs::ThreadPoolScheduler>::build::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            34.0
+          ]
+        ]
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::raster_node",
+        [
+          [
+            "<compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::raster_node <- <compositor::resident::ResidentRenderer>::render_region::{closure#11} <- <compositor::resident::ResidentRenderer>::render_region <- <compositor::resident::ResidentRenderer>::render_viewport <- <tessera_ffi::document::render::GpuBackend>::render_or_refuse <- tessera_ffi::document::render::worker_loop",
+            44.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memset",
+        [
+          [
+            "-[MTLResourceList releaseAllObjectsAndReset] <- IOGPUMetalCommandBufferStorageReset <- IOGPUMetalCommandBufferStorageDealloc <- -[IOGPUMetalCommandBuffer didCompleteWithStartTime:endTime:error:] <- -[_MTLCommandQueue commandBufferDidComplete:startTime:completionTime:error:] <- IOGPUNotificationQueueDispatchAvailableCompletionNotifications <- __IOGPUNotificationQueueSetDispatchQueue_block_invoke",
+            28.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "gaussian-undo-to-frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_gaussian_isolated_24mp.trace",
+    "windows_s": [
+      [
+        3.0181031227111816,
+        3.0188159942626953
+      ],
+      [
+        3.8519041538238525,
+        3.8529791831970215
+      ],
+      [
+        4.587306976318359,
+        4.588221073150635
+      ]
+    ],
+    "window_ms": 2.701997756958008,
+    "samples_ms_total": 2.0,
+    "self_top_all": [
+      [
+        "close  [libsystem_kernel.dylib]",
+        1.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        1.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "close",
+        [
+          [
+            "std::sys::process::unix::common::read_output <- <std::process::Command>::output <- <b5prof_followup::prof_gaussian_isolated_24mp::{closure#0} as core::ops::function::FnOnce<()>>::call_once <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn() -> core::result::Result<(), alloc::string::String>> <- test::run_test::{closure#0} <- std::sys::backtrace::__rust_begin_short_backtrace::<test::run_test::{closure#1}, ()> <- <std::thread::lifecycle::spawn_unchecked<test::run_test::{closure#1}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}",
+            1.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memset",
+        [
+          [
+            "-[MTLResourceList releaseAllObjectsAndReset] <- IOGPUMetalCommandBufferStorageReset <- IOGPUMetalCommandBufferStorageDealloc <- -[IOGPUMetalCommandBuffer didCompleteWithStartTime:endTime:error:] <- -[_MTLCommandQueue commandBufferDidComplete:startTime:completionTime:error:] <- IOGPUNotificationQueueDispatchAvailableCompletionNotifications <- __IOGPUNotificationQueueSetDispatchQueue_block_invoke",
+            1.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "prof_paint_undo_repeated_24mp.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_paint_undo_repeated_24mp.trace",
+    "window_s": null,
+    "window_ms": null,
+    "samples_ms_total": 2118.0,
+    "main_on_cpu_ms": 10.0,
+    "threads_top": [
+      [
+        "b5prof_followup-5d248d08350dc754",
+        881.0
+      ],
+      [
+        "document-render",
+        851.0
+      ],
+      [
+        "prof_paint_undo_repeated_24mp",
+        320.0
+      ],
+      [
+        "jobs-3",
+        16.0
+      ],
+      [
+        "jobs-1",
+        13.0
+      ],
+      [
+        "jobs-0",
+        12.0
+      ],
+      [
+        "jobs-2",
+        11.0
+      ],
+      [
+        "Main Thread",
+        10.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        499.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        131.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        114.0
+      ],
+      [
+        "__psynch_cvwait  [libsystem_kernel.dylib]",
+        75.0
+      ],
+      [
+        "b5prof_followup::doc24  [b5prof_followup-5d248d08350dc754]",
+        74.0
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [b5prof_followup-5d248d08350dc754]",
+        68.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        64.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        64.0
+      ],
+      [
+        "<compositor::resident::ResidentRenderer>::raster_node  [b5prof_followup-5d248d08350dc754]",
+        57.0
+      ],
+      [
+        "iokit_user_client_trap  [IOKit]",
+        39.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "dyld4::PrebuiltLoader::dependent(dyld4::RuntimeState const&, unsigned int, mach_o::LinkedDylibAttributes*) const  [dyld]",
+        1.0
+      ],
+      [
+        "invocation function for block in dyld4::Loader::applyFixupsGeneric(Diagnostics&, dyld4::RuntimeState&, unsigned long long, dyld3::Array<void const*> const&, dyl  [dyld]",
+        1.0
+      ],
+      [
+        "mvm_guarded_range_init  [libsystem_malloc.dylib]",
+        1.0
+      ],
+      [
+        "__sysctl  [libsystem_kernel.dylib]",
+        1.0
+      ],
+      [
+        "<deduplicated_symbol>  [dyld]",
+        1.0
+      ],
+      [
+        "_os_log_impl_flatten_and_send  [libsystem_trace.dylib]",
+        1.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        499.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        131.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        114.0
+      ],
+      [
+        "__psynch_cvwait  [libsystem_kernel.dylib]",
+        75.0
+      ],
+      [
+        "b5prof_followup::doc24  [b5prof_followup-5d248d08350dc754]",
+        74.0
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [b5prof_followup-5d248d08350dc754]",
+        68.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        64.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        64.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "_GLOBAL__sub_I_PKGMenuBarContext.mm  [SkyLight]",
+        1.0
+      ],
+      [
+        "invocation function for block in void applesauce::dispatch::v1::sync_impl<CoreAnalytics::Client::sendExitBarrierWithTimeoutSync(unsigned int)::$_0>(dispatch_que  [CoreAnalytics]",
+        1.0
+      ],
+      [
+        "CoreAnalytics::Client::sendExitBarrierWithTimeoutSync(unsigned int)  [CoreAnalytics]",
+        1.0
+      ],
+      [
+        "(anonymous namespace)::atExitHandler()  [CoreAnalytics]",
+        1.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "io_connect_method <- IOConnectCallMethod",
+            416.0
+          ],
+          [
+            "io_connect_method <- IOConnectCallMethod <- <wgpu_hal::metal::Device as wgpu_hal::Device>::create_buffer",
+            79.0
+          ]
+        ]
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut",
+        [
+          [
+            "",
+            95.0
+          ],
+          [
+            "<std::sys::thread::unix::Thread>::new::thread_start",
+            35.0
+          ]
+        ]
+      ],
+      [
+        "start_wqthread",
+        [
+          [
+            "",
+            114.0
+          ]
+        ]
+      ],
+      [
+        "__psynch_cvwait",
+        [
+          [
+            "jobs::worker <- std::sys::backtrace::__rust_begin_short_backtrace::<<jobs::ThreadPoolScheduler>::build::{c <- <std::thread::lifecycle::spawn_unchecked<<jobs::ThreadPoolScheduler>::build::{closure#0}, ",
+            34.0
+          ],
+          [
+            "<parking_lot::condvar::Condvar>::wait_until_internal <- <wgpu_hal::metal::Device as wgpu_hal::Device>::wait <- <wgpu_core::device::resource::Device>::maintain",
+            24.0
+          ]
+        ]
+      ],
+      [
+        "b5prof_followup::doc24",
+        [
+          [
+            "b5prof_followup::prof_paint_undo_repeated_24mp <- <b5prof_followup::prof_paint_undo_repeated_24mp::{closure#0} as core::ops::function::FnOnc <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn()",
+            74.0
+          ]
+        ]
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write",
+        [
+          [
+            "<std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&(i64, i64)> <- <brush::engine::Stroke>::render <- <brush::engine::Stroke>::add_point",
+            18.0
+          ],
+          [
+            "<std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&(i64, i64)> <- <brush::engine::Stroke>::shade <- <compositor::raster::Raster>::edit_region::<tessera_ffi::document::tools::paint_live::{clo",
+            11.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        5.0,
+        1.707
+      ],
+      [
+        4.0,
+        67.513
+      ],
+      [
+        1.0,
+        5.657
+      ]
+    ],
+    "main_span_count": 3,
+    "main_span_detail": [
+      {
+        "ms": 5.0,
+        "start_s": 1.707,
+        "leaf_own": [
+          [
+            "dyld4::PrebuiltLoader::dependent(dyld4::RuntimeState const&, unsigned int, mach_o::LinkedDylibAttributes*) const",
+            1.0
+          ],
+          [
+            "invocation function for block in dyld4::Loader::applyFixupsGeneric(Diagnostics&, dyld4::RuntimeState&, unsigned long lon",
+            1.0
+          ],
+          [
+            "mvm_guarded_range_init",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            4.0
+          ],
+          [
+            "_GLOBAL__sub_I_PKGMenuBarContext.mm",
+            1.0
+          ]
+        ]
+      },
+      {
+        "ms": 4.0,
+        "start_s": 67.513,
+        "leaf_own": [
+          [
+            "?",
+            4.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            4.0
+          ]
+        ]
+      },
+      {
+        "ms": 1.0,
+        "start_s": 5.657,
+        "leaf_own": [
+          [
+            "invocation function for block in void applesauce::dispatch::v1::sync_impl<CoreAnalytics::Client::sendExitBarrierWithTime",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "invocation function for block in void applesauce::dispatch::v1::sync_impl<CoreAn <- CoreAnalytics::Client::sendExitBarrierWithTimeoutSync(unsigned int) <- (anonymous namespace)::atExitHandler()",
+            1.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 1.13 min 01:07.521.492 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "prof_saved_layered_24mp.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_saved_layered_24mp.trace",
+    "window_s": null,
+    "window_ms": null,
+    "samples_ms_total": 1095.0,
+    "main_on_cpu_ms": 30.0,
+    "threads_top": [
+      [
+        "prof_saved_layered_24mp",
+        600.0
+      ],
+      [
+        "b5prof_followup-5d248d08350dc754",
+        315.0
+      ],
+      [
+        "document-render",
+        126.0
+      ],
+      [
+        "Main Thread",
+        30.0
+      ],
+      [
+        "resident specialization",
+        22.0
+      ],
+      [
+        "jobs-2",
+        2.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "HUF_decompress4X1_usingDTable_internal  [b5prof_followup-5d248d08350dc754]",
+        330.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        157.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        143.0
+      ],
+      [
+        "<compositor::format::Reader>::raster  [b5prof_followup-5d248d08350dc754]",
+        42.0
+      ],
+      [
+        "<fontdb::Database>::load_font_file_impl  [b5prof_followup-5d248d08350dc754]",
+        35.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        21.0
+      ],
+      [
+        "HUF_readDTableX1_wksp  [b5prof_followup-5d248d08350dc754]",
+        10.0
+      ],
+      [
+        "HUF_decompress4X2_usingDTable_internal  [b5prof_followup-5d248d08350dc754]",
+        10.0
+      ],
+      [
+        "madvise  [libsystem_kernel.dylib]",
+        10.0
+      ],
+      [
+        "fontdb::parse_face_info  [b5prof_followup-5d248d08350dc754]",
+        8.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "__open  [dyld]",
+        2.0
+      ],
+      [
+        "dyld3::MachOFile::trieWalk(Diagnostics&, unsigned char const*, unsigned char const*, char const*)  [dyld]",
+        1.0
+      ],
+      [
+        "dyld3::Array<dyld4::Loader const*>::push_back(dyld4::Loader const* const&)  [dyld]",
+        1.0
+      ],
+      [
+        "_kernelrpc_mach_vm_protect_trap  [dyld]",
+        1.0
+      ],
+      [
+        "getMethodFromRelativeList(relative_list_list_t<method_list_t>*, objc_selector*)  [libobjc.A.dylib]",
+        1.0
+      ],
+      [
+        "__getattrlist  [libsystem_kernel.dylib]",
+        1.0
+      ],
+      [
+        "canonical specialized generic type metadata accessor for _ContiguousArrayStorage<Swift.AnyObject>  [libswiftCore.dylib]",
+        1.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "HUF_decompress4X1_usingDTable_internal  [b5prof_followup-5d248d08350dc754]",
+        330.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        157.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        143.0
+      ],
+      [
+        "<compositor::format::Reader>::raster  [b5prof_followup-5d248d08350dc754]",
+        42.0
+      ],
+      [
+        "<fontdb::Database>::load_font_file_impl  [b5prof_followup-5d248d08350dc754]",
+        35.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        21.0
+      ],
+      [
+        "HUF_readDTableX1_wksp  [b5prof_followup-5d248d08350dc754]",
+        10.0
+      ],
+      [
+        "HUF_decompress4X2_usingDTable_internal  [b5prof_followup-5d248d08350dc754]",
+        10.0
+      ]
+    ],
+    "incl_main_tessera": [],
+    "top_self_callers": [
+      [
+        "HUF_decompress4X1_usingDTable_internal",
+        [
+          [
+            "ZSTD_decodeLiteralsBlock <- ZSTD_decompressBlock_internal <- ZSTD_decompressMultiFrame",
+            330.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "<wgpu_core::device::queue::Queue>::write_buffer <- <wgpu_core::global::Global>::queue_write_buffer <- <wgpu::api::queue::Queue>::write_buffer",
+            100.0
+          ],
+          [
+            "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::functio",
+            38.0
+          ]
+        ]
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut",
+        [
+          [
+            "",
+            128.0
+          ],
+          [
+            "<std::sys::thread::unix::Thread>::new::thread_start",
+            15.0
+          ]
+        ]
+      ],
+      [
+        "<compositor::format::Reader>::raster",
+        [
+          [
+            "<compositor::format::Reader>::layer <- <deduplicated_symbol> <- <alloc::vec::Vec<alloc::sync::Arc<compositor::document::Layer>> as alloc::vec::spec_from_i",
+            42.0
+          ]
+        ]
+      ],
+      [
+        "<fontdb::Database>::load_font_file_impl",
+        [
+          [
+            "<fontdb::Database>::load_fonts_dir_impl <- <fontdb::Database>::load_fonts_dir_impl <- <fontdb::Database>::load_system_fonts",
+            29.0
+          ],
+          [
+            "<fontdb::Database>::load_fonts_dir_impl <- <fontdb::Database>::load_system_fonts <- <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<std::sync::pois",
+            6.0
+          ]
+        ]
+      ],
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "io_connect_method <- IOConnectCallMethod <- <wgpu_hal::metal::Device as wgpu_hal::Device>::create_buffer",
+            9.0
+          ],
+          [
+            "io_connect_method <- IOConnectCallMethod",
+            4.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        20.0,
+        9.681
+      ],
+      [
+        6.0,
+        5.48
+      ],
+      [
+        3.0,
+        9.712
+      ],
+      [
+        2.0,
+        5.465
+      ],
+      [
+        1.0,
+        5.475
+      ]
+    ],
+    "main_span_count": 5,
+    "main_span_detail": [
+      {
+        "ms": 20.0,
+        "start_s": 9.681,
+        "leaf_own": [
+          [
+            "?",
+            19.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            19.0
+          ]
+        ]
+      },
+      {
+        "ms": 6.0,
+        "start_s": 5.48,
+        "leaf_own": [
+          [
+            "_kernelrpc_mach_vm_protect_trap",
+            1.0
+          ],
+          [
+            "__open",
+            1.0
+          ],
+          [
+            "getMethodFromRelativeList(relative_list_list_t<method_list_t>*, objc_selector*)",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            5.0
+          ]
+        ]
+      },
+      {
+        "ms": 3.0,
+        "start_s": 9.712,
+        "leaf_own": [
+          [
+            "?",
+            3.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            3.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 9.73 s 00:09.729.032 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "gaussian-apply-to-frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_gaussian_isolated_24mp.trace",
+    "windows_s": [
+      [
+        2.135514974594116,
+        3.0055980682373047
+      ],
+      [
+        3.1023499965667725,
+        3.8371939659118652
+      ],
+      [
+        3.8838460445404053,
+        4.57360315322876
+      ]
+    ],
+    "window_ms": 2294.6841716766357,
+    "samples_ms_total": 13495.0,
+    "self_top_all": [
+      [
+        "filters::convolve  [b5prof_followup-5d248d08350dc754]",
+        10520.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        702.0
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster  [b5prof_followup-5d248d08350dc754]",
+        662.0
+      ],
+      [
+        "<filters::Buffer>::write  [b5prof_followup-5d248d08350dc754]",
+        270.0
+      ],
+      [
+        "<tessera_ffi::document::DocumentSession>::write_pixels  [b5prof_followup-5d248d08350dc754]",
+        254.0
+      ],
+      [
+        "<filters::Buffer>::read  [b5prof_followup-5d248d08350dc754]",
+        217.0
+      ],
+      [
+        "compositor::raster::load_normalized  [b5prof_followup-5d248d08350dc754]",
+        133.0
+      ],
+      [
+        "<compositor::raster::Raster>::read_tile  [b5prof_followup-5d248d08350dc754]",
+        125.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()>  [b5prof_followup-5d248d08350dc754]",
+        118.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        103.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "filters::convolve",
+        [
+          [
+            "filters::large::gaussian <- filters::cpu::run <- <filters::Effect as filters::Filter>::apply <- std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()> <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start",
+            10520.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "tessera_ffi::document::filtering::collect_effect_results::<(compositor::geom::Rect, compositor::geom::Rect, alloc::vec::Vec<f32>), std::sync::mpsc::Receiver<core::result::Result<(compositor::geom::Rect, compositor::geom::Rect, alloc::vec::Vec<f32>), tessera_ffi::document::filtering::FilterEvalError>>, tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#1}> <- std::thread::scoped::scope::<tessera_ffi::document::filtering::run_effect::{closure#3}, core::result::Result<(), tessera_ffi::document::filtering::FilterEvalError>> <- <tessera_ffi::document::filtering::Spec>::run <- <tessera_ffi::document::DocumentSession>::apply_filter <- <b5prof_followup::prof_gaussian_isolated_24mp::{closure#0} as core::ops::function::FnOnce<()>>::call_once <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn() -> core::result::Result<(), alloc::string::String>> <- test::run_test::{closure#0}",
+            136.0
+          ]
+        ]
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster",
+        [
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()> <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            307.0
+          ]
+        ]
+      ],
+      [
+        "<filters::Buffer>::write",
+        [
+          [
+            "<filters::Effect as filters::Filter>::apply <- std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()> <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start <- _pthread_start <- thread_start",
+            270.0
+          ]
+        ]
+      ],
+      [
+        "<tessera_ffi::document::DocumentSession>::write_pixels",
+        [
+          [
+            "<tessera_ffi::document::DocumentSession>::apply_filter <- <b5prof_followup::prof_gaussian_isolated_24mp::{closure#0} as core::ops::function::FnOnce<()>>::call_once <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn() -> core::result::Result<(), alloc::string::String>> <- test::run_test::{closure#0} <- std::sys::backtrace::__rust_begin_short_backtrace::<test::run_test::{closure#1}, ()> <- <std::thread::lifecycle::spawn_unchecked<test::run_test::{closure#1}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} <- <std::sys::thread::unix::Thread>::new::thread_start",
+            254.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "stroke-0-end_stroke.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_paint_undo_repeated_24mp.trace",
+    "windows_s": [
+      [
+        2.296963930130005,
+        2.297224998474121
+      ]
+    ],
+    "window_ms": 0.26106834411621094,
+    "samples_ms_total": 1.0,
+    "self_top_all": [
+      [
+        "poll  [libsystem_kernel.dylib]",
+        1.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "poll",
+        [
+          [
+            "std::sys::process::unix::common::read_output <- <std::process::Command>::output <- b5prof_followup::prof_paint_undo_repeated_24mp <- <b5prof_followup::prof_paint_undo_repeated_24mp::{closure#0} as core::ops::function::FnOnce<()>>::call_once <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn() -> core::result::Result<(), alloc::string::String>> <- test::run_test::{closure#0} <- std::sys::backtrace::__rust_begin_short_backtrace::<test::run_test::{closure#1}, ()>",
+            1.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "liquify-redo-to-frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_liquify_isolated_24mp.trace",
+    "windows_s": [
+      [
+        2.1473350524902344,
+        2.1501760482788086
+      ],
+      [
+        2.3655622005462646,
+        2.3663971424102783
+      ],
+      [
+        2.65214204788208,
+        2.652977228164673
+      ]
+    ],
+    "window_ms": 4.511117935180664,
+    "samples_ms_total": 2.0,
+    "self_top_all": [
+      [
+        "read  [libsystem_kernel.dylib]",
+        1.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        1.0
+      ]
+    ],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": [
+      [
+        "read",
+        [
+          [
+            "<std::sys::fd::unix::FileDesc>::read_to_end <- std::sys::process::unix::common::read_output <- <std::process::Command>::output <- <b5prof_followup::prof_liquify_isolated_24mp::{closure#0} as core::ops::function::FnOnce<()>>::call_once <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn() -> core::result::Result<(), alloc::string::String>> <- test::run_test::{closure#0} <- std::sys::backtrace::__rust_begin_short_backtrace::<test::run_test::{closure#1}, ()>",
+            1.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memset",
+        [
+          [
+            "_xzm_free <- -[AGXG16XFamilyBlitContext copyFromBuffer:sourceOffset:toBuffer:destinationOffset:size:] <- <wgpu_hal::metal::CommandEncoder as wgpu_hal::dynamic::command::DynCommandEncoder>::copy_buffer_to_buffer <- <wgpu_core::device::queue::Queue>::write_staging_buffer_impl <- <wgpu_core::device::queue::Queue>::write_buffer <- <wgpu_core::global::Global>::queue_write_buffer <- <wgpu::api::queue::Queue>::write_buffer",
+            1.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "stroke-0-redo\u2192frame.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_paint_undo_repeated_24mp.trace",
+    "windows_s": [
+      [
+        2.325255870819092,
+        2.3261640071868896
+      ]
+    ],
+    "window_ms": 0.9081363677978516,
+    "samples_ms_total": 0,
+    "self_top_all": [],
+    "main_busy_spans_top_ms": [],
+    "main_measurement": "Not AppKit; engine test-thread operation windows",
+    "top_self_callers": []
+  },
+  "prof_gaussian_isolated_24mp.summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/prof_gaussian_isolated_24mp.trace",
+    "window_s": null,
+    "window_ms": null,
+    "samples_ms_total": 13966.0,
+    "main_on_cpu_ms": 57.0,
+    "threads_top": [
+      [
+        "b5prof_followup-5d248d08350dc754",
+        12492.0
+      ],
+      [
+        "prof_gaussian_isolated_24mp",
+        1315.0
+      ],
+      [
+        "document-render",
+        96.0
+      ],
+      [
+        "Main Thread",
+        57.0
+      ],
+      [
+        "resident specialization",
+        6.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "filters::convolve  [b5prof_followup-5d248d08350dc754]",
+        10520.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        737.0
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster  [b5prof_followup-5d248d08350dc754]",
+        662.0
+      ],
+      [
+        "<filters::Buffer>::write  [b5prof_followup-5d248d08350dc754]",
+        270.0
+      ],
+      [
+        "<tessera_ffi::document::DocumentSession>::write_pixels  [b5prof_followup-5d248d08350dc754]",
+        254.0
+      ],
+      [
+        "<filters::Buffer>::read  [b5prof_followup-5d248d08350dc754]",
+        217.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        207.0
+      ],
+      [
+        "compositor::raster::load_normalized  [b5prof_followup-5d248d08350dc754]",
+        133.0
+      ],
+      [
+        "<compositor::raster::Raster>::read_tile  [b5prof_followup-5d248d08350dc754]",
+        125.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_effect::{closure#3}::{closure#0}, ()>  [b5prof_followup-5d248d08350dc754]",
+        118.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "0x10721e98d  []",
+        1.0
+      ],
+      [
+        "dyld4::PrebuiltLoader::dependent(dyld4::RuntimeState const&, unsigned int, mach_o::LinkedDylibAttributes*) const  [dyld]",
+        1.0
+      ],
+      [
+        "invocation function for block in dyld3::MachOAnalyzer::forEachRebaseLocation_Opcodes(Diagnostics&, void (unsigned long long, bool&) block_pointer) const  [dyld]",
+        1.0
+      ],
+      [
+        "invocation function for block in dyld4::Loader::applyFixupsGeneric(Diagnostics&, dyld4::RuntimeState&, unsigned long long, dyld3::Array<void const*> const&, dyl  [dyld]",
+        1.0
+      ],
+      [
+        "dyld4::Loader::dependent(dyld4::RuntimeState const&, unsigned int, mach_o::LinkedDylibAttributes*) const  [dyld]",
+        1.0
+      ],
+      [
+        "<deduplicated_symbol>  [dyld]",
+        1.0
+      ],
+      [
+        "__sysctl  [libsystem_kernel.dylib]",
+        1.0
+      ],
+      [
+        "_GLOBAL__sub_I_qlutgemm.cpp  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "filters::convolve  [b5prof_followup-5d248d08350dc754]",
+        10520.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        737.0
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster  [b5prof_followup-5d248d08350dc754]",
+        662.0
+      ],
+      [
+        "<filters::Buffer>::write  [b5prof_followup-5d248d08350dc754]",
+        270.0
+      ],
+      [
+        "<tessera_ffi::document::DocumentSession>::write_pixels  [b5prof_followup-5d248d08350dc754]",
+        254.0
+      ],
+      [
+        "<filters::Buffer>::read  [b5prof_followup-5d248d08350dc754]",
+        217.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [b5prof_followup-5d248d08350dc754]",
+        207.0
+      ],
+      [
+        "compositor::raster::load_normalized  [b5prof_followup-5d248d08350dc754]",
+        133.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "test::console::run_tests_console  [b5prof_followup-5d248d08350dc754]",
+        2.0
+      ],
+      [
+        "test::test_main_static  [b5prof_followup-5d248d08350dc754]",
+        2.0
+      ],
+      [
+        "std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>  [b5prof_followup-5d248d08350dc754]",
+        2.0
+      ],
+      [
+        "std::rt::lang_start::<()>::{closure#0}  [b5prof_followup-5d248d08350dc754]",
+        2.0
+      ],
+      [
+        "std::rt::lang_start_internal  [b5prof_followup-5d248d08350dc754]",
+        2.0
+      ],
+      [
+        "main  [b5prof_followup-5d248d08350dc754]",
+        2.0
+      ],
+      [
+        "_GLOBAL__sub_I_qlutgemm.cpp  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "<std::io::buffered::bufreader::BufReader<std::fs::File> as std::io::Read>::read_exact  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "<test::term::terminfo::TerminfoTerminal<std::io::stdio::Stdout>>::new  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "test::console::get_formatter  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "<std::io::stdio::Stdout>::lock  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "<std::io::stdio::Stdout as std::io::Write>::write  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "<test::console::OutputLocation<std::io::stdio::Stdout> as std::io::Write>::write_all  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "<test::formatters::pretty::PrettyFormatter<std::io::stdio::Stdout> as test::formatters::OutputFormatter>::write_run_start  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ],
+      [
+        "test::console::run_tests_console::{closure#2}  [b5prof_followup-5d248d08350dc754]",
+        1.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "filters::convolve",
+        [
+          [
+            "filters::large::gaussian <- filters::cpu::run <- <filters::Effect as filters::Filter>::apply",
+            10520.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "tessera_ffi::document::filtering::collect_effect_results::<(compositor::geom::Rect, compos <- std::thread::scoped::scope::<tessera_ffi::document::filtering::run_effect::{closure#3}, co <- <tessera_ffi::document::filtering::Spec>::run",
+            136.0
+          ],
+          [
+            "<tessera_ffi::document::filtering::Img>::crop <- std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_ <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{cl",
+            128.0
+          ]
+        ]
+      ],
+      [
+        "tessera_ffi::document::filtering::read_raster",
+        [
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_ <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{cl <- <std::sys::thread::unix::Thread>::new::thread_start",
+            307.0
+          ],
+          [
+            "<tessera_ffi::document::DocumentSession>::apply_filter <- <b5prof_followup::prof_gaussian_isolated_24mp::{closure#0} as core::ops::function::FnOnce< <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn()",
+            190.0
+          ]
+        ]
+      ],
+      [
+        "<filters::Buffer>::write",
+        [
+          [
+            "<filters::Effect as filters::Filter>::apply <- std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_ <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{cl",
+            270.0
+          ]
+        ]
+      ],
+      [
+        "<tessera_ffi::document::DocumentSession>::write_pixels",
+        [
+          [
+            "<tessera_ffi::document::DocumentSession>::apply_filter <- <b5prof_followup::prof_gaussian_isolated_24mp::{closure#0} as core::ops::function::FnOnce< <- test::__rust_begin_short_backtrace::<core::result::Result<(), alloc::string::String>, fn()",
+            254.0
+          ]
+        ]
+      ],
+      [
+        "<filters::Buffer>::read",
+        [
+          [
+            "<filters::Effect as filters::Filter>::apply <- std::sys::backtrace::__rust_begin_short_backtrace::<tessera_ffi::document::filtering::run_ <- <std::thread::lifecycle::spawn_unchecked<tessera_ffi::document::filtering::run_effect::{cl",
+            217.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        35.0,
+        4.649
+      ],
+      [
+        12.0,
+        4.633
+      ],
+      [
+        10.0,
+        1.607
+      ],
+      [
+        2.0,
+        1.63
+      ],
+      [
+        1.0,
+        1.622
+      ]
+    ],
+    "main_span_count": 5,
+    "main_span_detail": [
+      {
+        "ms": 35.0,
+        "start_s": 4.649,
+        "leaf_own": [
+          [
+            "?",
+            35.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            35.0
+          ]
+        ]
+      },
+      {
+        "ms": 12.0,
+        "start_s": 4.633,
+        "leaf_own": [
+          [
+            "?",
+            12.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            12.0
+          ]
+        ]
+      },
+      {
+        "ms": 10.0,
+        "start_s": 1.607,
+        "leaf_own": [
+          [
+            "0x10721e98d",
+            1.0
+          ],
+          [
+            "dyld4::PrebuiltLoader::dependent(dyld4::RuntimeState const&, unsigned int, mach_o::LinkedDylibAttributes*) const",
+            1.0
+          ],
+          [
+            "invocation function for block in dyld3::MachOAnalyzer::forEachRebaseLocation_Opcodes(Diagnostics&, void (unsigned long l",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "",
+            7.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 4.68 s 00:04.683.565 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "camera-raw-1/summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/camera-raw-1/run.trace",
+    "window_s": [
+      6.3369999122619625,
+      13.566999912261963
+    ],
+    "windows_s": null,
+    "window_ms": 7230.0,
+    "samples_ms_total": 8634.0,
+    "main_on_cpu_ms": 249.0,
+    "threads_top": [
+      [
+        "Tessera",
+        6754.0
+      ],
+      [
+        "document-filters",
+        1558.0
+      ],
+      [
+        "Main Thread",
+        249.0
+      ],
+      [
+        "document-render",
+        70.0
+      ],
+      [
+        "tessera-change-watch",
+        3.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "<pipeline_cpu::image::Image>::tile  [Tessera]",
+        1281.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        952.0
+      ],
+      [
+        "filters::camera_raw::encode_channel  [Tessera]",
+        804.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop  [Tessera]",
+        694.0
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>  [Tessera]",
+        562.0
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next  [Tessera]",
+        502.0
+      ],
+      [
+        "<alloc::vec::Vec<f32> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<f32, core::iter::adapters::copied::Copied<core::iter::adapters::flatten::Flatten<core::slice::iter::Iter<alloc::vec::Vec<f32>>>>>>::from_iter  [Tessera]",
+        255.0
+      ],
+      [
+        "cosf  [libsystem_m.dylib]",
+        181.0
+      ],
+      [
+        "filters::camera_raw::evaluate  [Tessera]",
+        177.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::new  [Tessera]",
+        174.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "objc_msgSend  [libobjc.A.dylib]",
+        12.0
+      ],
+      [
+        "swift_retain  [libswiftCore.dylib]",
+        8.0
+      ],
+      [
+        "_xzm_xzone_malloc_tiny  [libsystem_malloc.dylib]",
+        6.0
+      ],
+      [
+        "_platform_memset  [libsystem_platform.dylib]",
+        6.0
+      ],
+      [
+        "<deduplicated_symbol>  [SwiftUICore]",
+        6.0
+      ],
+      [
+        "_xzm_xzone_malloc_from_freelist_chunk  [libsystem_malloc.dylib]",
+        5.0
+      ],
+      [
+        "AG::Graph::propagate_dirty(AG::AttributeID)  [AttributeGraph]",
+        4.0
+      ],
+      [
+        "<deduplicated_symbol>  [libswiftCore.dylib]",
+        3.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "<pipeline_cpu::image::Image>::tile  [Tessera]",
+        1281.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        951.0
+      ],
+      [
+        "filters::camera_raw::encode_channel  [Tessera]",
+        804.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop  [Tessera]",
+        694.0
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>  [Tessera]",
+        562.0
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next  [Tessera]",
+        502.0
+      ],
+      [
+        "<alloc::vec::Vec<f32> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<f32, core::iter::adapters::copied::Copied<core::iter::adapters::flatten::Flatten<core::slice::iter::Iter<alloc::vec::Vec<f32>>>>>>::from_iter  [Tessera]",
+        255.0
+      ],
+      [
+        "cosf  [libsystem_m.dylib]",
+        181.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "static TesseraApp.$main()  [Tessera]",
+        235.0
+      ],
+      [
+        "UC::DriverCore::continueProcessing()  [UpdateCycle]",
+        161.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        137.0
+      ],
+      [
+        "AG::Subgraph::update(unsigned int)  [AttributeGraph]",
+        90.0
+      ],
+      [
+        "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)  [AttributeGraph]",
+        76.0
+      ],
+      [
+        "AGGraphGetWeakValue  [AttributeGraph]",
+        62.0
+      ],
+      [
+        "AG::Graph::value_ref(AG::AttributeID, unsigned int, AGSwiftMetadata const*, unsigned char&)  [AttributeGraph]",
+        51.0
+      ],
+      [
+        "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)  [AttributeGraph]",
+        33.0
+      ],
+      [
+        "AGGraphGetValue  [AttributeGraph]",
+        30.0
+      ],
+      [
+        "AGGraphSetOutputValue  [AttributeGraph]",
+        13.0
+      ],
+      [
+        "AGGraphGetInputValue  [AttributeGraph]",
+        12.0
+      ],
+      [
+        "-[NSISEngine withBehaviors:performModifications:]  [CoreAutoLayout]",
+        12.0
+      ],
+      [
+        "AG::LayoutDescriptor::Compare::operator()(unsigned char const*, unsigned char const*, unsigned char const*, unsigned long, unsigned long, unsigned int)  [AttributeGraph]",
+        8.0
+      ],
+      [
+        "AG::LayoutDescriptor::compare(unsigned char const*, unsigned char const*, unsigned char const*, unsigned long, unsigned int)  [AttributeGraph]",
+        8.0
+      ],
+      [
+        "AG::Graph::Context::call_update()  [AttributeGraph]",
+        8.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "<pipeline_cpu::image::Image>::tile",
+        [
+          [
+            "<pipeline_cpu::image::Image>::tile <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            536.0
+          ],
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<pipeline_cpu::render::detail_image::{c <- <std::thread::lifecycle::spawn_unchecked<pipeline_cpu::render::detail_image::{closure#0}:: <- <alloc::boxed::Box<dyn core::ops::function::FnOnce<(), Output = ()> + core::marker::Send> ",
+            309.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "<compositor::raster::Raster>::read_tile <- <filters::Buffer>::write <- filters::camera_raw::evaluate",
+            71.0
+          ],
+          [
+            "pipeline_cpu::optics::lateral_manual <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            70.0
+          ]
+        ]
+      ],
+      [
+        "filters::camera_raw::encode_channel",
+        [
+          [
+            "filters::camera_raw::encode_channel <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            629.0
+          ],
+          [
+            "filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run <- tessera_ffi::document::filtering::eval_stack",
+            173.0
+          ]
+        ]
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop",
+        [
+          [
+            "<pipeline_cpu::image::Image>::downsample_crop <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            558.0
+          ],
+          [
+            "pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved <- <image_core::render::Renderer>::render_rgb_linear",
+            136.0
+          ]
+        ]
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>",
+        [
+          [
+            "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}> <- pipeline_cpu::color_detail::color <- <image_core::ops::CpuStageOp as image_core::ops::StageOp>::run",
+            562.0
+          ]
+        ]
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next",
+        [
+          [
+            "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::ada <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            404.0
+          ],
+          [
+            "<alloc::vec::Vec<u8> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<u8, core::it <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            98.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        49.0,
+        13.499
+      ],
+      [
+        41.0,
+        6.365
+      ],
+      [
+        41.0,
+        13.129
+      ],
+      [
+        40.0,
+        6.701
+      ],
+      [
+        28.0,
+        6.435
+      ],
+      [
+        14.0,
+        13.203
+      ],
+      [
+        13.0,
+        6.338
+      ],
+      [
+        11.0,
+        13.184
+      ]
+    ],
+    "main_span_count": 22,
+    "main_span_detail": [
+      {
+        "ms": 49.0,
+        "start_s": 13.499,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            13.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            6.0
+          ],
+          [
+            "static TesseraApp.$main()",
+            4.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::value_ref(AG::AttributeID, unsigned int, AGSwiftMetadata const*, unsi <- AGGraphGetWeakValue",
+            7.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            6.0
+          ]
+        ]
+      },
+      {
+        "ms": 41.0,
+        "start_s": 6.365,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            22.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            12.0
+          ],
+          [
+            "__swift_instantiateGenericMetadata",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsign <- AGGraphGetValue",
+            14.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            12.0
+          ]
+        ]
+      },
+      {
+        "ms": 41.0,
+        "start_s": 13.129,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            17.0
+          ],
+          [
+            "AG::Graph::propagate_dirty(AG::AttributeID)",
+            2.0
+          ],
+          [
+            "AG::data::table::raw_page_seed(AG::data::ptr<AG::data::page>) const",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            16.0
+          ],
+          [
+            "AG::Graph::propagate_dirty(AG::AttributeID) <- static TesseraApp.$main()",
+            2.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 1.00 min 01:00.184.974 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "timing-1/span-summary.json": {
+    "events": 1590,
+    "dropped": 0,
+    "completed": true,
+    "main_spans": {
+      "drawable_encode_end": {
+        "n": 125,
+        "max_ms": 1.1780000058934093,
+        "sorted_ms": [
+          0.1059583155438304,
+          0.11150003410875797,
+          0.11249992530792952,
+          0.11279166210442781,
+          0.11504162102937698,
+          0.11504173744469881,
+          0.11620833538472652,
+          0.11620833538472652,
+          0.11641671881079674,
+          0.11658330913633108,
+          0.11712510604411364,
+          0.1173332566395402,
+          0.11737504974007607,
+          0.11737504974007607,
+          0.11787493713200092,
+          0.11816667392849922,
+          0.11850008741021156,
+          0.11858344078063965,
+          0.11891673784703016,
+          0.11987506877630949,
+          0.12037495616823435,
+          0.12099999003112316,
+          0.12112502008676529,
+          0.12124993372708559,
+          0.12179173063486814,
+          0.12179173063486814,
+          0.1218749675899744,
+          0.12191664427518845,
+          0.12212502770125866,
+          0.12220826465636492,
+          0.12233329471200705,
+          0.12237508781254292,
+          0.12266670819371939,
+          0.12287497520446777,
+          0.12287497520446777,
+          0.1231249189004302,
+          0.12316671200096607,
+          0.12325006537139416,
+          0.12337497901171446,
+          0.12337497901171446,
+          0.12362492270767689,
+          0.12441666331142187,
+          0.12491655070334673,
+          0.12491666711866856,
+          0.1249583438038826,
+          0.12500002048909664,
+          0.1252500806003809,
+          0.12541667092591524,
+          0.12541667092591524,
+          0.12574996799230576,
+          0.12583332136273384,
+          0.12600002810359,
+          0.12645835522562265,
+          0.1267084153369069,
+          0.12679165229201317,
+          0.1270415959879756,
+          0.12716662604361773,
+          0.12720830272883177,
+          0.12745836284011602,
+          0.12758327648043633,
+          0.12779165990650654,
+          0.12783333659172058,
+          0.12808339670300484,
+          0.12824998702853918,
+          0.12850004713982344,
+          0.12850004713982344,
+          0.128875020891428,
+          0.12958329170942307,
+          0.12991658877581358,
+          0.1301249722018838,
+          0.13029167894273996,
+          0.13054173905402422,
+          0.13062497600913048,
+          0.13066665269434452,
+          0.13112497981637716,
+          0.1315833069384098,
+          0.13162498362362385,
+          0.1322916941717267,
+          0.13237493112683296,
+          0.13245828449726105,
+          0.1324999611824751,
+          0.1327083446085453,
+          0.1327916979789734,
+          0.13304175809025764,
+          0.1331249950453639,
+          0.13333337847143412,
+          0.13399997260421515,
+          0.13454165309667587,
+          0.1348749501630664,
+          0.13537495397031307,
+          0.1354999840259552,
+          0.13579160440713167,
+          0.13616669457405806,
+          0.13620825484395027,
+          0.1372500555589795,
+          0.13770838268101215,
+          0.1377916196361184,
+          0.13837497681379318,
+          0.139000010676682,
+          0.14008325524628162,
+          0.14116661623120308,
+          0.141250086016953,
+          0.14208327047526836,
+          0.14216674026101828,
+          0.1444583758711815,
+          0.14670833479613066,
+          0.14970835763961077,
+          0.15195843297988176,
+          0.15237496700137854,
+          0.15329173766076565,
+          0.15341665130108595,
+          0.1634584041312337,
+          0.17208338249474764,
+          0.18241663929075003,
+          0.18295831978321075,
+          0.1876666210591793,
+          0.19279168918728828,
+          0.19995833281427622,
+          0.22137491032481194,
+          0.7242499850690365,
+          0.8172499947249889,
+          0.835500075481832,
+          0.9512499673292041,
+          1.0607916628941894,
+          1.1780000058934093
+        ]
+      },
+      "callback_drain_end": {
+        "n": 121,
+        "max_ms": 1.6778749413788319,
+        "sorted_ms": [
+          0.4739166470244527,
+          0.7257499964907765,
+          0.7265832973644137,
+          0.7285417523235083,
+          0.7307915948331356,
+          0.7316250121220946,
+          0.7327083731070161,
+          0.7333332905545831,
+          0.7342500612139702,
+          0.7352083921432495,
+          0.7359583396464586,
+          0.7363333133980632,
+          0.7366666104644537,
+          0.7376250578090549,
+          0.7382916519418359,
+          0.7387916557490826,
+          0.7391666295006871,
+          0.7392499828711152,
+          0.7392916595563293,
+          0.7400832837447524,
+          0.7411250844597816,
+          0.7414583815261722,
+          0.7418333552777767,
+          0.7428750395774841,
+          0.7432916900143027,
+          0.7442500209435821,
+          0.7444999646395445,
+          0.7449999684467912,
+          0.7450416451320052,
+          0.7457915926352143,
+          0.7467499235644937,
+          0.7472500437870622,
+          0.7474583107978106,
+          0.7475001038983464,
+          0.7481665816158056,
+          0.7487082621082664,
+          0.7487083785235882,
+          0.7488750852644444,
+          0.7501665968447924,
+          0.7511666044592857,
+          0.7524999091401696,
+          0.7526667322963476,
+          0.752833322621882,
+          0.753541593439877,
+          0.7555417250841856,
+          0.7555834017693996,
+          0.7561666425317526,
+          0.7562916725873947,
+          0.7563750259578228,
+          0.757166650146246,
+          0.7573333568871021,
+          0.758666661567986,
+          0.7588749285787344,
+          0.7594582857564092,
+          0.7611666806042194,
+          0.762333394959569,
+          0.763041665777564,
+          0.7637082599103451,
+          0.7639167597517371,
+          0.7641665870323777,
+          0.7650833576917648,
+          0.7654166547581553,
+          0.765916658565402,
+          0.7660416886210442,
+          0.7669582264497876,
+          0.7669583428651094,
+          0.7685000309720635,
+          0.7700417190790176,
+          0.7700417190790176,
+          0.7704583695158362,
+          0.7718750275671482,
+          0.77308330219239,
+          0.7737916894257069,
+          0.7739999564364552,
+          0.7742916932329535,
+          0.77458331361413,
+          0.7780833402648568,
+          0.7781250169500709,
+          0.7795833516865969,
+          0.7796249119564891,
+          0.7802916225045919,
+          0.7805000059306622,
+          0.7820416940376163,
+          0.7821667240932584,
+          0.7826667279005051,
+          0.7835000287741423,
+          0.7851250702515244,
+          0.7860000478103757,
+          0.7886666571721435,
+          0.7896666647866368,
+          0.7904167287051678,
+          0.7906666724011302,
+          0.7909167325124145,
+          0.7913749432191253,
+          0.7917083567008376,
+          0.7949167629703879,
+          0.7977500790730119,
+          0.8015834027901292,
+          0.8068750612437725,
+          0.8076666854321957,
+          0.8081250125542283,
+          0.8148333290591836,
+          0.8188749197870493,
+          0.8222500327974558,
+          0.8230417734012008,
+          0.8338333573192358,
+          0.8350833086296916,
+          0.8434583432972431,
+          0.8581249276176095,
+          0.8612499805167317,
+          0.8937499951571226,
+          0.910708331502974,
+          0.9332500630989671,
+          1.0579166701063514,
+          1.0941249784082174,
+          1.161749940365553,
+          1.1652916437014937,
+          1.2201666831970215,
+          1.586749916896224,
+          1.6639166278764606,
+          1.6778749413788319
+        ]
+      },
+      "ffi_end": {
+        "n": 121,
+        "max_ms": 2.7265833923593163,
+        "sorted_ms": [
+          0.09829166810959578,
+          0.4866250092163682,
+          0.4868333926424384,
+          0.4895416786894202,
+          0.48958335537463427,
+          0.4902083892375231,
+          0.4911666037514806,
+          0.49308326561003923,
+          0.49445824697613716,
+          0.49450004007667303,
+          0.4947083070874214,
+          0.4949583671987057,
+          0.4949583671987057,
+          0.49533334095031023,
+          0.4967499990016222,
+          0.4968333523720503,
+          0.49783335998654366,
+          0.4978750366717577,
+          0.4984167171642184,
+          0.4993332549929619,
+          0.4996666684746742,
+          0.4999584052711725,
+          0.5011250032112002,
+          0.5024583078920841,
+          0.5027916049584746,
+          0.5035416688770056,
+          0.503791612572968,
+          0.5040833493694663,
+          0.5041250260546803,
+          0.5057083908468485,
+          0.5059166578575969,
+          0.506041687913239,
+          0.5063749849796295,
+          0.5064582219347358,
+          0.5068333121016622,
+          0.5068749887868762,
+          0.5069166654720902,
+          0.5072916392236948,
+          0.5076667293906212,
+          0.5077916430309415,
+          0.5082916468381882,
+          0.5084999138489366,
+          0.5086667370051146,
+          0.5087082972750068,
+          0.5088750040158629,
+          0.508958357386291,
+          0.5090832710266113,
+          0.5093333311378956,
+          0.5095000378787518,
+          0.5100416019558907,
+          0.5110000493004918,
+          0.5112499929964542,
+          0.5121249705553055,
+          0.5121666472405195,
+          0.5129165947437286,
+          0.513291684910655,
+          0.5135417450219393,
+          0.5137083353474736,
+          0.5143332527950406,
+          0.5143333692103624,
+          0.5148750497028232,
+          0.5150416400283575,
+          0.5151249933987856,
+          0.5160834407433867,
+          0.5165416514500976,
+          0.5165833281353116,
+          0.5178332794457674,
+          0.5178333958610892,
+          0.5186666967347264,
+          0.5195416742935777,
+          0.5198332946747541,
+          0.5200415616855025,
+          0.5203749751672149,
+          0.5216250428929925,
+          0.521916663274169,
+          0.5226250505074859,
+          0.5229999078437686,
+          0.5241666221991181,
+          0.5243750056251884,
+          0.5243750056251884,
+          0.525625073350966,
+          0.5269167013466358,
+          0.5271666450425982,
+          0.5271666450425982,
+          0.5278750322759151,
+          0.5294167203828692,
+          0.5307917017489672,
+          0.5309166153892875,
+          0.5312082357704639,
+          0.5325833335518837,
+          0.5330833373591304,
+          0.5382916424423456,
+          0.5386666161939502,
+          0.5395415937528014,
+          0.5396667402237654,
+          0.5420832894742489,
+          0.5464584100991488,
+          0.5477917147800326,
+          0.5493332864716649,
+          0.5511250346899033,
+          0.5541666178032756,
+          0.5610000807791948,
+          0.5773333832621574,
+          0.5862083053216338,
+          0.5932083586230874,
+          0.5984583403915167,
+          0.6053332472220063,
+          0.6156666204333305,
+          0.6185000529512763,
+          0.6272499449551105,
+          0.6273749750107527,
+          0.6345834117382765,
+          0.658041681163013,
+          0.6824167212471366,
+          0.6824582815170288,
+          0.682624988257885,
+          0.7277915719896555,
+          0.8440833771601319,
+          0.8538749534636736,
+          0.9097916772589087,
+          2.7265833923593163
+        ]
+      },
+      "flush_end": {
+        "n": 123,
+        "max_ms": 3.150666714645922,
+        "sorted_ms": [
+          0.0003334134817123413,
+          0.0006249174475669861,
+          0.16633328050374985,
+          0.5433332407847047,
+          0.545041635632515,
+          0.5489999894052744,
+          0.5502917338162661,
+          0.550833297893405,
+          0.5516249220818281,
+          0.553083373233676,
+          0.5535417003557086,
+          0.5543750012293458,
+          0.5562916630879045,
+          0.5575416143983603,
+          0.5579165881499648,
+          0.5581666482612491,
+          0.5582916783168912,
+          0.5587916821241379,
+          0.5594583926722407,
+          0.5612500244751573,
+          0.5612500244751573,
+          0.5612917011603713,
+          0.5626250058412552,
+          0.5629999795928597,
+          0.5651665851473808,
+          0.5654166452586651,
+          0.5654583219438791,
+          0.5662083858624101,
+          0.5665833596140146,
+          0.5669583333656192,
+          0.5674166604876518,
+          0.5677499575540423,
+          0.5679999012500048,
+          0.5680416943505406,
+          0.5680833710357547,
+          0.5684583447873592,
+          0.5685416981577873,
+          0.5685833748430014,
+          0.5686666117981076,
+          0.5688333185389638,
+          0.569041701965034,
+          0.5692084087058902,
+          0.5695417057722807,
+          0.5700417095795274,
+          0.5704166833311319,
+          0.571124954149127,
+          0.5715416045859456,
+          0.5715417210012674,
+          0.5716666346415877,
+          0.5716666346415877,
+          0.5718333413824439,
+          0.5724999355152249,
+          0.5728749092668295,
+          0.5734582664445043,
+          0.5735416198149323,
+          0.5757500184699893,
+          0.5759999621659517,
+          0.5763332592323422,
+          0.5772917065769434,
+          0.5779583007097244,
+          0.5784167442470789,
+          0.5786666879430413,
+          0.5787916015833616,
+          0.5792499287053943,
+          0.5793333984911442,
+          0.5799999926239252,
+          0.5807916168123484,
+          0.5818333011120558,
+          0.5824167747050524,
+          0.5832499591633677,
+          0.5832916358485818,
+          0.5832917522639036,
+          0.583500019274652,
+          0.583541695959866,
+          0.5835832562297583,
+          0.584916677325964,
+          0.585624948143959,
+          0.5866666324436665,
+          0.5867916624993086,
+          0.5873333429917693,
+          0.5894165951758623,
+          0.5895416252315044,
+          0.5902916891500354,
+          0.5919582908973098,
+          0.5926666781306267,
+          0.5932083586230874,
+          0.5933749489486217,
+          0.5971667123958468,
+          0.5980416899546981,
+          0.5988334305584431,
+          0.5996666150167584,
+          0.6018750136718154,
+          0.6051249802112579,
+          0.6057083373889327,
+          0.6057500140741467,
+          0.6065416382625699,
+          0.6069999653846025,
+          0.6078749429434538,
+          0.6083333864808083,
+          0.6145000224933028,
+          0.6221666699275374,
+          0.6415416719391942,
+          0.6429583299905062,
+          0.6538749439641833,
+          0.6655000615864992,
+          0.6671249866485596,
+          0.6734583294019103,
+          0.6765000289306045,
+          0.6799165857955813,
+          0.6881667068228126,
+          0.6949582602828741,
+          0.7266249740496278,
+          0.7371249375864863,
+          0.7423332426697016,
+          0.7461666828021407,
+          0.7672916399315,
+          0.7920416537672281,
+          0.854916637763381,
+          0.9327500592917204,
+          0.9443332673981786,
+          0.9694166947156191,
+          1.0538332862779498,
+          3.150666714645922
+        ]
+      }
+    },
+    "presented_count": 0,
+    "presentation_unavailable": 121,
+    "inputs": 121
+  },
+  "camera-raw-3/summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/camera-raw-3/run.trace",
+    "window_s": [
+      8.183000001907349,
+      15.523000001907349
+    ],
+    "windows_s": null,
+    "window_ms": 7340.0,
+    "samples_ms_total": 9093.0,
+    "main_on_cpu_ms": 269.0,
+    "threads_top": [
+      [
+        "Tessera",
+        7205.0
+      ],
+      [
+        "document-filters",
+        1530.0
+      ],
+      [
+        "Main Thread",
+        269.0
+      ],
+      [
+        "document-render",
+        83.0
+      ],
+      [
+        "tessera-change-watch",
+        3.0
+      ],
+      [
+        "com.apple.NSEventThread",
+        2.0
+      ],
+      [
+        "CVDisplayLink",
+        1.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "<pipeline_cpu::image::Image>::tile  [Tessera]",
+        1450.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        1159.0
+      ],
+      [
+        "filters::camera_raw::encode_channel  [Tessera]",
+        771.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop  [Tessera]",
+        673.0
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>  [Tessera]",
+        600.0
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next  [Tessera]",
+        524.0
+      ],
+      [
+        "<alloc::vec::Vec<f32> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<f32, core::iter::adapters::copied::Copied<core::iter::adapters::flatten::Flatten<core::slice::iter::Iter<alloc::vec::Vec<f32>>>>>>::from_iter  [Tessera]",
+        259.0
+      ],
+      [
+        "atan2f  [libsystem_m.dylib]",
+        189.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::new  [Tessera]",
+        178.0
+      ],
+      [
+        "filters::camera_raw::evaluate  [Tessera]",
+        175.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "swift_retain  [libswiftCore.dylib]",
+        14.0
+      ],
+      [
+        "objc_msgSend  [libobjc.A.dylib]",
+        10.0
+      ],
+      [
+        "_xzm_xzone_malloc_tiny  [libsystem_malloc.dylib]",
+        8.0
+      ],
+      [
+        "AG::Graph::propagate_dirty(AG::AttributeID)  [AttributeGraph]",
+        7.0
+      ],
+      [
+        "swift::MetadataCacheKey::operator==(swift::MetadataCacheKey const&) const  [libswiftCore.dylib]",
+        6.0
+      ],
+      [
+        "objc_retain  [libobjc.A.dylib]",
+        6.0
+      ],
+      [
+        "std::__1::pair<swift::HashMapElementWrapper<swift::GenericCacheEntry>*, unsigned int> swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::find<swift::MetadataCacheKey>(swift::MetadataCacheKey const&, swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::IndexStorage, unsigned long, swift::HashMapElementWrapper<swift::GenericCacheEntry>*)  [libswiftCore.dylib]",
+        6.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        4.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "<pipeline_cpu::image::Image>::tile  [Tessera]",
+        1450.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        1155.0
+      ],
+      [
+        "filters::camera_raw::encode_channel  [Tessera]",
+        771.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop  [Tessera]",
+        673.0
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>  [Tessera]",
+        600.0
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next  [Tessera]",
+        524.0
+      ],
+      [
+        "<alloc::vec::Vec<f32> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<f32, core::iter::adapters::copied::Copied<core::iter::adapters::flatten::Flatten<core::slice::iter::Iter<alloc::vec::Vec<f32>>>>>>::from_iter  [Tessera]",
+        259.0
+      ],
+      [
+        "atan2f  [libsystem_m.dylib]",
+        189.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "static TesseraApp.$main()  [Tessera]",
+        250.0
+      ],
+      [
+        "UC::DriverCore::continueProcessing()  [UpdateCycle]",
+        154.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        144.0
+      ],
+      [
+        "AG::Subgraph::update(unsigned int)  [AttributeGraph]",
+        102.0
+      ],
+      [
+        "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)  [AttributeGraph]",
+        72.0
+      ],
+      [
+        "AGGraphGetWeakValue  [AttributeGraph]",
+        52.0
+      ],
+      [
+        "AG::Graph::value_ref(AG::AttributeID, unsigned int, AGSwiftMetadata const*, unsigned char&)  [AttributeGraph]",
+        49.0
+      ],
+      [
+        "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)  [AttributeGraph]",
+        33.0
+      ],
+      [
+        "AGGraphGetValue  [AttributeGraph]",
+        32.0
+      ],
+      [
+        "AGGraphGetInputValue  [AttributeGraph]",
+        15.0
+      ],
+      [
+        "-[NSISEngine withBehaviors:performModifications:]  [CoreAutoLayout]",
+        14.0
+      ],
+      [
+        "-[NSCoreTypesetter _stringDrawingCoreTextEngineWithOriginalString:rect:padding:graphicsContext:forceClipping:attributes:stringDrawingOptions:drawingContext:stringDrawingInterface:]  [UIFoundation]",
+        9.0
+      ],
+      [
+        "__NSStringDrawingEngine  [UIFoundation]",
+        9.0
+      ],
+      [
+        "AG::Graph::propagate_dirty(AG::AttributeID)  [AttributeGraph]",
+        8.0
+      ],
+      [
+        "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)  [Tessera]",
+        8.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "<pipeline_cpu::image::Image>::tile",
+        [
+          [
+            "<pipeline_cpu::image::Image>::tile <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            667.0
+          ],
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<pipeline_cpu::render::detail_image::{c <- <std::thread::lifecycle::spawn_unchecked<pipeline_cpu::render::detail_image::{closure#0}:: <- <alloc::boxed::Box<dyn core::ops::function::FnOnce<(), Output = ()> + core::marker::Send> ",
+            294.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run <- <tessera_ffi::document::DocumentSession>::apply_filter",
+            109.0
+          ],
+          [
+            "pipeline_cpu::optics::lateral_manual <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            104.0
+          ]
+        ]
+      ],
+      [
+        "filters::camera_raw::encode_channel",
+        [
+          [
+            "filters::camera_raw::encode_channel <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            614.0
+          ],
+          [
+            "filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run <- tessera_ffi::document::filtering::eval_stack",
+            151.0
+          ]
+        ]
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop",
+        [
+          [
+            "<pipeline_cpu::image::Image>::downsample_crop <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            539.0
+          ],
+          [
+            "pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved <- <image_core::render::Renderer>::render_rgb_linear",
+            134.0
+          ]
+        ]
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>",
+        [
+          [
+            "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}> <- pipeline_cpu::color_detail::color <- <image_core::ops::CpuStageOp as image_core::ops::StageOp>::run",
+            600.0
+          ]
+        ]
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next",
+        [
+          [
+            "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::ada <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            420.0
+          ],
+          [
+            "<alloc::vec::Vec<u8> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<u8, core::it <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            104.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        78.0,
+        8.184
+      ],
+      [
+        38.0,
+        8.293
+      ],
+      [
+        37.0,
+        8.558
+      ],
+      [
+        35.0,
+        15.127
+      ],
+      [
+        27.0,
+        15.485
+      ],
+      [
+        21.0,
+        15.103
+      ],
+      [
+        16.0,
+        15.17
+      ],
+      [
+        11.0,
+        15.189
+      ]
+    ],
+    "main_span_count": 28,
+    "main_span_detail": [
+      {
+        "ms": 78.0,
+        "start_s": 8.184,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            39.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            16.0
+          ],
+          [
+            "TFont::~TFont()",
+            2.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            16.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsign <- AGGraphGetValue",
+            16.0
+          ]
+        ]
+      },
+      {
+        "ms": 38.0,
+        "start_s": 8.293,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            15.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            6.0
+          ],
+          [
+            "AG::Graph::propagate_dirty(AG::AttributeID)",
+            3.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::value_ref(AG::AttributeID, unsigned int, AGSwiftMetadata const*, unsi <- AGGraphGetWeakValue",
+            7.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            6.0
+          ]
+        ]
+      },
+      {
+        "ms": 37.0,
+        "start_s": 8.558,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            13.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            8.0
+          ],
+          [
+            "static TesseraApp.$main()",
+            6.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::value_ref(AG::AttributeID, unsigned int, AGSwiftMetadata const*, unsi <- AGGraphGetWeakValue",
+            9.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            8.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 49.55 s 00:49.548.449 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "camera-raw-2/summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/camera-raw-2/run.trace",
+    "window_s": [
+      13.744999980926513,
+      20.644999980926514
+    ],
+    "windows_s": null,
+    "window_ms": 6900.0,
+    "samples_ms_total": 8392.0,
+    "main_on_cpu_ms": 181.0,
+    "threads_top": [
+      [
+        "Tessera",
+        6746.0
+      ],
+      [
+        "document-filters",
+        1406.0
+      ],
+      [
+        "Main Thread",
+        181.0
+      ],
+      [
+        "document-render",
+        57.0
+      ],
+      [
+        "com.apple.NSEventThread",
+        1.0
+      ],
+      [
+        "tessera-change-watch",
+        1.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "<pipeline_cpu::image::Image>::tile  [Tessera]",
+        1265.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        996.0
+      ],
+      [
+        "filters::camera_raw::encode_channel  [Tessera]",
+        781.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop  [Tessera]",
+        668.0
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>  [Tessera]",
+        616.0
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next  [Tessera]",
+        518.0
+      ],
+      [
+        "<alloc::vec::Vec<f32> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<f32, core::iter::adapters::copied::Copied<core::iter::adapters::flatten::Flatten<core::slice::iter::Iter<alloc::vec::Vec<f32>>>>>>::from_iter  [Tessera]",
+        215.0
+      ],
+      [
+        "filters::camera_raw::evaluate  [Tessera]",
+        181.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::new  [Tessera]",
+        180.0
+      ],
+      [
+        "atan2f  [libsystem_m.dylib]",
+        178.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "AG::Graph::propagate_dirty(AG::AttributeID)  [AttributeGraph]",
+        8.0
+      ],
+      [
+        "objc_msgSend  [libobjc.A.dylib]",
+        5.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        5.0
+      ],
+      [
+        "<deduplicated_symbol>  [SwiftUICore]",
+        4.0
+      ],
+      [
+        "objc_release  [libobjc.A.dylib]",
+        4.0
+      ],
+      [
+        "find1<A>(_:key:filter:)  [SwiftUICore]",
+        4.0
+      ],
+      [
+        "dyld4::PrebuiltLoader::contains(dyld4::RuntimeState&, void const*, void const**, unsigned long long*, unsigned char*) const  [dyld]",
+        3.0
+      ],
+      [
+        "swift_release  [libswiftCore.dylib]",
+        3.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "<pipeline_cpu::image::Image>::tile  [Tessera]",
+        1265.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        996.0
+      ],
+      [
+        "filters::camera_raw::encode_channel  [Tessera]",
+        781.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop  [Tessera]",
+        668.0
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>  [Tessera]",
+        616.0
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next  [Tessera]",
+        518.0
+      ],
+      [
+        "<alloc::vec::Vec<f32> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<f32, core::iter::adapters::copied::Copied<core::iter::adapters::flatten::Flatten<core::slice::iter::Iter<alloc::vec::Vec<f32>>>>>>::from_iter  [Tessera]",
+        215.0
+      ],
+      [
+        "filters::camera_raw::evaluate  [Tessera]",
+        181.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "static TesseraApp.$main()  [Tessera]",
+        176.0
+      ],
+      [
+        "UC::DriverCore::continueProcessing()  [UpdateCycle]",
+        122.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        92.0
+      ],
+      [
+        "AG::Subgraph::update(unsigned int)  [AttributeGraph]",
+        52.0
+      ],
+      [
+        "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)  [AttributeGraph]",
+        51.0
+      ],
+      [
+        "AG::Graph::value_ref(AG::AttributeID, unsigned int, AGSwiftMetadata const*, unsigned char&)  [AttributeGraph]",
+        47.0
+      ],
+      [
+        "AGGraphGetWeakValue  [AttributeGraph]",
+        47.0
+      ],
+      [
+        "-[NSISEngine withBehaviors:performModifications:]  [CoreAutoLayout]",
+        11.0
+      ],
+      [
+        "AGGraphSetOutputValue  [AttributeGraph]",
+        9.0
+      ],
+      [
+        "AG::Graph::propagate_dirty(AG::AttributeID)  [AttributeGraph]",
+        8.0
+      ],
+      [
+        "AG::LayoutDescriptor::Compare::operator()(unsigned char const*, unsigned char const*, unsigned char const*, unsigned long, unsigned long, unsigned int)  [AttributeGraph]",
+        7.0
+      ],
+      [
+        "AG::LayoutDescriptor::compare(unsigned char const*, unsigned char const*, unsigned char const*, unsigned long, unsigned int)  [AttributeGraph]",
+        7.0
+      ],
+      [
+        "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)  [AttributeGraph]",
+        7.0
+      ],
+      [
+        "AGGraphGetValue  [AttributeGraph]",
+        7.0
+      ],
+      [
+        "-[CUICatalog _resolvedRenditionKeyFromThemeRef:withBaseKey:scaleFactor:deviceIdiom:deviceSubtype:displayGamut:layoutDirection:sizeClassHorizontal:sizeClassVertical:memoryClass:graphicsClass:graphicsFallBackOrder:deviceSubtypeFallBackOrder:locale:adjustRenditionKeyWithBlock:]  [CoreUI]",
+        6.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "<pipeline_cpu::image::Image>::tile",
+        [
+          [
+            "<pipeline_cpu::image::Image>::tile <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            554.0
+          ],
+          [
+            "std::sys::backtrace::__rust_begin_short_backtrace::<pipeline_cpu::render::detail_image::{c <- <std::thread::lifecycle::spawn_unchecked<pipeline_cpu::render::detail_image::{closure#0}:: <- <alloc::boxed::Box<dyn core::ops::function::FnOnce<(), Output = ()> + core::marker::Send> ",
+            302.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run <- <tessera_ffi::document::DocumentSession>::apply_filter",
+            100.0
+          ],
+          [
+            "pipeline_cpu::optics::lateral_manual <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            86.0
+          ]
+        ]
+      ],
+      [
+        "filters::camera_raw::encode_channel",
+        [
+          [
+            "filters::camera_raw::encode_channel <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            617.0
+          ],
+          [
+            "filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run <- tessera_ffi::document::filtering::eval_stack",
+            162.0
+          ]
+        ]
+      ],
+      [
+        "<pipeline_cpu::image::Image>::downsample_crop",
+        [
+          [
+            "<pipeline_cpu::image::Image>::downsample_crop <- pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved",
+            533.0
+          ],
+          [
+            "pipeline_cpu::render::render_linear_impl <- pipeline_cpu::render::render_linear_scaled_resolved <- <image_core::render::Renderer>::render_rgb_linear",
+            135.0
+          ]
+        ]
+      ],
+      [
+        "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}>",
+        [
+          [
+            "pipeline_cpu::map_rgb::<pipeline_cpu::color_detail::color::{closure#0}> <- pipeline_cpu::color_detail::color <- <image_core::ops::CpuStageOp as image_core::ops::StageOp>::run",
+            616.0
+          ]
+        ]
+      ],
+      [
+        "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<f32>, [u8; 4], filters::camera_raw::evaluate::{closure#2}::{closure#0}>, filters::camera_raw::evaluate::{closure#2}> as core::iter::traits::iterator::Iterator>::next",
+        [
+          [
+            "<core::iter::adapters::flatten::FlatMap<core::slice::iter::Iter<[f32; 4]>, core::iter::ada <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            424.0
+          ],
+          [
+            "<alloc::vec::Vec<u8> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<u8, core::it <- filters::camera_raw::evaluate <- <tessera_ffi::document::filtering::Spec>::run",
+            94.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        58.0,
+        20.499
+      ],
+      [
+        48.0,
+        20.131
+      ],
+      [
+        37.0,
+        13.999
+      ],
+      [
+        17.0,
+        13.745
+      ],
+      [
+        14.0,
+        20.182
+      ],
+      [
+        10.0,
+        20.21
+      ],
+      [
+        2.0,
+        20.223
+      ],
+      [
+        2.0,
+        20.238
+      ]
+    ],
+    "main_span_count": 17,
+    "main_span_detail": [
+      {
+        "ms": 58.0,
+        "start_s": 20.499,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            27.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            7.0
+          ],
+          [
+            "static TesseraApp.$main()",
+            6.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            14.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::value_ref(AG::AttributeID, unsigned int, AGSwiftMetadata const*, unsi <- AGGraphGetWeakValue",
+            12.0
+          ]
+        ]
+      },
+      {
+        "ms": 48.0,
+        "start_s": 20.131,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            15.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            4.0
+          ],
+          [
+            "AG::Graph::propagate_dirty(AG::AttributeID)",
+            3.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            9.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            4.0
+          ]
+        ]
+      },
+      {
+        "ms": 37.0,
+        "start_s": 13.999,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            12.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            8.0
+          ],
+          [
+            "static TesseraApp.$main()",
+            6.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            8.0
+          ],
+          [
+            "static TesseraApp.$main()",
+            6.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 1.11 min 01:06.407.863 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "timing-2/span-summary.json": {
+    "events": 1592,
+    "dropped": 0,
+    "completed": true,
+    "main_spans": {
+      "drawable_encode_end": {
+        "n": 126,
+        "max_ms": 2.2879167227074504,
+        "sorted_ms": [
+          0.077458331361413,
+          0.0801250571385026,
+          0.10545831173658371,
+          0.10724994353950024,
+          0.10754168033599854,
+          0.11112506035715342,
+          0.11200003791600466,
+          0.112166628241539,
+          0.11233333498239517,
+          0.11295825242996216,
+          0.11337501928210258,
+          0.11408329010009766,
+          0.11433335021138191,
+          0.11437502689659595,
+          0.11462497059255838,
+          0.11466664727777243,
+          0.11529168114066124,
+          0.11545827146619558,
+          0.11550006456673145,
+          0.1155417412519455,
+          0.11604174505919218,
+          0.11612498201429844,
+          0.11620833538472652,
+          0.11645827908068895,
+          0.116499955765903,
+          0.11658330913633108,
+          0.11712498962879181,
+          0.11716666631400585,
+          0.11725001968443394,
+          0.11754164006561041,
+          0.11775002349168062,
+          0.11820835061371326,
+          0.11891662143170834,
+          0.11925003491342068,
+          0.11966668535023928,
+          0.11975003872066736,
+          0.11987506877630949,
+          0.11995830573141575,
+          0.12012501247227192,
+          0.12066669296473265,
+          0.12125005014240742,
+          0.12129172682762146,
+          0.12137496378272772,
+          0.12149999383836985,
+          0.12187508400529623,
+          0.1221667043864727,
+          0.12233329471200705,
+          0.12274994514882565,
+          0.12275006156414747,
+          0.12283329851925373,
+          0.12312503531575203,
+          0.12320838868618011,
+          0.12337497901171446,
+          0.12337497901171446,
+          0.12391665950417519,
+          0.12404157314449549,
+          0.12416660320013762,
+          0.1242499565705657,
+          0.12429163325577974,
+          0.12441666331142187,
+          0.12450001668184996,
+          0.12458337005227804,
+          0.12470828369259834,
+          0.12474996037781239,
+          0.12512493412941694,
+          0.1261249417439103,
+          0.12616661842912436,
+          0.12633332516998053,
+          0.12687500566244125,
+          0.1269166823476553,
+          0.12799992691725492,
+          0.128083280287683,
+          0.12841669376939535,
+          0.12874999083578587,
+          0.1290834043174982,
+          0.12924999464303255,
+          0.1292916713282466,
+          0.12966664507985115,
+          0.12983335182070732,
+          0.13079168274998665,
+          0.13100006617605686,
+          0.13104162644594908,
+          0.13137503992766142,
+          0.13137503992766142,
+          0.13162498362362385,
+          0.1329166116192937,
+          0.13304175809025764,
+          0.13416667934507132,
+          0.134666683152318,
+          0.1347915967926383,
+          0.13512501027435064,
+          0.1357082510367036,
+          0.13637496158480644,
+          0.1369583187624812,
+          0.13699999544769526,
+          0.1370832324028015,
+          0.1378749730065465,
+          0.13800000306218863,
+          0.13804167974740267,
+          0.13804167974740267,
+          0.13841665349900723,
+          0.1405416987836361,
+          0.1437499886378646,
+          0.14741672202944756,
+          0.15033339150249958,
+          0.15125004574656487,
+          0.15537498984485865,
+          0.1602916745468974,
+          0.1687499461695552,
+          0.18404156435281038,
+          0.18575007561594248,
+          0.18637499306350946,
+          0.1869166735559702,
+          0.21179160103201866,
+          0.2129583153873682,
+          0.21458324044942856,
+          0.21541665773838758,
+          0.23391656577587128,
+          0.24749990552663803,
+          0.3274583723396063,
+          0.5682500777766109,
+          0.606666668318212,
+          0.6769166793674231,
+          1.23774993699044,
+          1.7392083536833525,
+          2.2879167227074504
+        ]
+      },
+      "callback_drain_end": {
+        "n": 121,
+        "max_ms": 4.2331250151619315,
+        "sorted_ms": [
+          0.3855415852740407,
+          0.3864583559334278,
+          0.446583260782063,
+          0.7096249610185623,
+          0.7169584278017282,
+          0.7180833490565419,
+          0.7184999994933605,
+          0.7207082817330956,
+          0.7214166689664125,
+          0.725416699424386,
+          0.7263333536684513,
+          0.731125008314848,
+          0.7352499524131417,
+          0.7363333133980632,
+          0.7373333210125566,
+          0.7413750281557441,
+          0.7420832989737391,
+          0.7421249756589532,
+          0.7425417425110936,
+          0.7435000734403729,
+          0.7459582993760705,
+          0.7467500399798155,
+          0.747083337046206,
+          0.7476250175386667,
+          0.7477083709090948,
+          0.7477500475943089,
+          0.7494583260267973,
+          0.7497082697227597,
+          0.7497083861380816,
+          0.7500416832044721,
+          0.7502082735300064,
+          0.750666600652039,
+          0.7510000141337514,
+          0.751374987885356,
+          0.7519166683778167,
+          0.7527084089815617,
+          0.7531667361035943,
+          0.7551666349172592,
+          0.7570416200906038,
+          0.7573749171569943,
+          0.7576249772682786,
+          0.7588332518935204,
+          0.759458402171731,
+          0.7598333759233356,
+          0.7612915942445397,
+          0.7619167445227504,
+          0.7623332785442472,
+          0.7635833462700248,
+          0.7650416810065508,
+          0.7660833653062582,
+          0.7672499632462859,
+          0.7672916399315,
+          0.7699166890233755,
+          0.7712916703894734,
+          0.7757500279694796,
+          0.7777082500979304,
+          0.7788334041833878,
+          0.77887496445328,
+          0.7812916301190853,
+          0.7829583482816815,
+          0.7841666229069233,
+          0.7860417244955897,
+          0.7864583749324083,
+          0.7904584053903818,
+          0.7905833190307021,
+          0.7908333791419864,
+          0.7922500371932983,
+          0.7933750748634338,
+          0.7937917253002524,
+          0.7939583156257868,
+          0.7966250414028764,
+          0.7981667295098305,
+          0.8058332605287433,
+          0.8096250239759684,
+          0.8213750552386045,
+          0.8273333078250289,
+          0.8318333420902491,
+          0.8345833048224449,
+          0.8354167221114039,
+          0.8372083539143205,
+          0.8441249374300241,
+          0.8450000314041972,
+          0.8476249640807509,
+          0.8497500093653798,
+          0.8501249831169844,
+          0.8512083441019058,
+          0.8546250173822045,
+          0.8630417287349701,
+          0.8664167253300548,
+          0.8708750829100609,
+          0.8802500087767839,
+          0.8887916337698698,
+          0.9056250564754009,
+          0.912958406843245,
+          0.9151250123977661,
+          0.9226666297763586,
+          0.9231666335836053,
+          0.953458365984261,
+          0.9845000458881259,
+          0.9884582832455635,
+          1.0117082856595516,
+          1.012166729196906,
+          1.0162083199247718,
+          1.0209582978859544,
+          1.061291666701436,
+          1.0707499459385872,
+          1.083708368241787,
+          1.0889583500102162,
+          1.2203749502077699,
+          1.264624996110797,
+          1.3064999366179109,
+          1.3471250422298908,
+          1.3760416768491268,
+          1.4385416870936751,
+          1.4613333623856306,
+          1.5161249320954084,
+          1.5995416324585676,
+          1.6820000018924475,
+          1.7687083454802632,
+          1.9564166432246566,
+          4.2331250151619315
+        ]
+      },
+      "ffi_end": {
+        "n": 121,
+        "max_ms": 1.853124937042594,
+        "sorted_ms": [
+          0.12308335863053799,
+          0.15704159159213305,
+          0.2086249878630042,
+          0.24541665334254503,
+          0.27012499049305916,
+          0.4855833249166608,
+          0.4877500468865037,
+          0.4879583138972521,
+          0.48937497194856405,
+          0.49070827662944794,
+          0.490791629999876,
+          0.49100001342594624,
+          0.49245834816247225,
+          0.49408338963985443,
+          0.4941667430102825,
+          0.49441668670624495,
+          0.4945417167618871,
+          0.49533334095031023,
+          0.49566675443202257,
+          0.4962083185091615,
+          0.49637502525001764,
+          0.49637502525001764,
+          0.49679167568683624,
+          0.4972500028088689,
+          0.4976666532456875,
+          0.49858330748975277,
+          0.49929157830774784,
+          0.5000416422262788,
+          0.5015417700633407,
+          0.5020416574552655,
+          0.5021250108256936,
+          0.5024167476221919,
+          0.5025833379477262,
+          0.5028332816436887,
+          0.5030416650697589,
+          0.5030416650697589,
+          0.5033332854509354,
+          0.503833289258182,
+          0.5039583193138242,
+          0.5047917366027832,
+          0.5053749773651361,
+          0.5057082744315267,
+          0.5058749811723828,
+          0.5064583383500576,
+          0.5067916354164481,
+          0.5068333121016622,
+          0.5069166654720902,
+          0.5071666091680527,
+          0.507500022649765,
+          0.5090833874419332,
+          0.5101250717416406,
+          0.5112083163112402,
+          0.5115832900628448,
+          0.5117083201184869,
+          0.5117083201184869,
+          0.51249994430691,
+          0.5127500044181943,
+          0.513250008225441,
+          0.5133749218657613,
+          0.5136667750775814,
+          0.5137916887179017,
+          0.5141666624695063,
+          0.5148750497028232,
+          0.5160416476428509,
+          0.516166677698493,
+          0.5170416552573442,
+          0.5194166442379355,
+          0.5201250314712524,
+          0.5234583513811231,
+          0.5252916598692536,
+          0.526291667483747,
+          0.5263332277536392,
+          0.5275000585243106,
+          0.5295000737532973,
+          0.5298333708196878,
+          0.5355833563953638,
+          0.5365000106394291,
+          0.5374999018386006,
+          0.5394583567976952,
+          0.5446667782962322,
+          0.5448749288916588,
+          0.5454582860693336,
+          0.5485833389684558,
+          0.5494999932125211,
+          0.552291632629931,
+          0.5536667304113507,
+          0.5554166855290532,
+          0.5591666558757424,
+          0.5621250020340085,
+          0.5631250096485019,
+          0.5663332995027304,
+          0.5741249769926071,
+          0.5744582740589976,
+          0.5800833459943533,
+          0.5859165685251355,
+          0.5859166849404573,
+          0.5865832790732384,
+          0.5897500086575747,
+          0.5986666074022651,
+          0.5998333217576146,
+          0.6072917021811008,
+          0.6309999153017998,
+          0.6432083901017904,
+          0.6507083307951689,
+          0.6664165994152427,
+          0.6966666551306844,
+          0.7132500177249312,
+          0.7264165906235576,
+          0.7599999662488699,
+          0.8064582943916321,
+          0.8367083501070738,
+          0.8465000428259373,
+          0.9180416818708181,
+          0.9263332467526197,
+          1.0816249996423721,
+          1.0933333542197943,
+          1.1171250371262431,
+          1.2250415747985244,
+          1.2349167373031378,
+          1.3056249590590596,
+          1.853124937042594
+        ]
+      },
+      "flush_end": {
+        "n": 123,
+        "max_ms": 1.9240833353251219,
+        "sorted_ms": [
+          0.0002916203811764717,
+          0.000625033862888813,
+          0.1910417340695858,
+          0.2898749662563205,
+          0.3198332851752639,
+          0.3556666197255254,
+          0.35624997690320015,
+          0.5457500228658319,
+          0.5468749441206455,
+          0.5481666885316372,
+          0.5484166322275996,
+          0.5518749821931124,
+          0.5527500761672854,
+          0.5544583545997739,
+          0.5554165691137314,
+          0.5557083059102297,
+          0.5568750202655792,
+          0.55741670075804,
+          0.5577499978244305,
+          0.5584165919572115,
+          0.5585000617429614,
+          0.5594165995717049,
+          0.5605417536571622,
+          0.5610000807791948,
+          0.5624999757856131,
+          0.5635833367705345,
+          0.5641666939482093,
+          0.5649166414514184,
+          0.5649999948218465,
+          0.565291615203023,
+          0.5658749723806977,
+          0.5670000100508332,
+          0.5672916304320097,
+          0.5677916342392564,
+          0.5677917506545782,
+          0.5681666079908609,
+          0.568208284676075,
+          0.5685416981577873,
+          0.5687082884833217,
+          0.5687500815838575,
+          0.569083378650248,
+          0.5700832698494196,
+          0.5714583676308393,
+          0.5717084277421236,
+          0.5723750218749046,
+          0.5727499956265092,
+          0.5749583942815661,
+          0.5757083417847753,
+          0.5757500184699893,
+          0.5771249998360872,
+          0.5771666765213013,
+          0.5774999735876918,
+          0.5776250036433339,
+          0.577666680328548,
+          0.5778750637546182,
+          0.5782499210909009,
+          0.5782915977761149,
+          0.5783750675618649,
+          0.5785833345726132,
+          0.5795833421871066,
+          0.5801666993647814,
+          0.5806249100714922,
+          0.5811667069792747,
+          0.5846666172146797,
+          0.5890000611543655,
+          0.5911666667088866,
+          0.5915833171457052,
+          0.5918332608416677,
+          0.5949583137407899,
+          0.5954584339633584,
+          0.5961667047813535,
+          0.5968334153294563,
+          0.5980416899546981,
+          0.5987499607726932,
+          0.6000417051836848,
+          0.6012083031237125,
+          0.6025834009051323,
+          0.6049582734704018,
+          0.6069999653846025,
+          0.6109166424721479,
+          0.610999995842576,
+          0.613083248026669,
+          0.6159166805446148,
+          0.6170833948999643,
+          0.6230416474863887,
+          0.623333384282887,
+          0.6243332754820585,
+          0.6243749521672726,
+          0.6244583055377007,
+          0.6311667384579778,
+          0.6323750130832195,
+          0.6344165885820985,
+          0.6424583261832595,
+          0.6458333227783442,
+          0.6475832778960466,
+          0.6517916917800903,
+          0.662416685372591,
+          0.6642499938607216,
+          0.6644583772867918,
+          0.6657083285972476,
+          0.6724166451022029,
+          0.6922082975506783,
+          0.6994582945480943,
+          0.7081666262820363,
+          0.7319166325032711,
+          0.7347083883360028,
+          0.7409167010337114,
+          0.7665416924282908,
+          0.7934583118185401,
+          0.8753333240747452,
+          0.879499944858253,
+          0.9213333250954747,
+          0.923000043258071,
+          0.9277916979044676,
+          1.0377917205914855,
+          1.1152917286381125,
+          1.1904999846592546,
+          1.1993750231340528,
+          1.2265000259503722,
+          1.336458371952176,
+          1.4121250715106726,
+          1.529541565105319,
+          1.9240833353251219
+        ]
+      }
+    },
+    "presented_count": 0,
+    "presentation_unavailable": 121,
+    "inputs": 121
+  },
+  "timing-3/span-summary.json": {
+    "events": 1600,
+    "dropped": 0,
+    "completed": true,
+    "main_spans": {
+      "drawable_encode_end": {
+        "n": 127,
+        "max_ms": 2.455500070936978,
+        "sorted_ms": [
+          0.0770416809245944,
+          0.07729174103587866,
+          0.08033332414925098,
+          0.0805417075753212,
+          0.0826249597594142,
+          0.08304172661155462,
+          0.08504162542521954,
+          0.08566665928810835,
+          0.08808332495391369,
+          0.09637500625103712,
+          0.10449998080730438,
+          0.11279166210442781,
+          0.11491670738905668,
+          0.11570833157747984,
+          0.11599995195865631,
+          0.11612498201429844,
+          0.11641660239547491,
+          0.11654174886643887,
+          0.11716666631400585,
+          0.11754164006561041,
+          0.11766667012125254,
+          0.11770834680646658,
+          0.11770834680646658,
+          0.11787493713200092,
+          0.11812499724328518,
+          0.11812499724328518,
+          0.11833326425403357,
+          0.11862500105053186,
+          0.11875003110617399,
+          0.11883326806128025,
+          0.11970836203545332,
+          0.11970836203545332,
+          0.11970836203545332,
+          0.1197917154058814,
+          0.1199166290462017,
+          0.12108334340155125,
+          0.12137496378272772,
+          0.12166670057922602,
+          0.12170837726444006,
+          0.12183340732008219,
+          0.12204167433083057,
+          0.12208335101604462,
+          0.12225005775690079,
+          0.12225005775690079,
+          0.12237497139722109,
+          0.12279162183403969,
+          0.12395833618938923,
+          0.12395833618938923,
+          0.12408336624503136,
+          0.12425007298588753,
+          0.12429174967110157,
+          0.12433330994099379,
+          0.12445833999663591,
+          0.12450001668184996,
+          0.1246666070073843,
+          0.12474996037781239,
+          0.12475007679313421,
+          0.12487499043345451,
+          0.12512493412941694,
+          0.1251667272299528,
+          0.12620841152966022,
+          0.126624945551157,
+          0.1270415959879756,
+          0.12712494935840368,
+          0.12745836284011602,
+          0.1276250695809722,
+          0.12787501327693462,
+          0.12799992691725492,
+          0.12841669376939535,
+          0.12854172382503748,
+          0.12858340051025152,
+          0.12904172763228416,
+          0.12916664127260447,
+          0.12949993833899498,
+          0.12954161502420902,
+          0.1296249683946371,
+          0.12966664507985115,
+          0.12983335182070732,
+          0.1299167051911354,
+          0.13020832557231188,
+          0.13025000225752592,
+          0.13037503231316805,
+          0.13079168274998665,
+          0.13079168274998665,
+          0.1314583932980895,
+          0.1315833069384098,
+          0.13170833699405193,
+          0.13179169036448002,
+          0.13183336704969406,
+          0.13204163406044245,
+          0.13212498743087053,
+          0.1322916941717267,
+          0.13233337085694075,
+          0.1323750475421548,
+          0.13254163786768913,
+          0.13254163786768913,
+          0.13262499123811722,
+          0.133208348415792,
+          0.13333337847143412,
+          0.13358332216739655,
+          0.1336249988526106,
+          0.13408332597464323,
+          0.13504165690392256,
+          0.1357083674520254,
+          0.13604166451841593,
+          0.13670837506651878,
+          0.13720837887376547,
+          0.13783329632133245,
+          0.13841665349900723,
+          0.1389166573062539,
+          0.13958336785435677,
+          0.1396250445395708,
+          0.14150002971291542,
+          0.14383334200829268,
+          0.14566665049642324,
+          0.1565417042002082,
+          0.16675004735589027,
+          0.18308323342353106,
+          0.24779164232313633,
+          0.2732916036620736,
+          0.4471667343750596,
+          0.7181665860116482,
+          0.7802499458193779,
+          0.8420000085607171,
+          0.9603750659152865,
+          1.978583401069045,
+          2.455500070936978
+        ]
+      },
+      "callback_drain_end": {
+        "n": 122,
+        "max_ms": 1.5865416498854756,
+        "sorted_ms": [
+          0.38195832166820765,
+          0.40487502701580524,
+          0.41254167445003986,
+          0.412666704505682,
+          0.435833353549242,
+          0.4480833886191249,
+          0.45279168989509344,
+          0.45870826579630375,
+          0.46445836778730154,
+          0.6972500123083591,
+          0.7215416990220547,
+          0.7242083083838224,
+          0.7251666393131018,
+          0.728333368897438,
+          0.7305833278223872,
+          0.7308749482035637,
+          0.7350000087171793,
+          0.7354583358392119,
+          0.7357082795351744,
+          0.736208283342421,
+          0.737000023946166,
+          0.7370417006313801,
+          0.7387499790638685,
+          0.738999922759831,
+          0.7392083061859012,
+          0.7400416070595384,
+          0.7404166972264647,
+          0.7410000544041395,
+          0.7414165884256363,
+          0.7420832989737391,
+          0.742708332836628,
+          0.7446249946951866,
+          0.744958408176899,
+          0.7461250061169267,
+          0.7465416565537453,
+          0.747749931178987,
+          0.7490833522751927,
+          0.749166589230299,
+          0.7492916192859411,
+          0.7495416793972254,
+          0.7496665930375457,
+          0.7497083861380816,
+          0.7511666044592857,
+          0.752833322621882,
+          0.7534583564847708,
+          0.7544166874140501,
+          0.7554166950285435,
+          0.7562916725873947,
+          0.7566250860691071,
+          0.7577083306387067,
+          0.7577916840091348,
+          0.7587083382532,
+          0.760083319619298,
+          0.7608333835378289,
+          0.7614584174007177,
+          0.7618749514222145,
+          0.7619999814778566,
+          0.7632916094735265,
+          0.763750053010881,
+          0.7640833500772715,
+          0.7642499404028058,
+          0.765833305194974,
+          0.767374993301928,
+          0.7676667300984263,
+          0.7689166814088821,
+          0.7694999221712351,
+          0.7718333508819342,
+          0.7735417457297444,
+          0.7738333661109209,
+          0.7747083436697721,
+          0.7752500241622329,
+          0.7760417647659779,
+          0.7764166221022606,
+          0.7771666860207915,
+          0.7778333965688944,
+          0.7781250169500709,
+          0.7784999907016754,
+          0.77887496445328,
+          0.778916641138494,
+          0.7790416711941361,
+          0.7794999983161688,
+          0.7795416750013828,
+          0.78037497587502,
+          0.7807083893567324,
+          0.7818749872967601,
+          0.7840832695364952,
+          0.784083385951817,
+          0.7850000401958823,
+          0.7870417321100831,
+          0.7876666495576501,
+          0.788416713476181,
+          0.7886249804869294,
+          0.7890833076089621,
+          0.7891666609793901,
+          0.789791694842279,
+          0.7903750520199537,
+          0.7905416423454881,
+          0.7918333867564797,
+          0.7927916012704372,
+          0.7949583232402802,
+          0.798541703261435,
+          0.7992500904947519,
+          0.8003750117495656,
+          0.8014582563191652,
+          0.8019583765417337,
+          0.8044999558478594,
+          0.807166681624949,
+          0.8085416629910469,
+          0.8161666337400675,
+          0.820166664198041,
+          0.8269583340734243,
+          0.8279583416879177,
+          0.8755417075008154,
+          0.8807915728539228,
+          0.9035833645612001,
+          0.9044583421200514,
+          0.9368750033900142,
+          0.9519166778773069,
+          0.9854165837168694,
+          1.0442917700856924,
+          1.4648332726210356,
+          1.5865416498854756
+        ]
+      },
+      "ffi_end": {
+        "n": 121,
+        "max_ms": 0.6642499938607216,
+        "sorted_ms": [
+          0.1456249738112092,
+          0.27445831801742315,
+          0.2759583294391632,
+          0.27858337853103876,
+          0.2807083074003458,
+          0.2819582587108016,
+          0.2831666497513652,
+          0.28341670986264944,
+          0.28529169503599405,
+          0.28858333826065063,
+          0.28991675935685635,
+          0.48616668209433556,
+          0.48862502444535494,
+          0.49016671255230904,
+          0.49029162619262934,
+          0.4905416863039136,
+          0.4907500697299838,
+          0.49133331049233675,
+          0.4914583405479789,
+          0.49162504728883505,
+          0.49166660755872726,
+          0.4918749909847975,
+          0.4921249346807599,
+          0.4929166752845049,
+          0.4933333257213235,
+          0.49362494610249996,
+          0.4936250625178218,
+          0.4938750062137842,
+          0.49450004007667303,
+          0.4947916604578495,
+          0.4949583671987057,
+          0.49524998757988214,
+          0.4955416079610586,
+          0.49558328464627266,
+          0.4958332283422351,
+          0.49595837481319904,
+          0.4961249651387334,
+          0.4962083185091615,
+          0.49629167187958956,
+          0.49629167187958956,
+          0.49641658551990986,
+          0.49670832231640816,
+          0.49720832612365484,
+          0.49720832612365484,
+          0.4972915630787611,
+          0.49804162699729204,
+          0.49825001042336226,
+          0.4982916871085763,
+          0.49833336379379034,
+          0.4984167171642184,
+          0.49858330748975277,
+          0.49895839765667915,
+          0.4992083413526416,
+          0.4999582888558507,
+          0.500250025652349,
+          0.500250025652349,
+          0.5003332626074553,
+          0.5003750557079911,
+          0.5006666760891676,
+          0.5007500294595957,
+          0.5007917061448097,
+          0.5013749469071627,
+          0.5014167400076985,
+          0.5021250108256936,
+          0.5022083641961217,
+          0.50250010099262,
+          0.5027499282732606,
+          0.5036666989326477,
+          0.503833289258182,
+          0.5040416726842523,
+          0.5044583231210709,
+          0.5046665901318192,
+          0.5051250336691737,
+          0.5051667103543878,
+          0.505249947309494,
+          0.5062917480245233,
+          0.5067499587312341,
+          0.5069166654720902,
+          0.507458345964551,
+          0.5075832596048713,
+          0.5076666129752994,
+          0.508083263412118,
+          0.5084165604785085,
+          0.5085832672193646,
+          0.5088333273306489,
+          0.5088333273306489,
+          0.5094165680930018,
+          0.5104999290779233,
+          0.5116666434332728,
+          0.511833350174129,
+          0.5122500006109476,
+          0.5127083277329803,
+          0.5140000721439719,
+          0.5149999633431435,
+          0.515500083565712,
+          0.5180416628718376,
+          0.5188332870602608,
+          0.5189999938011169,
+          0.5196667043492198,
+          0.5216249264776707,
+          0.5223749903962016,
+          0.5225416971370578,
+          0.5247499793767929,
+          0.5261666374281049,
+          0.5267501110211015,
+          0.5340416682884097,
+          0.5374166648834944,
+          0.5400415975600481,
+          0.5408750148490071,
+          0.5454582860693336,
+          0.5501249106600881,
+          0.5572499940171838,
+          0.5582083249464631,
+          0.5788332782685757,
+          0.5868750158697367,
+          0.6029166979715228,
+          0.6097082514315844,
+          0.6142499623820186,
+          0.6358333630487323,
+          0.6597499595955014,
+          0.6642499938607216
+        ]
+      },
+      "flush_end": {
+        "n": 123,
+        "max_ms": 0.7878749165683985,
+        "sorted_ms": [
+          0.0002916203811764717,
+          0.0007499475032091141,
+          0.3194166347384453,
+          0.32079173251986504,
+          0.3230832517147064,
+          0.33199996687471867,
+          0.3347083693370223,
+          0.3368750913068652,
+          0.33795833587646484,
+          0.33941667061299086,
+          0.34158339258283377,
+          0.34437503200024366,
+          0.34445838537067175,
+          0.5545000312849879,
+          0.5548750050365925,
+          0.555249978788197,
+          0.556666636839509,
+          0.5571249639615417,
+          0.5599166033789515,
+          0.5605000769719481,
+          0.5607915809378028,
+          0.5617083515971899,
+          0.5617083515971899,
+          0.5618749419227242,
+          0.5619584117084742,
+          0.5625416524708271,
+          0.5640416638925672,
+          0.5640416638925672,
+          0.5640833405777812,
+          0.5641250172629952,
+          0.5642917240038514,
+          0.5646250210702419,
+          0.56470837444067,
+          0.5649999948218465,
+          0.5655833519995213,
+          0.5664166528731585,
+          0.5669166566804051,
+          0.567583367228508,
+          0.5680833710357547,
+          0.5681666079908609,
+          0.5682500777766109,
+          0.5682917544618249,
+          0.5684583447873592,
+          0.5685415817424655,
+          0.5687084048986435,
+          0.56900002527982,
+          0.56900002527982,
+          0.569624942727387,
+          0.5696250591427088,
+          0.5697084125131369,
+          0.5698333261534572,
+          0.5706249503418803,
+          0.5707499803975224,
+          0.5710000405088067,
+          0.5710833938792348,
+          0.5712499842047691,
+          0.5713750142604113,
+          0.5714166909456253,
+          0.5715833976864815,
+          0.5717916646972299,
+          0.5718333413824439,
+          0.5721249617636204,
+          0.5722916685044765,
+          0.5730832926928997,
+          0.573416706174612,
+          0.5735416198149323,
+          0.5739583866670728,
+          0.5742500070482492,
+          0.5749166011810303,
+          0.5757916951552033,
+          0.5775833269581199,
+          0.5780416540801525,
+          0.5782083608210087,
+          0.5787082482129335,
+          0.5792500451207161,
+          0.5794166354462504,
+          0.5795833421871066,
+          0.5799166392534971,
+          0.5804583197459579,
+          0.5816665943711996,
+          0.5822499515488744,
+          0.5825833650305867,
+          0.5827500717714429,
+          0.5830416921526194,
+          0.583500019274652,
+          0.5846667336300015,
+          0.5850000306963921,
+          0.5850417073816061,
+          0.5854999180883169,
+          0.5854999180883169,
+          0.5855833878740668,
+          0.5859999218955636,
+          0.5865832790732384,
+          0.5867916624993086,
+          0.5873333429917693,
+          0.587791670113802,
+          0.5879583768546581,
+          0.5922500276938081,
+          0.5938333924859762,
+          0.5945833399891853,
+          0.5960833514109254,
+          0.59645832516253,
+          0.5987916374579072,
+          0.6012917729094625,
+          0.602333340793848,
+          0.6038332358002663,
+          0.6064167246222496,
+          0.6083749467507005,
+          0.614666729234159,
+          0.6149166729301214,
+          0.6151249399408698,
+          0.6160417106002569,
+          0.6166249513626099,
+          0.6390416529029608,
+          0.6393749499693513,
+          0.6547083612531424,
+          0.6645832909271121,
+          0.6809165934100747,
+          0.685583334416151,
+          0.7122916867956519,
+          0.7331250235438347,
+          0.7365000201389194,
+          0.7878749165683985
+        ]
+      }
+    },
+    "presented_count": 0,
+    "presentation_unavailable": 122,
+    "inputs": 121
+  },
+  "valid/tools-3/summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/valid/tools-3/run.trace",
+    "window_s": [
+      6.645999908447266,
+      11.60099983215332
+    ],
+    "windows_s": null,
+    "window_ms": 4955.0,
+    "samples_ms_total": 1736.0,
+    "main_on_cpu_ms": 379.0,
+    "threads_top": [
+      [
+        "Tessera",
+        1172.0
+      ],
+      [
+        "Main Thread",
+        379.0
+      ],
+      [
+        "document-render",
+        179.0
+      ],
+      [
+        "tessera-change-watch",
+        3.0
+      ],
+      [
+        "jobs-0",
+        2.0
+      ],
+      [
+        "jobs-3",
+        1.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "compositor::render::mip_exact::<u16>  [Tessera]",
+        158.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::new  [Tessera]",
+        106.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        91.0
+      ],
+      [
+        "<image_core::rgb::RgbSource>::from_linear_rec2020  [Tessera]",
+        71.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        65.0
+      ],
+      [
+        "compositor::raster::tile_from_normalized  [Tessera]",
+        57.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        56.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [Tessera]",
+        45.0
+      ],
+      [
+        "<compositor::raster::Raster>::read_tile  [Tessera]",
+        36.0
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [Tessera]",
+        32.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "swift_retain  [libswiftCore.dylib]",
+        12.0
+      ],
+      [
+        "objc_msgSend  [libobjc.A.dylib]",
+        10.0
+      ],
+      [
+        "AG::Graph::propagate_dirty(AG::AttributeID)  [AttributeGraph]",
+        9.0
+      ],
+      [
+        "<deduplicated_symbol>  [SwiftUICore]",
+        8.0
+      ],
+      [
+        "std::__1::pair<swift::HashMapElementWrapper<swift::GenericCacheEntry>*, unsigned int> swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::find<swift::MetadataCacheKey>(swift::MetadataCacheKey const&, swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::IndexStorage, unsigned long, swift::HashMapElementWrapper<swift::GenericCacheEntry>*)  [libswiftCore.dylib]",
+        7.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        7.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        7.0
+      ],
+      [
+        "_xzm_xzone_malloc_tiny  [libsystem_malloc.dylib]",
+        6.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "compositor::render::mip_exact::<u16>  [Tessera]",
+        158.0
+      ],
+      [
+        "<pipeline_cpu::image::Image>::new  [Tessera]",
+        106.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        84.0
+      ],
+      [
+        "<image_core::rgb::RgbSource>::from_linear_rec2020  [Tessera]",
+        71.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        65.0
+      ],
+      [
+        "compositor::raster::tile_from_normalized  [Tessera]",
+        57.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        56.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [Tessera]",
+        45.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "static TesseraApp.$main()  [Tessera]",
+        342.0
+      ],
+      [
+        "UC::DriverCore::continueProcessing()  [UpdateCycle]",
+        181.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        165.0
+      ],
+      [
+        "AG::Subgraph::update(unsigned int)  [AttributeGraph]",
+        123.0
+      ],
+      [
+        "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)  [AttributeGraph]",
+        83.0
+      ],
+      [
+        "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)  [AttributeGraph]",
+        67.0
+      ],
+      [
+        "AGGraphGetValue  [AttributeGraph]",
+        67.0
+      ],
+      [
+        "AGGraphGetInputValue  [AttributeGraph]",
+        42.0
+      ],
+      [
+        "-[NSISEngine withBehaviors:performModifications:]  [CoreAutoLayout]",
+        39.0
+      ],
+      [
+        "AG::Graph::with_update(AG::data::ptr<AG::Node>, AG::ClosureFunctionVV<void>)  [AttributeGraph]",
+        36.0
+      ],
+      [
+        "specialized ContainedColumn.sizeThatFits(proposal:subviews:cache:)  [Tessera]",
+        34.0
+      ],
+      [
+        "AGGraphGetWeakValue  [AttributeGraph]",
+        30.0
+      ],
+      [
+        "thunk for @escaping @callee_guaranteed @Sendable () -> ()  [Tessera]",
+        30.0
+      ],
+      [
+        "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)  [Tessera]",
+        29.0
+      ],
+      [
+        "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)  [Tessera]",
+        29.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "compositor::render::mip_exact::<u16>",
+        [
+          [
+            "<compositor::render::Compositor>::raster_level <- <compositor::render::Compositor>::raster_level <- <compositor::render::Compositor>::raster_level",
+            158.0
+          ]
+        ]
+      ],
+      [
+        "<pipeline_cpu::image::Image>::new",
+        [
+          [
+            "<pipeline_cpu::image::Image>::new <- <image_core::rgb::RgbSource>::from_linear_dng <- <image_core::source::RawImage>::open::<&std::path::Path>",
+            106.0
+          ]
+        ]
+      ],
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "io_connect_method <- IOConnectCallMethod",
+            59.0
+          ],
+          [
+            "io_connect_method <- IOConnectCallMethod <- <wgpu_hal::metal::Device as wgpu_hal::Device>::create_buffer",
+            18.0
+          ]
+        ]
+      ],
+      [
+        "<image_core::rgb::RgbSource>::from_linear_rec2020",
+        [
+          [
+            "<image_core::rgb::RgbSource>::from_linear_rec2020 <- <image_core::rgb::RgbSource>::from_linear_dng <- <image_core::source::RawImage>::open::<&std::path::Path>",
+            71.0
+          ]
+        ]
+      ],
+      [
+        "start_wqthread",
+        [
+          [
+            "",
+            65.0
+          ]
+        ]
+      ],
+      [
+        "compositor::raster::tile_from_normalized",
+        [
+          [
+            "<compositor::raster::Raster>::edit_region::<tessera_ffi::document::tools::paint_live::{clo <- tessera_ffi::document::tools::paint_live <- <tessera_ffi::document::DocumentSession>::stroke_points",
+            57.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        49.0,
+        11.094
+      ],
+      [
+        36.0,
+        8.798
+      ],
+      [
+        27.0,
+        8.739
+      ],
+      [
+        26.0,
+        8.836
+      ],
+      [
+        22.0,
+        11.155
+      ],
+      [
+        9.0,
+        9.579
+      ],
+      [
+        9.0,
+        10.244
+      ],
+      [
+        8.0,
+        11.0
+      ]
+    ],
+    "main_span_count": 134,
+    "main_span_detail": [
+      {
+        "ms": 49.0,
+        "start_s": 11.094,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            16.0
+          ],
+          [
+            "AG::Graph::propagate_dirty(AG::AttributeID)",
+            4.0
+          ],
+          [
+            "AGDispatchEquatable",
+            2.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            15.0
+          ],
+          [
+            "AG::Graph::propagate_dirty(AG::AttributeID) <- static TesseraApp.$main()",
+            4.0
+          ]
+        ]
+      },
+      {
+        "ms": 36.0,
+        "start_s": 8.798,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            19.0
+          ],
+          [
+            "AGDispatchEquatable",
+            2.0
+          ],
+          [
+            "-[CUICatalog _resolvedRenditionKeyFromThemeRef:withBaseKey:scaleFactor:deviceIdiom:deviceSubtype:displayGamut:layoutDire",
+            2.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsign <- AGGraphGetValue",
+            15.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            2.0
+          ]
+        ]
+      },
+      {
+        "ms": 27.0,
+        "start_s": 8.739,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            8.0
+          ],
+          [
+            "DocumentViewportView.mouseDown(with:)",
+            3.0
+          ],
+          [
+            "DocumentVector.redraw()",
+            2.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            7.0
+          ],
+          [
+            "DocumentViewportView.mouseDown(with:) <- specialized ToolsSelfTest.drag(_:in:) <- ToolsSelfTest.run() <- closure #11 in AppDelegate.applicationDidFinishLaunching(_:)",
+            3.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 11.67 s 00:11.666.079 Nominal Current No Nominal  thermal state"
+    ]
+  },
+  "valid/tools-2/summary.json": {
+    "trace": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001/valid/tools-2/run.trace",
+    "window_s": [
+      20.421000003814697,
+      25.472999811172485
+    ],
+    "windows_s": null,
+    "window_ms": 5052.0,
+    "samples_ms_total": 1778.0,
+    "main_on_cpu_ms": 379.0,
+    "threads_top": [
+      [
+        "Tessera",
+        1228.0
+      ],
+      [
+        "Main Thread",
+        379.0
+      ],
+      [
+        "document-render",
+        160.0
+      ],
+      [
+        "jobs-0",
+        4.0
+      ],
+      [
+        "jobs-3",
+        3.0
+      ],
+      [
+        "tessera-change-watch",
+        2.0
+      ],
+      [
+        "jobs-1",
+        1.0
+      ],
+      [
+        "jobs-2",
+        1.0
+      ]
+    ],
+    "self_top_all": [
+      [
+        "<image_core::rgb::RgbSource>::from_linear_dng  [Tessera]",
+        183.0
+      ],
+      [
+        "lens::ca::estimate_ca::{closure#1}  [Tessera]",
+        129.0
+      ],
+      [
+        "compositor::render::mip_exact::<u16>  [Tessera]",
+        107.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        101.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        75.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        55.0
+      ],
+      [
+        "compositor::raster::tile_from_normalized  [Tessera]",
+        42.0
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [Tessera]",
+        40.0
+      ],
+      [
+        "<&<compositor::resident::ResidentRenderer>::materialize::{closure#0} as core::ops::function::FnMut<(&(u64, engine_api::tile::Tile),)>>::call_mut  [Tessera]",
+        32.0
+      ],
+      [
+        "iokit_user_client_trap  [IOKit]",
+        28.0
+      ]
+    ],
+    "self_top_main": [
+      [
+        "_xzm_xzone_malloc_tiny  [libsystem_malloc.dylib]",
+        12.0
+      ],
+      [
+        "objc_msgSend  [libobjc.A.dylib]",
+        11.0
+      ],
+      [
+        "AG::Graph::propagate_dirty(AG::AttributeID)  [AttributeGraph]",
+        11.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        10.0
+      ],
+      [
+        "specialized find1<A>(_:key:filter:)  [SwiftUICore]",
+        10.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        7.0
+      ],
+      [
+        "__kdebug_trace64  [libsystem_kernel.dylib]",
+        7.0
+      ],
+      [
+        "AG::Subgraph::update(unsigned int)  [AttributeGraph]",
+        6.0
+      ]
+    ],
+    "self_top_background": [
+      [
+        "<image_core::rgb::RgbSource>::from_linear_dng  [Tessera]",
+        183.0
+      ],
+      [
+        "lens::ca::estimate_ca::{closure#1}  [Tessera]",
+        129.0
+      ],
+      [
+        "compositor::render::mip_exact::<u16>  [Tessera]",
+        107.0
+      ],
+      [
+        "_platform_memmove  [libsystem_platform.dylib]",
+        99.0
+      ],
+      [
+        "mach_msg2_trap  [libsystem_kernel.dylib]",
+        65.0
+      ],
+      [
+        "start_wqthread  [libsystem_pthread.dylib]",
+        55.0
+      ],
+      [
+        "compositor::raster::tile_from_normalized  [Tessera]",
+        42.0
+      ],
+      [
+        "<std::hash::random::DefaultHasher as core::hash::Hasher>::write  [Tessera]",
+        40.0
+      ]
+    ],
+    "incl_main_tessera": [
+      [
+        "static TesseraApp.$main()  [Tessera]",
+        346.0
+      ],
+      [
+        "UC::DriverCore::continueProcessing()  [UpdateCycle]",
+        203.0
+      ],
+      [
+        "AG::Graph::UpdateStack::update()  [AttributeGraph]",
+        144.0
+      ],
+      [
+        "AG::Subgraph::update(unsigned int)  [AttributeGraph]",
+        103.0
+      ],
+      [
+        "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)  [AttributeGraph]",
+        83.0
+      ],
+      [
+        "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)  [AttributeGraph]",
+        68.0
+      ],
+      [
+        "AGGraphGetValue  [AttributeGraph]",
+        68.0
+      ],
+      [
+        "AG::Graph::with_update(AG::data::ptr<AG::Node>, AG::ClosureFunctionVV<void>)  [AttributeGraph]",
+        47.0
+      ],
+      [
+        "-[NSISEngine withBehaviors:performModifications:]  [CoreAutoLayout]",
+        47.0
+      ],
+      [
+        "specialized ContainedColumn.sizeThatFits(proposal:subviews:cache:)  [Tessera]",
+        45.0
+      ],
+      [
+        "AGGraphGetInputValue  [AttributeGraph]",
+        45.0
+      ],
+      [
+        "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)  [Tessera]",
+        28.0
+      ],
+      [
+        "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)  [Tessera]",
+        28.0
+      ],
+      [
+        "closure #11 in AppDelegate.applicationDidFinishLaunching(_:)  [Tessera]",
+        25.0
+      ],
+      [
+        "partial apply for closure #11 in AppDelegate.applicationDidFinishLaunching(_:)  [Tessera]",
+        25.0
+      ]
+    ],
+    "top_self_callers": [
+      [
+        "<image_core::rgb::RgbSource>::from_linear_dng",
+        [
+          [
+            "<image_core::rgb::RgbSource>::from_linear_dng <- <image_core::source::RawImage>::open::<&std::path::Path> <- <previews::PreviewStore>::render_linear_dng",
+            183.0
+          ]
+        ]
+      ],
+      [
+        "lens::ca::estimate_ca::{closure#1}",
+        [
+          [
+            "lens::ca::estimate_ca::{closure#1} <- lens::ca::estimate_ca <- pipeline_cpu::lens_resolve::resolve_lens",
+            129.0
+          ]
+        ]
+      ],
+      [
+        "compositor::render::mip_exact::<u16>",
+        [
+          [
+            "<compositor::render::Compositor>::raster_level <- <compositor::render::Compositor>::raster_level <- <compositor::render::Compositor>::raster_level",
+            107.0
+          ]
+        ]
+      ],
+      [
+        "_platform_memmove",
+        [
+          [
+            "<image_core::rgb::RgbSource>::from_linear_dng <- <image_core::source::RawImage>::open::<&std::path::Path> <- <previews::PreviewStore>::render_linear_dng",
+            36.0
+          ],
+          [
+            "<wgpu_core::device::queue::Queue>::write_buffer <- <wgpu_core::global::Global>::queue_write_buffer <- <wgpu::api::queue::Queue>::write_buffer",
+            23.0
+          ]
+        ]
+      ],
+      [
+        "mach_msg2_trap",
+        [
+          [
+            "io_connect_method <- IOConnectCallMethod",
+            41.0
+          ],
+          [
+            "io_connect_method <- IOConnectCallMethod <- <wgpu_hal::metal::Device as wgpu_hal::Device>::create_buffer",
+            18.0
+          ]
+        ]
+      ],
+      [
+        "start_wqthread",
+        [
+          [
+            "",
+            55.0
+          ]
+        ]
+      ]
+    ],
+    "main_busy_spans_top_ms": [
+      [
+        59.0,
+        22.452
+      ],
+      [
+        40.0,
+        25.12
+      ],
+      [
+        17.0,
+        22.554
+      ],
+      [
+        12.9,
+        24.245
+      ],
+      [
+        12.0,
+        24.861
+      ],
+      [
+        12.0,
+        22.54
+      ],
+      [
+        11.0,
+        22.522
+      ],
+      [
+        11.0,
+        24.972
+      ]
+    ],
+    "main_span_count": 144,
+    "main_span_detail": [
+      {
+        "ms": 59.0,
+        "start_s": 22.452,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            30.0
+          ],
+          [
+            "AG::Graph::add_attribute(AG::Subgraph&, unsigned int, void const*, void const*)",
+            2.0
+          ],
+          [
+            "_findIndexForKey",
+            2.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsign <- AGGraphGetValue",
+            18.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            12.0
+          ]
+        ]
+      },
+      {
+        "ms": 40.0,
+        "start_s": 25.12,
+        "leaf_own": [
+          [
+            "AG::Graph::UpdateStack::update()",
+            9.0
+          ],
+          [
+            "UC::DriverCore::continueProcessing()",
+            8.0
+          ],
+          [
+            "AGGraphSetOutputValue",
+            2.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            8.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Subgraph::update(unsigned int) <- static TesseraApp.$main()",
+            6.0
+          ]
+        ]
+      },
+      {
+        "ms": 17.0,
+        "start_s": 22.554,
+        "leaf_own": [
+          [
+            "UC::DriverCore::continueProcessing()",
+            6.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update()",
+            2.0
+          ],
+          [
+            "AGDispatchEquatable",
+            1.0
+          ]
+        ],
+        "own_stack": [
+          [
+            "UC::DriverCore::continueProcessing() <- static TesseraApp.$main()",
+            6.0
+          ],
+          [
+            "AG::Graph::UpdateStack::update() <- AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int) <- AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsign <- AGGraphGetValue",
+            2.0
+          ]
+        ]
+      }
+    ],
+    "potential_hangs": [],
+    "thermal": [
+      "00:00.000.000 25.63 s 00:25.629.701 Nominal Current No Nominal  thermal state"
+    ]
+  }
+}

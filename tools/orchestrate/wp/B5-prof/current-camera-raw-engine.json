@@ -1,0 +1,74 @@
+{
+  "runs": [
+    {
+      "fit L2 preview, local settings": {
+        "ms": 228.0,
+        "incremental_heap_MB": 218.0
+      },
+      "fit L2 preview, vignette (global)": {
+        "ms": 259.0,
+        "incremental_heap_MB": 143.0
+      },
+      "100% preview, local settings": {
+        "ms": 533.0,
+        "incremental_heap_MB": 244.0
+      },
+      "100% preview, vignette (global)": {
+        "ms": 11364.0,
+        "incremental_heap_MB": 2564.0
+      },
+      "apply": {
+        "ms": 16335.0
+      },
+      "peak_rss_mib": 6803.875,
+      "load": "{ 173.17 211.07 352.29 }"
+    },
+    {
+      "fit L2 preview, local settings": {
+        "ms": 322.0,
+        "incremental_heap_MB": 220.0
+      },
+      "fit L2 preview, vignette (global)": {
+        "ms": 546.0,
+        "incremental_heap_MB": 143.0
+      },
+      "100% preview, local settings": {
+        "ms": 1009.0,
+        "incremental_heap_MB": 244.0
+      },
+      "100% preview, vignette (global)": {
+        "ms": 10244.0,
+        "incremental_heap_MB": 2564.0
+      },
+      "apply": {
+        "ms": 13861.0
+      },
+      "peak_rss_mib": 6849.015625,
+      "load": "{ 160.25 198.49 337.83 }"
+    },
+    {
+      "fit L2 preview, local settings": {
+        "ms": 225.0,
+        "incremental_heap_MB": 219.0
+      },
+      "fit L2 preview, vignette (global)": {
+        "ms": 250.0,
+        "incremental_heap_MB": 143.0
+      },
+      "100% preview, local settings": {
+        "ms": 514.0,
+        "incremental_heap_MB": 244.0
+      },
+      "100% preview, vignette (global)": {
+        "ms": 7324.0,
+        "incremental_heap_MB": 2564.0
+      },
+      "apply": {
+        "ms": 9229.0
+      },
+      "peak_rss_mib": 7074.21875,
+      "load": "{ 115.29 178.29 320.02 }"
+    }
+  ],
+  "raw_scratch": "/private/tmp/claude-501/-Users-rutmehta-Developer-lightroom/7f25c146-4b88-4a52-b274-0c8874eaaba3/scratchpad/prof/followup-20261001"
+}
