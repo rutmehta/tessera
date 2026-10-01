@@ -232,8 +232,8 @@ final class LightroomImportTests: XCTestCase {
         // A separate group: not counted among the unsupported items.
         XCTAssertTrue(lines.contains("## Not fully supported (2)"), md)
         XCTAssertEqual(LightroomImportReport.approximateLines(r), [
-            "Exposure2012: 4 photos; e.g. exposure response unverified",
-            "PointColors: 1 photo; e.g. hue range | feather unverified",
+            "Exposure2012: 4 photos; e.g. exposure response unverified; /Photos/a.jpg, /Photos/b.jpg",
+            "PointColors: 1 photo; e.g. hue range | feather unverified; /Photos/a.jpg",
         ])
     }
 

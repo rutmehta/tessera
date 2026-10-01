@@ -382,9 +382,12 @@ public enum LightroomImportReport {
         return url
     }
 
-    /// One line per Adobe key: photo count and the first reason as the example.
+    /// One line per Adobe key: photo count, the first reason as the example, and the example paths.
     public static func approximateLines(_ r: LrcatReport) -> [String] {
-        r.approximate.map { "\($0.category): \($0.count) photo\($0.count == 1 ? "" : "s"); e.g. \($0.reason)" }
+        r.approximate.map {
+            "\($0.category): \($0.count) photo\($0.count == 1 ? "" : "s"); e.g. \($0.reason)"
+                + ($0.examples.isEmpty ? "" : "; \($0.examples.joined(separator: ", "))")
+        }
     }
 
     static func fmt(_ v: Float) -> String { String(format: "%.1f", v) }

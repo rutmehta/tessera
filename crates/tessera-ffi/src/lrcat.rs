@@ -1935,7 +1935,7 @@ mod lrcat_resume_tests {
                 import.records[index] = (offset, bytes.len());
             }
         }
-        let report = import.apply(options, None).unwrap();
+        let report = import.apply(options.clone(), None).unwrap();
         assert!(report.imported > 1);
         let keys: Vec<_> = report.approximate.iter().map(|i| &i.category).collect();
         assert_eq!(keys, ["Exposure2012", "PointColors"]);
@@ -1953,6 +1953,31 @@ mod lrcat_resume_tests {
                 .unsupported
                 .iter()
                 .all(|i| !i.reason.contains("unverified"))
+        );
+        // A re-run resumes every photo; resumed photos are counted too.
+        let again = import.apply(options, None).unwrap();
+        assert_eq!((again.imported, again.resumed), (0, report.imported));
+        assert_eq!(again.approximate, report.approximate);
+    }
+
+    #[test]
+    fn approximate_groups_count_every_photo_but_cap_examples_at_five() {
+        let mut recipe = Recipe::default();
+        import_lrcat::diagnostics::push_approximate(&mut recipe, "K", "/f", "LR-2", "first");
+        let mut later = recipe.clone();
+        import_lrcat::diagnostics::push_approximate(&mut later, "K", "/f", "LR-2", "later");
+        let mut issues = vec![];
+        for n in 0..7 {
+            let recipe = if n == 0 { &recipe } else { &later };
+            note_approximate(&mut issues, recipe, Path::new(&format!("/p/{n}.jpg")));
+        }
+        note_approximate(&mut issues, &Recipe::default(), Path::new("/p/plain.jpg"));
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].count, 7);
+        assert_eq!(issues[0].reason, "first");
+        assert_eq!(
+            issues[0].examples,
+            ["/p/0.jpg", "/p/1.jpg", "/p/2.jpg", "/p/3.jpg", "/p/4.jpg"]
         );
     }
 

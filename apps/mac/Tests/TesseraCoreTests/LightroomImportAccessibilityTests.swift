@@ -60,7 +60,7 @@ final class LightroomImportAccessibilityTests: XCTestCase {
             virtualCopies: 2, skipped: [LrcatSkip(name: "lost.jpg", path: "/lost.jpg", reason: "original not found")],
             unsupported: [LrcatIssue(category: "Develop", reason: warning, count: 9, examples: ["/photos/portrait.jpg", "/photos/two.jpg", "/photos/three.jpg", "/photos/four.jpg", "/photos/five.jpg"])],
             approximate: [LrcatIssue(category: "PointColors", reason: "hue range semantics unverified", count: 3,
-                                     examples: ["/photos/portrait.jpg"])],
+                                     examples: ["/photos/portrait.jpg", "/photos/two.jpg"])],
             albums: 5, albumGroups: 6, smartAlbums: 7, keywords: 8,
             selection: LrcatSelectionCounts(rejects: 0, keeps: 0, undecided: 0, grade1: 0, grade2: 0, grade3: 0, marked: 0),
             libraryPath: "/Photos/library.json", bundlePath: "/Photos/bundle", indexed: 5, seconds: 0.1)
@@ -78,7 +78,7 @@ final class LightroomImportAccessibilityTests: XCTestCase {
             }
             XCTAssertFalse(warnings.contains("PointColors"), "approximate translations are not warnings: \(warnings)")
             XCTAssertEqual(try value("document.import.report.approximate", in: nodes),
-                           "PointColors: 3 photos; e.g. hue range semantics unverified")
+                           "PointColors: 3 photos; e.g. hue range semantics unverified; /photos/portrait.jpg, /photos/two.jpg")
             let fidelity = try value("document.import.report.fidelity", in: nodes)
             XCTAssertTrue(fidelity.contains(warning), fidelity)
             XCTAssertTrue(fidelity.contains("portrait.jpg"), fidelity)

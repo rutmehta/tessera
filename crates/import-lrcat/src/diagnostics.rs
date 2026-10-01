@@ -33,8 +33,10 @@ pub struct Entry {
 
 /// Record that `adobe_key` was translated approximately into `field`.
 /// Appends to the key's list (creating the object or list if absent), skips an
-/// identical existing entry, and never touches other keys' lists. A non-object
-/// value under [`KEY`] (which no writer produces) is replaced by an object.
+/// identical existing entry, and never touches other keys' lists. A value of
+/// the wrong shape under [`KEY`] or the key (a foreign writer's) is left
+/// untouched and nothing is written, so the matrix guard fails closed; debug
+/// builds assert.
 pub fn push_approximate(
     recipe: &mut Recipe,
     adobe_key: &str,
@@ -50,22 +52,21 @@ pub fn push_approximate(
         reason: reason.into(),
     })
     .expect("entry serializes");
-    let object = recipe
+    let Value::Object(object) = recipe
         .unknown
         .entry(KEY.into())
-        .or_insert_with(|| Value::Object(Map::new()));
-    if !object.is_object() {
-        *object = Value::Object(Map::new());
-    }
-    let list = object
-        .as_object_mut()
-        .expect("object")
+        .or_insert_with(|| Value::Object(Map::new()))
+    else {
+        debug_assert!(false, "{KEY} is not an object; left untouched");
+        return;
+    };
+    let Value::Array(list) = object
         .entry(adobe_key)
-        .or_insert_with(|| Value::Array(vec![]));
-    if !list.is_array() {
-        *list = Value::Array(vec![]);
-    }
-    let list = list.as_array_mut().expect("array");
+        .or_insert_with(|| Value::Array(vec![]))
+    else {
+        debug_assert!(false, "{KEY}[{adobe_key}] is not an array; left untouched");
+        return;
+    };
     if !list.contains(&entry) {
         list.push(entry);
     }
@@ -179,19 +180,67 @@ mod tests {
         assert_eq!(entries(&back), entries(&recipe));
     }
 
-    /// Only this module may spell the storage key; lanes go through the API.
+    /// Pushes into a wrong-shaped value and returns whether it panicked
+    /// (debug builds assert); the recipe must be unchanged either way.
+    fn push_into_foreign(recipe: &mut Recipe) -> bool {
+        let before = recipe.clone();
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            push_approximate(
+                recipe,
+                "LensBlur",
+                "/settings/effects/lens_blur",
+                "LR-6",
+                "r",
+            )
+        }))
+        .is_err();
+        assert_eq!(recipe.unknown, before.unknown);
+        panicked
+    }
+
     #[test]
-    fn no_other_crate_source_writes_the_key_directly() {
-        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut stack = vec![src];
+    fn foreign_top_level_array_survives_untouched() {
+        let mut recipe = Recipe::default();
+        let foreign = serde_json::json!([{"key": "LensBlur", "note": "LR-6 ad hoc"}]);
+        recipe.unknown.insert(KEY.into(), foreign.clone());
+        assert_eq!(push_into_foreign(&mut recipe), cfg!(debug_assertions));
+        assert_eq!(recipe.unknown[KEY], foreign);
+        assert!(entries(&recipe).is_empty());
+    }
+
+    #[test]
+    fn foreign_per_key_value_survives_untouched() {
+        let mut recipe = Recipe::default();
+        let foreign = serde_json::json!({"LensBlur": "ad hoc", "Other": [1]});
+        recipe.unknown.insert(KEY.into(), foreign.clone());
+        assert_eq!(push_into_foreign(&mut recipe), cfg!(debug_assertions));
+        assert_eq!(recipe.unknown[KEY], foreign);
+        assert!(entries(&recipe).is_empty());
+    }
+
+    /// Only this module may spell the storage key; lanes go through the API.
+    /// Scans every crate's `src` and the macOS app sources.
+    #[test]
+    fn no_other_source_writes_the_key_directly() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let root = root.canonicalize().unwrap();
+        let this = root.join("crates/import-lrcat/src/diagnostics.rs");
+        let mut stack = vec![root.join("apps/mac/Sources")];
+        for krate in std::fs::read_dir(root.join("crates")).unwrap() {
+            let src = krate.unwrap().path().join("src");
+            if src.is_dir() {
+                stack.push(src);
+            }
+        }
+        assert!(stack.len() > 10, "workspace layout changed: {stack:?}");
         let mut offenders = vec![];
         while let Some(dir) = stack.pop() {
             for entry in std::fs::read_dir(dir).unwrap() {
                 let path = entry.unwrap().path();
                 if path.is_dir() {
                     stack.push(path);
-                } else if path.extension().is_some_and(|e| e == "rs")
-                    && path.file_name().is_some_and(|n| n != "diagnostics.rs")
+                } else if path.extension().is_some_and(|e| e == "rs" || e == "swift")
+                    && path != this
                     && std::fs::read_to_string(&path)
                         .unwrap()
                         .contains(concat!("lrcat_translation", "_diagnostics"))

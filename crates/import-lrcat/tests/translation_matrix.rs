@@ -69,7 +69,7 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         let (recipe, warnings) = import(key, value)?;
         let path = cells[2].trim_matches('`');
         let json = serde_json::to_value(&recipe).unwrap();
-        if !path.starts_with('/') || json.pointer(path).is_none() {
+        if !path.starts_with('/') || json.pointer(path).is_none_or(serde_json::Value::is_null) {
             return Err(format!("{key}: missing recipe path {path}"));
         }
         let notes = diagnostics::entries(&recipe)
@@ -79,7 +79,9 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
             if !warnings.is_empty() {
                 return Err(format!("{key}: approximate key has warnings: {warnings:?}"));
             }
-            if json.pointer(path) == baseline.pointer(path) {
+            if json.pointer(path) == baseline.pointer(path)
+                || json.pointer(path).is_none_or(serde_json::Value::is_null)
+            {
                 return Err(format!("{key}: approximate key left {path} unpopulated"));
             }
             if !retained_in(&recipe, "lrcat_develop_source", key) {
@@ -93,6 +95,15 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
             {
                 return Err(format!(
                     "{key}: approximate key has no info diagnostics entry"
+                ));
+            }
+            // Lane is free-form; the field must name the row's recipe path.
+            if !notes
+                .iter()
+                .any(|n| n.level == "info" && n.status == "approximate" && n.field == path)
+            {
+                return Err(format!(
+                    "{key}: approximate diagnostics name no entry for field {path}: {notes:?}"
                 ));
             }
             counts.approximate += 1;
@@ -175,12 +186,15 @@ struct Lane {
     retain: bool,
     diagnose: bool,
     warn: bool,
+    /// Field named by the diagnostics entry.
+    field: &'static str,
 }
 const FULL: Lane = Lane {
     translate: true,
     retain: true,
     diagnose: true,
     warn: false,
+    field: "/settings/tone/exposure",
 };
 
 fn synthetic_lane(lane: Lane) -> Box<Import> {
@@ -201,7 +215,7 @@ fn synthetic_lane(lane: Lane) -> Box<Import> {
             diagnostics::push_approximate(
                 &mut recipe,
                 key,
-                "/settings/tone/exposure",
+                lane.field,
                 "LR-2",
                 "matrix fixture: Adobe semantics unverified",
             );
@@ -256,6 +270,19 @@ fn matrix_guard_rejects_approximate_without_a_diagnostic() {
     });
     let error = check_rows(APPROXIMATE_ROW, &*lane).unwrap_err();
     assert!(error.contains("no info diagnostics entry"), "{error}");
+}
+
+#[test]
+fn matrix_guard_rejects_approximate_diagnostic_naming_another_field() {
+    let lane = synthetic_lane(Lane {
+        field: "/settings/tone/contrast",
+        ..FULL
+    });
+    let error = check_rows(APPROXIMATE_ROW, &*lane).unwrap_err();
+    assert!(
+        error.contains("no entry for field /settings/tone/exposure"),
+        "{error}"
+    );
 }
 
 #[test]
