@@ -47,12 +47,18 @@ for row in root.iter('row'):
         continue
     names = tuple(resolve(f).attrib.get('name', '') for f in backtrace.findall('frame'))
     samples.append((float(stamp.text) / 1e9, names))
+load_path = folder / 'load-during.jsonl'
+loads = [json.loads(line) for line in load_path.read_text().splitlines()] if load_path.exists() else []
 for interval in intervals:
     # TOC start-date is rounded to milliseconds; retain 1 ms at both boundaries.
     selected = [(t, stack) for t, stack in samples if interval['start_s'] - .001 <= t <= interval['end_s'] + .001]
     inclusive = collections.Counter(name for _, stack in selected for name in set(stack))
     stacks = collections.Counter(stack for _, stack in selected)
     interval['main_samples'] = len(selected)
+    if loads:
+        midpoint = start + (interval['start_s'] + interval['end_s']) / 2
+        nearest = min(loads, key=lambda row: abs(datetime.datetime.fromisoformat(row['time']).timestamp() - midpoint))
+        interval['nearest_load_sample'] = nearest
     interval['inclusive'] = inclusive.most_common(35)
     interval['ui_symbols'] = [(name, count) for name, count in inclusive.most_common()
                               if any(token in name for token in ('NSView', 'NSWindow', 'NSText', 'NSButton', 'NSProgress', 'ViewGraph', 'FlatExport', 'DocumentWorkspace', 'CA::'))][:35]

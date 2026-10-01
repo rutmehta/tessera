@@ -1,0 +1,9 @@
+FlatExportProgressView
+  Row
+    NSTextField
+      NSTextFieldSimpleLabel
+    NSProgressIndicator
+    NSTextField
+      NSTextFieldSimpleLabel
+    NSButton
+      _NSCoreHostingView<AppKitButton>

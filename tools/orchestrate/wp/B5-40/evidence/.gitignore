@@ -1,0 +1,7 @@
+# Retain local fixture outputs and raw Instruments recordings without committing them.
+photos/
+**/appdir/
+**/out/
+**/*.trace/
+**/time-profile.xml
+**/toc.xml

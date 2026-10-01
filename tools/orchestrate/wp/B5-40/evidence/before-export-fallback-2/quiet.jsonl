@@ -1,0 +1,11 @@
+{"time": "2026-10-01T08:34:22.613166-04:00", "load1": 32.8681640625, "build_processes": [], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:34:52.775501-04:00", "load1": 23.0556640625, "build_processes": [], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:35:22.913012-04:00", "load1": 18.92529296875, "build_processes": [], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:35:53.068774-04:00", "load1": 14.80712890625, "build_processes": [], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:36:23.215960-04:00", "load1": 16.2998046875, "build_processes": ["19943 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-build"], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:36:53.362282-04:00", "load1": 13.83154296875, "build_processes": [], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:37:23.514614-04:00", "load1": 11.45361328125, "build_processes": [], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:37:53.660901-04:00", "load1": 9.45703125, "build_processes": [], "quiet": true, "load_limit": 10.0}
+{"time": "2026-10-01T08:38:23.800194-04:00", "load1": 11.1376953125, "build_processes": [], "quiet": false, "load_limit": 10.0}
+{"time": "2026-10-01T08:38:53.956045-04:00", "load1": 9.556640625, "build_processes": [], "quiet": true, "load_limit": 10.0}
+{"time": "2026-10-01T08:39:24.124427-04:00", "load1": 8.68359375, "build_processes": [], "quiet": true, "load_limit": 10.0}

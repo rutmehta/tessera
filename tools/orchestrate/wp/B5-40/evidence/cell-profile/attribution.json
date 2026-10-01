@@ -1,0 +1,541 @@
+{
+  "main_samples": 723,
+  "clock_tolerance_ms": 1,
+  "intervals": [
+    {
+      "name": "export_flat_main_busy: fixture",
+      "duration_ms": 29.72102165222168,
+      "start_s": 2.1731364727020264,
+      "end_s": 2.202857494354248,
+      "main_samples": 22,
+      "inclusive": [
+        [
+          "__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__",
+          17
+        ],
+        [
+          "CA::Transaction::flush_as_runloop_observer(bool)",
+          17
+        ],
+        [
+          "CA::Transaction::commit()",
+          17
+        ],
+        [
+          "__27-[XCTestSuite performTest:]_block_invoke",
+          16
+        ],
+        [
+          "+[XCTWaiter waitForExpectations:timeout:enforceOrder:]",
+          16
+        ],
+        [
+          "-[XCTWaiter _waitForExpectations:timeout:enforceOrder:synchronously:completionHandler:]",
+          16
+        ],
+        [
+          "+[XCTWaiter _synchronouslyWaitForTimeInterval:]",
+          16
+        ],
+        [
+          "-[XCTestCase invokeTestMethod:]",
+          16
+        ],
+        [
+          "-[XCTestSuite performTest:]",
+          16
+        ],
+        [
+          "-[XCTestSuite runTestBasedOnRepetitionPolicy:testRun:]",
+          16
+        ],
+        [
+          "__81+[XCTFailableInvocation invokeWithAsynchronousWait:lastObservedErrorIssue:block:]_block_invoke",
+          16
+        ],
+        [
+          "-[XCTestCase invokeTest]",
+          16
+        ],
+        [
+          "__CFRunLoopDoObservers",
+          16
+        ],
+        [
+          "__26-[XCTestCase performTest:]_block_invoke.167",
+          16
+        ],
+        [
+          "__49+[XCTSwiftErrorObservation observeErrorsInBlock:]_block_invoke",
+          16
+        ],
+        [
+          "__24-[XCTestCase invokeTest]_block_invoke_2.116",
+          16
+        ],
+        [
+          "+[XCTFailableInvocation invokeInvocation:withTestMethodConvention:lastObservedErrorIssue:]",
+          16
+        ],
+        [
+          "_CFRunLoopRunSpecificWithOptions",
+          16
+        ],
+        [
+          "+[XCTContext _runInChildOfContext:forTestCase:markAsReportingBase:block:]",
+          16
+        ],
+        [
+          "__26-[XCTestCase performTest:]_block_invoke.152",
+          16
+        ],
+        [
+          "-[XCTest runTest]",
+          16
+        ],
+        [
+          "+[XCTFailableInvocation invokeWithAsynchronousWait:lastObservedErrorIssue:block:]",
+          16
+        ],
+        [
+          "__24-[XCTestCase invokeTest]_block_invoke.109",
+          16
+        ],
+        [
+          "specialized static XCTSwiftErrorObservation._observeErrors(in:)",
+          16
+        ],
+        [
+          "__59-[XCTestSuite _performProtectedSectionForTest:testSection:]_block_invoke",
+          16
+        ],
+        [
+          "-[XCTWaiter _performWait:manager:completionHandler:]",
+          16
+        ],
+        [
+          "-[XCTMemoryChecker _assertInvalidObjectsDeallocatedAfterScope:]",
+          16
+        ],
+        [
+          "-[XCTestSuite _performProtectedSectionForTest:testSection:]",
+          16
+        ],
+        [
+          "+[XCTFailableInvocation invokeInvocation:lastObservedErrorIssue:]",
+          16
+        ],
+        [
+          "-[XCTestCase performTest:]",
+          16
+        ],
+        [
+          "+[XCTContext runInContextForTestCase:markAsReportingBase:block:]",
+          16
+        ],
+        [
+          "+[XCTSwiftErrorObservation observeErrorsInBlock:]",
+          16
+        ],
+        [
+          "-[XCTWaiter waitForExpectations:timeout:enforceOrder:]",
+          16
+        ],
+        [
+          "-[XCTestCase assertInvalidObjectsDeallocatedAfterScope:]",
+          16
+        ],
+        [
+          "@objc static XCTSwiftErrorObservation._observeErrors(in:)",
+          16
+        ]
+      ],
+      "ui_symbols": [
+        [
+          "CA::Transaction::flush_as_runloop_observer(bool)",
+          17
+        ],
+        [
+          "CA::Transaction::commit()",
+          17
+        ],
+        [
+          "CA::Layer::display_if_needed(CA::Transaction*)",
+          15
+        ],
+        [
+          "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+          15
+        ],
+        [
+          "-[NSViewBackingLayer display]",
+          13
+        ],
+        [
+          "_NSViewDrawRect",
+          12
+        ],
+        [
+          "-[NSView _recursive:displayRectIgnoringOpacity:inContext:stopAtLayerBackedViews:]",
+          12
+        ],
+        [
+          "-[NSView(NSLayerKitGlue) _drawViewBackingLayer:inContext:drawingHandler:]",
+          12
+        ],
+        [
+          "-[NSViewBackingLayer drawInContext:]",
+          12
+        ],
+        [
+          "-[NSButtonCell drawInteriorWithFrame:inView:]",
+          10
+        ],
+        [
+          "-[NSButtonCell drawWithFrame:inView:]",
+          10
+        ],
+        [
+          "-[NSButtonCell titleRectForBounds:]",
+          6
+        ],
+        [
+          "partial apply for closure #1 in ViewGraphRootValueUpdater._preferenceValue<A>(_:)",
+          5
+        ],
+        [
+          "ViewGraphRootValueUpdater._preferenceValue<A>(_:)",
+          5
+        ],
+        [
+          "ViewGraphRootValueUpdater._updateViewGraph<A>(body:)",
+          5
+        ],
+        [
+          "ViewGraphHost.preferenceValue<A>(_:)",
+          5
+        ],
+        [
+          "DocumentWorkspace.startExportFlat(_:_:to:then:)",
+          4
+        ],
+        [
+          "-[NSButtonCell drawTitle:withFrame:inView:]",
+          4
+        ],
+        [
+          "DocumentWorkspace.updateExportAccessory()",
+          3
+        ],
+        [
+          "FlatExportProgressView.update(_:)",
+          2
+        ],
+        [
+          "CA::Transaction::run_commit_handlers(CATransactionPhase)",
+          2
+        ],
+        [
+          "ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)",
+          2
+        ],
+        [
+          "ViewGraph.updateOutputs(at:)",
+          2
+        ],
+        [
+          "closure #1 in ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)",
+          2
+        ],
+        [
+          "-[NSView addSubview:positioned:relativeTo:]",
+          1
+        ],
+        [
+          "-[NSViewHierarchyLock _lockForWriting:]",
+          1
+        ],
+        [
+          "-[NSView addSubview:]",
+          1
+        ],
+        [
+          "-[NSTextFieldCell _controlViewDidChangeEffectiveSemanticContext:]",
+          1
+        ],
+        [
+          "-[NSTextField didChangeValueForKey:]",
+          1
+        ],
+        [
+          "-[NSTextFieldCell _resolvedStyleInView:]",
+          1
+        ],
+        [
+          "-[NSTextFieldCell _refreshVisualProvider]",
+          1
+        ],
+        [
+          "-[NSView(NSTouchBarItem) isInTouchBar]",
+          1
+        ],
+        [
+          "-[NSView _setSuperview:]",
+          1
+        ],
+        [
+          "FlatExportTask.fraction.getter",
+          1
+        ],
+        [
+          "-[NSView _alignmentFrame]",
+          1
+        ]
+      ],
+      "stacks": [
+        {
+          "samples": 1,
+          "stack": [
+            "DocumentWorkspace.startExportFlat(_:_:to:then:)",
+            "DocumentWorkspace.startExportFlat(_:_:to:then:)",
+            "@objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "partial apply for @objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "partial apply for thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "partial apply for thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "completeTaskWithClosure(swift::AsyncContext*, swift::SwiftError*)"
+          ]
+        },
+        {
+          "samples": 1,
+          "stack": [
+            "-[NSViewHierarchyLock _lockForWriting:]",
+            "-[NSViewHierarchyLock _lockForWriting:]",
+            "-[NSView addSubview:positioned:relativeTo:]",
+            "DocumentWorkspace.updateExportAccessory()",
+            "DocumentWorkspace.startExportFlat(_:_:to:then:)",
+            "DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "@objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "partial apply for @objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "partial apply for thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "partial apply for thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "completeTaskWithClosure(swift::AsyncContext*, swift::SwiftError*)"
+          ]
+        },
+        {
+          "samples": 1,
+          "stack": [
+            "getMethodNoSuper_nolock(objc_class*, objc_selector*)",
+            "getMethodNoSuper_nolock(objc_class*, objc_selector*)",
+            "lookUpImpOrForward",
+            "_objc_msgSend_uncached",
+            "-[NSView(NSTouchBarItem) isInTouchBar]",
+            "-[NSTextFieldCell _resolvedStyleInView:]",
+            "-[NSTextFieldCell _refreshVisualProvider]",
+            "-[NSTextFieldCell _controlViewDidChangeEffectiveSemanticContext:]",
+            "-[NSControl didChangeValueForKey:]",
+            "-[NSTextField didChangeValueForKey:]",
+            "__CFSetApplyFunction_block_invoke",
+            "CFBasicHashApply",
+            "CFSetApplyFunction",
+            "__reusableDependencyContextForKey_block_invoke",
+            "__CFSetApplyFunction_block_invoke",
+            "CFBasicHashApply",
+            "CFSetApplyFunction",
+            "-[NSView _setSuperview:]",
+            "-[NSView addSubview:]",
+            "FlatExportProgressView.update(_:)",
+            "DocumentWorkspace.updateExportAccessory()",
+            "DocumentWorkspace.startExportFlat(_:_:to:then:)",
+            "DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "@objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "partial apply for @objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "partial apply for thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "partial apply for thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "completeTaskWithClosure(swift::AsyncContext*, swift::SwiftError*)"
+          ]
+        },
+        {
+          "samples": 1,
+          "stack": [
+            "_resolveKeyPathGenericArgReference(_:genericEnvironment:arguments:)",
+            "_resolveKeyPathGenericArgReference(_:genericEnvironment:arguments:)",
+            "specialized _walkKeyPathPattern<A>(_:walker:)",
+            "_getKeyPathClassAndInstanceSizeFromPattern(_:_:)",
+            "_swift_getKeyPath(pattern:arguments:)",
+            "FlatExportTask.fraction.getter",
+            "FlatExportProgressView.update(_:)",
+            "DocumentWorkspace.updateExportAccessory()",
+            "DocumentWorkspace.startExportFlat(_:_:to:then:)",
+            "DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "@objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "partial apply for @objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "partial apply for thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "partial apply for thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "completeTaskWithClosure(swift::AsyncContext*, swift::SwiftError*)"
+          ]
+        },
+        {
+          "samples": 1,
+          "stack": [
+            "specialized static Task<>.detached(name:priority:operation:)",
+            "specialized static Task<>.detached(name:priority:operation:)",
+            "DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "@objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "partial apply for @objc closure #1 in DocumentExportFlatTests.testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress()",
+            "thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "partial apply for thunk for @escaping @callee_guaranteed @Sendable @async () -> ()",
+            "thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "partial apply for thunk for @escaping @isolated(any) @callee_guaranteed @async () -> ()",
+            "specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "partial apply for specialized thunk for @escaping @isolated(any) @callee_guaranteed @async () -> (@out A)",
+            "completeTaskWithClosure(swift::AsyncContext*, swift::SwiftError*)"
+          ]
+        },
+        {
+          "samples": 1,
+          "stack": [
+            "CFEqual",
+            "___CFBasicHashFindBucket_Linear",
+            "CFBasicHashSetValue",
+            "CFDictionarySetValue",
+            "-[NSKeyValueDependencyInfo addDependencyInContext:onValueForKey:]",
+            "NSDP_getPropertyValue",
+            "__cons_NSDP_NSDPTypeLongLong_block_invoke",
+            "-[NSView(NSControlMetricsBehavior) computed_effectiveControlMetricsBehavior]",
+            "NSDP_getComputedPropertyValue",
+            "__cons_NSDP_NSDPTypeLongLong_block_invoke_3",
+            "-[NSView(NSControlMetricsBehavior) computed_effectiveControlMetricsBehavior]",
+            "NSDP_getComputedPropertyValue",
+            "__cons_NSDP_NSDPTypeLongLong_block_invoke_3",
+            "-[NSView(NSControlMetricsBehavior) computed_effectiveControlMetricsBehavior]",
+            "NSDP_getComputedPropertyValue",
+            "__cons_NSDP_NSDPTypeLongLong_block_invoke_3",
+            "-[NSView(NSControlMetricsBehavior) computed_effectiveControlMetricsBehavior]",
+            "NSDP_getComputedPropertyValue",
+            "__cons_NSDP_NSDPTypeLongLong_block_invoke_3",
+            "0x19e7147f4",
+            "0x19e714ae4",
+            "-[NSButtonCell _alignmentRectInsetsForRect:inView:]",
+            "-[NSButton alignmentRectInsets]",
+            "-[NSView alignmentRectForFrame:]",
+            "-[NSView _alignmentFrame]",
+            "-[NSView(NSConstraintBasedLayoutInternal) _calculateSubviewAlignmentFrame:superviewAlignmentBounds:forAutoresizingMask:]",
+            "-[NSView(NSConstraintBasedLayoutInternal) _constraintsEquivalentToAutoresizingMask]",
+            "-[NSView(NSConstraintBasedLayoutInternal) _updateAutoresizingConstraints]",
+            "-[NSView updateConstraints]",
+            "0x19e843f4c",
+            "0x19e843f74",
+            "0x19e806cf0",
+            "0x19e8078ac",
+            "___NSViewUpdateConstraints_block_invoke",
+            "NSPerformVisuallyAtomicChange",
+            "_NSViewUpdateConstraints",
+            "-[NSView _updateConstraintsForSubtreeIfNeededCollectingViewsWithInvalidBaselines:]",
+            "-[NSView _updateConstraintsForSubtreeIfNeededCollectingViewsWithInvalidBaselines:]",
+            "-[NSView _updateConstraintsForSubtreeIfNeededCollectingViewsWithInvalidBaselines:]",
+            "-[NSView _updateConstraintsForSubtreeIfNeededCollectingViewsWithInvalidBaselines:]",
+            "-[NSView _updateConstraintsForSubtreeIfNeededCollectingViewsWithInvalidBaselines:]",
+            "__45-[NSView updateConstraintsForSubtreeIfNeeded]_block_invoke_2",
+            "__45-[NSView updateConstraintsForSubtreeIfNeeded]_block_invoke",
+            "NSPerformVisuallyAtomicChange",
+            "-[NSView updateConstraintsForSubtreeIfNeeded]",
+            "-[NSWindow(NSConstraintBasedLayoutInternal) updateConstraintsIfNeeded]",
+            "__NSWindowGetDisplayCycleObserverForUpdateConstraints_block_invoke",
+            "NSDisplayCycleObserverInvoke",
+            "NSDisplayCycleFlush",
+            "CA::Transaction::run_commit_handlers(CATransactionPhase)",
+            "CA::Transaction::commit()",
+            "CA::Transaction::flush_as_runloop_observer(bool)",
+            "__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__",
+            "__CFRunLoopDoObservers",
+            "_CFRunLoopRunSpecificWithOptions",
+            "+[XCTWaiter _synchronouslyWaitForTimeInterval:]",
+            "-[XCTWaiter _performWait:manager:completionHandler:]",
+            "-[XCTWaiter _waitForExpectations:timeout:enforceOrder:synchronously:completionHandler:]",
+            "-[XCTWaiter waitForExpectations:timeout:enforceOrder:]",
+            "+[XCTWaiter waitForExpectations:timeout:enforceOrder:]",
+            "__81+[XCTFailableInvocation invokeWithAsynchronousWait:lastObservedErrorIssue:block:]_block_invoke",
+            "__49+[XCTSwiftErrorObservation observeErrorsInBlock:]_block_invoke",
+            "specialized static XCTSwiftErrorObservation._observeErrors(in:)",
+            "@objc static XCTSwiftErrorObservation._observeErrors(in:)",
+            "+[XCTSwiftErrorObservation observeErrorsInBlock:]",
+            "+[XCTFailableInvocation invokeWithAsynchronousWait:lastObservedErrorIssue:block:]",
+            "+[XCTFailableInvocation invokeInvocation:withTestMethodConvention:lastObservedErrorIssue:]",
+            "+[XCTFailableInvocation invokeInvocation:lastObservedErrorIssue:]",
+            "-[XCTestCase invokeTestMethod:]",
+            "__24-[XCTestCase invokeTest]_block_invoke_2.116",
+            "-[XCTMemoryChecker _assertInvalidObjectsDeallocatedAfterScope:]",
+            "-[XCTestCase assertInvalidObjectsDeallocatedAfterScope:]",
+            "__24-[XCTestCase invokeTest]_block_invoke.109",
+            "-[XCTestCase(XCTIssueHandling) _caughtUnhandledDeveloperExceptionPermittingControlFlowInterruptions:caughtInterruptionException:whileExecutingBlock:]",
+            "-[XCTestCase invokeTest]",
+            "__26-[XCTestCase performTest:]_block_invoke.167",
+            "-[XCTestCase(XCTIssueHandling) _caughtUnhandledDeveloperExceptionPermittingControlFlowInterruptions:caughtInterruptionException:whileExecutingBlock:]",
+            "__26-[XCTestCase performTest:]_block_invoke.152",
+            "+[XCTContext _runInChildOfContext:forTestCase:markAsReportingBase:block:]",
+            "+[XCTContext runInContextForTestCase:markAsReportingBase:block:]",
+            "-[XCTestCase performTest:]",
+            "-[XCTest runTest]",
+            "-[XCTestSuite runTestBasedOnRepetitionPolicy:testRun:]",
+            "__27-[XCTestSuite performTest:]_block_invoke",
+            "__59-[XCTestSuite _performProtectedSectionForTest:testSection:]_block_invoke",
+            "+[XCTContext _runInChildOfContext:forTestCase:markAsReportingBase:block:]",
+            "+[XCTContext runInContextForTestCase:markAsReportingBase:block:]",
+            "-[XCTestSuite _performProtectedSectionForTest:testSection:]",
+            "-[XCTestSuite performTest:]",
+            "-[XCTest runTest]",
+            "-[XCTestSuite runTestBasedOnRepetitionPolicy:testRun:]",
+            "__27-[XCTestSuite performTest:]_block_invoke",
+            "__59-[XCTestSuite _performProtectedSectionForTest:testSection:]_block_invoke",
+            "+[XCTContext _runInChildOfContext:forTestCase:markAsReportingBase:block:]",
+            "+[XCTContext runInContextForTestCase:markAsReportingBase:block:]",
+            "-[XCTestSuite _performProtectedSectionForTest:testSection:]",
+            "-[XCTestSuite performTest:]",
+            "-[XCTest runTest]",
+            "-[XCTestSuite runTestBasedOnRepetitionPolicy:testRun:]",
+            "__27-[XCTestSuite performTest:]_block_invoke",
+            "__59-[XCTestSuite _performProtectedSectionForTest:testSection:]_block_invoke",
+            "+[XCTContext _runInChildOfContext:forTestCase:markAsReportingBase:block:]",
+            "+[XCTContext runInContextForTestCase:markAsReportingBase:block:]",
+            "-[XCTestSuite _performProtectedSectionForTest:testSection:]",
+            "-[XCTestSuite performTest:]",
+            "-[XCTest runTest]",
+            "__89-[XCTTestRunSession executeTestsWithIdentifiers:skippingTestsWithIdentifiers:completion:]_block_invoke",
+            "+[XCTContext _runInChildOfContext:forTestCase:markAsReportingBase:block:]",
+            "+[XCTContext runInContextForTestCase:markAsReportingBase:block:]",
+            "-[XCTTestRunSession executeTestsWithIdentifiers:skippingTestsWithIdentifiers:completion:]",
+            "__72-[XCTExecutionWorker enqueueTestIdentifiersToRun:testIdentifiersToSkip:]_block_invoke_2",
+            "__XCTAsyncEnumerateWithWaiter_block_invoke",
+            "__XCTAsyncEnumerate_block_invoke.116",
+            "XCTAsyncEnumerateWithWaiter",
+            "__72-[XCTExecutionWorker enqueueTestIdentifiersToRun:testIdentifiersToSkip:]_block_invoke",
+            "-[XCTExecutionWorker runWithError:]",
+            "__25-[XCTestDriver _runTests]_block_invoke.340",
+            "-[XCTestObservationCenter _observeTestExecutionForTestBundle:inBlock:]",
+            "-[XCTestDriver _runTests]",
+            "_XCTestMain",
+            "static xctest.main()",
+            "main",
+            "start"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Authorized contended baseline after bounded quiet wait; see quiet-before-continuation.jsonl and before-export-1/quiet.jsonl.

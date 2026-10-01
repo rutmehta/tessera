@@ -1,0 +1,99 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling Tessera AISettingsView.swift
+[3/7] Write Objects.LinkFileList
+[4/7] Linking Tessera
+[6/8] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-40/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[6/8] Write Objects.LinkFileList
+[7/8] Linking TesseraPackageTests
+Build complete! (119.00s)
+Test Suite 'Selected tests' started at 2026-10-01 09:32:00.280.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 09:32:00.281.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 09:32:00.281.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelAfterTheFileIsWrittenReportsExported]' passed (0.203 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testCancelledEngineExportKeepsTheDestination]' passed (0.035 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testEngineExportRunsFromASnapshotWithProgress]' passed (0.048 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain]' passed (0.103 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportCancelBeforeSnapshotWorkerStartsKeepsDestination]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testReservedExportSurvivesCloseBeforeSnapshotWorkerStarts]' passed (0.027 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress]' passed (1.521 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubBackendExportsOffTheMainThread]' passed (0.065 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testStubCancelAfterTheFileIsWrittenReportsExported]' passed (0.116 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceCancelKeepsTheDestination]' passed (0.030 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceExportIsABackgroundTaskThatSurvivesClose]' passed (0.044 seconds).
+Test Suite 'DocumentExportFlatTests' passed at 2026-10-01 09:32:02.486.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 2.204 (2.205) seconds
+Test Suite 'ShellLayoutTests' started at 2026-10-01 09:32:02.486.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDAttachesToExportingDocumentWindow]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDAttachesToExportingDocumentWindow]' passed (1.422 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testExportHUDLeavesEditingChromeAndViewportUnchangedAtEverySize]' passed (6.694 seconds).
+Test Suite 'ShellLayoutTests' passed at 2026-10-01 09:32:10.602.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 8.115 (8.116) seconds
+Test Suite 'ThemeLintTests' started at 2026-10-01 09:32:10.602.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' started.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.348 seconds).
+Test Suite 'ThemeLintTests' passed at 2026-10-01 09:32:10.949.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.348 (0.348) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 09:32:10.950.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 10.667 (10.669) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 09:32:10.950.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 10.667 (10.670) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
