@@ -27,6 +27,10 @@
 
 const INACTIVE: u32 = 0xffffffffu;
 const EPS: f32 = 0.001;
+// Scene-linear Rec.2020 white = 1; matches tone_extra.rs. Signed RGB from
+// sharpening can nearly cancel in luminance. Floor only the presence divisor
+// at 0.1% of white to bound amplification of ordinary f32 rounding.
+const PRESENCE_LUMA_FLOOR: f32 = 1e-3;
 const F_WIDE_LOW: u32 = 4u;
 const F_PACK_Z: u32 = 16u;
 
@@ -109,7 +113,7 @@ fn presence_from(v: vec3<f32>, z: f32, lo: f32, hi: f32, fine: f32, mid: f32, wi
     let adjusted = clamp(z + delta, lo, hi);
     let lum = luma(v);
     if lum > 0.0 && adjusted != z {
-        let gain = finite(decode(adjusted) / lum);
+        let gain = finite(decode(adjusted) / max(abs(lum), PRESENCE_LUMA_FLOOR));
         return vec3<f32>(finite(v.x * gain), finite(v.y * gain), finite(v.z * gain));
     }
     return v;
