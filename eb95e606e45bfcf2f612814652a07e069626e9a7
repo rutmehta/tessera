@@ -1,0 +1,1 @@
+A21:54: B docs-only ENG1g e2a2a57a reports separate-target base87536669/tip3e565432 all-pixel24MP attribution. Presence-off identical .016636014, tone introduces residual before presence; supports existing tone issue ENG4. All four cases fail .01 bound, diagnostic passes not acceptance. No main/product change, mailbox unchanged, Swift active, no runtime handoff.
