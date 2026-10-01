@@ -926,10 +926,10 @@ pub struct PointColor {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PointColorSelection {
-    /// Source hue in degrees, saturation and luminance in 0..=1.
+    /// Gamma-encoded source hue in degrees, saturation and luminance in 0..=1.
     pub source_hsl: [f32; 3],
     /// Each range is [lower-none, lower-full, upper-full, upper-none] in 0..=1.
-    /// Hue is relative to the source, centered at 0.5 with circular wrapping.
+    /// All ranges are relative to the sample, centered at 0.5; hue wraps.
     pub hue: [f32; 4],
     /// Saturation membership limits.
     pub saturation: [f32; 4],

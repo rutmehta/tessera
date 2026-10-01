@@ -76,7 +76,7 @@ fn number(value: &str) -> EngineResult<f32> {
         .filter(|v| v.is_finite())
         .ok_or_else(|| error("invalid PointColors number"))
 }
-pub(super) fn decode(tree: &Tree, item: &Node) -> EngineResult<PointColor> {
+pub(super) fn decode(tree: &Tree, item: &Node) -> EngineResult<Option<PointColor>> {
     let values: Vec<f32> = if item.children.is_empty() && item.attrs.is_empty() {
         item.text
             .split(',')
@@ -100,8 +100,11 @@ pub(super) fn decode(tree: &Tree, item: &Node) -> EngineResult<PointColor> {
             });
         }
         for key in RANGES {
-            let range = node(tree, item, CRS, key)
-                .ok_or_else(|| error("missing PointColors feather range"))?;
+            let Some(range) = node(tree, item, CRS, key) else {
+                // SDK ranges are optional; explicit Tessera reference default.
+                values.extend([0., 0.25, 0.75, 1.]);
+                continue;
+            };
             let f = fields(tree, range, &LIMITS)?;
             for name in LIMITS {
                 let value = f
@@ -114,6 +117,9 @@ pub(super) fn decode(tree: &Tree, item: &Node) -> EngineResult<PointColor> {
     };
     if values.len() != 19 {
         return Err(error("PointColors requires 19 numbers"));
+    }
+    if values.iter().all(|v| *v == -1.) {
+        return Ok(None);
     }
     if !(0.0..=6.0).contains(&values[0])
         || values[3..6].iter().any(|v| !(-1.0..=1.0).contains(v))
@@ -135,7 +141,7 @@ pub(super) fn decode(tree: &Tree, item: &Node) -> EngineResult<PointColor> {
         }),
     };
     point.validate()?;
-    Ok(point)
+    Ok(Some(point))
 }
 pub(super) fn is_native(tree: &Tree, item: &Node) -> bool {
     scalar(tree, item, PRIVATE, "Type").is_some()

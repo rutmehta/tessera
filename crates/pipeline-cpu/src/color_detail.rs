@@ -54,8 +54,9 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
     base.point_colors.clear();
     let only_points = base == ColorSettings::default();
     crate::map_rgb(tile, |mut rgb| {
+        let original = rgb;
         for point in &s.point_colors {
-            rgb = crate::point_color::apply(rgb, point);
+            rgb = crate::point_color::apply(rgb, point, original);
         }
         if only_points {
             return rgb;

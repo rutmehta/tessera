@@ -37,7 +37,7 @@ fn slot(op: &Op<'_>) -> Option<usize> {
     match op {
         Op::Tone(s) if s.legacy_pv2010.is_none() => Some(0),
         Op::ToneExtra(s) if s.texture == 0. && s.clarity == 0. && s.dehaze == 0. => Some(1),
-        Op::Color(_) => Some(2),
+        Op::Color(s) if s.point_colors.is_empty() => Some(2),
         Op::Effects(..) | Op::EffectsInCrop(..) => Some(3),
         Op::Display { .. } => Some(4),
         _ => None,

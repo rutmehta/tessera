@@ -60,23 +60,27 @@ fn rgb([h, s, l]: [f32; 3]) -> [f32; 3] {
     p.map(|v| v + l - c * 0.5)
 }
 /// One point at a time, in recipe order. Excluded/no-op pixels return exactly.
-pub(crate) fn apply(input: [f32; 3], p: &PointColor) -> [f32; 3] {
+pub(crate) fn apply(input: [f32; 3], p: &PointColor, original: [f32; 3]) -> [f32; 3] {
     if p.hue_shift == 0. && p.saturation_shift == 0. && p.luminance_shift == 0. {
         return input;
     }
     if let Some(s) = &p.selection {
-        // The Adobe working model is proprietary. This documented approximation
-        // operates on SDR linear-working RGB HSL and leaves HDR/signed pixels alone.
-        if input.iter().any(|v| !(0.0..=1.0).contains(v)) {
-            return input;
-        }
-        let [h, sat, l] = hsl(input);
-        if sat <= 1e-7 {
+        // Adobe's encoding is not published. Use sRGB transfer on working
+        // primaries as the reference gamma encoding, with a bounded selection
+        // coordinate and preserve signed/HDR residuals through the transform.
+        let encode = |rgb: [f32; 3]| rgb.map(|v| crate::display::srgb_oetf(v.clamp(0., 1.)));
+        let [source_h, source_sat, source_l] = hsl(encode(original));
+        let [h, sat, l] = hsl(encode(input));
+        if source_sat <= 1e-7 {
             return input;
         }
         let width = p.range / 50.;
-        let relative = [0.5 + distance(h, s.source_hsl[0]) / 360., sat, l];
-        let centers = [0.5, s.source_hsl[1], s.source_hsl[2]];
+        let relative = [
+            0.5 + distance(source_h, s.source_hsl[0]) / 360.,
+            0.5 + source_sat - s.source_hsl[1],
+            0.5 + source_l - s.source_hsl[2],
+        ];
+        let centers = [0.5; 3];
         let weight = relative
             .into_iter()
             .zip(centers)
@@ -92,11 +96,13 @@ pub(crate) fn apply(input: [f32; 3], p: &PointColor) -> [f32; 3] {
         if weight == 0. {
             return input;
         }
-        rgb([
+        let adjusted = rgb([
             h + weight * p.hue_shift,
             (sat * (1. + weight * p.saturation_shift / 100.)).clamp(0., 1.),
             (l * (1. + weight * p.luminance_shift / 100.)).clamp(0., 1.),
         ])
+        .map(linear);
+        std::array::from_fn(|i| adjusted[i] + input[i] - input[i].clamp(0., 1.))
     } else {
         let [l, a, b] = to_lab(input);
         let c = a.hypot(b);
@@ -104,9 +110,12 @@ pub(crate) fn apply(input: [f32; 3], p: &PointColor) -> [f32; 3] {
             return input;
         }
         let h = b.atan2(a).to_degrees().rem_euclid(360.);
+        let [ol, oa, ob] = to_lab(original);
+        let oc = oa.hypot(ob);
+        let oh = ob.atan2(oa).to_degrees().rem_euclid(360.);
         let [sl, sc, sh] = p.source_lch;
-        let d =
-            ((l - sl).powi(2) + ((c - sc) * 2.).powi(2) + (distance(h, sh) / 180.).powi(2)).sqrt();
+        let d = ((ol - sl).powi(2) + ((oc - sc) * 2.).powi(2) + (distance(oh, sh) / 180.).powi(2))
+            .sqrt();
         let weight = if p.range == 0. {
             if d <= 1e-7 { 1. } else { 0. }
         } else {
@@ -122,5 +131,13 @@ pub(crate) fn apply(input: [f32; 3], p: &PointColor) -> [f32; 3] {
             c * angle.cos(),
             c * angle.sin(),
         ])
+    }
+}
+
+fn linear(v: f32) -> f32 {
+    if v <= 0.04045 {
+        v / 12.92
+    } else {
+        ((v + 0.055) / 1.055).powf(2.4)
     }
 }

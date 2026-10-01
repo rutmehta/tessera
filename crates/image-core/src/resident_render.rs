@@ -492,6 +492,8 @@ impl Renderer {
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.
             || !s.locals.adjustments.is_empty()
+            // Point Color uses the CPU color stage in the nonresident chain.
+            || !s.color.point_colors.is_empty()
             || s.effects.lens_blur.is_some()
             || self.depth_visualisation
             // Manual legacy CA cannot use an unplanned resident prefix: it must

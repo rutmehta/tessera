@@ -465,6 +465,9 @@ fn cpu_fallback(op: &Op<'_>) -> bool {
     if let Op::Tone(s) = op {
         return s.legacy_pv2010.is_some();
     }
+    if let Op::Color(s) = op {
+        return !s.point_colors.is_empty();
+    }
     if let Op::ToneExtra(s) = op {
         return s.texture != 0.0 || s.clarity != 0.0 || s.dehaze != 0.0;
     }

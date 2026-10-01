@@ -99,6 +99,11 @@ pub(crate) fn parse_inner(
             continue;
         }
         let qualified = key.map_or_else(|| format!("crs:{}", p.name), |k| k.qualified_name());
+        if key == Some(CrsKey::PointColors) && catalog_version.revision < 3 && !verified_native {
+            diagnostics.push((qualified, p.raw, "requires Adobe PV3 or later".into()));
+            removed.push(p.range.clone());
+            continue;
+        }
         if let Some(previous) = seen.insert((p.namespace, p.name), i) {
             diagnostics.push((
                 qualified.clone(),
@@ -222,7 +227,9 @@ pub(crate) fn parse_inner(
             == 1
         && !warnings.iter().any(|w| w.starts_with("crs:PointColors:"));
     if translated_points {
-        warnings.push("Point Color: translated with an approximate SDR CPU HSL operator; signed/HDR pixels are unchanged; Adobe pixel parity is not established".into());
+        recipe.unknown.insert("tessera_import_info".into(), json!({
+            "PointColors": "Translated with an approximate gamma-encoded CPU HSL operator; Adobe pixel parity is not established"
+        }));
     }
     for p in &properties {
         if p.namespace == CRS && p.name == "PointColors" && translated_points {

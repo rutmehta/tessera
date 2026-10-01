@@ -230,11 +230,11 @@ pub(super) fn decode(key: CrsKey, tree: &Tree) -> EngineResult<Value> {
             let mut values = Vec::new();
             for item in tree.items(n) {
                 if key == CrsKey::PointColors {
-                    values.push(if point_colors::is_native(tree, item) {
-                        read_native(tree, item)?
-                    } else {
-                        serde_json::to_value(point_colors::decode(tree, item)?)?
-                    });
+                    if point_colors::is_native(tree, item) {
+                        values.push(read_native(tree, item)?);
+                    } else if let Some(point) = point_colors::decode(tree, item)? {
+                        values.push(serde_json::to_value(point)?);
+                    }
                     continue;
                 }
                 let mut v = json!({});

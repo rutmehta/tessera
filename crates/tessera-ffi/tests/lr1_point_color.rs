@@ -32,22 +32,38 @@ fn synthetic_lua_point_color_renders_expected_pixels() {
     recipe.validate().unwrap();
     assert!(!recipe.unknown.contains_key("lrcat_develop_source"));
     pipeline_cpu::validate_settings(&recipe.settings).unwrap();
-    let mut tile = pipeline_cpu::Image::new(1, 1, vec![vec![0.75], vec![0.25], vec![0.25]])
-        .unwrap()
-        .tile(TileCoord::new(0, 0, 0), 0, 1)
-        .unwrap();
+    let mut tile =
+        pipeline_cpu::Image::new(1, 1, [0.75, 0.25, 0.25].map(|v| vec![linear(v)]).to_vec())
+            .unwrap()
+            .tile(TileCoord::new(0, 0, 0), 0, 1)
+            .unwrap();
     pipeline_cpu::color(&mut tile, &recipe.settings.color).unwrap();
-    let source = pipeline_cpu::Image::new(1, 1, vec![vec![0.75], vec![0.25], vec![0.25]]).unwrap();
+    let source =
+        pipeline_cpu::Image::new(1, 1, [0.75, 0.25, 0.25].map(|v| vec![linear(v)]).to_vec())
+            .unwrap();
     let rendered = pipeline_cpu::render_linear_scaled(
         &recipe.settings,
         &pipeline_cpu::RenderSource::Rgb(&source),
         1,
     )
     .unwrap();
-    for (plane, expected) in rendered.planes().iter().zip([0.75, 0.5, 0.25]) {
+    for (plane, expected) in rendered.planes().iter().zip([0.75, 0.5, 0.25].map(linear)) {
         assert!((plane[0] - expected).abs() < 2e-6);
     }
-    for (a, b) in tile.samples::<f32>().unwrap().iter().zip([0.75, 0.5, 0.25]) {
+    for (a, b) in tile
+        .samples::<f32>()
+        .unwrap()
+        .iter()
+        .zip([0.75, 0.5, 0.25].map(linear))
+    {
         assert!((a - b).abs() < 2e-6);
+    }
+}
+
+fn linear(v: f32) -> f32 {
+    if v <= 0.04045 {
+        v / 12.92
+    } else {
+        ((v + 0.055) / 1.055).powf(2.4)
     }
 }

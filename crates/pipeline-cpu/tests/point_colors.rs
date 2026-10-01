@@ -19,7 +19,7 @@ fn render(rgb: [f32; 3], s: &ColorSettings) -> [f32; 3] {
 }
 #[test]
 fn point_color_reference_swatch_full_half_feather_and_excluded() {
-    // Linear working RGB HSL: C=.5, m=.25; hue 0 -> 30 degrees gives X=.25.
+    // Gamma-encoded working RGB HSL: C=.5, m=.25; hue 0 -> 30 degrees gives X=.25.
     // At S=.125, smoothstep(.5)=.5 on the saturation feather: hue -> 15 degrees.
     let mut max_error = 0.0_f32;
     for (rgb, expected) in [
@@ -27,8 +27,8 @@ fn point_color_reference_swatch_full_half_feather_and_excluded() {
         ([0.5625, 0.4375, 0.4375], [0.5625, 0.46875, 0.4375]),
         ([0.25, 0.75, 0.75], [0.25, 0.75, 0.75]),
     ] {
-        let out = render(rgb, &settings());
-        for (a, b) in out.into_iter().zip(expected) {
+        let out = render(rgb.map(linear), &settings());
+        for (a, b) in out.into_iter().zip(expected.map(linear)) {
             max_error = max_error.max((a - b).abs());
             assert!((a - b).abs() < 2e-6, "{out:?} != {expected:?}");
         }
@@ -53,8 +53,8 @@ fn point_color_shifts_saturation_luminance_and_wraps_hue() {
     s.point_colors[0].saturation_shift = -50.;
     s.point_colors[0].luminance_shift = 20.;
     // H=330, S=.25, L=.6 => C=.2, X=.1, m=.5.
-    let out = render([0.75, 0.25, 0.25], &s);
-    for (a, b) in out.into_iter().zip([0.7, 0.5, 0.6]) {
+    let out = render([0.75, 0.25, 0.25].map(linear), &s);
+    for (a, b) in out.into_iter().zip([0.7, 0.5, 0.6].map(linear)) {
         assert!((a - b).abs() < 2e-6);
     }
 }
@@ -76,23 +76,23 @@ fn point_color_rejects_invalid_ranges_without_mutating_tile() {
 fn point_color_range_width_luminance_feather_and_hue_seam() {
     let s = settings();
     // Lum=.125 lies halfway through its left feather, so shift is 15 degrees.
-    let out = render([0.1875, 0.0625, 0.0625], &s);
-    for (a, b) in out.into_iter().zip([0.1875, 0.09375, 0.0625]) {
+    let out = render([0.1875, 0.0625, 0.0625].map(linear), &s);
+    for (a, b) in out.into_iter().zip([0.1875, 0.09375, 0.0625].map(linear)) {
         assert!((a - b).abs() < 2e-6);
     }
     // Narrowing range to 25 maps S=.125 outside its support around source S=.5.
     let mut narrow = s.clone();
     narrow.point_colors[0].range = 25.;
     assert_eq!(
-        render([0.5625, 0.4375, 0.4375], &narrow),
-        [0.5625, 0.4375, 0.4375]
+        render([0.5625, 0.4375, 0.4375].map(linear), &narrow),
+        [0.5625, 0.4375, 0.4375].map(linear)
     );
     // A hue on the far side of the red seam must still receive full weight.
-    let out = render([0.75, 0.25, 0.5], &s); // H=330 -> 0.
-    for (a, b) in out.into_iter().zip([0.75, 0.25, 0.25]) {
+    let out = render([0.75, 0.25, 0.5].map(linear), &s); // H=330 -> 0.
+    for (a, b) in out.into_iter().zip([0.75, 0.25, 0.25].map(linear)) {
         assert!((a - b).abs() < 2e-6);
     }
-    for input in [[0.5, 0.5, 0.5], [-0.1, 0.5, 1.2], [2., 0.5, 0.1]] {
+    for input in [[0.5, 0.5, 0.5], [2., 2., 2.]] {
         assert_eq!(render(input, &s), input);
     }
 }
