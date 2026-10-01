@@ -103,3 +103,20 @@ fn lr3_malformed_or_unrepresentable_key_is_retained_atomically() {
         );
     }
 }
+
+#[test]
+fn lr3_unknown_method_is_not_silently_dropped() {
+    let spot = SPOT.replace("centerX=", "Method='future-neural', centerX=");
+    let (r, _) = develop(1, &format!("s = {{ RetouchAreas = {{ {spot} }} }}"), "15.4").unwrap();
+    assert!(r.settings.locals.retouch.is_empty());
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["RetouchAreas"].is_string());
+}
+
+#[test]
+fn lr3_xmp_inherited_namespace_prefix_is_not_semantic() {
+    let xml = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><r:Description xmlns:camera="http://ns.adobe.com/camera-raw-settings/1.0/"><camera:RetouchInfo><r:Seq><r:li>centerX=0.25, centerY=0.5, radius=0.0625, sourceX=0.75, sourceY=0.5, spotType=heal</r:li></r:Seq></camera:RetouchInfo></r:Description></r:RDF>"#;
+    let (r, _) = develop(1, xml, "15.4").unwrap();
+    assert_eq!(r.settings.locals.retouch.len(), 1);
+    r.validate().unwrap();
+    assert!(r.unknown.get("lrcat_develop_source").is_none());
+}
