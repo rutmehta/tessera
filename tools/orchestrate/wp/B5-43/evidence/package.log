@@ -1,0 +1,8 @@
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc: replacing existing signature
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc: replacing existing signature
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate: replacing existing signature
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/Tessera.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app: replacing existing signature
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/Tessera.app/Contents/Frameworks/Sparkle.framework: replacing existing signature
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/Tessera.app: replacing existing signature
+e606b7deb5db59d039b36a31ed957e34f51436556d520bd5f78a4612f133fa26  /Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/.build/arm64-apple-macosx/release/Tessera
+2b44488de42b81e3498ec3542dfb1337989c61291f76e2244a56272a4f510588  /Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/Tessera.app/Contents/MacOS/Tessera

@@ -1,0 +1,110 @@
+
+===== gate-initial.log =====
+Swift debug build: Build complete! (40.05s)
+Executed 892 tests, with 3 tests skipped and 1 failure (0 unexpected) in 273.292 (273.374) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.026 seconds.
+SWIFT GATE FAILED (exit 1):
+ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize
+Exit: 1
+
+===== gate-initial-tests.log =====
+Build complete! (158.55s)
+	 Executed 6 tests, with 0 failures (0 unexpected) in 7.221 (7.222) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.158 (0.158) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.341 (0.342) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.087 (0.087) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.206 (0.207) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.019 (0.020) seconds
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' started.
+filter-layout: document=512x512 backend=Metal (Apple M4 Max) history=1 inspector=true attachedSheet=true initial=(40.0, 0.0, 1440.0, 984.0) scale=2.0
+filter-layout: BEFORE host-points requested=(3840.0, 2160.0) sheet=true
+filter-layout: AFTER host-points frame=(3840.0, 1289.0) viewport=(3316.0, 1212.0) pixels=6632.0x2424.0 sheet=true key=false main=false
+filter-layout: CLAMP host-points: requested (3840.0, 2160.0), actual (3840.0, 1289.0)
+filter-layout: inspector regions=["layersFooter": (3544.0, 1060.0, 296.0, 28.0), "historyBody": (3544.0, 1121.0, 296.0, 168.0), "tabBar": (3544.0, 52.0, 296.0, 32.0), "historyFooter": (3556.0, 1257.0, 272.0, 32.0), "tabContent": (3544.0, 85.0, 296.0, 1003.0), "historyHeader": (3544.0, 1089.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 3240.0, 32.0)]
+filter-layout: BEFORE host-points requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER host-points frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["layersFooter": (1144.0, 755.0, 296.0, 28.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "historyFooter": (1156.0, 952.0, 272.0, 32.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0)]
+filter-layout: BEFORE viewport-pixels requested=(2444.0, 1157.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(2444.0, 1157.0) viewport=(1920.0, 1080.0) pixels=3840.0x2160.0 sheet=true key=false main=false
+filter-layout: inspector regions=["layersFooter": (2148.0, 928.0, 296.0, 28.0), "historyBody": (2148.0, 989.0, 296.0, 168.0), "tabBar": (2148.0, 52.0, 296.0, 32.0), "historyFooter": (2160.0, 1125.0, 272.0, 32.0), "tabContent": (2148.0, 85.0, 296.0, 871.0), "historyHeader": (2148.0, 957.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 1844.0, 32.0)]
+filter-layout: BEFORE viewport-pixels requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["layersFooter": (1144.0, 755.0, 296.0, 28.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "historyFooter": (1156.0, 952.0, 272.0, 32.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0)]
+filter-layout: done failures=[]
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' passed (5.924 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:285: error: -[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize] : XCTAssertTrue failed - 26 inspector layout failures:
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' failed (13.643 seconds).
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.132 (0.133) seconds
+	 Executed 892 tests, with 3 tests skipped and 1 failure (0 unexpected) in 273.292 (273.372) seconds
+	 Executed 892 tests, with 3 tests skipped and 1 failure (0 unexpected) in 273.292 (273.374) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.026 seconds.
+
+===== cleanup-verification.log =====
+Build complete! (39.67s)
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' started.
+filter-layout: document=512x512 backend=Metal (Apple M4 Max) history=1 inspector=true attachedSheet=true initial=(40.0, 0.0, 1440.0, 984.0) scale=2.0
+filter-layout: BEFORE host-points requested=(3840.0, 2160.0) sheet=true
+filter-layout: AFTER host-points frame=(3840.0, 1289.0) viewport=(3316.0, 1212.0) pixels=6632.0x2424.0 sheet=true key=false main=false
+filter-layout: CLAMP host-points: requested (3840.0, 2160.0), actual (3840.0, 1289.0)
+filter-layout: inspector regions=["tabContent": (3544.0, 85.0, 296.0, 1003.0), "historyBody": (3544.0, 1121.0, 296.0, 168.0), "layersFooter": (3544.0, 1060.0, 296.0, 28.0), "tabBar": (3544.0, 52.0, 296.0, 32.0), "historyFooter": (3556.0, 1257.0, 272.0, 32.0), "toolOptions": (292.0, 64.0, 3240.0, 32.0), "historyHeader": (3544.0, 1089.0, 296.0, 32.0)]
+filter-layout: BEFORE host-points requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER host-points frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["tabContent": (1144.0, 85.0, 296.0, 698.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "historyFooter": (1156.0, 952.0, 272.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0)]
+filter-layout: BEFORE viewport-pixels requested=(2444.0, 1157.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(2444.0, 1157.0) viewport=(1920.0, 1080.0) pixels=3840.0x2160.0 sheet=true key=false main=false
+filter-layout: inspector regions=["tabContent": (2148.0, 85.0, 296.0, 871.0), "historyBody": (2148.0, 989.0, 296.0, 168.0), "layersFooter": (2148.0, 928.0, 296.0, 28.0), "tabBar": (2148.0, 52.0, 296.0, 32.0), "historyFooter": (2160.0, 1125.0, 272.0, 32.0), "toolOptions": (292.0, 64.0, 1844.0, 32.0), "historyHeader": (2148.0, 957.0, 296.0, 32.0)]
+filter-layout: BEFORE viewport-pixels requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["tabContent": (1144.0, 85.0, 296.0, 698.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "historyFooter": (1156.0, 952.0, 272.0, 32.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0)]
+filter-layout: done failures=[]
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' passed (6.193 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (13.301 seconds).
+	 Executed 6 tests, with 0 failures (0 unexpected) in 20.476 (20.476) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 20.476 (20.477) seconds
+
+===== gate-final.log =====
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-43/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+Build complete! (10.45s)
+	 Executed 892 tests, with 3 tests skipped and 0 failures (0 unexpected) in 185.848 (185.918) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.023 seconds.
+SWIFT GATE OK
+
+===== gate-tests.log =====
+Build complete! (57.17s)
+	 Executed 6 tests, with 0 failures (0 unexpected) in 2.699 (2.700) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.145 (0.146) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.329 (0.329) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.081 (0.082) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.217 (0.218) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.019 (0.020) seconds
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' started.
+filter-layout: document=512x512 backend=Metal (Apple M4 Max) history=1 inspector=true attachedSheet=true initial=(40.0, 0.0, 1440.0, 984.0) scale=2.0
+filter-layout: BEFORE host-points requested=(3840.0, 2160.0) sheet=true
+filter-layout: AFTER host-points frame=(3840.0, 1289.0) viewport=(3316.0, 1212.0) pixels=6632.0x2424.0 sheet=true key=false main=false
+filter-layout: CLAMP host-points: requested (3840.0, 2160.0), actual (3840.0, 1289.0)
+filter-layout: inspector regions=["historyFooter": (3556.0, 1257.0, 272.0, 32.0), "tabContent": (3544.0, 85.0, 296.0, 1003.0), "toolOptions": (292.0, 64.0, 3240.0, 32.0), "historyBody": (3544.0, 1121.0, 296.0, 168.0), "tabBar": (3544.0, 52.0, 296.0, 32.0), "historyHeader": (3544.0, 1089.0, 296.0, 32.0), "layersFooter": (3544.0, 1060.0, 296.0, 28.0)]
+filter-layout: BEFORE host-points requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER host-points frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyFooter": (1156.0, 952.0, 272.0, 32.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0)]
+filter-layout: BEFORE viewport-pixels requested=(2444.0, 1157.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(2444.0, 1157.0) viewport=(1920.0, 1080.0) pixels=3840.0x2160.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyFooter": (2160.0, 1125.0, 272.0, 32.0), "tabContent": (2148.0, 85.0, 296.0, 871.0), "toolOptions": (292.0, 64.0, 1844.0, 32.0), "historyBody": (2148.0, 989.0, 296.0, 168.0), "tabBar": (2148.0, 52.0, 296.0, 32.0), "historyHeader": (2148.0, 957.0, 296.0, 32.0), "layersFooter": (2148.0, 928.0, 296.0, 28.0)]
+filter-layout: BEFORE viewport-pixels requested=(1440.0, 984.0) sheet=true
+filter-layout: AFTER viewport-pixels frame=(1440.0, 984.0) viewport=(916.0, 907.0) pixels=1832.0x1814.0 sheet=true key=false main=false
+filter-layout: inspector regions=["historyFooter": (1156.0, 952.0, 272.0, 32.0), "tabContent": (1144.0, 85.0, 296.0, 698.0), "toolOptions": (292.0, 64.0, 840.0, 32.0), "historyBody": (1144.0, 816.0, 296.0, 168.0), "tabBar": (1144.0, 52.0, 296.0, 32.0), "historyHeader": (1144.0, 784.0, 296.0, 32.0), "layersFooter": (1144.0, 755.0, 296.0, 28.0)]
+filter-layout: done failures=[]
+Test Case '-[TesseraCoreTests.SelfTestHostTests testLiveDocumentFilterSheetResizeP19]' passed (6.371 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (12.159 seconds).
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.029 (0.030) seconds
+	 Executed 892 tests, with 3 tests skipped and 0 failures (0 unexpected) in 185.848 (185.917) seconds
+	 Executed 892 tests, with 3 tests skipped and 0 failures (0 unexpected) in 185.848 (185.918) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.023 seconds.
