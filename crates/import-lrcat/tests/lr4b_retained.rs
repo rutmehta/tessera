@@ -3,15 +3,16 @@ mod fixtures;
 #[test]
 fn lr4c_approximate_promotions_and_untranslated_byte_pins() {
     // LR-4c intentionally promotes only brush/color indices 0,1,7,8.
+    // LR-4d changes only those four diagnostic envelopes to the shared channel.
     // Other values remain pinned to a88440a4; malformed/unknown forms do not change.
     let expected = [
         (
-            8715,
-            "817d3beffd7daded3d41f8f9063d5cebb9eca83f6529b6f8491bff6d61bb9cbb",
+            9468,
+            "b38d9b1f8cae792f235f949bade9f39b4831c2b6b9fa5bf576cf5d7549a645fb",
         ),
         (
-            8332,
-            "3eb9af24b3a9ce579ef30009696f104e68b85bb4596be89796c805d1c88bd506",
+            8458,
+            "6a00aa810387599912de150354ccdfc462cf484f5309b25d04e7c3dff2f958fc",
         ),
         (
             6653,
@@ -34,12 +35,12 @@ fn lr4c_approximate_promotions_and_untranslated_byte_pins() {
             "efeb750fcfd403097091448cca65d3db40c1e6e52e83c6d6c2e84f539abf79c4",
         ),
         (
-            8785,
-            "6c0d7c8610e5c5468fb7fcae0262e7b7ad908d9145696beac15a1cb98333f225",
+            9278,
+            "6dd154e9b5f2c0487da994788635defc1161d31876feb2f4220a7dc55cde298c",
         ),
         (
-            9317,
-            "09f355b0d9730ef395a047e093704a1a9737bc2022d09b8235278dbd7849b74b",
+            9443,
+            "5ebc245d5c5390a00efecc0a617898fbe95707271d1c4233ab90cdd5d6bcc463",
         ),
         (
             7271,

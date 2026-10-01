@@ -324,7 +324,10 @@ pub(crate) fn renderable(groups: &[engine_api::recipe::LocalAdjustment]) -> bool
 
 /// Machine A's approximation contract. This envelope is informational only:
 /// it is never copied into ImportedImage warnings or the unsupported UI count.
-pub(crate) fn approximation_diagnostics(root: Node<'_, '_>) -> serde_json::Value {
+pub(crate) fn record_approximation_diagnostics(
+    recipe: &mut engine_api::recipe::Recipe,
+    root: Node<'_, '_>,
+) {
     let mut reasons = BTreeMap::from([(
         "MaskGroupBasedCorrections".to_string(),
         "ordered recipe composition and pre-geometry sensor coordinates; Adobe blend and coordinate conventions are unverified",
@@ -417,6 +420,10 @@ pub(crate) fn approximation_diagnostics(root: Node<'_, '_>) -> serde_json::Value
                     "Mask/CircularGradient",
                     "ellipse rotates in normalized image coordinates; Adobe rotation/aspect and feather conventions unverified",
                 ),
+                "What" if value == "Mask/Paint" => (
+                    "Mask/Paint",
+                    "paint stamps use Tessera smoothstep hardness and linear flow; Adobe accumulation unverified",
+                ),
                 "What" if value == "Mask/Gradient" => (
                     "Mask/Gradient",
                     "linear full-to-zero projection in normalized pre-geometry coordinates; Adobe convention unverified",
@@ -443,14 +450,82 @@ pub(crate) fn approximation_diagnostics(root: Node<'_, '_>) -> serde_json::Value
             reasons.insert(format!("MaskGroupBasedCorrections/{field}"), reason);
         }
     }
-    serde_json::Value::Array(
-        reasons
-            .into_iter()
-            .map(|(key, reason)| {
-                serde_json::json!({
-                    "key":key, "level":"info", "message":format!("approximate: {reason}")
-                })
-            })
-            .collect(),
-    )
+    // Resolve to a field actually produced by translation. Retained metadata
+    // (for example Midpoint/Roundness) must not claim an approximate translation.
+    let value = serde_json::to_value(&recipe.settings.locals.adjustments)
+        .expect("finite translated mask fields");
+    for (key, reason) in reasons {
+        let suffix = key.strip_prefix("MaskGroupBasedCorrections/").unwrap_or("");
+        if suffix.is_empty() {
+            crate::diagnostics::push_approximate(
+                recipe,
+                &key,
+                "/settings/locals/adjustments",
+                "LR-4",
+                reason,
+            );
+            continue;
+        }
+        let field = match suffix {
+            "Mask/Paint" | "Mask/Paint/Dabs" | "MaskValue" => "strokes",
+            "Mask/Paint/Radius" => "strokes/0/radius",
+            "Mask/Paint/Flow" => "strokes/0/flow",
+            "Mask/Paint/CenterWeight" => "strokes/0/feather",
+            "MaskBlendMode" => "combine",
+            "MaskActive" => "enabled",
+            "Masks" => "group",
+            "CorrectionRangeMask/LumRange" => "luminance_bounds",
+            "CorrectionRangeMask/PointModels"
+            | "CorrectionRangeMask/AreaModels"
+            | "CorrectionRangeMask/Type=1" => "samples",
+            "CorrectionRangeMask/ColorAmount" => "amount",
+            "CorrectionRangeMask"
+            | "CorrectionRangeMask/Type=2"
+            | "CorrectionRangeMask/Type=3"
+            | "CorrectionRangeMask/LumMin"
+            | "CorrectionRangeMask/LumMax"
+            | "CorrectionRangeMask/DepthMin"
+            | "CorrectionRangeMask/DepthMax" => "range",
+            "CorrectionRangeMask/LumFeather" => "smoothness",
+            "CorrectionRangeMask/DepthFeather" => "feather",
+            "Flipped" => "invert",
+            "Mask/CircularGradient" => "radii",
+            "Mask/Gradient" => "start",
+            _ => continue,
+        };
+        let mut paths = Vec::new();
+        for (i, adjustment) in value.as_array().into_iter().flatten().enumerate() {
+            if let Some(components) = adjustment["components"].as_array() {
+                translated_field_paths(
+                    components,
+                    &format!("/settings/locals/adjustments/{i}/components"),
+                    field,
+                    &mut paths,
+                );
+            }
+        }
+        for path in paths {
+            crate::diagnostics::push_approximate(recipe, &key, &path, "LR-4", reason);
+        }
+    }
+}
+
+fn translated_field_paths(
+    components: &[serde_json::Value],
+    prefix: &str,
+    field: &str,
+    paths: &mut Vec<String>,
+) {
+    for (i, component) in components.iter().enumerate() {
+        let path = format!("{prefix}/{i}");
+        if component
+            .pointer(&format!("/{field}"))
+            .is_some_and(|v| !v.is_null() && !v.as_array().is_some_and(Vec::is_empty))
+        {
+            paths.push(format!("{path}/{field}"));
+        }
+        if let Some(children) = component["group"].as_array() {
+            translated_field_paths(children, &format!("{path}/group"), field, paths);
+        }
+    }
 }

@@ -245,16 +245,7 @@ pub(crate) fn parse_inner(
             retain(&mut recipe, &qualified, p.raw);
         } else if key == CrsKey::MaskGroupBasedCorrections && masks_approximate {
             if let Some(node) = p.node {
-                let notes = recipe
-                    .unknown
-                    .entry("lrcat_develop_diagnostics".into())
-                    .or_insert_with(|| json!([]));
-                if let (Some(notes), serde_json::Value::Array(new)) = (
-                    notes.as_array_mut(),
-                    crate::mask_source::approximation_diagnostics(node),
-                ) {
-                    notes.extend(new);
-                }
+                crate::mask_source::record_approximation_diagnostics(&mut recipe, node);
             }
         } else if key == CrsKey::MaskGroupBasedCorrections {
             diagnostics.push((

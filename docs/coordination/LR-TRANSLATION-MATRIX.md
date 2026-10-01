@@ -89,7 +89,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
 | `LensBlur` | `/settings/effects/lens_blur` | LR-6 | retained | — |
 | `LensProfileIsEmbedded` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic | — |
-| `MaskGroupBasedCorrections` | `/settings/locals/adjustments/0/components/0/luminance_bounds` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
+| `MaskGroupBasedCorrections` | `/settings/locals/adjustments` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/Flipped` | `/settings/locals/adjustments/0/components/0/invert` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/CircularGradient",MaskID="synthetic",Left=0.2,Right=0.8,Top=0.1,Bottom=0.9,Flipped=false}}}}` |
 | `MaskGroupBasedCorrections/Mask/Background` | /settings/locals/adjustments (AI kinds; category only, raster fidelity missing) | LR-5 | retained | — |
