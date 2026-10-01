@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ImageIO
 import XCTest
@@ -187,4 +188,44 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertEqual(outcome, .exported)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
     }
+
+    /// Progress must not resize the canvas (and cause a new render + whole-window SwiftUI layout)
+    /// when it appears or disappears. The window is never ordered or activated.
+    func testExportProgressPreservesDocumentLayoutAndRunsWorkOffMain() async throws {
+        _ = NSApplication.shared
+        let dir = try temp()
+        let ws = DocumentWorkspace()
+        try ws.install(try engineDocument(dir, width: 1600, height: 1200))
+        let window = NSWindow(contentRect: NSRect(x: 40, y: 40, width: 1000, height: 700),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        ws.exportWindow = window
+        let trace = PerformanceTrace(enabled: true)
+        ws.exportTrace = trace
+        window.contentView?.layoutSubtreeIfNeeded()
+        let before = window.contentLayoutRect
+        var outcome: FlatExportTask.Outcome?
+        let task = try XCTUnwrap(ws.startExportFlat(try XCTUnwrap(ws.current), ExportFlatSettings(),
+                                                   to: dir.appendingPathComponent("layout.png")) { outcome = $0 })
+        window.contentView?.layoutSubtreeIfNeeded()
+        XCTAssertEqual(window.contentLayoutRect, before, "Export progress must not change document layout")
+        task.update(0.5, "Encoding")
+        window.contentView?.layoutSubtreeIfNeeded()
+        XCTAssertEqual(window.contentLayoutRect, before)
+        let finished = await waitFor { outcome != nil }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(outcome, .exported)
+        window.contentView?.layoutSubtreeIfNeeded()
+        XCTAssertEqual(window.contentLayoutRect, before)
+        // A loose wall-time guard for loaded CI; the strict check is worker isolation below.
+        let events = trace.snapshot().events
+        let setup = try XCTUnwrap(events.first { $0.name == "export_flat_setup_end" })
+        XCTAssertTrue(setup.mainThread)
+        XCTAssertLessThan(try XCTUnwrap(setup.durationMs), 100)
+        let work = events.filter { $0.name == "export_flat_work_start" }
+        XCTAssertEqual(work.count, 1)
+        XCTAssertTrue(work.allSatisfy { !$0.mainThread }, "Rendering, encoding and writing must never run on main")
+    }
+
 }

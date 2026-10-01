@@ -635,6 +635,9 @@ final class DocumentWorkspace {
     @ObservationIgnored private let flatExportGroup = DispatchGroup()
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
     @ObservationIgnored private var exportAccessory: NSTitlebarAccessoryViewController?
+    // Diagnostic injection: exercise the real progress UI in an unordered test window.
+    @ObservationIgnored var exportWindow: NSWindow?
+    @ObservationIgnored var exportTrace = PerformanceTrace.shared
 
     /// Export Flat of `doc` to `url` with `s` without blocking the main thread: the document is snapshotted
     /// now (later edits are not exported), then composited, converted, encoded and written on a background
@@ -644,6 +647,9 @@ final class DocumentWorkspace {
     @discardableResult
     func startExportFlat(_ doc: DocumentController, _ s: ExportFlatSettings, to url: URL,
                          then: (@MainActor (FlatExportTask.Outcome) -> Void)? = nil) -> FlatExportTask? {
+        let trace = exportTrace
+        let setupSpan = trace.begin("export_flat_setup")
+        defer { trace.end(setupSpan) }
         let backend = doc.backend
         let (format, quality, color) = (s.format.documentFormat, UInt8(s.quality), s.color.documentColor)
         let path = url.path
@@ -693,6 +699,8 @@ final class DocumentWorkspace {
         }
         group.enter()
         Task.detached(priority: .userInitiated) {
+            let workSpan = trace.begin("export_flat_work")
+            defer { trace.end(workSpan) }
             let result = Result {
                 // Task priority alone does not prevent App Nap when the document window is covered.
                 // Keep this user-requested export active only until the worker finishes (including
@@ -742,7 +750,7 @@ final class DocumentWorkspace {
 
     /// The progress bar under the toolbar while exports run.
     private func updateExportAccessory() {
-        guard let window else { return }
+        guard let window = exportWindow ?? window else { return }
         if flatExports.isEmpty {
             if let a = exportAccessory, let i = window.titlebarAccessoryViewControllers.firstIndex(of: a) {
                 window.removeTitlebarAccessoryViewController(at: i)

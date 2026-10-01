@@ -67,14 +67,20 @@ enum SelfTestHost {
     static func ensureWindow(model: AppModel) {
         guard isBackground, window == nil,
               !NSApp.windows.contains(where: { !($0 is NSPanel) && $0.isVisible }) else { return }
+        let w = makeWindow(model: model)
+        w.order(.below, relativeTo: 0)   // behind everything; never orderFront, never makeKey
+        window = w
+        log("host window \(w.windowNumber)")
+    }
+
+    /// The actual host, also exercised unordered by the resize regression test.
+    static func makeWindow(model: AppModel) -> NSWindow {
         let w = HostWindow(contentRect: NSRect(x: 40, y: 40, width: 1440, height: 900), styleMask: [.titled, .resizable],
                            backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
         w.title = "Tessera self-test"
         w.contentView = NSHostingView(rootView: ContentView.root(model: model))
-        w.order(.below, relativeTo: 0)   // behind everything; never orderFront, never makeKey
-        window = w
-        log("host window \(w.windowNumber)")
+        return w
     }
 
     private static func startSelfTests(model: AppModel) {
