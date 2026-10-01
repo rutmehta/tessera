@@ -1624,7 +1624,7 @@ mod frame_cancellation_tests {
 
     #[test]
     #[cfg(target_os = "macos")]
-    fn eng2b_presented_frame_does_not_republish_model_or_retain_surfaces() {
+    fn b5_48_frame_completion_changes_only_ring_cursor_without_publication() {
         let dir = tempfile::tempdir().unwrap();
         let engine =
             crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
@@ -1639,6 +1639,14 @@ mod frame_cancellation_tests {
         session.shared.render.request(Vec::new(), false, 0);
         session.wait_idle();
         assert_eq!(session.shared.render.records().len(), 1);
+        {
+            let st = session.shared.lock().unwrap();
+            assert_eq!(st.view.next, 1, "frame completion must advance the ring");
+            assert_eq!(st.epoch, before.epoch);
+            assert_eq!(st.title, before.title);
+            assert_eq!(st.closed, before.closed);
+            assert!(Arc::ptr_eq(st.live().state(), &before.live));
+        }
         assert!(
             Arc::ptr_eq(&before, &session.shared.read().unwrap()),
             "ring cursor advancement republished the whole model"

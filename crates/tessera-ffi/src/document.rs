@@ -2881,6 +2881,48 @@ mod publication_tests {
     }
 
     #[test]
+    fn b5_48_shutdown_closes_poisoned_session_without_publishing_partial_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        session.wait_idle();
+        let before = session.shared.read().unwrap();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut st = session.shared.lock().unwrap();
+            st.title = "partial edit".into();
+            panic!("injected poisoned session");
+        }));
+        assert!(panic.is_err());
+        session.shutdown();
+        assert!(
+            session
+                .shared
+                .state
+                .lock()
+                .err()
+                .unwrap()
+                .into_inner()
+                .closed
+        );
+        let after = session.shared.read().unwrap();
+        assert!(after.closed);
+        assert_eq!(after.title, before.title);
+        assert!(Arc::ptr_eq(&after.live, &before.live));
+        assert!(after.open().is_err());
+        assert!(
+            session
+                .begin_export_flat(
+                    "closed.png".into(),
+                    ExportFormat::Png,
+                    90,
+                    ExportColor::Srgb
+                )
+                .is_err()
+        );
+        session.shutdown(); // Idempotent even with the poison retained.
+    }
+
+    #[test]
     fn eng2b_draft_publication_does_not_retain_historical_states() {
         let dir = tempfile::tempdir().unwrap();
         let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();

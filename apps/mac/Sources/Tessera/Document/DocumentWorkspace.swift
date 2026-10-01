@@ -659,6 +659,8 @@ final class DocumentWorkspace {
     // Diagnostic injection: exercise the real progress UI in an unordered test window.
     @ObservationIgnored var exportWindow: NSWindow?
     @ObservationIgnored var exportTrace = PerformanceTrace.shared
+    // Deterministic test seam: pause the worker before any export work.
+    @ObservationIgnored var exportWorkerWillRun: @Sendable () -> Void = {}
 
     /// Export Flat of `doc` to `url` with `s` without blocking the main thread: reserve the session now,
     /// then snapshot, composite, convert, encode and write on a background
@@ -738,7 +740,9 @@ final class DocumentWorkspace {
             then?(outcome)
         }
         group.enter()
+        let workerWillRun = exportWorkerWillRun
         Task.detached(priority: .userInitiated) {
+            workerWillRun()
             let workSpan = trace.begin("export_flat_work")
             defer { trace.end(workSpan) }
             let result = Result {

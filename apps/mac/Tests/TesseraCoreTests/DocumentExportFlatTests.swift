@@ -74,24 +74,45 @@ final class DocumentExportFlatTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["kept.tif", "support"])
     }
 
-    func testReservedSnapshotIncludesEditCommittedAfterPreparation() async throws {
+    func testWorkspaceSnapshotExcludesEditCommittedAfterConfirm() async throws {
         let dir = try temp()
         let backend = try engineDocument(dir, width: 32, height: 24)
-        defer { backend.close() }
+        let ws = DocumentWorkspace()
+        try ws.install(backend)
+        let doc = try XCTUnwrap(ws.current)
+        defer { ws.discard(doc) }
         let before = dir.appendingPathComponent("before.png").path
-        let expected = dir.appendingPathComponent("expected.png").path
-        let output = dir.appendingPathComponent("reserved.png").path
+        let edited = dir.appendingPathComponent("edited.png").path
+        let output = dir.appendingPathComponent("confirmed.png")
         try backend.exportFlat(path: before, format: .png, quality: 90, color: .srgb)
-        let request = try backend.prepareExportFlat(path: output, format: .png, quality: 90, color: .srgb)
-        let layer = try XCTUnwrap(try backend.layers().first?.id)
-        _ = try backend.setVisible(id: layer, visible: false)
-        try backend.exportFlat(path: expected, format: .png, quality: 90, color: .srgb)
-        let job = try await Task.detached { try request.snapshot() }.value
-        // An edit after acquisition must not change the already acquired snapshot.
-        _ = try backend.setVisible(id: layer, visible: true)
-        try await Task.detached { try job.run { _, _ in } }.value
-        XCTAssertNotEqual(try pixels(before), try pixels(expected))
-        XCTAssertEqual(try pixels(output), try pixels(expected))
+        let worker = DispatchSemaphore(value: 0)
+        ws.exportWorkerWillRun = { worker.wait() }
+        let trace = PerformanceTrace(enabled: true)
+        ws.exportTrace = trace
+        var outcome: FlatExportTask.Outcome?
+        do {
+            defer { worker.signal() }
+            _ = try XCTUnwrap(ws.startExportFlat(doc, ExportFlatSettings(format: .png, quality: 90, color: .srgb),
+                                               to: output) { outcome = $0 })
+            // The worker cannot acquire a snapshot before this committed edit.
+            let snapshots = trace.snapshot().events.filter { $0.name == "export_flat_snapshot_start" }
+            XCTAssertEqual(snapshots.count, 1, "Confirm must acquire the snapshot before returning")
+            XCTAssertTrue(snapshots.allSatisfy(\.mainThread))
+            let layer = try XCTUnwrap(try backend.layers().first?.id)
+            _ = try backend.setVisible(id: layer, visible: false)
+            try backend.exportFlat(path: edited, format: .png, quality: 90, color: .srgb)
+        }
+        let finished = await waitFor { outcome != nil }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(outcome, .exported)
+        XCTAssertNotEqual(try pixels(before), try pixels(edited))
+        XCTAssertEqual(try pixels(output.path), try pixels(before))
+        let snapshot = try XCTUnwrap(trace.snapshot().events.first { $0.name == "export_flat_snapshot_end" && $0.durationMs != nil })
+        let milliseconds = try XCTUnwrap(snapshot.durationMs)
+        print("B5-48 confirm snapshot: \(milliseconds * 1000) us (main=\(snapshot.mainThread))")
+        if ProcessInfo.processInfo.environment["TESSERA_FILTER_PERF"] != nil {
+            XCTAssertLessThan(milliseconds, 20, "Confirm snapshot must remain a short publication read")
+        }
     }
 
     private final class ProgressScheduler: @unchecked Sendable {
@@ -337,7 +358,7 @@ final class DocumentExportFlatTests: XCTestCase {
     }
 
     /// B5-40: the same developed 18 MP RAW + Gaussian smart filter as FilterSelfTest.
-    /// Catches snapshot acquisition on main and a callback storm from tile progress.
+    /// Requires confirm-time snapshot acquisition on main and catches a callback storm from tile progress.
     func testSmartFilterFixtureExportBoundsMainSpansAndCoalescesProgress() async throws {
         _ = NSApplication.shared
         let dir = try temp()
@@ -447,7 +468,7 @@ final class DocumentExportFlatTests: XCTestCase {
         let events = Array(trace.snapshot().events.dropFirst(exportEventOffset))
         let snapshots = events.filter { $0.name == "export_flat_snapshot_start" }
         XCTAssertEqual(snapshots.count, 1)
-        XCTAssertTrue(snapshots.allSatisfy { !$0.mainThread }, "The blocking session snapshot must never run on main")
+        XCTAssertTrue(snapshots.allSatisfy { $0.mainThread }, "The publication snapshot must run on main at confirm")
         let progress = events.filter { $0.name == "export_flat_progress_start" }
         XCTAssertGreaterThan(progress.count, 1, "The real fixture must exercise progress publication")
         for (previous, next) in zip(progress, progress.dropFirst()) {
