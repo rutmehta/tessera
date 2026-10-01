@@ -1,0 +1,1 @@
+2026-10-01 22:40 UTC: B ENG-2b 48718adf reports correctness/static/bindings green but aggregate Liquify and isolated Liquify/Develop performance failures; no acceptance. Main e558c5df unchanged. Board records exact peer-reported results. PERF runtime handoff absent; no duplicate runtime or wakeup.
