@@ -30,13 +30,11 @@ pub fn check(name: &str, output: &Raster) {
         let expected = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         assert_eq!(bytes.len(), expected.len());
         let max = bytes
-            .chunks_exact(4)
-            .zip(expected.chunks_exact(4))
-            .map(|(a, b)| {
-                (f32::from_le_bytes(a.try_into().unwrap())
-                    - f32::from_le_bytes(b.try_into().unwrap()))
-                .abs()
-            })
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(expected.as_chunks::<4>().0)
+            .map(|(a, b)| (f32::from_le_bytes(*a) - f32::from_le_bytes(*b)).abs())
             .fold(0_f32, f32::max);
         assert!(
             max < super::GOLDEN_TOLERANCE,

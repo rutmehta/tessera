@@ -94,8 +94,10 @@ fn raw_fixture_goldens() {
             .unwrap();
         }
         let changed = expected
-            .chunks_exact(3)
-            .zip(rendered.as_raw().chunks_exact(3))
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(rendered.as_raw().as_chunks::<3>().0)
             .filter(|(a, b)| a != b)
             .count();
         eprintln!(
