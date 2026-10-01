@@ -283,13 +283,14 @@ pub struct LrcatImport {
     summary: LrcatSummary,
     pub(crate) edited: Vec<bool>,
     spool: tempfile::NamedTempFile,
+    storage: tempfile::TempDir,
     records: Vec<(u64, usize)>,
 }
 
 /// Counts and diagnostics without an engine (for a quick look at a catalog).
 #[uniffi::export]
 pub fn inspect_lrcat(path: String) -> Result<LrcatSummary> {
-    let (plan, stats, _, _) = stream_catalog(Path::new(&path), None)?;
+    let (plan, stats, _, _) = stream_catalog(Path::new(&path), None, None)?;
     let catalog = Path::new(&path).canonicalize()?;
     let previews = PreviewIndex::open(&catalog).ok().flatten();
     Ok(summarize(&catalog, &plan, previews.as_ref(), &stats))
@@ -299,8 +300,10 @@ pub fn inspect_lrcat(path: String) -> Result<LrcatSummary> {
 impl Engine {
     /// Reads (a temporary copy of) the catalog. Blocking: call off the main thread.
     pub fn open_lrcat(self: Arc<Self>, path: String) -> Result<Arc<LrcatImport>> {
-        let mut spool = tempfile::NamedTempFile::new()?;
-        let (plan, stats, edited, records) = stream_catalog(Path::new(&path), Some(&mut spool))?;
+        let storage = tempfile::tempdir()?;
+        let mut spool = tempfile::NamedTempFile::new_in(storage.path())?;
+        let (plan, stats, edited, records) =
+            stream_catalog(Path::new(&path), Some(&mut spool), Some(storage.path()))?;
         let catalog = Path::new(&path).canonicalize()?;
         // The preview cache is optional; an unreadable one only disables fidelity.
         let previews = PreviewIndex::open(&catalog).ok().flatten();
@@ -314,6 +317,7 @@ impl Engine {
             summary,
             edited,
             spool,
+            storage,
             records,
         }))
     }
@@ -680,6 +684,7 @@ type StreamedCatalog = (CatalogMetadata, StreamStats, Vec<bool>, Vec<(u64, usize
 fn stream_catalog(
     path: &Path,
     spool: Option<&mut tempfile::NamedTempFile>,
+    storage: Option<&Path>,
 ) -> Result<StreamedCatalog> {
     use std::io::Write;
     let mut writer = spool.map(|f| std::io::BufWriter::with_capacity(1 << 20, f));
@@ -691,8 +696,9 @@ fn stream_catalog(
     let mut records = Vec::new();
     let mut edited = Vec::new();
     let mut stats = StreamStats::default();
-    let plan = import_lrcat::import_each(
+    let plan = import_lrcat::import_each_with_storage(
         path,
+        storage,
         |_| Ok(()),
         |image| {
             let bytes = serde_json::to_vec(&image)?;
@@ -752,6 +758,14 @@ fn stream_catalog(
     stats.estimated_bytes += serde_json::to_vec_pretty(&plan.library)
         .map_err(failure)?
         .len() as u64;
+    if let Some(storage) = storage {
+        let large = storage.join("large");
+        if large.is_dir() {
+            for entry in std::fs::read_dir(large)? {
+                stats.estimated_bytes += entry?.metadata()?.len();
+            }
+        }
+    }
     let plan = CatalogMetadata {
         schema_version: plan.schema_version,
         roots: plan.roots,
@@ -1138,6 +1152,23 @@ impl LrcatImport {
         std::fs::create_dir_all(&bundle)?;
         let plan_file = bundle.join("import-plan.json");
         if !plan_file.exists() {
+            // Publish every lossless source cell before publishing its references.
+            // Keep the private copies for retries and independent record reads.
+            let large = self.storage.path().join("large");
+            if large.is_dir() {
+                let destination = bundle.join("large");
+                std::fs::create_dir_all(&destination)?;
+                for entry in std::fs::read_dir(large)? {
+                    let entry = entry?;
+                    let mut temporary = tempfile::NamedTempFile::new_in(&destination)?;
+                    std::io::copy(&mut std::fs::File::open(entry.path())?, &mut temporary)?;
+                    temporary.as_file().sync_all()?;
+                    temporary
+                        .persist(destination.join(entry.file_name()))
+                        .map_err(|e| failure(e.error))?;
+                }
+                std::fs::File::open(&destination)?.sync_all()?;
+            }
             let mut temporary = tempfile::NamedTempFile::new_in(&bundle)?;
             let mut source = self.spool.reopen()?;
             std::io::copy(&mut source, &mut temporary)?;
@@ -1145,6 +1176,7 @@ impl LrcatImport {
             temporary
                 .persist(&plan_file)
                 .map_err(|e| failure(e.error))?;
+            std::fs::File::open(&bundle)?.sync_all()?;
         }
         let state_file = bundle.join("state.json");
         let fingerprint = options_fingerprint(&options);

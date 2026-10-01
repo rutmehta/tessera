@@ -1,6 +1,72 @@
 # B5-29d: streaming Lightroom import over the FFI
 
-Branch `wp/B5-29d`, based on `wp/B5-29c` at `324566da`. Local commits only.
+Branch `wp/B5-29d`, rebased onto `wp/B5-29c` at `041456c9`. Local commits only.
+
+## Current-base acceptance (2026-10-01)
+
+Measured the supplied read-only catalog copy after this worktree's builds and
+tests finished, with all roots relocated to absent private temporary folders.
+Inspect: 21,656 images, 21,615 edited, 0 virtual copies.
+Apply: 21,656 images, 0 imported, 21,656 missing originals,
+0 virtual copies. Counts are recorded here only; no filenames or catalog
+contents are included. This is a catalog/bundle benchmark, not accessible-original
+sidecar/indexing throughput. The machine is shared, so external contention is
+not controlled.
+
+| Measurement | Rebased result |
+| --- | ---: |
+| Inspect | 11.265 s |
+| Inspect process wall, including cleanup | 11.88 s |
+| Inspect maximum RSS | 755,695,616 bytes |
+| Inspect peak footprint | 624,886,792 bytes |
+| Open | 10.443 s |
+| Apply after open, including missing-originals preflight | 0.582 s |
+| Open + apply total | 11.026 s |
+| Open + apply process wall, including cleanup | 11.08 s |
+| Open + apply maximum RSS | 698,531,840 bytes |
+| Open + apply peak footprint | 549,471,192 bytes |
+
+All targets met: inspect < 20 s, open + apply < 60 s, both RSS and footprint
+< 1 GB. Full SHA-256 equality was checked before and after; prefix
+**`eb60e744dbec2547` remains unchanged**. No original catalog or photo was modified.
+
+### Current gates
+
+Passed serially with `PATH="$HOME/.cargo/bin:$PATH"` and
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-29d`:
+
+- `cargo test --release -p import-lrcat -p tessera-cli -p tessera-ffi --test lrcat`
+- Same package set with `--lib lrcat` (the filter selects four FFI unit tests;
+  importer unit tests are exercised by the full importer command below).
+- `cargo test --release -p import-lrcat`, including golden, retention,
+  oversized-memory, real-catalog-shape and scale tests.
+- `cargo test --release -p tessera-cli --bin tessera import::tests`
+- `cargo test --release -p tessera-cli --test import_models`
+- FFI `lrcat_streaming_parity` (two tests) and `lrcat_streaming` (allocation gate).
+- `cargo clippy --release --all-targets -p import-lrcat -p tessera-cli -p tessera-ffi -- -D warnings`
+- `cargo fmt --all -- --check`
+- `apps/mac/build-ffi.sh`; no tracked Swift/C binding changes.
+- Release measurement-driver build.
+
+`tools/orchestrate/swift-gate.sh`: **FAILED**, exit 1. Swift compilation passed.
+The full XCTest run reported three failures and then stopped making progress;
+a sample showed XCTest waiting with AppKit animation threads blocked. After
+confirming the exact runner belonged to this worktree, it was terminated with
+SIGTERM. This was not a completed full-suite pass; no completed XCTest total
+is claimed. The separate five Swift Testing tests passed.
+
+- `MasksPanelLayoutTests.testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth`:
+  window capture returned no `CGImageSourceRef`. Both `IOConsoleLocked` and
+  `CGSSessionScreenIsLocked` were verified true.
+- `DocumentAdaptiveWideAngleTests.testOKSurfacesAFailedFinalTrace`: expected
+  constraint-error string was nil in the full run; **passed on isolated rerun**.
+- `ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize`:
+  history-panel bounds/overlap assertions failed in the full run;
+  **passed on isolated rerun**.
+
+The two unexpected failures were rerun together using release `swift test
+--skip-build --filter` with their exact test names: two tests passed in 28.820 s.
+No Swift source changes were made, and the full gate remains recorded as failed.
 
 ## Measurement protocol
 
@@ -21,7 +87,13 @@ SHA-256 prefix `eb60e744dbec2547`. No source photo or original catalog is used.
 
 ## Implementation
 
-Both `inspect_lrcat` and `Engine::open_lrcat` consume `import_each`. Full imported
+Both `inspect_lrcat` and `Engine::open_lrcat` consume
+`import_each_with_storage`. Inspect passes no storage and reports bounded
+prefix/omission descriptors for oversized cells. Open owns a private staging
+directory and externalizes oversized cells losslessly under `large/`. Apply
+publishes and syncs these side files before publishing `import-plan.json`;
+its disk estimate includes their bytes. The staging directory stays alive with
+the import object for retries. Normal-size source rows remain in the spool. Full imported
 records are serialized and dropped as they arrive. Inspect only counts their
 serialized size; open also appends them to a buffered temporary bundle and
 records byte offsets. A dedicated metadata type keeps only the fields needed
@@ -41,8 +113,19 @@ The public FFI signatures and Swift import state machine are unchanged. The
 Swift controller already calls `Engine.openLrcat` off the main actor. Summary
 counts, grouped diagnostics, exact disk estimate, mapping, fidelity, progress,
 cancel/resume, conflict protection and indexing retain their existing behavior.
-The bundle retains the same JSON values, including all source rows and unknown
-recipe members; JSON object member order is not significant.
+The bundle retains the same JSON values for normal cells, including source rows
+and unknown recipe members; oversized cells use the new base's lossless relative
+references. JSON object member order is not significant. Degraded-image reports
+stay individual in the FFI summary (one issue per image); ordinary repeated
+warnings still aggregate. `recipe.unknown["lrcat_develop_source"]` retains the
+base's original Adobe literals, including inactive settings and identity curves.
+Malformed develop rows retain their complete text; oversized develop rows carry
+the external recovery reference with `truncated=false` after open.
+
+New integration coverage checks individual malformed/oversized diagnostics,
+unconditional retention of UprightVersion, RetouchAreas and an identity extended
+curve, byte-exact oversized-cell publication, pinned data after source mutation,
+repeat apply, and retained files after the import object is dropped.
 
 ## RED evidence
 
@@ -67,7 +150,7 @@ coordinate became `0.501960813999176` via promotion to `f64`, versus the correct
 serialized decimal `0.5019608`. Both sides now parse their serialized bytes.
 A first-difference diagnostic avoids dumping the entire catalog on failure.
 
-## Before / after
+## Previous-base before / after (historical)
 
 Real-copy counts: 21,656 images, 21,615 edited, 0 virtual copies. Apply reports
 0 imported and 21,656 missing originals under the intentionally absent relocated
@@ -99,7 +182,7 @@ The complete SHA-256 was checked for exact equality before and after the final
 measurement; prefix **`eb60e744dbec2547`** remains unchanged. Counts match the
 before run. No original catalog or source photo was modified.
 
-## Gates
+## Previous-base gates (historical)
 
 Passed:
 
@@ -118,13 +201,30 @@ Passed:
 Builds and test commands run sequentially with the requested external Cargo
 target directory. No GUI launch or screen capture.
 
-## Local commits
+## Rebase and local commits
 
-B5-29c follow-up: `87670d44` RED crash test, `b0eb7ab1` durability/refactor,
-`5027d39b` durability documentation. These three can be cherry-picked as a
-group without the B5-29d FFI changes.
+New base: `041456c98a9362b22c7026b01747ad9bf732e263`.
 
-B5-29d: `44f23d74` RED allocation test and measurement driver, `7ce2ea74`
-streaming FFI and parity coverage, `7c05895c` measurement preflight guard.
-All carry the requested co-author trailer. No push, board edit or Cargo.lock
-change.
+Dropped all three old B5-29c durability commits:
+
+- `87670d44`: old pre-publication visibility test. Its absent-destination assertion
+  conflicts with 29c's explicit empty reservation contract. The base already tests
+  failed/no-op publication cleanup, empty-reservation recovery and preservation
+  of nonempty destinations; no unique compatible coverage was lost.
+- `b0eb7ab1`: superseded by 29c's plain fsync with EINTR retry, directory syncs,
+  and publication/recovery implementation.
+- `5027d39b`: documentation for the superseded durability implementation.
+
+The only rebase conflict was `apps/tessera-cli/src/import.rs` while replaying
+`87670d44`; resolved by dropping that commit, retaining 29c verbatim. The other
+two superseded commits were explicitly dropped. All four 29d commits replayed:
+
+| Original | Rebased | Purpose |
+| --- | --- | --- |
+| `44f23d74` | `42dd56cd` | allocation test and measurement driver |
+| `7ce2ea74` | `96b38c00` | streaming FFI and parity coverage |
+| `7c05895c` | `4f76452d` | missing-originals measurement guard |
+| `1f2be5dc` | `ed8a29ce` | handoff documentation |
+
+All commits are local only and carry the requested co-author trailer. No push,
+board edit or Cargo.lock change.

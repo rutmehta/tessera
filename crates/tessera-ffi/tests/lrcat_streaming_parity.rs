@@ -117,3 +117,77 @@ fn first_difference(a: &serde_json::Value, b: &serde_json::Value, path: &str) ->
     }
     Some(format!("{path}: values differ"))
 }
+
+#[test]
+fn ffi_retains_develop_sources_and_publishes_oversized_cells() {
+    let temp = tempfile::tempdir().unwrap();
+    let catalog = common::write(&temp.path().join("sources"), 5);
+    let c = rusqlite::Connection::open(&catalog).unwrap();
+    let large = "x".repeat(import_lrcat::MAX_CELL_BYTES + 1);
+    c.execute(
+        "UPDATE Adobe_imageDevelopSettings SET text=?1 WHERE image=1001",
+        [&large],
+    )
+    .unwrap();
+    c.execute(
+        "UPDATE Adobe_imageDevelopSettings SET text='not lua' WHERE image IN (1002,1003)",
+        [],
+    )
+    .unwrap();
+    c.execute("UPDATE Adobe_imageDevelopSettings SET text='s = { UprightVersion = 151388160, RetouchAreas = {}, ExtendedToneCurvePV2012 = {0,0,255,255} }' WHERE image=1004", []).unwrap();
+    drop(c);
+    let inspect = tessera_ffi::inspect_lrcat(catalog.to_string_lossy().into_owned()).unwrap();
+    let engine = Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+    let import = engine
+        .open_lrcat(catalog.to_string_lossy().into_owned())
+        .unwrap();
+    for summary in [inspect, import.summary()] {
+        for id in 1001..=1003 {
+            let issue = summary
+                .unsupported
+                .iter()
+                .find(|i| {
+                    i.reason.starts_with(&format!("image {id}:"))
+                        && i.reason.contains("imported as unedited")
+                })
+                .unwrap();
+            assert_eq!(issue.count, 1);
+        }
+    }
+    // Publication must use the pinned source cells even after the catalog changes.
+    rusqlite::Connection::open(&catalog)
+        .unwrap()
+        .execute("UPDATE Adobe_imageDevelopSettings SET text='changed'", [])
+        .unwrap();
+    let mut options = import.default_options();
+    options.library_folder = temp.path().join("library").to_string_lossy().into_owned();
+    for r in &mut options.relocations {
+        r.to = temp.path().join("absent").to_string_lossy().into_owned();
+    }
+    let report = import.apply(options.clone(), None).unwrap();
+    let bundle = std::path::Path::new(&report.bundle_path);
+    let plan: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(bundle.join("import-plan.json")).unwrap()).unwrap();
+    let source = |id| {
+        plan["images"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["catalog_id"] == id)
+            .unwrap()["recipe"]["lrcat_develop_source"]
+            .clone()
+    };
+    let oversized = source(1001);
+    assert_eq!(oversized["truncated"], false);
+    assert_eq!(oversized["cell"]["status"], "externalized");
+    let retained = bundle.join(oversized["cell"]["path"].as_str().unwrap());
+    assert_eq!(std::fs::read(&retained).unwrap(), large.as_bytes());
+    assert_eq!(source(1002)["text"], "not lua");
+    assert_eq!(source(1003)["text"], "not lua");
+    assert_eq!(source(1004)["UprightVersion"], "151388160");
+    assert_eq!(source(1004)["RetouchAreas"], "{}");
+    assert_eq!(source(1004)["ExtendedToneCurvePV2012"], "{0,0,255,255}");
+    import.apply(options, None).unwrap();
+    drop(import);
+    assert_eq!(std::fs::read(retained).unwrap(), large.as_bytes());
+}
