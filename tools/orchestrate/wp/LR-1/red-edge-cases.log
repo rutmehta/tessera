@@ -1,0 +1,74 @@
+   Compiling syn v3.0.6
+   Compiling cc v1.5.1
+   Compiling crc32fast v1.5.2
+   Compiling bytemuck v1.25.2
+   Compiling simd-adler32 v0.3.10
+   Compiling miniz_oxide v0.9.1
+   Compiling syn v2.0.119
+   Compiling tiny-skia-path v0.11.4
+   Compiling blake3 v1.8.7
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling thiserror v2.0.21
+   Compiling flate2 v1.1.10
+   Compiling libsqlite3-sys v0.38.2
+   Compiling zerocopy-derive v0.8.59
+   Compiling serde v1.0.229
+   Compiling psd v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/psd)
+   Compiling euclid v0.22.14
+   Compiling smallvec v1.16.2
+   Compiling rustybuzz v0.20.1
+   Compiling lyon_geom v1.0.19
+   Compiling lyon_path v1.0.19
+   Compiling kurbo v0.11.3
+   Compiling lyon_tessellation v1.0.22
+   Compiling lyon_algorithms v1.0.21
+   Compiling zerocopy v0.8.59
+   Compiling lyon v1.0.19
+   Compiling tiny-skia v0.11.4
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/typography)
+   Compiling vector v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/vector)
+   Compiling half v2.7.1
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/engine-api)
+   Compiling image v0.25.10
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/sidecar)
+   Compiling rusqlite v0.40.2
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/index)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 50s
+     Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/point_colors-6ace60edd00f8d84)
+
+running 6 tests
+test point_color_explicit_lua_array_indices_translate_without_losing_order ... FAILED
+test point_color_lua_maps_shifts_and_all_feathers_without_pending_source ... ok
+test point_color_units_multiple_points_and_native_roundtrip ... ok
+test point_color_xmp_numeric_sequence_matches_lua ... ok
+test point_color_list_extensions_and_mixed_invalid_items_are_retained ... FAILED
+test point_color_partial_or_unknown_shape_stays_atomic_and_retained ... ok
+
+failures:
+
+---- point_color_explicit_lua_array_indices_translate_without_losing_order stdout ----
+
+thread 'point_color_explicit_lua_array_indices_translate_without_losing_order' (52670784) panicked at crates/import-lrcat/tests/point_colors.rs:98:5:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- point_color_list_extensions_and_mixed_invalid_items_are_retained stdout ----
+
+thread 'point_color_list_extensions_and_mixed_invalid_items_are_retained' (52670785) panicked at crates/import-lrcat/tests/point_colors.rs:86:5:
+assertion failed: r.settings.color.point_colors.is_empty()
+
+
+failures:
+    point_color_explicit_lua_array_indices_translate_without_losing_order
+    point_color_list_extensions_and_mixed_invalid_items_are_retained
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p import-lrcat --test point_colors`
+error: 1 target failed:
+    `-p import-lrcat --test point_colors`

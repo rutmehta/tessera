@@ -1,0 +1,24 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.32s
+     Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/point_colors-6ace60edd00f8d84)
+
+running 1 test
+test point_color_resource_wrapper_extensions_are_not_discarded ... FAILED
+
+failures:
+
+---- point_color_resource_wrapper_extensions_are_not_discarded stdout ----
+
+thread 'point_color_resource_wrapper_extensions_are_not_discarded' (52874627) panicked at crates/import-lrcat/tests/point_colors.rs:114:5:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    point_color_resource_wrapper_extensions_are_not_discarded
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test point_colors`

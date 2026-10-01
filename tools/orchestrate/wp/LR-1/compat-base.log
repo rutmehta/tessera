@@ -1,0 +1,27 @@
+   Compiling psd v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/psd)
+   Compiling vector v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/vector)
+   Compiling typography v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/typography)
+   Compiling engine-api v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/engine-api)
+   Compiling index v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/index)
+   Compiling sidecar v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/sidecar)
+   Compiling library v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/library)
+   Compiling import-lrcat v0.1.0 (/private/tmp/tessera-lr1-byte-baseline/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.96s
+     Running tests/lr1_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/lr1_compat-e9471d806aebaa14)
+
+running 1 test
+COMPAT_BEGIN
+empty 10692 753b3950f2e078b44a6cd58e86feaac0b04c08695f88e3eabd7f0796c847b67c
+global 15228 8aea11369452bc10e9857738e937d09cac441b96bf372d8a51dd6c28cbfca3be
+structures 18101 74089dc517e7c4a19f0258fb1fa87f84f17bafe2b32bb8656468ee4c101f1742
+legacy 11633 fe85a1a43d4268ab1aa6f24ba8add80325b3cd274d5b54e181f66bfbe6e438ce
+future 11442 35425c796d39602582db56a4bff92d1c6cec9c71a52d0be21cdbe90a330cdfc0
+nil-point 10805 d03097231aa0aa83cc4800a5d0483d6e9d74c404d3d1b126f648402729bf4b1c
+empty-point 10804 6dd1acba5bb138259140f8116e6635ff8ae27c500949f0646f9d66c62b9c9dee
+opaque-point 10916 802b478b6946efa4a30da26370475634b0709c09c7d34216e8eae6d7944976a9
+pending 11717 a029f685a47ec18777d55dfe3a1f1801cc1a8ca7348fcc21af8e685aa155ec12
+xmp-opaque 11706 00e4419e50b80c42abf881199155b994184b3d997ce91394fa1ecb0e0e2f9bfa
+COMPAT_END
+test untranslated_recipe_bytes_match_pre_lr1 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
