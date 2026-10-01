@@ -325,11 +325,13 @@ fn render_linear_impl(
     rgb = crate::optics::point_corrections(&rgb, &settings.lens)?;
     // Retouch operates in the unrotated scene-linear active image before Detail
     // and Tone. Preview spots use target-level pixels, never a full-sensor solve.
-    let early_scale = if !settings.locals.retouch.is_empty() {
-        scale
-    } else {
-        1
-    };
+    let active_retouch = settings
+        .locals
+        .retouch
+        .iter()
+        .any(|op| op.enabled && op.opacity > 0.0);
+    // Inactive spots must preserve the no-retouch preview sampling order.
+    let early_scale = if active_retouch { scale } else { 1 };
     let reduced_depth = if early_scale > 1 {
         depth
             .map(|(plane, _)| {

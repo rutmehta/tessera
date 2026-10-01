@@ -81,10 +81,16 @@ impl PreviewCache {
         max: Option<u32>,
     ) -> EngineResult<image::RgbImage> {
         let source = self.source(id, path)?;
+        let active_retouch = recipe
+            .settings
+            .locals
+            .retouch
+            .iter()
+            .any(|op| op.enabled && op.opacity > 0.0);
         let rgb = match &*source {
             Decoded::Rgb { full, preview } => {
                 let input = if max.is_some() { preview } else { full };
-                let scale = if recipe.settings.locals.retouch.is_empty() {
+                let scale = if !active_retouch {
                     1
                 } else {
                     max.map_or(1, |max| {
@@ -105,11 +111,7 @@ impl PreviewCache {
             Decoded::Raw(raw) => {
                 let e = raw.active_extent();
                 let l = if let Some(max) = max {
-                    let edge = if recipe.settings.locals.retouch.is_empty() {
-                        1024
-                    } else {
-                        max.max(1)
-                    };
+                    let edge = if !active_retouch { 1024 } else { max.max(1) };
                     level(e.width, e.height, edge)
                 } else {
                     0
