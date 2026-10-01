@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class WorkspaceReadyPhotoTests: XCTestCase {
     func testRealRAWDevelopAndMasksRemainReadyAcrossInspectorTabs() async throws {
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
         let scratch = ShellHarness.repoRoot.appendingPathComponent("apps/mac/build/workspace-ready-\(UUID().uuidString)")
         let folder = scratch.appendingPathComponent("raw")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

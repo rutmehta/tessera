@@ -8,7 +8,7 @@ import XCTest
 @MainActor
 final class LayoutContractTests: XCTestCase {
     private func fit<V: View>(_ view: V, width: CGFloat) -> CGSize {
-        NSHostingController(rootView: view).sizeThatFits(in: CGSize(width: width, height: 2000))
+        LayoutProbeHarness.fittingSize(view, in: CGSize(width: width, height: 2000))
     }
 
     // MARK: ValueSlider (D03, D08)

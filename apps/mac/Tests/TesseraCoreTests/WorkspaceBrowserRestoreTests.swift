@@ -10,7 +10,7 @@ final class WorkspaceBrowserRestoreTests: XCTestCase {
         model.loadStubItems(count: 300)
         model.setSelectionFromUI([1, 2], clicked: 2)
         let browser = BrowserController(model: model, style: .grid)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 400),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 640, height: 400),
                               styleMask: .titled, backing: .buffered, defer: false)
         window.contentView = browser.scrollView
         browser.libraryDidReload()
@@ -38,7 +38,7 @@ final class WorkspaceBrowserRestoreTests: XCTestCase {
         let model = AppModel()
         model.loadStubItems(count: 300)
         let browser = BrowserController(model: model, style: .grid)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 400),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 640, height: 400),
                               styleMask: .titled, backing: .buffered, defer: false)
         window.contentView = browser.scrollView
         browser.libraryDidReload()

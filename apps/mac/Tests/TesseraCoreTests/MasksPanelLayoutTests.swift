@@ -10,7 +10,7 @@ import XCTest
 @MainActor
 final class MasksPanelLayoutTests: XCTestCase {
     func testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth() async throws {
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
         let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("masks-layout-\(UUID().uuidString)")
         let folder = scratch.appendingPathComponent("photos")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -41,31 +41,26 @@ final class MasksPanelLayoutTests: XCTestCase {
             for dark in [false, true] {
                 let tag = "masks-components-\(Int(width))-\(dark ? "dark" : "light")"
                 let host = NSHostingController(rootView:
-                    ScrollView {
+                    LayoutProbeHarness.root(ScrollView {
                         PanelSection("Masks") { MasksPanel(model: model, masks: masks) }
                     }
                     .background(Theme.panel)
-                    .tint(Theme.accent))
-                let window = NSWindow(contentRect: NSRect(x: 40, y: 40, width: width, height: 720),
+                    .tint(Theme.accent)))
+                let window = LayoutProbeHarness.window(contentRect: NSRect(x: 40, y: 40, width: width, height: 720),
                                       styleMask: [.titled, .closable], backing: .buffered, defer: false)
                 window.isReleasedWhenClosed = false
                 window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 window.contentViewController = host
                 window.orderBack(nil)
-                defer { ShellHarness.dispose(window) }
-                for _ in 0..<3 {
-                    window.setContentSize(CGSize(width: width, height: 720))
-                    host.view.layoutSubtreeIfNeeded()
-                    ShellHarness.useTimerAnimations(in: host.view)
-                    try await Task.sleep(for: .milliseconds(100))
-                }
+                defer { LayoutProbeHarness.dispose(window) }
+                window.setContentSize(CGSize(width: width, height: 720))
+                await LayoutProbeHarness.settleAsync(host.view)
                 XCTAssertFalse(NSApp.isActive)
                 XCTAssertEqual(host.view.bounds.width, width, accuracy: 1, tag)
                 XCTAssertTrue(ShellLayoutAudit.containmentViolations(in: host.view, columnContent: true).isEmpty, tag)
                 // Render the actual hosting view offscreen. WindowServer capture may be unavailable
                 // on a background build machine, and is not needed to check the painted labels.
-                let bitmap = try XCTUnwrap(host.view.bitmapImageRepForCachingDisplay(in: host.view.bounds))
-                host.view.cacheDisplay(in: host.view.bounds, to: bitmap)
+                let bitmap = try LayoutProbeHarness.bitmap(host.view)
                 let words = try renderedWords(try XCTUnwrap(bitmap.cgImage))
                 for label in ["Components", "Add", "Subtract", "Intersect"] {
                     // Vision can join the adjacent menu chevron to the full word as "v".

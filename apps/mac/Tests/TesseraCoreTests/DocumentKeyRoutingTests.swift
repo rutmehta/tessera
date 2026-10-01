@@ -15,7 +15,7 @@ final class DocumentKeyRoutingTests: XCTestCase {
     }
 
     private func makeWindow() -> NSWindow {
-        NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: .titled, backing: .buffered, defer: false)
+        LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: .titled, backing: .buffered, defer: false)
     }
 
     func testCullingKeysDoNotFireInDocumentMode() throws {

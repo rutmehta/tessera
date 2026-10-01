@@ -100,7 +100,7 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
     func testActualColorLookupEditorInstallsNativeActionsAndDisabledReset() async throws {
         let priorPolicy = NSApplication.shared.activationPolicy()
         defer { _ = NSApplication.shared.setActivationPolicy(priorPolicy) }
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
         let workspace = DocumentWorkspace()
         workspace.newDocument(workspace.newSettings)
         let document = try XCTUnwrap(workspace.current)
@@ -108,16 +108,14 @@ final class DocumentInspectorActionButtonTests: XCTestCase {
         let host = NSHostingView(rootView: PropertiesPanel(document: document)
             .frame(width: 288, height: 848, alignment: .topLeading))
         let bounds = NSRect(x: 0, y: 0, width: 288, height: 848)
-        let window = NSWindow(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
+        let window = LayoutProbeHarness.window(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
         window.setContentSize(bounds.size)
         host.frame = bounds
         defer { window.orderOut(nil); window.contentView = nil; window.close() }
         window.orderBack(nil)
-        host.layoutSubtreeIfNeeded()
-        await Task.yield()
-        host.layoutSubtreeIfNeeded()
+        await LayoutProbeHarness.settleAsync(host)
         func actions(_ view: NSView) -> [DocumentInspectorNativeActionButton] {
             if let action = view as? DocumentInspectorNativeActionButton { return [action] }
             return view.subviews.flatMap { actions($0) }

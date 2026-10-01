@@ -13,7 +13,7 @@ import XCTest
 @MainActor
 final class ShellLayoutTests: XCTestCase {
     override func setUp() async throws {
-        ShellHarness.prepare()
+        LayoutProbeHarness.prepare()
     }
 
     private func scratch() throws -> URL {
@@ -33,7 +33,7 @@ final class ShellLayoutTests: XCTestCase {
     }
 
     func testLayoutHarnessUsesTimerDrivenProgressAnimations() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
                               styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         defer { window.close() }
@@ -56,7 +56,7 @@ final class ShellLayoutTests: XCTestCase {
             for dark in [true, false] {
                 for size in ShellHarness.sizes {
                     let (window, host) = ShellHarness.window(model, size: size, dark: dark)
-                    defer { ShellHarness.dispose(window) }
+                    defer { LayoutProbeHarness.dispose(window) }
                     let tag = "\(state.rawValue)-\(Int(size.width))x\(Int(size.height))-\(dark ? "dark" : "light")"
                     XCTAssertFalse(NSApp.isActive, "the harness never activates")
                     // 1. Root containment: no split / hosting subtree outside the window's content.
@@ -145,7 +145,7 @@ final class ShellLayoutTests: XCTestCase {
                     UserDefaults.standard.set(history, forKey: historyKey)
                     DocumentInspectorProbe.frames = [:]
                     let (window, host) = ShellHarness.window(model, size: size, dark: true)
-                    defer { ShellHarness.dispose(window) }
+                    defer { LayoutProbeHarness.dispose(window) }
                     let tag = "document-\(Int(size.width))x\(Int(size.height))-\(tab.rawValue)-history-\(history ? "open" : "closed")"
                     XCTAssertFalse(NSApp.isActive, "the harness never activates")
                     for v in ShellLayoutAudit.containmentViolations(in: host, columnContent: true) { failures.append("\(tag) containment: \(v)") }
@@ -225,8 +225,8 @@ final class ShellLayoutTests: XCTestCase {
         let model = try ShellHarness.model(.document, scratch: try scratch())
         let ws = model.documents
         func stripWidth(compact: Bool = false) -> CGFloat {
-            NSHostingController(rootView: DocumentTabs(workspace: ws).environment(\.toolbarCompact, compact))
-                .sizeThatFits(in: CGSize(width: 4000, height: 40)).width
+            LayoutProbeHarness.fittingSize(DocumentTabs(workspace: ws).environment(\.toolbarCompact, compact),
+                                           in: CGSize(width: 4000, height: 40)).width
         }
         var widths: [Int: CGFloat] = [1: stripWidth()]
         let compactOne = stripWidth(compact: true)
@@ -246,7 +246,7 @@ final class ShellLayoutTests: XCTestCase {
         XCTAssertEqual(DocumentTabStrip.visible(count: ws.documents.count, current: 0), 0..<3)
         for size in [CGSize(width: 960, height: 600), CGSize(width: 1280, height: 800)] {
             let (window, host) = ShellHarness.window(model, size: size, dark: true)
-            defer { ShellHarness.dispose(window) }
+            defer { LayoutProbeHarness.dispose(window) }
             XCTAssertEqual(ShellLayoutAudit.containmentViolations(in: host, columnContent: true), [])
             if let captureDir {
                 try ShellHarness.capture(window, to: captureDir.appendingPathComponent("tabs-8-documents-\(Int(size.width))x\(Int(size.height)).png"))
@@ -261,7 +261,7 @@ final class ShellLayoutTests: XCTestCase {
         let saved = ws.inspectorTab
         defer { ws.inspectorTab = saved }
         let (window, _) = ShellHarness.window(model, size: CGSize(width: 1280, height: 800), dark: true)
-        defer { ShellHarness.dispose(window) }
+        defer { LayoutProbeHarness.dispose(window) }
         let codes: [Character: UInt16] = ["1": 18, "2": 19, "3": 20]
         for tab in [DocumentInspectorTab.properties, .channels, .stack] {
             let c = String(tab.shortcutDigit)
@@ -270,7 +270,7 @@ final class ShellLayoutTests: XCTestCase {
                                                    context: nil, characters: c, charactersIgnoringModifiers: c, isARepeat: false,
                                                    keyCode: codes[tab.shortcutDigit] ?? 0))
             XCTAssertTrue(window.performKeyEquivalent(with: e), "⌃\(c) handled")
-            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            LayoutProbeHarness.settle(window.contentView)
             XCTAssertEqual(ws.inspectorTab, tab, "⌃\(c)")
         }
     }

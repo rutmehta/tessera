@@ -7,7 +7,7 @@ import XCTest
 final class DocumentSaveSheetProbeTests: XCTestCase {
     func testClosingCapturedParentDuringRealFolderChooserDrainsNativeSheet() async throws {
         let presenter = DocumentSavePresenter()
-        let parent = NSWindow(contentRect: NSRect(x: 20, y: 20, width: 240, height: 120),
+        let parent = LayoutProbeHarness.window(contentRect: NSRect(x: 20, y: 20, width: 240, height: 120),
                               styleMask: [.titled], backing: .buffered, defer: false)
         parent.isReleasedWhenClosed = false
         parent.title = "Document Save Parent Probe"
@@ -108,7 +108,7 @@ final class DocumentSaveSheetProbeTests: XCTestCase {
 
     func testDismantlingOldAttachedBridgeCannotClearNewBridgeOnSameWindow() throws {
         let presenter = DocumentSavePresenter()
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 80, height: 60),
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 80, height: 60),
                               styleMask: [], backing: .buffered, defer: true)
         window.isReleasedWhenClosed = false
 
