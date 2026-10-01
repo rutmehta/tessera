@@ -1,166 +1,140 @@
-# LR-2 — Machine B handoff
+# LR-2b — Machine B handoff
 
-Status: locally committed and verified within the synthetic-only gate scope.
-Requested catalog mappings implemented locally, with explicit fidelity
-limits. **Not a claim of full Adobe fidelity, nor completion of the later Machine A
-rulings for exact legacy operators / HDR-domain curves.** Coordinator review required
-before merge. No push, mailbox, board edit, Swift gate, or app launch.
+Branch: `wp/LR-2-tone-curves`. Successor of LR-2 at `26e5cb8a`, with no rebase.
+Local commits only. This handoff supersedes the LR-2 status at that base.
+Final gates are recorded in EVIDENCE.md; no Adobe pixel-parity claim is made.
 
-## Commits and ownership
+## Commits
 
-- Branch: `wp/LR-2-tone-curves`.
-- Starting HEAD: `87ff1ff173e4d6d2053a534b7cfd9343aef906e1` (brief-only successor of `e6c3e5da`).
-- RED: `3aac4cb67deab186c0ba00afbf780c21549d2dc9` — `test(LR-2): specify extended curves grayscale and PV2010 translation`.
-- Implementation/GREEN: `20b0fe10d69145493eb9639300775b386c4c784e`.
-- This handoff is committed separately with `docs(LR-2):`.
-- Every lane commit ends with the requested Claude Fable 5.1 co-author trailer.
-- The externally supplied, untracked `LR-RULINGS-FROM-A.md` was read but is not owned,
-  edited, staged, or removed by this lane.
+- Base: `26e5cb8a`.
+- Initial RED: `aaa68ad459096ffa0d87e104b4b5408a6a4cb998`.
+- Develop admission RED: `03d0f5b94824a9bd10cb7ff9a44f2ed205ef2694`.
+- Implementation/GREEN: `bb4b3e6e347cdc28761488c11b14c33b3a798ac0`.
+- HDR follow-up expectations: `0de9fc9b` (test-only correction after full gates).
+- Documentation follows in a separate `docs(LR-2b):` commit.
+- All LR-2b commits end with
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
-## What landed
+The supplied, untracked `LR-RULINGS-FROM-A.md` is not edited or staged.
+No Cargo.lock, Cargo.toml/dependency, board, mailbox, Swift, app or real-catalog work.
 
-1. Small additive parser hooks call `import-lrcat/src/lr2.rs`. Lua uses the parsed
-   table, XMP reuses the parsed XML document. Unrelated structures are not cloned
-   into the mapping table; the existing-only path avoids cloning settings/masks.
-2. Four extended curve keys map to existing rgb/red/green/blue curves, dividing
-   coordinates by 255. Validity matches the CPU spline: finite domain 0..255,
-   strictly increasing x, nondecreasing y. Extended keys override ordinary keys
-   for that channel when both exist. Unsupported HDR/nonmonotone curves retain
-   the exact source and named diagnostic, rather than creating an unrenderable
-   recipe or silently clamping.
-3. Optional `/settings/color/monochrome {enabled,mixer}` reuses `HueBands`, with
-   all eight GrayMixer channels, independent enabled state, JSON/history round
-   trip, and no schema bump. The missing field has no serialized representation
-   or render effect. The document-layer 3x3 channel mixer was not sufficient.
-4. CPU B&W conversion uses linear Rec.2020 Y and interpolated hue-band luminance
-   gains, before ordinary color adjustments. Explicit diagnostics label Adobe
-   profile-dependent fidelity as approximate. Disabled mixers do not alter CPU
-   pixels or GPU parameters. Enabled B&W declines GPU parameter construction;
-   the caller must use CPU fallback, never silently accept a color GPU render.
-5. PV1/2-only legacy slider heuristics fill existing tone fields. Modern `*2012`
-   keys win, regardless of source order. Revision 3+ ignores stale legacy sliders.
-   Exact source remains retained because the mapping is lossy. The README has the
-   equations, accepted ranges, aliases, precedence, and Adobe semantic references.
-6. AutoToneDigest* remains exact retained metadata with an explicit non-rendering
-   diagnostic. A digest cannot supply Auto Tone results. DepthMapInfo also stays
-   exact retained metadata; helper-depth lookup/regeneration is LR-5/LR-6 work.
+## Ruling status
 
-## RED / GREEN evidence
+### Ruling 2 — approximate-with-reason; dedicated branch and guard implemented
 
-`EVIDENCE.md` records command results and measured output. Raw local logs are
-retained under `$CARGO_TARGET_DIR/lr2-evidence/`.
+Added optional `/settings/tone/legacy_pv2010`, with optional original-value members
+`exposure`, `brightness`, `contrast`, `fill_light`, `recovery`, `blacks`. Serde
+defaults, omission when absent, and no schema/process/FORMAT bump. Missing fields
+have no effect; no camera defaults are invented. Imports require **Adobe** PV1/2,
+not merely revision <=2 (native revision 2 is explicitly tested).
 
-- Initial RED: 2 passed, **6 failed** across mapping and CPU tests. Missing curve
-  points, absent B&W field, zero legacy settings, and color pixels instead of gray
-  were observed at runtime. The standalone synthetic SQLite import also failed
-  at the required source-removal assertion.
-- GPU guard RED was separately observed as an assertion failure before adding
-  the guard. The first attempted GPU test used unavailable serde_json; it was
-  corrected to a typed setting (no dependency added) before recording that RED.
-- Additional RED regressions caught nonmonotone curve import, missing B&W fidelity
-  diagnostic, and disabled-B&W GPU parameters losing the identity fast path.
-- Tests were not relaxed to pass: old “all extended curves unsupported” cases now
-  use out-of-domain curves, while new tests require in-range translation. The
-  coordinator-provided `monochrome` field name replaced the provisional `grayscale`
-  name. An absence assertion was corrected to avoid indexing a missing map entry.
-- The 2,000-row synthetic import golden was intentionally re-pinned from
-  `d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8` to
-  `ad814642116dda65cf0a49494eee8a5cf034c2d3151cb8c35c69975f8cfd661a`:
-  1,200 rows contain newly translated `ConvertToGrayscale=false`. The unchanged
-  source-only behavior is checked separately against the lane-base importer.
+The old PV2010-to-PV2012 slider conversion is removed. Exposure2012 still suppresses
+legacy Exposure and Brightness; other modern tone keys suppress their legacy
+counterpart. HighlightRecovery precedes Recovery; Shadows precedes Blacks.
+Modern process images retain stale legacy source unchanged.
 
-## Gates and measurements
+The CPU branch performs the operators independently. Develop now admits Adobe
+PV1/2; both `pipeline-adobe` and `image-core::AdobeStageOp` use the branch. Native
+GPU Tone rejects legacy settings before dispatch, including fused/resident
+parameter construction. Adobe recipes use the existing CPU compatibility barrier.
+There is no silent legacy GPU output and no claim of a native legacy GPU kernel.
 
-Environment used throughout builds:
+Per-parameter exactness:
 
-```sh
-export PATH="$HOME/.cargo/bin:$PATH"
-export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-2-tone-curves
-export CARGO_BUILD_JOBS=3
-export RAYON_NUM_THREADS=3
-```
+| Parameter | Status / why exact Adobe reproduction is unavailable |
+| --- | --- |
+| exposure | Documented EV scaling `2^E` is implemented directly. This is not a claim about the entire Adobe camera/profile pipeline. |
+| brightness | Approximate: available Adobe documentation gives behavior, not the numerical midtone curve or slider-to-gain calibration. Uses a bounded rational midtone curve with black/white fixed. |
+| contrast | Approximate: no public PV2010 pivot, transfer or slider-to-slope calibration was found. Uses a monotone midtone odds curve. |
+| fill_light | Approximate: the spatial/adaptive shadow algorithm is not specified publicly. The reference is scalar shadow fill and does not reproduce Adobe's spatial adaptation. |
+| recovery | Approximate: the tone stage has working RGB rather than Adobe camera-channel clipping/reconstruction data; the recovery algorithm is not specified publicly. A highlight shoulder reduces highlights but cannot invent missing detail. |
+| blacks | Approximate: uses the public Adobe DNG baseline per-channel quadratic shadow toe, assuming ShadowScale/Stage3Gain one. Camera-specific scale is unavailable in this block, and the SDK does not establish full PV2010 parity. |
 
-Final results: broad synthetic gate **470 passed, 0 failed, 17 ignored, 5 filtered**;
-final focused mapping/CPU **11 passed** and GPU guards **2 passed**; clippy, fmt,
-end-to-end and byte-compatibility probes all passed. The focused reruns followed
-the final source-map prefilter and disabled-GPU-identity correction.
+The public DNG renderer was inspected in addition to Adobe's operator docs.
+Equations, order, ranges, primary-source links and the exact SDK assumptions are
+in [`crates/pipeline-cpu/LEGACY_PV2010.md`](../../../../crates/pipeline-cpu/LEGACY_PV2010.md).
+Exposure's represented source key leaves pending source; approximate controls
+retain original literals/fragments as well as their numeric fields. Goldens are
+independent scalar reference calculations, **not Adobe-rendered calibration**.
 
-Broad synthetic Rust gate:
+### Ruling 3 — done (HDR representation and rendering)
 
-```sh
-cargo test --locked -p import-lrcat -p engine-api -p pipeline-cpu -p pipeline-gpu --no-fail-fast -- \
-  --skip raw_fixture_goldens \
-  --skip real_opcode_fixtures_when_available \
-  --skip fixture_as_shot_roundtrip_and_slider_directions \
-  --skip fixture_level3_tolerance_per_operator_and_output \
-  --skip preview_approximation_is_bounded_on_real_fixtures
-cargo clippy --locked -p import-lrcat -p engine-api -p pipeline-cpu -p pipeline-gpu --all-targets -- -D warnings
-cargo fmt --all --check
-bash tools/orchestrate/wp/LR-2/e2e.sh
-bash tools/orchestrate/wp/LR-2/compat.sh
-```
+Added optional `/settings/tone/curves_extended`, with the same shape as `curves`.
+Signed/HDR source knots are normalized by 255 without clamping and routed here.
+Ordinary channels are copied before extended per-channel precedence is applied.
+When present, the block replaces ordinary curves in native CPU/GPU and Adobe CPU
+renderers, including parametric/channel/luminance members. Invalid/nonmonotone
+source remains retained. Extended splines do not acquire artificial SDR endpoints.
 
-The five non-synthetic tests above are deliberately excluded; existing ignored
-performance/real-RAW tests remain ignored. An initial unfiltered run reached the
-repository real-RAW golden and was interrupted; it is not claimed as a passing
-unfiltered gate. No real catalog was accessed. All newly authored fixtures are
-synthetic. C++ warnings from the existing LibRaw build occur, but Rust clippy
-`-D warnings` passes. No Swift or live-app validation is claimed.
+CPU/GPU use the same signed extension of the native log curve domain; the Adobe
+compatibility renderer retains its own signed power-domain approximation. HDR
+input bypasses clipping in the fallback SDR profile curve; supplied DCP behavior
+is unchanged. The fields and HDR values are honored; Adobe-exact curve calibration
+is not claimed. JSON/history round-trip, native control-point goldens, signed
+luminance, all-channel GPU parity and full Develop dispatch are tested.
 
-- End-to-end: synthetic SQLite catalog -> import -> validated history-backed
-  recipe -> CPU tone/curve/color operators. Four B&W/exposure swatches (12 channel
-  comparisons): max absolute error **0** against the declared luminance reference.
-- Four additional catalog imports exercise master/red/green/blue curve control
-  points: max absolute error **0.000000030** over 12 channel comparisons.
-- Both end-to-end bounds: **2e-6** absolute, in scene-linear RGB.
-- CPU unit swatches: **1e-6** absolute. These are reference-formula tests, **not
-  Adobe-rendered goldens**.
-- Five unrelated synthetic recipes: **56,666 serialized bytes identical** to
-  `87ff1ff1` importer output. This includes modern controls, unknown nested Lua,
-  retained metadata/legacy keys under modern PV, and namespace-resolved XMP.
-  The comparison compiles the base importer against the same engine dependencies;
-  existing engine-api fingerprint tests also pass.
+### Ruling 1 follow-through — done
 
-## 29c compatibility / merge notes
+Removed the monochrome GPU guard and implemented the same eight-band luminance
+mix as CPU in WGSL, before ordinary color processing. Standalone and fused GPU
+paths match CPU within the existing absolute `1e-4` operator tolerance, including
+mixed band amounts and subsequent color grading. The existing Adobe
+profile-dependent B&W approximation remains explicitly reported.
 
-- `lua_develop.rs` and `xmp.rs` each have one additive call at the end of source
-  capture; Lua also has a small explanatory doc update. Existing normalization,
-  key tables, bounds, SQLite query paths, and streaming code are unchanged.
-- Successfully represented curve and monochrome keys leave pending source and
-  redundant per-property unknown entries. Inactive mixer values are represented,
-  not discarded. Partial/malformed values remain exact retained source.
-- PV2010 approximation keys remain retained deliberately. Source removal is not
-  used to disguise a lossy mapping. Depth/digest metadata stays byte-identical in
-  recipes; its report wording is more explicit.
-- Optional monochrome uses serde default + skip-if-None. No FORMAT or process
-  contract version change; older engines ignore the member and will not render
-  its effect. Round-trip tests cover settings/history with a disabled mixer.
-- No Cargo.toml dependency addition and **no Cargo.lock change**. The standalone
-  end-to-end/compatibility tools link already-built workspace rlibs with rustc,
-  avoiding a new dev-dependency/lockfile edge.
-- Expected merge overlap: ColorSettings with other color lanes; shared parser
-  one-line hooks; CPU color operator; GPU color parameter guard. Keep this pass
-  after retained-source construction. Preserve the updated synthetic golden only
-  until integration with other translating lanes requires a combined re-pin.
+Sidecar changes are additive: reads/writes `ConvertToGrayscale` and all eight
+`GrayMixer*` CRS properties, retains unchanged source spelling, and round-trips
+the optional monochrome setting. The export path using `XmpPacket` inherits this
+support. Native Develop validation now admits the already-existing monochrome
+field. New tone blocks round-trip through recipe JSON/history; this lane's new
+sidecar CRS export work covers monochrome.
 
-## Blocked / unrepresentable / later ruling differences
+### Ruling 5 — done
 
-- Exact Adobe PV2010 is **not implemented**. The task explicitly requested PV2012
-  equivalents with documented differences; that bounded mapping is delivered.
-  The later ruling requests `legacy_pv2010` and exact operators instead. No legacy
-  render specification or calibrated synthetic Adobe reference was available to
-  derive Adobe's image-adaptive brightness, recovery, contrast/toe or black
-  clipping. Inventing exact operators would be a false fidelity claim. Legacy
-  source is retained so that a future exact branch can replace these heuristics.
-- HDR-domain extended curves outside 0..255 remain unrepresented. This lane maps
-  into the existing normalized curves as requested; it does not add the later
-  ruling's `curves_extended` field or HDR-domain renderer.
-- B&W is a tested CPU approximation, not verified Adobe profile-dependent parity.
-  GPU B&W, UI controls, live CPU-fallback integration, and sidecar CRS export of
-  the new monochrome field are not implemented/validated here. Native recipe
-  JSON round trips are supported. Intentional color grading may tint B&W output.
-- AutoToneDigest diagnostics are explicit but the UI “Not fully supported”
-  categorization was not changed; suppressing harmless metadata in that UI is
-  separate host work under the later ruling.
-- DepthMapInfo is retained for LR-5/LR-6; no helper raster is read or regenerated
-  by this lane. No real-catalog calibration or real-image parity is claimed.
+AutoToneDigest* exact values remain in retained source/internal per-property
+payloads, but no digest warning reaches `ImportPlan.report`. The host's
+“Not fully supported” grouping consumes that report (`tessera-ffi/src/lrcat.rs`),
+so no Swift edit is necessary. Synthetic SQLite import tests verify report
+suppression. DepthMapInfo still belongs to LR-5/LR-6.
+
+## Compatibility and review boundaries
+
+- Five unrelated Lua/XMP recipes: **56,666 bytes identical** to `26e5cb8a` using
+  both the baseline importer and baseline sidecar compiled against unchanged API
+  semantics. New optional fields are omitted when absent.
+- The 2,000-row golden changes from
+  `ad814642116dda65cf0a49494eee8a5cf034c2d3151cb8c35c69975f8cfd661a` to
+  `174e43107e23125fb0477cad9376a144a35c28a7966de355ebe87314a98c8fee`.
+  A baseline audit reproduces the old hash: **1,200 already-translated monochrome
+  rows change history only** (sidecar now sets monochrome in its initial edit),
+  with identical settings/source; **800 rows remain byte-identical**. The audit
+  asserts that no other member differs.
+- `docs/coordination/LR-TRANSLATION-MATRIX.md` was absent from this branch at the
+  base. A scoped LR-2b matrix is added for the coordinator to combine with LR-0.
+- Likely merge overlaps: ToneSettings, CPU/GPU tone and color preparation,
+  image-core Adobe admission/dispatch, import `lr2` and extended-curve note,
+  sidecar develop codec. No dependency additions are needed.
+- Initial RED included seven runtime failures. Its digest assertion first failed
+  on exact source quote spelling; that literal was corrected to the preserved
+  single-quoted form. Separate RED checks caught Develop's PV1/2 rejection,
+  black-toe scaling, independent black-channel mapping, and native/adobe revision
+  confusion before their fixes. See EVIDENCE.md for commands and outcomes.
+- The old E2E test assumed pending source always existed. Exposure is now fully
+  represented, so a fully translated row can omit that map entirely; assertions
+  now accept map absence while still requiring each translated key to be absent.
+
+## Gates
+
+Run `bash tools/orchestrate/wp/LR-2/gates.sh` with the requested lane target,
+three Cargo jobs and three Rayon threads. It runs all seven touched crates,
+clippy `-D warnings`, fmt, synthetic SQLite E2E, and the baseline byte audit.
+Eight external-RAW tests are explicitly excluded; existing ignored benchmarks
+remain ignored. No real catalog, external RAW image, Swift gate or app is used.
+
+Final test coverage: **702 passed, 0 unresolved failures, 19 ignored, 26 filtered
+instances** (eight named external-RAW exclusions across targets). The full run
+reported 699 passed / three stale assertions in `import-lrcat --test followups`;
+all other targets passed. After a test-only correction for ruling 3, that entire
+16-test target passed (replacing its earlier 13 passed / three failed result).
+The implementation was unchanged; unaffected targets were not rerun.
+All-target clippy `-D warnings`, workspace fmt, synthetic E2E and the baseline
+byte-identity/golden audit passed.
