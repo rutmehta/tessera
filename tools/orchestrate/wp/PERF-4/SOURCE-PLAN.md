@@ -1,0 +1,24 @@
+# PERF-4 Gaussian source/test plan
+
+Base/checkout: `ebae08bb`, branch `codex/perf-4-gaussian` in `/Volumes/betterSSD/tessera-worktrees/codex-lr-0-inventory`.
+
+## Observed path and contracts
+
+- `crates/filters/src/lib.rs`: `Effect::apply` validates, creates a full `Buffer` from source `Raster`, calls `cpu::run`, applies amount blend to all four working channels, then writes a fresh Raster. Cancellation checkpoints happen before/inside Raster read, before/inside write, and once per convolve row. Buffer expands 1-channel to RGB and adds alpha=1 for non-RGBA; 4-channel samples pass through unchanged.
+- `crates/filters/src/cpu.rs`: Gaussian dispatches to `large::gaussian`; Unsharp/HighPass also call that same helper; Box calls shared `convolve` with a uniform kernel.
+- `crates/filters/src/lib.rs::gaussian_kernel`: unchanged contract should remain normalized 1D Gaussian with support radius `ceil(3*sigma)`. `convolve` performs horizontal then vertical passes, clamps taps at canvas edges via `Buffer::at`, and sums taps in ascending kernel order per channel.
+- `crates/filters/src/large.rs`: sigma <=32 takes exact separable `convolve`; sigma >32 uses factor 2/4/8 area reduction plus same `convolve` and reconstruction. PERF-4 case r12 stays in exact path; do not touch this approximation path.
+- `crates/filters/README.md`: Gaussian is normalized, separable, 3-sigma support, sigma 0..250, zero identity; neighborhood edges clamp at canvas; channels including alpha blur independently as straight channels (not premultiplied); failure/cancel returns no partial output.
+- B5-prof `REPORT.md`: isolated 24MP r12 completion median 723.20 ms, n=3, 1,819 MiB RSS; separate 24MP app run 1.1s. `convolve` dominates samples (10,520 ms self across three profiled operation windows); overall rank estimate suggests 2–4x, but measurements under load are diagnostic, not a baseline. Report host M4 Max 48GiB; current local host queried as Apple M4 24GiB, so don't compare raw wall time as a controlled baseline.
+
+## Safe narrow patch boundary
+
+Keep kernel generation, row-major output, horizontal-then-vertical pass order, tap order, multiply/add expression, canvas clamping, `large::gaussian`, alpha/color semantics, amount blend, and cancellation behavior unchanged. In `convolve`, replace cloned input ping-pong buffers with two dedicated output buffers and use a hot path that eliminates vertical per-tap coordinate/clamp work. Candidate vertical loop: y, kernel j, x, c; retain each output pixel's `j` accumulation order exactly, initialize row/strip accumulators at zero, use the clamped row offset once per j, and process x contiguous. For horizontal, split interior (`x ∈ r..w-r`) from clamped border spans so interior taps use direct indices while each output still accumulates j in the same order. Avoid global persistent caches and unsafe uninitialized memory. If implementing vertical loop interchange with output-buffer accumulation, ensure destination is reset for each row/pass before the first tap; preserve exact F32 per-output operation order and cancellation checkpoints at least once per output row (prefer within long strips if needed).
+
+Potential limitation: because `Filter::apply` still needs the original source for opacity blending, eliminating convolve's internal clones saves scratch copies but does not eliminate the source `Buffer`. Keep peak-memory behavior measured; don't claim the apply source copy was removed.
+
+## Tests and benchmark
+
+1. In the `lib.rs` unit-test module, add an independent frozen baseline scalar reference that reproduces the pre-change kernel and two `convolve` passes (copying current baseline expressions). Exercise finite negative and >1 HDR RGB plus fractional alpha, tiny images smaller than kernel support, nonsquare images, and radii spanning narrow and wide kernels (e.g. 0.5, 1.25, 12). Compare every channel/sample with max absolute error <= 1/65535; also assert deterministic repeated output and unchanged source.
+2. Add an ignored release-only 24MP r12 benchmark beside `crates/filters/tests/bench.rs` or as an ignored unit benchmark if private `Buffer` access is required. Setup is outside timings. Run three paired trials, raw milliseconds, same source and kernel, compare every sample in every trial against the frozen reference within 1/65535, summarize medians, print hardware/load/sample count. Under-load results remain diagnostic. If using direct `convolve`, benchmark baseline reference and optimized convolve in same process to isolate the hotspot; if using public Effect::apply, clearly label end-to-end read/blend/write cost. Preserve B5-prof's radius 12, 6000x4000 extent and synthetic two-layer provenance where practical.
+3. RED commit contains tests before optimization. The ignored benchmark should expose its >=2x acceptance result, with baseline failure captured; do not weaken it if it misses target. GREEN test evidence records exact tolerance, host/load and raw samples.

@@ -1,5 +1,18 @@
 # Tessera task board — Machine A coordinator
 
+## Codex performance lanes — 2026-10-01
+
+Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-side P16/P20/B5-33. LR-0 source inventory is published at `5bce045e` on `codex/lr-0-inventory`, awaiting coordinator review; LR implementation remains gated by that review. No peer receipt for LR status/result has been verified.
+
+| Lane | Owner | State | Verified evidence / next action |
+| --- | --- | --- | --- |
+| PERF-1 style export | Codex A / Astra | Source design and RED test preparation | Each output tile recomputes full source/style planes. Plan frame-local bounded reuse with serial styled traversal and uncached fallback for overbudget cases. Independent review requires stable nested context identity. No speedup claimed. |
+| PERF-4 Gaussian | Codex A / Luna | Tests committed; execution pending | Test-only `177b0883` adds scalar parity and ignored 24 MP r12 performance gate; parent review requested finite-value and benchmark-order fixes. No RED/GREEN execution yet. External release FFI build holds compiler lane. |
+| PERF-2/5 Camera Raw and memory | Codex A / Luna source review | Source design | Multiple full-frame conversion buffers identified; report RSS is not live-heap allocation. Coordinate one camera_raw.rs owner; counting-allocator oracles required. |
+| PERF-3 vector drag | Codex A | Source investigation queued | Preserve pixel parity and dashed-stroke fallback; no runtime result. |
+
+Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex.
+
 ## Coordinator reconciliation — 2026-09-30 06:37 UTC
 
 This Codex coordinator resumed read-only reconciliation after its workers hit usage limits. Main is now `74f76332`; `MACHINE-A.md` records a replacement Claude Machine A coordinator and subsequent integrations. Its newer handoff supersedes stale rows/runtime text below: opaque CFA is integrated (`30b298c8`), Dither is integrated (`c9efa690`), and WB attribution G12 is complete with caveats; the failed decision-cache product remains unmerged. The newer B5-21/B5-25 GUI acceptance remains pending per the latest handoff. These are reconciled repository records, not newly executed acceptance checks.
