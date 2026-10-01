@@ -1,0 +1,14 @@
+Source: 79c462539efd06ba90b34cc8ad2a83f35d93a95d (pre-fix + RED tests)
+Command: cargo test --locked -p tessera-ffi --test document_viewport viewport_frames_composite_only_the_viewport_plus_halo -- --exact --nocapture --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running tests/document_viewport.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/document_viewport-47c56d9e508019aa)
+
+running 1 test
+test viewport_frames_composite_only_the_viewport_plus_halo ... document: frames on the Viewport path (L0, requested Rect { x0: 684, y0: 484, x1: 4556, y1: 2676 })
+GPU 1900 live pages, 512.8 MiB resident; smart filters 0 GPU stages, 0 CPU fallbacks, 0.0 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 3 full-level 0 cpu 0 dropped 0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 6.18s
+
+
+Exit: 0

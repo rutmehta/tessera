@@ -1,0 +1,26 @@
+Command: cargo test --locked -p tessera-ffi --lib eng2_ -- --nocapture
+Exit: 101
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 34s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/tessera_ffi-b4ee34d40c032121)
+
+running 3 tests
+test document::publication_tests::eng2_confirm_snapshot_excludes_later_commits_and_includes_prior_commit ... ok
+
+thread 'document::publication_tests::eng2_export_snapshot_does_not_wait_for_edit_lock' (52538510) panicked at crates/tessera-ffi/src/document.rs:2713:35:
+export snapshot waited for mutable session state: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test document::publication_tests::eng2_export_snapshot_does_not_wait_for_edit_lock ... FAILED
+
+thread 'document::render::frame_cancellation_tests::eng2_getters_do_not_wait_for_inflight_render' (52538511) panicked at crates/tessera-ffi/src/document/render.rs:1600:30:
+session getters waited on the stalled render: Timeout
+test document::render::frame_cancellation_tests::eng2_getters_do_not_wait_for_inflight_render ... FAILED
+
+failures:
+
+failures:
+    document::publication_tests::eng2_export_snapshot_does_not_wait_for_edit_lock
+    document::render::frame_cancellation_tests::eng2_getters_do_not_wait_for_inflight_render
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 216 filtered out; finished in 0.69s
+
+error: test failed, to rerun pass `-p tessera-ffi --lib`

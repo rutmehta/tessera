@@ -1,0 +1,21 @@
+Command: cargo test --locked -p tessera-ffi --lib eng2_ -- --include-ignored --nocapture --test-threads=1
+Exit: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.19s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/tessera_ffi-b4ee34d40c032121)
+
+running 8 tests
+test document::publication_tests::eng2_confirm_snapshot_excludes_later_commits_and_includes_prior_commit ... ok
+test document::publication_tests::eng2_export_snapshot_does_not_wait_for_edit_lock ... ENG-2 export snapshot: 582.583µs
+ok
+test document::publication_tests::eng2_publication_latency ... ENG-2 info ns: median=666 p95=667 max=875 n=1000
+ENG-2 snapshot ns: median=208 p95=250 max=292 n=1000
+ok
+test document::publication_tests::eng2_publication_preserves_mutable_document_cache_namespace ... ok
+test document::publication_tests::eng2_publication_tracks_drafts_history_and_close ... ok
+test document::render::frame_cancellation_tests::eng2_getters_do_not_wait_for_inflight_render ... ENG-2 getter batch: 171.5µs
+ok
+test document::render::frame_cancellation_tests::eng2_requests_before_snapshot_do_not_render_twice ... document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 3, y1: 2 })
+ok
+test document::render::frame_cancellation_tests::eng2_snapshot_coalescing_preserves_later_and_replacement_requests ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 216 filtered out; finished in 0.92s

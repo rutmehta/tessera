@@ -952,8 +952,8 @@ impl DocumentSession {
     /// B5-30: the document profile's ICC bytes for tagging the canvas, or
     /// `None` for sRGB (see [`display_icc`]). No pixel work.
     pub fn display_profile_icc(&self) -> Result<Option<Vec<u8>>> {
-        let st = self.shared.lock()?;
-        display_icc(st.live().state().profile.as_ref())
+        let st = self.shared.read()?;
+        display_icc(st.live().profile.as_ref())
     }
 }
 

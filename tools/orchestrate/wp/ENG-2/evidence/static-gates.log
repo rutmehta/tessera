@@ -1,0 +1,13 @@
+Rust source: ce2e4f12cbfe3315d731efaf366c563be3668bd6
+Command: CARGO_INCREMENTAL=0 cargo clippy --locked -p import-lrcat -p engine-api -p tessera-ffi --all-targets -- -D warnings
+Exit: 0
+    Checking agent v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/ENG-2-state-publication/crates/agent)
+    Checking uniffi v0.32.2
+    Checking tessera-ffi v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/ENG-2-state-publication/crates/tessera-ffi)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 21s
+
+Command: cargo fmt --all -- --check
+Exit: 0
+
+Command: git diff --check
+Exit: 0

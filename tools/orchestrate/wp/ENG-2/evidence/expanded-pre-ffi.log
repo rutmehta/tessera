@@ -1,0 +1,154 @@
+Intermediate invocation (superseded by final-source required gate):
+cargo test --locked -p import-lrcat -p engine-api -p tessera-ffi -p compositor -- --test-threads=3
+Compositor, engine-api and import-lrcat completed successfully below.
+The FFI phase was deliberately interrupted to restart on final source; no claim of exit 0 for this invocation.
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/compositor-7a1973f0c8c108b0)
+test result: ok. 67 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.87s
+     Running tests/bench.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/bench-bedcf8c98914351c)
+test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.59s
+     Running tests/bench_micro.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/bench_micro-9e08edec00de76ee)
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/blend_modes.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/blend_modes-3e413c3a41553b74)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/caching.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/caching-a998fba8790ed6cf)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/channels-14378fba2284542d)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/contracts.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/contracts-2a76808e6133f417)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gpu.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/gpu-cf4d0e25a104c711)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+     Running tests/gpu_profiled_output.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/gpu_profiled_output-831255cc3f2fbc0a)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+     Running tests/gpu_resident.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/gpu_resident-e6831a6fe66011fd)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.91s
+     Running tests/gpu_resident_output.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/gpu_resident_output-d65bc03e52fd7d41)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+     Running tests/gpu_resident_viewport.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/gpu_resident_viewport-3dba8082259a2fed)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+     Running tests/gpu_smart_resample.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/gpu_smart_resample-8372c1c7d342966e)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+     Running tests/hdr_toning.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/hdr_toning-68cafd2aad07a624)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/layer_styles.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/layer_styles-4b9cc15a18cba49e)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/lens_merge.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/lens_merge-d3f0723cef2b3ca2)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/lens_merge_roundtrip.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/lens_merge_roundtrip-56ce10a65acb5761)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+     Running tests/live_frame.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/live_frame-4cd19744fbf7ba05)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+     Running tests/live_latency.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/live_latency-a6bc4de2df048af1)
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/live_render.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/live_render-9f09938de05efa99)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.05s
+     Running tests/live_style_damage.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/live_style_damage-87c9a0ea5d94c15f)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 132.40s
+     Running tests/live_text_resident.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/live_text_resident-ae4c1a718062768e)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+     Running tests/m528_resident.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m528_resident-6bd0a21d472a0269)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.06s
+     Running tests/m532_adjustments.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m532_adjustments-c668152facb85561)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m532_channels-89f4f8fedfed2b4d)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/m5_26_gpu.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m5_26_gpu-2519547bbc0a677c)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.71s
+     Running tests/m5_26_icc.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m5_26_icc-9685d7fa6193c3b2)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/m5_26_psd.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m5_26_psd-7effc86406ea9eda)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/m5_26_shadows.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m5_26_shadows-50e51d6cec244892)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests/m5_26_validation.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m5_26_validation-ac494d8896634086)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/merge_validation.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/merge_validation-ad7bb7700a7f0fd4)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/photomerge.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/photomerge-6b6d227e1bc7609b)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/photomerge_panorama.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/photomerge_panorama-fda98b1f58c2f40f)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.51s
+     Running tests/psd.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/psd-3efd36db7549984f)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/psd_admission.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/psd_admission-4718bce711bfbd3b)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/psd_cancellation.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/psd_cancellation-2aa9bc3bb1f61cd3)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/psd_channels.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/psd_channels-fcd2fb27c7367fdc)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/psd_document.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/psd_document-58a09e88d3b60536)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/render_region.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/render_region-58b615fff085052a)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/resident_filter_bench.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/resident_filter_bench-2bbd4318b9e9fecd)
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/resident_filter_inventory.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/resident_filter_inventory-02cfc6b62aa40624)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.88s
+     Running tests/resident_filters.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/resident_filters-09023936b5307de7)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+     Running tests/roundtrip.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/roundtrip-06d6e54be8c24d86)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+     Running tests/smart_filter_deadlock.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/smart_filter_deadlock-83128791e64360d3)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.03s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/smart_filters.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/smart_filters-15a38ed552453277)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/structure.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/structure-d2c4c8c50874295d)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/style_psd.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/style_psd-52b51e41e1612fe8)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/text_vector_model.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/text_vector_model-c11b3ec07fd1d9ff)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/text_vector_psd.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/text_vector_psd-b425f80d5ffda4c4)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/transform_cancellation.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/transform_cancellation-955ad3bc9bdf776e)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/transform_content.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/transform_content-529668169629b956)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/transform_gpu.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/transform_gpu-585855693f59797c)
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.98s
+     Running tests/transform_locks.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/transform_locks-4a874d5240e662ca)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/transform_psd.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/transform_psd-43354d0d09575f45)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/transforms.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/transforms-65564e16a0127852)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/engine_api-6788faad1d84ae17)
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/channels-809e719f3730a588)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/document_filters-7776a5d90dd35e86)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/library_calls.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/library_calls-b2bdb099f2882620)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/m532_channels-42411788830281e8)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/people-b067ef10bb59e484)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/pinned_raw.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/pinned_raw-48b7ce7d19e4364b)
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests/source_kind.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/source_kind-7f28990b021fb5dc)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/text_vector-f82765daec1ce5c1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/import_lrcat-e51d63d8af903c2c)
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+     Running tests/followups.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/followups-1c7e9f5176daa760)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.91s
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/golden-9477b77bdfc42f31)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.00s
+     Running tests/import.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/import-d64a0f4aa974cc87)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+     Running tests/lua_develop.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/lua_develop-beabd27e2522b179)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s
+     Running tests/make_fixture.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/make_fixture-b8ea97211a208a12)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/oversized_memory.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/oversized_memory-e960c0837ff99548)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.23s
+     Running tests/real_catalog_shapes.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/real_catalog_shapes-9a49676de630e35d)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.24s
+     Running tests/scale.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/scale-14b332c2537e1554)
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/smart_rating.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/smart_rating-85de3305363ed7f0)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s

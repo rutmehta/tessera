@@ -2,7 +2,7 @@
 //! compositor → straight-alpha RGBA8 IOSurface), the CPU fallback and
 //! thumbnails.
 
-use super::{DocFrameInfo, DocRect, Shared, State, find, layer_revision, raster_from_rgba};
+use super::{DocFrameInfo, DocRect, Shared, find, layer_revision, raster_from_rgba};
 use crate::{Result, failure, surface::Surface};
 use compositor::{
     BlendMode, Compositor, DocState, Document, Fill, Knockout, Layer, LayerKind, Rect,
@@ -38,6 +38,7 @@ pub(crate) struct Viewport {
 }
 
 /// Presentation state kept with the document state.
+#[derive(Clone)]
 pub(crate) struct View {
     pub surfaces: Vec<Arc<Surface>>,
     /// Ring position of the next frame.
@@ -47,6 +48,22 @@ pub(crate) struct View {
     /// B5-14: bumped when the surface ring changes; a frame rendered for an
     /// older ring is dropped instead of published.
     pub generation: u64,
+}
+
+/// Reader-visible preview inputs. No ring cursor or IOSurface ownership.
+#[derive(Clone, Copy)]
+pub(crate) struct PreviewView {
+    pub viewport: Option<Viewport>,
+    pub surface_size: Option<(u32, u32)>,
+}
+
+impl From<&View> for PreviewView {
+    fn from(view: &View) -> Self {
+        Self {
+            viewport: view.viewport,
+            surface_size: view.surfaces.first().map(|s| (s.width(), s.height())),
+        }
+    }
 }
 
 impl Default for View {
@@ -497,6 +514,21 @@ impl Signal {
         self.since.get_or_insert_with(Instant::now);
     }
 
+    /// Requests queued before the worker captures document/view state are
+    /// included in that snapshot. Consume only those, while the session state
+    /// lock still excludes edits. Requests after snapshotting remain pending.
+    fn snapshot_taken(&mut self, cancel: &CancellationToken) {
+        if !cancel.is_cancelled()
+            && self
+                .active_frame
+                .as_deref()
+                .is_some_and(|active| std::ptr::eq(active, cancel))
+        {
+            self.frame = false;
+            self.since = None;
+        }
+    }
+
     /// Real invalidation (surface ring replaced or released, session
     /// stopping): the frame in flight can no longer be published, so its
     /// work is abandoned. Ownership stays so completion is still rejected.
@@ -555,6 +587,8 @@ type ThumbCache = HashMap<(ThumbKind, u32), (u64, Arc<Surface>)>;
 pub(crate) struct Renderer {
     name: String,
     backend: Mutex<Backend>,
+    #[cfg(test)]
+    read_level_entered: Mutex<Option<std::sync::mpsc::Sender<()>>>,
     signal: Mutex<Signal>,
     cv: Condvar,
     thumbs: Mutex<ThumbCache>,
@@ -607,6 +641,8 @@ impl Renderer {
         Self {
             name,
             backend: Mutex::new(backend),
+            #[cfg(test)]
+            read_level_entered: Mutex::new(None),
             signal: Mutex::new(Signal::default()),
             cv: Condvar::new(),
             thumbs: Mutex::new(HashMap::new()),
@@ -846,6 +882,10 @@ impl Renderer {
 
     /// Renders `level` of `doc` and reads it back (straight RGBA f32).
     pub(crate) fn read_level(&self, doc: &Document, level: u8) -> Result<(u32, u32, Vec<f32>)> {
+        #[cfg(test)]
+        if let Some(entered) = self.read_level_entered.lock().unwrap().take() {
+            entered.send(()).unwrap();
+        }
         let mut backend = self.backend.lock().map_err(failure)?;
         let (e, v) = match &mut *backend {
             Backend::Gpu(g) => {
@@ -1032,6 +1072,7 @@ fn present_frame(
     let (level, src, zoom) = resolve(st.view.viewport, canvas, surface.width(), surface.height());
     let epoch = st.epoch;
     let generation = st.view.generation;
+    r.signal().snapshot_taken(cancel);
     drop(st);
     let unlocked = Instant::now();
     let le = canvas.at_level(level);
@@ -1136,9 +1177,11 @@ fn present_frame(
         // Cancelled partial CPU output is not published. Its ring slot is reused;
         // cpu_present clears aborted copies and successful copies overwrite all src.
         cancel.check()?;
-        // Publish only into the ring this frame was rendered for.
+        // Publish only into the ring this frame was rendered for. Advancing
+        // the private ring cursor changes no reader-visible state, so it must
+        // not rebuild the model publication or retain surface Arcs there.
         {
-            let mut st = shared.lock()?;
+            let mut st = shared.state.lock().map_err(failure)?;
             cancel.check()?;
             if st.closed
                 || st.view.generation != generation
@@ -1304,7 +1347,7 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
     // B5-14: `stable` documents keep their cache key across calls, so the
     // persistent thumbnail compositor reuses their layers' mips.
     let (rev, doc, stable) = {
-        let st: std::sync::MutexGuard<'_, State> = shared.lock()?;
+        let st = shared.lock()?;
         st.open()?;
         let live = st.live();
         let s = live.state();
@@ -1557,6 +1600,129 @@ mod frame_cancellation_tests {
         renderer.stop();
         assert!(current.is_cancelled());
         assert!(!renderer.signal().finish_frame(&current));
+    }
+
+    #[test]
+    fn eng2_snapshot_coalescing_preserves_later_and_replacement_requests() {
+        let mut signal = Signal::default();
+        let first = signal.begin_frame();
+        signal.request_frame();
+        signal.snapshot_taken(&first);
+        assert!(!signal.frame);
+        // An edit after the snapshot must still render when this frame ends.
+        signal.request_frame();
+        assert!(signal.finish_frame(&first));
+        assert!(signal.frame);
+        let next = signal.begin_frame();
+        signal.cancel_frame();
+        // A replaced ring cancels this token and queues its replacement.
+        // The cancelled worker must not consume that replacement request.
+        signal.snapshot_taken(&next);
+        assert!(signal.frame);
+        assert!(!signal.finish_frame(&next));
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn eng2b_presented_frame_does_not_republish_model_or_retain_surfaces() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "synthetic".into());
+        session.wait_idle();
+        let surface = Arc::new(Surface::create_rgba8(3, 2).unwrap());
+        {
+            let mut st = session.shared.lock().unwrap();
+            st.view.surfaces.push(surface.clone());
+        }
+        let before = session.shared.read().unwrap();
+        session.shared.render.request(Vec::new(), false, 0);
+        session.wait_idle();
+        assert_eq!(session.shared.render.records().len(), 1);
+        assert!(
+            Arc::ptr_eq(&before, &session.shared.read().unwrap()),
+            "ring cursor advancement republished the whole model"
+        );
+        assert_eq!(
+            Arc::strong_count(&surface),
+            2,
+            "reader publication retains an IOSurface"
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn eng2_requests_before_snapshot_do_not_render_twice() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "synthetic".into());
+        let mut state = session.shared.lock().unwrap();
+        state
+            .view
+            .surfaces
+            .push(Arc::new(Surface::create_rgba8(3, 2).unwrap()));
+        let renderer = &session.shared.render;
+        renderer.request(Vec::new(), false, 0);
+        // The worker has claimed the first request but cannot snapshot until
+        // this edit guard is released. The second request is already covered
+        // by that future snapshot, so it must not cause a duplicate frame.
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while renderer.signal().active_frame.is_none() {
+            assert!(Instant::now() < deadline, "worker did not claim frame");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        renderer.request(Vec::new(), false, 0);
+        drop(state);
+        session.wait_idle();
+        assert_eq!(
+            renderer.records().len(),
+            1,
+            "duplicate frame for requests already captured by one snapshot"
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn eng2_getters_do_not_wait_for_inflight_render() {
+        use std::sync::mpsc;
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "synthetic".into());
+        // Inject a stalled backend: read_presented_level must release session
+        // state before it waits here, just as it must during a slow render.
+        let backend = session.shared.render.backend.lock().unwrap();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        *session.shared.render.read_level_entered.lock().unwrap() = Some(entered_tx);
+        let rendering = session.clone();
+        let worker = std::thread::spawn(move || rendering.read_presented_level(0).unwrap());
+        entered_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+        let (tx, rx) = mpsc::channel();
+        let reading = session.clone();
+        let reader = std::thread::spawn(move || {
+            let start = Instant::now();
+            reading.info().unwrap();
+            reading.layers().unwrap();
+            reading.history_items().unwrap();
+            reading.document_state().unwrap();
+            reading
+                .begin_export_flat(
+                    "synthetic.png".into(),
+                    crate::ExportFormat::Png,
+                    90,
+                    crate::ExportColor::Srgb,
+                )
+                .unwrap();
+            tx.send(start.elapsed()).unwrap();
+        });
+        let result = rx.recv_timeout(Duration::from_millis(250));
+        drop(backend);
+        worker.join().unwrap();
+        reader.join().unwrap();
+        let elapsed = result.expect("session getters waited on the stalled render");
+        eprintln!("ENG-2 getter batch: {elapsed:?}");
+        assert!(elapsed < Duration::from_millis(250));
     }
 
     #[test]
