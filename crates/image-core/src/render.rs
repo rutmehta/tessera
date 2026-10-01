@@ -760,18 +760,27 @@ impl Renderer {
             wb
         };
         let mut developed = wb;
+        let pre_curve = settings.color_before_curves();
+        let post_curve = settings.color_after_curves();
         let mut point_effects = settings.effects.clone();
         point_effects.lens_blur = None;
         for (stage, op) in [
             (StageId::Detail, Op::Detail(&settings.detail)),
             (StageId::Tone, Op::Tone(&settings.tone)),
+            (StageId::Tone, Op::Color(&pre_curve)),
             (StageId::Tone, Op::ToneExtra(&settings.tone)),
-            (StageId::Color, Op::Color(&settings.color)),
+            (StageId::Color, Op::Color(&post_curve)),
             (
                 StageId::Effects,
                 Op::EffectsInCrop(&point_effects, e, &settings.geometry.crop),
             ),
         ] {
+            if stage == StageId::Tone
+                && matches!(op, Op::Color(_))
+                && !pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled)
+            {
+                continue;
+            }
             if stage == StageId::Effects
                 && (settings.effects.lens_blur.is_some() || self.depth_visualisation)
             {

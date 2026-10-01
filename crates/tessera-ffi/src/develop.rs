@@ -6297,7 +6297,7 @@ mod depth_histogram_read_only_contract_tests {
             .depth_histogram(row.id)
             .expect_err("unsupported saved process must fail despite an input cache hit");
         assert!(
-            error.to_string().contains("Adobe PV3–6 required"),
+            error.to_string().contains("Adobe PV1–6 required"),
             "the error must come from saved process validation, not depth cache miss: {error}"
         );
         assert_eq!(

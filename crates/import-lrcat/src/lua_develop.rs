@@ -694,7 +694,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         return Err(error("develop settings are not a table"));
     };
     let (packet, notes, keep) = to_xmp(&table);
-    let (mut recipe, mut warnings) = crate::xmp::parse_unrecorded(&packet, process_version)?;
+    let (mut recipe, mut warnings) = crate::xmp::parse_inner(&packet, process_version, false)?;
     // The packet was generated from the literal; it is not source data.
     recipe.unknown.remove("sidecar_xmp");
     // Never derive retention from decoder diagnostics: future translators need

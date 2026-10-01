@@ -192,7 +192,7 @@ fn malformed_extended_curves_are_one_named_limitation() {
 	ExtendedToneCurvePV2012Blue = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Green = { 0, 0, 255, 255 },
 	ExtendedToneCurvePV2012Red = { 0, 0, 255, 255 } }";
-    for (text, keys) in [(edited, 2), (identity, 0)] {
+    for (text, keys) in [(edited, 5), (identity, 4)] {
         let (recipe, warnings) = lua_develop::parse(text, "15.4").unwrap();
         assert_eq!(recipe.settings.tone.exposure, 1.0);
         let ext: Vec<_> = warnings
@@ -325,7 +325,7 @@ fn develop_rows_are_ordered_and_orphans_and_null_ids_do_not_block() {
 
 #[test]
 fn identity_master_with_hdr_channel_imports_without_warning() {
-    let (r, notes) = lua_develop::parse("s = { ExtendedToneCurveName2012 = 'Linear', ExtendedToneCurvePV2012 = {0,0,255,255}, ExtendedToneCurvePV2012Red = {0,0,128,150,300,350} }", "15.4").unwrap();
+    let (r, notes) = lua_develop::parse("s = { HDREditMode=1, ExtendedToneCurveName2012 = 'Linear', ExtendedToneCurvePV2012 = {0,0,255,255}, ExtendedToneCurvePV2012Red = {0,0,128,150,300,350} }", "15.4").unwrap();
     assert!(notes.iter().all(|n| !n.contains("ExtendedToneCurve")));
     let curves = r.settings.tone.curves_extended.unwrap();
     assert!(curves.rgb.is_identity());
@@ -389,7 +389,7 @@ fn pending_sources_are_exact_even_when_inactive_or_identity() {
             format!("<crs:{key}>opaque &amp; exact</crs:{key}>")
         };
         let xmp = format!(
-            "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'>{fragment}</rdf:Description></rdf:RDF>"
+            "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/' crs:HDREditMode='1'>{fragment}</rdf:Description></rdf:RDF>"
         );
         let (r, _) = import_lrcat::develop(1, &xmp, "15.4").unwrap();
         assert_eq!(
@@ -443,17 +443,13 @@ fn xmp_extended_identity_and_hdr_import_but_malformed_is_retained() {
             "<crs:ExtendedToneCurvePV2012><rdf:Seq>{points}</rdf:Seq></crs:ExtendedToneCurvePV2012>"
         );
         let packet = format!(
-            "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'>{fragment}</rdf:Description></rdf:RDF>"
+            "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/' crs:HDREditMode='1'>{fragment}</rdf:Description></rdf:RDF>"
         );
         let (r, notes) = import_lrcat::develop(1, &packet, "15.4").unwrap();
-        if count > 0 {
-            assert_eq!(
-                r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"],
-                fragment
-            );
-        } else {
-            assert!(!r.unknown.contains_key("lrcat_develop_source"));
-        }
+        assert_eq!(
+            r.unknown["lrcat_develop_source"]["properties"]["ExtendedToneCurvePV2012"],
+            fragment
+        );
         if points.contains("300, 350") {
             let curves = r.settings.tone.curves_extended.as_ref().unwrap();
             assert_eq!(curves.rgb.0[2].x, 300.0 / 255.0);

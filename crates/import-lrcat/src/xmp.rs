@@ -25,15 +25,15 @@ struct Property<'a> {
 /// Compatibility diagnostics retain individual properties as well as the exact
 /// original packet, even when a legacy spelling needs normalization for decoding.
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
-    let (mut recipe, warnings) = parse_unrecorded(text, process_version)?;
+    let (mut recipe, warnings) = parse_inner(text, process_version, true)?;
     crate::geometry::finish(&mut recipe)?;
-    recipe.validate()?;
     Ok((recipe, warnings))
 }
 
-pub(crate) fn parse_unrecorded(
+pub(crate) fn parse_inner(
     text: &str,
     process_version: &str,
+    apply_lr2: bool,
 ) -> EngineResult<(Recipe, Vec<String>)> {
     let doc = Document::parse(text).map_err(|e| EngineError::Decode {
         format: "xmp".into(),
@@ -42,7 +42,7 @@ pub(crate) fn parse_unrecorded(
     if doc.root_element().has_tag_name((RDF, "Description")) {
         // Catalog rows commonly store a bare Description, unlike sidecar files.
         let wrapped = format!("<rdf:RDF xmlns:rdf=\"{RDF}\">{text}</rdf:RDF>");
-        let (mut recipe, warnings) = parse_unrecorded(&wrapped, process_version)?;
+        let (mut recipe, warnings) = parse_inner(&wrapped, process_version, apply_lr2)?;
         recipe.unknown.insert("sidecar_xmp".into(), json!(text));
         return Ok((recipe, warnings));
     }
@@ -212,12 +212,6 @@ pub(crate) fn parse_unrecorded(
         retain(&mut recipe, &key, raw);
         warnings.push(format!("{key}: {reason}; source preserved"));
     }
-    if catalog_version.revision <= 2 {
-        warnings.push(
-            "legacy Adobe PV1/2: best-effort translation; rendering fidelity is not guaranteed"
-                .into(),
-        );
-    }
     let mut source = serde_json::Map::new();
     for p in &properties {
         if p.namespace == CRS && crate::lua_develop::retain_source(p.name) {
@@ -231,6 +225,7 @@ pub(crate) fn parse_unrecorded(
         );
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
+    if apply_lr2 {
     crate::geometry::apply(
         &mut recipe,
         &mut warnings,
@@ -240,7 +235,7 @@ pub(crate) fn parse_unrecorded(
             .map(|p| (p.name, p.raw)),
     )?;
     crate::lr2::xmp(&doc, &mut recipe, &mut warnings)?;
-    recipe.validate()?;
+    }
     Ok((recipe, warnings))
 }
 
@@ -506,7 +501,7 @@ mod tests {
     }
 
     #[test]
-    fn process_versions_and_legacy_warning() {
+    fn process_versions_without_blanket_legacy_warning() {
         for (source, revision) in [
             ("5.0", 1),
             ("5.7", 2),
@@ -517,7 +512,7 @@ mod tests {
         ] {
             let (recipe, warnings) = parse(&xml("", ""), source).unwrap();
             assert_eq!(recipe.process_version, ProcessVersion::adobe(revision));
-            assert_eq!(warnings.iter().any(|w| w.contains("legacy")), revision <= 2);
+            assert!(warnings.is_empty(), "{warnings:?}");
         }
         assert!(parse(&xml("", ""), "99.0").is_err());
         assert!(parse("<broken", "15.4").is_err());

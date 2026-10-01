@@ -420,9 +420,15 @@ impl Renderer {
             // Disabled Detail still validates all controls (see develop_tiles).
             batch.run_at(&Op::Detail(&r.settings.detail), &t, (0, rows.start))?
         };
-        let mut chain = vec![Op::Tone(&r.settings.tone), Op::ToneExtra(&r.settings.tone)];
+        let pre_curve = r.settings.color_before_curves();
+        let post_curve = r.settings.color_after_curves();
+        let mut chain = vec![Op::Tone(&r.settings.tone)];
+        if pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled) {
+            chain.push(Op::Color(&pre_curve));
+        }
+        chain.push(Op::ToneExtra(&r.settings.tone));
         chain.extend([
-            Op::Color(&r.settings.color),
+            Op::Color(&post_curve),
             Op::EffectsInCrop(&r.settings.effects, frame, &r.settings.geometry.crop),
         ]);
         if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
@@ -478,6 +484,9 @@ impl Renderer {
             return false;
         }
         let s = r.settings;
+        if s.tone.legacy_pv2010.is_some() {
+            return false;
+        }
         if (r.image.rgb().is_none() && pipeline_cpu::denoise_active(&s.denoise) && !self.cfa_supported(r.cfa, s))
             || (r.image.rgb().is_none() && !matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_)))
             // Local adjustment operators/rasterization use the whole-image
@@ -1041,6 +1050,17 @@ impl Renderer {
         let mut t = developed;
         let mut chain = if has_presence(&r.settings.tone) {
             let toned = batch.run(&Op::Tone(&r.settings.tone), &t)?;
+            let toned = if r
+                .settings
+                .color
+                .monochrome
+                .as_ref()
+                .is_some_and(|m| m.enabled)
+            {
+                batch.run(&Op::Color(&r.settings.color_before_curves()), &toned)?
+            } else {
+                toned
+            };
             let options = LocalToneOptions {
                 preview: level > 0 && self.config.preview_approximations,
                 statistics_key: dehaze_statistics_key(r, level),
@@ -1054,8 +1074,15 @@ impl Renderer {
         } else {
             vec![Op::Tone(&r.settings.tone), Op::ToneExtra(&r.settings.tone)]
         };
+        let pre_curve = r.settings.color_before_curves();
+        let post_curve = r.settings.color_after_curves();
+        if !has_presence(&r.settings.tone)
+            && pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled)
+        {
+            chain.insert(chain.len() - 1, Op::Color(&pre_curve));
+        }
         chain.extend([
-            Op::Color(&r.settings.color),
+            Op::Color(&post_curve),
             Op::EffectsInCrop(&r.settings.effects, frame, &r.settings.geometry.crop),
         ]);
         let map = r.lens.and_then(|p| p.map.as_ref());
@@ -1365,7 +1392,19 @@ impl Renderer {
             let mut toned = HashMap::with_capacity(developed.len());
             for (c, t) in developed.drain() {
                 cancel.check()?;
-                toned.insert(c, batch.run(&Op::Tone(&r.settings.tone), &t)?);
+                let t = batch.run(&Op::Tone(&r.settings.tone), &t)?;
+                let t = if r
+                    .settings
+                    .color
+                    .monochrome
+                    .as_ref()
+                    .is_some_and(|m| m.enabled)
+                {
+                    batch.run(&Op::Color(&r.settings.color_before_curves()), &t)?
+                } else {
+                    t
+                };
+                toned.insert(c, t);
             }
             let options = LocalToneOptions {
                 preview: level > 0 && self.config.preview_approximations,
@@ -1384,8 +1423,13 @@ impl Renderer {
             } else {
                 vec![Op::Tone(&r.settings.tone), Op::ToneExtra(&r.settings.tone)]
             };
+            let pre_curve = r.settings.color_before_curves();
+            let post_curve = r.settings.color_after_curves();
+            if !presence && pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled) {
+                chain.insert(chain.len() - 1, Op::Color(&pre_curve));
+            }
             chain.extend([
-                Op::Color(&r.settings.color),
+                Op::Color(&post_curve),
                 Op::EffectsInCrop(
                     &r.settings.effects,
                     r.image.level_extent(c.level),

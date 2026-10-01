@@ -153,6 +153,14 @@ pub fn render_linear_scaled_with_profile(
         }
         rgb.put(&tile)?;
     }
+    let pre_curve = settings.color_before_curves();
+    if pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled) {
+        for coord in rgb.coords() {
+            let mut tile = rgb.tile(coord, 0, 1)?;
+            pipeline_cpu::color(&mut tile, &pre_curve)?;
+            rgb.put(&tile)?;
+        }
+    }
     let mut extra = settings.tone.clone();
     // Native guided local-contrast/dehaze and parametric curve are documented
     // approximations. Point curves must not run again on the native log axis.
@@ -192,6 +200,7 @@ pub fn render_linear_scaled_with_profile(
     rest.detail.noise_reduction.luminance = 0.;
     rest.detail.noise_reduction.color = 0.;
     rest.tone = Default::default();
+    rest.color = settings.color_after_curves();
     pipeline_cpu::render_linear_scaled(&rest, &RenderSource::Rgb(&rgb), scale)
 }
 

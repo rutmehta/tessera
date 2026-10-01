@@ -271,7 +271,7 @@ impl XmpPacket {
                 }
             }
         }
-        if has_gray {
+        if has_gray && (gray.enabled || gray.mixer != Default::default()) {
             value["settings"]["color"]["monochrome"] = serde_json::to_value(gray)?;
         }
         let settings: DevelopSettings = serde_json::from_value(value["settings"].clone())?;

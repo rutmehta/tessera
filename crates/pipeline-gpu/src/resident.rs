@@ -996,9 +996,22 @@ impl Batch<'_> {
                 .fetch_add(1, Ordering::Relaxed);
             return Ok(self.tile(tile.coord, layout, dst));
         }
+        // B&W conversion can precede curves, followed by the ordinary colour
+        // pass. Partition this order into supported fused runs: dispatching
+        // Effects through the generic scalar operator would reject it.
         let mut output = tile.clone();
-        for op in ops {
-            output = self.run_origin(op, &output, origin)?;
+        let mut remaining = ops;
+        while !remaining.is_empty() {
+            let fused_len = (1..=remaining.len())
+                .take_while(|&len| crate::fused::supports(&remaining[..len]))
+                .last();
+            if let Some(len) = fused_len {
+                output = self.run_chain_origin(&remaining[..len], &output, origin)?;
+                remaining = &remaining[len..];
+            } else {
+                output = self.run_origin(&remaining[0], &output, origin)?;
+                remaining = &remaining[1..];
+            }
         }
         Ok(output)
     }

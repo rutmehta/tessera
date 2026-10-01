@@ -1,7 +1,7 @@
 use import_lrcat::lua_develop::parse;
 
 #[test]
-fn extended_curves_normalize_all_channels_and_remove_source() {
+fn extended_curves_normalize_all_channels_and_retain_approximate_source() {
     for (suffix, field) in [
         ("", "rgb"),
         ("Red", "red"),
@@ -10,15 +10,18 @@ fn extended_curves_normalize_all_channels_and_remove_source() {
     ] {
         let key = format!("ExtendedToneCurvePV2012{suffix}");
         let (r, _) = parse(
-            &format!("s = {{ {key} = {{0,0,128,160,255,255}} }}"),
+            &format!("s = {{ HDREditMode=1, {key} = {{0,0,128,160,255,255}} }}"),
             "15.4",
         )
         .unwrap();
         let v = serde_json::to_value(&r).unwrap();
-        let p = &v["settings"]["tone"]["curves"][field][1];
+        let p = &v["settings"]["tone"]["curves_extended"][field][1];
         assert!((p["x"].as_f64().unwrap_or(-1.) - 128. / 255.).abs() < 1e-6);
         assert!((p["y"].as_f64().unwrap_or(-1.) - 160. / 255.).abs() < 1e-6);
-        assert!(v["unknown"]["lrcat_develop_source"]["properties"][&key].is_null());
+        assert_eq!(
+            v["lrcat_develop_source"]["properties"][&key],
+            "{0,0,128,160,255,255}"
+        );
     }
 }
 
@@ -39,16 +42,13 @@ fn grayscale_preserves_eight_bands_and_inactive_state() {
             ("Magenta", "magenta", -40.),
         ] {
             assert_eq!(v["settings"]["color"]["monochrome"]["mixer"][band], n);
-            assert!(
-                v["unknown"]["lrcat_develop_source"]["properties"][format!("GrayMixer{key}")]
-                    .is_null()
-            );
+            assert!(v["lrcat_develop_source"]["properties"][format!("GrayMixer{key}")].is_string());
         }
     }
 }
 
 #[test]
-fn legacy_approximation_is_version_gated_and_modern_values_win() {
+fn legacy_approximation_is_version_gated_and_legacy_values_win() {
     let row = "s = { Exposure=1, Brightness=75, Contrast=50, FillLight=30, HighlightRecovery=20, Shadows=10 }";
     let (r, w) = parse(row, "5.7").unwrap();
     assert_eq!(
@@ -61,7 +61,7 @@ fn legacy_approximation_is_version_gated_and_modern_values_win() {
         ),
         (0., 0., 0., 0., 0.)
     );
-    assert!(w.iter().any(|s| s.contains("approximation")));
+    assert!(w.is_empty(), "{w:?}");
     assert_eq!(
         r.unknown["lrcat_develop_source"]["properties"]["Brightness"],
         "75"
@@ -73,7 +73,8 @@ fn legacy_approximation_is_version_gated_and_modern_values_win() {
         "5.7",
     )
     .unwrap();
-    assert_eq!(both.settings.tone.exposure, 0.25);
+    assert_eq!(both.settings.tone.exposure, 0.);
+    assert_eq!(both.settings.tone.legacy_pv2010.unwrap().exposure, Some(2.));
 }
 
 #[test]
@@ -137,7 +138,7 @@ fn xmp_and_lua_lr2_settings_match() {
     assert!(
         xmp.unknown
             .get("lrcat_develop_source")
-            .is_none_or(|source| source["properties"]["GrayMixerBlue"].is_null())
+            .is_some_and(|source| source["properties"]["GrayMixerBlue"].is_string())
     );
 }
 
@@ -175,14 +176,15 @@ fn monochrome_recipe_roundtrip_preserves_history_and_disabled_mixer() {
 }
 
 #[test]
-fn monochrome_warns_about_adobe_profile_dependent_fidelity() {
-    let (_, warnings) = parse("s = { ConvertToGrayscale=true }", "15.4").unwrap();
-    assert!(warnings.iter().any(|w| w.starts_with("B&W approximation:")));
+fn monochrome_diagnoses_adobe_fidelity_without_user_warning() {
+    let (r, warnings) = parse("s = { ConvertToGrayscale=true }", "15.4").unwrap();
+    assert!(warnings.is_empty());
+    assert!(r.unknown.contains_key("lrcat_develop_diagnostics"));
 }
 
 #[test]
 fn lr2b_legacy_and_hdr_roundtrip() {
-    let (r, _) = parse("s={Exposure=1,Brightness=75,Contrast=50,FillLight=30,Recovery=20,Blacks=10,ExtendedToneCurvePV2012={0,0,255,300,510,600}}", "5.7").unwrap();
+    let (r, _) = parse("s={HDREditMode=1,Exposure=1,Brightness=75,Contrast=50,FillLight=30,Recovery=20,Blacks=10,ExtendedToneCurvePV2012={0,0,255,300,510,600}}", "5.7").unwrap();
     let v = serde_json::to_value(&r.settings).unwrap();
     assert_eq!(v["tone"]["legacy_pv2010"]["exposure"], 1.);
     assert_eq!(v["tone"]["legacy_pv2010"]["brightness"], 75.);
@@ -197,9 +199,9 @@ fn lr2b_legacy_and_hdr_roundtrip() {
     )
     .unwrap();
     let v = serde_json::to_value(&r.settings).unwrap();
-    assert!(v["tone"]["legacy_pv2010"]["exposure"].is_null());
-    assert!(v["tone"]["legacy_pv2010"]["brightness"].is_null());
-    assert!(v["tone"]["legacy_pv2010"]["contrast"].is_null());
+    assert_eq!(v["tone"]["legacy_pv2010"]["exposure"], 2.);
+    assert_eq!(v["tone"]["legacy_pv2010"]["brightness"], 75.);
+    assert_eq!(v["tone"]["legacy_pv2010"]["contrast"], 50.);
 }
 #[test]
 fn lr2b_digest_is_retained_but_not_a_user_warning() {
@@ -217,8 +219,8 @@ fn lr2b_digest_is_retained_but_not_a_user_warning() {
 
 #[test]
 fn lr2b_hdr_channel_precedence_and_signed_knots_match_xmp() {
-    let (lua, _) = parse("s={ToneCurvePV2012Red={0,0,255,200},ExtendedToneCurvePV2012Red={-255,-128,510,600},ExtendedToneCurvePV2012Blue={0,0,255,220}}","15.4").unwrap();
-    let (xmp,_) = import_lrcat::xmp::parse(r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"><crs:ToneCurvePV2012Red><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,200</rdf:li></rdf:Seq></crs:ToneCurvePV2012Red><crs:ExtendedToneCurvePV2012Red><rdf:Seq><rdf:li>-255,-128</rdf:li><rdf:li>510,600</rdf:li></rdf:Seq></crs:ExtendedToneCurvePV2012Red><crs:ExtendedToneCurvePV2012Blue><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,220</rdf:li></rdf:Seq></crs:ExtendedToneCurvePV2012Blue></rdf:Description></rdf:RDF>"#,"15.4").unwrap();
+    let (lua, _) = parse("s={HDREditMode=1,ToneCurvePV2012Red={0,0,255,200},ExtendedToneCurvePV2012Red={-255,-128,510,600},ExtendedToneCurvePV2012Blue={0,0,255,220}}","15.4").unwrap();
+    let (xmp,_) = import_lrcat::xmp::parse(r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" crs:HDREditMode="1"><crs:ToneCurvePV2012Red><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,200</rdf:li></rdf:Seq></crs:ToneCurvePV2012Red><crs:ExtendedToneCurvePV2012Red><rdf:Seq><rdf:li>-255,-128</rdf:li><rdf:li>510,600</rdf:li></rdf:Seq></crs:ExtendedToneCurvePV2012Red><crs:ExtendedToneCurvePV2012Blue><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,220</rdf:li></rdf:Seq></crs:ExtendedToneCurvePV2012Blue></rdf:Description></rdf:RDF>"#,"15.4").unwrap();
     assert_eq!(lua.settings, xmp.settings);
     let extended = lua.settings.tone.curves_extended.as_ref().unwrap();
     assert_eq!(extended.red.0[0].x, -1.);
@@ -229,8 +231,11 @@ fn lr2b_hdr_channel_precedence_and_signed_knots_match_xmp() {
 #[test]
 fn lr2b_legacy_modern_precedence_and_alias_order() {
     let (r,_) = parse("s={Exposure=2,Brightness=75,Contrast=50,FillLight=40,Recovery=10,HighlightRecovery=20,Blacks=5,Shadows=8,Exposure2012=0.25,Contrast2012=10,Shadows2012=15,Highlights2012=-30,Blacks2012=-5}","5.7").unwrap();
-    assert!(r.settings.tone.legacy_pv2010.is_none());
-    assert_eq!(r.settings.tone.exposure, 0.25);
+    assert_eq!(
+        r.settings.tone.legacy_pv2010.as_ref().unwrap().exposure,
+        Some(2.)
+    );
+    assert_eq!(r.settings.tone.exposure, 0.);
     let (r, _) = parse(
         "s={Recovery=10,HighlightRecovery=20,Blacks=5,Shadows=8}",
         "5.7",

@@ -3,11 +3,11 @@ use crate::lua_develop::{LuaKey, LuaTable, LuaValue};
 use engine_api::{
     EngineResult,
     recipe::{
-        Author, EditMeta, Recipe,
+        Recipe,
         settings::{Curve, CurvePoint},
     },
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 type Values = BTreeMap<String, LuaValue>;
 const BANDS: [&str; 8] = [
@@ -151,12 +151,10 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         return Ok(());
     }
     let mut settings = recipe.settings.clone();
-    let mut translated = BTreeSet::<String>::new();
     let mut failed_curve = false;
-    // Copy ordinary channels into the extended block so mixed SDR/HDR keys
-    // retain the same per-channel precedence. Extended replaces the whole block.
-    let mut curves = settings.tone.curves.clone();
-    let mut hdr = false;
+    let mut approximate = BTreeMap::<String, &str>::new();
+    let mut curves = engine_api::recipe::settings::ToneCurves::default();
+    let mut has_extended = false;
     for (key, target) in CURVES.into_iter().zip([
         &mut curves.rgb,
         &mut curves.red,
@@ -165,26 +163,28 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
     ]) {
         if let Some(v) = values.get(key) {
             if let Some(c) = curve(v) {
-                hdr |=
-                    c.0.iter()
-                        .any(|p| !(0. ..=1.).contains(&p.x) || !(0. ..=1.).contains(&p.y));
-                *target = c;
-                translated.insert(key.into());
+                // Identity source is provenance only; never replace an ordinary curve.
+                if settings.output.hdr && c.0.iter().any(|p| p.x != p.y) {
+                    *target = c;
+                    has_extended = true;
+                    approximate.insert(
+                        key.into(),
+                        "HDR axis calibration is not verified against Adobe-rendered charts",
+                    );
+                }
             } else {
                 failed_curve = true;
             }
         }
     }
-    if hdr {
+    if has_extended {
         settings.tone.curves_extended = Some(curves);
-    } else {
-        settings.tone.curves = curves;
     }
     if CURVES.iter().any(|k| values.contains_key(*k)) && !failed_curve {
         warnings.retain(|s| s != crate::lua_develop::EXTENDED_TONE_CURVE_NOTE);
     }
     let mut gray = settings.color.monochrome.clone().unwrap_or_default();
-    let mut has_gray = false;
+    let mut gray_keys = Vec::new();
     if let Some(v) = values.get("ConvertToGrayscale") {
         let enabled = match v {
             LuaValue::Bool(b) => Some(*b),
@@ -194,8 +194,7 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         };
         if let Some(b) = enabled {
             gray.enabled = b;
-            has_gray = true;
-            translated.insert("ConvertToGrayscale".into());
+            gray_keys.push("ConvertToGrayscale".to_string());
         }
     }
     for (band, target) in BANDS.into_iter().zip([
@@ -211,75 +210,98 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         let key = format!("GrayMixer{band}");
         if let Some(n) = values.get(&key).and_then(|v| number(v, -100., 100.)) {
             *target = n;
-            has_gray = true;
-            translated.insert(key);
+            gray_keys.push(key);
         }
     }
-    if has_gray {
-        if gray.enabled && !warnings.iter().any(|w| w.starts_with("B&W approximation:")) {
-            warnings.push("B&W approximation: hue mixer rendered with linear Rec.2020 luminance; Adobe profile-dependent B&W response is not reproduced exactly".into());
-        }
+    if !gray_keys.is_empty() && (gray.enabled || gray.mixer != Default::default()) {
         settings.color.monochrome = Some(gray);
+        for key in gray_keys {
+            approximate.insert(
+                key.clone(),
+                "profile-dependent B&W response and ordering lack Adobe-rendered calibration",
+            );
+        }
     }
     if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
         && recipe.process_version.revision <= 2
     {
         use engine_api::recipe::settings::LegacyPv2010;
         let n = |k: &str, min, max| values.get(k).and_then(|v| number(v, min, max));
-        let mut legacy = LegacyPv2010::default();
-        if !values.contains_key("Exposure2012") {
-            legacy.exposure = n("Exposure", -5., 5.);
-            legacy.brightness = n("Brightness", -150., 150.);
-        }
-        if !values.contains_key("Contrast2012") {
-            legacy.contrast = n("Contrast", -50., 100.);
-        }
-        if !values.contains_key("Shadows2012") {
-            legacy.fill_light = n("FillLight", 0., 100.);
-        }
-        if !values.contains_key("Highlights2012") {
-            legacy.recovery = n("HighlightRecovery", 0., 100.).or_else(|| n("Recovery", 0., 100.));
-        }
-        if !values.contains_key("Blacks2012") {
-            legacy.blacks = n("Shadows", 0., 100.).or_else(|| n("Blacks", 0., 100.));
-        }
-        if legacy.exposure.is_some() {
-            translated.insert("Exposure".into());
-        }
-        // These values are represented, but their Adobe operator is approximate:
-        // retain exact source and replace generic unsupported notes with the reason.
+        let legacy = LegacyPv2010 {
+            exposure: n("Exposure", -5., 5.),
+            brightness: n("Brightness", -150., 150.),
+            contrast: n("Contrast", -50., 100.),
+            fill_light: n("FillLight", 0., 100.),
+            recovery: n("HighlightRecovery", 0., 100.).or_else(|| n("Recovery", 0., 100.)),
+            blacks: n("Shadows", 0., 100.).or_else(|| n("Blacks", 0., 100.)),
+        };
         for (key, present) in [
+            ("Exposure", legacy.exposure.is_some()),
             ("Brightness", legacy.brightness.is_some()),
             ("Contrast", legacy.contrast.is_some()),
             ("FillLight", legacy.fill_light.is_some()),
-            ("HighlightRecovery", legacy.recovery.is_some()),
-            ("Recovery", legacy.recovery.is_some()),
-            ("Shadows", legacy.blacks.is_some()),
-            ("Blacks", legacy.blacks.is_some()),
+            (
+                "HighlightRecovery",
+                n("HighlightRecovery", 0., 100.).is_some(),
+            ),
+            (
+                "Recovery",
+                n("HighlightRecovery", 0., 100.).is_none() && n("Recovery", 0., 100.).is_some(),
+            ),
+            ("Shadows", n("Shadows", 0., 100.).is_some()),
+            (
+                "Blacks",
+                n("Shadows", 0., 100.).is_none() && n("Blacks", 0., 100.).is_some(),
+            ),
         ] {
-            if present {
-                warnings.retain(|w| {
-                    !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
-                });
+            if present && values.contains_key(key) {
+                let reason = match key {
+                    "Exposure" => {
+                        "EV multiplier is implemented; Adobe PV2010 camera/process calibration lacks rendered evidence"
+                    }
+                    "Brightness" => {
+                        "Adobe midtone transfer and slider-to-gain calibration are unpublished"
+                    }
+                    "Contrast" => {
+                        "Adobe PV2010 pivot, transfer and slider-to-slope calibration are unpublished"
+                    }
+                    "FillLight" => {
+                        "scalar reference does not reproduce Adobe's unpublished spatial shadow adaptation"
+                    }
+                    "HighlightRecovery" | "Recovery" => {
+                        "working RGB lacks Adobe's original camera-channel clipping and RAW reconstruction data"
+                    }
+                    _ => {
+                        "public DNG black ramp assumes camera shadow scale and stage gain of one; PV2010 parity is unverified"
+                    }
+                };
+                approximate.insert(key.into(), reason);
             }
         }
         if legacy != LegacyPv2010::default() {
-            if [
-                legacy.brightness,
-                legacy.contrast,
-                legacy.fill_light,
-                legacy.recovery,
-                legacy.blacks,
-            ]
-            .iter()
-            .any(Option::is_some)
-                && !warnings
-                    .iter()
-                    .any(|w| w.starts_with("PV2010 approximation:"))
-            {
-                warnings.push("PV2010 approximation: dedicated legacy operators; Adobe brightness/contrast transfer functions, fill-light spatial adaptation, recovery RAW reconstruction are unpublished; blacks uses the public DNG ramp with camera shadow scale assumed one; source preserved".into());
-            }
+            // PV2010 is authoritative: stale PV2012 controls must not render twice.
+            settings.tone.exposure = 0.;
+            settings.tone.contrast = 0.;
+            settings.tone.shadows = 0.;
+            settings.tone.highlights = 0.;
+            settings.tone.whites = 0.;
+            settings.tone.blacks = 0.;
             settings.tone.legacy_pv2010 = Some(legacy);
+        }
+    }
+    for (key, reason) in &approximate {
+        warnings.retain(|w| {
+            !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
+        });
+        let entry = serde_json::json!({"key": key, "level": "info", "message": format!("approximate: {reason}")});
+        let diagnostics = recipe
+            .unknown
+            .entry("lrcat_develop_diagnostics".into())
+            .or_insert_with(|| serde_json::json!([]));
+        if let Some(entries) = diagnostics.as_array_mut()
+            && !entries.contains(&entry)
+        {
+            entries.push(entry);
         }
     }
     for key in values
@@ -294,58 +316,23 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         }
         warnings.push(format!("{key}: retained metadata, not a pixel adjustment; digest is not an Auto Tone recipe and depth metadata is not a depth raster; source preserved"));
     }
-    if !translated.is_empty() {
-        warnings.retain(|w| {
-            !translated
-                .iter()
-                .any(|k| w.starts_with(&format!("crs:{k}:")) || w.starts_with(&format!("{k}:")))
-        });
-        for name in ["lrcat_develop_source", "lrcat_develop_lua"] {
-            if let Some(value) = recipe.unknown.get_mut(name) {
-                let map = if name == "lrcat_develop_source" {
-                    value.get_mut("properties").and_then(|v| v.as_object_mut())
-                } else {
-                    value.as_object_mut()
-                };
-                if let Some(map) = map {
-                    for key in &translated {
-                        map.remove(key);
-                    }
-                    if map.is_empty() {
-                        recipe.unknown.remove(name);
-                    }
-                }
-            }
-        }
-        if let Some(entries) = recipe
-            .unknown
-            .get_mut("lrcat_develop_lua_entries")
-            .and_then(|v| v.as_array_mut())
-        {
-            entries.retain(|v| {
-                !v["key"]["string"]
-                    .as_str()
-                    .is_some_and(|k| translated.contains(k))
-            });
-            if entries.is_empty() {
-                recipe.unknown.remove("lrcat_develop_lua_entries");
-            }
-        }
-        for key in &translated {
-            recipe.unknown.remove(&format!("crs:{key}"));
-        }
-    }
     if settings != recipe.settings {
-        recipe.edit(
-            EditMeta {
-                label: "Import LR-2 develop settings".into(),
-                author: Author::Import {
-                    source: "lrcat".into(),
+        // Import has not escaped to callers: rebuild its single initial edit.
+        let meta = recipe
+            .history
+            .entries
+            .first()
+            .map(|e| e.meta.clone())
+            .unwrap_or_else(|| engine_api::recipe::EditMeta {
+                label: "Import XMP".into(),
+                author: engine_api::recipe::Author::Import {
+                    source: "xmp".into(),
                 },
                 ..Default::default()
-            },
-            |s| *s = settings,
-        )?;
+            });
+        recipe.history = Default::default();
+        recipe.settings = Default::default();
+        recipe.edit(meta, |s| *s = settings)?;
     }
     Ok(())
 }

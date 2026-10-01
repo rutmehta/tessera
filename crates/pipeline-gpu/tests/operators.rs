@@ -359,7 +359,7 @@ fn lr2b_hdr_curves_match_cpu_and_legacy_is_guarded() {
         }),
         ..Default::default()
     };
-    assert!(gpu().run(StageId::Tone, &Op::Tone(&s), tile(3, 0)).is_err());
+    compare(StageId::Tone, Op::Tone(&s), tile(3, 0));
     use engine_api::jobs::CancellationToken;
     assert!(
         gpu()
@@ -368,7 +368,7 @@ fn lr2b_hdr_curves_match_cpu_and_legacy_is_guarded() {
                 vec![tile(3, 0)],
                 &CancellationToken::new()
             )
-            .is_err()
+            .is_ok()
     );
 }
 
