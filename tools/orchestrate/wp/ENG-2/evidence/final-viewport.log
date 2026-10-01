@@ -1,0 +1,42 @@
+Command: cargo test --locked -p tessera-ffi --test document_viewport -- --nocapture --test-threads=1
+Exit: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.06s
+     Running tests/document_viewport.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/document_viewport-47c56d9e508019aa)
+
+running 6 tests
+test composite_thumbnails_reuse_mips_across_edits ... composite thumbnail: cold 971.542417ms, after an opacity edit 1.748666ms
+mip counters: baseline (0, 0), cold (0, 350), warm (44, 350)
+drag 0: mip counters (44, 350) -> (88, 350)
+drag 1: mip counters (88, 350) -> (132, 350)
+drag 2: mip counters (132, 350) -> (176, 350)
+drag 3: mip counters (176, 350) -> (220, 350)
+drag 4: mip counters (220, 350) -> (264, 350)
+drag ticks: [1.106208ms, 1.625833ms, 1.295583ms, 948.709µs, 964.208µs]
+ok
+test edits_do_not_wait_for_frames_in_flight ... document: frames composited on the CPU (styles in the resident document program require CPU composition)
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 512, y1: 384 })
+styled frame median 11323.1 ms; edit call median 0.023 ms, max 0.06 ms
+ok
+test frames_for_a_replaced_ring_are_dropped ... document: frames composited on the CPU (styles in the resident document program require CPU composition)
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 512, y1: 384 })
+ok
+test save_render_undo_races_keep_history_and_surfaces_valid ... document: frames on the Viewport path (L0, requested Rect { x0: 84, y0: 84, x1: 628, y1: 500 })
+ok
+test viewport_frames_composite_only_the_viewport_plus_halo ... document: frames on the Viewport path (L0, requested Rect { x0: 684, y0: 484, x1: 4556, y1: 2676 })
+GPU 1900 live pages, 512.8 MiB resident; smart filters 0 GPU stages, 0 CPU fallbacks, 0.0 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 3 full-level 0 cpu 0 dropped 0
+ok
+test viewport_frames_equal_full_level_frames ... document: frames on the FullLevel path (L2, requested Rect { x0: 0, y0: 0, x1: 384, y1: 256 })
+document: frames on the Viewport path (L2, requested Rect { x0: 0, y0: 0, x1: 384, y1: 256 })
+document: frames on the FullLevel path (L0, requested Rect { x0: 0, y0: 0, x1: 1536, y1: 1024 })
+document: frames on the Viewport path (L0, requested Rect { x0: 880, y0: 528, x1: 1536, y1: 1024 })
+document: frames composited on the CPU (styles in the resident document program require CPU composition)
+document: frames composited on the CPU (styles in the resident document program require CPU composition)
+document: frames on the Cpu path (L0, requested Rect { x0: 896, y0: 544, x1: 1536, y1: 1024 })
+document: frames on the Cpu path (L0, requested Rect { x0: 896, y0: 544, x1: 1536, y1: 1024 })
+document: frames composited on the GPU again
+document: frames composited on the GPU again
+document: frames on the FullLevel path (L0, requested Rect { x0: 0, y0: 0, x1: 1536, y1: 1024 })
+document: frames on the Viewport path (L0, requested Rect { x0: 880, y0: 528, x1: 1536, y1: 1024 })
+ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 188.27s

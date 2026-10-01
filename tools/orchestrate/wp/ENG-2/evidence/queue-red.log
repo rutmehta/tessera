@@ -1,0 +1,22 @@
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.57s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/tessera_ffi-b4ee34d40c032121)
+
+running 1 test
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 3, y1: 2 })
+
+thread 'document::render::frame_cancellation_tests::eng2_requests_before_snapshot_do_not_render_twice' (53394082) panicked at crates/tessera-ffi/src/document/render.rs:1592:9:
+assertion `left == right` failed: duplicate frame for requests already captured by one snapshot
+  left: 2
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test document::render::frame_cancellation_tests::eng2_requests_before_snapshot_do_not_render_twice ... FAILED
+
+failures:
+
+failures:
+    document::render::frame_cancellation_tests::eng2_requests_before_snapshot_do_not_render_twice
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.31s
+
+error: test failed, to rerun pass `-p tessera-ffi --lib`

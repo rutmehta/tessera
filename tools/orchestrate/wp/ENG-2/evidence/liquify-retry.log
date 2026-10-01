@@ -1,0 +1,12 @@
+Command: cargo test --locked -p tessera-ffi --test document_liquify_ui brush_latency_on_a_20_megapixel_layer -- --exact --nocapture --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running tests/document_liquify_ui.rs (/Users/rutmehta/.cache/tessera-target/ENG-2-state-publication/debug/deps/document_liquify_ui-077037b42a9ee237)
+
+running 1 test
+test brush_latency_on_a_20_megapixel_layer ... LIQUIFY 20MP (5472x3648, cell 16, proxy 1824x1216 /3): open 2653 ms; brush+preview per event median 169.9 ms, p95 239.9 ms, max 262.5 ms (brush 6.6 ms, preview 163.9 ms median); full-res apply 2155 ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 35.08s
+
+
+Exit: 0
