@@ -21,9 +21,9 @@
 //! (an object: Lua key -> source text of its value).
 //!
 //! The extended-range (HDR) tone curve (`ExtendedToneCurvePV2012` and its
-//! Red/Green/Blue/Name siblings) has no slot in the recipe: identity curves
-//! are dropped (they adjust nothing); otherwise one named-limitation warning is
-//! emitted per image and the source of those keys is retained.
+//! Red/Green/Blue/Name siblings) is not translated (no recipe slot; codec work
+//! is owned elsewhere): one named-limitation warning per image that has any of
+//! them, and the source of those keys is retained.
 use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
@@ -293,7 +293,7 @@ pub const EXTENDED_TONE_CURVE_KEYS: &[&str] = &[
     "ExtendedToneCurvePV2012Blue",
 ];
 
-/// The one warning emitted for an image whose extended tone curve is not identity.
+/// The one warning emitted for an image that has extended tone curve keys.
 pub const EXTENDED_TONE_CURVE_NOTE: &str = "ExtendedToneCurvePV2012 (+Red/Green/Blue): extended-range (HDR) tone curves are not supported by Tessera; not applied, source preserved";
 
 /// A table key: an identifier or `["string"]` (both are string keys in Lua),
@@ -740,7 +740,7 @@ fn to_xmp(table: &LuaTable) -> (String, Vec<String>, Vec<usize>) {
         };
         if EXTENDED_TONE_CURVE_KEYS.contains(&key.as_str()) {
             extended.push(i);
-            extended_changes |= key != "ExtendedToneCurveName2012" && !is_identity_curve(value);
+            extended_changes |= *value != LuaValue::Nil;
             continue;
         }
         let Some((_, crs)) = KEY_MAP.iter().find(|(lua, _)| lua == key) else {
@@ -769,23 +769,6 @@ fn to_xmp(table: &LuaTable) -> (String, Vec<String>, Vec<usize>) {
         r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:crs="{CRS_URI}" xmlns:aux="{AUX_URI}"{attrs}>{body}</rdf:Description></rdf:RDF></x:xmpmeta>"#
     );
     (packet, notes, keep)
-}
-
-/// `nil`, `{}` or a flat list of `x, y` pairs with `x == y` (no adjustment).
-fn is_identity_curve(value: &LuaValue) -> bool {
-    match value {
-        LuaValue::Nil => true,
-        LuaValue::Table(t) if t.fields.is_empty() => {
-            t.items.len().is_multiple_of(2)
-                && t.items.chunks(2).all(|p| match (&p[0], &p[1]) {
-                    (LuaValue::Number(x), LuaValue::Number(y)) => {
-                        x.parse::<f64>().ok() == y.parse::<f64>().ok()
-                    }
-                    _ => false,
-                })
-        }
-        _ => false,
-    }
 }
 
 fn is_ident(s: &str) -> bool {
