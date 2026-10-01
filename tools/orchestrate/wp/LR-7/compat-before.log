@@ -1,0 +1,14 @@
+    Blocking waiting for file lock on build directory
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-7-upright/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.96s
+     Running tests/upright_lr7_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-7-upright/debug/deps/upright_lr7_compat-d61c41376c61075a)
+
+running 1 test
+LR-7 compatibility: 11420 bytes 35b9bf7bfe270b28
+LR-7 compatibility: 11199 bytes 01729e71086f5d4d
+LR-7 compatibility: 15228 bytes 14af73e31df40bc7
+LR-7 compatibility: 18101 bytes beb156c96528413e
+test unrelated_recipe_bytes_remain_identical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

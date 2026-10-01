@@ -122,3 +122,31 @@ Run with `CARGO_TARGET_DIR` outside the repository:
     cargo test -p import-lrcat --release
     cargo clippy -p import-lrcat --all-targets --all-features -- -D warnings
     cargo fmt --check
+
+## LR-7 Upright geometry
+
+The catalog adapter translates the selected `UprightTransform_1..5` CSV matrix
+into `settings.geometry.upright.homography`, a source-to-output 3×3 map in unit
+image coordinates. `PerspectiveUpright` uses the existing codec numbering:
+0 Off, 1 Auto, 2 Full, 3 Level, 4 Vertical, 5 Guided. The optional homography
+is omitted when absent; no format version changes. CPU geometry uses its inverse
+before manual transform/crop and after the inverse manual-transform step; saved
+matrices bypass image line detection. The resident lens plan uses the same map.
+
+Guided mode accepts `UprightFourSegmentsCount` (2–4) and a complete set of
+`UprightFourSegments_0..3` CSV endpoint coordinates (x1,y1,x2,y2 in [0,1]).
+Without a saved matrix, Tessera recomputes from the guides and reports that
+Adobe solver parity is not guaranteed. Existing Perspective Vertical,
+Horizontal, Rotate, Scale, Aspect, X and Y mappings are unchanged.
+
+Only successfully translated keys leave
+`recipe.unknown["lrcat_develop_source"].properties`. Inactive solutions, solver
+version/digest/center/focal metadata, unsupported representations and invalid
+matrices/guides remain exact Lua literals or XMP fragments. Matrix validation
+rejects nonfinite, singular and source-frame pole-crossing maps. Adobe render
+parity has not been measured; synthetic CPU tests check coordinate accuracy.
+
+Enabled `EnableDistractionRemoval`, `GenerativeRemove` and `GenerativeFill`
+produce a user-facing import report entry: "requires Adobe cloud; not
+translatable", with an explanation that rendered Adobe pixels are needed and
+a rendered TIFF export preserves their appearance. Source stays retained.
