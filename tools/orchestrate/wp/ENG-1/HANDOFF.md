@@ -1,8 +1,8 @@
 # ENG-1 — Texture/Clarity conditioning
 
-Branch: `wp/ENG-1-texture-clarity`. Local commits only; M1 is implemented, but merge is blocked by the unchanged 0.002 scaled guard detailed in ENG-1d below. No push, mailbox, board, dependency, lockfile, Swift gate, or app launch.
+Branch: `wp/ENG-1-texture-clarity`. Local commits only; M1 is implemented and the required gates are green under Machine A’s ENG-1e ruling below; ENG-4 owns the remaining tone-stage gap. No push, mailbox, board, dependency, lockfile, Swift gate, or app launch.
 
-**Current acceptance data is in the ENG-1d section below; preceding lane
+**Current acceptance data is in the ENG-1e section below; preceding lane
 measurements are retained as historical evidence.**
 
 ## Result
@@ -465,3 +465,74 @@ of the repository to:
 
 All ENG-1d commits end with the requested Claude Opus 5.5 co-author trailer.
 No Cargo.lock, board.json, dependency, or app changes; local commits only.
+
+
+## ENG-1e — ruled absolute bound and pinned tone baseline (2026-10-01)
+
+**Required gates green under Machine A option (a).** This section supersedes
+ENG-1d's scaled-guard blocker. Changes are committed locally on
+`wp/ENG-1-texture-clarity`, on top of `67e18d53`, without rebasing.
+Test commit: `d14f99b4bef071d4581a572446b7d2f7c70bad61`.
+
+### Ruling and regression pin
+
+In `resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha`, retire
+the full-chain 0.002 scaled guard and retain the existing **0.01 absolute**
+assertion. All-pixel finite RGB and bit-exact input alpha checks remain;
+CPU reference RGB is also checked for finiteness. Amount zero still checks
+bit-exact RGB identity.
+
+Add the same chain at amount 1 with only texture and clarity disabled and
+require **<= 0.005 absolute**. This explicitly pins the pre-existing tone gap,
+so the ruling is not a silent loosening. The test comment names **ENG-4**,
+records pixel 10703, blue, GPU 0.4546297 / CPU 0.45024467, and states that
+ENG-4 will close the tone-stage gap and then restore the full-chain guard to
+**0.002 scaled**. No production tone or presence math changed in this lane.
+
+### Reproduced measurements and stage isolation
+
+| Resident chain | Maximum absolute RGB gap |
+| --- | ---: |
+| Full chain, amount 0 | 0 |
+| Full chain, amount 0.35 | 0.0016056895 |
+| Full chain, amount 1 | 0.00458771 |
+| Presence disabled, amount 1 | 0.0043850243 |
+
+The release binary's stage-isolation rerun reproduced ENG-1d: encoded rich
+and rich-no-dehaze both peak at pixel 10703, blue, GPU 0.4807913 /
+CPU 0.4762036 (gap 0.00458771). Encoded rich-no-presence already has gap
+0.0043850243 at that pixel, GPU 0.4546297 / CPU 0.45024467. Encoded
+rich-no-sharpen is 0.000062949955. Linear-curve rich combinations are at most
+0.000018715858; standalone stages remain within 5e-6 and every rich stage
+passes its 0.01 assertion. These results preserve the attribution to the
+pre-existing tone precision limitation; ENG-4 is the numerical follow-up.
+
+### Actual-worktree gates
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/ENG-1-texture-clarity
+export CARGO_BUILD_JOBS=3
+export RAYON_NUM_THREADS=3
+unset ENG1_CAPTURE PIPELINE_RAW_FIXTURES PIPELINE_GPU_ALL_FIXTURES
+cargo clean --release -p pipeline-cpu -p pipeline-gpu -p filters
+cargo test -p pipeline-cpu -p pipeline-gpu -p filters --release --no-fail-fast
+cargo clippy -p pipeline-cpu -p pipeline-gpu -p filters --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+- Release clean: **exit 0**, 569 files / 1.2 GiB removed.
+- Full release run: **exit 0; 93 suites; 457 passed, 0 failed, 24 ignored,
+  0 measured, 0 filtered**. `camera_raw_gpu`: 10 passed, 1 ignored.
+- `white_balance_v2`: **3 passed**, no LibRaw -100009; no retry needed.
+- Measurement rerun of the built release binary, resident chain plus stage
+  isolation with `--nocapture`: **2 passed, 0 failed, 9 filtered**. This is
+  separate from the full-run counts above.
+- Clippy all targets with `-D warnings`: **exit 0** (LibRaw's existing native
+  compiler deprecation messages remain; no Rust clippy failure).
+- Fmt and `git diff --check`: **exit 0**.
+
+Local logs: `/tmp/tessera-eng1e/{clean,test,clippy,fmt,measurements}.log`.
+The subsequent docs commit changes only this handoff. Both ENG-1e commits
+carry the requested Claude Opus 5.5 co-author trailer. No Cargo.lock,
+board.json, dependency, app, or remote changes.
