@@ -644,4 +644,193 @@ mod perf1_tests {
         // A frozen preimplementation numerical oracle is a separate pending
         // runtime gate. This checks reuse/fallback parity, not kernel semantics.
     }
+    // Authored benchmark, UNRUN; timing scope and historical baseline gate in BENCHMARK-PLAN.md.
+    // No product changes. Requires the b64e5e00 private full-level style seam.
+    #[test]
+    #[ignore = "expensive release-only synthetic benchmark; requires exclusive runtime lane"]
+    fn perf1_serial_style_reuse_benchmark() {
+        use engine_api::{jobs::CancellationToken, tile::Tile};
+        use std::hint::black_box;
+        use std::time::{Duration, Instant};
+
+        if cfg!(debug_assertions) {
+            panic!("run with --release");
+        }
+        // Keep an accidental ignored-test sweep bounded to a small smoke fixture.
+        // The 14MP preset is explicit and uses the reported canvas/effect radii.
+        let preset = std::env::var("TESSERA_PERF1_PRESET").unwrap_or_else(|_| "smoke".into());
+        let extent = match preset.as_str() {
+            "smoke" => Extent::new(513, 259),
+            "14mp" => Extent::new(4608, 3072),
+            _ => panic!("TESSERA_PERF1_PRESET must be smoke or 14mp"),
+        };
+        let host = std::env::var("TESSERA_PERF1_HOST")
+            .expect("set TESSERA_PERF1_HOST to hardware/OS/RAM/power/load provenance");
+        let revision = std::env::var("TESSERA_PERF1_REVISION")
+            .expect("set TESSERA_PERF1_REVISION to exact git HEAD plus dirty-state description");
+        const CACHE_BYTES: usize = 64 << 20;
+        const WARMUPS: usize = 1;
+        const REPEATS: usize = 3;
+        let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
+        raster
+            .edit_region(crate::geom::Rect::of_extent(extent), 1, |x, y, p| {
+                // Resolution-independent dyadic alpha bands, interior hole, canvas edges;
+                // synthetic raster deliberately avoids fonts, catalogs and file decoding.
+                let ux = (u64::from(x) * 64 / u64::from(extent.width)) as u32;
+                let uy = (u64::from(y) * 64 / u64::from(extent.height)) as u32;
+                let inside = (2..62).contains(&ux)
+                    && (2..62).contains(&uy)
+                    && !((27..37).contains(&ux) && (23..41).contains(&uy));
+                let alpha = if inside {
+                    [0.25, 0.5, 0.75, 1.0][((ux + uy) % 4) as usize]
+                } else {
+                    0.0
+                };
+                *p = [0.125, 0.25, 0.5, alpha];
+            })
+            .unwrap();
+        let mut layer = Layer::new("PERF1 synthetic raster", LayerKind::Pixel(raster));
+        layer.props.styles.effects = vec![
+            styles::StyleEffect::DropShadow(styles::Shadow {
+                distance: 30.0,
+                size: 40.0,
+                spread: 0.0,
+                ..Default::default()
+            }),
+            styles::StyleEffect::OuterGlow(styles::Glow {
+                size: 30.0,
+                ..Default::default()
+            }),
+        ];
+        // Debug includes every default field and document lighting used by this build.
+        let settings = format!("{:?}", layer.props.styles);
+        let mut state = DocState::new(extent, Depth::F32);
+        let lighting = format!("{:?}", state.global_light);
+        state.root.push(Arc::new(layer));
+        let doc = Document::new(state);
+        let grid = extent.tile_grid(TILE_SIZE);
+        let expected_tiles = u64::from(grid.0) * u64::from(grid.1);
+        let expected_payload = u64::from(extent.width) * u64::from(extent.height) * 16 * 3;
+        assert!(
+            expected_payload <= 1 << 30,
+            "fixture must fit normal retained cap"
+        );
+        eprintln!(
+            "PERF1 host={host}; revision={revision}; arch={}; os={}; release=true; available_parallelism={:?}; RAYON_NUM_THREADS={:?}",
+            std::env::consts::ARCH,
+            std::env::consts::OS,
+            std::thread::available_parallelism(),
+            std::env::var("RAYON_NUM_THREADS")
+        );
+        eprintln!(
+            "PERF1 preset={preset}; extent={extent:?}; tiles={grid:?}; level=0; depth=F32; planar premultiplied output; fixture=dyadic-alpha-bands-hole-v1; cache_bytes={CACHE_BYTES}; style_cap_bytes={}; style_cap_entries=256; predicted_retained_bytes={expected_payload}; warmups_per_path={WARMUPS}; repeats_per_path={REPEATS}; settings={settings}; global_light={lighting}",
+            1usize << 30
+        );
+        eprintln!(
+            "PERF1 boundary=full-level premultiplied tile render, including style-pass drop; excludes fixture/compositor construction, output digest/drop, interleaving/encoding/app spans; new compositor per render; serial both paths; warmups warm code/allocator, not frame result cache; cap excludes scratch/metadata/output/compositor cache/RSS; fallback forfeits once-per-pass benefit"
+        );
+
+        // Source kernel and pixel execution remain identical; only frame reuse differs.
+        // The None path is the candidate's serial uncached control, NOT a frozen
+        // historical binary. Cross-revision baseline procedure is documented separately.
+        let render = |cached: bool| -> (Vec<Tile>, Duration, (u64, u64)) {
+            let compositor = Compositor::new(CACHE_BYTES);
+            let cancel = CancellationToken::new();
+            let start = Instant::now();
+            let tiles = if cached {
+                compositor.render_level_premultiplied(&doc, 0, &cancel)
+            } else {
+                compositor.render_level_premultiplied_with_styles(&doc, 0, &cancel, None)
+            }
+            .unwrap();
+            let elapsed = start.elapsed();
+            let counts = (
+                compositor
+                    .stats
+                    .source_raster_build_calls
+                    .load(Ordering::Relaxed),
+                compositor.stats.style_render_calls.load(Ordering::Relaxed),
+            );
+            // Compositor teardown is outside timing on both paths. No previous
+            // output/compositor is retained when the next timed render begins.
+            (tiles, elapsed, counts)
+        };
+        let digest = |tiles: &[Tile]| -> u64 {
+            tiles
+                .iter()
+                .flat_map(|t| t.samples::<f32>().unwrap())
+                .fold(0xcbf29ce484222325u64, |h, value| {
+                    (h ^ u64::from(value.to_bits())).wrapping_mul(0x100000001b3)
+                })
+        };
+        let expected_counts = |cached| {
+            if cached {
+                (1, 1)
+            } else {
+                (expected_tiles, expected_tiles)
+            }
+        };
+
+        // Full exact comparison is untimed. Two full outputs coexist only here;
+        // this raises validation peak memory, not timed-run resident peer output.
+        let (baseline, _, baseline_counts) = render(false);
+        let (candidate, _, candidate_counts) = render(true);
+        assert_eq!(baseline_counts, expected_counts(false));
+        assert_eq!(candidate_counts, expected_counts(true));
+        assert_eq!(baseline.len(), candidate.len());
+        for (a, b) in baseline.iter().zip(&candidate) {
+            assert_eq!(a.coord(), b.coord());
+            assert_eq!(a.layout(), b.layout());
+            let (aa, bb) = (a.samples::<f32>().unwrap(), b.samples::<f32>().unwrap());
+            assert_eq!(aa.len(), bb.len());
+            for (i, (&a, &b)) in aa.iter().zip(bb).enumerate() {
+                assert!(a.is_finite() && b.is_finite());
+                assert_eq!(a.to_bits(), b.to_bits(), "tile sample {i}");
+            }
+        }
+        let oracle_digest = digest(&baseline);
+        drop(baseline);
+        drop(candidate);
+        eprintln!(
+            "PERF1 untimed_all_bits_parity=pass; digest={oracle_digest:016x}; uncached_counts={baseline_counts:?}; cached_counts={candidate_counts:?}"
+        );
+
+        for _ in 0..WARMUPS {
+            for cached in [false, true] {
+                let (tiles, _, counts) = render(cached);
+                assert_eq!(counts, expected_counts(cached));
+                assert_eq!(black_box(digest(&tiles)), oracle_digest);
+                drop(tiles);
+            }
+        }
+        let mut durations = [Vec::new(), Vec::new()];
+        for repeat in 0..REPEATS {
+            // Alternate order to expose drift; report each observation as well as median.
+            for cached in if repeat % 2 == 0 {
+                [false, true]
+            } else {
+                [true, false]
+            } {
+                let (tiles, elapsed, counts) = render(cached);
+                let observed_digest = black_box(digest(&tiles));
+                drop(tiles);
+                assert_eq!(observed_digest, oracle_digest);
+                assert_eq!(counts, expected_counts(cached));
+                durations[usize::from(cached)].push(elapsed.as_secs_f64());
+                eprintln!(
+                    "PERF1 repeat={repeat}; cached={cached}; seconds={:.6}; counts={counts:?}; digest={observed_digest:016x}",
+                    elapsed.as_secs_f64()
+                );
+            }
+        }
+        for samples in &mut durations {
+            samples.sort_by(f64::total_cmp);
+        }
+        let uncached = durations[0][REPEATS / 2];
+        let cached = durations[1][REPEATS / 2];
+        eprintln!(
+            "PERF1 median_uncached_seconds={uncached:.6}; median_cached_seconds={cached:.6}; observed_ratio={:.4}; once_per_pass_invariant=pass; no_preselected_speed_threshold=true",
+            uncached / cached
+        );
+    }
 }
