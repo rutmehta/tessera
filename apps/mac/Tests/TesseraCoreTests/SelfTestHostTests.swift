@@ -18,10 +18,16 @@ final class SelfTestHostTests: XCTestCase {
         let doc = try XCTUnwrap(model.documents.current)
         doc.addAdjustment(.exposure)
         let window = SelfTestHost.makeWindow(model: model)
-        defer { window.close() }
+        defer { LayoutProbeHarness.dispose(window) }
         window.order(.below, relativeTo: 0)
         try await Task.sleep(for: .seconds(1))
         let failures = await FilterLayoutReproduction.run(model: model, window: window)
+        // Cancel is published asynchronously. Detach the hosting tree only after its sheet
+        // has dismissed so its geometry callbacks cannot pollute later inspector tests.
+        for _ in 0..<100 where window.attachedSheet != nil {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertNil(window.attachedSheet)
         XCTAssertTrue(failures.isEmpty, failures.joined(separator: "; "))
     }
 
