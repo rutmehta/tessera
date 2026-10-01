@@ -24,7 +24,7 @@ fn lr3_synthetic_catalog_clone_pixels() {
         .unwrap()
         .recipe;
     assert_eq!(recipe.settings.locals.retouch.len(), 1);
-    assert!(recipe.unknown.get("lrcat_develop_source").is_none());
+    assert!(!recipe.unknown.contains_key("lrcat_develop_source"));
     let op = &recipe.settings.locals.retouch[0];
     let RetouchTarget::Area { components } = &op.target else {
         panic!()
@@ -73,8 +73,8 @@ fn lr3_synthetic_catalog_clone_pixels() {
     let center = image.pixel(32, 40)[0];
     let shoulder = image.pixel(38, 40)[0];
     assert!((center - 0.5).abs() < 1e-5, "opacity: {center}");
-    // r=8 px, hardness=.5; shoulder at sqrt(6.5^2+.5^2) is soft.
-    assert!(shoulder > 0.02 && shoulder < 0.35, "feather: {shoulder}");
+    // Hand reference: 0.5*smoothstep((8.5-sqrt(6.5^2+0.5^2))/5).
+    assert!((shoulder - 0.17323937).abs() < 1e-5, "feather: {shoulder}");
     assert_eq!(image.pixel(41, 40)[0], 0.0);
     let (mut mass, mut mx, mut my) = (0.0, 0.0, 0.0);
     for y in 0..80 {
