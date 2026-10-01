@@ -64,7 +64,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `ConvertToGrayscale` | `/settings/color/monochrome/enabled` | LR-2 | approximate | `true` |
 | `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic | — |
 | `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
-| `DepthMapInfo` | MISSING: imported depth resource reference/calibration; LensBlur.depth_model identifies a model | LR-2 | unsupported-diagnostic | — |
+| `DepthMapInfo` | MISSING: imported depth resource reference/calibration; LR-6 regeneration bookkeeping RED | LR-6 | unsupported-diagnostic | — |
 | `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic | — |
 | `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
@@ -87,7 +87,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `HighlightRecovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
 | `IncrementalTemperature` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
 | `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
-| `LensBlur` | `/settings/effects/lens_blur` | LR-6 | retained | — |
+| `LensBlur` | `/settings/effects/lens_blur` (LR-6 Lua/XMP acceptance RED; full-fidelity source contract unresolved) | LR-6 | retained | — |
 | `LensProfileIsEmbedded` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic | — |
 | `MaskGroupBasedCorrections` | `/settings/locals/adjustments` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
@@ -207,6 +207,11 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   It lacks an imported depth-map handle/calibration, detailed Adobe bokeh controls
   and dedicated regenerated-depth provenance. A model reference is not a depth
   raster. Existing native/simple XMP decoding does not settle Adobe fidelity.
+  The 2026-10-01 binding assignment moves `DepthMapInfo` to LR-6. Synthetic
+  Lua/XMP translation and regeneration-bookkeeping probes are committed RED;
+  neither row is promoted to translated. See
+  `tools/orchestrate/wp/LR-6/HANDOFF.md` for source-contract blockers and the
+  existing `image-core::DepthProvider` inference/injection seam.
 - **LR-7:** optional `geometry.upright.homography` stores a unit-image
   source-to-output map, tagged by `homography_mode`. Selected matrices,
   center/focal framing and complete four-segment guide sets are approximate.
