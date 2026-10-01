@@ -15,6 +15,10 @@ Everything in a Lightroom Classic catalog's develop settings converts into Tesse
 - B (Machine B) owns `crates/import-lrcat` performance (B5-29c) and keeps recipe output byte-identical for existing inputs. Your lanes ADD translation in the codec/recipe layer and in `import-lrcat` mapping tables; coordinate on `lua_develop.rs` / `xmp.rs` edits through the coordinator to avoid conflicts (small, additive hunks only; rebase-free merges of main).
 - Each lane ends with: unit tests, a synthetic end-to-end import test proving the recipe field is populated and renders (CPU path), clippy `-D warnings`, fmt, and the HANDOFF.
 
+## Source contract (from B5-29c, Machine B)
+
+For every Adobe key that the current decoder does not translate, `import-lrcat` retains the exact source value UNCONDITIONALLY in `recipe.unknown["lrcat_develop_source"]`, a map keyed by the Adobe key (Lua rows: the exact Lua value; XMP rows: the exact XMP fragment). Your lanes read from there and translate into recipe fields; when a lane lands, its key moves from "retained" to "translated" in the matrix. Until 29c's fix lands, treat the key name as provisional and confirm against `crates/import-lrcat/README.md` on main.
+
 ## Lanes (parallelizable; dependency noted)
 
 LR-0 Inventory and plan (first, source-only, 1 worker): for every key the import reports unknown/unsupported, map it to an existing recipe field (`crates/engine-api/src/recipe/`), or state what is missing. Produce `docs/coordination/LR-TRANSLATION-MATRIX.md`: Adobe key → recipe path → lane → status. Reviewed by the coordinator before LR-1+ start implementation (they may start RED tests in parallel).
