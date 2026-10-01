@@ -107,3 +107,132 @@ The tests establish the bounds on the specified synthetic scenes, not on every p
 No Adobe-key translation, recipe schema, Lua/XMP parsing, FFI, or retained-source handling changed. In particular, `recipe.unknown["lrcat_develop_source"]` remains untouched. There are no newly unrepresentable settings in this lane.
 
 The 2,000-image synthetic retained-source golden retained digest `d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8`. The streaming/JSON byte-identity tests pass. The synthetic 20,000-image scale test passed: counted Rust peak heap 31 MB at 2k, 51 MB at 20k inspect, 51 MB at 20k streaming; inspect 38.819533458 s and stream 45.252138625 s under shared load. Recipe bytes and source retention are unchanged; only rendering near the presence floor changes.
+
+## ENG-1b — approved golden attribution and acceptance (2026-10-01)
+
+This follow-up supersedes the earlier RAW blocked-coverage paragraph. The user
+authorized reading the repository photographic fixtures and accepting golden
+changes only when every changed pixel belongs to the conditioning fix's
+support. Work remains on `wp/ENG-1-texture-clarity`, directly on `67912fef`,
+without rebase or push. No production renderer, dependency, Cargo.lock, board,
+app, or real Lightroom catalog changes/access were made in ENG-1b.
+
+### Test-first and accepted changes
+
+- `927c94f1` — `test(ENG-1b):` adds deterministic attribution/capture tooling,
+  per-pixel reports, and persistent pre-fix synthetic references. The prior
+  synthetic tests had runtime parity references only, not stored files.
+- RED: all three new stored-reference profile assertions failed against the
+  fixed renderer, at full-opacity maxima 0.20692861 (sRGB), 0.19836733 (P3),
+  and 0.19964510 (Adobe RGB), exit 101.
+- `cd3451c8` — `fix(ENG-1b):` accepts only the six affected reference files,
+  with [acceptance report](conditioning/ACCEPTANCE.md). Zero-opacity references
+  and all photographic PNGs are unchanged. Two test loops were adjusted to
+  `as_chunks` to satisfy the current clippy lint; no tolerance was weakened.
+- This `docs(ENG-1b):` commit appends the final handoff. Every ENG-1b commit
+  ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+### Predicate, evidence, and per-golden table
+
+The [reproducible audit](conditioning/audit.py) builds pre-fix and fixed
+operators in a disposable source tree and compares every final encoded RGBA
+f32 bit pattern. The historical operator is pinned to
+`d01723659a7a6193ad1e323b311a56f72f7411f7`; the audit verifies that the only
+production difference is the authorized divisor floor and its declaration.
+Production instrumentation is confined to the disposable tree. It records
+active pre-fix divisors, preserving the original nonpositive and unchanged-log
+bypasses. All output samples must be finite and alpha must remain bit-exact.
+
+For each changed pixel p, the predicate is: there exists an active pre-fix
+pixel s with `0 < abs(L_s) < 1e-3` and Chebyshev distance `d(p,s) <= 11`.
+The sole seed is pixel index 2101, `(29,8)`. Its pre-fix luminance is
+0.0004458632320165634 (sRGB), 0.0004458688199520111 (P3), or
+0.0004458613693714142 (Adobe RGB).
+
+The radius comes from `tone_extra.rs::dehaze`: radius-3 dark-channel minimum,
+then two radius-4 means in `guided`, giving 3 + 2*4 = **11**. Presence's initial
+changed divide is pointwise, since both versions compute the same bands first.
+The audit verifies that the final global dehaze airlight RGB and confidence
+are bit-identical, so those statistics do not create image-wide support.
+The remaining configured color, linear-mask local exposure/saturation,
+vignette, coordinate-generated grain, profile transform, and opacity blend
+are pointwise; geometry is identity. See the full
+[operator proof](conditioning/README.md).
+
+Opacity 0.35 reuses the full-opacity developed-image cache; its report explicitly
+names the full-opacity `trace_source`. Only the final encoded blend differs.
+Opacity zero bypasses Develop and has an empty seed set.
+
+| Golden | Amount | Changed pixels / 4,403 | Max absolute encoded channel delta | Outside predicate |
+| --- | ---: | ---: | ---: | ---: |
+| sRGB | 1 | 64 | 0.2069286108 | 0 |
+| sRGB | 0.35 | 63 | 0.0724250674 | 0 |
+| sRGB | 0 | 0 | 0 | 0 |
+| Display P3 | 1 | 79 | 0.1983673275 | 0 |
+| Display P3 | 0.35 | 79 | 0.0694285631 | 0 |
+| Display P3 | 0 | 0 | 0 | 0 |
+| Adobe RGB | 1 | 87 | 0.1996451020 | 0 |
+| Adobe RGB | 0.35 | 85 | 0.0698757768 | 0 |
+| Adobe RGB | 0 | 0 | 0 | 0 |
+
+**PASS: all 457 changed pixels satisfy the predicate; no blockers.** The measured
+maximum distance is 8, inside the justified bound of 11. The committed
+[per-pixel report](conditioning/report.json) lists every changed pixel's
+index, nearest-seed distance, and predicate result, exact divisor/global bits,
+and SHA-256 of both captures. Recomparison of the baseline files in `927c94f1`
+to the accepted files reproduced that report exactly. No attribution tolerance
+is used. The normal stored-reference tests retain the existing 1e-4 encoded
+portability tolerance in addition to their original runtime parity assertions.
+
+### Photographic RAW goldens
+
+Repository inventory identifies `pipeline-cpu/tests/golden.rs::raw_fixture_goldens`
+as the stored photographic Develop golden test. It ran against every file in
+`fixtures/raw`, with the symlink left in place. Both pre-fix and fixed runs
+passed exact RGB8 comparison against all five stored PNGs. Before/after
+renders are also byte-identical. Existing golden settings have neutral
+texture/clarity, so their conditioning support is empty. No RAW golden updates
+were necessary or performed.
+
+| RAW / stored PNG | Pixels | Changed vs stored PNG | Max delta vs PNG | Changed pre/post fix | Max pre/post delta | Result |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Canon CR3 / canon-cr3 | 250,000 | 0 | 0/255 | 0 | 0/255 | PASS |
+| Fuji RAF / fuji-raf | 249,696 | 0 | 0/255 | 0 | 0/255 | PASS |
+| Nikon NEF / nikon-nef | 568,568 | 0 | 0/255 | 0 | 0/255 | PASS |
+| DNG / sample | 282,968 | 0 | 0/255 | 0 | 0/255 | PASS |
+| Sony ARW / sony-arw | 252,150 | 0 | 0/255 | 0 | 0/255 | PASS |
+
+See [RAW report](conditioning/raw-report.json). The final normal release gate
+also reran the photographic goldens and confirmed the same zero deltas.
+
+### Final gates and reproduction
+
+All Cargo runs used the requested PATH, external target directory,
+`CARGO_BUILD_JOBS=3`, and `RAYON_NUM_THREADS=3`. Normal gates unset
+`ENG1_CAPTURE`, `PIPELINE_RAW_FIXTURES`, and `PIPELINE_GPU_ALL_FIXTURES`.
+
+```sh
+cargo test --locked --release -p pipeline-cpu -p filters -- --nocapture --test-threads=3
+cargo clippy --locked --all-targets -p pipeline-cpu -p filters -- -D warnings
+cargo fmt --all -- --check
+python3 -m unittest discover -s tools/orchestrate/wp/ENG-1/conditioning -v
+python3 tools/orchestrate/wp/ENG-1/conditioning/audit.py --output /tmp/eng1b-fresh
+# Recheck completed captures without rebuilding:
+python3 tools/orchestrate/wp/ENG-1/conditioning/audit.py --verify-captures --output /tmp/eng1b-audit
+```
+
+- Final release gate: exit 0, **55 suites, 314 passed, 0 failed, 11 ignored,
+  0 filtered**, after the final test-loop lint changes.
+- Clippy all targets with warnings denied: exit 0.
+- Fmt and `git diff --check`: exit 0.
+- Attribution unit tests: **3 passed**, including one-ulp rejection outside
+  support, inclusive diagonal boundary acceptance, and empty-support rejection.
+- Both isolated render builds passed all 3 synthetic tests and the photographic
+  test covering all 5 files. The final capture verifier passed and regenerated
+  both committed JSON reports byte-for-byte. The initial tracer needed explicit
+  cache provenance for opacity 0.35; the completed verifier uses the documented
+  shared full-opacity render trace and retains the same radius.
+
+The original ENG-1 standalone ignored tone-precision diagnostic remains outside
+this golden-only follow-up; no claim is made that ENG-1b fixes it. The 11 ignored
+release tests retain their existing status.
