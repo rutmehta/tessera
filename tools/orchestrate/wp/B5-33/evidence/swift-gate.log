@@ -1,0 +1,10 @@
+    Finished `release` profile [optimized] target(s) in 0.93s
+     Running `/Users/rutmehta/.cache/tessera-target/B5-33/release/uniffi-bindgen generate --library /Users/rutmehta/.cache/tessera-target/B5-33/release/libtessera_ffi.dylib --language swift --out-dir /Users/rutmehta/Developer/lightroom/.worktrees/B5-33/apps/mac/build/ffi`
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-33/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+Build complete! (95.79s)
+	 Executed 863 tests, with 3 tests skipped and 1 failure (0 unexpected) in 500.887 (501.142) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.073 seconds.
+SWIFT GATE FAILED (exit 1):
+ShellLayoutTests.testDocumentInspectorEveryTabAndHistoryStateAtEverySize
+
+GATE_EXIT=1

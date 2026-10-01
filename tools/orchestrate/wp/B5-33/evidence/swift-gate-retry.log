@@ -1,0 +1,6 @@
+Build complete! (19.99s)
+	 Executed 863 tests, with 3 tests skipped and 0 failures (0 unexpected) in 363.157 (363.263) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.026 seconds.
+SWIFT GATE OK
+
+GATE_EXIT=0

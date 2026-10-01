@@ -1,0 +1,250 @@
+{
+  "counts": {
+    "all_samples": 842144,
+    "worker_samples": 841294,
+    "export_run_worker_samples": 1647,
+    "main_samples": 850
+  },
+  "main_inclusive": [
+    [
+      "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+      761
+    ],
+    [
+      "ReceiveNextEventCommon",
+      761
+    ],
+    [
+      "_DPSBlockUntilNextEventMatchingListInMode",
+      761
+    ],
+    [
+      "_BlockUntilNextEventMatchingListInMode",
+      761
+    ],
+    [
+      "_DPSNextEvent",
+      761
+    ],
+    [
+      "runApp<A>(_:)",
+      760
+    ],
+    [
+      "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+      760
+    ],
+    [
+      "NSApplicationMain",
+      760
+    ],
+    [
+      "specialized runApp(_:)",
+      760
+    ],
+    [
+      "-[NSApplication run]",
+      760
+    ],
+    [
+      "static TesseraApp.$main()",
+      759
+    ],
+    [
+      "start",
+      759
+    ],
+    [
+      "static App.main()",
+      759
+    ],
+    [
+      "RunCurrentEventLoopInMode",
+      752
+    ],
+    [
+      "_CFRunLoopRunSpecificWithOptions",
+      735
+    ],
+    [
+      "__CFRunLoopRun",
+      522
+    ],
+    [
+      "UC::DriverCore::continueProcessing()",
+      365
+    ],
+    [
+      "CA::Transaction::commit()",
+      359
+    ],
+    [
+      "<deduplicated_symbol>",
+      351
+    ],
+    [
+      "__CFRunLoopDoSources0",
+      346
+    ],
+    [
+      "__CFRunLoopDoSource0",
+      345
+    ],
+    [
+      "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+      345
+    ],
+    [
+      "CA::Transaction::flush_as_runloop_observer(bool)",
+      314
+    ],
+    [
+      "stepTransactionFlush",
+      312
+    ],
+    [
+      "CA::Transaction::run_commit_handlers(CATransactionPhase)",
+      296
+    ],
+    [
+      "NSDisplayCycleFlush",
+      295
+    ],
+    [
+      "NSDisplayCycleObserverInvoke",
+      294
+    ],
+    [
+      "NSPerformVisuallyAtomicChange",
+      277
+    ],
+    [
+      "AG::Graph::UpdateStack::update()",
+      268
+    ],
+    [
+      "0x19e843f74",
+      246
+    ],
+    [
+      "0x19e843f4c",
+      245
+    ],
+    [
+      "__NSWindowGetDisplayCycleObserverForLayout_block_invoke",
+      228
+    ],
+    [
+      "__CFRunLoopDoObservers",
+      227
+    ],
+    [
+      "-[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]",
+      227
+    ],
+    [
+      "-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]",
+      226
+    ],
+    [
+      "__56-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]_block_invoke",
+      226
+    ],
+    [
+      "-[NSView layoutSubtreeIfNeeded]",
+      226
+    ],
+    [
+      "-[NSWindow(NSConstraintBasedLayoutInternal) _layoutViewTree]",
+      224
+    ],
+    [
+      "__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke",
+      219
+    ],
+    [
+      "_NSViewLayout",
+      218
+    ],
+    [
+      "-[NSView _layoutSubtreeWithOldSize:]",
+      218
+    ],
+    [
+      "___NSViewLayout_block_invoke",
+      217
+    ],
+    [
+      "0x19e8084a4",
+      214
+    ],
+    [
+      "0x19e8078e8",
+      214
+    ],
+    [
+      "specialized GraphHost.runTransaction(_:do:id:)",
+      210
+    ],
+    [
+      "__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__",
+      208
+    ],
+    [
+      "AG::Subgraph::update(unsigned int)",
+      199
+    ],
+    [
+      "ViewGraphRootValueUpdater._updateViewGraph<A>(body:)",
+      195
+    ],
+    [
+      "closure #1 in static Update.ensure<A>(_:)",
+      190
+    ],
+    [
+      "static Update.ensure<A>(_:)",
+      190
+    ],
+    [
+      "GraphHost.flushTransactions()",
+      189
+    ],
+    [
+      "@objc closure #1 in static NSRunLoop.addObserver(_:)",
+      182
+    ],
+    [
+      "specialized static NSRunLoop.flushObservers()",
+      179
+    ],
+    [
+      "ViewGraphRootValueUpdater.updateGraph<A>(body:)",
+      166
+    ],
+    [
+      "partial apply for closure #1 in closure #1 in closure #1 in NSHostingView.beginTransaction()",
+      160
+    ],
+    [
+      "partial apply for closure #1 in closure #1 in NSHostingView.beginTransaction()",
+      160
+    ],
+    [
+      "closure #1 in closure #1 in closure #1 in NSHostingView.beginTransaction()",
+      160
+    ],
+    [
+      "partial apply for closure #1 in ViewGraphRootValueUpdater.updateGraph<A>(body:)",
+      160
+    ],
+    [
+      "NSHostingView.layout()",
+      158
+    ],
+    [
+      "@objc NSHostingView.layout()",
+      158
+    ]
+  ]
+}
