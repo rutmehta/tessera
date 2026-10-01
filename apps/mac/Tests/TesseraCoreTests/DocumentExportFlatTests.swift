@@ -321,17 +321,14 @@ final class DocumentExportFlatTests: XCTestCase {
         let events = trace.snapshot().events
         let setup = try XCTUnwrap(events.first { $0.name == "export_flat_setup_end" })
         XCTAssertTrue(setup.mainThread)
-        let measureTiming = ProcessInfo.processInfo.environment["TESSERA_FILTER_PERF"] != nil
-        if measureTiming { XCTAssertLessThan(try XCTUnwrap(setup.durationMs), 100) }
+        XCTAssertLessThan(try XCTUnwrap(setup.durationMs), 100)
         for name in ["export_flat_progress_end", "export_flat_completion_end"] {
             let updates = events.filter { $0.name == name }
             XCTAssertFalse(updates.isEmpty, "Missing timing coverage for \(name)")
             for event in updates {
                 XCTAssertTrue(event.mainThread)
-                if measureTiming {
-                    XCTAssertLessThan(try XCTUnwrap(event.durationMs), 100,
-                                      "Opt-in UI publication timing bound")
-                }
+                XCTAssertLessThan(try XCTUnwrap(event.durationMs), 100,
+                                  "UI publication must remain short even on a loaded test host")
             }
         }
         let work = events.filter { $0.name == "export_flat_work_start" }
@@ -457,10 +454,8 @@ final class DocumentExportFlatTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(next.time - previous.time, 0.095,
                                         "Progress must coalesce to at most 10 Hz, including phase changes")
         }
-        if measureTiming {
-            for event in events where event.mainThread && event.durationMs != nil {
-                XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
-            }
+        for event in events where event.mainThread && event.durationMs != nil {
+            XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
         }
         if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
             try await Task.detached { try trace.write(to: URL(fileURLWithPath: path)) }.value
