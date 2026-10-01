@@ -1,0 +1,5 @@
+Build complete! (38.49s)
+	 Executed 2 tests, with 2 tests skipped and 0 failures (0 unexpected) in 0.352 (0.352) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.024 seconds.
+SWIFT GATE FAILED (exit 1):
+DocumentAdaptiveWideAngleTests.testOKSurfacesAFailedFinalTrace
