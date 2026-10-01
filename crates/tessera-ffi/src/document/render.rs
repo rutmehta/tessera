@@ -2,7 +2,7 @@
 //! compositor → straight-alpha RGBA8 IOSurface), the CPU fallback and
 //! thumbnails.
 
-use super::{DocFrameInfo, DocRect, Shared, State, find, layer_revision, raster_from_rgba};
+use super::{DocFrameInfo, DocRect, Shared, find, layer_revision, raster_from_rgba};
 use crate::{Result, failure, surface::Surface};
 use compositor::{
     BlendMode, Compositor, DocState, Document, Fill, Knockout, Layer, LayerKind, Rect,
@@ -38,6 +38,7 @@ pub(crate) struct Viewport {
 }
 
 /// Presentation state kept with the document state.
+#[derive(Clone)]
 pub(crate) struct View {
     pub surfaces: Vec<Arc<Surface>>,
     /// Ring position of the next frame.
@@ -495,6 +496,21 @@ impl Signal {
     fn request_frame(&mut self) {
         self.frame = true;
         self.since.get_or_insert_with(Instant::now);
+    }
+
+    /// Requests queued before the worker captures document/view state are
+    /// included in that snapshot. Consume only those, while the session state
+    /// lock still excludes edits. Requests after snapshotting remain pending.
+    fn snapshot_taken(&mut self, cancel: &CancellationToken) {
+        if !cancel.is_cancelled()
+            && self
+                .active_frame
+                .as_deref()
+                .is_some_and(|active| std::ptr::eq(active, cancel))
+        {
+            self.frame = false;
+            self.since = None;
+        }
     }
 
     /// Real invalidation (surface ring replaced or released, session
@@ -1040,6 +1056,7 @@ fn present_frame(
     let (level, src, zoom) = resolve(st.view.viewport, canvas, surface.width(), surface.height());
     let epoch = st.epoch;
     let generation = st.view.generation;
+    r.signal().snapshot_taken(cancel);
     drop(st);
     let unlocked = Instant::now();
     let le = canvas.at_level(level);
@@ -1312,7 +1329,7 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
     // B5-14: `stable` documents keep their cache key across calls, so the
     // persistent thumbnail compositor reuses their layers' mips.
     let (rev, doc, stable) = {
-        let st: std::sync::MutexGuard<'_, State> = shared.lock()?;
+        let st = shared.lock()?;
         st.open()?;
         let live = st.live();
         let s = live.state();
@@ -1568,13 +1585,37 @@ mod frame_cancellation_tests {
     }
 
     #[test]
+    fn eng2_snapshot_coalescing_preserves_later_and_replacement_requests() {
+        let mut signal = Signal::default();
+        let first = signal.begin_frame();
+        signal.request_frame();
+        signal.snapshot_taken(&first);
+        assert!(!signal.frame);
+        // An edit after the snapshot must still render when this frame ends.
+        signal.request_frame();
+        assert!(signal.finish_frame(&first));
+        assert!(signal.frame);
+        let next = signal.begin_frame();
+        signal.cancel_frame();
+        // A replaced ring cancels this token and queues its replacement.
+        // The cancelled worker must not consume that replacement request.
+        signal.snapshot_taken(&next);
+        assert!(signal.frame);
+        assert!(!signal.finish_frame(&next));
+    }
+
+    #[test]
     #[cfg(target_os = "macos")]
     fn eng2_requests_before_snapshot_do_not_render_twice() {
         let dir = tempfile::tempdir().unwrap();
-        let engine = crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
         let session = engine.adopt_document(tiny_document(), "synthetic".into());
         let mut state = session.shared.lock().unwrap();
-        state.view.surfaces.push(Arc::new(Surface::create_rgba8(3, 2).unwrap()));
+        state
+            .view
+            .surfaces
+            .push(Arc::new(Surface::create_rgba8(3, 2).unwrap()));
         let renderer = &session.shared.render;
         renderer.request(Vec::new(), false, 0);
         // The worker has claimed the first request but cannot snapshot until
@@ -1588,7 +1629,11 @@ mod frame_cancellation_tests {
         renderer.request(Vec::new(), false, 0);
         drop(state);
         session.wait_idle();
-        assert_eq!(renderer.records().len(), 1, "duplicate frame for requests already captured by one snapshot");
+        assert_eq!(
+            renderer.records().len(),
+            1,
+            "duplicate frame for requests already captured by one snapshot"
+        );
     }
 
     #[test]

@@ -170,7 +170,7 @@ fn styles_op(s: &compositor::DocState, id: u64, styles: LayerStyles) -> Result<D
 impl DocumentSession {
     /// The layer's styles as `LayerStyles` JSON (live state: shows a drag).
     pub fn layer_styles_json(&self, layer: u64) -> Result<String> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         let l = find(st.live().state(), layer)?;
         serde_json::to_string(&l.props.styles).map_err(failure)
     }
@@ -193,7 +193,7 @@ impl DocumentSession {
 
     /// Every layer with at least one effect, in `layers()` order.
     pub fn layer_style_summaries(&self) -> Result<Vec<LayerStyleSummary>> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         let mut out = Vec::new();
         fn go(v: &[std::sync::Arc<Layer>], out: &mut Vec<LayerStyleSummary>) {
             for l in v.iter().rev() {
@@ -211,7 +211,7 @@ impl DocumentSession {
 
     /// The document's Global Light (live state).
     pub fn global_light(&self) -> Result<GlobalLightRecord> {
-        let st = self.shared.lock()?;
+        let st = self.shared.read()?;
         let g = st.live().state().global_light;
         Ok(GlobalLightRecord {
             angle: g.angle,

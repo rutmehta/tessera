@@ -349,9 +349,9 @@ pub(crate) struct ToolState {
     clone_source: Option<(u64, f32, f32)>,
     /// Selection before an interactive Refine Edge.
     refine_base: Option<Arc<Raster>>,
-    /// Outline of the last selection asked for: `(selection, level, outline)`.
-    outline: Option<(Weak<Raster>, u8, Arc<Vec<OutlinePolyline>>)>,
 }
+
+pub(super) type OutlineCache = Option<(Weak<Raster>, u8, Arc<Vec<OutlinePolyline>>)>;
 
 struct ActiveStroke {
     layer: u64,
@@ -2041,7 +2041,7 @@ impl DocumentSession {
     /// per selection and level.
     pub fn selection_outline(&self, level: u8) -> Result<Vec<OutlinePolyline>> {
         let (sel, canvas) = {
-            let st = self.shared.lock()?;
+            let st = self.shared.read()?;
             st.open()?;
             let s = st.live().state();
             (s.selection.clone(), s.canvas)
@@ -2054,8 +2054,8 @@ impl DocumentSession {
             .min(compositor::render::MAX_LEVEL - 1)
             .max(analysis_level(canvas, 8_000_000));
         {
-            let st = self.shared.lock()?;
-            if let Some((w, l, o)) = &st.tools.outline
+            let cached = self.shared.outline.lock().map_err(failure)?;
+            if let Some((w, l, o)) = &*cached
                 && *l == level
                 && w.upgrade().is_some_and(|w| Arc::ptr_eq(&w, &sel))
             {
@@ -2078,8 +2078,8 @@ impl DocumentSession {
                 closed: p.closed,
             })
             .collect();
-        let mut st = self.shared.lock()?;
-        st.tools.outline = Some((Arc::downgrade(&sel), level, Arc::new(out.clone())));
+        *self.shared.outline.lock().map_err(failure)? =
+            Some((Arc::downgrade(&sel), level, Arc::new(out.clone())));
         Ok(out)
     }
 
