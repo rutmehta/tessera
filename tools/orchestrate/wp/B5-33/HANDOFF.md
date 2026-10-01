@@ -171,3 +171,69 @@ expat extension failed to load).
   actual 4K viewport assertion and timing-output flush.
 - The final docs commit carries this handoff and compact evidence. All commits include the requested
   co-author trailer and are local only.
+
+## Machine A review follow-up (B1, 2026-10-01)
+
+Commits are on top of reviewed `fa328da1`; no rebase. The earlier implementation and
+measurements above describe the reviewed baseline, not a new performance measurement.
+
+- RED commit `3850f72f`: added the tool-options geometry probe and reused `ShellHarness`
+  at 960×600, 1280×800, 1440×900 and 1728×1117, with one and two concurrent exports.
+  `swift test -c release -Xswiftc -enable-testing --filter 'ShellLayoutTests.testExportHUD'`
+  exited 1: **2 tests, 30 assertion failures (0 unexpected)**. Representative RED lines:
+  - `XCTAssertFalse failed - 960x600 export HUD overlaps inspector header`
+    (also at all three larger sizes).
+  - `XCTAssertTrue failed - HUD container must be exposed to AX`.
+  - `XCTAssertNotNil failed - HUD belongs to the exporting document window`.
+  - `XCTAssertNil failed ... HUD must not use another window`.
+  - Cancel labels were `Cancel`, rather than `Cancel export of first.png` / `second.png`.
+  The tests also assert no overlap with the tool-options bar, containment in the viewport,
+  click ownership, and unchanged viewport/window content geometry.
+- Chosen design: a native rounded lower-right viewport HUD, at most 400 pt wide with
+  two-line 64 pt rows, above the transient zoom chip. It takes no layout space and consumes
+  background mouse/scroll events; each row keeps its native Cancel button. Exports capture
+  their own viewport when started and group progress by that host, so later main-window
+  changes cannot move the overlay. An explicit unordered-test-window fallback remains for
+  the original B5-33 geometry/worker regression; real document viewports take precedence.
+- The container is an exposed AX group identified by `document-export-progress`; every
+  Cancel button's AX label includes its export file name.
+- Replaced the export worker's release-crashing precondition with a debug `assert`;
+  retained the existing off-main execution test.
+- Removed both tracked raw `spans.json` files (about 216 KB combined). Their compact
+  `span-summary.json` files remain, as do the named-span maxima and counts above.
+
+### Deferred measurement leads from A
+
+Do not infer P16 acceptance from this layout fix. Re-measure on a quiet machine later:
+
+1. Label-text changes on each progress tick can invalidate layout. Manual frame placement
+   does not prove that label publication avoids later AppKit layout work.
+2. Export setup takes the document-session lock for about 7.9–10 ms, so main can wait
+   behind a render. Investigate that contention in a separate measurement/package.
+
+Neither lead is addressed or re-profiled in this follow-up. P16 and the historical P19
+exception remain open. No Rust, board.json or Cargo.lock changes, app launch, or push.
+
+### Follow-up verification and commits
+
+- `3850f72f` — test(B5-33): RED layout/AX/window-routing coverage.
+- `f4e2f255` — fix(B5-33): viewport HUD and debug-only worker assertion.
+- Selected GREEN: **11 tests, zero failures**, including both new HUD tests, all eight
+  `DocumentExportFlatTests` (original geometry/off-main regression included), and theme lint.
+- Required serial command executed with the prescribed PATH and B5-33 Cargo target:
+  `cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh`.
+  FFI build and Swift build passed. The full gate did **not** print `SWIFT GATE OK`.
+- The gate recorded `MasksPanelLayoutTests.testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth`
+  failing at line 88: `XCTUnwrap failed: expected non-nil value of type CGImageSourceRef`.
+  Its capture helper printed `could not create image from window`; the PNG did not exist.
+  Both new HUD tests passed within this full run. The run later stopped making progress;
+  a sample of this worktree's exact xctest PID showed main waiting in XCTest and the
+  dispatch soft limit of 80 threads blocked in AppKit `NSAnimation._runBlocking`.
+  After preserving the log/sample, only that test process was terminated. Gate exit was 1.
+- Isolated unchanged `MasksPanelLayoutTests` retry also failed (1 test, 1 assertion failure)
+  with the same capture error. Read-only environment checks then returned
+  `CGPreflightScreenCaptureAccess() == true` and `CGSSessionScreenIsLocked == 1`.
+  **The Mac must be unlocked before retrying the unchanged full gate.** No capture assertion
+  was skipped, weakened, or replaced, and no screen unlock or GUI app launch was attempted.
+- Compact RED/GREEN/gate/capture diagnostics are in `evidence/review-verification.log`.
+  The gate remains unaccepted pending an unlocked-session run; this is not merge acceptance.
