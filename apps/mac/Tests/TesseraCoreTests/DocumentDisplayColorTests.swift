@@ -2,6 +2,7 @@ import AppKit
 import CoreGraphics
 import IOSurface
 import Metal
+import QuartzCore
 import XCTest
 import TesseraFFI
 @testable import Tessera
@@ -114,10 +115,14 @@ final class DocumentDisplayColorTests: XCTestCase {
         XCTAssertEqual(icc(image.colorSpace), profile, "the pane carries the document profile")
         XCTAssertTrue(sameColors(image.colorSpace, doc.displayColor.space))
         XCTAssertFalse(sameColors(image.colorSpace, CGColorSpace(name: CGColorSpace.sRGB)!), "and not sRGB")
-        // The canvas: the layer is tagged with the profile, surfaces are sampled without an sRGB decode.
+        // The canvas decodes sRGB transfer curves and tags the linearized document primaries.
         let v = viewport(doc)
-        XCTAssertEqual(icc(v.layerColorSpace), profile)
-        XCTAssertEqual(v.surfacePixelFormat, .rgba8Unorm)
+        XCTAssertEqual(icc(v.layerColorSpace), icc(CGColorSpaceCreateLinearized(doc.displayColor.space)))
+        XCTAssertFalse(v.layerWantsEDR)
+        let metalLayer = try XCTUnwrap(v.layer as? CAMetalLayer)
+        metalLayer.drawableSize = CGSize(width: 2, height: 2)
+        XCTAssertNotNil(metalLayer.nextDrawable(), "Metal accepts the linearized P3 layer without EDR")
+        XCTAssertEqual(v.surfacePixelFormat, .rgba8Unorm_srgb)
         XCTAssertFalse(v.ringSurfaces.isEmpty)
         for surface in v.ringSurfaces {
             XCTAssertEqual(IOSurfaceCopyValue(surface, kIOSurfaceColorSpace) as? Data, profile, "surfaces carry the profile")
@@ -145,4 +150,101 @@ final class DocumentDisplayColorTests: XCTestCase {
         XCTAssertFalse(ok.isSRGB)
         XCTAssertEqual(ok.iccData, p3)
     }
+    func testSameNameDifferentICCRefreshRetagsRetainedRingAndLayer() throws {
+        let backend = ProfileSwitchBackend()
+        backend.profile = icc(CGColorSpace(name: CGColorSpace.displayP3))
+        let doc = try DocumentController(backend: backend)
+        defer { doc.close() }
+        let v = viewport(doc)
+        let ids = v.ringSurfaces.map { IOSurfaceGetID($0) }.sorted()
+        backend.profile = icc(CGColorSpace(name: CGColorSpace.adobeRGB1998))
+        doc.reloadModel() // info.profileName deliberately unchanged
+        XCTAssertEqual(doc.displayColor.iccData, backend.profile)
+        XCTAssertEqual(icc(v.layerColorSpace), backend.profile)
+        XCTAssertEqual(v.surfacePixelFormat, .rgba8Unorm)
+        XCTAssertEqual(v.ringSurfaces.map { IOSurfaceGetID($0) }.sorted(), ids)
+        for surface in v.ringSurfaces {
+            XCTAssertEqual(IOSurfaceCopyValue(surface, kIOSurfaceColorSpace) as? Data, backend.profile)
+        }
+    }
+
+    func testUnavailableLinearTwinKeepsEncodedProfileWithDiagnostic() throws {
+        let profile = try XCTUnwrap(icc(CGColorSpace(name: CGColorSpace.displayP3)))
+        let color = DocumentDisplayColor.resolve(icc: profile, name: "P3", linearize: { _ in nil })
+        XCTAssertEqual(color.iccData, profile)
+        XCTAssertFalse(color.isSRGB)
+        XCTAssertNotNil(color.diagnostic, "unavailable linear twin must explain encoded fallback")
+    }
+
+    func testNonSRGBCurvesRetainDocumentEncodedPath() throws {
+        for name in [CGColorSpace.adobeRGB1998, CGColorSpace.rommrgb, CGColorSpace.linearSRGB] {
+            let backend = ProfileSwitchBackend()
+            backend.profile = try XCTUnwrap(icc(CGColorSpace(name: name)))
+            let doc = try DocumentController(backend: backend)
+            defer { doc.close() }
+            let v = viewport(doc)
+            XCTAssertEqual(v.surfacePixelFormat, .rgba8Unorm, "\(name)")
+            XCTAssertEqual(icc(v.layerColorSpace), backend.profile)
+            XCTAssertFalse(v.layerWantsEDR)
+            v.attach(nil)
+            window?.close(); window = nil
+        }
+    }
+
+    func testFailedThemeConversionUsesNeutralAndReportsDiagnostic() throws {
+        let color = DocumentDisplayColor.resolve(icc: icc(CGColorSpace(name: CGColorSpace.displayP3)), name: "P3")
+        var messages: [String] = []
+        let result = DocumentViewportView.themeColor(.systemRed, displayColor: color,
+                                                     convert: { _, _ in nil }, diagnostic: { messages.append($0) })
+        XCTAssertEqual(result, SIMD4<Float>(0, 0, 0, 1), "safe document-space black, never source-space components")
+        XCTAssertEqual(messages.count, 1)
+    }
+
+    /// Uses the production encoder, actual IOSurface texture format, Metal bilinear sampler and shader.
+    /// 2x2 input -> 1x1 RGBA16F output is 50% zoom; the only output pixel straddles black and white.
+    func testRenderedHalfStepAndAlphaAreLinearForSRGBRepresentationsAndP3() throws {
+        let profiles: [String?] = [nil, "/System/Library/ColorSync/Profiles/sRGB Profile.icc", "Display P3"]
+        for profile in profiles {
+            let (doc, _) = try redDocument(profile: profile)
+            defer { doc.close() }
+            let v = viewport(doc)
+            let renderer = try XCTUnwrap(DocumentRenderer(), "Metal required for pixel acceptance")
+            let surface = try XCTUnwrap(DocumentSurfaces.make(width: 2, height: 2))
+            let tex = try XCTUnwrap(renderer.texture(for: surface, format: v.surfacePixelFormat))
+            let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: 1, height: 1, mipmapped: false)
+            desc.usage = [.renderTarget]
+            desc.storageMode = .shared
+            let output = try XCTUnwrap(renderer.device.makeTexture(descriptor: desc))
+            let queue = try XCTUnwrap(renderer.device.makeCommandQueue())
+            let gray = DocumentViewportView.themeColor(NSColor(srgbRed: 167.0/255, green: 167.0/255, blue: 167.0/255, alpha: 1), displayColor: doc.displayColor)
+            let u = DocumentRenderer.Uniforms(viewSize: SIMD2(1, 1), center: SIMD2(1, 1), canvas: SIMD2(2, 2),
+                                              zoom: 0.5, checker: 8, frameRect: SIMD4(0, 0, 2, 2), uvScale: SIMD2(1, 1),
+                                              nearest: 0, pad: 0, checkA: gray, checkB: gray, background: gray)
+            for alpha in [false, true] {
+                IOSurfaceLock(surface, [], nil)
+                let bytes = IOSurfaceGetBaseAddress(surface).assumingMemoryBound(to: UInt8.self)
+                for y in 0..<2 { for x in 0..<2 {
+                    let i = y * IOSurfaceGetBytesPerRow(surface) + x * 4
+                    let sample: UInt8 = alpha || x == 0 ? 0 : 255
+                    bytes[i] = sample; bytes[i+1] = sample; bytes[i+2] = sample; bytes[i+3] = alpha ? 128 : 255
+                } }
+                IOSurfaceUnlock(surface, [], nil)
+                let cmd = try XCTUnwrap(queue.makeCommandBuffer())
+                XCTAssertTrue(renderer.encode(to: output, commandBuffer: cmd, texture: tex, uniforms: u))
+                cmd.commit(); cmd.waitUntilCompleted()
+                XCTAssertEqual(cmd.status, .completed, "\(String(describing: cmd.error))")
+                var bits = [UInt16](repeating: 0, count: 4)
+                output.getBytes(&bits, bytesPerRow: 8, from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0)
+                let components = bits.map { CGFloat(Float(Float16(bitPattern: $0))) }
+                let encoded = try XCTUnwrap(CGColor(colorSpace: try XCTUnwrap(v.layerColorSpace), components: components)?
+                    .converted(to: doc.displayColor.space, intent: .relativeColorimetric, options: nil)?.components)
+                let measured = encoded[0] * 255
+                print("B5-30c pixels \(profile ?? "built-in sRGB") \(alpha ? "alpha" : "half-step"): \(measured)")
+                XCTAssertEqual(measured, alpha ? 122 : 187.5, accuracy: 2, "\(profile ?? "built-in sRGB") \(alpha ? "alpha" : "half-step")")
+            }
+            v.attach(nil)
+            window?.close(); window = nil
+        }
+    }
+
 }

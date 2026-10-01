@@ -110,11 +110,19 @@ final class DocumentRenderer {
         let size = layer.drawableSize
         guard size.width >= 1, size.height >= 1, let drawable = layer.nextDrawable(),
               let cmd = queue.makeCommandBuffer() else { return }
+        guard encode(to: drawable.texture, commandBuffer: cmd, texture: texture, uniforms: uniforms) else { return }
+        cmd.present(drawable)
+        cmd.commit()
+    }
+
+    /// Shared render pass for drawable presentation and offscreen pixel verification.
+    @discardableResult
+    func encode(to target: MTLTexture, commandBuffer cmd: MTLCommandBuffer, texture: MTLTexture?, uniforms: Uniforms) -> Bool {
         let pass = MTLRenderPassDescriptor()
-        pass.colorAttachments[0].texture = drawable.texture
+        pass.colorAttachments[0].texture = target
         pass.colorAttachments[0].loadAction = .dontCare
         pass.colorAttachments[0].storeAction = .store
-        guard let enc = cmd.makeRenderCommandEncoder(descriptor: pass), let tex = texture ?? placeholder else { return }
+        guard let enc = cmd.makeRenderCommandEncoder(descriptor: pass), let tex = texture ?? placeholder else { return false }
         var u = uniforms
         enc.setRenderPipelineState(pipeline)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 0)
@@ -123,8 +131,7 @@ final class DocumentRenderer {
         enc.setFragmentSamplerState(nearest, index: 1)
         enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         enc.endEncoding()
-        cmd.present(drawable)
-        cmd.commit()
+        return true
     }
 
     private lazy var placeholder: MTLTexture? = {
@@ -366,26 +373,30 @@ final class DocumentViewportView: NSView {
         render()
     }
 
+    /// Convert theme colours into the layer's component space. Conversion is injectable for failure coverage.
+    static func themeColor(_ c: NSColor, displayColor: DocumentDisplayColor,
+                           convert: (CGColor, CGColorSpace) -> CGColor? = {
+                               $0.converted(to: $1, intent: .defaultIntent, options: nil)
+                           }, diagnostic: (String) -> Void = { NSLog("%@", $0) }) -> SIMD4<Float> {
+        if !displayColor.isSRGB,
+           let d = convert(c.cgColor, displayColor.space)?.components, d.count >= 3 {
+            return SIMD4(Float(d[0]), Float(d[1]), Float(d[2]), 1)
+        }
+        let s = c.usingColorSpace(.sRGB) ?? c
+        let lin = { (v: CGFloat) -> Float in
+            let x = Float(v)
+            return x <= 0.04045 ? x / 12.92 : powf((x + 0.055) / 1.055, 2.4)
+        }
+        return SIMD4(lin(s.redComponent), lin(s.greenComponent), lin(s.blueComponent), 1)
+    }
+
     func render() {
         guard let renderer, let metalLayer, window != nil else { return }
         let appearance = effectiveAppearance
-        let documentSpace = displayColor.isSRGB ? nil : displayColor.space
         func linear(_ c: NSColor) -> SIMD4<Float> {
             var out = SIMD4<Float>(0, 0, 0, 1)
             appearance.performAsCurrentDrawingAppearance {
-                // B5-30: a document-profile layer takes the colour encoded in that profile.
-                if let documentSpace,
-                   let d = c.cgColor.converted(to: documentSpace, intent: .defaultIntent, options: nil)?.components,
-                   d.count >= 3 {
-                    out = SIMD4(Float(d[0]), Float(d[1]), Float(d[2]), 1)
-                    return
-                }
-                let s = c.usingColorSpace(.sRGB) ?? c
-                let lin = { (v: CGFloat) -> Float in
-                    let x = Float(v)
-                    return x <= 0.04045 ? x / 12.92 : powf((x + 0.055) / 1.055, 2.4)
-                }
-                out = SIMD4(lin(s.redComponent), lin(s.greenComponent), lin(s.blueComponent), 1)
+                out = Self.themeColor(c, displayColor: displayColor)
             }
             return out
         }

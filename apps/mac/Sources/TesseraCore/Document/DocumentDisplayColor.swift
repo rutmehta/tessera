@@ -18,7 +18,8 @@ public struct DocumentDisplayColor: @unchecked Sendable {
                                                   diagnostic: nil)
 
     /// `icc`: `DocumentBackend.displayProfileICC()` (nil = sRGB); `name`: the profile's description.
-    public static func resolve(icc: Data?, name: String?) -> DocumentDisplayColor {
+    public static func resolve(icc: Data?, name: String?,
+                               linearize: (CGColorSpace) -> CGColorSpace? = { CGColorSpaceCreateLinearized($0) }) -> DocumentDisplayColor {
         guard let icc else { return .srgb }
         let label = name ?? "embedded"
         guard let space = CGColorSpace(iccData: icc as CFData) else {
