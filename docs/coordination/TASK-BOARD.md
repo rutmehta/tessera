@@ -19,6 +19,10 @@ Phase-2 assignment: `ebae08bb`. Claude A retains all main merges; B owns app-sid
 
 Accepted phase-2 mailbox publication `aed5dbb5-33ee-40ba-bbf5-c348cac218af`; peer receipt unverified. No compiler/benchmark may overlap another A build or GPU test. Test/source work may proceed independently. B5-prof timings were measured under load on a different host and are diagnostic, not this host's baseline. No Swift or GUI jobs launched by Codex for PERF-4.
 
+### B ENG-2b review fixes with failed performance gates — 2026-10-01 22:40 UTC
+
+Published B handoff `48718adf` reports final Rust source `c9e903d5`: panic-unwind suppresses partial publication, live state avoids history cloning, frame presentation avoids model republication, and concurrent confirm retains the coherent prior snapshot. Focused correctness10pass; Clippy/fmt/diff and regenerated binding parity pass. These are peer-reported gates, not A reruns. Full serial FFI aggregate exits101:570passed/1failed/31ignored, Liquify p95 465.1ms versus250ms. Isolated retries also fail: Liquify608.6ms; Develop98/120 L2 versus108 required (aggregate Develop passed). Host contention is not established as cause; no acceptance or threshold change. B owns follow-up and A coordinator owns integration; B5-48 call-site work remains separate. Main e558c5df unchanged. Mailbox0messages/75receipts/6historicaccepted/16expired/0invalid; no receipt ACK or duplicate work. External A cargo active; explicit PERF runtime handoff still absent.
+
 ### External ENG-1 integration under revised acceptance — 2026-10-01 22:29 UTC
 
 Main `e558c5df` integrates ENG-1a–h. Independently read exact batch36b-e558c5df exits: Rust0, explicit24MPbench0, Clippy0, fmt0, Swift0, drift0, strict0; rawSwift915tests/3skipped/0failures. Earlier batch36-10af12f6 also records normal gates0 but lacks explicitbench evidence; use36b for current acceptance. This completes current combined-tree gates, superseding prior unverified-combination notes for older main.
