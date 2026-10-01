@@ -1,0 +1,1 @@
+2026-10-01 19:43 UTC: Board ea5eaa03 records new B-owned ENG-1 and LR-1/2/3/7 origin candidates. Peer handoffs preserve approximation, failed broad gates, deferred RAW and retouch CPU integration blockers. Publication is not acceptance or receipt of A handoff. Main e0f9141d unchanged; no exclusive runtime handoff. Existing owners retain review/integration; no duplicate work.
