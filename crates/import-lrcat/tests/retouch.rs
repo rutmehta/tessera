@@ -125,8 +125,21 @@ fn lr3_xmp_inherited_namespace_prefix_is_not_semantic() {
 fn lr3d_import_is_one_history_entry_and_approximate_without_warnings() {
     for key in ["RetouchAreas", "RetouchInfo"] {
         let raw = format!("{{ {SPOT} }}");
-        let (r, warnings) = develop(1, &format!("s = {{ {key} = {raw} }}"), "15.4").unwrap();
+        let (r, warnings) = develop(
+            1,
+            &format!("s = {{ Exposure2012 = 0.75, {key} = {raw} }}"),
+            "15.4",
+        )
+        .unwrap();
         assert_eq!(r.history.entries.len(), 1);
+        assert_eq!(r.settings.tone.exposure, 0.75);
+        assert_eq!(r.history.entries[0].meta.label, "Import XMP");
+        assert_eq!(
+            r.history.entries[0].meta.author,
+            engine_api::recipe::history::Author::Import {
+                source: "xmp".into()
+            }
+        );
         assert!(matches!(
             r.history.entries[0].meta.author,
             engine_api::recipe::history::Author::Import { .. }
@@ -134,12 +147,10 @@ fn lr3d_import_is_one_history_entry_and_approximate_without_warnings() {
         r.validate().unwrap();
         assert_eq!(r.unknown["lrcat_develop_source"]["properties"][key], raw);
         assert!(warnings.is_empty(), "{warnings:?}");
-        let entries = r.unknown["lrcat_translation_diagnostics"][key]
-            .as_array()
-            .unwrap();
-        assert!(entries.iter().any(|e| e["level"] == "info"
-            && e["status"] == "approximate"
-            && e["field"] == "/settings/locals/retouch"));
+        let notes = import_lrcat::diagnostics::entries(&r);
+        assert!(notes[key].iter().any(|e| e.level == "info"
+            && e.status == "approximate"
+            && e.field == "/settings/locals/retouch"));
         assert_eq!(serde_json::to_value(&r).unwrap()["schema_version"], 4);
     }
 }

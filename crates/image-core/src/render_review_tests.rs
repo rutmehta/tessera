@@ -158,3 +158,61 @@ fn saved_upright_skips_interactive_l0_analysis() {
     );
     assert_eq!(ops.counts(), [0; StageId::COUNT]);
 }
+
+#[test]
+fn lr3e_spot_upright_reuses_session_analysis() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let (image, mut s) = nonresident_fixture();
+    s.locals
+        .retouch
+        .push(engine_api::recipe::mask::RetouchOperation {
+            id: engine_api::id::RetouchId(1),
+            kind: engine_api::recipe::mask::RetouchKind::Clone {
+                source_offset: [0.2, 0.],
+            },
+            target: engine_api::recipe::mask::RetouchTarget::Area { components: vec![] },
+            opacity: 100.,
+            feather: 0.,
+            enabled: true,
+        });
+    let full_solves = Arc::new(AtomicUsize::new(0));
+    let calls = full_solves.clone();
+    let r = Renderer::new(RendererConfig::default()).with_retouch_renderer(Arc::new(
+        move |w: u32,
+              _: u32,
+              planes: &mut [Vec<f32>],
+              _: &[engine_api::recipe::mask::RetouchOperation]| {
+            if w == 192 {
+                calls.fetch_add(1, Ordering::Relaxed);
+            }
+            for p in planes {
+                p[0] = 0.3;
+            }
+            Ok(())
+        },
+    ));
+    let cancel = CancellationToken::new();
+    let mut timings = Vec::new();
+    let mut solves = Vec::new();
+    for rotate in [0., 1., 2., 3., 4.] {
+        s.geometry.transform.rotate = rotate;
+        let start = std::time::Instant::now();
+        r.run_m2(
+            &image,
+            &s,
+            &[TileCoord::new(1, 0, 0)],
+            RenderOutput::SceneLinear,
+            &cancel,
+            &mut |_| {},
+        )
+        .unwrap();
+        timings.push(start.elapsed().as_secs_f64() * 1000.);
+        solves.push(full_solves.load(Ordering::Relaxed));
+    }
+    eprintln!("LR-3e spot + Upright frame ms: {timings:?}; L0 solves: {solves:?}");
+    assert_eq!(
+        solves,
+        vec![1; 5],
+        "manual transforms must reuse the session's L0 analysis"
+    );
+}
