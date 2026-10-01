@@ -43,7 +43,12 @@ struct LightroomImportSheet: View {
                     StatusLine(text: error, kind: .error)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, Theme.Space.l).padding(.vertical, Theme.Space.s)
-                        .accessibilityIdentifier("lrimport-error")
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityAddTraits(.isStaticText)
+                        .accessibilityLabel(importer.step == .fidelity ? "Fidelity error" : "Import error")
+                        .accessibilityValue(error)
+                        .accessibilityIdentifier(importer.step == .fidelity && (importer.fidelity?.samples.isEmpty ?? true)
+                                                 ? "document.import.report.fidelity" : "lrimport-error")
                 }
             }
         } leading: {
@@ -414,7 +419,7 @@ private struct FidelityStep: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityAddTraits(.isStaticText)
                     .accessibilityLabel("Fidelity results")
-                    .accessibilityValue(fidelityDescription(grid.samples))
+                    .accessibilityValue(fidelityDescription(grid.samples) + (importer.error.map { "\n" + $0 } ?? ""))
                     .accessibilityIdentifier("document.import.report.fidelity")
                 }
             } else if importer.busy != nil {
@@ -633,7 +638,8 @@ struct LightroomImportProgressBar: View {
     let importer: LightroomImportController
     var body: some View {
         if let p = importer.progress {
-            ProgressStrip(title: "Lightroom import · \(p.phase.title)", done: Int(p.done), total: Int(p.total), current: p.current) {
+            ProgressStrip(title: "Lightroom import · \(p.phase.title)", done: Int(p.done), total: Int(p.total),
+                          detail: importer.estimate.detail, current: p.current) {
                 Button("Cancel Import") { importer.cancelImport() }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .accessibilityIdentifier("lrimport-cancel")

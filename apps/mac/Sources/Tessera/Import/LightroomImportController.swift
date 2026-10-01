@@ -40,6 +40,7 @@ final class LightroomImportController {
 
     /// Non-nil while an import runs (the sheet is closed meanwhile).
     private(set) var progress: LrcatProgress?
+    private(set) var estimate = LightroomImportEstimate()
     private(set) var report: LrcatReport?
     private(set) var reportURL: URL?
     private(set) var reportMarkdown: String?
@@ -225,11 +226,19 @@ final class LightroomImportController {
     func startImport() {
         guard let importer, let options, !isRunning else { return }
         progress = LrcatProgress(phase: .preparing, done: 0, total: preview.map { $0.toImport } ?? 0, current: "")
+        estimate = LightroomImportEstimate()
+        let started = ProcessInfo.processInfo.systemUptime
         reportOptions = options
         let summary = summary
         let fidelity = fidelityResult
         let relay = ProgressRelay { [weak self] p in
-            Task { @MainActor in if self?.progress != nil { self?.progress = p } }
+            Task { @MainActor in
+                guard let self, self.progress != nil else { return }
+                var estimate = self.estimate
+                guard estimate.update(p, elapsed: ProcessInfo.processInfo.systemUptime - started) else { return }
+                self.estimate = estimate
+                self.progress = p
+            }
         }
         Task.detached(priority: .userInitiated) {
             let result = Result { try importer.apply(options: options, listener: relay) }

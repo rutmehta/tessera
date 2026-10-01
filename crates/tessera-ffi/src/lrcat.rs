@@ -512,7 +512,7 @@ fn issue(category: &str, reason: String, count: usize, examples: Vec<String>) ->
         category: category.into(),
         reason,
         count: count as u32,
-        examples: examples.into_iter().take(3).collect(),
+        examples: examples.into_iter().take(5).collect(),
     }
 }
 
@@ -536,10 +536,10 @@ fn duplicate_keywords(plan: &CatalogMetadata) -> BTreeMap<String, usize> {
 
 /// Unsupported or partially supported catalog content, grouped by reason.
 fn unsupported(plan: &CatalogMetadata, history: usize) -> Vec<LrcatIssue> {
-    let name_of: HashMap<i64, &str> = plan
+    let path_of: HashMap<i64, &Path> = plan
         .images
         .iter()
-        .map(|i| (i.catalog_id, i.display_name.as_str()))
+        .map(|i| (i.catalog_id, i.path.as_path()))
         .collect();
     let mut groups: BTreeMap<(String, String), (usize, Vec<String>)> = BTreeMap::new();
     for line in &plan.report {
@@ -557,10 +557,17 @@ fn unsupported(plan: &CatalogMetadata, history: usize) -> Vec<LrcatIssue> {
         let (category, reason, example, n) = match develop {
             Some((n, id, reason)) => (
                 "Develop settings",
-                if reason.contains("imported as unedited") { format!("image {id}: {reason}") } else { reason.to_owned() },
+                if reason.contains("imported as unedited")
+                    || reason == "duplicate Adobe_images id; last-write-wins"
+                    || reason == "duplicate develop image id; last-write-wins"
+                {
+                    format!("image {id}: {reason}")
+                } else {
+                    reason.to_owned()
+                },
                 id.parse::<i64>()
                     .ok()
-                    .and_then(|id| name_of.get(&id).map(|s| s.to_string()))
+                    .and_then(|id| path_of.get(&id).map(|path| display_path(path)))
                     .unwrap_or_else(|| format!("image {id}")),
                 n,
             ),
@@ -1792,6 +1799,59 @@ impl Progress {
 #[cfg(test)]
 mod lrcat_resume_tests {
     use super::*;
+
+    #[test]
+    fn report_groups_cap_paths_and_preserve_duplicate_id_notes() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let mut import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let import = Arc::get_mut(&mut import).unwrap();
+        import.plan.report = import
+            .plan
+            .images
+            .iter()
+            .map(|i| format!("image {}: fixture unsupported operator", i.catalog_id))
+            .collect();
+        for id in [101, 102] {
+            import.plan.report.push(format!(
+                "image {id}: duplicate Adobe_images id; last-write-wins"
+            ));
+            import.plan.report.push(format!(
+                "image {id}: duplicate develop image id; last-write-wins"
+            ));
+            import.plan.report.push(format!(
+                "image {id}: invalid settings; imported as unedited"
+            ));
+        }
+        let issues = unsupported(&import.plan, 0);
+        let grouped = issues
+            .iter()
+            .find(|i| i.reason == "fixture unsupported operator")
+            .unwrap();
+        assert_eq!(grouped.count as usize, import.plan.images.len());
+        assert_eq!(grouped.examples.len(), 5);
+        assert!(grouped.examples.iter().all(|p| Path::new(p).is_absolute()));
+        for reason in [
+            "duplicate Adobe_images id",
+            "duplicate develop image id",
+            "imported as unedited",
+        ] {
+            let notes: Vec<_> = issues
+                .iter()
+                .filter(|i| i.reason.contains(reason))
+                .collect();
+            assert_eq!(notes.len(), 2, "{notes:?}");
+            assert!(
+                notes
+                    .iter()
+                    .all(|i| i.count == 1 && i.reason.starts_with("image "))
+            );
+        }
+    }
 
     #[test]
     fn spool_read_failure_checkpoints_completed_sidecars() {
