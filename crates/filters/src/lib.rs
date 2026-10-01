@@ -286,7 +286,7 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
             // cache-hot. Every pixel still receives taps in ascending j order.
             for (j, &weight) in k.iter().enumerate() {
                 let d = j as i32 - r;
-                let left_end = strip_end.min(interior_start);
+                let left_end = strip_end.min(interior_start).max(strip_start);
                 for (offset, out_pixel) in out_row[strip_start..left_end].iter_mut().enumerate() {
                     let x = strip_start + offset;
                     let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
@@ -296,7 +296,7 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
                     }
                 }
                 let middle_start = strip_start.max(interior_start);
-                let middle_end = strip_end.min(interior_end);
+                let middle_end = strip_end.min(interior_end).max(middle_start);
                 for (offset, out_pixel) in out_row[middle_start..middle_end].iter_mut().enumerate()
                 {
                     let x = middle_start + offset;
@@ -306,7 +306,7 @@ pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineRe
                         out_pixel[c] += weight * sample[c];
                     }
                 }
-                let right_start = strip_start.max(interior_end);
+                let right_start = strip_start.max(interior_end).min(strip_end);
                 for (offset, out_pixel) in out_row[right_start..strip_end].iter_mut().enumerate() {
                     let x = right_start + offset;
                     let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
