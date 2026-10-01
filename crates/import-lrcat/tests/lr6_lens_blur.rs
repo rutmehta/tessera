@@ -149,8 +149,12 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         ("BaseHighlightGuideVersion", "base_highlight_guide_version"),
     ] {
         let raw = format!("{{ {source_key} = 'opaque-id' }}");
-        let (recipe, warnings) =
-            import_lrcat::develop(1, &format!("s = {{ DepthMapInfo = {raw} }}"), "15.4").unwrap();
+        let (recipe, warnings) = import_lrcat::develop(
+            1,
+            &format!("s = {{ LensBlur = {{ Active = true }}, DepthMapInfo = {raw} }}"),
+            "15.4",
+        )
+        .unwrap();
         assert!(warnings.is_empty(), "{source_key}: {warnings:?}");
         let json = serde_json::to_value(&recipe).unwrap();
         assert_eq!(
@@ -163,7 +167,7 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         );
         assert_eq!(
             recipe.settings.effects.lens_blur.as_ref().unwrap().amount,
-            0.
+            50.
         );
         assert_eq!(
             Recipe::from_json(&recipe.to_json().unwrap()).unwrap(),
@@ -173,7 +177,7 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
 }
 
 #[test]
-fn focal_range_clamps_endpoints_and_shapes_have_renderable_interpretations() {
+fn focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretations() {
     for (shape, name) in [
         (0, "circle"),
         (1, "bubble"),
@@ -186,7 +190,10 @@ fn focal_range_clamps_endpoints_and_shapes_have_renderable_interpretations() {
         assert!(warnings.is_empty());
         let blur = recipe.settings.effects.lens_blur.unwrap();
         assert_eq!(blur.focus_range, [0.32, 0.64]);
-        assert_eq!(blur.adobe.unwrap().focal_range, Some([0., 0.32, 0.64, 1.]));
+        assert_eq!(
+            blur.adobe.unwrap().focal_range,
+            Some([-0.48, 0.32, 0.64, 1.44])
+        );
         assert_eq!(blur.bokeh, name);
     }
     let (off, warnings) = import_lrcat::develop(
@@ -225,7 +232,7 @@ fn untranslated_inputs_are_byte_identical_to_dcf07355() {
 fn xmp_depth_attributes_retain_exact_fragment_without_warnings() {
     let fragment = "<crs:DepthMapInfo crs:DepthSource='1' crs:BaseRawDepthTable='opaque&amp;id' crs:BaseRawDepthVersion=' v1 '/>";
     let xml = format!(
-        "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'><rdf:Description>{fragment}</rdf:Description></rdf:RDF>"
+        "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'><rdf:Description><crs:LensBlur crs:Active='true'/>{fragment}</rdf:Description></rdf:RDF>"
     );
     let (recipe, warnings) = import_lrcat::develop(1, &xml, "15.4").unwrap();
     assert!(warnings.is_empty(), "{warnings:?}");
@@ -244,4 +251,64 @@ fn xmp_depth_attributes_retain_exact_fragment_without_warnings() {
         recipe.unknown["lrcat_develop_source"]["properties"]["DepthMapInfo"],
         fragment
     );
+}
+
+#[test]
+fn lr6c_inactive_and_depth_only_do_not_enable_blur() {
+    for lens in ["", "LensBlur = { Active = false, BlurAmount = 100 },"] {
+        let (recipe, _) = import_lrcat::develop(
+            1,
+            &format!("s = {{ {lens} DepthMapInfo = {{ DepthSource = 1 }} }}"),
+            "15.4",
+        )
+        .unwrap();
+        assert!(recipe.settings.effects.lens_blur.is_none());
+        assert!(!recipe.unknown["lrcat_develop_source"]["properties"]["DepthMapInfo"].is_null());
+        let info = recipe.unknown["lrcat_translation_diagnostics"]
+            .as_array()
+            .unwrap();
+        assert!(!info.iter().any(|d| d["key"] == "LensBlur"));
+        assert!(
+            info.iter()
+                .any(|d| d["key"] == "DepthMapInfo" && d["level"] == "info")
+        );
+    }
+}
+
+#[test]
+fn lr6c_import_has_one_import_authored_history_entry() {
+    let (recipe, _) = import_lrcat::develop(1, LENS_BLUR, "15.4").unwrap();
+    assert_eq!(recipe.history.entries.len(), 1);
+    assert!(matches!(
+        recipe.history.entries[0].meta.author,
+        engine_api::recipe::Author::Import { .. }
+    ));
+    recipe.validate().unwrap();
+}
+
+#[test]
+fn lr6c_diagnostics_describe_only_translated_fields() {
+    let (recipe, _) = import_lrcat::develop(
+        1,
+        "s = { LensBlur = { Active = true, BlurAmount = 37 } }",
+        "15.4",
+    )
+    .unwrap();
+    let info = recipe.unknown["lrcat_translation_diagnostics"]
+        .as_array()
+        .unwrap();
+    let fields: Vec<_> = info
+        .iter()
+        .filter(|d| d["key"] == "LensBlur")
+        .map(|d| d["field"].as_str().unwrap())
+        .collect();
+    assert_eq!(fields, ["Active", "BlurAmount"]);
+    assert!(
+        info.iter()
+            .filter(|d| d["key"] == "LensBlur")
+            .all(|d| d["message"].as_str().unwrap().starts_with("approximate: "))
+    );
+    let (off, _) =
+        import_lrcat::develop(1, "s = { LensBlur = { Active = false } }", "15.4").unwrap();
+    assert!(off.unknown.get("lrcat_translation_diagnostics").is_none());
 }

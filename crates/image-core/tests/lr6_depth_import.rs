@@ -54,18 +54,21 @@ fn provider() -> DepthProvider {
 #[test]
 fn imports_decodable_resource_into_store_and_uses_reference_after_reload() {
     let temp = tempfile::tempdir().unwrap();
-    let store = DepthStore::new(temp.path(), 100000).unwrap();
+    let store = DepthStore::new(temp.path().join("previews/depth-cache"), 100000).unwrap();
     let mut recipe = recipe();
     let gray =
         image::GrayImage::from_fn(16, 16, |_, y| image::Luma([if y < 8 { 191 } else { 64 }]));
     let mut bytes = Cursor::new(Vec::new());
     gray.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+    let history = recipe.history.clone();
     let depth = provider()
         .prepare_lens_blur_depth(&mut recipe, &input(), &store, |id| {
             assert_eq!(id, "opaque-table");
             Some(bytes.get_ref().clone())
         })
         .unwrap();
+    assert_eq!(recipe.history.entries.len(), history.entries.len());
+    assert_eq!(recipe.history.entries[0].meta, history.entries[0].meta);
     assert!((depth.inverse_depth()[0] - 191. / 255.).abs() < 1e-6);
     assert!((depth.inverse_depth()[255] - 64. / 255.).abs() < 1e-6);
     recipe.validate().unwrap();
@@ -115,7 +118,7 @@ fn corrupt_missing_and_wrong_extent_resources_regenerate_without_models() {
         }),
     ] {
         let temp = tempfile::tempdir().unwrap();
-        let store = DepthStore::new(temp.path(), 100000).unwrap();
+        let store = DepthStore::new(temp.path().join("previews/depth-cache"), 100000).unwrap();
         let mut recipe = recipe();
         let depth = provider()
             .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| bytes.clone())
@@ -174,7 +177,7 @@ fn synthetic_import_to_cpu_render() {
         [0.2, 0.6]
     );
     let temp = tempfile::tempdir().unwrap();
-    let store = DepthStore::new(temp.path(), 100000).unwrap();
+    let store = DepthStore::new(temp.path().join("previews/depth-cache"), 100000).unwrap();
     // First half lies inside imported focus range; second half is fully defocused.
     let depth = DepthMap::from_normalized_inverse(
         16,
@@ -183,11 +186,11 @@ fn synthetic_import_to_cpu_render() {
     )
     .unwrap();
     let provider = DepthProvider::from_map(depth);
-    let ready = provider
+    provider
         .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| None)
         .unwrap();
     let renderer = Renderer::new(RendererConfig::default())
-        .with_depth(Arc::new(DepthProvider::from_map(ready)));
+        .with_depth(Arc::new(DepthProvider::from_support(temp.path()).unwrap()));
     let out = renderer
         .apply_depth_effects(&input(), &recipe.settings)
         .unwrap();
@@ -210,5 +213,35 @@ fn synthetic_import_to_cpu_render() {
     {
         assert!((a - b).abs() <= 1e-6);
     }
+    let mut edited = restored.settings.clone();
+    edited.effects.lens_blur.as_mut().unwrap().focus_range = [0.9, 1.];
+    let changed = renderer.apply_depth_effects(&input(), &edited).unwrap();
+    assert_ne!(
+        changed.planes(),
+        again.planes(),
+        "post-import focus must change pixels"
+    );
     recipe.validate().unwrap();
+}
+
+#[test]
+fn lr6c_renderer_reads_persisted_depth_without_estimating() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = DepthStore::new(temp.path().join("previews/depth-cache"), 100000).unwrap();
+    let mut recipe = recipe();
+    provider()
+        .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| None)
+        .unwrap();
+    let restored = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
+    // This support directory has no model weights. The stored map is sufficient.
+    let renderer = Renderer::new(RendererConfig::default())
+        .with_depth(Arc::new(DepthProvider::from_support(temp.path()).unwrap()));
+    let actual = renderer
+        .apply_depth_effects(&input(), &restored.settings)
+        .unwrap();
+    let expected = Renderer::new(RendererConfig::default())
+        .with_depth(Arc::new(provider()))
+        .apply_depth_effects(&input(), &restored.settings)
+        .unwrap();
+    assert_eq!(actual.planes(), expected.planes());
 }

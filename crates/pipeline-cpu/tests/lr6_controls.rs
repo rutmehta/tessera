@@ -19,7 +19,7 @@ fn each_optional_control_roundtrips_and_renders() {
     let baseline: LensBlur = serde_json::from_value(base.clone()).unwrap();
     let reference = lens_blur(&image, &[1.; 441], &baseline, Default::default()).unwrap();
     for (field, value, changes_pixels) in [
-        ("focal_range", json!([0., 0.1, 0.2, 1.]), true),
+        ("focal_range", json!([0., 0.1, 0.2, 1.]), false),
         ("bokeh_shape_detail", json!(80.), true),
         ("highlights_boost", json!(90.), true),
         ("highlights_threshold", json!(20.), true),
@@ -104,4 +104,28 @@ fn absent_extensions_preserve_native_bytes_and_disabled_blur_is_identity() {
             .to_bits(),
         (-0_f32).to_bits()
     );
+}
+
+#[test]
+fn lr6c_native_focus_edits_override_imported_focus() {
+    let image = Image::new(
+        16,
+        16,
+        vec![
+            (0..256)
+                .map(|i| if i % 2 == 0 { 0.8 } else { 0.1 })
+                .collect();
+            3
+        ],
+    )
+    .unwrap();
+    let mut blur: LensBlur = serde_json::from_value(
+        json!({"amount":100., "focus_range":[0.2,0.6], "adobe":{"focal_range":[0.1,0.2,0.6,0.8]}}),
+    )
+    .unwrap();
+    let before = lens_blur(&image, &[0.4; 256], &blur, Default::default()).unwrap();
+    assert_eq!(before.planes(), image.planes());
+    blur.focus_range = [0.9, 1.];
+    let after = lens_blur(&image, &[0.4; 256], &blur, Default::default()).unwrap();
+    assert_ne!(before.planes(), after.planes());
 }
