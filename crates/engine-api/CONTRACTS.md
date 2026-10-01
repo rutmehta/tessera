@@ -58,7 +58,7 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
    - Extensible state structs use `#[serde(default)]`, and a missing additive field means "neutral". Identity references and mutation targets remain required; defaulting them could target the wrong object.
    - A new field always needs a neutral default.
    - Renaming or removing a field is a breaking change: it breaks the paths stored in history, so it needs a migration and a new `RECIPE_SCHEMA_VERSION`.
-   - Any additive schema change also bumps `RECIPE_SCHEMA_VERSION`, because older builds open newer documents read-only (`to_json` refuses to write them) and would otherwise drop fields silently.
+   - An additive field that an older build would misrender or drop on re-save makes the recipe schema 4, but only when the field is used. To register it, add one predicate line to `V4_FEATURE_PREDICATES` in `recipe/schema.rs` (for example `("point_colors", |r| r.settings.color.point_colors.is_some())`) and add an `assert_bumped_only_when_present` test in its `v4_feature_predicates` module. `RECIPE_SCHEMA_VERSION` stays 3, and recipes that do not use the field stay schema 3 and byte-identical. Older builds open newer documents read-only: `Recipe::ensure_writable`, and therefore `to_json`, refuses a stored version above `max_writable_schema_version()`.
    - The golden-hash test in `recipe/mod.rs` fails whenever the default serialized state changes. When that happens, update it on purpose, because it invalidates every render cache.
 8. **Selection:** `grade.is_some()` ⇒ `decision == Keep`. Use `set_decision` or `set_grade`, and call `normalized()` on external input. AI signals never change a `Decision`.
 9. **Tiles:**

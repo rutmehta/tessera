@@ -14,6 +14,15 @@
 //! and a test that calls `assert_bumped_only_when_present("point_colors", ..)`.
 //! The first entry also lifts [`max_writable_schema_version`] to 4, so this
 //! build can re-save the schema 4 documents it writes.
+//!
+//! Consequences once a feature is used:
+//! - Writing never mutates the caller, so a recipe saved and reloaded compares
+//!   unequal on `schema_version` (3 in memory, 4 reloaded). Round-trip
+//!   equality tests (`sidecar/tests/roundtrip.rs`, `merge/tests/recipe.rs`)
+//!   must ignore `schema_version` for recipes using the feature.
+//! - The bump is sticky: a recipe written as 4 keeps loading as 4 and is
+//!   written as 4 even after the feature is removed
+//!   (`max(schema_version, required)`).
 
 use super::{Recipe, RECIPE_SCHEMA_VERSION};
 
@@ -178,13 +187,17 @@ mod v4_feature_predicates {
     }
 
     #[test]
-    fn real_list_is_empty() {
-        assert!(V4_FEATURE_PREDICATES.is_empty());
-        assert_eq!(max_writable_schema_version(), RECIPE_SCHEMA_VERSION);
+    fn writable_max_follows_the_list() {
+        let expected = if V4_FEATURE_PREDICATES.is_empty() {
+            RECIPE_SCHEMA_VERSION
+        } else {
+            RECIPE_SCHEMA_VERSION_V4
+        };
+        assert_eq!(max_writable_schema_version(), expected);
     }
 
     #[test]
-    fn empty_list_requires_schema_3_for_every_fixture() {
+    fn fixtures_require_only_base_schema_while_unused() {
         for (name, recipe) in fixture_recipes() {
             assert_eq!(required_schema_version(&recipe), 3, "{name}");
             assert!(v4_features_used(&recipe).is_empty(), "{name}");

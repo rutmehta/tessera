@@ -573,39 +573,45 @@ mod tests {
         ));
     }
 
-    /// LR-SCHEMA pin: a schema 4 document loads best-effort (known fields
-    /// default, unknown members preserved, version kept) and every checked
-    /// write refuses it while no schema 4 feature exists. Raw serde is a
-    /// projection, not a write path, and does not refuse.
+    /// LR-SCHEMA pin: a document newer than this build can write loads
+    /// best-effort (known fields default, unknown members preserved, version
+    /// kept) and every checked write refuses it. Raw serde is a projection,
+    /// not a write path, and does not refuse. Written against
+    /// `max_writable_schema_version() + 1`, so it holds before and after the
+    /// first schema 4 feature lands.
     #[test]
-    fn schema_4_documents_load_but_never_write() {
-        let r = Recipe::from_json(
-            br#"{"schema_version":4,"settings":{"tone":{"exposure":0.5},"color":{"point_colors_v4":[1]}},"lens_blur_v4":{"amount":3}}"#,
-        )
-        .unwrap();
-        assert_eq!(r.schema_version, 4);
+    fn newer_than_writable_documents_load_but_never_write() {
+        let newer = max_writable_schema_version() + 1;
+        let doc = format!(
+            r#"{{"schema_version":{newer},"settings":{{"tone":{{"exposure":0.5}},"color":{{"point_colors_future":[1]}}}},"lens_blur_future":{{"amount":3,"nested":{{"kept":[1,2]}}}}}}"#
+        );
+        let r = Recipe::from_json(doc.as_bytes()).unwrap();
+        assert_eq!(r.schema_version, newer);
         assert_eq!(r.settings.tone.exposure, 0.5);
         assert_eq!(
             r.settings.tone.contrast,
             DevelopSettings::default().tone.contrast
         );
         assert_eq!(r.image_id, None);
-        assert_eq!(r.unknown["lens_blur_v4"]["amount"], 3);
+        assert_eq!(r.unknown["lens_blur_future"]["amount"], 3);
+        assert_eq!(r.unknown["lens_blur_future"]["nested"]["kept"][1], 2);
         assert_eq!(r.unknown.len(), 1);
+        let supported = max_writable_schema_version();
+        assert!(matches!(
+            r.ensure_writable(),
+            Err(EngineError::SchemaVersion { found, supported: s, .. }) if found == newer && s == supported
+        ));
         assert!(matches!(
             r.to_json(),
-            Err(EngineError::SchemaVersion {
-                found: 4,
-                supported: 3,
-                ..
-            })
+            Err(EngineError::SchemaVersion { found, .. }) if found == newer
         ));
         let raw: Value = serde_json::to_value(&r).unwrap();
-        assert_eq!(raw["schema_version"], 4);
+        assert_eq!(raw["schema_version"], newer);
     }
 
     /// LR-SCHEMA: serialisation of existing recipes is byte-identical to
     /// main at 44db24b2 (digests recorded there, before the schema module).
+    /// A lane whose feature is unused by these cases leaves them unchanged.
     #[test]
     fn serialisation_bytes_are_pinned() {
         let fixture =

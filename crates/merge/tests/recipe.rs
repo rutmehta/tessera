@@ -39,7 +39,9 @@ fn recipe_is_editable_and_embedded_in_float_dng() {
 /// must refuse a document from a newer schema, like `Recipe::to_json`.
 #[test]
 fn recipe_xmp_refuses_newer_schema() {
-    let recipe = engine_api::recipe::Recipe::from_json(br#"{"schema_version":4}"#).unwrap();
+    let newer = engine_api::recipe::max_writable_schema_version() + 1;
+    let doc = format!(r#"{{"schema_version":{newer}}}"#);
+    let recipe = engine_api::recipe::Recipe::from_json(doc.as_bytes()).unwrap();
     assert!(recipe.to_json().is_err());
     assert!(recipe_xmp(&recipe).is_err());
 }
