@@ -138,3 +138,23 @@ fn nonresident_scalar_preview_uses_l0_upright_with_manual_transforms() {
         "fixture must distinguish L0 from preview analysis"
     );
 }
+
+#[test]
+fn saved_upright_skips_interactive_l0_analysis() {
+    let (image, mut s) = nonresident_fixture();
+    let ops = Arc::new(crate::CountingStageOp::new(crate::CpuStageOp));
+    let r = Renderer::with_ops(
+        ops.clone(),
+        Arc::new(TileCache::new(0)),
+        RendererConfig::default(),
+    );
+    s.geometry.upright.mode = UprightMode::Auto;
+    s.geometry.upright.homography_mode = Some(UprightMode::Auto);
+    s.geometry.upright.homography = Some([[1., 0., 0.], [0., 1., 0.], [0.2, 0., 1.]]);
+    assert!(
+        r.interactive_upright_analysis(&image, &s, &CancellationToken::new())
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(ops.counts(), [0; StageId::COUNT]);
+}

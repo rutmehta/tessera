@@ -382,6 +382,9 @@ impl Recipe {
     ) -> EngineResult<Option<HistoryEntryId>> {
         let mut next = self.settings.clone();
         f(&mut next);
+        next.geometry
+            .upright
+            .invalidate_after_edit(&self.settings.geometry.upright);
         let id = self.history.record(&self.settings, &next, meta)?;
         if id.is_some() {
             self.settings = next;
@@ -461,6 +464,19 @@ impl Recipe {
     /// Checks every invariant: history structure, settings = replay(head),
     /// selection normalized.
     pub fn validate(&self) -> EngineResult<()> {
+        if self
+            .settings
+            .geometry
+            .upright
+            .homography
+            .as_ref()
+            .is_some_and(|h| !settings::Upright::valid_homography(h))
+        {
+            return Err(EngineError::invalid(
+                "upright",
+                "invalid or singular saved homography",
+            ));
+        }
         self.history.validate()?;
         if self.history.state_at(self.history.head)? != self.settings {
             return Err(EngineError::Conflict {

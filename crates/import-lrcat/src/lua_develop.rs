@@ -696,7 +696,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         return Err(error("develop settings are not a table"));
     };
     let (packet, notes, keep) = to_xmp(&table);
-    let (mut recipe, mut warnings) = crate::xmp::parse(&packet, process_version)?;
+    let (mut recipe, mut warnings) = crate::xmp::parse_unrecorded(&packet, process_version)?;
     // The packet was generated from the literal; it is not source data.
     recipe.unknown.remove("sidecar_xmp");
     // Never derive retention from decoder diagnostics: future translators need
@@ -751,6 +751,24 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         *warning = warning.replace("retained in original XMP", "source preserved per property");
     }
     warnings.extend(notes);
+    crate::geometry::apply(
+        &mut recipe,
+        &mut warnings,
+        table.fields.iter().filter_map(|(key, value)| {
+            let LuaKey::Str(key) = key else {
+                return None;
+            };
+            let value = match value {
+                LuaValue::String(s) | LuaValue::Number(s) => s.as_str(),
+                LuaValue::Bool(true) => "True",
+                LuaValue::Bool(false) => "False",
+                _ => return None,
+            };
+            Some((key.as_str(), value))
+        }),
+    )?;
+    crate::geometry::finish(&mut recipe)?;
+    recipe.validate()?;
     Ok((recipe, warnings))
 }
 
@@ -758,6 +776,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
 /// Unknown future keys are pending by definition; this also covers additions to KEY_MAP.
 pub(crate) fn retain_source(key: &str) -> bool {
     key.starts_with("Upright")
+        || matches!(key, "ChromaticAberrationR" | "ChromaticAberrationB")
         || key.starts_with("ExtendedToneCurve")
         || matches!(
             key,

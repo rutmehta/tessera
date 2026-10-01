@@ -133,7 +133,7 @@ public enum UprightControls {
     /// Upright mode (non-Guided modes clear the guides: the engine rejects guides outside Guided).
     public static func patch(mode: UprightMode, guides: [UprightGuide] = []) -> [String: Any] {
         let kept = mode == .guided ? guides : []
-        return ["geometry": ["upright": ["mode": mode.rawValue, "guides": kept.map(\.json)]]]
+        return ["geometry": ["upright": ["mode": mode.rawValue, "guides": kept.map(\.json), "homography": NSNull(), "homography_mode": NSNull()]]]
     }
 
     public static func mode(in settings: [String: Any]) -> UprightMode {

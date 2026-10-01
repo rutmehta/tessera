@@ -14,6 +14,11 @@ fn recipe_is_editable_and_embedded_in_float_dng() {
     recipe
         .unknown
         .insert("note".into(), serde_json::json!("<keep & editable>"));
+    recipe
+        .edit(engine_api::recipe::EditMeta::user("CA", 1), |s| {
+            s.lens.legacy_ca_blue = Some(-25.)
+        })
+        .unwrap();
     let xmp = recipe_xmp(&recipe).unwrap();
     assert!(xmp.contains("&lt;keep &amp; editable&gt;"));
     let mut b = Vec::new();
@@ -32,6 +37,8 @@ fn recipe_is_editable_and_embedded_in_float_dng() {
         .replace("&gt;", ">")
         .replace("&amp;", "&");
     let parsed: engine_api::recipe::Recipe = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed.schema_version, 4);
+    recipe.schema_version = parsed.schema_version;
     assert_eq!(parsed, recipe);
 }
 

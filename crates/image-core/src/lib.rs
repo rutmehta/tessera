@@ -56,6 +56,8 @@ pub use source::RawImage;
 /// Auto is not inert even when RAW metadata has no embedded lens opcodes.
 pub fn resident_export_lens_supported(lens: &engine_api::recipe::settings::LensSettings) -> bool {
     lens.profile == engine_api::recipe::settings::LensProfileSource::None
+        && lens.legacy_ca_red.unwrap_or(0.) == 0.
+        && lens.legacy_ca_blue.unwrap_or(0.) == 0.
         && !lens.remove_chromatic_aberration
         && lens.manual_distortion == 0.
         && lens.manual_vignetting == 0.

@@ -16,10 +16,18 @@ fn recipe_atomic_roundtrip_and_schema_guard() {
     doc.recipe
         .unknown
         .insert("future_member".into(), serde_json::json!({"a": [1,2]}));
+    doc.recipe
+        .edit(engine_api::recipe::EditMeta::user("CA", 1), |s| {
+            s.lens.legacy_ca_red = Some(35.)
+        })
+        .unwrap();
     Sidecar::write_recipe(&paths.recipe, &doc).unwrap();
     let first = std::fs::read(&paths.recipe).unwrap();
     let read = Sidecar::read_recipe(&paths.recipe).unwrap();
-    assert_eq!(doc, read);
+    assert_eq!(read.recipe.schema_version, 4);
+    let mut expected = doc.clone();
+    expected.recipe.schema_version = read.recipe.schema_version;
+    assert_eq!(expected, read);
     Sidecar::write_recipe(&paths.recipe, &read).unwrap();
     assert_eq!(first, std::fs::read(&paths.recipe).unwrap());
     doc.recipe.schema_version = max_writable_schema_version() + 1;

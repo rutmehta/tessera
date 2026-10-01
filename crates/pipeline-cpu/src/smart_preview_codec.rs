@@ -241,8 +241,14 @@ fn validate_nested_schema(bytes: &[u8], version: u32) -> EngineResult<()> {
     }
     keys(&v["denoise"], &["method", "amount", "chroma_only"])?;
     keys(&v["denoise"]["method"], &["kind"])?;
+    // Legacy CA members are additive recipe fields; old snapshots omit them.
+    let mut lens = v["lens"].clone();
+    if let Some(object) = lens.as_object_mut() {
+        object.remove("legacy_ca_red");
+        object.remove("legacy_ca_blue");
+    }
     keys(
-        &v["lens"],
+        &lens,
         &[
             "profile",
             "distortion_scale",

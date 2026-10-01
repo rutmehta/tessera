@@ -122,3 +122,44 @@ Run with `CARGO_TARGET_DIR` outside the repository:
     cargo test -p import-lrcat --release
     cargo clippy -p import-lrcat --all-targets --all-features -- -D warnings
     cargo fmt --check
+
+## LR-7 Upright geometry
+
+The catalog adapter translates the selected `UprightTransform_1..5` CSV matrix
+into `settings.geometry.upright.homography`, a source-to-output 3×3 map in unit
+image coordinates. `PerspectiveUpright` uses the existing codec numbering:
+0 Off, 1 Auto, 2 Full, 3 Level, 4 Vertical, 5 Guided. The optional homography
+is omitted when absent; no format version changes. CPU geometry uses its inverse
+before manual transform/crop and after the inverse manual-transform step; saved
+matrices bypass image line detection. The resident lens plan uses the same map.
+
+Guided mode accepts `UprightFourSegmentsCount` (2–4) and a complete set of
+`UprightFourSegments_0..3` CSV endpoint coordinates (x1,y1,x2,y2 in [0,1]).
+Without a saved matrix, Tessera recomputes from the guides and reports that
+Adobe solver parity is not guaranteed. Existing Perspective Vertical,
+Horizontal, Rotate, Scale, Aspect, X and Y mappings are unchanged.
+
+Only successfully translated keys leave
+`recipe.unknown["lrcat_develop_source"].properties`. Inactive solutions, solver
+version/digest/center/focal metadata, unsupported representations and invalid
+matrices/guides remain exact Lua literals or XMP fragments. Matrix validation
+rejects nonfinite, singular and source-frame pole-crossing maps. Adobe render
+parity has not been measured; synthetic CPU tests check coordinate accuracy.
+
+Enabled `EnableDistractionRemoval`, `GenerativeRemove` and `GenerativeFill`
+produce a user-facing import report entry: "requires Adobe cloud; not
+translatable", with an explanation that rendered Adobe pixels are needed and
+a rendered TIFF export preserves their appearance. Source stays retained.
+
+### LR-7c review correction
+
+The earlier LR-7/LR-7b translation descriptions are superseded for saved Upright
+and legacy CA: these are **approximate**, with exact source retained under
+`lrcat_develop_source` and info-level `lrcat_translation_diagnostics` (`approximate: ...`),
+not user-facing warnings. No Adobe-rendered/public DNG+XMP reference has verified
+matrix direction/layout, center/focal frame, or CA sign/units. Center/focal
+metadata now defines the assumed normalized frame documented in sidecar/UNMAPPED.md.
+Saved solutions carry their mode and are cleared on mode/guide edits. Legacy CA
+is gated to Adobe PV1/2 and zero values do not create fields or history. Shared
+standalone sidecar import/export supports both families; all settings are recorded
+in one import-authored history entry. Invalid matrices fail Recipe validation.

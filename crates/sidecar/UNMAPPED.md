@@ -31,7 +31,7 @@ Pointers below are relative to `/settings`. They stay in the native recipe JSON,
 | `/tone/curves/luminance`, `/tone/display_transform` | Native luminance-only curve/display transform, not Adobe RGB channel curves. |
 | `/color/lut` | Native LUT resource/strength, distinct from the mapped camera Look ID. |
 | `/geometry/orientation` | EXIF orientation is outside the develop CRS table. |
-| `/geometry/upright/guides` | No Upright guide keys in contract 1.1; only PerspectiveUpright mode is mapped. Engine-api table needs a reviewed mapping for guides. |
+| `/geometry/upright/guides` | Approximate CRS `UprightFourSegmentsCount` and `_0..3` CSV decoding/export; source retained, info diagnostic, no user-facing warning for valid sets. |
 | `/geometry/crop/aspect` | Editor aspect-ratio lock is not the visible crop rectangle. No contract key. |
 | `/output/gamut_mapping`, `/output/proof_profile` | Native output/proof rendering policy, no contract CRS mapping. |
 
@@ -51,3 +51,32 @@ Non-settings recipe members (image identity, schema, history, counters, provenan
 Contract: `crates/engine-api/CONTRACTS.md` v1.1 and `recipe/crs.rs`. Prior findings: `tools/orchestrate/wp/M1-03/FINDINGS.md`.
 
 Tag-name/structure evidence: https://raw.githubusercontent.com/exiftool/exiftool/master/lib/Image/ExifTool/XMP.pm (sCorrectionMask, sCorrRangeMask, sRetouchArea, sLensBlur, PointColors). This is an empirical tag catalog, not a complete normative Adobe payload specification. Native extension formats are explicitly ours, not claims from that reference.
+
+## LR-7c geometry and legacy CA extensions
+
+Standalone XMP and catalog imports share the geometry decoder. Selected
+`UprightTransform_1..5`, center/focal metadata and complete four-segment sets are
+**approximate**, as are `ChromaticAberrationR/B` for Adobe PV1/2. The exact source
+fragment is in `unknown.lrcat_develop_source.properties` when geometry was decoded.
+The decoder returns per-key info data; the catalog adapter calls the shared
+`import_lrcat::diagnostics::push_approximate` helper with reasons beginning
+`approximate: `. Stale PV2012+ legacy CA uses `push_ignored`, with status
+`ignored` and no populated-field claim. **Standalone XMP imports carry no
+translation notes**: sidecar discards the decoder's per-key info data and writes
+no diagnostics bucket. Only catalog imports persist those notes through the
+shared diagnostics API. These mappings produce zero user-facing warnings. Invalid inputs
+still receive warnings and remain retained. Zero CA and stale PV2012+ CA values
+remain source-only and add no history edit.
+
+The matrix assumption is row-major source-to-output. Without frame metadata it
+uses unit-image coordinates; with frame metadata it uses `(u-cx,v-cy)/(f35/35)`
+on each axis, default center `(0.5,0.5)` and focal `35`. This is deliberately an
+unverified Adobe coordinate convention, including aspect and rotation semantics.
+Import converts it to the recipe's unit frame and tags the solution's Upright mode.
+
+Export writes canonical CRS keys for changed values, retains unchanged original
+fragments, and uses `ts:GeometryLens` bound to the existing CRS ExportHash to
+round-trip the optional native fields and mode tag exactly (including native
+process recipes). A CRS edit invalidates that companion. Feature-bearing recipes serialize as schema 4; ordinary recipes stay schema 3.
+Import records a single `Author::Import` history edit. Cloud removal/fill still
+reports “requires Adobe cloud; not translatable”.

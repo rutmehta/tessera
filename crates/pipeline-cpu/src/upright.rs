@@ -35,6 +35,31 @@ pub(crate) fn undistort(
     }
     None
 }
+/// Conjugate the saved unit-frame map into the renderer's [-1, 1] frame.
+pub(crate) fn saved_inverse(s: &GeometrySettings) -> EngineResult<Option<Homography>> {
+    if !s.upright.has_saved_solution() {
+        return Ok(None);
+    }
+    let Some(h) = s.upright.homography else {
+        return Ok(None);
+    };
+    if !engine_api::recipe::settings::Upright::valid_homography(&h) {
+        return Err(EngineError::invalid(
+            "upright",
+            "invalid or singular saved homography",
+        ));
+    }
+    fn mul(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
+        std::array::from_fn(|i| std::array::from_fn(|j| (0..3).map(|k| a[i][k] * b[k][j]).sum()))
+    }
+    let to_unit = [[0.5, 0., 0.5], [0., 0.5, 0.5], [0., 0., 1.]];
+    let from_unit = [[2., 0., -1.], [0., 2., -1.], [0., 0., 1.]];
+    Homography(mul(from_unit, mul(h, to_unit)))
+        .inverse()
+        .map(Some)
+        .ok_or_else(|| EngineError::invalid("upright", "singular saved homography"))
+}
+
 pub(crate) fn inverse(
     image: &Image,
     s: &GeometrySettings,
@@ -48,6 +73,9 @@ pub(crate) fn inverse(
             ));
         }
         return Ok(Homography::IDENTITY);
+    }
+    if let Some(saved) = saved_inverse(s)? {
+        return Ok(saved);
     }
     let result = if s.upright.mode == UprightMode::Guided {
         return guided_inverse(image.width(), image.height(), s, map);

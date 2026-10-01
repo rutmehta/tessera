@@ -367,6 +367,13 @@ pub struct LensSettings {
     pub vignetting_scale: f32,
     /// Profile lateral CA scale, `0..=200` (%).
     pub chromatic_aberration_scale: f32,
+    /// Legacy Adobe red/cyan radial alignment, -100..=100. Independent of auto CA.
+    /// CPU source radius scales by 1 + value / 10000; None has no effect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_ca_red: Option<f32>,
+    /// Legacy Adobe blue/yellow radial alignment, with green held fixed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_ca_blue: Option<f32>,
     /// Remove lateral chromatic aberration (auto if no profile).
     pub remove_chromatic_aberration: bool,
     /// Manual distortion, `-100..=100`.
@@ -390,6 +397,8 @@ impl Default for LensSettings {
             distortion_scale: 100.0,
             vignetting_scale: 100.0,
             chromatic_aberration_scale: 100.0,
+            legacy_ca_red: None,
+            legacy_ca_blue: None,
             remove_chromatic_aberration: true,
             manual_distortion: 0.0,
             manual_vignetting: 0.0,
@@ -1116,6 +1125,55 @@ pub struct Upright {
     pub mode: UprightMode,
     /// Guides for [`UprightMode::Guided`].
     pub guides: Vec<GuideLine>,
+    /// Saved source-to-output projective map in unit image coordinates [0, 1].
+    /// Applied before manual transform/crop; ignored while mode is Off.
+    /// Omitted when absent to preserve pre-existing recipe serialization/hashes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub homography: Option<[[f64; 3]; 3]>,
+    /// Mode for which the saved solution was produced. Absent on old recipes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub homography_mode: Option<UprightMode>,
+}
+
+impl Upright {
+    /// Whether a saved solution can replace analysis for the current mode.
+    pub fn has_saved_solution(&self) -> bool {
+        self.mode != UprightMode::Off
+            && self.homography.is_some()
+            && self.homography_mode.is_none_or(|mode| mode == self.mode)
+    }
+    /// Interactive mode/guide edits invalidate a solution, including same-mode guide edits.
+    pub fn invalidate_after_edit(&mut self, before: &Self) {
+        if (self.mode != before.mode || self.guides != before.guides)
+            && self.homography == before.homography
+        {
+            self.homography = None;
+            self.homography_mode = None;
+        }
+    }
+
+    /// Reject nonfinite/singular maps and projective poles across the source frame.
+    pub fn valid_homography(h: &[[f64; 3]; 3]) -> bool {
+        if h.iter().flatten().any(|v| !v.is_finite()) {
+            return false;
+        }
+        let scale = h.iter().flatten().fold(0f64, |a, v| a.max(v.abs()));
+        if scale == 0. {
+            return false;
+        }
+        let h = h.map(|row| row.map(|v| v / scale));
+        let det = h[0][0] * (h[1][1] * h[2][2] - h[1][2] * h[2][1])
+            - h[0][1] * (h[1][0] * h[2][2] - h[1][2] * h[2][0])
+            + h[0][2] * (h[1][0] * h[2][1] - h[1][1] * h[2][0]);
+        let denominators = [
+            h[2][2],
+            h[2][0] + h[2][2],
+            h[2][1] + h[2][2],
+            h[2][0] + h[2][1] + h[2][2],
+        ];
+        det.abs() > 1e-12
+            && (denominators.iter().all(|d| *d > 1e-12) || denominators.iter().all(|d| *d < -1e-12))
+    }
 }
 
 /// Composed geometry: orientation, distortion (from lens), Upright, transform

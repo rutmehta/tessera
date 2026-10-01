@@ -2708,6 +2708,9 @@ impl DevelopSession {
             value["white_balance"]["mode"] = Value::String("custom".into());
         }
         let mut next: DevelopSettings = serde_json::from_value(value).map_err(failure)?;
+        next.geometry
+            .upright
+            .invalidate_after_edit(&st.live.geometry.upright);
         pin_new_denoise_edit(&self.shared.model_registry, &st.live, &mut next)?;
         if next == st.live && st.rendered.is_some() && !interactive {
             return Ok(());

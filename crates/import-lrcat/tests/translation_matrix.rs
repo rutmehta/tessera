@@ -9,7 +9,42 @@ type Import = dyn Fn(&str, &str) -> Result<(Recipe, Vec<String>), String>;
 
 /// The production synthetic import: one Lua row through `lua_develop::parse`.
 fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
-    lua_develop::parse(&format!("s = {{ {key} = {value} }}"), "15.4")
+    let context = if key.starts_with("UprightTransform_") {
+        format!(
+            "PerspectiveUpright = {},",
+            key.trim_start_matches("UprightTransform_")
+        )
+    } else if key.starts_with("UprightFourSegments") {
+        "PerspectiveUpright = 5, UprightFourSegmentsCount = 4, UprightFourSegments_0 = '0.1,0.1,0.2,0.9', UprightFourSegments_1 = '0.9,0.1,0.8,0.9', UprightFourSegments_2 = '0.1,0.1,0.9,0.2', UprightFourSegments_3 = '0.1,0.9,0.9,0.8',".into()
+    } else if key.starts_with("UprightCenter") || key.starts_with("UprightFocal") {
+        "PerspectiveUpright = 1, UprightTransform_1 = '0,-1,0,1,0,0,0,0,1',".into()
+    } else {
+        String::new()
+    };
+    // Replace the context value instead of creating duplicate Adobe properties.
+    let version = if key.starts_with("ChromaticAberration") {
+        "5.7"
+    } else {
+        "15.4"
+    };
+    let context = if key.starts_with("UprightFourSegments") {
+        let mut fields = vec![
+            ("PerspectiveUpright", "5"),
+            ("UprightFourSegmentsCount", "4"),
+            ("UprightFourSegments_0", "'0.1,0.1,0.2,0.9'"),
+            ("UprightFourSegments_1", "'0.9,0.1,0.8,0.9'"),
+            ("UprightFourSegments_2", "'0.1,0.1,0.9,0.2'"),
+            ("UprightFourSegments_3", "'0.1,0.9,0.9,0.8'"),
+        ];
+        fields.retain(|(k, _)| *k != key);
+        fields
+            .into_iter()
+            .map(|(k, v)| format!("{k} = {v},"))
+            .collect::<String>()
+    } else {
+        context
+    };
+    lua_develop::parse(&format!("s = {{ {context} {key} = {value} }}"), version)
         .map_err(|e| format!("{key}: {e}"))
 }
 
@@ -74,7 +109,10 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         }
         let notes = diagnostics::entries(&recipe)
             .remove(key)
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|note| note.status == "approximate")
+            .collect::<Vec<_>>();
         if approximate {
             if !warnings.is_empty() {
                 return Err(format!("{key}: approximate key has warnings: {warnings:?}"));
@@ -98,10 +136,9 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
                 ));
             }
             // Lane is free-form; the field must name the row's recipe path.
-            if !notes
-                .iter()
-                .any(|n| n.level == "info" && n.status == "approximate" && n.field == path)
-            {
+            if !notes.iter().any(|n| {
+                n.level == "info" && n.status == "approximate" && n.field.as_deref() == Some(path)
+            }) {
                 return Err(format!(
                     "{key}: approximate diagnostics name no entry for field {path}: {notes:?}"
                 ));
@@ -316,4 +353,31 @@ fn matrix_guard_rejects_a_translated_row_carrying_an_approximate_diagnostic() {
 fn matrix_guard_rejects_the_fixture_row_against_the_unconverted_parser() {
     let error = check_rows(APPROXIMATE_ROW, &lua_import).unwrap_err();
     assert!(error.contains("not retained"), "{error}");
+}
+
+#[test]
+fn lr7e_ignored_notes_do_not_count_as_approximate() {
+    let lane = |key: &str, value: &str| {
+        let (mut recipe, warnings) = synthetic_lane(FULL)(key, value)?;
+        recipe.unknown.get_mut(diagnostics::KEY).unwrap()[key][0]["status"] = "ignored".into();
+        Ok((recipe, warnings))
+    };
+    let error = check_rows(APPROXIMATE_ROW, &lane).unwrap_err();
+    assert!(error.contains("no info diagnostics entry"), "{error}");
+}
+
+#[test]
+fn lr7e_translated_row_can_carry_an_ignored_note() {
+    let lane = |key: &str, value: &str| {
+        let (mut recipe, warnings) = synthetic_lane(Lane {
+            retain: false,
+            ..FULL
+        })(key, value)?;
+        recipe.unknown.get_mut(diagnostics::KEY).unwrap()[key][0]["status"] = "ignored".into();
+        Ok((recipe, warnings))
+    };
+    let row = APPROXIMATE_ROW.replace("approximate", "translated");
+    let (counts, _) = check_rows(&row, &lane).unwrap();
+    assert_eq!(counts.translated, 1);
+    assert_eq!(counts.approximate, 0);
 }

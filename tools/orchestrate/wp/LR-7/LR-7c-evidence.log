@@ -1,0 +1,79 @@
+LR-7c final verification evidence (2026-10-01)
+Implementation: bb87f061725c4a1929da6e94be57586d74ac26dd
+Rebase base: 44db24b251522a477375d36f3bc34244ea015836
+Local only. No GUI or real catalog opened.
+
+Environment:
+PATH="$HOME/.cargo/bin:$PATH"
+CARGO_TARGET_DIR="$HOME/.cache/tessera-target/LR-7-upright"
+CARGO_BUILD_JOBS=3 RAYON_NUM_THREADS=3 RUST_TEST_THREADS=3
+Repo fixtures/raw symlink used; PIPELINE_RAW_FIXTURES unset.
+
+Observed RED before fixes:
+engine-api upright_lr7c: mode_changes_invalidate_saved_matrix,
+  guide_changes_invalidate_saved_matrix, invalid_matrix_fails_recipe_validation:
+  0 passed, 3 failed.
+import-lrcat upright_lr7c: approximate_retains_exact_source_without_warnings_and_one_import_edit,
+  legacy_ca_is_gated_and_zero_does_not_create_history,
+  center_focal_frame_is_used_and_mode_is_tagged: 0 passed, 3 failed.
+Later separate RED regressions (each 0 passed, 1 failed before its fix):
+  framed_matrix_poles_are_checked_in_the_actual_image_domain
+  unknown_frame_family_members_do_not_change_the_known_mapping
+All of these regressions pass in the final seven-crate run.
+
+Full Rust command:
+cargo test --locked --no-fail-fast -p import-lrcat -p engine-api -p pipeline-cpu -p pipeline-gpu -p image-core -p sidecar -p tessera-ffi
+Exit 101. Across 193 target summaries: 1243 passed, 1 failed, 49 ignored.
+Only failure: tessera-ffi/document_liquify_ui/brush_latency_on_a_20_megapixel_layer.
+Full-run measurement: median 243.2 ms, p95 562.5 ms, max 1073.2 ms; limit p95 < 250 ms.
+All other targets passed, including full image-core and pipeline-gpu, all LR-7c
+regressions, translation-matrix guard, sidecar and remaining FFI tests/doc-tests.
+Ignored benchmarks/opt-in tests remain ignored; required five-RAW test run separately below.
+
+Serial latency retry (unchanged code/threshold; RUST_TEST_THREADS=1):
+cargo test --locked -p tessera-ffi --test document_liquify_ui brush_latency_on_a_20_megapixel_layer -- --exact --test-threads=1 --nocapture
+Exit 101. 0 passed, 1 failed, 14 filtered out, 52.32s.
+Median 256.0 ms, p95 486.4 ms, max 769.2 ms; limit p95 < 250 ms.
+Unresolved latency gate failure; not classified as a proven transient flake.
+The latency test file is unchanged from the rebase base. No threshold changes.
+
+Explicit required RAW acceptance (RUST_TEST_THREADS=1):
+cargo test --locked --release -p pipeline-cpu --test lens_fixtures five_actual_raws_auto_lens_and_upright_are_finite -- --ignored --nocapture
+Exit 0. 1 passed, 0 failed, 0 ignored, 205.65s.
+canon-cr3.CR3: 500x500 finite
+sony-arw.ARW: 615x410 finite
+nikon-nef.NEF: 923x616 finite
+fuji-raf.RAF: 612x408 finite
+sample.dng: 652x434 finite
+
+Clippy:
+cargo clippy --locked -p import-lrcat -p engine-api -p pipeline-cpu -p pipeline-gpu -p image-core -p sidecar -p tessera-ffi --all-targets -- -D warnings
+PASS, 15.71s. Existing vendored libraw C sprintf deprecation warnings remain.
+cargo fmt --all -- --check: PASS.
+git diff --check: PASS.
+
+Swift (final source):
+cd apps/mac && ./build-ffi.sh && ../../tools/orchestrate/swift-gate.sh
+PASS: arm64 archive/bindings rebuilt; SWIFT GATE OK.
+907 XCTest tests, 3 skipped, 0 failures; 5 Swift Testing tests passed.
+cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+PASS, 283.13s.
+
+Focused supplemental final checks:
+import-lrcat upright_lr7c: 8 passed; sidecar upright_lr7c: 3 passed.
+Full sidecar suite also passed independently.
+
+Raw local logs (not required for checkout portability):
+/tmp/LR-7c-gates-final.log
+/tmp/LR-7c-liquify-serial-final.log
+/tmp/LR-7c-five-raws-final.log
+/tmp/LR-7c-clippy-final.log
+/tmp/LR-7c-fmt-final.log
+/tmp/LR-7c-ffi-build-final.log
+/tmp/LR-7c-swift-gate-final.log
+/tmp/LR-7c-swift-release-final.log
+
+Scope: no Cargo.lock, Cargo.toml, board.json or dependency changes.
+Adobe matrix layout/direction/frame and legacy CA sign/units remain unverified:
+approximate status, exact source retained, info diagnostics, no warnings for valid mappings.
+No claim of Adobe-rendered parity. LR-2 fingerprint rebaseline deferred to integration.

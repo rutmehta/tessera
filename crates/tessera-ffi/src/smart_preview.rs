@@ -683,6 +683,26 @@ mod tests {
         assert_eq!(value["recipe"]["settings"]["tone"]["exposure"], 0.75);
     }
     #[test]
+    fn lr7d_local_save_bumps_feature_envelope() {
+        let local = tempfile::tempdir().unwrap();
+        let id = ImageId(9177);
+        let bytes = recipe(id);
+        let mut journal =
+            SmartPreviewJournal::create(local.path(), id, [1; 32], 9, bytes.clone(), None, None)
+                .unwrap();
+        let mut doc: sidecar::RecipeDocument = serde_json::from_slice(&bytes).unwrap();
+        doc.recipe
+            .edit(engine_api::recipe::EditMeta::user("CA", 1), |s| {
+                s.lens.legacy_ca_red = Some(35.)
+            })
+            .unwrap();
+        save_local_recipe(&mut journal, &doc.recipe).unwrap();
+        drop(journal);
+        let (_, snapshot) = SmartPreviewJournal::open(local.path(), id).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&snapshot.recipe).unwrap();
+        assert_eq!(value["recipe"]["schema_version"], 4);
+    }
+    #[test]
     fn dirty_local_recipe_blocks_full_quality_export_and_direct_original_write() {
         let local = tempfile::tempdir().unwrap();
         let engine = Engine::open(local.path().to_string_lossy().into()).unwrap();

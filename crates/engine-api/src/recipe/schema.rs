@@ -32,8 +32,19 @@ pub const RECIPE_SCHEMA_VERSION_V4: u32 = 4;
 /// A named schema 4 feature test.
 pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 
-/// Every schema 4 feature, by diagnostic name. Empty until a lane lands one.
-const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[];
+/// Every schema 4 feature, by diagnostic name.
+const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
+    ("upright_homography", |r| {
+        r.settings.geometry.upright.homography.is_some()
+    }),
+    ("upright_homography_mode", |r| {
+        r.settings.geometry.upright.homography_mode.is_some()
+    }),
+    ("legacy_ca_red", |r| r.settings.lens.legacy_ca_red.is_some()),
+    ("legacy_ca_blue", |r| {
+        r.settings.lens.legacy_ca_blue.is_some()
+    }),
+];
 
 /// Lowest schema version that can represent `recipe` (3 or 4).
 pub fn required_schema_version(recipe: &Recipe) -> u32 {
@@ -151,6 +162,33 @@ mod v4_feature_predicates {
         let reloaded = Recipe::from_json(&bytes).unwrap();
         assert_eq!(reloaded.schema_version, RECIPE_SCHEMA_VERSION_V4);
         assert_eq!(reloaded.to_json().unwrap(), bytes);
+    }
+
+    #[test]
+    fn lr7d_homography() {
+        assert_bumped_only_when_present("upright_homography", |r| {
+            r.settings.geometry.upright.homography =
+                Some([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
+        });
+    }
+    #[test]
+    fn lr7d_mode_tag() {
+        assert_bumped_only_when_present("upright_homography_mode", |r| {
+            r.settings.geometry.upright.homography_mode =
+                Some(crate::recipe::settings::UprightMode::Auto);
+        });
+    }
+    #[test]
+    fn lr7d_red() {
+        assert_bumped_only_when_present("legacy_ca_red", |r| {
+            r.settings.lens.legacy_ca_red = Some(35.)
+        });
+    }
+    #[test]
+    fn lr7d_blue() {
+        assert_bumped_only_when_present("legacy_ca_blue", |r| {
+            r.settings.lens.legacy_ca_blue = Some(-25.)
+        });
     }
 
     fn written_version(bytes: &[u8]) -> u64 {

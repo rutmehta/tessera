@@ -5,8 +5,8 @@
 //! `recipe.unknown["lrcat_develop_source"]` and records one info-level entry
 //! here. Storage is `recipe.unknown[KEY]`: a JSON object keyed by Adobe key,
 //! each value an array of [`Entry`] objects. Lanes write only through
-//! [`push_approximate`]; readers use [`entries`]. A recipe without diagnostics
-//! has no such member, so its serialization is unchanged.
+//! [`push_approximate`] or [`push_ignored`]; readers use [`entries`]. A recipe
+//! without diagnostics has no such member, so its serialization is unchanged.
 use std::collections::BTreeMap;
 
 use engine_api::recipe::Recipe;
@@ -19,15 +19,16 @@ pub const KEY: &str = "lrcat_translation_diagnostics";
 /// One diagnostic for one Adobe key.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entry {
-    /// Always `info` for `approximate`; approximate translations never warn.
+    /// Always `info`; approximate and ignored translations never warn.
     pub level: String,
-    /// Matrix status, `approximate`.
+    /// Translation status, `approximate` or `ignored`.
     pub status: String,
     /// Owning lane, e.g. `LR-2`.
     pub lane: String,
-    /// JSON pointer of the populated recipe field, e.g. `/settings/tone/exposure`.
-    pub field: String,
-    /// Why the translation is approximate.
+    /// JSON pointer of the populated recipe field; absent for ignored keys.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
+    /// Why the translation is approximate or ignored.
     pub reason: String,
 }
 
@@ -48,10 +49,28 @@ pub fn push_approximate(
         level: "info".into(),
         status: "approximate".into(),
         lane: lane.into(),
-        field: field.into(),
+        field: Some(field.into()),
         reason: reason.into(),
     })
     .expect("entry serializes");
+    push(recipe, adobe_key, entry);
+}
+
+/// Record an intentionally ignored source key without claiming a populated field.
+/// Uses the same append, dedupe and no-clobber rules as [`push_approximate`].
+pub fn push_ignored(recipe: &mut Recipe, adobe_key: &str, lane: &str, reason: &str) {
+    let entry = serde_json::to_value(Entry {
+        level: "info".into(),
+        status: "ignored".into(),
+        lane: lane.into(),
+        field: None,
+        reason: reason.into(),
+    })
+    .expect("entry serializes");
+    push(recipe, adobe_key, entry);
+}
+
+fn push(recipe: &mut Recipe, adobe_key: &str, entry: Value) {
     let Value::Object(object) = recipe
         .unknown
         .entry(KEY.into())
@@ -95,12 +114,50 @@ pub fn entries(recipe: &Recipe) -> BTreeMap<String, Vec<Entry>> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn ignored_entries_have_no_field_append_dedupe_and_round_trip() {
+        let mut recipe = Recipe::default();
+        push_ignored(&mut recipe, "CA", "LR-7", "stale");
+        push_ignored(&mut recipe, "CA", "LR-7", "stale");
+        push_ignored(&mut recipe, "CA", "LR-7", "another reason");
+        push_approximate(&mut recipe, "Other", "/a", "LR-2", "existing");
+        let other = recipe.unknown[KEY]["Other"].clone();
+        push_ignored(&mut recipe, "Other", "LR-7", "stale");
+        assert_eq!(recipe.unknown[KEY]["Other"][0], other[0]);
+        assert_eq!(recipe.unknown[KEY]["Other"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            recipe.unknown[KEY]["CA"],
+            serde_json::json!([
+                {"level":"info", "status":"ignored", "lane":"LR-7", "reason":"stale"},
+                {"level":"info", "status":"ignored", "lane":"LR-7", "reason":"another reason"}
+            ])
+        );
+        let back: Recipe = serde_json::from_slice(&serde_json::to_vec(&recipe).unwrap()).unwrap();
+        assert_eq!(entries(&back), entries(&recipe));
+        assert_eq!(entries(&back)["CA"].len(), 2);
+        assert_eq!(entries(&back)["CA"][0].status, "ignored");
+    }
+
+    #[test]
+    fn ignored_never_clobbers_foreign_shapes() {
+        for foreign in [serde_json::json!([1]), serde_json::json!({"CA":"foreign"})] {
+            let mut recipe = Recipe::default();
+            recipe.unknown.insert(KEY.into(), foreign.clone());
+            let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                push_ignored(&mut recipe, "CA", "LR-7", "stale");
+            }))
+            .is_err();
+            assert_eq!(panicked, cfg!(debug_assertions));
+            assert_eq!(recipe.unknown[KEY], foreign);
+        }
+    }
+
     fn entry(lane: &str, field: &str, reason: &str) -> Entry {
         Entry {
             level: "info".into(),
             status: "approximate".into(),
             lane: lane.into(),
-            field: field.into(),
+            field: Some(field.into()),
             reason: reason.into(),
         }
     }
