@@ -842,3 +842,116 @@ fn preview_level_decides_whether_the_detail_effects_are_omitted() {
         s.clear_preview().unwrap();
     }
 }
+
+/// B5-34: every saved stage and every edited stage follows the canvas level;
+/// zoom transitions must not reuse a bake with the opposite detail policy.
+#[test]
+fn stacked_camera_raw_detail_follows_canvas_level() {
+    let _g = serial();
+    let (dir, engine) = engine();
+    let path = opaque_png(dir.path(), "stack.png", 256, 192);
+    let s = open(&engine, &path);
+    let zero = open(&engine, &opaque_png(dir.path(), "stack-zero.png", 256, 192));
+    let applied = open(
+        &engine,
+        &opaque_png(dir.path(), "stack-applied.png", 256, 192),
+    );
+    let id = s.layers().unwrap()[0].id;
+    let zid = zero.layers().unwrap()[0].id;
+    let aid = applied.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(id).unwrap();
+    zero.convert_for_smart_filters(zid).unwrap();
+    for exposure in [0.1, 0.2] {
+        s.apply_filter(id, local_json(exposure)).unwrap();
+        zero.apply_filter(zid, local_json_without_detail(exposure))
+            .unwrap();
+        applied.apply_filter(aid, local_json(exposure)).unwrap();
+    }
+    let saved = s
+        .smart_filters(id)
+        .unwrap()
+        .iter()
+        .map(|r| r.filter_json.clone())
+        .collect::<Vec<_>>();
+    for level in [2u8, 0, 1, 2, 0] {
+        s.clear_preview().unwrap();
+        s.set_viewport(
+            level,
+            0,
+            0,
+            256 >> level,
+            192 >> level,
+            1.0 / f64::from(1u8 << level),
+        )
+        .unwrap();
+        let expected = zero.read_presented_level(level).unwrap().2;
+        let canvas = s.read_presented_level(level).unwrap().2;
+        let diff = max_diff(&canvas, &expected);
+        println!("B5-34 L{level} saved vs zeroed: {diff}");
+        if level > 0 {
+            assert_eq!(
+                diff, 0.0,
+                "all saved Camera Raw stages omit detail at L{level}"
+            );
+        } else {
+            assert!(diff > 0.02, "100% keeps detail");
+            let d = max_diff(
+                &crop(&canvas, 256, 64, 48, 128, 96),
+                &crop(&live(&applied, 0), 256, 64, 48, 128, 96),
+            );
+            println!("B5-34 L0 vs Apply: {d}");
+            assert!(d <= 2.5 / 255.0);
+        }
+        for index in [0u32, 1] {
+            s.preview_smart_filter(
+                id,
+                index,
+                local_json(if index == 0 { 0.1 } else { 0.2 }),
+                None,
+            )
+            .unwrap();
+            s.wait_filters_idle();
+            assert_eq!(s.filter_error(), None);
+            let preview = s.read_presented_level(level).unwrap().2;
+            let d = max_diff(&preview, &canvas);
+            println!("B5-34 L{level} edit {index} vs saved: {d}");
+            assert!(d <= 2.5 / 255.0);
+        }
+    }
+    s.clear_preview().unwrap();
+    s.set_viewport(2, 0, 0, 64, 48, 0.25).unwrap();
+    let detail = s
+        .smart_filter_detail(id, 1, local_json(0.2), 64, 48, 128, 96)
+        .unwrap();
+    assert_eq!(detail.level, 0);
+    let exact = crop(&live(&applied, 0), 256, 64, 48, 128, 96);
+    let d = max_diff(&pane(&detail), &exact);
+    println!("B5-34 zoomed-out 1:1 pane vs Apply: {d}");
+    assert!(d <= 2.5 / 255.0);
+    let out = dir.path().join("stack-export.png");
+    s.export_flat(
+        out.to_string_lossy().into_owned(),
+        ExportFormat::Png,
+        90,
+        ExportColor::Document,
+    )
+    .unwrap();
+    let exported: Vec<f32> = image::open(out)
+        .unwrap()
+        .to_rgba8()
+        .as_raw()
+        .iter()
+        .map(|v| f32::from(*v) / 255.0)
+        .collect();
+    let d = max_diff(&crop(&exported, 256, 64, 48, 128, 96), &exact);
+    println!("B5-34 zoomed-out export vs Apply: {d}");
+    assert!(d <= 2.5 / 255.0);
+    assert_eq!(
+        saved,
+        s.smart_filters(id)
+            .unwrap()
+            .iter()
+            .map(|r| r.filter_json.clone())
+            .collect::<Vec<_>>()
+    );
+}
