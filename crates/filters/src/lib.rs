@@ -264,30 +264,80 @@ pub(crate) fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     k
 }
 pub(crate) fn convolve(src: &Buffer, k: &[f32], cancel: &AtomicBool) -> EngineResult<Buffer> {
-    let mut a = src.clone();
-    let mut b = src.clone();
     let r = (k.len() / 2) as i32;
-    for vertical in [false, true] {
-        for y in 0..src.h {
-            checkpoint(cancel)?;
-            for x in 0..src.w {
-                let mut sum = [0.0; 4];
-                for (j, &weight) in k.iter().enumerate() {
-                    let d = j as i32 - r;
-                    let v = a.at(
-                        x as i32 + if vertical { 0 } else { d },
-                        y as i32 + if vertical { d } else { 0 },
-                    );
-                    for c in 0..4 {
-                        sum[c] += weight * v[c];
-                    }
+    let mut horizontal = vec![[0.0; 4]; src.pixels.len()];
+    let mut output = vec![[0.0; 4]; src.pixels.len()];
+
+    // The interior has no horizontal edge clamping. Keep the same ascending
+    // kernel order and weight*sample accumulation as the baseline for each
+    // output channel.
+    let radius = r as usize;
+    let interior_start = radius.min(src.w);
+    let interior_end = src.w.saturating_sub(radius).max(interior_start);
+    for y in 0..src.h {
+        checkpoint(cancel)?;
+        let row = y * src.w;
+        for x in 0..interior_start {
+            let mut sum = [0.0; 4];
+            for (j, &weight) in k.iter().enumerate() {
+                let d = j as i32 - r;
+                let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
+                let sample = src.pixels[row + sample_x];
+                for c in 0..4 {
+                    sum[c] += weight * sample[c];
                 }
-                b.pixels[y * src.w + x] = sum;
+            }
+            horizontal[row + x] = sum;
+        }
+        for x in interior_start..interior_end {
+            let mut sum = [0.0; 4];
+            for (j, &weight) in k.iter().enumerate() {
+                let d = j as i32 - r;
+                let sample_x = (x as i32 + d) as usize;
+                let sample = src.pixels[row + sample_x];
+                for c in 0..4 {
+                    sum[c] += weight * sample[c];
+                }
+            }
+            horizontal[row + x] = sum;
+        }
+        for x in interior_end..src.w {
+            let mut sum = [0.0; 4];
+            for (j, &weight) in k.iter().enumerate() {
+                let d = j as i32 - r;
+                let sample_x = (x as i32 + d).clamp(0, src.w as i32 - 1) as usize;
+                let sample = src.pixels[row + sample_x];
+                for c in 0..4 {
+                    sum[c] += weight * sample[c];
+                }
+            }
+            horizontal[row + x] = sum;
+        }
+    }
+
+    // Interchange vertical y/j loops so each kernel tap reads and updates
+    // contiguous rows. Reset this destination row before accumulating taps;
+    // each pixel still receives weights in the original ascending order.
+    for y in 0..src.h {
+        checkpoint(cancel)?;
+        let out_row = &mut output[y * src.w..(y + 1) * src.w];
+        out_row.fill([0.0; 4]);
+        for (j, &weight) in k.iter().enumerate() {
+            let d = j as i32 - r;
+            let sample_y = (y as i32 + d).clamp(0, src.h as i32 - 1) as usize;
+            let sample_row = &horizontal[sample_y * src.w..(sample_y + 1) * src.w];
+            for x in 0..src.w {
+                for c in 0..4 {
+                    out_row[x][c] += weight * sample_row[x][c];
+                }
             }
         }
-        std::mem::swap(&mut a, &mut b);
     }
-    Ok(a)
+    Ok(Buffer {
+        w: src.w,
+        h: src.h,
+        pixels: output,
+    })
 }
 
 impl Filter for Effect {
