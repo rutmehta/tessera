@@ -301,7 +301,7 @@ struct LayerMenu: View {
         let on = doc != nil
         Menu("New") {
             Button("Layer") { doc?.addLayer(.pixel) }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .shortcut(doc != nil, "n", [.command, .shift])
             Button("Group") { doc?.addLayer(.group(mode: .passThrough)) }
             Menu("Adjustment Layer") {
                 // Photoshop's order and groups, then the native-only kinds (WP B5-06).

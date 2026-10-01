@@ -69,7 +69,7 @@ struct ImageMenu: View {
             switch mode {
             case .tone: button.keyboardShortcut("l", modifiers: [.command, .shift])
             case .contrast: button.keyboardShortcut("l", modifiers: [.command, .option, .shift])
-            case .color: button.keyboardShortcut("b", modifiers: [.command, .shift])
+            case .color: button.shortcut(doc != nil, "b", [.command, .shift])
             }
         }
     }
