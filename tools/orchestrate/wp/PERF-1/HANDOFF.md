@@ -25,3 +25,5 @@ Evidence and gates:
 Next action: after lane release, compile and execute the authored PERF-1 tests, record exact RED/fixture evidence, then author the frozen blur/morphology oracle, cancellation and budget cases and ignored release benchmark before implementing. Runtime cache structural changes require parent review. Required GREEN and performance evidence remain pending. The earlier source-plan commit was documentation only. This test-scaffolding commit is not an executed RED or lane completion claim. No cache, scheduling, or numerical optimization has been implemented.
 
 Commit identity: use `git log -1 --format=%H -- tools/orchestrate/wp/PERF-1` on this branch; parent receives the exact resulting commit hash with this handoff. No merge requested.
+
+Independent review of same-pass fixture 11c318d3 found no source blocker in namespace construction, identity sampling, bottom-first order or analytic dyadic pixels. See SAME-PASS-SOURCE-REVIEW.md. This is a pixel regression, not cache hit/miss evidence; still UNRUN.

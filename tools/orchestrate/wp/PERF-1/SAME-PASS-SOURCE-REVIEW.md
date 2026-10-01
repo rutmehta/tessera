@@ -1,0 +1,9 @@
+# PERF-1 same-pass smart-object fixture review
+
+Reviewed `11c318d3` at current `392009d4efc85ce3fc9e8679af429ee72a9887b6`; source-only, no tests/builds/GPU.
+
+The fixture closes the same-pass key-collision gap from the earlier A/B/A test. It creates two child `DocState`s with the same revision (7), same group/leaf IDs (1/2), and equal group/leaf props/content revisions (all zero from `Layer::new`), but different leaf raster alpha start (x=1 vs x=128) and different child overlay (red vs green). Wrapping each in `SmartObject::new` correctly gives independent runtime keys; those keys are asserted unequal. Both smart objects are present in one root full-level render, so a frame-local style cache that keys only on revision/layer ID can incorrectly reuse the first nested child result for the second.
+
+Pixel oracle and geometry check out against `smart_tile` in `render/mod.rs`: it maps parent pixel centers `(x+0.5,y+0.5)` through the inverse transform and subtracts 0.5 before bilinear sampling. `Affine::IDENTITY` therefore yields integer sample coordinates with zero interpolation weights, including at x=127/128 and across the right partial tile. `DocState.root` is documented bottom-first; `parent_state.root=[bottom red, top green]` means bottom appears for x=1..127 and top replaces it for x>=128. Child ColorOverlay with fill opacity zero suppresses white source fill but retains shape; parent 50%-blue overlay gives exact expected `[0.5,0,0.5,1]` or `[0,0.5,0.5,1]`. All channels are dyadic and transparent rows/x=0 should remain zero. Expected value calculation is independent of compositor output.
+
+No blocker found in fixture construction or expected pixels. Test remains UNRUN; this is source/API/math review only. It checks pixel-level namespace isolation, not an explicit counter proving hit/miss partition, which is appropriate for a regression oracle but should not be described as cache instrumentation evidence.
