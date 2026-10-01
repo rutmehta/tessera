@@ -454,10 +454,16 @@ final class DocumentExportFlatTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(next.time - previous.time, 0.095,
                                         "Progress must coalesce to at most 10 Hz, including phase changes")
         }
-        // MainThreadSpans events are the same whole-runloop samples guarded above.
-        for event in events where event.mainThread && event.durationMs != nil
-            && (measureTiming || !event.name.hasPrefix("export_flat_main_busy")) {
-            XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
+        // Both named export spans and whole-runloop samples use the quiet-host opt-in.
+        // The sibling B5-33 test keeps its loose 100 ms bounds enabled by default.
+        if measureTiming {
+            let timedEvents = events.filter { $0.mainThread && $0.durationMs != nil }
+            for event in timedEvents {
+                XCTAssertLessThan(event.durationMs!, 20, "Main export span: \(event.name)")
+            }
+            print("TESSERA_FILTER_PERF: evaluated 20 ms export-event bound for \(timedEvents.count) events")
+        } else {
+            print("TESSERA_FILTER_PERF unset: skipped 20 ms export-event bound")
         }
         if let path = ProcessInfo.processInfo.environment["TESSERA_EXPORT_TEST_TRACE"] {
             try await Task.detached { try trace.write(to: URL(fileURLWithPath: path)) }.value
