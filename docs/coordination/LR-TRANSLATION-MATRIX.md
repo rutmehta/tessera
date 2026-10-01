@@ -205,13 +205,17 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   handle, and the recipe has no dedicated regenerated-mask diagnostic field.
   Category decoding alone does not import Adobe Mask/Image pixels. Resource
   discovery and mask-store integration remain downstream, using synthetic data.
-- **LR-6b:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
+- **LR-6c:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
   optional selection/resource provenance, mask-store key and deferred regeneration,
   exact source retention, and info-only diagnostics. Adobe units, enum order,
   helper encoding and calibration remain unverified. See
   `tools/orchestrate/wp/LR-6/HANDOFF.md` for each interpretation and uncertainty.
   `image-core::DepthProvider::prepare_lens_blur_depth` resolves caller-associated
   grayscale resources or regenerates through the explicitly installed provider.
+  DepthMapInfo is translated only alongside active Lens Blur (the guard supplies
+  this companion). Otherwise it remains retained source with an info record and
+  does not enable blur. Diagnostics name each translated field. Native focus
+  fields remain authoritative; rendering consumes stored mask-store depth keys.
 - **LR-7:** optional `geometry.upright.homography` stores a unit-image
   source-to-output map, tagged by `homography_mode`. Selected matrices,
   center/focal framing and complete four-segment guide sets are approximate.

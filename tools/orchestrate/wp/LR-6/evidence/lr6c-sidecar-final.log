@@ -1,0 +1,205 @@
+   Compiling num-traits v0.2.19
+   Compiling euclid v0.22.14
+   Compiling proptest v1.11.0
+   Compiling lyon_geom v1.0.19
+   Compiling lyon_path v1.0.19
+   Compiling lyon_algorithms v1.0.21
+   Compiling lyon_tessellation v1.0.22
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/typography)
+   Compiling lyon v1.0.19
+   Compiling vector v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/vector)
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/engine-api)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/sidecar)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 42.63s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/sidecar-746ada589f936847)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/develop-ce1736a05336850c)
+
+running 5 tests
+test aux_enhance_properties_become_provenance_not_edits ... ok
+test adobe_pv6_fixture_maps_to_valid_recipe ... ok
+test writes_every_mapped_key_and_reads_every_table_key ... ok
+test lens_and_camera_profile_identity_round_trips ... ok
+test native_recipe_exports_best_effort_pv6_with_companion ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/export_hash.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/export_hash-be785b6449baecae)
+
+running 4 tests
+test external_crs_edit_invalidates_native_revision ... ok
+test unsigned_companion_is_not_trusted ... ok
+test reexport_refreshes_hash_and_prefix_changes_do_not_invalidate_it ... ok
+test stale_revision_cannot_be_reactivated_by_reexport ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/export_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/export_policy-596c4b5e4dc01852)
+
+running 8 tests
+test nested_camera_and_structured_person_names_are_removed ... ok
+test hierarchy_switch_removes_hierarchy_without_removing_flat_keywords ... ok
+test hierarchy_person_names_are_collected_from_every_property ... ok
+test qualified_keywords_are_preserved_when_not_removed ... ok
+test qualified_keyword_value_attributes_are_filtered_and_preserved ... ok
+test removes_person_and_location_before_writing_keyword_hierarchy ... ok
+test restricted_policies_are_namespace_aware_and_preserve_contact ... ok
+test qualified_person_declarations_remove_flat_keywords ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/export_resource_wrappers.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/export_resource_wrappers-a21e3c261717306a)
+
+running 3 tests
+test wrapped_people_hierarchy_removes_flat_keyword ... ok
+test wrapped_person_keyword_is_removed ... ok
+test wrapped_person_declaration_removes_flat_keyword ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/export_selection.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/export_selection-7a99a2d40b8750e7)
+
+running 1 test
+test selection_update_preserves_language_alternatives_and_qualified_keywords ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/faces.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/faces-aa3f78dce5628a12)
+
+running 6 tests
+test empty_structures_accept_faces_without_losing_attributes ... ok
+test alternate_prefixes_and_rdf_structs_preserve_non_face_regions ... ok
+test dimensions_are_written_as_standard_mwg_structure ... ok
+test normalized_faces_roundtrip_with_standard_namespaces_and_foreign_xml ... ok
+test invalid_geometry_is_rejected_on_read_and_write ... ok
+test person_keywords_are_opt_in_additive_and_unique ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mapped_properties.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/mapped_properties-bc2c598d7a751e83)
+
+running 1 test
+test all_mapped_fields_round_trip has been running for over 60 seconds
+test all_mapped_fields_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.23s
+
+     Running tests/masks_complete.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/masks_complete-b9550dac161ed867)
+
+running 12 tests
+test direct_foreign_opaque_and_invalid_fail_atomically ... ok
+test direct_foreign_radial_rdf_description_attributes ... ok
+test direct_linear_all_combines_and_local_params ... ok
+test direct_brush_multiple_strokes_pressure_erase ... ok
+test direct_luminance_range ... ok
+test direct_oklab_color_range ... ok
+test direct_radial_foreign_edit_does_not_use_stale_geometry ... ok
+test direct_radial_geometry_exact ... ok
+test direct_ai_all_kinds_models_and_prompts ... ok
+test foreign_unsupported_source_retained_on_export ... ok
+test linear_identity_combine_overlay_exact ... ok
+test pipeline_all_mask_kinds ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+     Running tests/native_keywords.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/native_keywords-f286cd8dab5ac893)
+
+running 2 tests
+test native_keyword_merge_preserves_qualified_xmp_and_person_filtering ... ok
+test overlay_retains_language_alternatives_qualifiers_and_namespace_shadowing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/native_review_merge.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/native_review_merge-84f2b72be7b1c343)
+
+running 1 test
+test overrides_match_expanded_names_preserving_qualified_values_and_empty_overrides ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/regressions.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/regressions-41a04c7f8fded30b)
+
+running 2 tests
+test opaque_and_untranslatable_values_are_not_overwritten_by_noop_export ... ok
+test exhaustive_normalized_selections_and_custom_presets ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/roundtrip.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/roundtrip-7b471c6f9b94110c)
+
+running 1 test
+test recipe_atomic_roundtrip_and_schema_guard ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/schema_upgrade.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/schema_upgrade-f283f2975530ef72)
+
+running 1 test
+test legacy_envelope_upgrades_recipe_without_changing_sync_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/selection.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/selection-9ba475f244093caf)
+
+running 1 test
+test selection_uses_dynamic_media_flags_not_keywords ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/storage.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/storage-24a269aac7b71846)
+
+running 10 tests
+test lightroom_owned_symlink_rejects_writes ... ok
+test lww_uses_write_time_not_vector_sum_and_converges ... ok
+test lightroom_owned_destinations_reject_direct_writes ... ok
+test catalog_beside_photos_and_preview_substrings_are_writable ... ok
+test protected_edits_survive_parent_rename_in_app_store ... ok
+
+running 1 test
+test protected_offline_alias_survives_process_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+test protected_offline_alias_survives_process_restart ... ok
+test protected_store_path_survives_original_going_offline ... ok
+test xmp_disk_write_is_atomic_and_readable ... ok
+test protected_rewrite_preserves_recipe_and_realiases_new_content ... ok
+
+running 1 test
+test protected_rewrite_does_not_redirect_another_paths_existing_recipe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+test protected_rewrite_does_not_redirect_another_paths_existing_recipe ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/structures_complete.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/structures_complete-0c7542b0fd68273f)
+
+running 6 tests
+test codec_empty_and_legacy_lens_blur_are_disabled ... ok
+test codec_foreign_structures_are_not_misrepresented ... ok
+test codec_empty_legacy_alias_does_not_clear_retouch ... ok
+test codec_round_trips_every_structure_independently ... ok
+test approximate_lens_controls_and_depth_reference_roundtrip_in_native_xmp ... ok
+test nonempty_structures_round_trip_without_source_packet ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/xmp.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/xmp-7195c43f50f800e4)
+
+running 1 test
+test metadata_edit_preserves_raw_foreign_xml_and_resolves_namespaces ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sidecar
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
