@@ -20,13 +20,11 @@ fn check(lua: &str, xml: &str, kind: &str) -> Vec<LocalAdjustment> {
             r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"],
             raw
         );
-        let diagnostics = r.unknown["lrcat_develop_diagnostics"]
-            .as_array()
-            .expect("info diagnostics");
-        assert!(
-            diagnostics.iter().any(|d| d["level"] == "info"
-                && d["message"].as_str().unwrap().starts_with("approximate: "))
-        );
+        let diagnostics = import_lrcat::diagnostics::entries(&r);
+        assert!(diagnostics.values().flatten().any(|d| d.level == "info"
+            && d.status == "approximate"
+            && d.lane == "LR-4"
+            && !d.reason.is_empty()));
         let g = &r.settings.locals.adjustments[0];
         assert_eq!(
             serde_json::to_value(&g.components[0]).unwrap()["kind"],
@@ -102,7 +100,7 @@ fn lr4c_documented_metadata_does_not_block_approximation() {
     let (r,w) = lua_develop::parse(r#"s={MaskGroupBasedCorrections={{CorrectionSyncID="synthetic",LocalToningHue=0,LocalToningSaturation=0,CorrectionMasks={{What="Mask/CircularGradient",MaskID="invented",MaskValue=1,Midpoint=50,Roundness=0,Left=0.2,Right=0.8,Top=0.1,Bottom=0.9,Angle=30,Flipped=true}}}}}"#, "15.4").unwrap();
     assert!(w.is_empty(), "{w:?}");
     assert_eq!(r.settings.locals.adjustments.len(), 1);
-    assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
+    assert!(!import_lrcat::diagnostics::entries(&r).is_empty());
 }
 
 #[test]

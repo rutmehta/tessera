@@ -24,7 +24,7 @@ fn lr4b_four_bounds_translate_and_promote() {
         assert_eq!(c["kind"], "luminance_range");
         assert_eq!(c["luminance_bounds"], json!([0.1f32, 0.3f32, 0.6f32, 1f32]));
         assert!(r.unknown.contains_key("lrcat_develop_source"));
-        assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
+        assert!(!import_lrcat::diagnostics::entries(&r).is_empty());
     }
 }
 #[test]
@@ -55,7 +55,7 @@ fn lr4b_radial_flipped_is_complement_of_invert_not_a_second_toggle() {
                     inverted
                 );
                 assert!(r.unknown.contains_key("lrcat_develop_source"));
-                assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
+                assert!(!import_lrcat::diagnostics::entries(&r).is_empty());
             }
         }
     }
@@ -80,7 +80,7 @@ fn lr4b_subtype_depth_and_luminance() {
                 kind
             );
             assert!(r.unknown.contains_key("lrcat_develop_source"));
-            assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
+            assert!(!import_lrcat::diagnostics::entries(&r).is_empty());
         }
     }
 }

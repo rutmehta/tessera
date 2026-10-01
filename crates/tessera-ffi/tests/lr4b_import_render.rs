@@ -48,7 +48,7 @@ fn lr4b_import_cpu_four_bounds_radial_and_subtypes() {
         ] {
             assert_eq!(recipe.settings.locals.adjustments.len(), 1);
             assert!(recipe.unknown.contains_key("lrcat_develop_source"));
-            assert!(recipe.unknown["lrcat_develop_diagnostics"].is_array());
+            assert!(!import_lrcat::diagnostics::entries(&recipe).is_empty());
             let img = Image::new(4, 1, vec![input.clone(); 3]).unwrap();
             let out = locals_image(
                 &img,

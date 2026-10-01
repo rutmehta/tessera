@@ -334,6 +334,24 @@ mod v4_feature_predicates {
 
     }
 
+    #[test]
+    fn lr4d_approximate_dabs_and_color_samples_use_existing_v3_fields() {
+        for component in [
+            serde_json::json!({"kind":"brush","strokes":[{"points":[[0.2,0.3,1.0]],"radius":0.1,"feather":40.0,"flow":50.0,"erase":true}]}),
+            serde_json::json!({"kind":"color_range","samples":[[0.5,0.1,0.2]],"amount":25.0}),
+        ] {
+            let mut recipe = Recipe::default();
+            mask_recipe(&mut recipe, component);
+            assert!(v4_features_used(&recipe).is_empty());
+            assert_eq!(required_schema_version(&recipe), 3);
+            let bytes = recipe.to_json().unwrap();
+            assert_eq!(written_version(&bytes), 3);
+            let reloaded = Recipe::from_json(&bytes).unwrap();
+            assert_eq!(reloaded.settings.locals, recipe.settings.locals);
+            assert_eq!(reloaded.to_json().unwrap(), bytes);
+        }
+    }
+
     const TEST_FEATURE: &str = "lr_schema_test_feature";
     const TEST_PREDICATES: &[FeaturePredicate] =
         &[(TEST_FEATURE, |r| r.unknown.contains_key(TEST_FEATURE))];

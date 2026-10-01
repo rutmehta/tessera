@@ -18,7 +18,7 @@ fn lr4c_documented_keys_each_admit_a_renderable_approximation() {
         let (r, w) = lua_develop::parse(&row, "15.4").unwrap();
         assert!(w.is_empty(), "{mask} {correction}: {w:?}");
         assert_eq!(r.settings.locals.adjustments.len(), 1);
-        assert!(r.unknown["lrcat_develop_diagnostics"].is_array());
+        assert!(!import_lrcat::diagnostics::entries(&r).is_empty());
         assert!(
             r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"]
                 .is_string()
