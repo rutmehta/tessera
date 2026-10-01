@@ -490,10 +490,12 @@ fn existing_edit_conflict(path: &Path, id: ImageId, overwrite: bool) -> Option<S
         return None;
     }
     match Sidecar::read_recipe(&recipe) {
-        Ok(doc) if doc.recipe.image_id != Some(id) => Some(format!(
-            "{} belongs to another file; left untouched",
-            recipe.display()
-        )),
+        Ok(doc) if doc.recipe.image_id != Some(id) && !Sidecar::is_lightroom_owned(path) => {
+            Some(format!(
+                "{} belongs to another file; left untouched",
+                recipe.display()
+            ))
+        }
         Ok(doc) if doc.last_writer.machine_id == MACHINE || overwrite => None,
         Ok(_) => Some("already has Tessera edits; kept them (enable overwrite to replace)".into()),
         Err(e) => Some(format!(
@@ -943,7 +945,13 @@ impl LrcatImport {
         let library = common_ancestor(&roots)
             .filter(|p| p.components().count() > 1)
             .or_else(|| self.catalog.parent().map(Path::to_path_buf))
-            .unwrap_or_default();
+            .filter(|p| !Sidecar::is_lightroom_owned(p))
+            .unwrap_or_else(|| {
+                self.engine
+                    .support_dir()
+                    .expect("engine support directory")
+                    .to_path_buf()
+            });
         let labels: BTreeSet<&str> = self
             .plan
             .images
@@ -973,6 +981,12 @@ impl LrcatImport {
     /// What `apply` would do with these options. Reads the disk; writes nothing.
     pub fn plan(&self, options: LrcatOptions) -> Result<LrcatPlanPreview> {
         let resolved = resolve(&self.plan, &options)?;
+        for row in &resolved {
+            Sidecar::register_store(
+                &Sidecar::resolved_destination(&row.folder),
+                self.engine.support_dir()?,
+            );
+        }
         let library_folder = PathBuf::from(&options.library_folder);
         let roots = root_paths(&self.plan);
         let moves = relocations(&options)?;
@@ -1146,7 +1160,7 @@ impl LrcatImport {
                 "the library folder must not be inside the Lightroom catalog files",
             ));
         }
-        Sidecar::ensure_writable_destination(&library_folder)?;
+        Sidecar::ensure_destination(&library_folder, "library folder")?;
         std::fs::create_dir_all(&library_folder)?;
         let library_path = library_folder.join("library.json");
         let bundle = bundle_dir(&library_folder, &self.catalog);
@@ -1206,6 +1220,12 @@ impl LrcatImport {
         state.catalog = self.catalog.to_string_lossy().into_owned();
 
         let resolved = resolve(&self.plan, &options)?;
+        for row in &resolved {
+            Sidecar::register_store(
+                &Sidecar::resolved_destination(&row.folder),
+                self.engine.support_dir()?,
+            );
+        }
         let existing = Library::read(&library_path)?;
         let ids: HashMap<ImageId, ImageId> = self.app_ids(&resolved);
         let merge = merge_library(
@@ -1244,18 +1264,6 @@ impl LrcatImport {
             .iter()
             .filter(|r| r.outcome == Outcome::Import)
             .collect();
-        let protected = work
-            .iter()
-            .filter(|r| Sidecar::is_lightroom_owned(&r.path))
-            .count();
-        if protected > 0 {
-            report.unsupported.push(LrcatIssue {
-                category: "Read-only originals".into(),
-                reason: "Lightroom-owned originals are read-only: no adjacent sidecar was written; recipes and metadata use Tessera's .edits/lightroom store outside the protected tree".into(),
-                count: protected as u32,
-                examples: vec![],
-            });
-        }
         report
             .skipped
             .extend(resolved.iter().filter_map(|r| match &r.outcome {
@@ -1350,6 +1358,25 @@ impl LrcatImport {
             match result {
                 Ok(()) => {
                     report.imported += 1;
+                    if Sidecar::is_lightroom_owned(&r.path) {
+                        if let Some(issue) = report
+                            .unsupported
+                            .iter_mut()
+                            .find(|i| i.category == "Read-only originals")
+                        {
+                            issue.count += 1;
+                            if issue.examples.len() < 5 {
+                                issue.examples.push(display_path(&r.path));
+                            }
+                        } else {
+                            report.unsupported.push(LrcatIssue {
+                                category: "Read-only originals".into(),
+                                reason: "Lightroom originals remain read-only; no adjacent sidecar was written. Recipes and XMP use Tessera's Application Support store".into(),
+                                count: 1,
+                                examples: vec![display_path(&r.path)],
+                            });
+                        }
+                    }
                     count_selection(&mut report.selection, &selection);
                     state.done.insert(image.catalog_id);
                     if report.imported.is_multiple_of(50) {
@@ -1551,7 +1578,10 @@ fn write_image(
     let packet = base
         .unwrap_or_else(|| XmpPacket::from_selection(selection, &preset))
         .with_metadata(selection, &meta, &preset)?;
-    Sidecar::write_recipe(Sidecar::paths(path).recipe, &doc)?;
+    let paths = Sidecar::paths(path);
+    Sidecar::ensure_writable_destination(&paths.recipe)?;
+    Sidecar::ensure_writable_destination(&ours)?;
+    Sidecar::write_recipe(paths.recipe, &doc)?;
     Sidecar::write_xmp(&ours, &packet)?;
     Ok(())
 }

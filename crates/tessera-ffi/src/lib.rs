@@ -307,8 +307,9 @@ impl Engine {
         packet: &sidecar::XmpPacket,
     ) -> Result<()> {
         // Recipe is the authoritative commit. A later scan repairs the rebuildable index.
-        Sidecar::write_recipe(Sidecar::paths(path).recipe, doc)?;
-        Sidecar::write_xmp(catalog::xmp_path(path), packet)?;
+        let paths = catalog::write_paths(path)?;
+        Sidecar::write_recipe(paths.recipe, doc)?;
+        Sidecar::write_xmp(paths.xmp, packet)?;
         c.index.scan(
             path.parent()
                 .ok_or_else(|| failure("image has no folder"))?,
@@ -341,6 +342,20 @@ impl Engine {
         let db = Path::new(&app_support_dir).join("index.sqlite");
         let index = index::Index::open(&db)?;
         let reader = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        // Restore source-to-store routing before any reopened catalog reads.
+        {
+            let mut statement = reader.prepare("SELECT path FROM file")?;
+            let mut folders = std::collections::BTreeSet::new();
+            for path in statement.query_map([], |row| row.get::<_, String>(0))? {
+                let path = std::path::PathBuf::from(path?);
+                if let Some(parent) = path.parent() {
+                    folders.insert(parent.to_path_buf());
+                }
+            }
+            for folder in folders {
+                Sidecar::register_store(&folder, Path::new(&app_support_dir));
+            }
+        }
         let notified = AtomicU64::new(index.change_head()?);
         let heads = Mutex::new(Connection::open_with_flags(
             &db,
@@ -382,6 +397,7 @@ impl Engine {
     }
     pub fn index_folder(&self, path: String) -> Result<FolderHandle> {
         let path = Path::new(&path).canonicalize()?;
+        Sidecar::register_store(&path, self.support_dir()?);
         self.emit(EngineEvent::ScanProgress {
             path: path.to_string_lossy().into_owned(),
             updated: 0,

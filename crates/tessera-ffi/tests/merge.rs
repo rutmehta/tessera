@@ -424,6 +424,7 @@ fn protected_merge_publishes_outside_source() {
             None,
         )
         .unwrap();
+    let output = output.canonicalize().unwrap();
     let job = engine
         .photo_merge(
             ids,

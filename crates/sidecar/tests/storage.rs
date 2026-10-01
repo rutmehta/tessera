@@ -102,10 +102,9 @@ fn lightroom_owned_symlink_rejects_writes() {
     std::fs::create_dir_all(root.join("catalog/photos")).unwrap();
     std::fs::write(root.join("catalog/X.lrcat"), b"fixture").unwrap();
     let packet = XmpPacket::from_selection(&Default::default(), &MarkPreset::default());
-    for path in [root.join("alias/photo.xmp")] {
-        assert!(Sidecar::write_xmp(&path, &packet).is_err());
-        assert!(!path.exists());
-    }
+    let path = root.join("alias/photo.xmp");
+    assert!(Sidecar::write_xmp(&path, &packet).is_err());
+    assert!(!path.exists());
     std::fs::remove_dir_all(root).unwrap();
 }
 
@@ -155,7 +154,14 @@ fn protected_edits_survive_parent_rename_in_app_store() {
     let paths = Sidecar::paths(&photo);
     assert!(!paths.recipe.starts_with(&root), "store must be app-owned");
     let mut doc = RecipeDocument::default();
-    doc.recipe.settings.tone.exposure = 1.25;
+    doc.recipe
+        .edit(
+            engine_api::recipe::EditMeta::user("Exposure", 1),
+            |settings| {
+                settings.tone.exposure = 1.25;
+            },
+        )
+        .unwrap();
     Sidecar::write_recipe(&paths.recipe, &doc).unwrap();
     std::fs::rename(root.join("Photos"), root.join("Photos 1")).unwrap();
     let moved = Sidecar::paths(root.join("Photos 1/X.lrdata/image.dng"));
@@ -177,7 +183,14 @@ fn protected_offline_alias_survives_process_restart() {
     std::fs::create_dir_all(photo.parent().unwrap()).unwrap();
     std::fs::write(&photo, root.to_string_lossy().as_bytes()).unwrap();
     let mut doc = RecipeDocument::default();
-    doc.recipe.settings.tone.exposure = 1.75;
+    doc.recipe
+        .edit(
+            engine_api::recipe::EditMeta::user("Exposure", 1),
+            |settings| {
+                settings.tone.exposure = 1.75;
+            },
+        )
+        .unwrap();
     Sidecar::write_recipe(Sidecar::paths(&photo).recipe, &doc).unwrap();
     std::fs::remove_file(&photo).unwrap();
     assert!(

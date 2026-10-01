@@ -1291,12 +1291,12 @@ impl Engine {
             .and_then(|packet| packet.with_recipe(&doc.recipe))
             .map_err(SaveFailure::full)?;
         let published = OwnerBaseline::published(doc.recipe.clone()).map_err(SaveFailure::full)?;
-        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(path).recipe, &doc)
-            .map_err(SaveFailure::full)?;
+        let paths = catalog::write_paths(path).map_err(SaveFailure::full)?;
+        sidecar::Sidecar::write_recipe(paths.recipe, &doc).map_err(SaveFailure::full)?;
         #[cfg(test)]
         injected_post_recipe_failure(path)
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
-        sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)
+        sidecar::Sidecar::write_xmp(paths.xmp, &packet)
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         c.index
             .scan(
@@ -1329,7 +1329,8 @@ impl Engine {
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
         #[cfg(test)]
         injected_post_recipe_failure(path)?;
-        sidecar::Sidecar::write_xmp(catalog::xmp_path(path), &packet)?;
+        let paths = catalog::write_paths(path)?;
+        sidecar::Sidecar::write_xmp(paths.xmp, &packet)?;
         c.index.scan(
             path.parent()
                 .ok_or_else(|| failure("image has no folder"))?,

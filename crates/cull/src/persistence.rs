@@ -31,7 +31,7 @@ pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
     Ok(())
 }
 pub(crate) fn restore(path: &Path, bytes: &Option<Vec<u8>>) -> EngineResult<()> {
-    Sidecar::ensure_writable_destination(path)?;
+    Sidecar::ensure_destination(path, "restore")?;
     match bytes {
         Some(bytes) => atomic_write(path, bytes),
         None => match fs::remove_file(path) {
@@ -46,7 +46,10 @@ pub(crate) fn load(index: &Index, id: ImageId) -> EngineResult<RecipeDocument> {
     let info = index.image_info(id)?;
     let paths = Sidecar::paths(&info.path);
     if optional_bytes(&paths.recipe)?.is_some() {
-        let document = Sidecar::read_recipe(&paths.recipe)?;
+        let mut document = Sidecar::read_recipe(&paths.recipe)?;
+        if Sidecar::is_lightroom_owned(&info.path) {
+            document.recipe.image_id = Some(id);
+        }
         if document.recipe.image_id.is_some_and(|stored| stored != id) {
             return Err(EngineError::invalid(
                 "image_id",

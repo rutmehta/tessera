@@ -503,7 +503,7 @@ pub fn render_one_cancellable(
 ) -> EngineResult<RenderedExport> {
     require_full_quality_source(&image.source)?;
     cancel.check()?;
-    Sidecar::ensure_writable_destination(&settings.output_dir)?;
+    Sidecar::ensure_destination(&settings.output_dir, "export")?;
     recipe.validate()?;
     settings.format.validate()?;
     dng::validate(settings)?;
@@ -721,8 +721,8 @@ fn encode_rendered(
         side_path,
         ..
     } = rendered;
-    Sidecar::ensure_writable_destination(&path)?;
-    Sidecar::ensure_writable_destination(&side_path)?;
+    Sidecar::ensure_destination(&path, "export")?;
+    Sidecar::ensure_destination(&side_path, "export")?;
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
@@ -790,7 +790,7 @@ fn encode_rendered(
 /// A temporary file that becomes an output: readable like any exported
 /// document (0644), not the 0600 of a private temporary file.
 fn new_output_temp(dir: &std::path::Path) -> EngineResult<tempfile::NamedTempFile> {
-    Sidecar::ensure_writable_destination(dir)?;
+    Sidecar::ensure_destination(dir, "export")?;
     let temp = tempfile::NamedTempFile::new_in(dir).map_err(encode_error)?;
     #[cfg(unix)]
     {
@@ -874,9 +874,9 @@ struct PreparedExport {
 impl PreparedExport {
     fn commit(self, cancel: &CancellationToken) -> EngineResult<PathBuf> {
         cancel.check()?;
-        Sidecar::ensure_writable_destination(&self.path)?;
-        Sidecar::ensure_writable_destination(&self.side_path)?;
-        Sidecar::ensure_writable_destination(&self.warning_path)?;
+        Sidecar::ensure_destination(&self.path, "export")?;
+        Sidecar::ensure_destination(&self.side_path, "export")?;
+        Sidecar::ensure_destination(&self.warning_path, "export")?;
         let Self {
             temp,
             side_temp,

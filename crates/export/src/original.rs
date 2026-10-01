@@ -26,7 +26,7 @@ pub fn export_original(
     cancel: &CancellationToken,
 ) -> EngineResult<PathBuf> {
     cancel.check()?;
-    Sidecar::ensure_writable_destination(destination)?;
+    Sidecar::ensure_destination(destination, "export")?;
     let extension = |p: &Path| {
         p.extension()
             .and_then(|s| s.to_str())
