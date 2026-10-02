@@ -1,65 +1,73 @@
-# B5-50 — Library and Develop identifier map
+# B5-50b — Library and Develop identifier map
 
-Interactive controls expose `library.<area>.<control>` or `develop.<area>.<control>`.
-An accessible name is AXLabel or the standard AXTitle; a value, tooltip, or placeholder
-alone is not a name. Shared library browsers retain their Library identifiers when
-shown as the Develop filmstrip. The shell toolbar switches namespace with the workspace;
-Document identifiers remain unchanged.
+Established identifiers are preserved. New controls use `library.<area>.<control>` or
+`develop.<area>.<control>`. Shared controls retain their existing names in every workspace.
+Document toolbar identifiers are documented in [B5-42](../B5-42/IDENTIFIERS.md).
+See [the restoration inventory](RESTORED-IDENTIFIERS.md) for every corrected rename.
 
-## Dynamic conventions
+An accessible name is AXLabel or AXTitle; values, help and placeholders alone are not names.
+The native Library/Develop sidebar toggle is provided by SwiftUI/AppKit and has no app identifier.
+
+## Dynamic conventions and privacy
 
 | Pattern | Meaning |
 | --- | --- |
-| `library.sidebar.row.<key>[.name,.disclosure]` | Library source or collection key; row, editable name, native disclosure |
-| `library.thumbnail.{grid,filmstrip}.<photoID>` | Thumbnail cell; photo name, cull decision and status |
-| `library.selection.<key>` | Decision, grade, mark or basket keyboard key |
-| `library.metadata.<field>` | Editable IPTC/XMP field |
-| `library.filter.<facet>` | Filter facet or named search/date action |
-| `library.import.locate.<path>` / `library.import.resetRoot.<path>` | Root relocation actions |
-| `library.import.mark.<label>` | Colour-label mapping |
-| `develop.slider.<parameter.path>` | Numeric Develop parameter; stable engine JSON path |
+| `library.sidebar.row.<key>[.name,.disclosure]` | Static source key or numeric collection key; folder/basket rows use an opaque UUID |
+| `library.thumbnail.{grid,filmstrip}.<photoID>` | Numeric photo ID |
+| `library.selection.<key>` | Fixed decision, grade, mark or basket keyboard key |
+| `iptc-<field>` | Established editable metadata field |
+| `facet<Title>`, `facetPerson`, `facetAlbum` | Established facet names |
+| `lrimport-locate` | Established locate action |
+| `library.import.resetRoot.<index>` | Root index, never a catalog path |
+| `lrimport-mark-<index>` | Mark-mapping row index, never its label |
+| `develop.presets.{apply,delete}.<index>` | Preset position in the displayed model |
+| `develop.snapshots.restore.<index>` | Snapshot position |
+| `develop.basic.restoreSnapshot.<index>` | Snapshot menu position |
+| `library.keywords.{remove,add,removeTree}.<index>` | Keyword position within the corresponding displayed list |
+| `keyword-suggestion-<index>`, `keyword-suggestion-reject-<index>` | Suggestion position; established prefixes preserved |
+| `develop.slider.<parameter.path>` | Stable engine parameter path |
 | `develop.basic.<key>` | Basic adjustment key |
-| `develop.panel.<name>` | Persisted inspector panel disclosure |
-| `develop.grading.<range>.wheel` | Colour-grading wheel |
-| `develop.masks.row.<groupID>[.visibility]` | Mask group selection and visibility |
-| `develop.masks.component.<index>.<action>` | Selected mask component's combine, invert, retry or remove action |
-| `develop.masks.component.{add,subtract,intersect}` | Component creation menus |
-| `develop.masks.slider.<parameter>` | Selected mask's local adjustment |
-| `develop.history.step.<stepID>.<action>` | History enable/restore action |
-| `develop.history.group.<groupID>.<action>` | Agent history amount, instruction and redo actions |
-| `develop.presets.{apply,delete}.<name>` | Saved preset, keyed by its store name |
-| `develop.snapshots.restore.<name>` | Named snapshot restore |
-| `<segment prefix>.<index>` | Segment in declared order, with its own accessible name |
+| `develop.panel.<name>` | Fixed inspector disclosure name; `editingTarget` uses lower camel case |
+| `develop.grading.<range>.wheel` | Fixed colour-grading range |
+| `develop.masks.row.<groupID>[.visibility]` | Mask model ID |
+| `develop.masks.component.<index>.<action>` | Selected mask component position |
+| `develop.masks.slider.<parameter>` | Local adjustment parameter |
+| `agent-step-toggle-<stepID>` | Established history step toggle |
+| `develop.history.group.<groupID>.submit` | Agent redo submission |
+| `<segment prefix>.<index>` | Segment in declared order |
 
-`AccessibilityKey.component` percent-encodes model-derived names/paths where needed.
-IDs do not use localized display names when a model key exists. Mask component indices
-identify positions within the selected group. Preset/snapshot names are their store keys;
-renaming changes those identifiers. Native toolbar wrappers can repeat the identifier of
-the child representing the same action; distinct sibling controls cannot share an ID.
+Names and paths belong in accessible labels, never in identifiers. Percent encoding is not
+an anonymization mechanism. `AccessibilityKey.component` accepts only non-private keys.
+Indexes track model order; opaque UUIDs persist for the row model lifetime. Built-in tone curve
+preset names are fixed application constants. Native toolbar parent/child wrappers may repeat
+one action's identifier. Established repeated group identifiers remain compatible with main.
 
-The Lightroom report's static groups are also identified:
+## Import report and cancellation
 
-| Identifier | Accessible content |
+| Identifier | Content/action |
 | --- | --- |
-| `library.import.report.summary` | All eight report counts |
-| `library.import.report.warnings` | Skipped photos and the **Not fully supported** group, including categories, reasons, counts and examples |
-| `library.import.report.approximate` | **Approximate translations**, kept separate from warnings |
-| `library.import.report.fidelity` | Renderer and sample diagnostics |
-| `library.import.report.markdown` | Selectable, read-only report text |
-| `library.import.report.disclosure` | Expand/collapse report markdown |
+| `document.import.report.summary` | Report counts |
+| `document.import.report.warnings` | Skipped and unsupported entries |
+| `document.import.report.approximate` | Approximate translations |
+| `document.import.report.fidelity` | Renderer and sample diagnostics |
+| `document.import.report.markdown` | Read-only report text |
+| `library.import.report.disclosure` | Expand report markdown |
+| `library.import.cancel` | Dismiss import sheet |
+| `lrimport-cancel` | Cancel running import |
 
-## Observed interactive controls
+## Observed controls
 
-Collected by the background hosted audit with synthetic fixtures. This is an observed
-map, including fixture-specific records and expanded conditional panels, rather than an
-inventory of every possible user record. Additional annotated context-menu and popover
-controls are described by the conventions above. System dialogs and transient menus are
-not exhaustively opened by this test.
+Offscreen hosted audit with synthetic fixtures. This is not an exhaustive inventory of
+system menus or transient popovers. UUID rows below are represented as `<opaqueID>`.
 
-**325 distinct production identifiers** in the focused run.
+327 distinct observed identifiers before UUID normalization.
 
-| Identifier | Accessible name(s) |
+| Identifier | Accessible name |
 | --- | --- |
+| `agent-step-toggle-1` | Enable Edit |
+| `assist-panel-toggle` | Assist |
+| `detail-ai-denoise` | AI Denoise |
+| `detail-ai-denoise-amount` | Amount |
 | `develop.basic.blacks` | Blacks |
 | `develop.basic.clarity` | Clarity |
 | `develop.basic.contrast` | Contrast |
@@ -85,8 +93,6 @@ not exhaustively opened by this test.
 | `develop.crop.overlay` | Crop overlay |
 | `develop.crop.reset` | Reset |
 | `develop.crop.straighten` | Straighten: draw along a horizon or vertical in the loupe |
-| `develop.detail.aiDenoise` | AI Denoise |
-| `develop.detail.aiDenoise-amount` | Amount |
 | `develop.detail.previewArea` | Choose the 1:1 preview area in the loupe |
 | `develop.effects.style` | Vignette style |
 | `develop.grading.global.wheel` | Global |
@@ -98,27 +104,16 @@ not exhaustively opened by this test.
 | `develop.grading.mode.3` | Highlights |
 | `develop.grading.mode.4` | Global |
 | `develop.grading.shadows.wheel` | Shadows |
-| `develop.hdr.enabled` | HDR (extended dynamic range) |
-| `develop.hdr.headroom` | Headroom |
 | `develop.history.original` | Original |
-| `develop.history.step.1.enabled` | Enable Edit |
 | `develop.history.step.1.restore` | Restore Edit |
 | `develop.hsl.property.0` | Hue |
 | `develop.hsl.property.1` | Saturation |
 | `develop.hsl.property.2` | Luminance |
-| `develop.hsl.target` | Targeted adjustment: drag up/down on a colour in the loupe to change its hue / Targeted adjustment: drag up/down on a colour in the loupe to change its luminance / Targeted adjustment: drag up/down on a colour in the loupe to change its saturation |
+| `develop.hsl.target` | Targeted adjustment: drag up/down on a colour in the loupe to change its luminance |
 | `develop.inspector.tabs.0` | Develop |
 | `develop.inspector.tabs.1` | Masks |
-| `develop.lensBlur.amount` | Blur Amount |
-| `develop.lensBlur.apply` | Apply |
 | `develop.lensBlur.bokehShape` | Bokeh shape |
-| `develop.lensBlur.refine-blur` | Blur brush: paint areas to blur |
-| `develop.lensBlur.refine-focus` | Focus brush: paint areas to keep sharp |
-| `develop.lensBlur.subject` | Subject |
-| `develop.lensBlur.visualize-depth` | Visualize Depth |
-| `develop.loupe.displayInfo` | Display info |
 | `develop.loupe.masks` | Masks |
-| `develop.loupe.shortcuts` | Shortcuts |
 | `develop.maskToolbar.ai.background` | Background |
 | `develop.maskToolbar.ai.sky` | Sky |
 | `develop.maskToolbar.ai.subject` | Subject |
@@ -169,7 +164,6 @@ not exhaustively opened by this test.
 | `develop.panel.ColorGrading` | Color Grading |
 | `develop.panel.CropStraighten` | Crop & Straighten |
 | `develop.panel.Detail` | Detail |
-| `develop.panel.Editingtarget` | Editing target |
 | `develop.panel.Effects` | Effects |
 | `develop.panel.HDR` | HDR |
 | `develop.panel.HSLColor` | HSL / Color |
@@ -181,11 +175,11 @@ not exhaustively opened by this test.
 | `develop.panel.SoftProofing` | Soft Proofing |
 | `develop.panel.ToneCurve` | Tone Curve |
 | `develop.panel.Transform` | Transform |
-| `develop.presets.apply.AX%20preset` | Apply preset AX preset |
+| `develop.panel.editingTarget` | Editing target |
+| `develop.presets.apply.0` | Apply preset AXPrivatePreset731 |
 | `develop.presets.new` | Save Preset… |
 | `develop.proof.blackPoint` | Black point compensation |
 | `develop.proof.chooseProfile` | Other… |
-| `develop.proof.enabled` | Soft proofing |
 | `develop.proof.gamut` | Gamut warning |
 | `develop.proof.intent.0` | Perceptual |
 | `develop.proof.intent.1` | Relative |
@@ -195,17 +189,16 @@ not exhaustively opened by this test.
 | `develop.slider.color.grading.balance` | Balance |
 | `develop.slider.color.grading.blending` | Blending |
 | `develop.slider.color.grading.global.hue` | Hue |
-| `develop.slider.color.grading.global.luminance` | Global / Luminance |
+| `develop.slider.color.grading.global.luminance` | Luminance |
 | `develop.slider.color.grading.global.saturation` | Saturation |
 | `develop.slider.color.grading.highlights.hue` | Hue |
-| `develop.slider.color.grading.highlights.luminance` | Highlights / Luminance |
+| `develop.slider.color.grading.highlights.luminance` | Luminance |
 | `develop.slider.color.grading.highlights.saturation` | Saturation |
 | `develop.slider.color.grading.midtones.hue` | Hue |
-| `develop.slider.color.grading.midtones.luminance` | Luminance / Midtones |
+| `develop.slider.color.grading.midtones.luminance` | Luminance |
 | `develop.slider.color.grading.midtones.saturation` | Saturation |
 | `develop.slider.color.grading.shadows.hue` | Hue |
-| `develop.slider.color.grading.shadows.luminance` | Luminance / Shadows |
-| `develop.slider.color.grading.shadows.saturation` | Saturation |
+| `develop.slider.color.grading.shadows.luminance` | Luminance |
 | `develop.slider.color.hsl.hue.aqua` | Aqua |
 | `develop.slider.color.hsl.hue.blue` | Blue |
 | `develop.slider.color.hsl.hue.green` | Green |
@@ -253,7 +246,7 @@ not exhaustively opened by this test.
 | `develop.slider.tone.curves.parametric.lights` | Lights |
 | `develop.slider.tone.curves.parametric.shadows` | Shadows |
 | `develop.snapshots.new` | New Snapshot… |
-| `develop.snapshots.restore.AX%20snapshot` | AX snapshot |
+| `develop.snapshots.restore.0` | AXPrivateSnapshot731 |
 | `develop.tone.channel.0` | RGB |
 | `develop.tone.channel.1` | R |
 | `develop.tone.channel.2` | G |
@@ -265,43 +258,45 @@ not exhaustively opened by this test.
 | `develop.tone.reset` | Reset RGB |
 | `develop.toolbar.inspector` | Inspector |
 | `develop.toolbar.open` | Open Folder… |
-| `develop.toolbar.review` | Review 0 |
-| `develop.toolbar.sidebar` | Show Sidebar |
 | `develop.toolbar.workspace.0` | Library |
 | `develop.toolbar.workspace.1` | Edit photo |
 | `develop.toolbar.workspace.2` | Review |
-| `develop.transform.aspect` | Aspect |
-| `develop.transform.constrain-crop` | Constrain Crop |
-| `develop.transform.horizontal` | Horizontal |
-| `develop.transform.offset-x` | Offset X |
-| `develop.transform.offset-y` | Offset Y |
 | `develop.transform.reset` | Reset |
-| `develop.transform.rotate` | Rotate |
-| `develop.transform.scale` | Scale |
-| `develop.transform.upright-auto` | Upright Auto |
-| `develop.transform.upright-full` | Upright Full |
-| `develop.transform.upright-guided` | Upright Guided |
-| `develop.transform.upright-level` | Upright Level |
-| `develop.transform.upright-off` | Upright Off |
 | `develop.transform.upright-reset` | Reset |
-| `develop.transform.upright-vertical` | Upright Vertical |
-| `develop.transform.vertical` | Vertical |
-| `develop.workspace.library` | Back to Library |
+| `document.import.report.markdown` | Import report markdown |
+| `facetAlbum` | Album |
+| `facetCamera` | Camera |
+| `facetDecision` | Decision |
+| `facetGrade` | Grade |
+| `facetKeyword` | Keyword |
+| `facetLens` | Lens |
+| `facetMark` | Mark |
+| `facetPerson` | Person |
+| `hdr-headroom` | Headroom |
+| `hdr-toggle` | HDR (extended dynamic range) |
+| `iptc-altText` | Alt text |
+| `iptc-caption` | Caption |
+| `iptc-copyright` | Copyright |
+| `iptc-creator` | Creator |
+| `iptc-keywords` | Keywords |
+| `iptc-title` | Title |
+| `keyword-suggest-selection` | Suggest |
+| `keyword-suggestion-0` | Accept AXPrivateKeyword731 |
+| `keyword-suggestion-reject-0` | Reject AXPrivateKeyword731 |
+| `keyword-suggestion-threshold` | Accept-all threshold |
+| `keyword-suggestions-accept-all` | Accept 1 |
+| `keywordEntry` | Add keywords |
+| `lensblur-amount` | Blur Amount |
+| `lensblur-apply` | Apply |
+| `lensblur-refine-blur` | Blur brush: paint areas to blur |
+| `lensblur-refine-focus` | Focus brush: paint areas to keep sharp |
+| `lensblur-subject` | Subject |
+| `lensblur-visualize-depth` | Visualize Depth |
 | `library.agent.autoEdit` | Auto Edit… |
-| `library.assist.assist-panel-toggle` | Assist |
 | `library.assist.mode.0` | Assisted |
 | `library.assist.mode.1` | Automated |
 | `library.empty.openFolder` | Open Folder… |
-| `library.filter.album` | Album |
-| `library.filter.camera` | Camera |
 | `library.filter.date` | Date |
-| `library.filter.decision` | Decision |
-| `library.filter.grade` | Grade |
-| `library.filter.keyword` | Keyword |
-| `library.filter.lens` | Lens |
-| `library.filter.mark` | Mark |
-| `library.filter.person` | Person |
-| `library.filter.rule` | Search or filter rule |
 | `library.filter.save` | Save as Smart Album… |
 | `library.import.back` | Back |
 | `library.import.cancel` | Cancel |
@@ -311,26 +306,16 @@ not exhaustively opened by this test.
 | `library.import.continue` | Continue |
 | `library.import.done` | Done |
 | `library.import.fidelitySort` | Fidelity sort order |
-| `library.import.locate.%2FSynthetic%20Old` | Locate… |
-| `library.import.looks-different` | Looks different (0) |
-| `library.import.mark.Client%20choice` | Map colour label Client choice |
 | `library.import.overwrite` | Replace edits already made in Tessera |
 | `library.import.preview` | Preview Fidelity |
 | `library.import.report.disclosure` | Import report markdown |
-| `library.import.report.markdown` | Import report markdown |
-| `library.import.resetRoot.%2FSynthetic%20Old` | Reset |
+| `library.import.resetRoot.0` | Reset |
 | `library.import.resume` | Resume Import |
 | `library.import.showReport` | Show Report in Finder |
 | `library.import.start` | Import 0 Photos |
 | `library.inspector.editPhoto` | Edit photo |
-| `library.keywords.entry` | Add keywords |
 | `library.keywords.new` | New… |
-| `library.metadata.altText` | Alt text |
-| `library.metadata.caption` | Caption |
-| `library.metadata.copyright` | Copyright |
-| `library.metadata.creator` | Creator |
-| `library.metadata.keywords` | Keywords |
-| `library.metadata.title` | Title |
+| `library.keywords.remove.0` | Remove AXPrivateKeyword731 |
 | `library.panel.AgentEdit` | Agent Edit |
 | `library.panel.Assist` | Assist |
 | `library.panel.Image` | Image |
@@ -350,9 +335,8 @@ not exhaustively opened by this test.
 | `library.selection.P` | Keep, key P |
 | `library.selection.U` | Undecided, key U |
 | `library.selection.X` | Reject, key X |
-| `library.sidebar.add` | Add |
-| `library.sidebar.row.basket:Selects` | Selects |
-| `library.sidebar.row.folder:current` | No folder open / photos |
+| `library.sidebar.row.<opaqueID>` | Selects |
+| `library.sidebar.row.folder:current` | photos |
 | `library.sidebar.row.hdr:albums` | Albums |
 | `library.sidebar.row.hdr:cull` | Culling |
 | `library.sidebar.row.hdr:folders` | Folders |
@@ -367,13 +351,9 @@ not exhaustively opened by this test.
 | `library.sidebar.row.src:mark:9` | Review |
 | `library.sidebar.row.src:people` | People |
 | `library.sidebar.row.src:unfiled` | Not in Any Album |
-| `library.toolbar.assist` | Assist |
 | `library.toolbar.autoAdvance` | Auto-advance |
-| `library.toolbar.autoEdit` | Auto Edit |
 | `library.toolbar.inspector` | Inspector |
 | `library.toolbar.open` | Open Folder… |
-| `library.toolbar.review` | Review 0 |
-| `library.toolbar.sidebar` | Hide Sidebar |
 | `library.toolbar.thumbnailSize` | Thumbnail size |
 | `library.toolbar.view.0` | Grid |
 | `library.toolbar.view.1` | Loupe |
@@ -381,18 +361,32 @@ not exhaustively opened by this test.
 | `library.toolbar.workspace.0` | Library |
 | `library.toolbar.workspace.1` | Edit photo |
 | `library.toolbar.workspace.2` | Review |
-| `library.understanding.keyword-suggest-selection` | Suggest |
-| `library.understanding.metadata-generate-caption` | Generate |
-| `library.understanding.ocr-detect` | Detect Text |
-| `library.workspace.editPhoto` | Edit photo |
-
-## Refresh
-
-```sh
-cd apps/mac
-TESSERA_AX_MAP=1 swift test -c release -Xswiftc -enable-testing \
-  --filter LibraryDevelopAccessibilityTests > /tmp/B5-50-map.stdout 2> /tmp/B5-50-map.stderr
-```
-
-Each complete `AX MAP` row contains the control identifier and accessible name. Deduplicate
-repeated observations across scenarios when updating this table.
+| `loupe-display-info` | Display info |
+| `loupe-shortcuts` | Shortcuts |
+| `lrimport-locate` | Locate… |
+| `lrimport-looks-different` | Looks different (0) |
+| `lrimport-mark-0` | Map colour label Client choice |
+| `metadata-generate-caption` | Gendevelop original L2 calibration [first, tone, WB] ms: CPU [26.227584, 0.520875, 1.1101660000000002]; GPU [37.209917000000004, 1.258833, 1.328959] |
+| `ocr-detect` | Detect Text |
+| `ruleTextField` | Search or filter rule |
+| `sidebarAddMenu` | Add |
+| `softproof-toggle` | Soft proofing |
+| `toolbar-agent-review` | Review 0 |
+| `toolbar-assist` | Assist |
+| `toolbar-auto-edit` | Auto Edit |
+| `transform-aspect` | Aspect |
+| `transform-constrain-crop` | Constrain Crop |
+| `transform-horizontal` | Horizontal |
+| `transform-offset-x` | Offset X |
+| `transform-offset-y` | Offset Y |
+| `transform-rotate` | Rotate |
+| `transform-scale` | Scale |
+| `transform-upright-auto` | Upright Auto |
+| `transform-upright-full` | Upright Full |
+| `transform-upright-guided` | Upright Guided |
+| `transform-upright-level` | Upright Level |
+| `transform-upright-off` | Upright Off |
+| `transform-upright-vertical` | Upright Vertical |
+| `transform-vertical` | Vertical |
+| `workspace-back-to-library` | Back to Library |
+| `workspace-edit-photo` | Edit photo |

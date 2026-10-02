@@ -1,52 +1,21 @@
-B5-50 verification — source commit e068ea9d
-Branch: wp/B5-50; local only.
+B5-50b gates
 
 Environment:
-export PATH="$HOME/.cargo/bin:$PATH"
-export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-50
+PATH includes $HOME/.cargo/bin
+CARGO_BUILD_JOBS=4
+RAYON_NUM_THREADS=4
+CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-50
 
-Required serial command:
-cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
-Exit status: 0
+1. cargo clean -p tessera-ffi --release
+PASS; removed 30 files / 846.5 MiB before final gates.
 
-FFI archive built/generated successfully (arm64). Existing vendor LibRaw warnings were emitted.
-Build complete! (22.04s)
-Executed 923 tests, with 3 tests skipped and 0 failures (0 unexpected) in 198.481 (198.557) seconds
-✔ Test run with 5 tests in 2 suites passed after 0.023 seconds.
-SWIFT GATE OK
+2. cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
+PASS: SWIFT GATE OK
+927 XCTest tests, 3 skipped, 0 failures; 5 Swift Testing tests passed.
 
-Strict release command (from apps/mac):
-swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
-Exit status: 0; warnings: 0; errors: 0.
+3. cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+PASS: product Tessera complete in 338.73s; 0 warnings / 0 errors.
 
-[0/1] Planning build
-Building for production...
-[0/3] Write swift-version--58304C5D6DBC2206.txt
-[2/4] Compiling TesseraFFI TesseraFFI.swift
-[3/5] Compiling TesseraCore AppDefaultsIsolation.swift
-[4/6] Compiling Tessera AISettingsView.swift
-[4/6] Write Objects.LinkFileList
-[5/6] Linking Tessera
-Build of product 'Tessera' complete! (132.05s)
-
-Focused combined regression run:
-swift test -c release -Xswiftc -enable-testing --filter 'LibraryDevelopAccessibilityTests|LightroomImportAccessibilityTests|DocumentAccessibilityTests|ShortcutIntegrityTests'
-17 tests, 0 failures:
-DocumentAccessibilityTests: 7 tests, 0 failures
-LibraryDevelopAccessibilityTests: 4 tests, 0 failures
-LightroomImportAccessibilityTests: 3 tests, 0 failures
-ShortcutIntegrityTests: 3 tests, 0 failures
-
-Final identifier-map run:
-TESSERA_AX_MAP=1 swift test -c release -Xswiftc -enable-testing --filter LibraryDevelopAccessibilityTests
-4 tests, 0 failures in 5.939 seconds.
-35 audited hosted scenarios; 566 interactive control observations.
-325 distinct production identifiers (98 Library; 227 Develop), excluding test-only press fixtures.
-Additional native sidebar selection/disclosure regression and two nonstandard-role press fixtures passed.
-
-python3 tools/orchestrate/shortcut-audit.py:
-Enumerated 63 menu bindings; 11 routing sources; 16 reserved chords
-SHORTCUT AUDIT OK
-
-git diff --check: clean.
-No added deprecated AX API calls. No Rust, Cargo.lock or board.json changes.
+4. Scope and hygiene
+PASS: git diff --check; no B5-50b Rust/Cargo.lock/board.json changes; no generated-binding drift.
+Documentation committed after gates; final working tree checked clean before push.

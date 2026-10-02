@@ -822,14 +822,14 @@ models need `python3 tools/fetch_siglip.py --cache APP_DIR/models/cache` and `to
      bottom edge (the three at or above 50 % in primary ink). Hover `pink`: `pink: 81 % confidence · new keyword under
      “Suggested” · click to accept…`. Below: `Accept all ≥ 50 %`, a threshold slider (`keyword-suggestion-threshold`) and
      **Accept 3** (`keyword-suggestions-accept-all`). Click **Suggest** again: `Keyword suggestions: already up to date`.
-110. **Accept one.** Click the `pink` chip (`keyword-suggestion-pink`). Expect: status `Added “Suggested › pink” to the
+110. **Accept one.** Click the `pink` chip (`keyword-suggestion-<index>` (the chip labelled pink)). Expect: status `Added “Suggested › pink” to the
      catalog (XMP off)`; the chip leaves Suggested; `pink` appears as an applied keyword chip and in the Keyword List as
      `Suggested` ▸ `pink` (count 1). `SAMPLE_0001.jpg.xmp` does not mention `pink` (catalog only, the default).
      Type `keyword:pink` in the filter bar: `1 match`. Clear.
 111. **Mapping.** Keyword List ▸ **New…** `Colors`, then right-click `pink` ▸ Move Into ▸ `Colors`. Select cell 2
      (SAMPLE_0002, pink) and **Suggest**. The `pink` chip now shows ↳ and its tooltip reads `adds “Colors › pink”`.
      Click it: status `Added “Colors › pink” …`.
-112. **Reject and threshold.** On cell 2 click ✕ on `texture` (`keyword-suggestion-reject-texture`): it disappears and
+112. **Reject and threshold.** On cell 2 click ✕ on `texture` (`keyword-suggestion-reject-<index>` (the chip labelled texture)): it disappears and
      stays gone after **Suggest** (cached). Drag the threshold to 40 %: **Accept 3** (photograph, gradient, abstract).
      ⇧-click any chip: all three are accepted at once (`Added 3 suggested keywords …`).
 113. **Selection.** Select cells 1–12 (⌘A) and press ⌥⌘K. Expect the strip to count `n / 10` (cells 1 and 2 are cached), then
@@ -870,7 +870,7 @@ record whether they were tried and the timing of a 12-photo caption job.
 
 | Identifier | Element |
 | --- | --- |
-| `keyword-suggest-selection` · `keyword-suggestions` · `keyword-suggestion-<keyword>` · `keyword-suggestion-reject-<keyword>` · `keyword-suggestion-threshold` · `keyword-suggestions-accept-all` | Keywords ▸ Suggested |
+| `keyword-suggest-selection` · `keyword-suggestions` · `keyword-suggestion-<index>` · `keyword-suggestion-reject-<index>` · `keyword-suggestion-threshold` · `keyword-suggestions-accept-all` | Keywords ▸ Suggested |
 | `iptc-altText` · `metadata-generate-caption` · `caption-draft-save` · `caption-draft-discard` | Metadata ▸ Caption and alt text |
 | `ocr-detect` · `ocr-text` · `ocr-find` | Metadata ▸ Text in Image |
 | `understanding-progress` · `understanding-cancel` | Status strip: suggestion / caption / text job |
