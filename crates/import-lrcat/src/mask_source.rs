@@ -170,7 +170,7 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
             ("CorrectionRangeMask", Field::Structure(n)) => range(*n)?,
             ("Dabs", Field::Structure(n)) if kind == "Mask/Paint" => scalar_sequence(*n)?,
             ("Radius" | "Flow" | "CenterWeight", Field::Scalar(_)) if kind == "Mask/Paint" => (),
-            ("MaskID" | "MaskSyncID" | "MaskName" | "MaskVersion", Field::Scalar(_)) => (),
+            ("MaskID" | "MaskSyncID" | "MaskName" | "MaskVersion" | "Version", Field::Scalar(_)) => (),
             ("MaskValue" | "Midpoint" | "Roundness", Field::Scalar(v)) => {
                 if !v.parse::<f64>().ok()?.is_finite() {
                     return None;
@@ -206,6 +206,11 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
 fn correction(n: Node<'_, '_>) -> Option<()> {
     for (name, value) in fields(n)? {
         match (name.as_str(), value) {
+            ("CorrectionReferenceX" | "CorrectionReferenceY", Field::Scalar(v)) if v.parse::<f64>().ok()?.is_finite() => (),
+            ("LocalBrightness" | "LocalContrast" | "LocalExposure" | "LocalClarity" | "LocalGrain" | "LocalCorrectedDepth" | "LocalColorVariance", Field::Scalar(v)) if v.parse::<f64>().ok()? == 0.0 => (),
+            ("LocalCurveRefineSaturation", Field::Scalar(v)) if v.parse::<f64>().ok()? == 100.0 => (),
+            ("LocalPointColors", Field::Scalar(v)) if v.is_empty() => (),
+            ("LocalPointColors", Field::Structure(n)) if sequence(n)?.is_empty() => (),
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()? == 0.0 => {}
             ("LocalDefringe", Field::Scalar(v)) if v.parse::<f64>().ok()? != 0.0 => return None,
