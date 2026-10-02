@@ -75,3 +75,23 @@ fn lr5b_person_parts_and_specific_people_are_unsupported() {
         assert!(r.unknown.contains_key("lrcat_develop_source"));
     }
 }
+
+/// M2: a part ID is a sub-selection whatever category carries it. The IDs are
+/// unverified, so the mask is retained and warned about, never widened to the
+/// whole Subject/Sky/Object.
+#[test]
+fn lr5b_unverified_part_ids_are_never_broadened_to_the_whole_category() {
+    for fields in [
+        "MaskSubType=1,MaskSubCategoryID=4",
+        "MaskType='Subject',MaskSubCategoryID=2",
+        "MaskSubType=2,MaskSubCategoryID=7",
+    ] {
+        let source = format!(
+            "s={{MaskGroupBasedCorrections={{{{LocalExposure2012=1,CorrectionMasks={{{{What='Mask/Image',{fields},MaskDigest='synthetic'}}}}}}}}}}"
+        );
+        let (r, warnings) = import_lrcat::develop(1, &source, "15.4").unwrap();
+        assert!(r.settings.locals.adjustments.is_empty(), "{fields}");
+        assert!(!warnings.is_empty(), "{fields}");
+        assert!(r.unknown.contains_key("lrcat_develop_source"));
+    }
+}

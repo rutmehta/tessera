@@ -2779,6 +2779,68 @@ mod lr5b_unavailable_tests {
         assert!(session.shared.generation.load(Ordering::SeqCst) > generation);
         session.close().unwrap();
     }
+    fn imported_subject(key: [u8; 32]) -> MaskComponent {
+        let mut c = MaskComponent::new(MaskKind::Subject { model: None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some(key),
+            regenerate: false,
+        });
+        c
+    }
+    /// M6: once the stored raster is gone the segmentation job answers under
+    /// the same imported key at the proxy level, not the level 0 extent. That
+    /// regenerated plane must render instead of leaving the adjustment skipped.
+    #[test]
+    fn lr5b_regenerated_imported_plane_renders_at_proxy_extent() {
+        let shared = MaskShared::with_extents(vec![(4, 2), (2, 1)]);
+        let c = imported_subject([51; 32]);
+        let key = component_raster_key(&c).unwrap();
+        shared.set_ai(
+            &key,
+            AiEntry::Ready(Arc::new(AlphaPlane {
+                width: 2,
+                height: 1,
+                data: vec![1.; 2],
+            })),
+        );
+        let group = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
+        let image = pipeline_cpu::Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
+        assert_eq!(
+            Hooks(shared).rasterize(&image, &group, 0).unwrap(),
+            vec![1.; 8]
+        );
+    }
+    /// M6: a stored raster of the wrong extent is not usable pixels. It must
+    /// take the regeneration path (as export does), never sit "ready" unused.
+    #[test]
+    fn lr5b_wrong_extent_stored_raster_is_not_ready_and_requests_regeneration() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ml_segment::MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+        let stored = store
+            .put_content_pinned(&ml_segment::MaskRaster::new(2, 1, vec![1.; 2]).unwrap())
+            .unwrap();
+        let shared = MaskShared::with_extents(vec![(4, 2), (2, 1)]);
+        let c = imported_subject(stored);
+        let key = component_raster_key(&c).unwrap();
+        assert!(shared.refresh_imported(dir.path(), &key, &stored).is_err());
+        assert!(
+            !matches!(shared.ai.lock().unwrap().get(&key), Some(AiEntry::Ready(_))),
+            "a wrong-extent raster must not be reported ready"
+        );
+        let info = group_info(
+            &LocalAdjustment {
+                components: vec![c],
+                ..Default::default()
+            },
+            &shared.ai.lock().unwrap(),
+        );
+        assert!(matches!(info.components[0].ai, AiMaskState::Pending { .. }));
+    }
     #[test]
     fn lr5b_unavailable_inverted_and_subtracted_ai_has_zero_effect_and_pending_ui() {
         let shared = MaskShared::with_extents(vec![(2, 1)]);

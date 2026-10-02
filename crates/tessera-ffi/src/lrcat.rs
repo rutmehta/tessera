@@ -235,6 +235,19 @@ fn oriented_mask_extent(path: &Path) -> Option<(u32, u32)> {
     Some(if orientation >= 5 { (h, w) } else { (w, h) })
 }
 
+/// Extent an injected mask raster must have to be accepted for `path`.
+fn render_mask_extent(path: &Path) -> (u32, u32) {
+    oriented_mask_extent(path)
+        .or_else(|| image::image_dimensions(path).ok())
+        .or_else(|| {
+            raw_decode::RawSource::open(path).ok().map(|raw| {
+                let meta = raw.metadata();
+                (meta.default_crop[2], meta.default_crop[3])
+            })
+        })
+        .unwrap_or((0, 0))
+}
+
 /// Caller-owned opaque resource association. Supply a full sensor-aligned
 /// grayscale PNG/TIFF, including any Adobe crop/origin expansion.
 #[uniffi::export(with_foreign)]
@@ -1545,7 +1558,12 @@ impl LrcatImport {
                     crate::lrcat_masks::apply(
                         &mut image.recipe,
                         id,
-                        oriented_mask_extent(&r.path).unwrap_or(extent),
+                        // Only an injected raster is ever measured against it.
+                        if mask_resolver.is_some() {
+                            render_mask_extent(&r.path)
+                        } else {
+                            (0, 0)
+                        },
                         &store,
                         |resource| {
                             mask_resolver.as_ref().and_then(|resolver| {

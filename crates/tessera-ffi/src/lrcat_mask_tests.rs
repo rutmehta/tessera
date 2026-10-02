@@ -524,3 +524,20 @@ fn lr5b_portrait_orientation_import_uses_render_extent() {
     assert!(state.mask_key.is_some());
     assert_eq!(recipe.image_id, Some(id));
 }
+
+/// B1: the import extent is the space the renderer masks in. For RAW that is
+/// the active sensor area, never the first TIFF directory of the container
+/// (an embedded preview) and never a fallback to unrotated file dimensions.
+#[test]
+fn lr5b_raw_import_extent_is_the_active_sensor_area() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
+    for name in ["sample.dng", "nikon-nef.NEF", "sony-arw.ARW"] {
+        let path = root.join(name);
+        let meta = raw_decode::RawSource::open(&path).unwrap().metadata();
+        assert_eq!(
+            render_mask_extent(&path),
+            (meta.default_crop[2], meta.default_crop[3]),
+            "{name}"
+        );
+    }
+}
