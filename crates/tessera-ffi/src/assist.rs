@@ -476,6 +476,11 @@ impl Engine {
             )?;
             (path, orientation.parse::<u8>().unwrap_or(1))
         };
+        if crate::catalog::lightroom_proxy(Path::new(&path)).is_some() || crate::catalog::catalog_orientation(Path::new(&path)).is_some() {
+            let key = self.indexed_preview(image_id, &path, max_px)?;
+            let bytes = self.previews.get(&key, previews::Level::Full).ok_or_else(|| failure("preview was evicted"))?;
+            return previews::Jpeg.decode(&bytes).map_err(failure);
+        }
         let ext = Path::new(&path)
             .extension()
             .unwrap_or_default()
