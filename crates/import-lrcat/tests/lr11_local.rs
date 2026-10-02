@@ -143,7 +143,8 @@ fn malformed_local_payloads_retain_parent_atomically() {
 
 #[test]
 fn ordinary_and_extended_channel_curves_keep_channel_fallbacks() {
-    let (r,w)=lua_develop::parse(&format!("s={{MaskGroupBasedCorrections={{{{MainCurve={{0,0,255,255}},RedCurve={{0,0,255,127.5}},ExtendedBlueCurve={{0,0,510,600}},{GRADIENT}}}}}}}"),"15.4").unwrap();
+    // LR-11b B3: extended local curves are translated only for HDR output.
+    let (r,w)=lua_develop::parse(&format!("s={{HDREditMode=1,MaskGroupBasedCorrections={{{{MainCurve={{0,0,255,255}},RedCurve={{0,0,255,127.5}},ExtendedBlueCurve={{0,0,510,600}},{GRADIENT}}}}}}}"),"15.4").unwrap();
     assert!(w.is_empty(), "{w:?}");
     let p = &r.settings.locals.adjustments[0].params;
     assert_eq!(p.curves.as_ref().unwrap().red.0[1].y, 0.5);
