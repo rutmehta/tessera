@@ -247,3 +247,30 @@ fn lr5_adobe_ai_state_round_trips_through_native_xmp() {
         assert!(!packet.contains("TSMASK"));
     }
 }
+
+#[test]
+fn lr9_zero_native_color_overlay_keeps_optional_presence() {
+    let local: LocalAdjustment = serde_json::from_value(json!({
+        "id": 7, "params": {"color_overlay": [0.0, 0.0]},
+        "components": [{"kind":"linear","start":[0.0,0.0],"end":[1.0,1.0]}]
+    }))
+    .unwrap();
+    let mut recipe = Recipe::default();
+    recipe
+        .edit(Default::default(), |s| s.locals.adjustments = vec![local])
+        .unwrap();
+    let packet =
+        XmpPacket::from_recipe(&recipe, &Metadata::default(), &MarkPreset::lightroom()).unwrap();
+    let imported = packet.to_recipe().unwrap();
+    assert!(imported.warnings.is_empty());
+    assert_eq!(
+        imported.recipe.settings.locals.adjustments,
+        recipe.settings.locals.adjustments
+    );
+
+    // Adobe's explicit zero controls remain inactive under the catalog extension.
+    let body = r#"<crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li rdf:parseType="Resource"><crs:LocalToningHue>0</crs:LocalToningHue><crs:LocalToningSaturation>0</crs:LocalToningSaturation></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections>"#;
+    let tree = xml::Tree::parse(&xml::packet(body)).unwrap();
+    let foreign = masks::import_masks(&tree, true).unwrap();
+    assert!(foreign[0]["params"]["color_overlay"].is_null());
+}
