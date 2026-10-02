@@ -5,6 +5,7 @@ pub mod diagnostics;
 pub mod fixture;
 mod geometry;
 mod lr2;
+pub use lr2::LR2_APPROXIMATE_FIELDS;
 pub mod lua;
 pub mod lua_develop;
 pub mod previews;

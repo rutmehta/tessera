@@ -9,6 +9,46 @@ use engine_api::{
 };
 use std::collections::BTreeMap;
 
+/// Adobe keys and recipe paths shared by approximation diagnostics and the matrix gate.
+pub const LR2_APPROXIMATE_FIELDS: &[(&str, &str)] = &[
+    ("Brightness", "/settings/tone/legacy_pv2010/brightness"),
+    ("Contrast", "/settings/tone/legacy_pv2010/contrast"),
+    ("ConvertToGrayscale", "/settings/color/monochrome/enabled"),
+    ("Exposure", "/settings/tone/legacy_pv2010/exposure"),
+    (
+        "ExtendedToneCurvePV2012",
+        "/settings/tone/curves_extended/rgb",
+    ),
+    (
+        "ExtendedToneCurvePV2012Blue",
+        "/settings/tone/curves_extended/blue",
+    ),
+    (
+        "ExtendedToneCurvePV2012Green",
+        "/settings/tone/curves_extended/green",
+    ),
+    (
+        "ExtendedToneCurvePV2012Red",
+        "/settings/tone/curves_extended/red",
+    ),
+    ("FillLight", "/settings/tone/legacy_pv2010/fill_light"),
+    ("GrayMixerAqua", "/settings/color/monochrome/mixer/aqua"),
+    ("GrayMixerBlue", "/settings/color/monochrome/mixer/blue"),
+    ("GrayMixerGreen", "/settings/color/monochrome/mixer/green"),
+    (
+        "GrayMixerMagenta",
+        "/settings/color/monochrome/mixer/magenta",
+    ),
+    ("GrayMixerOrange", "/settings/color/monochrome/mixer/orange"),
+    ("GrayMixerPurple", "/settings/color/monochrome/mixer/purple"),
+    ("GrayMixerRed", "/settings/color/monochrome/mixer/red"),
+    ("GrayMixerYellow", "/settings/color/monochrome/mixer/yellow"),
+    ("HighlightRecovery", "/settings/tone/legacy_pv2010/recovery"),
+    ("Shadows", "/settings/tone/legacy_pv2010/blacks"),
+    ("Blacks", "/settings/tone/legacy_pv2010/blacks"),
+    ("Recovery", "/settings/tone/legacy_pv2010/recovery"),
+];
+
 type Values = BTreeMap<String, LuaValue>;
 const BANDS: [&str; 8] = [
     "Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta",
@@ -327,39 +367,14 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
             );
         }
     }
-    for (key, reason) in &approximate {
+    for &(key, field) in LR2_APPROXIMATE_FIELDS {
+        let Some(reason) = approximate.get(key) else {
+            continue;
+        };
         warnings.retain(|w| {
             !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
         });
-        let field = match key.as_str() {
-            "ConvertToGrayscale" => "/settings/color/monochrome/enabled".to_string(),
-            k if k.starts_with("GrayMixer") => format!(
-                "/settings/color/monochrome/mixer/{}",
-                k.trim_start_matches("GrayMixer").to_ascii_lowercase()
-            ),
-            k if k.starts_with("ExtendedToneCurvePV2012") => {
-                let channel = k
-                    .trim_start_matches("ExtendedToneCurvePV2012")
-                    .to_ascii_lowercase();
-                format!(
-                    "/settings/tone/curves_extended/{}",
-                    if channel.is_empty() { "rgb" } else { &channel }
-                )
-            }
-            k => {
-                let member = match k {
-                    "Exposure" => "exposure",
-                    "Brightness" => "brightness",
-                    "Contrast" => "contrast",
-                    "FillLight" => "fill_light",
-                    "HighlightRecovery" | "Recovery" => "recovery",
-                    "Shadows" | "Blacks" => "blacks",
-                    _ => unreachable!("only translated LR-2 keys have approximation reasons"),
-                };
-                format!("/settings/tone/legacy_pv2010/{member}")
-            }
-        };
-        crate::diagnostics::push_approximate(recipe, key, &field, "LR-2", reason);
+        crate::diagnostics::push_approximate(recipe, key, field, "LR-2", reason);
     }
     for key in values
         .keys()
