@@ -296,7 +296,7 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
     let source = if fields.contains_key("sourcey") {
         point(&fields, "sourcex", "sourcey")?
     } else {
-        [bounded(number(&fields, "sourcex")?, 0.0, 1.0)?, first[1] + bounded(number(&fields, "offsety")?, -1.0, 1.0)?]
+        point(&fields, "sourcex", "offsety")?
     };
     let source_offset = [source[0] - first[0], source[1] - first[1]];
     let kind = match fields.get("spottype")?.as_str()? {
