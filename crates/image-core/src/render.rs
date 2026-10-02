@@ -1042,7 +1042,7 @@ impl Renderer {
             ));
         }
         let m = image.metadata();
-        let (period, dem_halo) = if image.rgb().is_some() {
+        let (period, dem_halo) = if image.rgb().is_some() || image.camera_linear_proxy().is_some() {
             (1, 0)
         } else {
             match m.cfa_layout {
