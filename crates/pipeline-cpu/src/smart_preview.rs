@@ -305,11 +305,13 @@ impl CameraLinearProxy {
             notes.push("/camera_profile/look");
             drawn.camera_profile.look = defaults.camera_profile.look;
         }
-        if drawn.output.hdr || drawn.output.hdr_headroom_stops != 0. {
+        // Headroom only parameterizes HDR presentation. With HDR output off it
+        // changes nothing the user sees, so it is dropped without a note.
+        if drawn.output.hdr {
             notes.push("/output/hdr");
-            drawn.output.hdr = false;
-            drawn.output.hdr_headroom_stops = 0.;
         }
+        drawn.output.hdr = false;
+        drawn.output.hdr_headroom_stops = 0.;
         if matches!(drawn.lens.profile, LensProfileSource::Database { .. }) {
             notes.push("/lens/profile");
             drawn.lens.profile = LensProfileSource::None;
