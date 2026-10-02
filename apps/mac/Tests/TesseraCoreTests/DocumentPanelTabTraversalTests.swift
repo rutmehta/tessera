@@ -114,6 +114,13 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         return false
     }
 
+    /// Tab (or ⇧Tab) until `target` has the keyboard, judged by identity. `budget` counts the stops the
+    /// keyboard-access pin controls; SwiftUI's own stops in between are allowed (see `KeyViewWalk`).
+    private func walk(_ window: NSWindow, shift: Bool = false, router: KeyRouter, budget: Int,
+                      to target: NSResponder) throws -> KeyViewWalk {
+        try KeyViewWalk.run(in: window, budget: budget, to: target) { try tab(window, shift: shift, router: router) }
+    }
+
     private func name(_ responder: NSResponder?) -> String {
         guard let responder else { return "nil" }
         if let view = responder as? NSView, !view.accessibilityIdentifier().isEmpty { return view.accessibilityIdentifier() }
@@ -229,21 +236,12 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         XCTAssertTrue(control.decrease.isEnabled && control.increase.isEnabled && control.reset.isEnabled)
         let eye = try XCTUnwrap(eyeButtons(host).first, "the Stack tab shows Layers rows with eye buttons")
         XCTAssertTrue(window.makeFirstResponder(eye))
-        var trail = [name(window.firstResponder)]
-        var reached: [HistoryHeightButton] = []
-        for _ in 0..<60 {
-            let consumed = try tab(window, router: router)
-            XCTAssertFalse(consumed, "Tab from \(trail.last ?? "?") was taken as the panels key; trail: \(trail)")
+        // − is the first History stop after the row; + and ↺ follow it directly.
+        for (button, budget) in [(control.decrease, 4), (control.increase, 1), (control.reset, 1)] {
+            let walk = try walk(window, router: router, budget: budget, to: button)
+            XCTAssertTrue(walk.reached, "Tab from the eye button must reach − → + → ↺; \(walk)")
             XCTAssertFalse(model.documents.panelsHidden)
-            if consumed { break }
-            trail.append(name(window.firstResponder))
-            if let button = window.firstResponder as? HistoryHeightButton, !reached.contains(where: { $0 === button }) {
-                reached.append(button)
-            }
-            if reached.count == 3 { break }
         }
-        XCTAssertTrue(reached.count == 3 && reached[0] === control.decrease && reached[1] === control.increase
-                      && reached[2] === control.reset, "Tab from the eye button must reach − → + → ↺; trail: \(trail)")
         // ⇧Tab walks back from ↺ to +.
         XCTAssertFalse(try tab(window, shift: true, router: router))
         XCTAssertTrue(window.firstResponder === control.increase, "⇧Tab from ↺ returns to +, got \(name(window.firstResponder))")
@@ -260,15 +258,8 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         let control = try XCTUnwrap(find(host, DocumentHistoryHeightControl.self).first)
         let outline = try XCTUnwrap(find(host, LayersOutlineView.self).first)
         XCTAssertTrue(window.makeFirstResponder(outline))
-        var trail = [name(window.firstResponder)]
-        for _ in 0..<60 {
-            let consumed = try tab(window, router: router)
-            XCTAssertFalse(consumed, "trail: \(trail)")
-            if consumed { break }
-            trail.append(name(window.firstResponder))
-            if window.firstResponder === control.decrease { break }
-        }
-        XCTAssertTrue(window.firstResponder === control.decrease, "Tab from the Layers list reaches −; trail: \(trail)")
+        let walk = try walk(window, router: router, budget: 4, to: control.decrease)
+        XCTAssertTrue(walk.reached, "Tab from the Layers list reaches −; \(walk)")
         XCTAssertFalse(model.documents.panelsHidden)
     }
 
@@ -326,70 +317,128 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
     /// with a closed key-view loop of its own, and Tab from a row's eye button found no next key view:
     /// the keyboard stayed on the eye (Machine A, Full Keyboard Access on). The outline now walks out of
     /// the row itself, in either keyboard-access mode and whatever the machine's own setting is.
+    ///
+    /// B5-49d: SwiftUI's focus proxies follow the real setting, so on a machine where it is on there
+    /// are proxy stops between the Layers list and History − in both pinned variants. Destinations
+    /// are checked by identity with `KeyViewWalk`; each pinned mode also runs with the proxies forced
+    /// into and out of the key-view loop, so both machines exercise both shapes of the walk.
     func testTabFromRowEyeLeavesTheLayersListWhenTheInspectorJoinsAnExistingWindow() throws {
+        try inEveryKeyboardAccessArrangement { fka, proxies, mode in try self.rowEyeTraversal(fka: fka, proxies: proxies, mode: mode) }
+    }
+
+    /// B5-49d (L2): ⇧Tab from History − goes back into the Layers list, and on to the list itself.
+    func testShiftTabFromHistoryDecreaseReturnsToTheLayersList() throws {
+        try inEveryKeyboardAccessArrangement { _, _, mode in
+            let fixture = try self.joinedInspector()
+            defer { self.dispose(fixture.window) }
+            let (window, outline) = (fixture.window, fixture.outline)
+            XCTAssertTrue(window.makeFirstResponder(fixture.control.decrease))
+            var walk = try KeyViewWalk.run(in: window, budget: 4, isTarget: { fixture.inList($0) }) {
+                try self.tab(window, shift: true, router: fixture.router)
+            }
+            XCTAssertTrue(walk.reached, "\(mode): ⇧Tab from − returns to the Layers list; \(walk)")
+            if window.firstResponder !== outline {
+                walk = try self.walk(window, shift: true, router: fixture.router, budget: 4, to: outline)
+                XCTAssertTrue(walk.reached && walk.trail.allSatisfy { fixture.inList($0.object as? NSResponder) },
+                              "\(mode): ⇧Tab from a row control reaches the list; \(walk)")
+            }
+            XCTAssertFalse(fixture.model.documents.panelsHidden)
+        }
+    }
+
+    /// Both pinned modes, each with SwiftUI's focus proxies as the machine has them, forced into the
+    /// key-view loop (a machine whose real setting is on) and forced out of it (one where it is off).
+    private func inEveryKeyboardAccessArrangement(_ body: (_ fka: Bool, _ proxies: Bool?, _ mode: String) throws -> Void) throws {
         for fka in [true, false] {
             try KeyboardAccessHarness.withMode(fka) {
-                UserDefaults.standard.set(Double(DocumentInspector.historyDefault + Theme.Height.row),
-                                          forKey: "DocumentInspector.historyHeight")
-                UserDefaults.standard.set(true, forKey: "InspectorPanel.History")
-                let model = gridModel()
-                let router = KeyRouter(model: model)
-                let (window, host) = hostFixture(model, inspector: true)
-                XCTAssertTrue(find(host, LayersOutlineView.self).isEmpty, "fixture: no inspector in the grid")
-                model.viewMode = .document
-                settle(host)
-                let outline = try XCTUnwrap(find(host, LayersOutlineView.self).first)
-                let control = try XCTUnwrap(find(host, DocumentHistoryHeightControl.self).first)
-                XCTAssertTrue(control.decrease.isEnabled && control.increase.isEnabled && control.reset.isEnabled)
-                outline.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
-                let row = try XCTUnwrap(outline.rowView(atRow: 0, makeIfNecessary: false))
-                let eye = try XCTUnwrap(eyeButtons(row).first, "FKA \(fka): row 0 has an eye button")
-                XCTAssertEqual(eye.canBecomeKeyView, fka, "the pinned mode decides the eye's key-view membership")
-
-                // Tab from the eye (forced with FKA off, where it is not a key view) reaches − → + → ↺.
-                XCTAssertTrue(window.makeFirstResponder(eye))
-                var trail = [name(window.firstResponder)]
-                var reached: [HistoryHeightButton] = []
-                for _ in 0..<60 {
-                    XCTAssertFalse(try tab(window, router: router), "FKA \(fka): Tab taken as the panels key; trail: \(trail)")
-                    XCTAssertFalse(model.documents.panelsHidden)
-                    trail.append(name(window.firstResponder))
-                    if let button = window.firstResponder as? HistoryHeightButton, !reached.contains(where: { $0 === button }) {
-                        reached.append(button)
+                try body(fka, nil, "FKA \(fka), SwiftUI proxies as the machine has them")
+                for proxies in [true, false] {
+                    let ran: Void? = try KeyboardAccessHarness.withSwiftUIProxies(focusable: proxies) {
+                        try body(fka, proxies, "FKA \(fka), SwiftUI proxies \(proxies ? "in" : "out of") the key-view loop")
                     }
-                    if reached.count == 3 || window.firstResponder === eye { break }
+                    XCTAssertNotNil(ran, "SwiftUI's KeyViewProxy gate was not found; proxy stops are untested")
                 }
-                XCTAssertTrue(reached.count == 3 && reached[0] === control.decrease && reached[1] === control.increase
-                              && reached[2] === control.reset, "FKA \(fka): Tab from the eye must reach − → + → ↺; trail: \(trail)")
-
-                // ⇧Tab walks back through the row's key views (a group row has a disclosure button
-                // before the eye) to the list that Tab entered the row from.
-                XCTAssertTrue(window.makeFirstResponder(eye))
-                trail = [name(window.firstResponder)]
-                for _ in 0..<4 where window.firstResponder !== outline {
-                    XCTAssertFalse(try tab(window, shift: true, router: router))
-                    trail.append(name(window.firstResponder))
-                    XCTAssertTrue(window.firstResponder === outline || (window.firstResponder as? NSView)?.isDescendant(of: row) == true,
-                                  "FKA \(fka): ⇧Tab stays in the row until it reaches the list; trail: \(trail)")
-                }
-                XCTAssertTrue(window.firstResponder === outline, "FKA \(fka): ⇧Tab from the eye returns to the Layers list; trail: \(trail)")
-
-                // With Full Keyboard Access the list hands Tab to the selected row's controls and the eye
-                // is one of them; without it the row is skipped. Either way Tab then leaves the list for −.
-                trail = [name(window.firstResponder)]
-                var visitedEye = false
-                for _ in 0..<4 where window.firstResponder !== control.decrease {
-                    XCTAssertFalse(try tab(window, router: router))
-                    trail.append(name(window.firstResponder))
-                    visitedEye = visitedEye || window.firstResponder === eye
-                }
-                XCTAssertTrue(window.firstResponder === control.decrease, "FKA \(fka): Tab from the list reaches −; trail: \(trail)")
-                XCTAssertEqual(visitedEye, fka, "FKA \(fka): the eye is a Tab stop only with Full Keyboard Access; trail: \(trail)")
-                XCTAssertFalse(model.documents.panelsHidden)
-                LayoutProbeHarness.dispose(window)
-                windows.removeAll { $0 === window }
             }
         }
+    }
+
+    private struct JoinedInspector {
+        let model: AppModel
+        let router: KeyRouter
+        let window: NSWindow
+        let outline: LayersOutlineView
+        let control: DocumentHistoryHeightControl
+        let row: NSView
+        let eye: NSButton
+        @MainActor func inList(_ responder: NSResponder?) -> Bool {
+            responder === outline || (responder as? NSView)?.isDescendant(of: outline) == true
+        }
+    }
+
+    /// The app's arrangement: the inspector joins a window that already exists (document mode is
+    /// entered after launch). Row 0 is selected; History −/+/↺ are all enabled.
+    private func joinedInspector() throws -> JoinedInspector {
+        UserDefaults.standard.set(Double(DocumentInspector.historyDefault + Theme.Height.row),
+                                  forKey: "DocumentInspector.historyHeight")
+        UserDefaults.standard.set(true, forKey: "InspectorPanel.History")
+        let model = gridModel()
+        let router = KeyRouter(model: model)
+        let (window, host) = hostFixture(model, inspector: true)
+        XCTAssertTrue(find(host, LayersOutlineView.self).isEmpty, "fixture: no inspector in the grid")
+        model.viewMode = .document
+        settle(host)
+        let outline = try XCTUnwrap(find(host, LayersOutlineView.self).first)
+        let control = try XCTUnwrap(find(host, DocumentHistoryHeightControl.self).first)
+        XCTAssertTrue(control.decrease.isEnabled && control.increase.isEnabled && control.reset.isEnabled)
+        outline.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        let row = try XCTUnwrap(outline.rowView(atRow: 0, makeIfNecessary: false))
+        let eye = try XCTUnwrap(eyeButtons(row).first, "row 0 has an eye button")
+        return JoinedInspector(model: model, router: router, window: window, outline: outline, control: control, row: row, eye: eye)
+    }
+
+    private func dispose(_ window: NSWindow) {
+        LayoutProbeHarness.dispose(window)
+        windows.removeAll { $0 === window }
+    }
+
+    /// `proxies`: nil leaves SwiftUI's focus proxies to the machine's real setting.
+    private func rowEyeTraversal(fka: Bool, proxies: Bool?, mode: String) throws {
+        let fixture = try joinedInspector()
+        defer { dispose(fixture.window) }
+        let (model, router, window) = (fixture.model, fixture.router, fixture.window)
+        let (outline, control, eye) = (fixture.outline, fixture.control, fixture.eye)
+        XCTAssertEqual(eye.canBecomeKeyView, fka, "the pinned mode decides the eye's key-view membership")
+
+        // Tab from the eye (forced with FKA off, where it is not a key view) leaves the list at once
+        // and reaches − → + → ↺. The row's own controls are the only pinned stops before −.
+        XCTAssertTrue(window.makeFirstResponder(eye))
+        var walk = try walk(window, router: router, budget: 4, to: control.decrease)
+        XCTAssertTrue(walk.reached, "\(mode): Tab from the eye must reach −; \(walk)")
+        XCTAssertFalse(walk.trail.dropFirst().contains { $0.object === outline },
+                       "\(mode): Tab from the eye must not fall back to the list; \(walk)")
+        for button in [control.increase, control.reset] {
+            walk = try self.walk(window, router: router, budget: 1, to: button)
+            XCTAssertTrue(walk.reached, "\(mode): − → + → ↺; \(walk)")
+        }
+        XCTAssertFalse(model.documents.panelsHidden)
+
+        // ⇧Tab walks back through the row's key views (a group row has a disclosure button
+        // before the eye) to the list that Tab entered the row from. No stop outside the row.
+        XCTAssertTrue(window.makeFirstResponder(eye))
+        walk = try self.walk(window, shift: true, router: router, budget: 4, to: outline)
+        XCTAssertTrue(walk.reached, "\(mode): ⇧Tab from the eye returns to the Layers list; \(walk)")
+        XCTAssertTrue(walk.trail.allSatisfy { fixture.inList($0.object as? NSResponder) } && walk.uncontrolledStops == 0,
+                      "\(mode): ⇧Tab stays in the row until it reaches the list; \(walk)")
+
+        // With Full Keyboard Access the list hands Tab to the selected row's controls and the eye
+        // is one of them; without it the row is skipped. Either way Tab then leaves the list for −.
+        walk = try self.walk(window, router: router, budget: 4, to: control.decrease)
+        XCTAssertTrue(walk.reached, "\(mode): Tab from the list reaches −; \(walk)")
+        XCTAssertEqual(walk.visited(eye), fka, "\(mode): the eye is a Tab stop only with Full Keyboard Access; \(walk)")
+        if proxies == true {
+            XCTAssertGreaterThan(walk.uncontrolledStops, 0, "\(mode): the walk must cross SwiftUI proxy stops; \(walk)")
+        }
+        XCTAssertFalse(model.documents.panelsHidden)
     }
 
     /// (1) A focused view inside an alpha-0 container (the grid behind document mode) does not hold Tab:

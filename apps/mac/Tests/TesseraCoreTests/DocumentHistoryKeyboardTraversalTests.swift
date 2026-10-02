@@ -236,20 +236,19 @@ final class DocumentHistoryKeyboardTraversalTests: XCTestCase {
         let control = try XCTUnwrap(find(host, DocumentHistoryHeightControl.self).first)
         XCTAssertTrue(control.decrease.isEnabled && control.increase.isEnabled && control.reset.isEnabled)
         XCTAssertTrue(window.makeFirstResponder(control.decrease), "forced entry point")
-        var trail: [String] = [name(window.firstResponder)]
-        var reached: [HistoryHeightButton] = []
-        for _ in 0..<40 {
-            let next = try tab(window, router: router)
-            trail.append(name(next))
-            if let view = next as? NSView { XCTAssertTrue(view.window === window, "stale responder \(name(next))") }
-            if let button = next as? HistoryHeightButton {
-                if button === control.decrease { break }
-                reached.append(button)
+        // − → + → ↺ directly, then round the whole inspector back to −. Destinations are checked by
+        // identity; SwiftUI's own stops on the way round follow the machine's real setting and are
+        // not counted (B5-49d), and the walk stops as soon as a native stop repeats.
+        for (button, budget) in [(control.increase, 1), (control.reset, 1), (control.decrease, 40)] {
+            let walk = try KeyViewWalk.run(in: window, budget: budget, to: button) {
+                try tab(window, router: router)
+                return false
+            }
+            XCTAssertTrue(walk.reached, "hosted key-view loop must chain − → + → ↺ and return to −; \(walk)")
+            for stop in walk.trail {
+                if let view = stop.object as? NSView { XCTAssertTrue(view.window === window, "stale responder \(stop.name)") }
             }
         }
-        XCTAssertTrue(reached.first === control.increase && reached.dropFirst().first === control.reset,
-                      "hosted key-view loop must chain − → + → ↺; trail: \(trail)")
-        XCTAssertTrue(window.firstResponder === control.decrease, "the loop returns to − within 40 Tabs; trail: \(trail)")
     }
 
     // MARK: 4. H4 collapse with focus

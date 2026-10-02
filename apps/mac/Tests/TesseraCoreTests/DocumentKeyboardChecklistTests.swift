@@ -129,6 +129,14 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
     private func canvas() throws -> DocumentViewportView { try control("document.viewport") }
     private func eye() throws -> NSButton { try control("document.layers.row.0.visibility") }
     private func tab(shift: Bool = false) throws -> Bool { try press(48, shift ? "\u{19}" : "\t", shift: shift) }
+    /// Tab until `target` has the keyboard, by identity. `budget` counts the stops the pin controls;
+    /// stops that follow the machine's real setting (SwiftUI proxies) are allowed in between (B5-49d).
+    private func walk(shift: Bool = false, budget: Int, to target: NSResponder, _ what: String) throws -> KeyViewWalk {
+        let walk = try KeyViewWalk.run(in: window, budget: budget, to: target) { try self.tab(shift: shift) }
+        try require(walk.reached, "\(what): \(walk)")
+        try require(!model.documents.panelsHidden, "\(what) hid panels")
+        return walk
+    }
     private func mouse(_ type: NSEvent.EventType, at point: CGPoint, view: NSView) throws -> NSEvent {
         try XCTUnwrap(NSEvent.mouseEvent(with: type, location: view.convert(point, to: nil), modifierFlags: [],
             timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
@@ -280,32 +288,26 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
                 try self.require(first !== eye && first !== outline, "FKA off: List Tab must skip the eye and leave the list; got \(self.label(first))")
                 throw NotApplicable(reason: "FKA off (pinned): the row eye is not a key view (canBecomeKeyView=false), so no eye ring exists in this mode. Asserted instead: List Tab is unhandled, skips the eye, lands on \(self.label(first)), panels stay. Button key safety is automated with a forced responder in 9–10.")
             }
-            try self.require(first === eye, "List Tab did not reach selected row eye; got \(self.label(first))")
+            // A group row has a disclosure button before its eye, so the eye is found by identity.
+            if first !== eye { _ = try self.walk(budget: 1, to: eye, "List Tab did not reach selected row eye") }
             try self.require(!self.tab(), "Eye Tab consumed")
             let second = self.window.firstResponder
             try self.require(second !== eye && second !== outline, "Eye Tab did not move")
             try self.require(!self.model.documents.panelsHidden, "Traversal hid panels")
             try self.focus(eye)
-            try self.require(!self.tab(shift: true), "Eye Shift-Tab consumed")
-            try self.require(self.window.firstResponder === outline, "Eye Shift-Tab did not return to the Layers list; got \(self.label(self.window.firstResponder))")
+            _ = try self.walk(shift: true, budget: 2, to: outline, "Eye Shift-Tab did not return to the Layers list")
             return "FKA on (pinned): selected first Layers row; Tab → its eye → Tab → \(self.label(second)); eye Shift-Tab → Layers list; panels stay."
         }
         run("6a") {
             // FKA on: continue from the eye. FKA off: the eye is not a key view, so the list is the entry.
             let start: NSView = self.fka ? try self.eye() : try self.control("document.layers.outline", LayersOutlineView.self)
             try self.focus(start)
-            var reached: [String] = [], count = 0
-            for _ in 0..<60 {
-                try self.require(!self.tab(), "Panel Tab consumed")
-                count += 1
-                try self.require(!self.model.documents.panelsHidden, "Traversal hid panels")
-                if let button = self.window.firstResponder as? HistoryHeightButton {
-                    let id = button.accessibilityIdentifier()
-                    if !reached.contains(id) { reached.append(id) }
-                }
-                if reached.count == 3 { break }
+            // − is the first History stop after the row or list; + and ↺ follow it directly.
+            var count = 0
+            for (id, budget) in [("decrease", 4), ("increase", 1), ("reset", 1)] {
+                let button: HistoryHeightButton = try self.control("document.history.height.\(id)")
+                count += try self.walk(budget: budget, to: button, "Wrong History order at \(id)").presses
             }
-            try self.require(reached == ["decrease", "increase", "reset"].map { "document.history.height.\($0)" }, "Wrong History order: \(reached)")
             try self.require(!self.tab(shift: true), "History Shift-Tab consumed")
             let plus: NSButton = try self.control("document.history.height.increase")
             try self.require(self.window.firstResponder === plus, "Reset Shift-Tab did not return to +")
@@ -484,16 +486,9 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
                 try self.require(!self.model.documents.panelsHidden, "Name Tab hid panels")
                 throw NotApplicable(reason: "FKA off (pinned): Load 3D LUT and Dither are not key views (canBecomeKeyView=false), so this traversal does not exist in this mode. Asserted instead: Name Tab is unhandled, skips both, lands on \(self.label(landed)), panels stay.")
             }
-            var reached: [String] = [], tabs = 0
-            for _ in 0..<12 {
-                try self.require(!self.tab(), "Properties Tab consumed")
-                tabs += 1
-                try self.require(!self.model.documents.panelsHidden, "Properties traversal hid panels")
-                let id = (self.window.firstResponder as? NSView)?.accessibilityIdentifier() ?? ""
-                if [loadID, ditherID].contains(id), !reached.contains(id) { reached.append(id) }
-                if reached.count == 2 { break }
-            }
-            try self.require(reached == [loadID, ditherID], "Wrong Properties order: \(reached)")
+            let toLoad = try self.walk(budget: 4, to: load, "Wrong Properties order (Load 3D LUT)")
+            try self.require(!toLoad.visited(dither), "Dither came before Load 3D LUT: \(toLoad)")
+            let tabs = toLoad.presses + (try self.walk(budget: 2, to: dither, "Wrong Properties order (Dither)").presses)
             return "FKA on (pinned): Properties Name field → Load 3D LUT → Dither in \(tabs) Tabs, every Tab unhandled; panels stay. Responder contract; no visible ring claimed."
         }
         run("17a") {
