@@ -630,14 +630,16 @@ final class LayersOutlineView: NSOutlineView, KeyOwningControl {
         guard forward else { return window.makeFirstResponder(self) }
         // AppKit refreshes an automatic loop lazily, inside its own Tab handling; this lookup precedes it.
         if window.autorecalculatesKeyViewLoop { window.recalculateKeyViewLoop() }
+        // Follow the loop from the outline until it leaves it. A view seen twice means the loop is
+        // closed inside the outline: there is nowhere to go.
         var anchor: NSView = self
-        for _ in 0..<512 {
-            guard let next = anchor.nextValidKeyView else { return false }
+        var seen: Set<ObjectIdentifier> = [ObjectIdentifier(self)]
+        while let next = anchor.nextValidKeyView {
             if next !== self, !next.isDescendant(of: self) {
                 window.selectKeyView(following: anchor)
                 return true
             }
-            if next === self { return false }
+            guard seen.insert(ObjectIdentifier(next)).inserted else { return false }
             anchor = next
         }
         return false
