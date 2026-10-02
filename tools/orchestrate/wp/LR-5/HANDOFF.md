@@ -253,18 +253,18 @@ after the first worker (Codex) stopped; "audit" marks what that audit changed.
 | --- | --- | --- | --- |
 | B1 | Done. The extent an injected raster must match is measured with the renderer's own recognizer and decoder: RGB after EXIF orientation, RAW by active sensor area. No unrotated or preview fallback; computed only for an AI-masked image when a resolver is supplied. Audit: the first version read a DNG's embedded preview directory (320x216 instead of 5212x3468) and fell back to unrotated file dimensions. | `tessera-ffi/src/lrcat.rs` `render_mask_extent`, call in `apply_with_resolvers` | `lr5b_portrait_orientation_import_uses_render_extent`, `lr5b_raw_import_extent_is_the_active_sensor_area` |
 | B2 | Done. Parse emits no regeneration note; apply pushes it once the resolver outcome is known. `diagnostics::remove_approximate` is deleted (no reference left in the tree); the channel is push-only. | `tessera-ffi/src/lrcat_masks.rs` `apply` (`REGENERATED`); `import-lrcat/src/mask_source.rs` | `lr5_ai_categories_are_approximate_and_source_is_retained` (no note at parse), `lr5_invalid_resource_is_pending_and_slots_are_compact`, `lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image`, `lr6f_all_lanes_one_apply_both_resources_and_both_absent` |
-| B3 | Done. If any enabled AI leaf of an adjustment has no pixels (pending, failed, no model) the whole adjustment rasterizes to zero before inversion or subtraction, in preview, thumbnail overlay, file export and print. The mask UI reports pending / "Unavailable", including nested groups. | `tessera-ffi/src/masks.rs` `group_available`, `Hooks::rasterize`, `thumbnail_raster`, `component_ai_state`; `export/src/ai_masks.rs` `ReadyMasks::rasterize`, `render_with_hooks` | `lr5b_unavailable_inverted_and_subtracted_ai_has_zero_effect_and_pending_ui`, `lr5b_nested_unavailable_mask_reports_pending_ui`, `lr5b_export_without_model_skips_inverted_and_subtract_adjustments`, `lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai` |
+| B3 | Done. If any enabled AI leaf of an adjustment has no pixels (pending, failed, no model) the whole adjustment rasterizes to zero before inversion or subtraction, in preview and the thumbnail overlay. The mask UI reports pending / "Unavailable", including nested groups. File export and print fail instead (LR-5c ruling 1, below). | `tessera-ffi/src/masks.rs` `group_available`, `Hooks::rasterize`, `thumbnail_raster`, `component_ai_state`; `export/src/ai_masks.rs` `render_with_hooks` | `lr5b_unavailable_inverted_and_subtracted_ai_has_zero_effect_and_pending_ui`, `lr5b_nested_unavailable_mask_reports_pending_ui`, `lr5c_export_without_model_is_an_error_for_inverted_and_subtract_adjustments`, `lr5c_ffi_print_and_file_export_without_model_fail_and_stored_rasters_render` |
 | M1 | Done. README and matrix state in bold that the app regenerates AI masks and does not read Adobe rasters; the resolver is described as a caller injection interface the app does not supply. | `crates/import-lrcat/README.md` "LR-5b AI masks"; `docs/coordination/LR-TRANSLATION-MATRIX.md` LR-5b note and `Mask/People` row | matrix guard `translation_matrix` (import-lrcat suite) |
 | M2 | Done. Person sub-parts, People/Person and a specific person instance are retained as unsupported with a warning, never rendered as Subject. Audit: a nonzero `MaskSubCategoryID` on Subject/Sky/Background (numeric subtype, `MaskType`, or `What='Mask/Subject'`) was still widened to the whole category; now unsupported. | `sidecar/src/masks.rs` `import_component` (`adobe_ai` branch), `reject_part_id` | `lr5b_person_parts_and_specific_people_are_unsupported`, `lr5b_unverified_part_ids_are_never_broadened_to_the_whole_category`, `lr5b_part_ids_on_named_ai_masks_are_unsupported` |
 | M3 | Done. Rasters are immutable blobs keyed by a hash of dimensions and quantized samples. During apply the image owns the previous and the new keys; a failed publication restores the record and returns the original error even when the rollback itself fails (the LR-6 depth rollback in the same closure no longer `?`-masks it either). | `mask-store/src/lib.rs` `MaskRaster::content_key`, `put_content_pinned`; `tessera-ffi/src/lrcat_masks.rs` `apply`; `tessera-ffi/src/lrcat.rs` rollback after `result.is_err()` | `lr5b_content_keys_preserve_previous_recipe_across_reimport_and_failed_publish`, `lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image`, `lr6f_all_lanes_one_apply_both_resources_and_both_absent` |
-| M4 | Done. An image without AI masks returns before any store is opened. Content pin writes never list a directory; the shared `put_pinned` skips the eviction listing for the unbounded pinned store. Audit: forgetting any image listed the owner and pin directories once per image; removal is now one batch that lists only when an ownership record was actually removed. | `tessera-ffi/src/lrcat_masks.rs` `has_masks`, `apply`, `remove_images`; `tessera-ffi/src/lrcat.rs` (`has_masks` guard); `mask-store/src/lib.rs` `put`; `tessera-ffi/src/changes.rs` `forget_missing` | `lr5b_no_ai_masks_do_not_access_store`, `lr5b_pin_write_does_not_enumerate_the_directory`, `lr5b_removing_images_without_ai_masks_does_not_scan_the_store` |
+| M4 | Done. An image without AI masks never opens, creates or lists the store (LR-5c ruling 4 adds one unlink of its own stale record). Content pin writes never list a directory; the shared `put_pinned` skips the eviction listing for the unbounded pinned store. Audit: forgetting any image listed the owner and pin directories once per image; removal is now one batch that lists only when an ownership record was actually removed. | `tessera-ffi/src/lrcat_masks.rs` `has_masks`, `apply`, `remove_images`; `tessera-ffi/src/lrcat.rs` (`has_masks` guard); `mask-store/src/lib.rs` `put`; `tessera-ffi/src/changes.rs` `forget_missing` | `lr5b_no_ai_masks_do_not_access_store`, `lr5b_pin_write_does_not_enumerate_the_directory`, `lr5b_removing_images_without_ai_masks_does_not_scan_the_store` |
 | M5 | Done. The session keeps each loaded plane by key; a ready key is never reopened or re-checksummed. | `tessera-ffi/src/masks.rs` `refresh_imported`, `ensure_ai_jobs` | `lr5b_imported_raster_cache_does_not_reopen_between_frames` (backing directory deleted after the first load) |
-| M6 | Done. A missing, corrupt or wrong-extent stored raster requests regeneration with a diagnostic in preview and export; with no model the adjustment stays skipped. `Engine::prune_missing` removes missing owners and orphaned blobs. Audit: (1) a plane regenerated under an imported key at the proxy level was never rendered and a wrong-extent raster was reported ready while unused; (2) ownership records only grew, so a superseded raster was never an orphan and could not be reclaimed while its image lived. The record is now trimmed to the published recipe after a successful publication; import still never deletes or lists. | `tessera-ffi/src/masks.rs` `refresh_imported`, `group_available`, `AiMaskJob`; `export/src/ai_masks.rs` `render_with_hooks`; `tessera-ffi/src/lrcat_masks.rs` `apply`, `prune_missing`; `tessera-ffi/src/changes.rs` `Engine::prune_missing` | `lr5b_missing_stored_raster_regenerates_with_diagnostic`, `lr5b_file_export_surfaces_missing_raster_regeneration_notice`, `lr5b_regenerated_imported_plane_renders_at_proxy_extent`, `lr5b_wrong_extent_stored_raster_is_not_ready_and_requests_regeneration`, `lr5b_regenerated_imported_job_invalidates_live_frame`, `lr5b_prune_missing_collects_orphans_and_preserves_shared_live_content`, `lr5b_superseded_rasters_are_orphans_reclaimed_by_explicit_prune` |
+| M6 | Done. A missing, corrupt or wrong-extent stored raster requests regeneration with a diagnostic in preview and export; with no model the adjustment stays skipped in preview and export fails. `Engine::prune_missing` removes missing owners and orphaned blobs. Audit: (1) a plane regenerated under an imported key at the proxy level was never rendered and a wrong-extent raster was reported ready while unused; (2) ownership records only grew, so a superseded raster was never an orphan and could not be reclaimed while its image lived. The record is now trimmed to the published recipe after a successful publication; import still never deletes or lists. | `tessera-ffi/src/masks.rs` `refresh_imported`, `group_available`, `AiMaskJob`; `export/src/ai_masks.rs` `render_with_hooks`; `tessera-ffi/src/lrcat_masks.rs` `apply`, `prune_missing`; `tessera-ffi/src/changes.rs` `Engine::prune_missing` | `lr5b_missing_stored_raster_regenerates_with_diagnostic`, `lr5b_file_export_surfaces_missing_raster_regeneration_notice`, `lr5b_regenerated_imported_plane_renders_at_proxy_extent`, `lr5b_wrong_extent_stored_raster_is_not_ready_and_requests_regeneration`, `lr5b_regenerated_imported_job_invalidates_live_frame`, `lr5b_prune_missing_collects_orphans_and_preserves_shared_live_content`, `lr5b_superseded_rasters_are_orphans_reclaimed_by_explicit_prune` |
 | M7 | Done. AI import pins are u16 samples (`TSMASK02`, 48 bytes of header and checksum). LR-6 depth pins keep f32 and their API. | `mask-store/src/lib.rs` `compact_payload`, `get` | `lr5b_imported_rasters_use_two_bytes_per_pixel`, `lr6f_all_lanes_one_apply_both_resources_and_both_absent` (2 bytes per mask sample, 4 per depth sample) |
-| M8 | Done. Preview, file export and print pass the engine's app directory; the AI mask renderer uses that directory (callers outside the app may set `TESSERA_APP_SUPPORT`) and no longer defaults to the home directory. MCP export rejects active AI masks before rendering. Audit: Open Developed Image also renders through the export path and now passes the same directory. | `tessera-ffi/src/masks.rs` `ensure_ai_jobs`; `tessera-ffi/src/export.rs` (`mask_support`, print call); `tessera-ffi/src/document/io.rs` `open_image`; `export/src/lib.rs` `ExportSettings.mask_support`, `render_pixels_with_mask_support`; `tessera-mcp/src/exports.rs` | `lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai` (stored pixels under the explicit root, no override), `lr5b_document_from_image_reads_imported_masks_from_the_engine_app_dir`, `lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image`, `lr5b_mcp_export_rejects_ai_masks_before_rendering` |
+| M8 | Done. Preview, file export and print pass the engine's app directory; the AI mask renderer uses that directory; with no explicit directory it falls back exactly as on main. MCP export rejects active AI masks before rendering. Audit: Open Developed Image also renders through the export path and now passes the same directory. | `tessera-ffi/src/masks.rs` `ensure_ai_jobs`; `tessera-ffi/src/export.rs` (`mask_support`, print call); `tessera-ffi/src/document/io.rs` `open_image`; `export/src/lib.rs` `ExportSettings.mask_support`, `render_pixels_with_mask_support`; `tessera-mcp/src/exports.rs` | `lr5c_ffi_print_and_file_export_without_model_fail_and_stored_rasters_render` (stored pixels under the explicit root, no override), `lr5b_document_from_image_reads_imported_masks_from_the_engine_app_dir`, `lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image`, `lr5b_mcp_export_rejects_ai_masks_before_rendering` |
 | M9 | Out of scope by ruling. | none | none |
 
-### Decisions for Machine A to confirm
+### Decisions for Machine A to confirm (answered: see "LR-5c rulings" below)
 
 - **Failed segmentation in export.** "No model" is unavailable and skips the whole
   adjustment with a warning (B3). A backend that runs and then fails, or returns
@@ -365,3 +365,80 @@ and mask pixels are synthetic; the RAW extent test reads the repository's
 After these gates the lane's own commits were rebased from `f84aebdb` onto
 `4dba1640` (identical tree, four reworded messages below it); the rebased tree was
 checked to be byte-identical to the gated one.
+
+## Rebased onto LR-9c (121fa5a0)
+
+Per Machine A's merge order the lane now sits on `origin/wp/LR-9-restack`. It was
+first rebased onto `3be064d2`, then onto `121fa5a0` when that stack was replayed
+on main. No commit was squashed or reordered and no existing trailer was touched.
+Commits are named by subject below because the hashes changed twice.
+
+### Conflicts
+
+Textual conflicts, onto `3be064d2` (the second rebase onto `121fa5a0` had none):
+
+| File | Commit | Resolution |
+| --- | --- | --- |
+| `crates/sidecar/tests/masks_complete.rs` | "feat(LR-5): import AI mask resources…" | Both appended tests kept: LR-9's `lr9_zero_native_color_overlay_keeps_optional_presence` and LR-5's `lr5_adobe_ai_state_round_trips_through_native_xmp`. |
+| `crates/import-lrcat/README.md` | three docs commits | LR-9c's "cloud report" section kept in front of the LR-5/LR-5b section each time. |
+
+`mask_source.rs`, `sidecar/src/masks.rs`, `tessera-ffi/src/lrcat.rs` (one `mod`
+declaration per test module), the matrix and the bindings merged without
+conflict. Three semantic gaps between the lanes were then closed, tests first:
+
+- **(a) AI-mask keys.** LR-9, restacked without LR-5, treated `FullMaskSize`,
+  `LocalInputDigest` and `LocalInputDigestVersion` as blockers again, so every
+  real AI mask stayed retained. They are accepted on AI mask kinds only, as LR-9b
+  did on top of LR-5. LR-9b's test is restored under its original name
+  `ai_raster_metadata_does_not_block_regeneration` (it had been turned into
+  `ai_raster_metadata_remains_unsupported_without_lr5` for the LR-5-free stack).
+  LR-9c's rules are otherwise untouched: `Version` only on
+  `Mask/CircularGradient`, instance selection named, person sub-parts and a
+  specific People instance unsupported with a warning in both lanes. Retained
+  person/part masks now report "AI person, part or instance selection is not
+  implemented" (`lr5b_person_and_part_masks_name_the_unsupported_selection`).
+- **(b) Report.** The cloud group was present, but LR-5b's regeneration note was
+  hidden: the report shows one reason per Adobe key and the note shares
+  `MaskGroupBasedCorrections` with the LR-4 translation note. A `regenerated…`
+  diagnostic now forms its own approximate group beside the key's translation
+  note (this also surfaces LR-6's `regenerated depth:` note the same way).
+  `lr5b_import_report_shows_cloud_group_and_regeneration_notes_together` checks
+  both groups on apply and on resume.
+- **(c) LR-9c's restored assertions** are all kept; no LR-9 test other than the
+  one in (a) was edited.
+
+### Real-catalog aggregate (LR-9c's opt-in `lr9c_aggregate`, read-only scratch copy)
+
+| Count | `121fa5a0` | this tip |
+| --- | --- | --- |
+| images decoded | 21,615 | 21,615 |
+| develop-settings warning occurrences | 1,289 | 769 |
+| `MaskGroupBasedCorrections` warnings | 633 | 113 |
+| images with a cloud note | 10 | 10 |
+
+The same numbers were measured at `3be064d2`. Every other warning key is
+unchanged. The 520 masks that left the warning list are AI masks that now import
+as regenerating Subject/Sky/Background/Object selections; person, part and
+instance masks are among the 113 that remain.
+
+## LR-5c rulings
+
+Machine A's answers to the five decisions above, implemented tests first
+("test(LR-5c)" then "fix(LR-5c)") after the rebase.
+
+| Ruling | Implementation | Tests |
+| --- | --- | --- |
+| 1. Export with an unavailable AI component is an error in every case (no model, failed backend, invalid raster). B3's skip applies to preview/interactive only. | `export/src/ai_masks.rs` `render_with_hooks`: a model that cannot be loaded, a failing backend and an invalid raster return an error; the model is loaded only when a component needs inference, so stored rasters render without one. `tessera-ffi/src/export.rs`: batch export and print load the segmenter once, as on main. MCP export already rejects AI masks. | no-model case added to `invalid_or_failed_segmentation_never_publishes_image_or_sidecar`; `lr5c_export_without_model_is_an_error_for_inverted_and_subtract_adjustments` (replaces `lr5b_export_without_model_skips_inverted_and_subtract_adjustments`); `lr5c_missing_stored_raster_without_model_is_an_export_error`; `lr5c_ffi_print_and_file_export_without_model_fail_and_stored_rasters_render` (replaces `lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai`; its stored-raster pixel assertions are kept); `lr5b_mcp_export_rejects_ai_masks_before_rendering` |
+| 2. No behaviour change to native masks: download on first use. | `mask-ai/src/lib.rs` `load_segmenter` is main's again; imported masks use the same path; the export support root falls back as on main when none is passed. | Tests never reach the network: the no-model tests make the model unloadable through the support directory, every other AI test injects a segmenter or uses stored rasters. Checked with a canary run (below). |
+| 3. Orphans until `prune_missing`. | Accepted as is. | `lr5b_superseded_rasters_are_orphans_reclaimed_by_explicit_prune`, explicit prune in `lr6f_all_lanes_one_apply_both_resources_and_both_absent` |
+| 4. A reimport with zero AI masks clears a stale ownership record, by looking up the image's own record, never by listing. | `tessera-ffi/src/lrcat_masks.rs` `publish_without_masks`: after a successful publication, one unlink of `owners/<image id>`; no store is opened, created or listed. `import` is now the single entry used by `lrcat.rs`; it measures the source and opens the store only for AI-masked images. | `lr5c_reimport_without_ai_masks_clears_the_stale_ownership_record` (also: a failed publication keeps the record), `lr5b_no_ai_masks_do_not_access_store`, and on the production path `lr5c_import_without_ai_masks_touches_no_store_and_clears_stale_records` (no `imported-masks` directory is created; 3 stale records cleared) |
+| 5. Additive bindings regeneration. | Accepted. `build-ffi.sh` on this tip leaves the worktree clean. | Swift gate |
+
+RED for these (on the `3be064d2` stack): export lib 36 passed, 2 failed; export
+`ai_masks` 5 passed, 1 failed; FFI `lr5` lib 20 passed, 3 failed; FFI `export`
+`lr5` 1 passed, 1 failed. GREEN: export all suites; FFI `lr` lib 49 passed; FFI
+`export` 28 passed.
+
+### Gates on the LR-9c stack
+
+GATES_PLACEHOLDER
