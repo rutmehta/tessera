@@ -196,8 +196,19 @@ impl PreviewIndex {
         let mut report = vec![];
         let mut entries = BTreeMap::new();
         for r in rows(&c, "ImageCacheEntry", false, &mut report)? {
+            // Some Lightroom preview databases declare imageId REAL even though
+            // catalog IDs are integers. Accept only exactly representable IDs;
+            // do not broaden the catalog's general integer/schema predicates.
+            let image = number(&r, "imageId").or_else(|| {
+                r.get("imageId")?
+                    .as_f64()
+                    .filter(|v| {
+                        v.is_finite() && v.fract() == 0. && v.abs() <= 9_007_199_254_740_991.
+                    })
+                    .map(|v| v as i64)
+            });
             if let (Some(image), Some(uuid), Some(digest)) =
-                (number(&r, "imageId"), text(&r, "uuid"), text(&r, "digest"))
+                (image, text(&r, "uuid"), text(&r, "digest"))
             {
                 entries.insert(image, (uuid, digest));
             }
