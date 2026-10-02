@@ -1,3 +1,25 @@
+## Batches 41-47 and an attribution correction — 2026-10-02
+
+Merged (each independently reviewed; gate exits verified 0 before merge):
+- batch 41: B5-48/48b/48c, click-time Export Flat snapshot through ENG-2 publication, a deterministic replaced-ring test, and wall-clock latency tests made release-only (ab4c7cf5)
+- batch 42: Lightroom translation LR-2 (tone curves, B&W/mixer, PV2010 legacy block, extended curves, AutoToneDigest silent), LR-1 (Point Color, approximate) and LR-4 (parametric/nested masks, luminance_domain, nesting cap 8) (270f0169)
+- batch 45: ENG-4/4b, a shared stable log/exp tone formulation on CPU and Metal; restored the 0.002 scaled and 24 MP absolute 0.01 guards, removed the ENG-1e/1h pins, and asserted the GPU SDR fingerprints on A's "Apple M4" (fbb36594)
+- batch 47: B5-50/50b/50c, the Library + Develop accessibility audit, with established identifiers preserved and no user data in identifiers (c281bc56)
+- batch 44: B5-51/51b/51c, an aggregate-only real-catalog import profiler (fc02b2aa)
+Gating: batch 43, LR-3 retouch + LR-6 Lens Blur, restacked without LR-5 (on fbb36594).
+Held or in rework on B:
+- LR-5 AI masks: 3 blockers (orientation frame, a third diagnostics writer, inverted unavailable masks rendering full-frame)
+- LR-9/9b report noise: cloud edits vanished from the report; ruling: a "Requires Adobe cloud (not rendered)" group
+- LR-11 local adjustments: AI instance broadening, extended local curves on SDR
+- LR-8/8b/8c + LR-10 smart previews: B3/B4 and M-items; the LR-8e/8f decoder hotfix was approved, gated, and installed on Rut's machine as 0.0.0-dev.9ed0a276
+- LR-13: blank proxy thumbnails
+- B5-49: the keyboard checklist depends on the system keyboard-navigation setting (AppleKeyboardUIMode = 2 on A); B5-49c pins the policy
+- ENG-3: continuous cancellation floor approved; ENG-3f adds boundary sweeps
+Process lessons:
+- Never point a checkout at a target dir another checkout has built into (bogus E0433 errors on main).
+- My first ENG-3 floor ruling, a hard cutoff at |Y| < k·max|c|, introduced a new jump and floored blue shadows; it was amended to a continuous, absolute-weighted form.
+
+Attribution correction: the following commits on main carry `Co-Authored-By: Claude Opus 5.5`, but Machine B's Codex workers wrote them alone; Machine B's briefs had told those workers to add the trailer. History on main is not rewritten. Treat these as Codex-authored: 0286595e 3391d9b5 1c9321af 3e89a7d1 113b7ffb 17b6fe7a 058a7e9e 61587e97 0f798277 d5504d60 9140a485 5ebed48f df1fadf2 ce5b27e8 b81783d0 341f56be 77c9196e a2877dd7 f554c7a8 e068ea9d 5b476f35 8750280f f60355e6 
 ## Batch 40: LR-7 Upright / geometry / legacy CA — 2026-10-01
 
 Merged (independently reviewed through 7e; gate exits verified 0; main e37de957): the first Lightroom translation lane. Upright transform matrices (UprightTransform_0..5, four-segment guides, centre/focal framing), perspective sliders and legacy ChromaticAberrationR/B land as `approximate` (translated into recipe fields, exact Adobe source retained, info diagnostics via LR-DIAG, zero warnings — Adobe's matrix convention and CA sign/units are documented assumptions until verified against an Adobe-rendered synthetic chart or public DNG+XMP). Saved matrices are tagged with their solved mode and cleared on mode/guide edits (Rust + Swift TransformControls); legacy CA is gated to PV1/2, zero values treated as absent, stale PV2012+ values recorded as `ignored` diagnostics (new `diagnostics::push_ignored`); the resident path routes legacy CA to the lens-plan CPU path with a resident-vs-CPU equality test that also asserts the output differs from no-CA; invalid matrices rejected by Recipe::validate; saved solutions skip interactive L0 analysis; cloud-only features (GenerativeRemove/Fill, EnableDistractionRemoval) are explicit "requires Adobe cloud; not translatable" diagnostics; standalone XMP imports stay byte-identical (ACR-default packet fingerprints pinned and checked against main); sidecar::apply_adobe_geometry never clears existing history and returns approximate entries as data for import-lrcat to push; four schema-v4 predicates with the LR-SCHEMA first-lane checklist (RECIPE_SCHEMA_VERSION stays 3). Known follow-up for LR-2e: LR-7d dropped the `v4_features_used(recipe).is_empty()` fixture assertion in import-lrcat/tests/schema_version.rs — LR-2e restores it. `global.lua` byte fingerprint re-baseline pending LR-2.
