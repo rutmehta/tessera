@@ -85,3 +85,17 @@ fn retouch_offsety_is_the_absolute_source_y_spelling() {
     assert!((source_offset[0]-0.5).abs()<1e-6);
     assert!((source_offset[1]-0.2).abs()<1e-6);
 }
+
+#[test]
+fn ai_group_rejection_reports_the_effect_that_blocks_promotion() {
+    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+    assert_eq!(w.len(),1,"{w:?}");
+    assert!(w[0].contains("local tone curve"),"{w:?}");
+    assert!(!w[0].contains("unsupported mask kind"));
+}
+#[test]
+fn zero_local_color_variance_is_inactive() {
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},LocalExposure2012=0.5,CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=1}}}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.locals.adjustments[0].params.exposure,0.5);
+}
