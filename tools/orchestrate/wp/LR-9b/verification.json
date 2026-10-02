@@ -1,0 +1,15 @@
+{
+  "production_commit": "0df613d3",
+  "final_test_commit": "f1af7616",
+  "release_test_command": "cargo test --release -p import-lrcat -p engine-api -p sidecar -p merge -p pipeline-cpu -p tessera-ffi",
+  "passed": 1355,
+  "failed": 0,
+  "ignored": 36,
+  "clippy_command": "cargo clippy --workspace --all-targets --release -- -D warnings",
+  "clippy_exit": 0,
+  "fmt_command": "cargo fmt --all -- --check",
+  "fmt_exit": 0,
+  "read_only_audit_exit": 0,
+  "isolated_profile_exit": 0,
+  "scratch_removed": true
+}
