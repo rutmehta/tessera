@@ -11,14 +11,49 @@
 const PRESENCE_LUMA_FLOOR: f32 = 1e-3;
 fn finite(v:f32)->f32 { return clamp(v,-3.402823466e38,3.402823466e38); }
 fn luma(v:vec3<f32>)->f32 { return finite(0.2627*v.x + 0.678*v.y + 0.0593*v.z); }
+// Stable axis math: keep paired with operators.wgsl and CPU tone_math.rs.
+fn log_one_plus(x: f32) -> f32 {
+    if abs(x) < 0.5 {
+        // log(1+x) = 2 atanh(x/(2+x)); no small x is added to 1.
+        let t = x / (2.0 + x);
+        let t2 = t * t;
+        var r = 1.0 / 15.0;
+        r = 1.0 / 13.0 + t2 * r;
+        r = 1.0 / 11.0 + t2 * r;
+        r = 1.0 / 9.0 + t2 * r;
+        r = 1.0 / 7.0 + t2 * r;
+        r = 1.0 / 5.0 + t2 * r;
+        r = 1.0 / 3.0 + t2 * r;
+        return 2.0 * t * (1.0 + t2 * r);
+    }
+    return log(1.0 + x);
+}
+
+fn exp_minus_one(x: f32) -> f32 {
+    if abs(x) < 0.5 {
+        // Taylor series through degree ten; Horner order avoids cancellation.
+        var r = 1.0 / 3628800.0;
+        r = 1.0 / 362880.0 + x * r;
+        r = 1.0 / 40320.0 + x * r;
+        r = 1.0 / 5040.0 + x * r;
+        r = 1.0 / 720.0 + x * r;
+        r = 1.0 / 120.0 + x * r;
+        r = 1.0 / 24.0 + x * r;
+        r = 1.0 / 6.0 + x * r;
+        r = 0.5 + x * r;
+        return x * (1.0 + x * r);
+    }
+    return exp(x) - 1.0;
+}
+
 fn encode(v:f32)->f32 {
-    if v > 6.125082e37 { return (log(v)-log(0.18))/log(1.0+1.0/0.18); }
-    return log(1.0+v/0.18)/log(1.0+1.0/0.18);
+    if v > 6.125082e37 { return (log(v)-log(0.18))/log_one_plus(1.0/0.18); }
+    return log_one_plus(v/0.18)/log_one_plus(1.0/0.18);
 }
 fn decode(v:f32)->f32 {
-    let x=v*log(1.0+1.0/0.18);
+    let x=v*log_one_plus(1.0/0.18);
     if x>=80.0 { return finite(exp(x+log(0.18))); }
-    return 0.18*(exp(x)-1.0);
+    return 0.18*exp_minus_one(x);
 }
 // Maximum radius is eight. Each 16x16 output tile cooperatively loads a
 // 32x16 or 16x32 strip (512 vec4s / 8 KiB). Smaller radii use a subset.

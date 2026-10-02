@@ -484,9 +484,10 @@ fn invalid_buffer_and_unsupported_settings_fail_without_dispatch() {
     ));
 }
 
-/// Bound the existing tone gap and check presence does not increase it.
-/// Keep the original sampled scaled guard as an additional regression check.
-/// Unconditioned presence had a baseline full-frame maximum of 6.14.
+/// Stable tone/presence regression: scan every RGB sample at 24 MP and require
+/// presence-on error <= presence-off + 1e-4, with both absolute errors < .01.
+/// Also retain the original sampled scaled < .002 guard and exact alpha checks.
+/// Run explicitly in release; wall-clock timings are diagnostic only.
 #[test]
 #[ignore = "24MP CPU/GPU timing; run explicitly in release on Metal"]
 fn bench_24mp_cpu_gpu() {

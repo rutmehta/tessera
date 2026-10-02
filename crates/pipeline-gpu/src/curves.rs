@@ -47,7 +47,9 @@ fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
     };
     p[10..15].copy_from_slice(&splits);
     p[15..19].copy_from_slice(&amounts.map(|v| v.clamp(-100.0, 100.0) / 100.0));
-    p[24] = (1.0_f32 / 0.18).ln_1p();
+    // The axis denominator is outside the stable helper's series branch.
+    // Match CPU log_one_plus(1 / 0.18) and the WGSL presence encoders.
+    p[24] = (1.0_f32 + 1.0 / 0.18).ln();
     for (index, c) in [
         &selected.rgb,
         &selected.red,
