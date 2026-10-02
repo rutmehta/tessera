@@ -155,3 +155,65 @@ fn baseline_exposure_is_shared_by_cfa_and_external_camera_linear_sources() {
         assert!((a - zero * 2f32.powf(0.75)).abs() < 1e-5);
     }
 }
+
+#[test]
+fn lr12_linearraw_ignores_mosaic_controls_without_losing_rgb_edits() {
+    use engine_api::recipe::{
+        DevelopSettings,
+        settings::{DemosaicMethod, HighlightReconstruction},
+    };
+    let dng =
+        raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false, false)))
+            .unwrap()
+            .unwrap();
+    let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap();
+    let source = pipeline_cpu::RenderSource::CameraLinear(&proxy);
+    let mut base = DevelopSettings::default();
+    base.tone.exposure = 1.0;
+    let expected = pipeline_cpu::render_linear_scaled(&base, &source, 1).unwrap();
+    let mut settings = base.clone();
+    settings.demosaic.method = DemosaicMethod::Amaze;
+    settings.linearize.highlight_reconstruction = HighlightReconstruction::Inpaint;
+    let actual = pipeline_cpu::render_linear_scaled(&settings, &source, 1).unwrap();
+    assert_eq!(actual.planes(), expected.planes());
+    assert_eq!(settings.demosaic.method, DemosaicMethod::Amaze);
+    let neutral =
+        pipeline_cpu::render_linear_scaled(&DevelopSettings::default(), &source, 1).unwrap();
+    assert_ne!(actual.planes(), neutral.planes());
+}
+
+fn lr12_optional_setting_renders(patch: serde_json::Value) {
+    let dng =
+        raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false, false)))
+            .unwrap()
+            .unwrap();
+    let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap();
+    let source = pipeline_cpu::RenderSource::CameraLinear(&proxy);
+    let settings: engine_api::recipe::DevelopSettings = serde_json::from_value(patch).unwrap();
+    let retained = settings.clone();
+    let pixels = pipeline_cpu::render_linear_scaled(&settings, &source, 1).unwrap();
+    assert_eq!(settings, retained);
+    assert!(pixels.planes().iter().flatten().all(|v| v.is_finite()));
+    assert!(pixels.planes().iter().flatten().any(|v| *v > 0.));
+}
+
+#[test]
+fn lr12_unresolved_creative_look_does_not_hide_linearraw_photo() {
+    lr12_optional_setting_renders(
+        serde_json::json!({"camera_profile":{"look":{"style":"synthetic-unavailable-look","amount":100.0}}}),
+    );
+}
+
+#[test]
+fn lr12_unavailable_named_lens_does_not_hide_linearraw_photo() {
+    lr12_optional_setting_renders(
+        serde_json::json!({"lens":{"profile":{"kind":"database","profile":{"name":"synthetic-unavailable-lens"}}}}),
+    );
+}
+
+#[test]
+fn lr12_hdr_presentation_does_not_block_linearraw_scene_pixels() {
+    lr12_optional_setting_renders(
+        serde_json::json!({"output":{"hdr":true,"hdr_headroom_stops":2.0}}),
+    );
+}
