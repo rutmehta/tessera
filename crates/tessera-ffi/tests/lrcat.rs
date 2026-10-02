@@ -940,3 +940,86 @@ fn streaming_resume_rejects_protected_publication_symlinks() {
         assert_eq!(snapshot(&protected), before);
     }
 }
+
+#[test]
+fn offline_proxy_import_develop_copy_and_relink_preserve_lightroom() {
+    for copy in [false, true] {
+        let s = setup();
+        fixture::write_smart_previews(&s.fixture).unwrap();
+        let before = snapshot(s.fixture.catalog.parent().unwrap());
+        let importer = s
+            .engine
+            .clone()
+            .open_lrcat(s.fixture.catalog.to_string_lossy().into())
+            .unwrap();
+        let mut options = relocated(&s);
+        options.copy_proxies = copy;
+        options.import_smart_previews = true;
+        let plan = importer.plan(options.clone()).unwrap();
+        assert_eq!(
+            (
+                plan.online_originals,
+                plan.offline_with_smart_preview,
+                plan.offline_without_smart_preview
+            ),
+            (5, 1, 0)
+        );
+        assert_eq!(plan.to_import, 6);
+        options.import_smart_previews = false;
+        assert_eq!(importer.plan(options.clone()).unwrap().missing, 1);
+        options.import_smart_previews = true;
+        let report = importer.apply(options.clone(), None).unwrap();
+        assert_eq!((report.imported, report.indexed), (6, 6));
+        let rows = s.engine.list_images(ImageQuery::default()).unwrap();
+        let proxy = rows.iter().find(|r| r.lightroom_smart_preview).unwrap();
+        assert_eq!(
+            Path::new(&proxy.path).starts_with(s._temp.path().join("support")),
+            copy
+        );
+        let session = s
+            .engine
+            .open_cull_session(options.library_folder.clone())
+            .unwrap();
+        assert_eq!(session.images().unwrap().len(), 6);
+        let develop = s
+            .engine
+            .clone()
+            .open_develop_session(proxy.id.clone())
+            .unwrap();
+        let mut recipe: engine_api::recipe::Recipe =
+            serde_json::from_str(&s.engine.get_recipe(proxy.id.clone()).unwrap()).unwrap();
+        recipe
+            .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+                s.tone.exposure = 0.7
+            })
+            .unwrap();
+        s.engine
+            .set_recipe_json(proxy.id.clone(), serde_json::to_string(&recipe).unwrap())
+            .unwrap();
+        drop(develop);
+        assert_eq!(snapshot(s.fixture.catalog.parent().unwrap()), before);
+        let original = recipe.unknown["lightroom_smart_preview"]["original_path"]
+            .as_str()
+            .unwrap();
+        std::fs::create_dir_all(Path::new(original).parent().unwrap()).unwrap();
+        // The original is a valid synthetic JPEG; source admission must switch codecs too.
+        let jpeg = rows
+            .iter()
+            .find(|r| r.path.ends_with("ceremony-01.jpg"))
+            .unwrap();
+        std::fs::copy(&jpeg.path, original).unwrap();
+        let rows = s.engine.list_images(ImageQuery::default()).unwrap();
+        let relinked = rows.iter().find(|r| r.id == proxy.id).unwrap();
+        assert!(!relinked.lightroom_smart_preview);
+        assert_eq!(relinked.path, original);
+        assert_eq!(
+            s.engine.get_recipe(proxy.id.clone()).unwrap(),
+            serde_json::to_string(&recipe).unwrap()
+        );
+        s.engine
+            .clone()
+            .open_develop_session(proxy.id.clone())
+            .unwrap();
+        assert_eq!(snapshot(s.fixture.catalog.parent().unwrap()), before);
+    }
+}
