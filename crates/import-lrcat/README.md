@@ -334,3 +334,57 @@ an unrendered generative item. Nonempty FilterList remains an unsupported warnin
 The pre-import summary and plan preview have no cloud group, so the same
 effects stay in their unsupported lists there. `ignored` is reserved for source values with no visual effect and is omitted
 from the report. This stack does not include LR-5 AI-mask regeneration.
+## LR-5 AI masks and resource injection
+
+Recognized AI masks inside `MaskGroupBasedCorrections` translate approximately,
+with the exact Lua/XMP source retained and info-only shared diagnostics. Explicit
+subject, sky, background, people/person and object forms are supported. Image
+masks accept named categories or numeric `MaskSubType` 1 (subject), 2 (sky), 3
+(people/sub-part); subtype 0 is treated as a prompted object only with an explicit
+reference point or box. Unknown subtypes, malformed prompts, and unknown structural
+fields retain the previous untranslated behavior. No Adobe render parity is claimed.
+Person parts retain their category (including unknown numeric sub-part IDs) and
+regenerate with subject segmentation, with a diagnostic naming the limitation.
+No person sub-part model interface was added.
+
+Adobe documents AI edit data in the companion **`.lrcat-data`** file, distinct
+from ordinary `.lrdata` previews. Public XMP examples carry `MaskDigest`, subtype,
+origin and image-area metadata rather than an independently usable alpha plane.
+No public Adobe binary codec or catalog-table association is assumed here; no
+real catalog was opened. Sources:
+
+- [Adobe catalog FAQ](https://helpx.adobe.com/in/lightroom-classic/desktop/technical-support/workflow-issues/catalog-issues/catalog-faq-lightroom.html)
+- [Public first-hand XMP/action examples for person sub-parts](https://community.adobe.com/questions-712/ai-camera-raw-masks-not-re-computed-when-used-in-an-action-1167094/index2.html)
+- [Public first-hand sky XMP example](https://community.adobe.com/bug-reports-674/p-select-sky-causes-export-to-be-larger-than-expected-663100/index1.html)
+- [JarvisArt authors' mask parameter examples](https://github.com/LYL1015/JarvisEvo/blob/main/prompts.py)
+
+`import-lrcat` only decodes description and opaque identity. During APPLY,
+`tessera-ffi::LrcatImport::apply_with_mask_resolver` calls an optional caller-owned
+resolver with `(catalog image id, opaque resource id)`. The caller must return a
+full, pre-geometry sensor-aligned grayscale PNG/TIFF, already expanding any Adobe
+crop/origin. IDs are never interpreted as filenames. Invalid, wrong-size,
+proprietary or absent bytes leave `regenerate: true`, no reference key, and the
+reason `regenerated: no Adobe mask raster; Tessera re-segments at render`.
+Resolution clears only that pending LR-5 reason when all resources resolved;
+other diagnostics survive. Rendering does not rewrite diagnostics/history.
+
+Resolved alpha lives in mask-store under Tessera support `imported-masks/pinned`;
+`MaskComponent.adobe_ai` stores only an optional key, opaque ID, original category
+and regeneration marker. This additive optional object requires schema 4 when
+present; ordinary recipes keep schema 3 and their prior representation. Native
+XMP and recipe JSON round-trip the object. Preview and export consume distinct
+component keys even when two components have the same AI category. Export can
+receive the explicit support root through `ExportSettings.mask_support` or
+`render_pixels_with_mask_support`; FFI supplies its engine root. No model is
+loaded for resolved masks; regeneration uses the existing injected segmenter seam.
+
+Pins are keyed by stable image ID plus resolved-raster slot, at most **256 rasters
+and 256 MiB including headers/checksums per image**. Re-import replaces the image's
+slots and removes obsolete ones, including when all resources are absent.
+Publication failure restores prior usable slots; atomic file replacement needs
+one additional raster-sized temporary file per writer. `Engine::forget_missing`
+removes pins with the image record and keeps them if the original still exists.
+Import attachment updates the existing single Import history entry, so later
+user edits preserve references. The inference LRU cannot evict imported pins.
+No file is written inside Lightroom-managed storage. Model inference tests remain
+opt-in; ordinary gates use synthetic alpha and the existing mock segmenter seam.
