@@ -1,0 +1,146 @@
+[
+  {
+    "case": 0,
+    "pixels": 63300,
+    "tone_changed_pixels": 0,
+    "changed_pixels": 0,
+    "max_encoded_delta_u8": 0,
+    "outside_predicate": 0,
+    "before_fnv": "0x44fae39b8cad1e",
+    "after_fnv": "0x44fae39b8cad1e",
+    "changes": [],
+    "before_sha256": "3011e8e7a8c1889134e84514bd1aefbc28ea5c85d615aa379f9431ddf23e4f67",
+    "after_sha256": "3011e8e7a8c1889134e84514bd1aefbc28ea5c85d615aa379f9431ddf23e4f67"
+  },
+  {
+    "case": 1,
+    "pixels": 63300,
+    "tone_changed_pixels": 6620,
+    "changed_pixels": 0,
+    "max_encoded_delta_u8": 0,
+    "outside_predicate": 0,
+    "before_fnv": "0xcc470d33eeb4d28a",
+    "after_fnv": "0xcc470d33eeb4d28a",
+    "changes": [],
+    "before_sha256": "00bc2822375effdb242fc7d3122e2a91049b7658bf8e97da7d629132e337a72d",
+    "after_sha256": "00bc2822375effdb242fc7d3122e2a91049b7658bf8e97da7d629132e337a72d"
+  },
+  {
+    "case": 2,
+    "pixels": 63300,
+    "tone_changed_pixels": 16113,
+    "changed_pixels": 2,
+    "max_encoded_delta_u8": 1,
+    "outside_predicate": 0,
+    "before_fnv": "0x39f4bd02fec83fd1",
+    "after_fnv": "0xd1434c534f542e11",
+    "changes": [
+      {
+        "x": 5,
+        "y": 108,
+        "index": 32405,
+        "before": [
+          102,
+          66,
+          100
+        ],
+        "after": [
+          103,
+          66,
+          100
+        ],
+        "tone_input": [
+          0.12053342,
+          0.07738416,
+          0.13168292
+        ],
+        "tone_before": [
+          0.12529993,
+          0.08044433,
+          0.13689034
+        ],
+        "tone_after": [
+          0.12529996,
+          0.08044435,
+          0.13689037
+        ],
+        "encoded_before": [
+          0.40183815,
+          0.2597036,
+          0.39048788
+        ],
+        "encoded_after": [
+          0.4018384,
+          0.25970364,
+          0.39048797
+        ],
+        "dither": 0.03125,
+        "pre_round_before": [
+          102.49998,
+          66.25567,
+          99.60566
+        ],
+        "pre_round_after": [
+          102.50004,
+          66.25568,
+          99.60568
+        ],
+        "predicate": true
+      },
+      {
+        "x": 160,
+        "y": 65,
+        "index": 19660,
+        "before": [
+          152,
+          190,
+          255
+        ],
+        "after": [
+          151,
+          190,
+          255
+        ],
+        "tone_input": [
+          0.4017407,
+          0.47806662,
+          0.7977811
+        ],
+        "tone_before": [
+          0.421308,
+          0.5013515,
+          0.8366381
+        ],
+        "tone_after": [
+          0.4213081,
+          0.5013516,
+          0.8366383
+        ],
+        "encoded_before": [
+          0.5930147,
+          0.742394,
+          0.99999994
+        ],
+        "encoded_after": [
+          0.5930137,
+          0.74239445,
+          0.99999994
+        ],
+        "dither": 0.28125,
+        "pre_round_before": [
+          151.5,
+          189.5917,
+          255.28123
+        ],
+        "pre_round_after": [
+          151.49974,
+          189.59183,
+          255.28123
+        ],
+        "predicate": true
+      }
+    ],
+    "before_sha256": "8bba8140f2acfff8c6147a92393a9fb060b4cd08c509334e95e38488fc4cb4b9",
+    "after_sha256": "988c52f6941d4537628e67c2c58ed1a85daa1a2b5ea6973b9cfccce85fd3e66a"
+  }
+]

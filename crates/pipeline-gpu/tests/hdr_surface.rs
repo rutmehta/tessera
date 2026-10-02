@@ -73,15 +73,17 @@ fn sdr_cases() -> Vec<DevelopSettings> {
     vec![DevelopSettings::default(), a, b]
 }
 
-/// SDR fingerprints recorded on the pre-M2-22 tree (commit c3232ee) with
-/// this exact probe: the EDR work must not move a single SDR byte.
-/// `(cpu tiles, GPU resident tiles, GPU RGBA8 surface)` per case. The CPU
-/// reference is deterministic on this platform; the GPU values are asserted
-/// on the recording adapter and reported elsewhere.
-const PRE_EDR: [(u64, u64, u64); 3] = [
+/// SDR fingerprints originated on pre-M2-22 commit c3232ee. ENG-4 updates
+/// only CPU case 2: two red bytes cross ordered-dither rounding boundaries
+/// after matching the CPU/Metal tone formulation. Every changed pixel passes
+/// the pointwise-tone/quantizer predicate in tools/orchestrate/wp/ENG-4/
+/// sdr-report.json; sdr_audit.py reproduces the old fingerprint and the audit.
+/// `(CPU tiles, GPU resident tiles, GPU RGBA8 surface)` per case. GPU values
+/// retain their pre-EDR reference and are asserted on the recording adapter.
+const SDR_FINGERPRINTS: [(u64, u64, u64); 3] = [
     (0x44fae39b8cad1e, 0x50eac09770927b7a, 0xdbf920dcf5887ebe),
     (0xcc470d33eeb4d28a, 0x9888e139c4c750cd, 0xfc167ff4409e51d9),
-    (0x39f4bd02fec83fd1, 0x9f14a1d177fda67c, 0x6955ddd3131422e4),
+    (0xd1434c534f542e11, 0x9f14a1d177fda67c, 0x6955ddd3131422e4),
 ];
 const PRE_EDR_ADAPTER: &str = "Apple M4";
 
@@ -98,7 +100,7 @@ fn gpu_renderer() -> (Arc<GpuContext>, Renderer) {
 }
 
 #[test]
-fn sdr_output_is_bit_identical_to_pre_edr_fingerprints() {
+fn sdr_output_matches_approved_fingerprints() {
     let (w, h) = (300, 211);
     let image = common::synthetic(2201, w, h, common::RGGB, [0, 0, w, h]);
     let cpu = Renderer::new(RendererConfig::default());
@@ -128,11 +130,11 @@ fn sdr_output_is_bit_identical_to_pre_edr_fingerprints() {
             ctx.adapter_info.name
         );
         #[cfg(target_arch = "aarch64")]
-        assert_eq!(c, PRE_EDR[i].0, "CPU SDR case {i} changed");
+        assert_eq!(c, SDR_FINGERPRINTS[i].0, "CPU SDR case {i} changed");
         if same_adapter {
             assert_eq!(
                 (g, sf),
-                (PRE_EDR[i].1, PRE_EDR[i].2),
+                (SDR_FINGERPRINTS[i].1, SDR_FINGERPRINTS[i].2),
                 "GPU SDR case {i} changed"
             );
         }
