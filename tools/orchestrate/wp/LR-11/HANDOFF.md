@@ -149,3 +149,163 @@ are unchanged. All commits are local, with the requested co-author trailer.
 - The final `docs(LR-11)` commit contains this handoff, translation matrix and
   final gate/aggregate evidence; its hash is reported in the delivery message.
 
+
+---
+
+# LR-11b — restack without LR-5 and Machine A round-2 findings
+
+Branch `wp/LR-11-restack`, base `wp/LR-9-restack` at `3be064d2` (main lineage +
+LR-3 + LR-6 + LR-9/9b/9c, **without** the rejected LR-5 AI-masks lane).
+Everything above this line describes the original LR-11 on the LR-5 stack
+(`46b1bf54..6a4cedcc`) and is kept as history: its counts (715 → 645, 70 of 71),
+its instance-hint item and the `gate-*`/`aggregate-counts.json` files next to this
+document belong to that stack and are superseded by this section.
+
+No dependency, `Cargo.lock` or `board.json` change. Synthetic fixtures only.
+No golden or pinned fixture was modified; the only data files in the diff are new
+synthetic fixtures under `crates/import-lrcat/tests/data/lr11/` and `lr11b/`.
+
+## Restack
+
+`git rebase --onto 3be064d2 46b1bf54` of the four LR-11 commits, not squashed,
+not reordered, messages and trailers untouched.
+
+| Original | Restacked | range-diff | What changed |
+|---|---|---|---|
+| `484ea506` test | `193edeba` | `=` | identical |
+| `2617ee61` test | `6e2bf2c2` | `!` | context only: a neighbouring LR-9c test was renamed on the new base; the commit's own 21-file diff is the same size |
+| `4d9a8cf2` feat | `5730e3a4` | `!` | LR-5 dependencies dropped (below) |
+| `6a4cedcc` docs | `032e188c` | `!` | matrix prose merged with LR-9c wording; the two instance rows became `unsupported-diagnostic` |
+
+Dropped from `feat` because it only existed on top of LR-5:
+
+- `AdobeAiMask::instance_hint`, the `mask_instance_hint` and `adobe_ai_mask`
+  schema-4 predicates and their two tests (the type does not exist on this base).
+- The instance clause in `LocalAdjustment::requires_cpu` (now `params.requires_cpu()`).
+- AI-kind admission, instance-hint validation and the LR-5 category notes in
+  `mask_source.rs`; the instance-hint note loop in `record_approximation_diagnostics`.
+- `lr5_imported_tests` in `tessera-ffi/src/masks.rs`.
+- Tests that asserted AI masks translate: three import tests and one FFI test for
+  instance hints, the `instance` entry of the Lua/XMP parity loop, the `adobe_ai`
+  payload in the sidecar round-trip test, and LR-11's rewrites of three LR-9b tests
+  (those three keep the base text in the restacked commit).
+
+Kept unchanged: local curves, local Point Color, overlay, defringe, radial conflict
+note, GPU admission before dispatch with exact CPU fallback, the five `local_*`
+schema-4 predicates and tests, MCP schema mirrors.
+
+## Findings
+
+| Finding | Status | Code | Tests |
+|---|---|---|---|
+| B2 AI-instance masks must not render as the whole object | done | `sidecar/src/masks.rs` `import_component` rejects `InstanceIDs`/`InstanceBounds` on every mask kind before the kind is read; the instance-hint decoder is deleted. `instance_hint`, its predicate and the `requires_cpu` clause were removed by the restack. `import-lrcat/src/mask_source.rs` names the reason (`individual AI instance selection is not implemented`) | `sidecar lr11b::b2_instance_keys_reject_the_mask_group_on_every_kind` (RED: a native object selection with instance keys was accepted), `import-lrcat lr11b::b2_ai_instance_selection_is_unsupported_and_retained_in_both_codecs`, `b2_instance_keys_block_the_parent_with_other_translatable_content` (both pass from the restack onward and pin it) |
+| B3 extended local curves override SDR curves | done | `sidecar/src/masks.rs` `import_local_curves` reads `HDREditMode` from the packet and fills `curves_extended` only for HDR output and non-identity points; `import-lrcat/src/xmp.rs` drops it for a legacy process. Same three clauses as the global rule in `lr2.rs`. A malformed extended curve is still reported on SDR. Native `ts:curves_extended` still round-trips | `sidecar lr11b::b3_extended_local_curves_follow_the_global_hdr_rule`, `b3_native_extended_local_curve_still_round_trips`; `import-lrcat lr11b::b3_sdr_images_ignore_the_extended_local_curve`, `b3_hdr_images_translate_the_extended_local_curve`, `b3_identity_legacy_and_malformed_extended_local_curves`; SDR pixel test `tessera-ffi lr11b_local::b3_sdr_extended_local_curve_renders_the_ordinary_curve` (2e-6, with an HDR control) |
+| S7 local Point Color at one stage | done | The stage is: after basic Tone, before monochrome conversion and before the global point curves, with B&W on or off. `pipeline_cpu::split_local_point_colors` (documented there) is now called unconditionally by `pipeline-cpu/src/render.rs`, `image-core/src/render.rs` and `image-core/src/rgb_render.rs`. `DevelopSettings::stage_hashes` puts local Point Color in the Tone hash in both modes | `tessera-ffi lr11b_local::s7_rgb_local_point_color_is_one_stage_before_curves_with_and_without_bw`, `s7_raw_local_point_color_is_one_stage_before_curves_with_and_without_bw`, `s7_tone_cache_tracks_local_point_color_with_and_without_bw`. Each compares against a hand-written composition of the documented order; RGB 2e-6, raw path 1e-5 (the existing raw-path bound), GPU-selected renderer exactly equal to CPU |
+| S8 match groups by stable id | done | `mask_source.rs` `source_group_ids` + `record_approximation_diagnostics` look the source group up by the codec's group id. The id rule moved into one function, `sidecar::assign_mask_group_ids`, used by the decoder and the adapter. Decoded ids are unchanged | `import-lrcat` lib `mask_source::lr11b_tests::s8_groups_match_their_source_by_stable_id_not_index`, `s8_group_without_a_source_id_gets_no_source_keyed_note`, `s8_foreign_group_ids_skip_native_ids` |
+| S9 local defringe −100..100 | done | Range widened in `sidecar/src/masks.rs`, `mask_source.rs` `correction`, `pipeline-cpu/src/locals.rs` and the FFI preview sanitizer. Positive renders as before. Negative is kept with its source and adds no local defringe (see open point 1) | `import-lrcat lr11b::s9_local_defringe_accepts_the_signed_adobe_range`, `s9_local_defringe_outside_the_adobe_range_is_retained`; `sidecar lr11b::s9_local_defringe_accepts_the_signed_adobe_range`; `pipeline-cpu lr11_local::negative_local_defringe_is_valid_and_adds_no_defringe`; compositor `lr11_local_operators_choose_cpu_fallback_with_identical_pixels` (new `defringe: -50` case); FFI `sanitizing_drops_what_cannot_render_and_clamps_the_rest` |
+| Restack consequence: wrong blocker named | done | Without LR-5 an AI selection blocks its group. `unsupported_reason` no longer names a local operator just because its key is present; `decoder_reason` names it only when the decoder failed on it. The radial conflict is named only when `Flipped` and `MaskInverted` disagree (the codec now uses a separate message for that case) | `import-lrcat lr11b::decodable_local_operators_are_not_blamed_for_an_unsupported_selection`, `undecodable_local_operators_keep_their_named_reason`, `radial_conflict_is_named_only_when_the_flags_disagree`; `lr9b_translation::ai_group_rejection_does_not_blame_a_decodable_local_curve`, `neutral_color_variance_is_not_named_as_a_curve_blocker` |
+
+Kept as praised: operators apply with mask weight and amount; GPU admission happens
+before dispatch with exact CPU-fallback equality; the v4 tests; no golden changed.
+
+### Existing tests whose inputs changed because of a ruling
+
+Assertions were not weakened or removed. Inputs changed in five places:
+
+- `lr11_local::ordinary_and_extended_channel_curves_keep_channel_fallbacks` adds
+  `HDREditMode=1` (B3: extended curves exist only for HDR output).
+- `translation_matrix.rs` evaluates `MaskGroupBasedCorrections/Extended*` rows in the
+  same HDR context it already uses for `ExtendedToneCurvePV2012` (B3).
+- `lr11_local::malformed_local_payloads_retain_parent_atomically` uses
+  `LocalDefringe=-101` instead of `-1` (S9: −1 is valid).
+- `locals_invariants::invalid_controls_and_blend_layouts_reject` uses `-100.5` and
+  `100.5` instead of `-1` (S9).
+- `lr9b_translation` AI-group tests: two tests that required the warning to name
+  the local tone curve now require that it does not (curves render; the AI
+  selection is the blocker). The restacked `feat` commit carries the base text of
+  these two tests; the change is in `53d50338`.
+
+Two corrections to my own new tests were made in the fix commits and are named in
+their messages: the RGB GPU-equality check needed a renderer without the f16 tile
+cache, and one sidecar anchor string was `50` where the exporter writes `50.0`.
+
+## Commits
+
+| Commit | Purpose | RED evidence |
+|---|---|---|
+| `53d50338` test | B2 + blocker naming | sidecar lr11b 1 failed; import-lrcat lr11b 2 of 5 failed; lr9b_translation 2 of 27 failed |
+| `8d825417` fix | B2 + blocker naming | |
+| `1ab1d1f0` test | B3 | import-lrcat lr11b 2 of 8; sidecar lr11b 1 of 3; tessera-ffi lr11b_local 1 of 1 |
+| `4b81d0bf` fix | B3 | |
+| `a75103d2` test | S7 | tessera-ffi lr11b_local 3 of 4 (all on B&W off) |
+| `0ae129d9` fix | S7 | |
+| `e56b8264` test | S8 | import-lrcat lib 2 of 3 |
+| `1edb6574` fix | S8 | |
+| `d5a8401a` test | S9 | import-lrcat lr11b 1 of 10; sidecar lr11b 1 of 4; pipeline-cpu lr11_local 1 of 4; compositor 1 of 10; tessera-ffi lib 1 |
+| `630efbb3` fix | S9 | |
+| `b33931ae` docs | translation matrix prose | |
+
+## Real-catalog measurement (aggregate counts only)
+
+`lr9c_aggregate::aggregate_only` (LR-9c's opt-in test) on the read-only scratch
+copy, opened immutable. 21,615 images decoded, 0 decode failures, at every point.
+
+| Point | Develop-settings warnings | `MaskGroupBasedCorrections` | Distinct warning keys |
+|---|---:|---:|---:|
+| Base `3be064d2` | 1,289 | 633 | 46 |
+| Restacked LR-11 `032e188c` | 1,286 | 630 | 46 |
+| LR-11b tip | 1,286 | 630 | 46 |
+
+So on the LR-5-free stack LR-11 clears 3 mask images, not the 70 it cleared on the
+LR-5 stack: nearly every image whose mask carries a local curve, Point Color,
+overlay or defringe also selects with an AI mask, and those stay retained until
+LR-5b lands. The five findings change no count; they change what is rendered and
+what is reported. Of the 630 remaining mask warnings at the tip, 613 carry the
+generic selection reason and 17 name the individual AI instance selection. Before
+the blocker-naming fix the same 630 were split 561 generic, 50 naming a local
+operator that had in fact decoded, 14 naming a radial conflict and 5 naming the
+instance selection.
+
+## Gates
+
+Environment: `CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-11b`,
+`CARGO_BUILD_JOBS=5`, `RAYON_NUM_THREADS=5`. `cargo clean --release -p` for
+engine-api, sidecar, import-lrcat, pipeline-cpu, pipeline-gpu, image-core,
+tessera-ffi, compositor, filters, tessera-mcp, previews and export ran first.
+
+All gates ran once, at `b33931ae` (the last commit that touches code or the matrix);
+the only later commit adds this section. No rerun was needed and nothing was
+serialized or excluded.
+
+| Gate | Result |
+|---|---|
+| `cargo test --release --locked --no-fail-fast -p import-lrcat -p sidecar -p engine-api -p image-core -p pipeline-cpu -p pipeline-gpu -p filters -p previews -p export -p tessera-ffi -p tessera-mcp -p compositor` | exit 0; **2,344 passed, 0 failed, 81 ignored** across 383 test binaries/doc-test suites (compositor is extra: its LR-11 fallback test was extended) |
+| `cargo clippy --release --locked --workspace --all-targets -- -D warnings` | exit 0, clean |
+| `cargo fmt --all -- --check` | exit 0 |
+| `apps/mac/build-ffi.sh` | exit 0 |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**; 923 XCTest tests, 3 skipped, 0 failures; 5 Swift Testing tests passed |
+| `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | complete, exit 0 (one linker note about the deployment target of a vendored object, not a compiler warning) |
+| Worktree after the Swift gates | clean; generated bindings unchanged |
+| Import goldens | no golden or pinned fixture file is modified in `3be064d2..HEAD`; `golden.rs`, `lr1_compat`, `lr4_compat` and the other compat suites pass unchanged |
+
+Ignored tests keep their declared status. The opt-in aggregate test was run
+separately for the measurement above.
+
+## Open points for Machine A
+
+1. **Negative local defringe renders as no change.** In Adobe a negative value
+   protects the area from global defringe. Global defringe runs in the lens stage,
+   before Detail and Tone, so it cannot be undone at the locals stage. The value
+   is accepted, kept in the recipe with its source, and reported as `approximate`
+   with a note saying the protection is not rendered. Rendering it properly needs
+   the mask at the lens stage. No translated mask group in the measured catalog
+   carries a negative local defringe.
+2. **The HDR rule is enforced at import, like the global one.** A recipe that
+   carries a native `curves_extended` on a non-HDR image still renders it, exactly
+   as the global `tone.curves_extended` does. If the rule should also hold at
+   render time it has to be added for the global and local paths together.
+3. **Most of LR-11's catalog benefit now depends on LR-5b** (see measurement).
+   When LR-5b adds AI kinds back, the instance rejection in `import_component`
+   runs before the kind is read, so instance selections stay unsupported.
+4. `sidecar` gained one public Rust function, `assign_mask_group_ids`. No UniFFI
+   signature or Swift source changed.
