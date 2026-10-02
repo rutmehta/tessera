@@ -283,15 +283,25 @@ pub(crate) fn parse_inner(
             diagnostics.push((
                 qualified,
                 p.raw,
-                p.node.map(crate::mask_source::unsupported_reason).unwrap_or_else(|| "mask correction must contain a structured selection".into()),
+                p.node
+                    .map(crate::mask_source::unsupported_reason)
+                    .unwrap_or_else(|| {
+                        "mask correction must contain a structured selection".into()
+                    }),
             ));
         }
     }
     if !masks_approximate {
-        for p in properties.iter().filter(|p| p.namespace == CRS && p.name == "MaskGroupBasedCorrections") {
+        for p in properties
+            .iter()
+            .filter(|p| p.namespace == CRS && p.name == "MaskGroupBasedCorrections")
+        {
             if let Some(root) = p.node {
                 let reason = crate::mask_source::unsupported_reason(root);
-                for warning in warnings.iter_mut().filter(|w| w.starts_with("crs:MaskGroupBasedCorrections:")) {
+                for warning in warnings
+                    .iter_mut()
+                    .filter(|w| w.starts_with("crs:MaskGroupBasedCorrections:"))
+                {
                     let reason = crate::mask_source::decoder_reason(reason.clone(), warning);
                     *warning = format!("crs:MaskGroupBasedCorrections: {reason}");
                 }
@@ -896,7 +906,10 @@ mod tests {
         let (r, w) = parse(&xml("", r#"<crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li><crs:CorrectionMasks><rdf:Seq><rdf:li crs:What="Mask/Sky"/><rdf:li crs:What="Mask/Future"/></rdf:Seq></crs:CorrectionMasks></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections>"#), "15.4").unwrap();
         assert!(r.settings.locals.adjustments.is_empty());
         assert!(r.unknown.contains_key("crs:MaskGroupBasedCorrections"));
-        assert!(w.iter().any(|s| s.contains("unrecognized mask selection kind")));
+        assert!(
+            w.iter()
+                .any(|s| s.contains("unrecognized mask selection kind"))
+        );
     }
     #[test]
     fn malformed_duplicate_does_not_erase_previous_valid_choice() {

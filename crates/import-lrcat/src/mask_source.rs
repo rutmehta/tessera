@@ -163,7 +163,10 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
             ("CorrectionRangeMask", Field::Structure(n)) => range(*n)?,
             ("Dabs", Field::Structure(n)) if kind == "Mask/Paint" => scalar_sequence(*n)?,
             ("Radius" | "Flow" | "CenterWeight", Field::Scalar(_)) if kind == "Mask/Paint" => (),
-            ("MaskID" | "MaskSyncID" | "MaskName" | "MaskVersion" | "Version", Field::Scalar(_)) => (),
+            (
+                "MaskID" | "MaskSyncID" | "MaskName" | "MaskVersion" | "Version",
+                Field::Scalar(_),
+            ) => (),
             ("MaskValue" | "Midpoint" | "Roundness", Field::Scalar(v)) => {
                 if !v.parse::<f64>().ok()?.is_finite() {
                     return None;
@@ -182,16 +185,47 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
     Some(())
 }
 fn correction(n: Node<'_, '_>) -> Option<()> {
-    let inactive_overlay = fields(n)?.get("LocalToningSaturation").and_then(Field::scalar).and_then(|s|s.parse::<f64>().ok()) == Some(0.);
+    let inactive_overlay = fields(n)?
+        .get("LocalToningSaturation")
+        .and_then(Field::scalar)
+        .and_then(|s| s.parse::<f64>().ok())
+        == Some(0.);
     for (name, value) in fields(n)? {
         match (name.as_str(), value) {
-            ("CorrectionReferenceX" | "CorrectionReferenceY", Field::Scalar(v)) if v.parse::<f64>().ok()?.is_finite() => (),
-            ("LocalBrightness" | "LocalContrast" | "LocalExposure" | "LocalClarity" | "LocalGrain" | "LocalCorrectedDepth" | "LocalColorVariance", Field::Scalar(v)) if v.parse::<f64>().ok()? == 0.0 => (),
-            ("LocalCurveRefineSaturation", Field::Scalar(v)) if v.parse::<f64>().ok()? == 100.0 => (),
-            ("LocalColorVariance", Field::Structure(n)) if sequence(n)?.iter().all(|n| n.attributes().len() == 0 && !n.children().any(|n|n.is_element()) && n.text().and_then(|s|s.trim().parse::<f64>().ok()) == Some(0.)) => (),
+            ("CorrectionReferenceX" | "CorrectionReferenceY", Field::Scalar(v))
+                if v.parse::<f64>().ok()?.is_finite() =>
+            {
+                ()
+            }
+            (
+                "LocalBrightness"
+                | "LocalContrast"
+                | "LocalExposure"
+                | "LocalClarity"
+                | "LocalGrain"
+                | "LocalCorrectedDepth"
+                | "LocalColorVariance",
+                Field::Scalar(v),
+            ) if v.parse::<f64>().ok()? == 0.0 => (),
+            ("LocalCurveRefineSaturation", Field::Scalar(v)) if v.parse::<f64>().ok()? == 100.0 => {
+                ()
+            }
+            ("LocalColorVariance", Field::Structure(n))
+                if sequence(n)?.iter().all(|n| {
+                    n.attributes().len() == 0
+                        && !n.children().any(|n| n.is_element())
+                        && n.text().and_then(|s| s.trim().parse::<f64>().ok()) == Some(0.)
+                }) =>
+            {
+                ()
+            }
             ("LocalPointColors", Field::Scalar(v)) if v.is_empty() => (),
             ("LocalPointColors", Field::Structure(n)) if sequence(n)?.is_empty() => (),
-            ("LocalToningHue", Field::Scalar(v)) if inactive_overlay && v.parse::<f64>().ok()?.is_finite() => (),
+            ("LocalToningHue", Field::Scalar(v))
+                if inactive_overlay && v.parse::<f64>().ok()?.is_finite() =>
+            {
+                ()
+            }
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()? == 0.0 => {}
             ("LocalDefringe", Field::Scalar(v)) if v.parse::<f64>().ok()? != 0.0 => return None,
@@ -559,54 +593,137 @@ fn translated_field_paths(
 pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
     let mut reasons = std::collections::BTreeSet::new();
     for n in root.descendants() {
-        for name in n.attributes().filter(|a| a.namespace() == Some(CRS)).map(|a| a.name())
-            .chain((n.tag_name().namespace() == Some(CRS)).then_some(n.tag_name().name())) {
+        for name in n
+            .attributes()
+            .filter(|a| a.namespace() == Some(CRS))
+            .map(|a| a.name())
+            .chain((n.tag_name().namespace() == Some(CRS)).then_some(n.tag_name().name()))
+        {
             if let Some(reason) = match name {
-                "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve" | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve" => Some("local tone curve rendering is not implemented"),
+                "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve"
+                | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve" => {
+                    Some("local tone curve rendering is not implemented")
+                }
                 "LocalPointColors" => Some("local point-color selection is not implemented"),
 
-                "InstanceBounds" | "InstanceIDs" => Some("individual AI person-instance selection is not implemented"),
+                "InstanceBounds" | "InstanceIDs" => {
+                    Some("individual AI person-instance selection is not implemented")
+                }
                 _ => None,
-            } { reasons.insert(reason); }
+            } {
+                reasons.insert(reason);
+            }
         }
         if let Some(f) = fields(n) {
-            if f.get("What").and_then(Field::scalar).is_some_and(|what| what.starts_with("Mask/") && !matches!(what, "Mask/Image" | "Mask/Subject" | "Mask/Sky" | "Mask/Background" | "Mask/People" | "Mask/Person" | "Mask/Object" | "Mask/Gradient" | "Mask/CircularGradient" | "Mask/Paint" | "Mask/Group" | "Mask/Aggregate" | "Mask/Range" | "Mask/RangeMask")) {
+            if f.get("What").and_then(Field::scalar).is_some_and(|what| {
+                what.starts_with("Mask/")
+                    && !matches!(
+                        what,
+                        "Mask/Image"
+                            | "Mask/Subject"
+                            | "Mask/Sky"
+                            | "Mask/Background"
+                            | "Mask/People"
+                            | "Mask/Person"
+                            | "Mask/Object"
+                            | "Mask/Gradient"
+                            | "Mask/CircularGradient"
+                            | "Mask/Paint"
+                            | "Mask/Group"
+                            | "Mask/Aggregate"
+                            | "Mask/Range"
+                            | "Mask/RangeMask"
+                    )
+            }) {
                 reasons.insert("unrecognized mask selection kind");
             }
             if let Some(value) = f.get("LocalColorVariance") {
                 let neutral = match value {
                     Field::Scalar(v) => v.parse::<f64>().ok() == Some(0.),
-                    Field::Structure(n) => sequence(*n).is_some_and(|items| items.iter().all(|n| n.text().and_then(|s|s.trim().parse::<f64>().ok()) == Some(0.))),
+                    Field::Structure(n) => sequence(*n).is_some_and(|items| {
+                        items.iter().all(|n| {
+                            n.text().and_then(|s| s.trim().parse::<f64>().ok()) == Some(0.)
+                        })
+                    }),
                 };
-                if !neutral { reasons.insert("local color-variance adjustment is not implemented"); }
+                if !neutral {
+                    reasons.insert("local color-variance adjustment is not implemented");
+                }
             }
-            for (key, label) in [("LocalDefringe", "local defringe rendering is not implemented"), ("LocalToningSaturation", "local color overlay rendering is not implemented")] {
-                if f.get(key).and_then(Field::scalar).and_then(|v|v.parse::<f64>().ok()).is_some_and(|v|v != 0.) { reasons.insert(label); }
+            for (key, label) in [
+                (
+                    "LocalDefringe",
+                    "local defringe rendering is not implemented",
+                ),
+                (
+                    "LocalToningSaturation",
+                    "local color overlay rendering is not implemented",
+                ),
+            ] {
+                if f.get(key)
+                    .and_then(Field::scalar)
+                    .and_then(|v| v.parse::<f64>().ok())
+                    .is_some_and(|v| v != 0.)
+                {
+                    reasons.insert(label);
+                }
             }
         }
     }
-    if reasons.is_empty() { reasons.insert("mask geometry, blend mode or selection encoding cannot be rendered"); }
+    if reasons.is_empty() {
+        reasons.insert("mask geometry, blend mode or selection encoding cannot be rendered");
+    }
     reasons.into_iter().collect::<Vec<_>>().join("; ")
 }
 
-
 pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
-    if reason != "mask geometry, blend mode or selection encoding cannot be rendered" { return reason; }
+    if reason != "mask geometry, blend mode or selection encoding cannot be rendered" {
+        return reason;
+    }
     for (needle, label) in [
         ("radial Flipped", "radial mask inversion flags conflict"),
-        ("unknown Adobe AI mask subtype", "unrecognized AI selection subtype"),
-        ("unknown Adobe AI mask category", "unrecognized AI selection category"),
-        ("invalid object bounds", "AI object selection bounds are invalid"),
-        ("invalid object reference point", "AI object selection reference point is invalid"),
-        ("object regeneration requires", "AI object selection lacks a box or reference point"),
-        ("mask tree exceeds", "nested mask selection exceeds eight levels"),
-        ("mask blend mode", "mask selection uses an unrecognized blend mode"),
+        (
+            "unknown Adobe AI mask subtype",
+            "unrecognized AI selection subtype",
+        ),
+        (
+            "unknown Adobe AI mask category",
+            "unrecognized AI selection category",
+        ),
+        (
+            "invalid object bounds",
+            "AI object selection bounds are invalid",
+        ),
+        (
+            "invalid object reference point",
+            "AI object selection reference point is invalid",
+        ),
+        (
+            "object regeneration requires",
+            "AI object selection lacks a box or reference point",
+        ),
+        (
+            "mask tree exceeds",
+            "nested mask selection exceeds eight levels",
+        ),
+        (
+            "mask blend mode",
+            "mask selection uses an unrecognized blend mode",
+        ),
         ("Adobe dab", "brush stamp encoding cannot be decoded"),
         ("Adobe Dabs", "brush stamp list is empty or invalid"),
-        ("range mask", "range-mask selection encoding is incomplete or ambiguous"),
-        ("color sample", "color-range sample encoding cannot be decoded"),
+        (
+            "range mask",
+            "range-mask selection encoding is incomplete or ambiguous",
+        ),
+        (
+            "color sample",
+            "color-range sample encoding cannot be decoded",
+        ),
     ] {
-        if warning.contains(needle) { return label.into(); }
+        if warning.contains(needle) {
+            return label.into();
+        }
     }
     reason
 }

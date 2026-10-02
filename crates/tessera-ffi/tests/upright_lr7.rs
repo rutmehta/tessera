@@ -7,11 +7,19 @@ fn catalog_upright_renders_known_projective_corners_and_reports_cloud_features()
     db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s = { PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1', EnableDistractionRemoval = true, FilterList={{What='synthetic-filter'}} }"]).unwrap();
     drop(db);
     let plan = import_lrcat::import(&fixture.catalog).unwrap();
-    assert!(
-        plan.report
-            .iter()
-            .any(|w| w.contains("EnableDistractionRemoval") && w.contains("cannot render"))
-    );
+    assert!(plan.images.iter().all(|image| {
+        import_lrcat::diagnostics::entries(&image.recipe)
+            .values()
+            .flatten()
+            .filter(|note| {
+                note.status == "ignored"
+                    && note
+                        .reason
+                        .contains("requires Adobe cloud; not translatable")
+            })
+            .count()
+            == 1
+    }));
     let recipe = &plan
         .images
         .iter()

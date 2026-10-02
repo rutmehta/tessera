@@ -26,6 +26,8 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
     let mut decoded = Vec::new();
     let mut cloud_keys = Vec::new();
     let mut cloud_present = false;
+    let mut modern_present = false;
+    let legacy_present = properties.contains_key("RetouchInfo");
     for key in ["RetouchAreas", "RetouchInfo", "RemoveAreas"] {
         let Some(raw) = properties.get(key).and_then(Value::as_str) else {
             continue;
@@ -41,25 +43,57 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
             )
         };
         cloud_present |= value.as_ref().is_some_and(has_cloud);
+        modern_present |= key == "RetouchAreas"
+            && value
+                .as_ref()
+                .and_then(Value::as_array)
+                .is_some_and(|items| !items.is_empty());
         if let Some((ops, cloud)) = value.and_then(operations) {
-            if cloud { cloud_keys.push(key); }
+            if cloud {
+                cloud_keys.push(key);
+            }
             decoded.push((key, ops));
         }
     }
     if !cloud_keys.is_empty() {
-        warnings.retain(|w| !cloud_keys.iter().any(|key| w.starts_with(&format!("{key}:")) || w.starts_with(&format!("crs:{key}:"))) && !w.starts_with("EnableDistractionRemoval:") && !w.starts_with("crs:EnableDistractionRemoval:"));
+        warnings.retain(|w| {
+            !cloud_keys.iter().any(|key| {
+                w.starts_with(&format!("{key}:")) || w.starts_with(&format!("crs:{key}:"))
+            }) && !w.starts_with("EnableDistractionRemoval:")
+                && !w.starts_with("crs:EnableDistractionRemoval:")
+        });
     }
     if cloud_present {
-        crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", crate::residual::CLOUD_NOTE);
+        crate::diagnostics::push_ignored(
+            recipe,
+            "GenerativeRemove",
+            "LR-9b",
+            crate::residual::CLOUD_NOTE,
+        );
+    }
+    if modern_present && legacy_present {
+        warnings.retain(|w| !w.starts_with("RetouchInfo:") && !w.starts_with("crs:RetouchInfo:"));
+        crate::diagnostics::push_ignored(
+            recipe,
+            "RetouchInfo",
+            "LR-9b",
+            "legacy retouch alias superseded by the modern RetouchAreas list",
+        );
     }
     // RetouchInfo is the legacy alias; the complete modern list is authoritative.
     // RemoveAreas is independent and must be appended, never silently dropped.
-    let modern = decoded.iter().any(|(key, ops)| *key == "RetouchAreas" && !ops.is_empty());
-    let mut ops: Vec<_> = decoded.iter()
-        .filter(|(key,_)| *key != "RetouchInfo" || !modern)
-        .flat_map(|(_,ops)| ops.iter().cloned()).collect();
-    if ops.is_empty() { return Ok(()); }
-    for (i, op) in ops.iter_mut().enumerate() { op.id = RetouchId(i as u32 + 1); }
+    let modern = modern_present;
+    let mut ops: Vec<_> = decoded
+        .iter()
+        .filter(|(key, _)| *key != "RetouchInfo" || !modern)
+        .flat_map(|(_, ops)| ops.iter().cloned())
+        .collect();
+    if ops.is_empty() {
+        return Ok(());
+    }
+    for (i, op) in ops.iter_mut().enumerate() {
+        op.id = RetouchId(i as u32 + 1);
+    }
     recipe.settings.locals.retouch = ops;
     for (key, ops) in decoded {
         if ops.is_empty() {
@@ -67,9 +101,10 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         }
         let qualified = format!("crs:{key}");
         recipe.unknown.remove(&qualified);
-        warnings.retain(|w| !w.starts_with(&format!("{qualified}:")) && !w.starts_with(&format!("{key}:")));
+        warnings.retain(|w| {
+            !w.starts_with(&format!("{qualified}:")) && !w.starts_with(&format!("{key}:"))
+        });
         if key == "RetouchInfo" && modern {
-            crate::diagnostics::push_ignored(recipe, key, "LR-9b", "legacy retouch alias superseded by the complete modern RetouchAreas list");
             continue;
         }
         crate::diagnostics::push_approximate(
@@ -185,7 +220,10 @@ fn xml_value(node: roxmltree::Node<'_, '_>) -> Option<Value> {
 fn has_cloud(value: &Value) -> bool {
     match value {
         Value::Array(items) => items.iter().any(has_cloud),
-        Value::Object(fields) => fields.contains_key("pm_clio_model_version") || fields.get("spottype").and_then(Value::as_str) == Some("generative"),
+        Value::Object(fields) => {
+            fields.contains_key("pm_clio_model_version")
+                || fields.get("spottype").and_then(Value::as_str) == Some("generative")
+        }
         _ => false,
     }
 }
@@ -195,7 +233,9 @@ fn operations(value: Value) -> Option<(Vec<RetouchOperation>, bool)> {
     let mut cloud = false;
     for (i, item) in value.as_array()?.iter().enumerate() {
         let f = fields(item)?;
-        if f.contains_key("pm_clio_model_version") || f.get("spottype").and_then(Value::as_str) == Some("generative") {
+        if f.contains_key("pm_clio_model_version")
+            || f.get("spottype").and_then(Value::as_str) == Some("generative")
+        {
             cloud = true;
         } else {
             operations.push(operation(item, i as u32 + 1)?);
@@ -291,7 +331,9 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
             .iter()
             .map(|m| stroke(m, feather))
             .collect::<Option<Vec<_>>>()?
-            .into_iter().flatten().collect()
+            .into_iter()
+            .flatten()
+            .collect()
     } else {
         let center = point(&fields, "centerx", "centery")?;
         vec![BrushStroke {
@@ -330,18 +372,51 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
 // ellipse mask. Use LR-3's existing flat geometry only when both agree exactly.
 fn equivalent_circle_mask(value: &Value, flat: &Map<String, Value>) -> Option<bool> {
     let masks = value.as_array()?;
-    if masks.len() != 1 { return Some(false); }
-    let mask = fields(&masks[0])?;
-    if mask.get("what")?.as_str()? != "Mask/Ellipse" { return Some(false); }
-    let allowed = ["what", "x", "y", "sizex", "sizey", "alpha", "centervalue", "perimetervalue", "maskid", "masksyncid", "maskactive", "maskinverted", "maskblendmode", "maskvalue"];
-    if mask.keys().any(|k| !allowed.contains(&k.as_str())) { return Some(false); }
-    for (key, expected) in [("maskactive","true"),("maskinverted","false"),("maskblendmode","0"),("maskvalue","1"),("alpha","0"),("centervalue","1"),("perimetervalue","0")] {
-        if mask.get(key).is_some_and(|v|v.as_str() != Some(expected)) { return Some(false); }
+    if masks.len() != 1 {
+        return Some(false);
     }
-    Some(number(flat,"centerx")? == number(&mask,"x")?
-        && number(flat,"centery")? == number(&mask,"y")?
-        && number(flat,"radius")? == number(&mask,"sizex")?
-        && number(flat,"radius")? == number(&mask,"sizey")?)
+    let mask = fields(&masks[0])?;
+    if mask.get("what")?.as_str()? != "Mask/Ellipse" {
+        return Some(false);
+    }
+    let allowed = [
+        "what",
+        "x",
+        "y",
+        "sizex",
+        "sizey",
+        "alpha",
+        "centervalue",
+        "perimetervalue",
+        "maskid",
+        "masksyncid",
+        "maskactive",
+        "maskinverted",
+        "maskblendmode",
+        "maskvalue",
+    ];
+    if mask.keys().any(|k| !allowed.contains(&k.as_str())) {
+        return Some(false);
+    }
+    for (key, expected) in [
+        ("maskactive", "true"),
+        ("maskinverted", "false"),
+        ("maskblendmode", "0"),
+        ("maskvalue", "1"),
+        ("alpha", "0"),
+        ("centervalue", "1"),
+        ("perimetervalue", "0"),
+    ] {
+        if mask.get(key).is_some_and(|v| v.as_str() != Some(expected)) {
+            return Some(false);
+        }
+    }
+    Some(
+        number(flat, "centerx")? == number(&mask, "x")?
+            && number(flat, "centery")? == number(&mask, "y")?
+            && number(flat, "radius")? == number(&mask, "sizex")?
+            && number(flat, "radius")? == number(&mask, "sizey")?,
+    )
 }
 
 fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
@@ -393,30 +468,85 @@ fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
         }]);
     }
     let dabs = fields.get("dabs")?.as_array()?;
-    if dabs.is_empty() || dabs.len() > 65_536 { return None; }
-    let stateful = dabs.iter().any(|dab| dab.as_str().and_then(|s|s.split_whitespace().next()).is_some_and(|s|matches!(s,"r"|"f"|"h")));
+    if dabs.is_empty() || dabs.len() > 65_536 {
+        return None;
+    }
+    let stateful = dabs.iter().any(|dab| {
+        dab.as_str()
+            .and_then(|s| s.split_whitespace().next())
+            .is_some_and(|s| matches!(s, "r" | "f" | "h"))
+    });
     let mut radius = radius;
     let mut flow = percent(&fields, "flow", 1.0)?;
-    let mut feather = if fields.contains_key("centerweight") { 100. - percent(&fields,"centerweight",0.5)? } else { feather };
+    let mut feather = if fields.contains_key("centerweight") {
+        100. - percent(&fields, "centerweight", 0.5)?
+    } else {
+        feather
+    };
     let mut points = Vec::new();
     let mut stamps = Vec::new();
     for dab in dabs {
         let tokens: Vec<_> = dab.as_str()?.split_whitespace().collect();
         let n = |s: &str, min, max| bounded(s.parse::<f32>().ok()?, min, max);
         match tokens.as_slice() {
-            ["r", value] => radius = n(value,1e-6,1.)?,
-            ["f", value] => flow = n(value,0.,1.)? * 100.,
-            ["h", value] => feather = (1. - n(value,0.,1.)?) * 100.,
+            ["r", value] => radius = n(value, 1e-6, 1.)?,
+            ["f", value] => flow = n(value, 0., 1.)? * 100.,
+            ["h", value] => feather = (1. - n(value, 0., 1.)?) * 100.,
             ["d", x, y] => {
-                let point = [n(x,0.,1.)?,n(y,0.,1.)?,1.];
+                let point = [n(x, 0., 1.)?, n(y, 0., 1.)?, 1.];
                 if stateful {
-                    stamps.push(BrushStroke { points: vec![point], radius, feather, flow, erase: false });
-                } else { points.push(point); }
+                    stamps.push(BrushStroke {
+                        points: vec![point],
+                        radius,
+                        feather,
+                        flow,
+                        erase: false,
+                    });
+                } else {
+                    points.push(point);
+                }
             }
             _ => return None,
         }
     }
-    if stateful { return (!stamps.is_empty()).then_some(stamps); }
-    if points.is_empty() { return None; }
-    Some(vec![BrushStroke { points, radius, feather, flow, erase: false }])
+    if stateful {
+        return (!stamps.is_empty()).then_some(stamps);
+    }
+    if points.is_empty() {
+        return None;
+    }
+    Some(vec![BrushStroke {
+        points,
+        radius,
+        feather,
+        flow,
+        erase: false,
+    }])
+}
+
+pub(crate) fn has_adobe_patch(recipe: &Recipe, key: &str) -> bool {
+    let Some(source) = recipe.unknown.get("lrcat_develop_source") else {
+        return false;
+    };
+    let Some(raw) = source["properties"][key].as_str() else {
+        return false;
+    };
+    let value = if source["shape"] == "lua-values" {
+        crate::lua_develop::read(&format!("s={raw}"))
+            .ok()
+            .and_then(literal)
+    } else {
+        xml(
+            raw,
+            recipe.unknown.get("sidecar_xmp").and_then(Value::as_str),
+        )
+    };
+    value
+        .as_ref()
+        .and_then(Value::as_array)
+        .is_some_and(|items| {
+            items
+                .iter()
+                .any(|item| fields(item).is_some_and(|f| f.contains_key("pm_patch")))
+        })
 }
