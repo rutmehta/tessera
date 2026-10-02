@@ -63,10 +63,8 @@ fn private_sample_cpu_render() {
     let decoded = image_core::RawImage::open(engine_api::id::ImageId(830), path).unwrap();
     let proxy = decoded.camera_linear_proxy().expect("camera DNG");
     let settings = engine_api::recipe::DevelopSettings::default();
-    assert!(
-        proxy.resident_tail_plan(&settings).unwrap().is_none(),
-        "DNG uses explicit CPU fallback"
-    );
+    // The CPU reference remains callable when the native RGB tail is GPU eligible.
+    proxy.resident_tail_plan(&settings).unwrap();
     let rgb = pipeline_cpu::render_scaled(
         &settings,
         &pipeline_cpu::RenderSource::CameraLinear(proxy),
@@ -88,7 +86,7 @@ fn private_sample_cpu_render() {
 }
 
 #[test]
-fn external_dng_gpu_backend_uses_explicit_cpu_fallback_and_exports() {
+fn external_dng_gpu_backend_accepts_native_rgb_tail_and_exports() {
     use engine_api::{id::ImageId, jobs::CancellationToken, recipe::Recipe, tile::TileCoord};
     use image_core::{RawImage, RenderOutput, Renderer, TileCache};
     use std::sync::Arc;
@@ -102,7 +100,7 @@ fn external_dng_gpu_backend_uses_explicit_cpu_fallback_and_exports() {
         proxy
             .resident_tail_plan(&Default::default())
             .unwrap()
-            .is_none()
+            .is_some()
     );
     let renderer = match pipeline_gpu::GpuContext::new() {
         Ok(context) => Renderer::with_ops(

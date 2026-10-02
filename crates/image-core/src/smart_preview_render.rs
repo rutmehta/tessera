@@ -114,7 +114,7 @@ impl Renderer {
             .copied()
             .filter(|c| unique_seen.insert(*c))
             .collect();
-        if image.metadata().catalog_orientation.is_none()
+        if image.metadata().catalog_orientation.is_none_or(|o| o == 1)
             && let Some(rendered) =
                 self.try_camera_linear_resident(image, settings, &unique, output, cancel, None)?
         {
@@ -279,6 +279,15 @@ impl Renderer {
         image: &RawImage,
         settings: &DevelopSettings,
     ) -> EngineResult<bool> {
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.camera_linear_resident_supported(image, settings);
+        }
+        let planned = image
+            .camera_linear_proxy()
+            .unwrap()
+            .render_plan(settings, self.mask_cache.has_hooks())
+            .0;
+        let settings = &planned;
         self.validate_camera_linear_proxy(image, settings)?;
         let Some(tail) = image
             .camera_linear_proxy()
@@ -312,6 +321,16 @@ impl Renderer {
         cancel: &CancellationToken,
         surface: Option<SurfaceTarget>,
     ) -> EngineResult<Option<ResidentOutput>> {
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared
+                .try_camera_linear_resident(image, settings, coords, output, cancel, surface);
+        }
+        let planned = image
+            .camera_linear_proxy()
+            .unwrap()
+            .render_plan(settings, self.mask_cache.has_hooks())
+            .0;
+        let settings = &planned;
         cancel.check()?;
         self.validate_camera_linear_proxy(image, settings)?;
         let Some(first) = coords.first() else {
