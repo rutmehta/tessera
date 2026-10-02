@@ -367,7 +367,8 @@ pub struct LocalParams {
     pub noise: f32,
     /// Moiré reduction.
     pub moire: f32,
-    /// Defringe.
+    /// Defringe, `-100..=100` like Adobe. Positive adds local defringe; a
+    /// negative value (protection from global defringe) is kept but not rendered.
     pub defringe: f32,
     /// Colour overlay `[hue°, saturation]`, if any.
     pub color_overlay: Option<[f32; 2]>,

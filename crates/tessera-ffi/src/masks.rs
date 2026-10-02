@@ -308,7 +308,7 @@ fn renderable_group(g: &LocalAdjustment) -> LocalAdjustment {
         *v = finite_or(*v, 0.0).clamp(-100.0, 100.0);
     }
     p.hue = finite_or(p.hue, 0.0).clamp(-180.0, 180.0);
-    p.defringe = finite_or(p.defringe, 0.).clamp(0., 100.);
+    p.defringe = finite_or(p.defringe, 0.).clamp(-100., 100.);
     p.color_overlay = p.color_overlay.map(|[h, s]| {
         [
             finite_or(h, 0.).rem_euclid(360.),

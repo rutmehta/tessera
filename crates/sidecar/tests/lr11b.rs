@@ -143,7 +143,7 @@ fn s9_local_defringe_accepts_the_signed_adobe_range() {
             "params":{"defringe":50.0},
             "components":[{"kind":"linear","start":[0,0],"end":[1,0]}]
         }]));
-        let anchor = "<crs:LocalDefringe>50</crs:LocalDefringe>";
+        let anchor = "<crs:LocalDefringe>50.0</crs:LocalDefringe>";
         assert_eq!(xml.matches(anchor).count(), 1, "{xml}");
         let edited = xml.replace(
             anchor,

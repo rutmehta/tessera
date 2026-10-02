@@ -254,7 +254,7 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()? == 0.0 => {}
             ("LocalDefringe", Field::Scalar(v))
-                if (0.0..=100.0).contains(&v.parse::<f64>().ok()?) => {}
+                if (-100.0..=100.0).contains(&v.parse::<f64>().ok()?) => {}
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()?.is_finite() => {}
             (
@@ -522,10 +522,16 @@ pub(crate) fn record_approximation_diagnostics(
                 "local tint blends a luminance-preserving hue at the requested saturation",
             ),
             (
-                p.defringe != 0.,
+                p.defringe > 0.,
                 "LocalDefringe",
                 "defringe",
                 "local defringe uses Tessera edge-selective purple and green suppression",
+            ),
+            (
+                p.defringe < 0.,
+                "LocalDefringe",
+                "defringe",
+                "negative local defringe protects the area from global defringe; that protection is not rendered and no local defringe is added",
             ),
         ] {
             if present {
