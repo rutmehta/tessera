@@ -188,3 +188,18 @@ fn neutral_color_variance_is_not_named_as_a_curve_blocker() {
     assert!(w[0].contains("local tone curve"));
     assert!(!w[0].contains("color-variance"),"{w:?}");
 }
+
+#[test]
+fn retouch_dab_state_commands_preserve_radius_flow_and_hardness() {
+    let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='heal',SourceX=0.7,OffsetY=0.6,Masks={{What='Mask/Paint',Radius=0.01,CenterWeight=0.7,Flow=1,Dabs={'r 0.02','d 0.2 0.4','r 0.04','f 0.5','h 0.2','d 0.3 0.5'}}}}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    let engine_api::recipe::mask::RetouchTarget::Area{components}=&r.settings.locals.retouch[0].target else {panic!("area required")};
+    let engine_api::recipe::MaskKind::Brush{strokes}=&components[0].kind else {panic!("brush required")};
+    assert_eq!(strokes.len(),2);
+    assert_eq!(strokes[0].radius,0.02);
+    assert!((strokes[0].feather-30.).abs()<1e-4);
+    assert_eq!(strokes[1].radius,0.04);
+    assert_eq!(strokes[1].flow,50.);
+    assert_eq!(strokes[1].feather,80.);
+    assert!(strokes.iter().all(|s|s.points.len()==1));
+}
