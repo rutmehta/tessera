@@ -103,6 +103,23 @@ final class LightroomImportAccessibilityTests: XCTestCase {
         }
     }
 
+    func testCloudOnlyReportDoesNotClaimNoWarnings() async throws {
+        let report = LrcatReport(catalogPath: "/Fixture.lrcat", cancelled: false, imported: 1, resumed: 0,
+            virtualCopies: 0, skipped: [], unsupported: [], approximate: [],
+            cloud: [LrcatIssue(category: "GenerativeFill", reason: "requires Adobe cloud; not translatable",
+                count: 1, examples: ["/photos/one.jpg"])],
+            albums: 0, albumGroups: 0, smartAlbums: 0, keywords: 0,
+            selection: LrcatSelectionCounts(rejects: 0, keeps: 0, undecided: 0, grade1: 0, grade2: 0, grade3: 0, marked: 0),
+            libraryPath: "/Photos/library.json", bundlePath: "/Photos/bundle", indexed: 1, seconds: 0.1)
+        try await host(ReportStep(report: report, reportURL: nil, reportMarkdown: nil, fidelity: nil)) { nodes in
+            let warnings = try value("document.import.report.warnings", in: nodes)
+            XCTAssertNotEqual(warnings, "No warnings.")
+            XCTAssertTrue(warnings.contains("Requires Adobe cloud"), warnings)
+            XCTAssertEqual(try value("document.import.report.cloud", in: nodes),
+                           "GenerativeFill: 1 photo; requires Adobe cloud; not translatable; /photos/one.jpg")
+        }
+    }
+
     func testFidelityExposesFailureBeforeSamplesExist() async throws {
         let importer = LightroomImportController()
         importer.step = .fidelity

@@ -2101,6 +2101,77 @@ mod lrcat_resume_tests {
     }
 
     #[test]
+    fn lr9c_cloud_counts_photos_once_caps_examples_and_omits_ignored() {
+        let mut recipe = Recipe::default();
+        for _ in 0..2 {
+            import_lrcat::diagnostics::push_cloud(
+                &mut recipe,
+                "GenerativeRemove",
+                "requires Adobe cloud; not translatable",
+            );
+        }
+        import_lrcat::diagnostics::push_ignored(&mut recipe, "FillLight", "LR-2", "inactive");
+        let mut cloud = vec![];
+        let mut approximate = vec![];
+        for index in 0..8 {
+            let path = std::path::PathBuf::from(format!("/synthetic/{index}.jpg"));
+            note_diagnostics(&mut cloud, &recipe, &path, "cloud");
+            note_approximate(&mut approximate, &recipe, &path);
+        }
+        assert_eq!(cloud.len(), 1);
+        assert_eq!(cloud[0].category, "GenerativeRemove");
+        assert_eq!(cloud[0].count, 8);
+        assert_eq!(cloud[0].examples.len(), 5);
+        assert!(approximate.is_empty());
+    }
+
+    /// The plan preview has no cloud group, so cloud-only effects must stay
+    /// in its unsupported list instead of disappearing before the import runs.
+    #[test]
+    fn lr9c_plan_preview_keeps_cloud_effects_visible() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+        db.execute(
+            "UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'",
+            ["s={GenerativeRemove=true,GenerativeFill=true}"],
+        )
+        .unwrap();
+        drop(db);
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options().unwrap();
+        options.relocations[0].to = fixture
+            .photos
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        options.library_folder = options.relocations[0].to.clone();
+        let cloud = |issues: &[LrcatIssue], key: &str| {
+            issues.iter().any(|i| {
+                i.reason.contains(key)
+                    && i.reason.contains("requires Adobe cloud; not translatable")
+            })
+        };
+        let summary = import.summary();
+        let preview = import.plan(options).unwrap();
+        for key in ["GenerativeRemove", "GenerativeFill"] {
+            assert!(
+                cloud(&summary.unsupported, key),
+                "{key} missing from summary"
+            );
+            assert!(
+                cloud(&preview.unsupported, key),
+                "{key} missing from plan preview"
+            );
+        }
+    }
+
+    #[test]
     fn lr9c_cloud_report_apply_resume_counts_examples_and_keeps_filter_list() {
         let temp = tempfile::tempdir().unwrap();
         let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();

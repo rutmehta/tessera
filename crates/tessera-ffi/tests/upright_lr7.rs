@@ -20,6 +20,7 @@ fn catalog_upright_renders_known_projective_corners_and_reports_cloud_features()
         plan.report
             .iter()
             .any(|w| w.contains("EnableDistractionRemoval")
+                && w.contains("cannot render")
                 && w.contains("requires Adobe cloud; not translatable"))
     );
     // Images with no Develop row must not gain a cloud note.

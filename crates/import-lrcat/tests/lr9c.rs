@@ -112,3 +112,60 @@ fn curve_name_without_valid_points_is_not_suppressed() {
         assert!(w.iter().any(|w| w.contains("ToneCurveName2012")), "{w:?}");
     }
 }
+#[test]
+fn embedded_profile_flag_is_silent_only_when_not_selected() {
+    for silent in [
+        "LensProfileIsEmbedded=true",
+        "LensProfileIsEmbedded=true,LensProfileEnable=0",
+        "LensProfileIsEmbedded=false,LensProfileEnable=1",
+    ] {
+        let (_, w) = lua_develop::parse(&format!("s={{{silent}}}"), "15.4").unwrap();
+        assert!(
+            !w.iter().any(|w| w.contains("LensProfileIsEmbedded")),
+            "{silent}: {w:?}"
+        );
+    }
+}
+#[test]
+fn non_default_legacy_tone_values_are_still_reported() {
+    for active in [
+        "FillLight=30",
+        "HighlightRecovery=20",
+        "Recovery=20",
+        "Blacks=9",
+    ] {
+        let (r, w) = lua_develop::parse(&format!("s={{{active}}}"), "15.4").unwrap();
+        assert!(
+            !w.is_empty() || !diagnostics::entries(&r).is_empty(),
+            "{active} was silenced"
+        );
+    }
+}
+#[test]
+fn source_y_aliases_conflict_names_the_key_and_agreement_translates() {
+    let spot = |offset: &str| {
+        format!(
+            "s={{RetouchAreas={{{{SpotType='heal',SourceX=0.7,SourceY=0.6,OffsetY={offset},Masks={{{{What='Mask/Paint',Radius=0.03,Dabs={{'d 0.2 0.4'}}}}}}}}}}}}"
+        )
+    };
+    let (r, w) = lua_develop::parse(&spot("0.8"), "15.4").unwrap();
+    assert!(w.iter().any(|w| w.contains("RetouchAreas")), "{w:?}");
+    assert!(r.settings.locals.retouch.is_empty());
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["RetouchAreas"].is_string());
+    let (r, w) = lua_develop::parse(&spot("0.6"), "15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    assert_eq!(r.settings.locals.retouch.len(), 1);
+}
+#[test]
+fn generative_only_retouch_areas_are_cloud_not_ignored() {
+    let (r, w) = lua_develop::parse("s={RetouchAreas={{SpotType='generative'}}}", "15.4").unwrap();
+    assert!(r.settings.locals.retouch.is_empty());
+    assert!(
+        w.iter()
+            .any(|w| w.contains("requires Adobe cloud; not translatable")),
+        "{w:?}"
+    );
+    let notes = diagnostics::entries(&r);
+    assert!(notes.values().flatten().any(|e| e.status == "cloud"));
+    assert!(!notes.values().flatten().any(|e| e.status == "ignored"));
+}

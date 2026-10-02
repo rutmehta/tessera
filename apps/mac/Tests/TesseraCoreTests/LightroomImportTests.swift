@@ -226,6 +226,18 @@ final class LightroomImportTests: XCTestCase {
         XCTAssertFalse(LightroomImportReport.markdown(report: report(folder: "/Photos")).contains("Requires Adobe cloud"))
     }
 
+    func testEmptyUnsupportedTextDoesNotClaimFullSupportWhenCloudContentExists() {
+        var plain = report(folder: "/Photos")
+        plain.unsupported = []
+        XCTAssertTrue(LightroomImportReport.markdown(report: plain).contains("Everything in the catalog has a Tessera equivalent."))
+        var cloudy = report(folder: "/Photos", cloud: [LrcatIssue(category: "GenerativeRemove",
+            reason: "requires Adobe cloud; not translatable", count: 1, examples: ["/Photos/a.jpg"])])
+        cloudy.unsupported = []
+        let md = LightroomImportReport.markdown(report: cloudy)
+        XCTAssertFalse(md.contains("Everything in the catalog has a Tessera equivalent."), md)
+        XCTAssertTrue(md.contains("| GenerativeRemove | 1 | requires Adobe cloud; not translatable | /Photos/a.jpg |"), md)
+    }
+
     func testReportMarkdownGroupsApproximateTranslationsPerAdobeKey() {
         let approximate = [
             LrcatIssue(category: "Exposure2012", reason: "exposure response unverified", count: 4,
