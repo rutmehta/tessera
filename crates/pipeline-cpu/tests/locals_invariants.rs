@@ -100,11 +100,11 @@ fn invalid_controls_and_blend_layouts_reject() {
             ..Default::default()
         },
         LocalParams {
-            defringe: 1.,
+            defringe: -1.,
             ..Default::default()
         },
         LocalParams {
-            color_overlay: Some([0., 50.]),
+            color_overlay: Some([0., 101.]),
             ..Default::default()
         },
     ] {

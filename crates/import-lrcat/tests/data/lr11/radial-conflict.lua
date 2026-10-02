@@ -1,0 +1,1 @@
+s={Sharpness=0,ColorNoiseReduction=0,MaskGroupBasedCorrections={{LocalExposure2012=1,CorrectionMasks={{What='Mask/CircularGradient',Left=0.2,Top=0.2,Right=0.8,Bottom=0.8,Flipped=true,MaskInverted=true}}}}}
