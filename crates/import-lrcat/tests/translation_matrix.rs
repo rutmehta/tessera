@@ -60,7 +60,10 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
     } else {
         context
     };
-    let hdr = if EXTENDED_TONE_CURVE_KEYS.contains(&key) {
+    // Extended curves, global and per-mask alike, translate only for HDR output.
+    let hdr = if EXTENDED_TONE_CURVE_KEYS.contains(&key)
+        || key.starts_with("MaskGroupBasedCorrections/Extended")
+    {
         "HDREditMode=1,"
     } else {
         ""

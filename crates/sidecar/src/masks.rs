@@ -920,7 +920,13 @@ fn srgb_to_oklab(rgb: [f64; 3]) -> [f64; 3] {
 }
 
 // LR-11: reuse the global point-colour grammar and curve representation.
+//
+// Adobe extended (HDR-domain) local curves follow the global rule: they are
+// translated only when the packet selects HDR output, and an identity channel
+// never replaces the ordinary one. Otherwise the source is provenance only and
+// the ordinary local curve renders. They are validated either way.
 fn import_local_curves(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<()> {
+    let hdr = flag(t.value(CRS, "HDREditMode"), false).unwrap_or(false);
     for (prefix, field) in [("", "curves"), ("Extended", "curves_extended")] {
         let mut curves = if prefix == "Extended" && !params["curves"].is_null() {
             params["curves"].clone()
@@ -960,6 +966,11 @@ fn import_local_curves(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<(
                     })
                 {
                     return Err(error("invalid local curve points"));
+                }
+                if prefix == "Extended"
+                    && (!hdr || points.iter().all(|p| p["x"].as_f64() == p["y"].as_f64()))
+                {
+                    continue;
                 }
                 curves[channel] = json!(points);
                 present = true;

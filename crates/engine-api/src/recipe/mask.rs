@@ -326,7 +326,9 @@ pub struct LocalParams {
     /// Per-mask point curves, in the same normalized domain as global curves.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub curves: Option<ToneCurves>,
-    /// Extended-domain curves take precedence over the ordinary curves.
+    /// HDR-domain curves; when present they replace the ordinary curves, like
+    /// the global `tone.curves_extended`. Adobe import fills this only for HDR
+    /// output, a non-legacy process and non-identity points.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub curves_extended: Option<ToneCurves>,
     /// Point Color selection, evaluated before monochrome conversion.
