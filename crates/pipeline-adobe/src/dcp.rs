@@ -21,6 +21,7 @@ pub struct DcpProfile {
     baseline_exposure: f32,
     exposure_offset: f32,
     auto_black: bool,
+    output_referred: bool,
 }
 
 /// Selected camera neutral and interpolation temperature, resolved once per render.
@@ -126,6 +127,7 @@ fn fields(bytes: &[u8]) -> Result<BTreeMap<u16, Field>, String> {
                 | 50730
                 | 51109
                 | 51110
+                | 50879
         ) {
             continue;
         }
@@ -187,6 +189,7 @@ fn matrix(f: &BTreeMap<u16, Field>, tag: u16) -> Result<Matrix, String> {
 }
 fn illuminant(value: f64) -> Result<f64, String> {
     match value as u16 {
+        0 => Ok(0.), // SDK: unknown illuminant uses only the first calibration.
         1 | 4 | 9 => Ok(5500.),
         3 | 17 => Ok(2856.),
         10 => Ok(6504.),
@@ -518,7 +521,17 @@ impl DcpProfile {
         };
         let f = fields(bytes)?;
         let temperature1 = illuminant(required(&f, 50778, 3, 1)?[0])?;
-        let second = if f.contains_key(&50722) || f.contains_key(&50779) {
+        let calibration2 = if f.contains_key(&50779) {
+            Some(illuminant(required(&f, 50779, 3, 1)?[0])?)
+        } else {
+            None
+        };
+        // Public SDK dng_color_spec constructor: invalid/unknown calibration
+        // temperatures select the first set, rather than inventing an illuminant.
+        let single = temperature1 == 0. || calibration2 == Some(0.);
+        let second = if single {
+            None
+        } else if f.contains_key(&50722) || f.contains_key(&50779) {
             let t = illuminant(required(&f, 50779, 3, 1)?[0])?;
             if (t - temperature1).abs() < 1. {
                 return Err("Dual illuminants must differ".into());
@@ -532,7 +545,7 @@ impl DcpProfile {
             let two = if second.is_some() {
                 Some(matrix(&f, 50965)?)
             } else {
-                if f.contains_key(&50965) {
+                if f.contains_key(&50965) && !single {
                     return Err("ForwardMatrix2 requires dual illuminants".into());
                 }
                 None
@@ -548,7 +561,7 @@ impl DcpProfile {
             None
         };
         let hue1 = Table::parse(&f, 50937, 50938, 51107)?;
-        let hue2 = if f.contains_key(&50939) {
+        let hue2 = if f.contains_key(&50939) && !single {
             if second.is_none() {
                 return Err("Second HueSatMap requires dual illuminants".into());
             }
@@ -578,12 +591,26 @@ impl DcpProfile {
         if black != 0. && black != 1. {
             return Err("Unsupported DefaultBlackRender".into());
         }
+        let reference = if f.contains_key(&50879) {
+            required(&f, 50879, 3, 1)?[0]
+        } else {
+            0.
+        };
+        if reference != 0. && reference != 1. {
+            return Err("HDR/unknown ColorimetricReference is unsupported".into());
+        }
+        let output_referred = reference == 1.;
         Ok(Self {
+            output_referred,
             baseline_exposure: exposure(50730)?,
             exposure_offset: exposure(51109)?,
-            auto_black: black == 0.,
+            auto_black: black == 0. && !output_referred,
             color1: matrix(&f, 50721)?,
-            temperature1,
+            temperature1: if temperature1 == 0. {
+                5000.
+            } else {
+                temperature1
+            },
             second,
             forward,
             hue1,
@@ -639,6 +666,11 @@ impl DcpProfile {
     /// middle channel, preserving HSV hue (unlike three independent curves).
     /// https://android.googlesource.com/platform/external/dng_sdk/+/de700ad461e35af50b28b861943a0b0753b10929/source/dng_reference.cpp
     pub fn apply_tone(&self, rgb: [f32; 3]) -> [f32; 3] {
+        // SDK dng_render::Render uses an identity default for output-referred
+        // negatives. An explicit ProfileToneCurve still takes precedence.
+        if self.output_referred && self.tone.is_none() {
+            return rgb;
+        }
         map_prophoto(rgb, |pro| {
             let pro = pro.map(|v| v.clamp(0., 1.));
             let lo = pro.into_iter().fold(f64::INFINITY, f64::min);
