@@ -1,0 +1,630 @@
+B5-50 focused audit on final source. All windows background/non-key; synthetic fixtures.
+Command: cd apps/mac && TESSERA_AX_MAP=1 swift test -c release -Xswiftc -enable-testing --filter LibraryDevelopAccessibilityTests
+
+Test Suite 'Selected tests' started at 2026-10-02 00:59:22.441.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-02 00:59:22.442.
+Test Suite 'LibraryDevelopAccessibilityTests' started at 2026-10-02 00:59:22.442.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testImportStepsAndSyntheticReport]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testImportStepsAndSyntheticReport]' passed (0.812 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testLibraryAndDevelopWindows]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [16.305875, 0.32658299999999996, 0.407084]; GPU [19.797917, 0.49487499999999995, 0.690125]
+AX MAP library.import.chooseCatalog	Choose Catalog…
+AX MAP library.import.cancel	Cancel
+AX AUDIT library.import.choose: 2 interactive controls
+AX MAP library.import.cancel	Cancel
+AX MAP library.import.chooseAnother	Choose Another…
+AX MAP library.import.continue	Continue
+AX AUDIT library.import.summary: 3 interactive controls
+AX MAP library.import.chooseLibraryFolder	Choose…
+AX MAP library.import.locate.%2FSynthetic%20Old	Locate…
+AX MAP library.import.resetRoot.%2FSynthetic%20Old	Reset
+AX MAP library.import.mark.Client%20choice	Map colour label Client choice
+AX MAP library.import.overwrite	Replace edits already made in Tessera
+AX MAP library.import.back	Back
+AX MAP library.import.preview	Preview Fidelity
+AX AUDIT library.import.mapping: 7 interactive controls
+AX MAP library.import.fidelitySort	Fidelity sort order
+AX MAP library.import.looks-different	Looks different (0)
+AX MAP library.import.back	Back
+AX MAP library.import.start	Import 0 Photos
+AX AUDIT library.import.fidelity: 4 interactive controls
+AX MAP library.import.done	Done
+AX AUDIT library.import.report: 1 interactive controls
+AX MAP library.import.report.disclosure	Import report markdown
+AX MAP library.import.report.markdown	Import report markdown
+AX MAP library.import.showReport	Show Report in Finder
+AX MAP library.import.done	Done
+AX AUDIT library.import.reportGroups: 4 interactive controls
+AX MAP library.import.report.disclosure	Import report markdown
+AX MAP library.import.report.markdown	Import report markdown
+AX MAP library.import.resume	Resume Import
+AX MAP library.import.done	Done
+AX AUDIT library.import.cancelledReport: 4 interactive controls
+AX MAP library.sidebar.row.hdr:library	Library
+AX MAP library.sidebar.row.src:all	All Photos
+AX MAP library.sidebar.row.hdr:folders	Folders
+AX MAP library.sidebar.row.folder:current	No folder open
+AX MAP library.sidebar.row.hdr:albums	Albums
+AX MAP library.sidebar.row.basket:Selects	Selects
+AX MAP library.sidebar.row.hdr:cull	Culling
+AX MAP library.sidebar.row.src:decision:keep	Keeps
+AX MAP library.sidebar.row.src:decision:undecided	Undecided
+AX MAP library.sidebar.row.src:decision:reject	Rejects
+AX MAP library.sidebar.row.src:mark:6	Needs Retouch
+AX MAP library.sidebar.row.src:mark:7	Client Favourite
+AX MAP library.sidebar.row.src:mark:8	Print
+AX MAP library.sidebar.row.src:mark:9	Review
+AX MAP library.workspace.editPhoto	Edit photo
+AX MAP library.empty.openFolder	Open Folder…
+AX MAP library.panel.Image	Image
+AX MAP library.panel.Selection	Selection
+AX MAP library.selection.X	Reject, key X
+AX MAP library.selection.U	Undecided, key U
+AX MAP library.selection.P	Keep, key P
+AX MAP library.selection.1	Keep, key 1
+AX MAP library.selection.2	Good, key 2
+AX MAP library.selection.3	Best, key 3
+AX MAP library.selection.6	Key 6
+AX MAP library.selection.7	Key 7
+AX MAP library.selection.8	Key 8
+AX MAP library.selection.9	Key 9
+AX MAP library.selection.B	Selects, key B
+AX MAP library.panel.PhotoEdit	Photo Edit
+AX MAP library.inspector.editPhoto	Edit photo
+AX MAP library.toolbar.sidebar	Hide Sidebar
+AX MAP library.toolbar.sidebar	Hide Sidebar
+AX MAP library.toolbar.workspace.0	Library
+AX MAP library.toolbar.workspace.1	Edit photo
+AX MAP library.toolbar.workspace.2	Review
+AX MAP library.toolbar.open	Open Folder…
+AX MAP library.toolbar.open	Open Folder…
+AX MAP library.toolbar.view.0	Grid
+AX MAP library.toolbar.view.1	Loupe
+AX MAP library.toolbar.view.2	Compare
+AX MAP library.toolbar.thumbnailSize	Thumbnail size
+AX MAP library.toolbar.assist	Assist
+AX MAP library.toolbar.autoEdit	Auto Edit
+AX MAP library.toolbar.autoEdit	Auto Edit
+AX MAP library.toolbar.review	Review 0
+AX MAP library.toolbar.review	Review 0
+AX MAP library.toolbar.autoAdvance	Auto-advance
+AX MAP library.toolbar.inspector	Inspector
+AX AUDIT library.empty: 49 interactive controls
+AX MAP library.sidebar.row.hdr:library	Library
+AX MAP library.sidebar.row.src:all	All Photos
+AX MAP library.sidebar.row.src:unfiled	Not in Any Album
+AX MAP library.sidebar.row.src:people	People
+AX MAP library.sidebar.row.hdr:folders	Folders
+AX MAP library.sidebar.row.folder:current	photos
+AX MAP library.sidebar.row.hdr:albums	Albums
+AX MAP library.sidebar.add	Add
+AX MAP library.sidebar.row.basket:Selects	Selects
+AX MAP library.sidebar.row.hdr:cull	Culling
+AX MAP library.sidebar.row.src:decision:keep	Keeps
+AX MAP library.sidebar.row.src:decision:undecided	Undecided
+AX MAP library.sidebar.row.src:decision:reject	Rejects
+AX MAP library.sidebar.row.src:mark:6	Needs Retouch
+AX MAP library.sidebar.row.src:mark:7	Client Favourite
+AX MAP library.sidebar.row.src:mark:8	Print
+AX MAP library.sidebar.row.src:mark:9	Review
+AX MAP library.workspace.editPhoto	Edit photo
+AX MAP library.filter.rule	Search or filter rule
+AX MAP library.filter.save	Save as Smart Album…
+AX MAP library.filter.decision	Decision
+AX MAP library.filter.grade	Grade
+AX MAP library.filter.mark	Mark
+AX MAP library.filter.camera	Camera
+AX MAP library.filter.lens	Lens
+AX MAP library.filter.keyword	Keyword
+AX MAP library.filter.person	Person
+AX MAP library.filter.date	Date
+AX MAP library.filter.album	Album
+AX MAP library.panel.Image	Image
+AX MAP library.panel.Selection	Selection
+AX MAP library.selection.X	Reject, key X
+AX MAP library.selection.U	Undecided, key U
+AX MAP library.selection.P	Keep, key P
+AX MAP library.selection.1	Keep, key 1
+AX MAP library.selection.2	Good, key 2
+AX MAP library.selection.3	Best, key 3
+AX MAP library.selection.6	Key 6
+AX MAP library.selection.7	Key 7
+AX MAP library.selection.8	Key 8
+AX MAP library.selection.9	Key 9
+AX MAP library.selection.B	Selects, key B
+AX MAP library.panel.Assist	Assist
+AX MAP library.assist.assist-panel-toggle	Assist
+AX MAP library.assist.mode.0	Assisted
+AX MAP library.assist.mode.1	Automated
+AX MAP library.panel.People	People
+AX MAP library.panel.AgentEdit	Agent Edit
+AX MAP library.agent.autoEdit	Auto Edit…
+AX MAP library.panel.Keywords	Keywords
+AX MAP library.keywords.entry	Add keywords
+AX MAP library.understanding.keyword-suggest-selection	Suggest
+AX MAP library.keywords.new	New…
+AX MAP library.panel.Metadata	Metadata
+AX MAP library.metadata.title	Title
+AX MAP library.metadata.caption	Caption
+AX MAP library.metadata.altText	Alt text
+AX MAP library.understanding.metadata-generate-caption	Generate
+AX MAP library.metadata.creator	Creator
+AX MAP library.metadata.copyright	Copyright
+AX MAP library.metadata.keywords	Keywords
+AX MAP library.understanding.ocr-detect	Detect Text
+AX MAP library.panel.PhotoEdit	Photo Edit
+AX MAP library.inspector.editPhoto	Edit photo
+AX MAP library.toolbar.sidebar	Hide Sidebar
+AX MAP library.toolbar.sidebar	Hide Sidebar
+AX MAP library.toolbar.workspace.0	Library
+AX MAP library.toolbar.workspace.1	Edit photo
+AX MAP library.toolbar.workspace.2	Review
+AX MAP library.toolbar.open	Open Folder…
+AX MAP library.toolbar.open	Open Folder…
+AX MAP library.toolbar.view.0	Grid
+AX MAP library.toolbar.view.1	Loupe
+AX MAP library.toolbar.view.2	Compare
+AX MAP library.toolbar.thumbnailSize	Thumbnail size
+AX MAP library.toolbar.assist	Assist
+AX MAP library.toolbar.autoEdit	Auto Edit
+AX MAP library.toolbar.autoEdit	Auto Edit
+AX MAP library.toolbar.review	Review 0
+AX MAP library.toolbar.review	Review 0
+AX MAP library.toolbar.autoAdvance	Auto-advance
+AX MAP library.toolbar.inspector	Inspector
+AX AUDIT library.populated: 82 interactive controls
+AX MAP develop.workspace.library	Back to Library
+AX MAP develop.loupe.displayInfo	Display info
+AX MAP develop.loupe.masks	Masks
+AX MAP develop.loupe.shortcuts	Shortcuts
+AX MAP develop.inspector.tabs.0	Develop
+AX MAP develop.inspector.tabs.1	Masks
+AX MAP develop.panel.Editingtarget	Editing target
+AX MAP develop.panel.Histogram	Histogram
+AX MAP develop.panel.Basic	Basic
+AX MAP develop.basic.reset	Reset
+AX MAP develop.basic.snapshots	Snapshots
+AX MAP develop.basic.temperature	Temperature
+AX MAP develop.basic.tint	Tint
+AX MAP develop.basic.exposure	Exposure
+AX MAP develop.basic.contrast	Contrast
+AX MAP develop.basic.highlights	Highlights
+AX MAP develop.basic.shadows	Shadows
+AX MAP develop.basic.whites	Whites
+AX MAP develop.basic.blacks	Blacks
+AX MAP develop.basic.texture	Texture
+AX MAP develop.basic.clarity	Clarity
+AX MAP develop.basic.dehaze	Dehaze
+AX MAP develop.basic.vibrance	Vibrance
+AX MAP develop.basic.saturation	Saturation
+AX MAP develop.panel.ToneCurve	Tone Curve
+AX MAP develop.tone.mode.0	Parametric
+AX MAP develop.tone.mode.1	Point
+AX MAP develop.slider.tone.curves.parametric.highlights	Highlights
+AX MAP develop.slider.tone.curves.parametric.lights	Lights
+AX MAP develop.slider.tone.curves.parametric.darks	Darks
+AX MAP develop.slider.tone.curves.parametric.shadows	Shadows
+AX MAP develop.panel.HSLColor	HSL / Color
+AX MAP develop.hsl.property.0	Hue
+AX MAP develop.hsl.property.1	Saturation
+AX MAP develop.hsl.property.2	Luminance
+AX MAP develop.hsl.target	Targeted adjustment: drag up/down on a colour in the loupe to change its hue
+AX MAP develop.slider.color.hsl.hue.red	Red
+AX MAP develop.slider.color.hsl.hue.orange	Orange
+AX MAP develop.slider.color.hsl.hue.yellow	Yellow
+AX MAP develop.slider.color.hsl.hue.green	Green
+AX MAP develop.slider.color.hsl.hue.aqua	Aqua
+AX MAP develop.slider.color.hsl.hue.blue	Blue
+AX MAP develop.slider.color.hsl.hue.purple	Purple
+AX MAP develop.slider.color.hsl.hue.magenta	Magenta
+AX MAP develop.panel.ColorGrading	Color Grading
+AX MAP develop.grading.mode.0	3-Way
+AX MAP develop.grading.mode.1	Shadows
+AX MAP develop.grading.mode.2	Midtones
+AX MAP develop.grading.mode.3	Highlights
+AX MAP develop.grading.mode.4	Global
+AX MAP develop.grading.shadows.wheel	Shadows
+AX MAP develop.grading.midtones.wheel	Midtones
+AX MAP develop.grading.highlights.wheel	Highlights
+AX MAP develop.slider.color.grading.shadows.luminance	Shadows
+AX MAP develop.slider.color.grading.midtones.luminance	Midtones
+AX MAP develop.slider.color.grading.highlights.luminance	Highlights
+AX MAP develop.grading.global.wheel	Global
+AX MAP develop.slider.color.grading.global.luminance	Global
+AX MAP develop.slider.color.grading.blending	Blending
+AX MAP develop.slider.color.grading.balance	Balance
+AX MAP develop.panel.Detail	Detail
+AX MAP develop.detail.previewArea	Choose the 1:1 preview area in the loupe
+AX MAP develop.slider.detail.sharpening.amount	Amount
+AX MAP develop.slider.detail.sharpening.radius	Radius
+AX MAP develop.slider.detail.sharpening.detail	Detail
+AX MAP develop.slider.detail.sharpening.masking	Masking
+AX MAP develop.detail.aiDenoise	AI Denoise
+AX MAP develop.detail.aiDenoise-amount	Amount
+AX MAP develop.slider.detail.noise_reduction.luminance	Luminance
+AX MAP develop.slider.detail.noise_reduction.luminance_detail	Detail
+AX MAP develop.slider.detail.noise_reduction.luminance_contrast	Contrast
+AX MAP develop.slider.detail.noise_reduction.color	Color
+AX MAP develop.slider.detail.noise_reduction.color_detail	Color Detail
+AX MAP develop.slider.detail.noise_reduction.color_smoothness	Smoothness
+AX MAP develop.panel.Transform	Transform
+AX MAP develop.transform.upright-reset	Reset
+AX MAP develop.transform.upright-off	Upright Off
+AX MAP develop.transform.upright-auto	Upright Auto
+AX MAP develop.transform.upright-guided	Upright Guided
+AX MAP develop.transform.upright-level	Upright Level
+AX MAP develop.transform.upright-vertical	Upright Vertical
+AX MAP develop.transform.upright-full	Upright Full
+AX MAP develop.transform.reset	Reset
+AX MAP develop.transform.vertical	Vertical
+AX MAP develop.transform.horizontal	Horizontal
+AX MAP develop.transform.rotate	Rotate
+AX MAP develop.transform.aspect	Aspect
+AX MAP develop.transform.scale	Scale
+AX MAP develop.transform.offset-x	Offset X
+AX MAP develop.transform.offset-y	Offset Y
+AX MAP develop.transform.constrain-crop	Constrain Crop
+AX MAP develop.panel.Effects	Effects
+AX MAP develop.effects.style	Vignette style
+AX MAP develop.slider.effects.vignette.amount	Amount
+AX MAP develop.slider.effects.vignette.midpoint	Midpoint
+AX MAP develop.slider.effects.vignette.roundness	Roundness
+AX MAP develop.slider.effects.vignette.feather	Feather
+AX MAP develop.slider.effects.vignette.highlights	Highlights
+AX MAP develop.slider.effects.grain.amount	Amount
+AX MAP develop.slider.effects.grain.size	Size
+AX MAP develop.slider.effects.grain.roughness	Roughness
+AX MAP develop.panel.LensBlur	Lens Blur
+AX MAP develop.lensBlur.apply	Apply
+AX MAP develop.lensBlur.amount	Blur Amount
+AX MAP develop.lensBlur.bokehShape	Bokeh shape
+AX MAP develop.lensBlur.visualize-depth	Visualize Depth
+AX MAP develop.lensBlur.subject	Subject
+AX MAP develop.lensBlur.refine-focus	Focus brush: paint areas to keep sharp
+AX MAP develop.lensBlur.refine-blur	Blur brush: paint areas to blur
+AX MAP develop.panel.CropStraighten	Crop & Straighten
+AX MAP develop.crop.begin	Crop & Straighten
+AX MAP develop.crop.straighten	Straighten: draw along a horizon or vertical in the loupe
+AX MAP develop.crop.reset	Reset
+AX MAP develop.crop.aspect	Crop aspect ratio
+AX MAP develop.crop.orientation	Swap landscape / portrait (X)
+AX MAP develop.crop.angle	Straighten angle
+AX MAP develop.crop.overlay	Crop overlay
+AX MAP develop.crop.constrain	Constrain to image
+AX MAP develop.panel.HDR	HDR
+AX MAP develop.hdr.enabled	HDR (extended dynamic range)
+AX MAP develop.hdr.headroom	Headroom
+AX MAP develop.panel.SoftProofing	Soft Proofing
+AX MAP develop.proof.enabled	Soft proofing
+AX MAP develop.proof.profile	Proof profile
+AX MAP develop.proof.chooseProfile	Other…
+AX MAP develop.proof.intent.0	Perceptual
+AX MAP develop.proof.intent.1	Relative
+AX MAP develop.proof.paper	Simulate paper and ink
+AX MAP develop.proof.blackPoint	Black point compensation
+AX MAP develop.proof.gamut	Gamut warning
+AX MAP develop.proof.warningColor	Gamut warning colour
+AX MAP develop.panel.Presets	Presets
+AX MAP develop.presets.new	Save Preset…
+AX MAP develop.panel.Snapshots	Snapshots
+AX MAP develop.snapshots.restore.AX%20snapshot	AX snapshot
+AX MAP develop.snapshots.new	New Snapshot…
+AX MAP develop.panel.History	History
+AX MAP develop.toolbar.sidebar	Show Sidebar
+AX MAP develop.toolbar.sidebar	Show Sidebar
+AX MAP develop.toolbar.workspace.0	Library
+AX MAP develop.toolbar.workspace.1	Edit photo
+AX MAP develop.toolbar.workspace.2	Review
+AX MAP develop.toolbar.open	Open Folder…
+AX MAP develop.toolbar.open	Open Folder…
+AX MAP develop.toolbar.review	Review 0
+AX MAP develop.toolbar.review	Review 0
+AX MAP develop.toolbar.inspector	Inspector
+AX AUDIT develop.window: 147 interactive controls
+AX MAP develop.basic.reset	Reset
+AX MAP develop.basic.snapshots	Snapshots
+AX MAP develop.basic.temperature	Temperature
+AX MAP develop.basic.tint	Tint
+AX MAP develop.basic.exposure	Exposure
+AX MAP develop.basic.contrast	Contrast
+AX MAP develop.basic.highlights	Highlights
+AX MAP develop.basic.shadows	Shadows
+AX MAP develop.basic.whites	Whites
+AX MAP develop.basic.blacks	Blacks
+AX MAP develop.basic.texture	Texture
+AX MAP develop.basic.clarity	Clarity
+AX MAP develop.basic.dehaze	Dehaze
+AX MAP develop.basic.vibrance	Vibrance
+AX MAP develop.basic.saturation	Saturation
+AX AUDIT develop.basic: 15 interactive controls
+AX MAP develop.tone.mode.0	Parametric
+AX MAP develop.tone.mode.1	Point
+AX MAP develop.slider.tone.curves.parametric.highlights	Highlights
+AX MAP develop.slider.tone.curves.parametric.lights	Lights
+AX MAP develop.slider.tone.curves.parametric.darks	Darks
+AX MAP develop.slider.tone.curves.parametric.shadows	Shadows
+AX AUDIT develop.tone: 6 interactive controls
+AX MAP develop.hsl.property.0	Hue
+AX MAP develop.hsl.property.1	Saturation
+AX MAP develop.hsl.property.2	Luminance
+AX MAP develop.hsl.target	Targeted adjustment: drag up/down on a colour in the loupe to change its hue
+AX MAP develop.slider.color.hsl.hue.red	Red
+AX MAP develop.slider.color.hsl.hue.orange	Orange
+AX MAP develop.slider.color.hsl.hue.yellow	Yellow
+AX MAP develop.slider.color.hsl.hue.green	Green
+AX MAP develop.slider.color.hsl.hue.aqua	Aqua
+AX MAP develop.slider.color.hsl.hue.blue	Blue
+AX MAP develop.slider.color.hsl.hue.purple	Purple
+AX MAP develop.slider.color.hsl.hue.magenta	Magenta
+AX AUDIT develop.colour: 12 interactive controls
+AX MAP develop.grading.mode.0	3-Way
+AX MAP develop.grading.mode.1	Shadows
+AX MAP develop.grading.mode.2	Midtones
+AX MAP develop.grading.mode.3	Highlights
+AX MAP develop.grading.mode.4	Global
+AX MAP develop.grading.shadows.wheel	Shadows
+AX MAP develop.grading.midtones.wheel	Midtones
+AX MAP develop.grading.highlights.wheel	Highlights
+AX MAP develop.slider.color.gradinTest Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testLibraryAndDevelopWindows]' passed (5.040 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testPressActionIsAuditedRegardlessOfRole]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testPressActionIsAuditedRegardlessOfRole]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarNativeSelectionAndDisclosureArePreserved]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarNativeSelectionAndDisclosureArePreserved]' passed (0.087 seconds).
+Test Suite 'LibraryDevelopAccessibilityTests' passed at 2026-10-02 00:59:28.381.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 5.939 (5.939) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-02 00:59:28.381.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 5.939 (5.939) seconds
+Test Suite 'Selected tests' passed at 2026-10-02 00:59:28.381.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 5.939 (5.940) seconds
+g.shadows.luminance	Shadows
+AX MAP develop.slider.color.grading.midtones.luminance	Midtones
+AX MAP develop.slider.color.grading.highlights.luminance	Highlights
+AX MAP develop.grading.global.wheel	Global
+AX MAP develop.slider.color.grading.global.luminance	Global
+AX MAP develop.slider.color.grading.blending	Blending
+AX MAP develop.slider.color.grading.balance	Balance
+AX AUDIT develop.grading: 15 interactive controls
+AX MAP develop.detail.previewArea	Choose the 1:1 preview area in the loupe
+AX MAP develop.slider.detail.sharpening.amount	Amount
+AX MAP develop.slider.detail.sharpening.radius	Radius
+AX MAP develop.slider.detail.sharpening.detail	Detail
+AX MAP develop.slider.detail.sharpening.masking	Masking
+AX MAP develop.detail.aiDenoise	AI Denoise
+AX MAP develop.detail.aiDenoise-amount	Amount
+AX MAP develop.slider.detail.noise_reduction.luminance	Luminance
+AX MAP develop.slider.detail.noise_reduction.luminance_detail	Detail
+AX MAP develop.slider.detail.noise_reduction.luminance_contrast	Contrast
+AX MAP develop.slider.detail.noise_reduction.color	Color
+AX MAP develop.slider.detail.noise_reduction.color_detail	Color Detail
+AX MAP develop.slider.detail.noise_reduction.color_smoothness	Smoothness
+AX AUDIT develop.detail: 13 interactive controls
+AX MAP develop.transform.upright-reset	Reset
+AX MAP develop.transform.upright-off	Upright Off
+AX MAP develop.transform.upright-auto	Upright Auto
+AX MAP develop.transform.upright-guided	Upright Guided
+AX MAP develop.transform.upright-level	Upright Level
+AX MAP develop.transform.upright-vertical	Upright Vertical
+AX MAP develop.transform.upright-full	Upright Full
+AX MAP develop.transform.reset	Reset
+AX MAP develop.transform.vertical	Vertical
+AX MAP develop.transform.horizontal	Horizontal
+AX MAP develop.transform.rotate	Rotate
+AX MAP develop.transform.aspect	Aspect
+AX MAP develop.transform.scale	Scale
+AX MAP develop.transform.offset-x	Offset X
+AX MAP develop.transform.offset-y	Offset Y
+AX MAP develop.transform.constrain-crop	Constrain Crop
+AX AUDIT develop.transform: 16 interactive controls
+AX MAP develop.effects.style	Vignette style
+AX MAP develop.slider.effects.vignette.amount	Amount
+AX MAP develop.slider.effects.vignette.midpoint	Midpoint
+AX MAP develop.slider.effects.vignette.roundness	Roundness
+AX MAP develop.slider.effects.vignette.feather	Feather
+AX MAP develop.slider.effects.vignette.highlights	Highlights
+AX MAP develop.slider.effects.grain.amount	Amount
+AX MAP develop.slider.effects.grain.size	Size
+AX MAP develop.slider.effects.grain.roughness	Roughness
+AX AUDIT develop.effects: 9 interactive controls
+AX MAP develop.lensBlur.apply	Apply
+AX MAP develop.lensBlur.amount	Blur Amount
+AX MAP develop.lensBlur.bokehShape	Bokeh shape
+AX MAP develop.lensBlur.visualize-depth	Visualize Depth
+AX MAP develop.lensBlur.subject	Subject
+AX MAP develop.lensBlur.refine-focus	Focus brush: paint areas to keep sharp
+AX MAP develop.lensBlur.refine-blur	Blur brush: paint areas to blur
+AX AUDIT develop.lensBlur: 7 interactive controls
+AX MAP develop.crop.begin	Crop & Straighten
+AX MAP develop.crop.straighten	Straighten: draw along a horizon or vertical in the loupe
+AX MAP develop.crop.reset	Reset
+AX MAP develop.crop.aspect	Crop aspect ratio
+AX MAP develop.crop.orientation	Swap landscape / portrait (X)
+AX MAP develop.crop.angle	Straighten angle
+AX MAP develop.crop.overlay	Crop overlay
+AX MAP develop.crop.constrain	Constrain to image
+AX AUDIT develop.crop: 8 interactive controls
+AX MAP develop.hdr.enabled	HDR (extended dynamic range)
+AX MAP develop.hdr.headroom	Headroom
+AX AUDIT develop.hdr: 2 interactive controls
+AX MAP develop.proof.enabled	Soft proofing
+AX MAP develop.proof.profile	Proof profile
+AX MAP develop.proof.chooseProfile	Other…
+AX MAP develop.proof.intent.0	Perceptual
+AX MAP develop.proof.intent.1	Relative
+AX MAP develop.proof.paper	Simulate paper and ink
+AX MAP develop.proof.blackPoint	Black point compensation
+AX MAP develop.proof.gamut	Gamut warning
+AX MAP develop.proof.warningColor	Gamut warning colour
+AX AUDIT develop.proof: 9 interactive controls
+AX MAP develop.presets.apply.AX%20preset	Apply preset AX preset
+AX MAP develop.presets.new	Save Preset…
+AX AUDIT develop.presets: 2 interactive controls
+AX MAP develop.snapshots.restore.AX%20snapshot	AX snapshot
+AX MAP develop.snapshots.new	New Snapshot…
+AX AUDIT develop.snapshots: 2 interactive controls
+AX MAP develop.history.step.1.enabled	Enable Edit
+AX MAP develop.history.step.1.restore	Restore Edit
+AX MAP develop.history.original	Original
+AX AUDIT develop.history: 3 interactive controls
+AX MAP develop.hsl.property.0	Hue
+AX MAP develop.hsl.property.1	Saturation
+AX MAP develop.hsl.property.2	Luminance
+AX MAP develop.hsl.target	Targeted adjustment: drag up/down on a colour in the loupe to change its hue
+AX MAP develop.slider.color.hsl.hue.red	Red
+AX MAP develop.slider.color.hsl.hue.orange	Orange
+AX MAP develop.slider.color.hsl.hue.yellow	Yellow
+AX MAP develop.slider.color.hsl.hue.green	Green
+AX MAP develop.slider.color.hsl.hue.aqua	Aqua
+AX MAP develop.slider.color.hsl.hue.blue	Blue
+AX MAP develop.slider.color.hsl.hue.purple	Purple
+AX MAP develop.slider.color.hsl.hue.magenta	Magenta
+AX AUDIT develop.hsl.0: 12 interactive controls
+AX MAP develop.hsl.property.0	Hue
+AX MAP develop.hsl.property.1	Saturation
+AX MAP develop.hsl.property.2	Luminance
+AX MAP develop.hsl.target	Targeted adjustment: drag up/down on a colour in the loupe to change its saturation
+AX MAP develop.slider.color.hsl.saturation.red	Red
+AX MAP develop.slider.color.hsl.saturation.orange	Orange
+AX MAP develop.slider.color.hsl.saturation.yellow	Yellow
+AX MAP develop.slider.color.hsl.saturation.green	Green
+AX MAP develop.slider.color.hsl.saturation.aqua	Aqua
+AX MAP develop.slider.color.hsl.saturation.blue	Blue
+AX MAP develop.slider.color.hsl.saturation.purple	Purple
+AX MAP develop.slider.color.hsl.saturation.magenta	Magenta
+AX AUDIT develop.hsl.1: 12 interactive controls
+AX MAP develop.hsl.property.0	Hue
+AX MAP develop.hsl.property.1	Saturation
+AX MAP develop.hsl.property.2	Luminance
+AX MAP develop.hsl.target	Targeted adjustment: drag up/down on a colour in the loupe to change its luminance
+AX MAP develop.slider.color.hsl.luminance.red	Red
+AX MAP develop.slider.color.hsl.luminance.orange	Orange
+AX MAP develop.slider.color.hsl.luminance.yellow	Yellow
+AX MAP develop.slider.color.hsl.luminance.green	Green
+AX MAP develop.slider.color.hsl.luminance.aqua	Aqua
+AX MAP develop.slider.color.hsl.luminance.blue	Blue
+AX MAP develop.slider.color.hsl.luminance.purple	Purple
+AX MAP develop.slider.color.hsl.luminance.magenta	Magenta
+AX AUDIT develop.hsl.2: 12 interactive controls
+AX MAP develop.grading.mode.0	3-Way
+AX MAP develop.grading.mode.1	Shadows
+AX MAP develop.grading.mode.2	Midtones
+AX MAP develop.grading.mode.3	Highlights
+AX MAP develop.grading.mode.4	Global
+AX MAP develop.grading.shadows.wheel	Shadows
+AX MAP develop.slider.color.grading.shadows.hue	Hue
+AX MAP develop.slider.color.grading.shadows.saturation	Saturation
+AX MAP develop.slider.color.grading.shadows.luminance	Luminance
+AX MAP develop.slider.color.grading.blending	Blending
+AX MAP develop.slider.color.grading.balance	Balance
+AX AUDIT develop.grading.1: 11 interactive controls
+AX MAP develop.grading.mode.0	3-Way
+AX MAP develop.grading.mode.1	Shadows
+AX MAP develop.grading.mode.2	Midtones
+AX MAP develop.grading.mode.3	Highlights
+AX MAP develop.grading.mode.4	Global
+AX MAP develop.grading.midtones.wheel	Midtones
+AX MAP develop.slider.color.grading.midtones.hue	Hue
+AX MAP develop.slider.color.grading.midtones.saturation	Saturation
+AX MAP develop.slider.color.grading.midtones.luminance	Luminance
+AX MAP develop.slider.color.grading.blending	Blending
+AX MAP develop.slider.color.grading.balance	Balance
+AX AUDIT develop.grading.2: 11 interactive controls
+AX MAP develop.grading.mode.0	3-Way
+AX MAP develop.grading.mode.1	Shadows
+AX MAP develop.grading.mode.2	Midtones
+AX MAP develop.grading.mode.3	Highlights
+AX MAP develop.grading.mode.4	Global
+AX MAP develop.grading.highlights.wheel	Highlights
+AX MAP develop.slider.color.grading.highlights.hue	Hue
+AX MAP develop.slider.color.grading.highlights.saturation	Saturation
+AX MAP develop.slider.color.grading.highlights.luminance	Luminance
+AX MAP develop.slider.color.grading.blending	Blending
+AX MAP develop.slider.color.grading.balance	Balance
+AX AUDIT develop.grading.3: 11 interactive controls
+AX MAP develop.grading.mode.0	3-Way
+AX MAP develop.grading.mode.1	Shadows
+AX MAP develop.grading.mode.2	Midtones
+AX MAP develop.grading.mode.3	Highlights
+AX MAP develop.grading.mode.4	Global
+AX MAP develop.grading.global.wheel	Global
+AX MAP develop.slider.color.grading.global.hue	Hue
+AX MAP develop.slider.color.grading.global.saturation	Saturation
+AX MAP develop.slider.color.grading.global.luminance	Luminance
+AX MAP develop.slider.color.grading.blending	Blending
+AX MAP develop.slider.color.grading.balance	Balance
+AX AUDIT develop.grading.4: 11 interactive controls
+AX MAP develop.crop.done	Done
+AX MAP develop.crop.cancel	Cancel
+AX MAP develop.crop.straighten	Straighten: draw along a horizon or vertical in the loupe
+AX MAP develop.crop.reset	Reset
+AX MAP develop.crop.aspect	Crop aspect ratio
+AX MAP develop.crop.orientation	Swap landscape / portrait (X)
+AX MAP develop.crop.angle	Straighten angle
+AX MAP develop.crop.overlay	Crop overlay
+AX MAP develop.crop.constrain	Constrain to image
+AX AUDIT develop.cropActive: 9 interactive controls
+AX MAP develop.tone.mode.0	Parametric
+AX MAP develop.tone.mode.1	Point
+AX MAP develop.tone.channel.0	RGB
+AX MAP develop.tone.channel.1	R
+AX MAP develop.tone.channel.2	G
+AX MAP develop.tone.channel.3	B
+AX MAP develop.tone.channel.4	L
+AX MAP develop.tone.presets	Curve Presets
+AX MAP develop.tone.reset	Reset RGB
+AX AUDIT develop.pointCurve: 9 interactive controls
+AX MAP develop.maskToolbar.tool.brush	Brush — Paint on the photo · ⌥ erases · [ ] size · ⇧[ ] feather
+AX MAP develop.maskToolbar.tool.linear	Linear Gradient — Drag from full effect to none · ⌥ subtracts from the mask
+AX MAP develop.maskToolbar.tool.radial	Radial Gradient — Drag from the centre outwards · ⌥ subtracts
+AX MAP develop.maskToolbar.tool.colorRange	Color Range — Click a colour · ⇧-click adds a sample · ⌥ subtracts
+AX MAP develop.maskToolbar.tool.luminanceRange	Luminance Range — Click a tone to select its brightness range · ⌥ subtracts
+AX MAP develop.maskToolbar.ai.subject	Subject
+AX MAP develop.maskToolbar.ai.sky	Sky
+AX MAP develop.maskToolbar.ai.background	Background
+AX MAP develop.maskToolbar.tool.person	People — Drag a box around a face
+AX MAP develop.maskToolbar.tool.object	Objects — Click an object or drag a box around it · ⌥ subtracts
+AX MAP develop.maskToolbar.overlay	Show the mask overlay (O)
+AX MAP develop.maskToolbar.overlayColor	Overlay colour
+AX MAP develop.maskToolbar.done	Done
+AX MAP develop.maskToolbar.brush.size	Size
+AX MAP develop.maskToolbar.brush.feather	Feather
+AX MAP develop.maskToolbar.brush.flow	Flow
+AX AUDIT develop.maskToolbar: 16 interactive controls
+AX MAP develop.masks.showTools	Show mask tools
+AX MAP develop.masks.create	Create mask
+AX MAP develop.masks.row.0.visibility	Hide this mask's adjustments
+AX MAP develop.masks.component.add	Add component to selected mask
+AX MAP develop.masks.component.subtract	Subtract component from selected mask
+AX MAP develop.masks.component.intersect	Intersect component with selected mask
+AX MAP develop.masks.component.0.invert	Invert this component
+AX MAP develop.masks.component.0.remove	Remove this component
+AX MAP develop.masks.component.1.combine	Component combination mode
+AX MAP develop.masks.component.1.invert	Invert this component
+AX MAP develop.masks.component.1.remove	Remove this component
+AX MAP develop.masks.invert	Invert
+AX MAP develop.masks.reset	Reset Sliders
+AX MAP develop.masks.amount	Amount
+AX MAP develop.masks.slider.temperature	Temp
+AX MAP develop.masks.slider.tint	Tint
+AX MAP develop.masks.slider.exposure	Exposure
+AX MAP develop.masks.slider.contrast	Contrast
+AX MAP develop.masks.slider.highlights	Highlights
+AX MAP develop.masks.slider.shadows	Shadows
+AX MAP develop.masks.slider.whites	Whites
+AX MAP develop.masks.slider.blacks	Blacks
+AX MAP develop.masks.slider.texture	Texture
+AX MAP develop.masks.slider.clarity	Clarity
+AX MAP develop.masks.slider.dehaze	Dehaze
+AX MAP develop.masks.slider.hue	Hue
+AX MAP develop.masks.slider.saturation	Saturation
+AX MAP develop.masks.slider.sharpness	Sharpness
+AX MAP develop.masks.slider.noise	Noise
+AX MAP develop.masks.slider.moire	Moiré
+AX AUDIT develop.selectedMask: 30 interactive controls
+AX MAP library.test.pressable	Pressable group
+AX AUDIT library.pressable: 1 interactive controls
+AX MAP library.test.pressableElement	Pressable element
+AX AUDIT library.pressableElement: 1 interactive controls
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
