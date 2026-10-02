@@ -124,7 +124,15 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
     }
 
-    func testCombinedKeyboardChecklist() throws {
+    func testCombinedKeyboardChecklistFKAOn() throws {
+        try KeyboardAccessHarness.withMode(true) { try checklist() }
+    }
+
+    func testCombinedKeyboardChecklistFKAOff() throws {
+        try KeyboardAccessHarness.withMode(false) { try checklist() }
+    }
+
+    private func checklist() throws {
         rows = []; events = []
         do { try executeChecklist() }
         catch {
