@@ -8,6 +8,10 @@ pub fn lossy_dng(be: bool, strips: bool) -> Vec<u8> {
 }
 
 pub fn lossy_dng_with_jpeg(be: bool, strips: bool, jpeg: &[u8]) -> Vec<u8> {
+    lossy_dng_with_opcodes(be, strips, jpeg, &[])
+}
+
+pub fn lossy_dng_with_opcodes(be: bool, strips: bool, jpeg: &[u8], opcodes: &[u8]) -> Vec<u8> {
     let short = |v: u16| if be { v.to_be_bytes() } else { v.to_le_bytes() };
     let long = |v: u32| if be { v.to_be_bytes() } else { v.to_le_bytes() };
     let shorts = |v: &[u16]| v.iter().flat_map(|&v| short(v)).collect::<Vec<_>>();
@@ -44,6 +48,7 @@ pub fn lossy_dng_with_jpeg(be: bool, strips: bool, jpeg: &[u8]) -> Vec<u8> {
         (50728, 5, 3, longs(&[1, 2, 1, 1, 2, 3])),
         (50778, 3, 1, shorts(&[21])),
     ];
+    if !opcodes.is_empty() { tags.push((51009, 7, opcodes.len() as u32, opcodes.to_vec())); }
     tags.extend(if strips {
         vec![
             (273, 4, 1, longs(&[0])),

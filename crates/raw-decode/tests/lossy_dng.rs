@@ -35,7 +35,7 @@ fn malformed_ifd_and_tile_ranges_fail_without_panicking() {
 }
 
 #[test]
-fn jpeg_xl_is_explicitly_unsupported_not_mistaken_for_classic_jpeg() {
+fn jpeg_xl_tag_does_not_accept_classic_jpeg_payload() {
     let mut bytes = support::lossy_dng(false, false);
     let ifd = 38;
     let n = u16::from_le_bytes(bytes[ifd..ifd + 2].try_into().unwrap()) as usize;
@@ -46,8 +46,8 @@ fn jpeg_xl_is_explicitly_unsupported_not_mistaken_for_classic_jpeg() {
     }
     let error = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(bytes))
         .err()
-        .expect("unsupported JPEG XL");
-    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+        .expect("invalid JPEG XL payload");
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
 }
 
 #[test]
@@ -90,4 +90,23 @@ fn adobe_marker_and_rgb_component_ids_do_not_transform_camera_channels() {
             .unwrap();
         assert_eq!(decoded.pixels, baseline.pixels);
     }
+}
+
+#[test]
+fn required_polynomial_maps_only_selected_area_and_plane_before_crop() {
+    let mut payload = Vec::new();
+    for v in [4u32,3,8,9,1,1,1,1,2] { payload.extend(v.to_be_bytes()); }
+    for v in [0.1_f64,0.5,0.25] { payload.extend(v.to_be_bytes()); }
+    let mut list = Vec::new();
+    for v in [1u32,8,0x01030000,0,payload.len() as u32] { list.extend(v.to_be_bytes()); }
+    list.extend(payload);
+    let base = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false,false))).unwrap().unwrap();
+    let bytes = support::lossy_dng_with_opcodes(false,false,include_bytes!("fixtures/linear-gradient.jpg"),&list);
+    let mapped = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(bytes)).unwrap().unwrap();
+    for y in 0..10 { for x in 0..12 { for c in 0..3 {
+        let v = base.pixels[y*12+x][c];
+        let expected = if (4..8).contains(&(y+3)) && (3..9).contains(&(x+2)) && c==1 { 0.1+0.5*v+0.25*v*v } else { v };
+        assert!((mapped.pixels[y*12+x][c]-expected).abs()<1e-6);
+    }}}
+    assert!(mapped.metadata.opcode_lists[1].is_none(), "consumed exactly once");
 }
