@@ -190,6 +190,11 @@ pub(super) fn export_masks(v: &Value) -> EngineResult<String> {
             b += &scalar("crs:LocalToningHue", &a[0]);
             b += &scalar("crs:LocalToningSaturation", &a[1]);
         }
+        for key in ["curves", "curves_extended", "point_colors"] {
+            if !v["params"][key].is_null() {
+                b += &native(&format!("ts:{key}"), &v["params"][key]);
+            }
+        }
         let mut components = String::new();
         for c in v["components"]
             .as_array()
@@ -380,6 +385,16 @@ pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<V
                 v["params"]["color_overlay"] = json!(overlay);
             }
         }
+        if !(0.0..=100.0).contains(&v["params"]["defringe"].as_f64().unwrap_or(f64::NAN)) {
+            return Err(error("invalid local defringe"));
+        }
+        if let Some(a) = v["params"]["color_overlay"].as_array()
+            && (!(0.0..=360.0).contains(&a[0].as_f64().unwrap_or(f64::NAN))
+                || !(0.0..=100.0).contains(&a[1].as_f64().unwrap_or(f64::NAN)))
+        {
+            return Err(error("invalid local colour overlay"));
+        }
+        import_local_extras(t, n, &mut v["params"])?;
         let mut components = Vec::new();
         if let Some(masks) = child(t, n, CRS, "CorrectionMasks") {
             for c in t.items(masks) {
@@ -648,6 +663,56 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
         flag(get(t, n, CRS, "MaskInverted"), false)?
     };
     c["invert"] = json!(c["invert"].as_bool().unwrap_or(false) ^ component_invert);
+    if ["InstanceIDs", "InstanceBounds"]
+        .iter()
+        .any(|key| get(t, n, CRS, key).is_some())
+        && c["kind"] != "object"
+    {
+        return Err(error("individual instance hint requires an object mask"));
+    }
+    if c["kind"] == "object" && !c["adobe_ai"].is_null() {
+        let mut hint = serde_json::Map::new();
+        for (name, allowed) in [
+            ("InstanceIDs", &["InstanceID"][..]),
+            ("InstanceBounds", &["Left", "Top", "Right", "Bottom"][..]),
+        ] {
+            if let Some(list) = child(t, n, CRS, name) {
+                super::structures::point_colors::validate_list(t, list)?;
+                if t.items(list).len() > 65536 {
+                    return Err(error("instance hint too large"));
+                }
+                let mut values = Vec::new();
+                for item in t.items(list) {
+                    let item = resource(t, item);
+                    if item
+                        .attrs
+                        .iter()
+                        .any(|a| a.ns == CRS && !allowed.contains(&a.local.as_str()))
+                        || item.children.iter().any(|i| {
+                            let c = &t.nodes[*i];
+                            c.ns != CRS || !allowed.contains(&c.local.as_str())
+                        })
+                    {
+                        return Err(error("unsupported instance hint field"));
+                    }
+                    let mut value = serde_json::Map::new();
+                    for key in allowed {
+                        let raw = get(t, item, CRS, key)
+                            .ok_or_else(|| error("missing instance hint field"))?;
+                        value.insert((*key).into(), json!(number(&raw)?));
+                    }
+                    values.push(Value::Object(value));
+                }
+                if values.is_empty() {
+                    return Err(error("empty instance hint"));
+                }
+                hint.insert(name.into(), json!(values));
+            }
+        }
+        if !hint.is_empty() {
+            c["adobe_ai"]["instance_hint"] = Value::Object(hint);
+        }
+    }
     if !matches!(kind, "range" | "luminance_range" | "color_range" | "depth")
         && let Some(range) = child(t, n, CRS, "CorrectionRangeMask")
     {
@@ -886,4 +951,76 @@ fn srgb_to_oklab(rgb: [f64; 3]) -> [f64; 3] {
         1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
         0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
     ]
+}
+
+// LR-11: reuse the global point-colour grammar and curve representation.
+fn import_local_extras(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<()> {
+    for (prefix, field) in [("", "curves"), ("Extended", "curves_extended")] {
+        let mut curves = if prefix == "Extended" && !params["curves"].is_null() {
+            params["curves"].clone()
+        } else {
+            serde_json::to_value(engine_api::recipe::settings::ToneCurves::default())?
+        };
+        let mut present = false;
+        for (name, channel) in [
+            ("MainCurve", "rgb"),
+            ("RedCurve", "red"),
+            ("GreenCurve", "green"),
+            ("BlueCurve", "blue"),
+        ] {
+            if let Some(curve) = child(t, n, CRS, &format!("{prefix}{name}")) {
+                super::structures::point_colors::validate_list(t, curve)?;
+                let mut points = Vec::new();
+                for item in t.items(curve) {
+                    if !item.children.is_empty() || !item.attrs.is_empty() {
+                        return Err(error("unsupported local curve point shape"));
+                    }
+                    let pair = item
+                        .text
+                        .split(',')
+                        .map(number)
+                        .collect::<EngineResult<Vec<_>>>()?;
+                    if pair.len() != 2
+                        || (prefix.is_empty() && pair.iter().any(|v| !(0.0..=255.0).contains(v)))
+                    {
+                        return Err(error("local curve requires coordinate pairs"));
+                    }
+                    points.push(json!({"x":pair[0]/255., "y":pair[1]/255.}));
+                }
+                if points.len() < 2
+                    || points.windows(2).any(|p| {
+                        p[0]["x"].as_f64() >= p[1]["x"].as_f64()
+                            || p[0]["y"].as_f64() > p[1]["y"].as_f64()
+                    })
+                {
+                    return Err(error("invalid local curve points"));
+                }
+                curves[channel] = json!(points);
+                present = true;
+            }
+        }
+        if present {
+            params[field] = curves;
+        }
+    }
+    if let Some(points) = child(t, n, CRS, "LocalPointColors")
+        && !(points.children.is_empty() && points.attrs.is_empty() && points.text.trim().is_empty())
+    {
+        super::structures::point_colors::validate_list(t, points)?;
+        let decoded = t
+            .items(points)
+            .into_iter()
+            .map(|item| super::structures::point_colors::decode(t, item))
+            .collect::<EngineResult<Vec<_>>>()?;
+        let decoded: Vec<_> = decoded.into_iter().flatten().collect();
+        if !decoded.is_empty() {
+            params["point_colors"] = serde_json::to_value(decoded)?;
+        }
+    }
+    for field in ["curves", "curves_extended", "point_colors"] {
+        if let Some(v) = extension(t, n, field)? {
+            params[field] = v;
+        }
+    }
+    Ok(())
 }

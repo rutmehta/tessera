@@ -43,23 +43,6 @@ fn local_adjustments_are_renderable_recipe_fields() {
     }
 }
 #[test]
-fn object_instance_is_approximate_and_retains_hint() {
-    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{LocalExposure2012=1,CorrectionMasks={{What='Mask/Image',MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{InstanceID=1}},InstanceBounds={{Left=0.2,Top=0.2,Right=0.8,Bottom=0.8}}}}}}}","15.4").unwrap();
-    assert!(w.is_empty(), "{w:?}");
-    assert!(
-        diagnostics::entries(&r)
-            .values()
-            .flatten()
-            .any(|d| d.status == "approximate" && d.reason.contains("per-instance"))
-    );
-    assert!(
-        serde_json::to_value(&r)
-            .unwrap()
-            .pointer("/settings/locals/adjustments/0/components/0/adobe_ai/instance_hint")
-            .is_some()
-    );
-}
-#[test]
 fn radial_conflict_has_named_note() {
     let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{LocalExposure2012=1,CorrectionMasks={{What='Mask/CircularGradient',Left=0.2,Top=0.2,Right=0.8,Bottom=0.8,Flipped=true,MaskInverted=true}}}}}","15.4").unwrap();
     assert!(
@@ -76,7 +59,6 @@ fn lua_and_xmp_fixtures_map_identically_and_keep_exact_source() {
         "point-color",
         "overlay",
         "defringe",
-        "instance",
         "radial-conflict",
     ] {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/lr11");
@@ -189,4 +171,30 @@ fn indexed_local_point_color_sdk_resources_share_global_decoder() {
             .hue_shift,
         30.
     );
+}
+
+#[test]
+fn empty_local_point_controls_do_not_create_new_recipe_fields_or_lr11_notes() {
+    for source in [
+        "LocalPointColors={}",
+        "LocalPointColors=''",
+        "LocalDefringe=0",
+        "LocalPointColors={'-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1'}",
+    ] {
+        let (r, w) = lua_develop::parse(
+            &format!("s={{MaskGroupBasedCorrections={{{{{source},{GRADIENT}}}}}}}"),
+            "15.4",
+        )
+        .unwrap();
+        assert!(w.is_empty(), "{source}: {w:?}");
+        let p = &r.settings.locals.adjustments[0].params;
+        assert!(p.point_colors.is_none());
+        assert_eq!(p.defringe, 0.);
+        assert!(
+            !diagnostics::entries(&r)
+                .values()
+                .flatten()
+                .any(|d| d.lane == "LR-11")
+        );
+    }
 }

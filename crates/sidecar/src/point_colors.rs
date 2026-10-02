@@ -76,7 +76,7 @@ fn number(value: &str) -> EngineResult<f32> {
         .filter(|v| v.is_finite())
         .ok_or_else(|| error("invalid PointColors number"))
 }
-pub(super) fn decode(tree: &Tree, item: &Node) -> EngineResult<Option<PointColor>> {
+pub(crate) fn decode(tree: &Tree, item: &Node) -> EngineResult<Option<PointColor>> {
     let values: Vec<f32> = if item.children.is_empty() && item.attrs.is_empty() {
         item.text
             .split(',')
@@ -143,12 +143,12 @@ pub(super) fn decode(tree: &Tree, item: &Node) -> EngineResult<Option<PointColor
     point.validate()?;
     Ok(Some(point))
 }
-pub(super) fn is_native(tree: &Tree, item: &Node) -> bool {
+pub(crate) fn is_native(tree: &Tree, item: &Node) -> bool {
     scalar(tree, item, PRIVATE, "Type").is_some()
 }
 
 // Do not let the permissive XML index silently ignore a future list extension.
-pub(super) fn validate_list(tree: &Tree, n: &Node) -> EngineResult<()> {
+pub(crate) fn validate_list(tree: &Tree, n: &Node) -> EngineResult<()> {
     let valid_container = |n: &Node| n.attrs.is_empty() && n.text.trim().is_empty();
     if !valid_container(n) || n.children.len() != 1 {
         return Err(error("unsupported PointColors list shape"));
