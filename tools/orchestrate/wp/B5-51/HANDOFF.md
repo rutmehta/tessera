@@ -7,13 +7,16 @@ production behavior, dependencies, bindings, lockfile, or board changes.
 ## Reuse
 
 Set `TESSERA_LRCAT_PROFILE` to a scratch catalog copy and `TESSERA_APP_DIR` to an
-existing, empty, dedicated temporary directory. The harness rejects other locations.
+existing, empty, dedicated temporary directory under canonical `/tmp` or Darwin's
+OS-provided user temp directory. `$TMPDIR` cannot extend this allowlist. App
+directories inside `.lrdata` or `.lrcat` bundles are rejected after canonicalization.
 Do not point either variable at user media or Lightroom-managed storage.
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
 export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-51
-export CARGO_BUILD_JOBS=3
+export CARGO_BUILD_JOBS=4
+export RAYON_NUM_THREADS=4
 cargo test --release -p tessera-ffi --lib \
   lrcat::lrcat_profile::profile_from_env -- \
   --exact --ignored --nocapture --test-threads=1
@@ -334,3 +337,42 @@ recorded 9.81/11.46 seconds and 591,904,768/764,100,608 bytes before its follow-
 | Vibrance | 21,615 | 0 | 0 |
 | WhiteBalance | 21,615 | 0 | 0 |
 | Whites2012 | 21,615 | 0 | 0 |
+
+
+## B5-51b: Machine A round 2 nits
+
+All fixtures added in this follow-up are synthetic. No real-catalog rerun was
+needed; the historical measurements above are unchanged.
+
+| A finding | Status and implementation | Regression test |
+|---|---|---|
+| `$TMPDIR` could widen the temp allowlist | Done: query Darwin `confstr(_CS_DARWIN_USER_TEMP_DIR)` directly and canonicalize it; retain canonical `/tmp`. The same roots constrain app, catalog, preview and WAL/SHM paths. A subprocess overrides only its own environment and checks rejection before any app writes. | `profile_rejects_tmpdir_widening` |
+| App directory inside `.lrdata` / `.lrcat` | Done: reject either extension on any canonical app ancestor, case-insensitively, before opening the engine. Tests cover nested app directories under both extensions and uppercase variants and assert they stay empty. | `profile_rejects_lightroom_bundle_app_dirs` |
+| Immutable read-only catalog audit | Done: percent-encode path bytes into a `file:` URI with `mode=ro&immutable=1` and explicit read-only / URI flags. Test reads the committed synthetic database while another connection holds an exclusive lock, rejects writes, and checks no sibling files appear; filename contains URI delimiters. | `audit_catalog_is_immutable_and_read_only` |
+| Debug synthetic test silently passed | Done: replace the early return with `cfg_attr(debug_assertions, ignore = "requires release profile")`. A debug regression invokes the runner's ignored-test listing and checks the synthetic profile appears. | `debug_runner_lists_synthetic_profile_as_ignored` |
+
+RED commit: `b81783d0`. Release regression run: 1 passed, 3 failed as
+expected; focused debug regression: 0 passed, 1 failed as expected. The RED
+commit only extracts the existing audit open into a helper and adds tests.
+
+Fix commit: `9140a485`. Final gates used the lane target directory, four Cargo
+jobs and four Rayon threads. `cargo clean -p tessera-ffi --release` and
+`cargo clean -p tessera-ffi` both completed before the final gates.
+
+- `cargo test --release -p tessera-ffi`: **585 passed, 31 ignored, 0 failed**
+  across unit, integration and doc-test results. Includes all three new release
+  regressions, the original synthetic profile and the existing streaming scale test.
+- `cargo test -p tessera-ffi --lib lrcat::lrcat_profile`: **2 passed, 4 ignored,
+  0 failed**. The synthetic profile is explicitly reported ignored in debug; the
+  ignored-test-list regression and immutable read test pass.
+- `cargo clippy --workspace --all-targets -- -D warnings`: **passed**.
+  Existing vendored LibRaw C++ deprecation notices remain build-script output.
+- `cargo fmt --all --check`: **passed**.
+- `git diff --check`: **passed**.
+
+Nothing deferred from the four B5-51 findings. No GUI launch or focus change,
+system-setting change, real-catalog profiling, protected-library access, board
+change, or lockfile change was needed. The follow-up changes only this handoff and
+`crates/tessera-ffi/src/lrcat_profile.rs`. The authorized publication is
+`git push origin wp/B5-51`; Machine A remains the sole merger.
+
