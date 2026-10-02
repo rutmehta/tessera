@@ -184,15 +184,18 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
         [],
         |r| r.get(0),
     ))?;
-    let mut statement = safe(db.prepare("SELECT image, CASE WHEN octet_length(text) <= 4194304 THEN CAST(text AS TEXT) ELSE NULL END FROM Adobe_imageDevelopSettings WHERE rowid IN (SELECT max(rowid) FROM Adobe_imageDevelopSettings GROUP BY image) AND image IN (SELECT id_local FROM Adobe_images)"))?;
+    let mut statement = safe(db.prepare("SELECT image, processVersion, CASE WHEN octet_length(text) <= 4194304 THEN CAST(text AS TEXT) ELSE NULL END FROM Adobe_imageDevelopSettings WHERE rowid IN (SELECT max(rowid) FROM Adobe_imageDevelopSettings GROUP BY image) AND image IN (SELECT id_local FROM Adobe_images)"))?;
     let mut rows = safe(statement.query([]))?;
     let mut unaudited = 0u64;
+    let mut classes = BTreeMap::<String, BTreeMap<&str, u64>>::new();
     while let Some(row) = safe(rows.next())? {
         let id: i64 = safe(row.get(0))?;
         if !decoded.contains(&id) {
             continue;
         }
-        let source: Option<String> = row.get(1).ok().flatten();
+        let version: String = safe(row.get(1))?;
+        let version = safe(engine_api::recipe::ProcessVersion::from_crs(&version))?;
+        let source: Option<String> = row.get(2).ok().flatten();
         let Some(source) = source.filter(|s| !s.trim().is_empty()) else {
             unaudited += 1;
             continue;
@@ -214,14 +217,47 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
             }
         } else {
             match import_lrcat::lua_develop::read(&source) {
-                Ok(import_lrcat::lua_develop::LuaValue::Table(table)) => table
-                    .fields
-                    .into_iter()
-                    .filter_map(|(k, _)| match k {
-                        import_lrcat::lua_develop::LuaKey::Str(s) => Some(s),
-                        _ => None,
-                    })
-                    .collect(),
+                Ok(import_lrcat::lua_develop::LuaValue::Table(table)) => {
+                    for &(key, _) in import_lrcat::noop::RULES {
+                        let value = table.fields.iter().find_map(|(k, v)| match k {
+                            import_lrcat::lua_develop::LuaKey::Str(k) if k == key => Some(v),
+                            _ => None,
+                        });
+                        if let Some(value) = value {
+                            let class = if import_lrcat::noop::is_noop(key, &table, &version) {
+                                "default_empty_inactive_provenance"
+                            } else {
+                                "non_default"
+                            };
+                            *classes
+                                .entry(key.into())
+                                .or_default()
+                                .entry(class)
+                                .or_default() += 1;
+                            if key == "ToneCurveName2012" {
+                                let class = if matches!(value, import_lrcat::lua_develop::LuaValue::String(s) if ["Linear", "Medium Contrast", "Strong Contrast", "Custom"].contains(&s.as_str()))
+                                {
+                                    "known_Adobe_name"
+                                } else {
+                                    "other_name"
+                                };
+                                *classes
+                                    .entry(key.into())
+                                    .or_default()
+                                    .entry(class)
+                                    .or_default() += 1;
+                            }
+                        }
+                    }
+                    table
+                        .fields
+                        .into_iter()
+                        .filter_map(|(k, _)| match k {
+                            import_lrcat::lua_develop::LuaKey::Str(s) => Some(s),
+                            _ => None,
+                        })
+                        .collect()
+                }
                 _ => {
                     unaudited += 1;
                     continue;
@@ -242,7 +278,7 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
         }
     }
     Ok(
-        json!({"develop_rows": develop_rows, "unaudited_develop_rows": unaudited,
+        json!({"value_classes": classes, "develop_rows": develop_rows, "unaudited_develop_rows": unaudited,
         "keys_translated_approximate_retained": keys, "unlisted_retained_key_occurrences": unknown_retained,
         "warnings_by_category": warnings(&report.unsupported),
         "not_fully_supported_groups": report.unsupported.len(),

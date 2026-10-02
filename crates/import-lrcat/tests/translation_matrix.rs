@@ -491,3 +491,63 @@ fn lr6e_field_guard_rejects_duplicate_field_reasons() {
             .contains("requires one field info reason")
     );
 }
+
+#[test]
+fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
+    use import_lrcat::noop::{RULES, Rule};
+    let matrix = include_str!("../../../docs/coordination/LR-TRANSLATION-MATRIX.md");
+    for &(key, rule) in RULES {
+        if key.contains('*') {
+            continue;
+        }
+        assert!(
+            matrix.contains(&format!("`{key}`")),
+            "missing matrix key {key}"
+        );
+        let (default, nondefault, context) = match rule {
+            Rule::Provenance => ("'synthetic-metadata'".into(), None, ""),
+            Rule::False => ("false".into(), Some("true".into()), ""),
+            Rule::Empty => ("{}".into(), Some("{'synthetic-unhandled'}".into()), ""),
+            Rule::Zero => ("0".into(), Some("9".into()), ""),
+            Rule::Number(n) | Rule::Legacy(n) | Rule::Upright(n) | Rule::Sdr(n) => (
+                n.to_string(),
+                Some((n + 1.).to_string()),
+                if matches!(rule, Rule::Sdr(_)) {
+                    "HDREditMode=1,"
+                } else {
+                    ""
+                },
+            ),
+            Rule::CurveName => ("'Custom'".into(), None, "ToneCurvePV2012={0,0,255,255},"),
+            Rule::LensBlur => (
+                "{Active=false}".into(),
+                Some("{Active=true,BlurAmount=40}".into()),
+                "",
+            ),
+            Rule::PointColors => (
+                "{}".into(),
+                Some("{'malformed-synthetic-point'}".into()),
+                "",
+            ),
+        };
+        let (recipe, warnings) =
+            lua_develop::parse(&format!("s={{{context}{key}={default}}}"), "15.4").unwrap();
+        assert!(warnings.is_empty(), "{key}: {warnings:?}");
+        assert!(
+            !diagnostics::entries(&recipe).contains_key(key),
+            "default report entry: {key}"
+        );
+        assert!(
+            retained_in(&recipe, "lrcat_develop_source", key),
+            "lost source: {key}"
+        );
+        if let Some(value) = nondefault {
+            let (recipe, warnings) =
+                lua_develop::parse(&format!("s={{{context}{key}={value}}}"), "15.4").unwrap();
+            assert!(
+                !warnings.is_empty() || diagnostics::entries(&recipe).contains_key(key),
+                "nondefault lost: {key}"
+            );
+        }
+    }
+}
