@@ -117,9 +117,23 @@ fn safe_options(import: &LrcatImport, app: &Path) -> SafeResult<LrcatOptions> {
 }
 
 fn open_audit_catalog(catalog: &Path) -> SafeResult<rusqlite::Connection> {
+    // This is a stable scratch copy. Immutable mode avoids locks and sidecar writes.
+    // Encode bytes so URI delimiters and non-UTF-8 filenames remain literal paths.
+    use std::fmt::Write;
+    let mut uri = String::from("file:");
+    for &byte in catalog.as_os_str().as_encoded_bytes() {
+        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
+            uri.push(char::from(byte));
+        } else {
+            safe(write!(&mut uri, "%{byte:02X}"))?;
+        }
+    }
+    uri.push_str("?mode=ro&immutable=1");
     safe(rusqlite::Connection::open_with_flags(
-        catalog,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        uri,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
     ))
 }
 
@@ -238,14 +252,40 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
     )
 }
 
+// Ask Darwin directly: std::env::temp_dir() trusts caller-controlled TMPDIR.
+fn system_temp_dir() -> SafeResult<PathBuf> {
+    use std::os::unix::ffi::OsStringExt;
+    unsafe extern "C" {
+        fn confstr(name: i32, buffer: *mut u8, len: usize) -> usize;
+    }
+    const CS_DARWIN_USER_TEMP_DIR: i32 = 65537;
+    // SAFETY: a null buffer with zero length queries the required size.
+    let len = unsafe { confstr(CS_DARWIN_USER_TEMP_DIR, std::ptr::null_mut(), 0) };
+    if len == 0 {
+        return Err(());
+    }
+    let mut buffer = vec![0u8; len];
+    // SAFETY: buffer owns len writable bytes; confstr returns the required size.
+    let written = unsafe { confstr(CS_DARWIN_USER_TEMP_DIR, buffer.as_mut_ptr(), len) };
+    if written != len || buffer.pop() != Some(0) {
+        return Err(());
+    }
+    safe(PathBuf::from(std::ffi::OsString::from_vec(buffer)).canonicalize())
+}
+
 fn profile(catalog: &Path, app: &Path) -> SafeResult<Value> {
     if cfg!(debug_assertions) {
         return Err(());
     }
     let app = safe(app.canonicalize())?;
-    let temp = safe(std::env::temp_dir().canonicalize())?;
+    let temp = system_temp_dir()?;
     let scratch = safe(Path::new("/tmp").canonicalize())?;
     if !(app.starts_with(&temp) || app.starts_with(&scratch))
+        || app.ancestors().any(|ancestor| {
+            ancestor.extension().is_some_and(|ext| {
+                ext.eq_ignore_ascii_case("lrdata") || ext.eq_ignore_ascii_case("lrcat")
+            })
+        })
         || safe(std::fs::read_dir(&app))?.next().is_some()
     {
         return Err(());
@@ -297,15 +337,12 @@ fn profile(catalog: &Path, app: &Path) -> SafeResult<Value> {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "requires release profile")]
 fn profile_synthetic_fixture() {
     let temp = tempfile::tempdir().unwrap();
     let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
     let app = temp.path().join("app");
     std::fs::create_dir(&app).unwrap();
-    // The release-only profile is exercised by the required release gate.
-    if cfg!(debug_assertions) {
-        return;
-    }
     let value = profile(&fixture.catalog, &app).expect("aggregate profile failed");
     assert_eq!(value["images"], 7);
     assert_eq!(value["collections"], 2);
