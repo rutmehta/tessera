@@ -943,3 +943,566 @@ fn lr12_recipe_audit_from_env() {
         Err(()) => panic!("aggregate audit failed"),
     }
 }
+
+#[test]
+#[ignore = "LR-13 aggregate read-only proxy admission measurement"]
+fn lr13_proxy_admission_from_env() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let run = || -> SafeResult<Value> {
+        let _quiet = Quiet::new()?;
+        let catalog = PathBuf::from(std::env::var_os("TESSERA_LRCAT_PROFILE").ok_or(())?);
+        if !safe(catalog.canonicalize())?.starts_with("/private/tmp") {
+            return Err(());
+        }
+        let index = import_lrcat::smart_previews::SmartPreviewIndex::from_bundle(
+            std::env::var_os("TESSERA_LRCAT_SMART_PREVIEWS").ok_or(())?,
+        );
+        let baseline = std::env::var_os("TESSERA_LR13_BASELINE").is_some();
+        let mut counts = BTreeMap::<String, usize>::new();
+        safe(import_lrcat::import_each_with_storage(
+            &catalog,
+            None,
+            |_| Ok(()),
+            |image| {
+                if image.master_image.is_some() {
+                    return Ok(());
+                }
+                if image.path.is_file() {
+                    *counts.entry("originals_resolve".into()).or_default() += 1;
+                }
+                let Some(path) = image.file_uuid.as_deref().and_then(|u| index.find(u)) else {
+                    return Ok(());
+                };
+                *counts.entry("proxies".into()).or_default() += 1;
+                let Some(metadata) =
+                    raw_decode::lossy_dng::read_metadata(&mut std::fs::File::open(&path)?)?
+                else {
+                    *counts.entry("header_unrecognized".into()).or_default() += 1;
+                    return Ok(());
+                };
+                let baseline_exposure = metadata.baseline_exposure;
+                let proxy =
+                    pipeline_cpu::CameraLinearProxy::from_dng(raw_decode::lossy_dng::LossyDng {
+                        width: 2,
+                        height: 2,
+                        pixels: vec![[0.1; 3]; 4],
+                        metadata,
+                        color_matrices: [None; 2],
+                        forward_matrices: [None; 2],
+                        calibration_illuminants: [0; 2],
+                        baseline_exposure,
+                    });
+                let Ok(proxy) = proxy else {
+                    *counts.entry("source_admission_failed".into()).or_default() += 1;
+                    return Ok(());
+                };
+                let embedded = image_core::pipeline_adobe::dcp::read_embedded_profile(
+                    &mut std::fs::File::open(&path)?,
+                )
+                .map_err(|_| engine_api::EngineError::invalid("profile", "header invalid"))?;
+                let mut proxy = proxy.with_embedded_profile(embedded);
+                if let Some(orientation) = image
+                    .orientation
+                    .as_deref()
+                    .and_then(import_lrcat::orientation::exif)
+                {
+                    proxy = proxy.with_catalog_orientation(orientation)?;
+                }
+                let raw = image_core::RawImage::from_camera_linear_proxy(
+                    engine_api::id::ImageId(1),
+                    engine_api::id::ImageId(2),
+                    Arc::new(proxy.clone()),
+                )?;
+                let renderer =
+                    image_core::Renderer::new(Default::default()).for_recipe(&image.recipe);
+                let masks = crate::develop::masks::MaskShared::new(&raw);
+                renderer
+                    .mask_cache()
+                    .set_hooks(Some(Arc::new(crate::develop::masks::Hooks(masks))));
+                let drawn = crate::develop::session_renderable(&image.recipe.settings, true, false);
+                let develop = renderer.render_tiles(
+                    &raw,
+                    &drawn,
+                    &[],
+                    image_core::RenderOutput::default(),
+                    &engine_api::jobs::CancellationToken::new(),
+                    &mut |_| {},
+                );
+                *counts
+                    .entry(format!(
+                        "develop/{}",
+                        if develop.is_ok() {
+                            "renderable"
+                        } else {
+                            "rejected"
+                        }
+                    ))
+                    .or_default() += 1;
+                let mut checked = image.recipe.settings.clone();
+                if image.recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
+                    checked.camera_profile.profile = Default::default();
+                    checked.tone.display_transform = Default::default();
+                }
+                let original_checked = checked.clone();
+                if !baseline {
+                    checked = proxy.render_plan(&checked, false).0;
+                }
+                let validation = pipeline_cpu::validate_settings(&checked)
+                    .and_then(|_| {
+                        let metadata = proxy.original_metadata();
+                        let camera = pipeline_cpu::camera_to_xyz(engine_api::color::ColorMatrix3(
+                            std::array::from_fn(|r| metadata.cam_xyz[r].map(f64::from)),
+                        ))?;
+                        pipeline_cpu::camera_profile_matrix(camera, metadata.baseline_exposure)?;
+                        pipeline_cpu::white_balance_matrix(
+                            &checked.white_balance,
+                            camera,
+                            metadata.as_shot_wb,
+                        )
+                        .map(|_| ())
+                    })
+                    .and_then(|_| proxy.validate_prefix(&checked))
+                    .and_then(|_| {
+                        pipeline_cpu::resolve_lens(
+                            proxy.pixels(),
+                            &checked.lens,
+                            Some(proxy.original_metadata()),
+                            &Default::default(),
+                        )
+                        .map(|_| ())
+                    });
+                let preview_renderer =
+                    image_core::Renderer::new(Default::default()).for_recipe(&image.recipe);
+                let preview_after = preview_renderer.render_tiles(
+                    &raw,
+                    &drawn,
+                    &[],
+                    image_core::RenderOutput::default(),
+                    &engine_api::jobs::CancellationToken::new(),
+                    &mut |_| {},
+                );
+                for route in ["preview", "export"] {
+                    let admitted = if route == "preview" && !baseline {
+                        preview_after.is_ok()
+                    } else {
+                        validation.is_ok()
+                    };
+                    *counts
+                        .entry(format!(
+                            "{route}/{}",
+                            if admitted { "renderable" } else { "rejected" }
+                        ))
+                        .or_default() += 1;
+                }
+                let defaults =
+                    serde_json::to_value(engine_api::recipe::DevelopSettings::default())?;
+                let fields = serde_json::to_value(&original_checked)?;
+                for (stage, values) in fields.as_object().unwrap() {
+                    for (field, value) in values.as_object().into_iter().flatten() {
+                        if value == &defaults[stage][field] {
+                            continue;
+                        }
+                        let mut isolated = defaults.clone();
+                        isolated[stage][field] = value.clone();
+                        if pipeline_cpu::validate_settings(&serde_json::from_value(isolated)?)
+                            .is_err()
+                        {
+                            *counts.entry(format!("reason/{stage}/{field}")).or_default() += 1;
+                        }
+                    }
+                }
+                if original_checked.white_balance.mode
+                    == engine_api::recipe::settings::WhiteBalanceMode::Auto
+                {
+                    *counts
+                        .entry("reason/white_balance/mode".into())
+                        .or_default() += 1;
+                }
+                for field in proxy.render_plan(&image.recipe.settings, false).1 {
+                    *counts.entry(format!("info{field}")).or_default() += 1;
+                }
+                Ok(())
+            },
+        ))?;
+        Ok(json!(counts))
+    };
+    match run() {
+        Ok(value) => println!("{value}"),
+        Err(()) => panic!("aggregate proxy audit failed"),
+    }
+}
+
+struct Lr13Frames(std::sync::mpsc::Sender<Option<crate::develop::FrameInfo>>);
+impl crate::develop::DevelopListener for Lr13Frames {
+    fn frame_ready(&self, frame: crate::develop::FrameInfo) {
+        if frame.is_final {
+            let _ = self.0.send(Some(frame));
+        }
+    }
+    fn render_failed(&self, _: String) {
+        let _ = self.0.send(None);
+    }
+    fn saved(&self, _: String) {}
+}
+
+#[test]
+#[ignore = "LR-13 private real Develop/IOSurface 200 sample and 12 pairs"]
+fn lr13_app_develop_sample_from_env() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let run = || -> SafeResult<Value> {
+        let _quiet = Quiet::new()?;
+        let resume = std::env::var_os("TESSERA_LR13_RESUME").is_some();
+        let app = scratch_directory("TESSERA_APP_DIR", !resume)?;
+        let contact = scratch_directory("TESSERA_LR13_CONTACT", false)?;
+        let catalog = PathBuf::from(std::env::var_os("TESSERA_LRCAT_PROFILE").ok_or(())?);
+        if !safe(catalog.canonicalize())?.starts_with("/private/tmp") {
+            return Err(());
+        }
+        let bundle = PathBuf::from(std::env::var_os("TESSERA_LR13_STANDARD_PREVIEWS").ok_or(())?);
+        let db_dir = app.join("reference Previews.lrdata");
+        if !resume {
+            safe(std::fs::create_dir(&db_dir))?;
+            safe(std::fs::copy(
+                bundle.join("previews.db"),
+                db_dir.join("previews.db"),
+            ))?;
+        } else if !db_dir.join("previews.db").is_file() || !app.join("index.sqlite").is_file() {
+            return Err(());
+        }
+        let mut previews = safe(import_lrcat::previews::PreviewIndex::open(
+            &app.join("reference.lrcat"),
+        ))?
+        .ok_or(())?;
+        previews.dir = bundle;
+        let engine = safe(Engine::open(app.to_string_lossy().into()))?;
+        let import = safe(engine.clone().open_lrcat(catalog.to_string_lossy().into()))?;
+        let mut options = safe(import.default_options())?;
+        options.library_folder = app.join("library").to_string_lossy().into();
+        options.import_smart_previews = true;
+        options.copy_proxies = false;
+        for (n, root) in options.relocations.iter_mut().enumerate() {
+            root.to = app
+                .join(format!("absent-originals-{n}"))
+                .to_string_lossy()
+                .into();
+        }
+        let resolved = safe(resolve(&import.plan, &options))?;
+        for row in &resolved {
+            Sidecar::register_read_only_store(&row.path, &app);
+            let paths = Sidecar::paths(&row.path);
+            if !paths.recipe.starts_with(&app) || !paths.xmp.starts_with(&app) {
+                return Err(());
+            }
+        }
+        safe(std::fs::write(
+            contact.join("progress.json"),
+            b"{\"phase\":\"import\"}",
+        ))?;
+        if !resume {
+            safe(import.apply(options, None))?;
+        }
+        let rows = safe(engine.list_images(crate::ImageQuery {
+            limit: u32::MAX,
+            ..Default::default()
+        }))?;
+        let imported = rows.len();
+        let by_path: BTreeMap<_, _> = rows
+            .into_iter()
+            .map(|r| (PathBuf::from(&r.path), r.id))
+            .collect();
+        let mut proxies: Vec<_> = resolved
+            .iter()
+            .filter(|r| r.outcome == Outcome::OfflineProxy && by_path.contains_key(&r.path))
+            .collect();
+        proxies.sort_by_key(|r| import.plan.images[r.index].catalog_id);
+        let comparable: Vec<_> = proxies
+            .iter()
+            .copied()
+            .filter(|r| {
+                previews
+                    .has_preview(import.plan.images[r.index].catalog_id)
+                    .unwrap_or(false)
+            })
+            .collect();
+        if proxies.len()
+            != resolved
+                .iter()
+                .filter(|r| r.outcome == Outcome::OfflineProxy)
+                .count()
+            || proxies.len() < 200
+            || comparable.len() < 12
+        {
+            return Err(());
+        }
+        let mut selected = BTreeMap::<i64, (usize, Option<usize>)>::new();
+        for (n, row) in proxies
+            .iter()
+            .step_by(proxies.len() / 200)
+            .take(200)
+            .enumerate()
+        {
+            selected.insert(import.plan.images[row.index].catalog_id, (n, None));
+        }
+        let previous = PathBuf::from(std::env::var_os("TESSERA_LR13_PREVIOUS_CONTACT").ok_or(())?);
+        for n in 0..12 {
+            let reference = safe(std::fs::read(
+                previous.join(format!("{:02}-lightroom.jpg", n + 1)),
+            ))?;
+            let center = n * (comparable.len() / 12);
+            let row = comparable[center.saturating_sub(12)..(center + 13).min(comparable.len())]
+                .iter()
+                .find(|r| {
+                    previews
+                        .jpeg(import.plan.images[r.index].catalog_id, u32::MAX)
+                        .ok()
+                        .flatten()
+                        .as_deref()
+                        == Some(reference.as_slice())
+                })
+                .ok_or(())?;
+            selected
+                .entry(import.plan.images[row.index].catalog_id)
+                .or_insert((200 + n, None))
+                .1 = Some(n);
+        }
+        let mut successful = 0;
+        let mut failed = 0;
+        let mut pairs = 0;
+        let mut routes = BTreeMap::<String, usize>::new();
+        let only_sample = std::env::var("TESSERA_LR13_ONLY_SAMPLE")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok());
+        let work: Vec<_> = proxies
+            .iter()
+            .filter_map(|row| {
+                let catalog_id = import.plan.images[row.index].catalog_id;
+                let &(n, pair) = selected.get(&catalog_id)?;
+                if only_sample.is_some_and(|only| n != only) {
+                    return None;
+                }
+                Some((catalog_id, n, pair, by_path[&row.path].clone()))
+            })
+            .collect();
+        let selected_count = work.len();
+        let work = std::sync::Mutex::new(work.into_iter());
+        let workers = std::env::var("TESSERA_LR13_WORKERS")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(4)
+            .clamp(1, 4);
+        std::thread::scope(|scope| -> SafeResult<()> {
+            let (send, receive) = std::sync::mpsc::channel();
+            for _ in 0..workers {
+                let send = send.clone();
+                let work = &work;
+                let engine = &engine;
+                let previews = &previews;
+                let contact = &contact;
+                scope.spawn(move || {
+                    loop {
+                        let Some((catalog_id, n, pair, image_id)) = work.lock().unwrap().next()
+                        else {
+                            break;
+                        };
+                        let mut stage = "develop_open";
+                        let mut pair_done = false;
+                        let mut routes = BTreeMap::<String, usize>::new();
+                        let result = (|| -> SafeResult<()> {
+                            let session =
+                                safe(engine.clone().open_develop_session(image_id.clone()))?;
+                            let plan = session.plan_surface(8192, 8192);
+                            let surface = safe(crate::surface::Surface::create_rgba8(
+                                plan.width,
+                                plan.height,
+                            ))?;
+                            let (send, receive) = std::sync::mpsc::channel();
+                            session.set_listener(Some(Arc::new(Lr13Frames(send))));
+                            safe(session.attach_surface(surface.id(), plan.width, plan.height))?;
+                            stage = "develop_frame";
+                            let rendered =
+                                safe(receive.recv_timeout(std::time::Duration::from_secs(180)))?;
+                            let Some(frame) = rendered else {
+                                let _ = session.close();
+                                return Err(());
+                            };
+                            stage = "histogram";
+                            let histogram = safe(session.get_histogram())?;
+                            if !histogram.red.iter().any(|v| *v != 0) {
+                                let _ = session.close();
+                                return Err(());
+                            }
+                            let pixels = safe(surface.with_pixels(|bytes, stride| {
+                                image::RgbImage::from_fn(frame.width, frame.height, |x, y| {
+                                    let offset = y as usize * stride + x as usize * 4;
+                                    image::Rgb([
+                                        bytes[offset],
+                                        bytes[offset + 1],
+                                        bytes[offset + 2],
+                                    ])
+                                })
+                            }))?;
+                            stage = "save_pixels";
+                            safe(pixels.save(contact.join(format!("sample-{n:03}.png"))))?;
+                            if let Some(pair) = pair {
+                                let reference =
+                                    safe(previews.jpeg(catalog_id, u32::MAX))?.ok_or(())?;
+                                safe(std::fs::write(
+                                    contact.join(format!("{:02}-lightroom.jpg", pair + 1)),
+                                    reference,
+                                ))?;
+                                safe(
+                                    pixels
+                                        .save(contact.join(format!("{:02}-tessera.png", pair + 1))),
+                                )?;
+                                pair_done = true;
+                            }
+                            session.detach_surfaces();
+                            session.set_listener(None);
+                            safe(session.close())?;
+                            *routes.entry("develop".into()).or_default() += 1;
+                            if n < 200 {
+                                for size in [256, 2048] {
+                                    stage = if size == 256 { "thumbnail" } else { "loupe" };
+                                    let started = std::time::Instant::now();
+                                    loop {
+                                        let response = safe(
+                                            engine.clone().embedded_preview(image_id.clone(), size),
+                                        )?;
+                                        if response.bytes.is_some() {
+                                            break;
+                                        }
+                                        if !response.pending || started.elapsed().as_secs() >= 180 {
+                                            return Err(());
+                                        }
+                                        std::thread::sleep(std::time::Duration::from_millis(20));
+                                    }
+                                    *routes.entry(format!("preview_{size}")).or_default() += 1;
+                                }
+                                stage = "analysis";
+                                safe(engine.analyze_image(
+                                    image_id.clone(),
+                                    crate::AnalysisOptions {
+                                        quality: true,
+                                        faces: false,
+                                        force: true,
+                                    },
+                                ))?;
+                                *routes.entry("analysis".into()).or_default() += 1;
+                                stage = "export";
+                                let options = json!({
+                                    "destination": contact.join("exports"),
+                                    "format": "png",
+                                    "metadata": "none",
+                                    "naming": format!("sample-{n:03}")
+                                })
+                                .to_string();
+                                let target = crate::ExportTarget::Images {
+                                    image_ids: vec![image_id.clone()],
+                                };
+                                let exported =
+                                    safe(engine.export_batch(target, options, None, None))?;
+                                if exported.exported != 1 || exported.failed != 0 {
+                                    for error in
+                                        exported.items.iter().filter_map(|i| i.error.as_deref())
+                                    {
+                                        let error = error.to_ascii_lowercase();
+                                        for class in [
+                                            "settings",
+                                            "unsupported",
+                                            "profile",
+                                            "lens",
+                                            "geometry",
+                                            "homography",
+                                            "tone",
+                                            "white balance",
+                                            "crop",
+                                            "invalid argument",
+                                            "not found",
+                                            "permission",
+                                            "overlap",
+                                            "metadata",
+                                            "lock",
+                                            "busy",
+                                            "retouch",
+                                            "mask",
+                                            "revision",
+                                            "history",
+                                            "memory",
+                                            "upscale",
+                                            "finite",
+                                            "width",
+                                            "height",
+                                            "icc",
+                                            "dimension",
+                                            "active area",
+                                            "skew",
+                                            "cancel",
+                                            "orientation",
+                                            "output",
+                                            "encode",
+                                            "export",
+                                            "dependency",
+                                        ] {
+                                            if error.contains(class) {
+                                                *routes
+                                                    .entry(format!("error_class/{class}"))
+                                                    .or_default() += 1;
+                                            }
+                                        }
+                                    }
+                                    return Err(());
+                                }
+                                *routes.entry("export".into()).or_default() += 1;
+                            }
+                            Ok(())
+                        })();
+
+                        if send
+                            .send((result.is_ok(), pair_done, routes, stage))
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                });
+            }
+            drop(send);
+            for (ok, pair_done, completed, stage) in receive {
+                if ok {
+                    successful += 1;
+                } else {
+                    failed += 1;
+                    *routes.entry(format!("failure/{stage}")).or_default() += 1;
+                }
+                pairs += usize::from(pair_done);
+                for (route, count) in completed {
+                    *routes.entry(route).or_default() += count;
+                }
+                safe(std::fs::write(
+                    contact.join("progress.json"),
+                    json!({"successful":successful,"failed":failed,"pairs":pairs,"routes":routes})
+                        .to_string(),
+                ))?;
+            }
+            Ok(())
+        })?;
+        drop(import);
+        drop(engine);
+        let result = json!({"imported":imported,"resumed_scratch":resume,"workers":workers,"selected":selected_count,"successful":successful,"failed":failed,"pairs":pairs,"routes":routes});
+        safe(std::fs::write(
+            contact.join("sample-aggregate.json"),
+            result.to_string(),
+        ))?;
+        if failed == 0 && only_sample.is_none() {
+            safe(std::fs::remove_dir_all(&app))?;
+        }
+        Ok(result)
+    };
+    match run() {
+        Ok(value) => {
+            println!("{value}");
+            assert_eq!(value["failed"], 0);
+        }
+        Err(()) => panic!("private Develop sample failed"),
+    }
+}
