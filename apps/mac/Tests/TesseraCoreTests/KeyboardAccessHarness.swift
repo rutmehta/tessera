@@ -2,10 +2,20 @@ import AppKit
 import ObjectiveC
 @testable import Tessera
 
-/// Process-local AppKit accessor override. No defaults domains or persistent preferences change.
-/// Main-actor hosted tests are serialized; scopes restore the prior value even when tests throw.
+/// Process-local Full Keyboard Access pin (B5-49c). No defaults domain or persistent preference
+/// changes. Main-actor hosted tests are serialized; scopes restore the prior value even when tests throw.
+///
+/// What a pin controls: the app's `KeyboardAccessPolicy`, `NSApplication.isFullKeyboardAccessEnabled`
+/// and `NSButton.canBecomeKeyView` (so every plain or subclassed button without its own override).
+/// What it cannot: AppKit decides the key-view membership of its other control classes, and SwiftUI
+/// that of its focus proxies, from the real system setting through private state. A test that needs
+/// those must say so (N/A with the reason) rather than assume either machine.
 @MainActor
 enum KeyboardAccessHarness {
+    /// Stands in for the other machine's system setting in suites that do not pin a mode themselves:
+    /// `TESSERA_TEST_SYSTEM_FKA=1|0`, or `-AppleKeyboardUIMode <n>` passed to the xctest process. AppKit
+    /// itself ignores that argument-domain value (measured on macOS 26: the accessor and button
+    /// eligibility do not change), so the harness applies it through the same pinned accessors.
     static var simulatedSystem: Bool? {
         if let value = ProcessInfo.processInfo.environment["TESSERA_TEST_SYSTEM_FKA"] {
             precondition(value == "0" || value == "1")
