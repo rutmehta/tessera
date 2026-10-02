@@ -917,3 +917,108 @@ pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
     }
     reason
 }
+
+#[cfg(test)]
+mod lr11b_tests {
+    use super::*;
+    use engine_api::id::MaskId;
+    use engine_api::recipe::{LocalAdjustment, Recipe};
+
+    const TS: &str = engine_api::recipe::crs::TS_NAMESPACE;
+
+    fn curve(name: &str) -> String {
+        format!(
+            "<crs:{name}><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,127.5</rdf:li></rdf:Seq></crs:{name}>"
+        )
+    }
+
+    fn document(groups: &[String]) -> String {
+        let items: String = groups
+            .iter()
+            .map(|g| format!("<rdf:li rdf:parseType=\"Resource\">{g}</rdf:li>"))
+            .collect();
+        format!(
+            "<crs:MaskGroupBasedCorrections xmlns:crs=\"{CRS}\" xmlns:rdf=\"{RDF}\" xmlns:ts=\"{TS}\"><rdf:Seq>{items}</rdf:Seq></crs:MaskGroupBasedCorrections>"
+        )
+    }
+
+    fn group(id: u32) -> LocalAdjustment {
+        let mut g = LocalAdjustment {
+            id: MaskId(id),
+            ..Default::default()
+        };
+        g.params.curves = Some(Default::default());
+        g
+    }
+
+    fn noted(recipe: &Recipe, key: &str) -> Vec<String> {
+        crate::diagnostics::entries(recipe)
+            .get(&format!("MaskGroupBasedCorrections/{key}"))
+            .into_iter()
+            .flatten()
+            .filter(|e| e.lane == "LR-11")
+            .filter_map(|e| e.field.clone())
+            .collect()
+    }
+
+    /// S8: a recipe group is matched to its source group by the codec's stable
+    /// group id, not by its position in the recipe.
+    #[test]
+    fn s8_groups_match_their_source_by_stable_id_not_index() {
+        // Source order: id 0 carries MainCurve, id 1 carries RedCurve.
+        let xml = document(&[curve("MainCurve"), curve("RedCurve")]);
+        let doc = roxmltree::Document::parse(&xml).unwrap();
+        let mut recipe = Recipe::default();
+        // The recipe lists the same two groups in the opposite order.
+        recipe.settings.locals.adjustments = vec![group(1), group(0)];
+        record_approximation_diagnostics(&mut recipe, doc.root_element());
+        assert_eq!(
+            noted(&recipe, "MainCurve"),
+            ["/settings/locals/adjustments/1/params/curves"]
+        );
+        assert_eq!(
+            noted(&recipe, "RedCurve"),
+            ["/settings/locals/adjustments/0/params/curves"]
+        );
+    }
+
+    /// S8: a recipe group whose id has no source group gets no source-keyed
+    /// note (fail closed), and the remaining group still finds its own source.
+    #[test]
+    fn s8_group_without_a_source_id_gets_no_source_keyed_note() {
+        let xml = document(&[curve("MainCurve"), curve("RedCurve")]);
+        let doc = roxmltree::Document::parse(&xml).unwrap();
+        let mut recipe = Recipe::default();
+        recipe.settings.locals.adjustments = vec![group(7), group(1)];
+        record_approximation_diagnostics(&mut recipe, doc.root_element());
+        assert!(noted(&recipe, "MainCurve").is_empty());
+        assert_eq!(
+            noted(&recipe, "RedCurve"),
+            ["/settings/locals/adjustments/1/params/curves"]
+        );
+    }
+
+    /// S8: the id rule is the shared codec's: foreign groups take the lowest
+    /// ids that no native `ts:LocalId` in the packet uses, in source order.
+    #[test]
+    fn s8_foreign_group_ids_skip_native_ids() {
+        let native = format!(
+            "<ts:LocalId ts:type=\"number\">0</ts:LocalId>{}",
+            curve("BlueCurve")
+        );
+        let xml = document(&[curve("MainCurve"), native, curve("RedCurve")]);
+        let doc = roxmltree::Document::parse(&xml).unwrap();
+        let mut recipe = Recipe::default();
+        // Codec ids in source order are 1, 0 (native), 2.
+        recipe.settings.locals.adjustments = vec![group(1), group(0), group(2)];
+        record_approximation_diagnostics(&mut recipe, doc.root_element());
+        assert_eq!(
+            noted(&recipe, "MainCurve"),
+            ["/settings/locals/adjustments/0/params/curves"]
+        );
+        assert_eq!(
+            noted(&recipe, "RedCurve"),
+            ["/settings/locals/adjustments/2/params/curves"]
+        );
+    }
+}
