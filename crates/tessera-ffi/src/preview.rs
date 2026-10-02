@@ -221,18 +221,13 @@ impl PreviewJob {
         let hash = recipe.recipe_hash();
         if catalog::lightroom_proxy(path).is_some() || catalog::catalog_orientation(path).is_some()
         {
-            let source = crate::export::Source::open(path, 1).map_err(|e| e.to_string())?;
-            let render_source = source.render_source();
-            let orientation = match &render_source {
-                pipeline_cpu::RenderSource::CameraLinear(p) => p.original_metadata().orientation,
-                pipeline_cpu::RenderSource::Cfa { metadata, .. } => metadata.orientation,
-                pipeline_cpu::RenderSource::Rgb(_) => 1,
-            };
-            let image = if recipe.process_version.family == core::ProcessFamily::Adobe {
-                image_core::pipeline_adobe::render_scaled(&recipe.settings, &render_source, 1)
-            } else {
-                pipeline_cpu::render_scaled(&recipe.settings, &render_source, 1)
-            }
+            let (image, orientation) = render_imported(
+                path,
+                id,
+                &recipe,
+                engine.support_dir().map_err(|e| e.to_string())?,
+                self.request.max_px,
+            )
             .map_err(|e| e.to_string())?;
             let key = previews::PreviewKey::for_source(
                 &catalog::source_path(path),
@@ -268,14 +263,32 @@ impl PreviewJob {
 impl Engine {
     /// Synchronous counterpart of the grid/loupe job for analysis and assist.
     /// Keep source resolution, catalog orientation and recipe dispatch identical.
-    pub(crate) fn indexed_preview(&self, image_id: &str, path: &str, max_px: u32) -> Result<previews::PreviewKey> {
+    pub(crate) fn indexed_preview(
+        &self,
+        image_id: &str,
+        path: &str,
+        max_px: u32,
+    ) -> Result<previews::PreviewKey> {
         let job = PreviewJob {
             engine: Weak::new(),
-            request: RequestKey { image_id: image_id.into(), max_px, recipe_hash: String::new(), revision: [0; 32] },
+            request: RequestKey {
+                image_id: image_id.into(),
+                max_px,
+                recipe_hash: String::new(),
+                revision: [0; 32],
+            },
             path: path.into(),
             completed: true,
         };
-        job.render(self, &JobContext::new(engine_api::id::JobId(0), engine_api::jobs::CancellationToken::new(), None)).map_err(failure)
+        job.render(
+            self,
+            &JobContext::new(
+                engine_api::id::JobId(0),
+                engine_api::jobs::CancellationToken::new(),
+                None,
+            ),
+        )
+        .map_err(failure)
     }
 
     /// Preview sizes requested so far for an image (the app's tiers).
@@ -356,4 +369,54 @@ impl Job for PreviewJob {
         });
         Ok(())
     }
+}
+
+/// Long edge rendered for the 9x8 perceptual hash; the grid's thumbnail tier.
+const CULL_HASH_PX: u32 = 256;
+
+/// Culling uses the same source and recipe route as the app's grid and analysis.
+pub(crate) fn cull_preview_hash(
+    info: &index::ImageInfo,
+    support: &Path,
+) -> engine_api::EngineResult<Option<u64>> {
+    if catalog::lightroom_proxy(&info.path).is_none()
+        && catalog::catalog_orientation(&info.path).is_none()
+    {
+        return cull::preview_hash(info);
+    }
+    let recipe = catalog::document(&info.path, info.id)?.recipe;
+    let (rgb, orientation) = render_imported(&info.path, info.id, &recipe, support, CULL_HASH_PX)
+        .map_err(|e| engine_api::EngineError::Unsupported {
+        what: e.to_string(),
+    })?;
+    Ok(Some(cull::dhash(&crate::assist::orient(
+        rgb,
+        orientation as u8,
+    ))))
+}
+
+/// Imported sources use Develop's source boundary, embedded DCP and renderable
+/// settings. In particular no LinearRaw source reaches the LibRaw CFA decoder.
+fn render_imported(
+    path: &Path,
+    id: engine_api::id::ImageId,
+    recipe: &core::Recipe,
+    support: &Path,
+    _max_px: u32,
+) -> Result<(image::RgbImage, u16)> {
+    let image = catalog::open_image(id, path)?;
+    let settings = crate::develop::session_renderable(&recipe.settings, true, false);
+    let renderer = image_core::Renderer::new(Default::default()).for_recipe(recipe);
+    let masks = crate::develop::masks::MaskShared::new(&image);
+    masks.load_available_imported(support, &settings);
+    renderer
+        .mask_cache()
+        .set_hooks(Some(Arc::new(crate::develop::masks::Hooks(masks))));
+    let extent = image_core::Renderer::output_extent(&image, &settings, 0)?;
+    let tiles =
+        renderer.render_region(&image, &settings, 0, image_core::PixelRect::full(extent))?;
+    Ok((
+        crate::lrcat_fidelity::stitch(extent, &tiles)?,
+        image.metadata().orientation,
+    ))
 }

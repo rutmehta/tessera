@@ -244,7 +244,10 @@ impl Engine {
         );
         let index = index::Index::open(&self.db)?;
         let reader = Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        let mut core = Core::open_owned(index, source)?;
+        let support = self.support_dir()?.to_path_buf();
+        let mut core = Core::open_owned_with_previews(index, source, move |info| {
+            crate::preview::cull_preview_hash(info, &support)
+        })?;
         // The host owns cursor movement so it can follow its display order.
         core.set_auto_advance(false);
         Ok(Arc::new(CullSession {

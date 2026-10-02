@@ -13,7 +13,7 @@ pub use engine_api::{
     recipe::{Decision, Grade, Mark, Selection},
 };
 pub use grouping::{
-    Group, GroupingOptions, GroupingStrategy, LargestFile, Scorer, dhash, dhash_jpeg,
+    Group, GroupingOptions, GroupingStrategy, LargestFile, Scorer, dhash, dhash_jpeg, preview_hash,
 };
 pub use incremental::QueueChange;
 use index::{ImageInfo, Index, Query};
@@ -84,6 +84,8 @@ enum Targets<'t> {
     Images(&'t [ImageId]),
 }
 
+type PreviewProvider = Box<dyn Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync>;
+
 /// A fixed review queue. Changes do not remove images from the active query.
 /// `I` is how the session holds its index: borrowed (`&Index`, see `open`) or
 /// owned (`Box<Index>`, see `open_owned`) for hosts that cannot keep a borrow
@@ -99,6 +101,7 @@ pub struct CullSession<I> {
     preview_errors: Vec<(ImageId, EngineError)>,
     scorer: Option<Box<dyn Scorer>>,
     grouping_strategy: Option<Box<dyn GroupingStrategy>>,
+    preview_hash: PreviewProvider,
     library: Option<PathBuf>,
     basket_target: Option<String>,
     /// The source, kept so incremental inserts apply the same membership rules.
@@ -143,22 +146,36 @@ impl OwnedCullSession {
                 "expected absolute catalog folder without ..",
             ));
         }
-        Self::open_with_policy(Box::new(index), Source::Folder(folder), Some(ids))
+        Self::open_with_policy(
+            Box::new(index),
+            Source::Folder(folder),
+            Some(ids),
+            Box::new(preview_hash),
+        )
     }
     /// Open a second connection to the same SQLite file for this; WAL lets it
     /// coexist with the host's own connection.
+    /// Host rendering policy for displayed-image grouping, including imported proxies.
+    pub fn open_owned_with_previews(
+        index: Index,
+        source: impl Into<Source>,
+        preview: impl Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync + 'static,
+    ) -> EngineResult<Self> {
+        Self::open_with_policy(Box::new(index), source.into(), None, Box::new(preview))
+    }
     pub fn open_owned(index: Index, source: impl Into<Source>) -> EngineResult<Self> {
         Self::open_with(Box::new(index), source.into())
     }
 }
 impl<I: Deref<Target = Index>> CullSession<I> {
     fn open_with(index: I, source: Source) -> EngineResult<Self> {
-        Self::open_with_policy(index, source, None)
+        Self::open_with_policy(index, source, None, Box::new(preview_hash))
     }
     fn open_with_policy(
         index: I,
         source: Source,
         declared: Option<HashSet<ImageId>>,
+        preview_hash: PreviewProvider,
     ) -> EngineResult<Self> {
         // Read first: changes committed while the queue is built are re-applied (idempotently).
         let change_seq = index.change_head()?;
@@ -210,6 +227,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             preview_errors: Vec::new(),
             scorer: None,
             grouping_strategy: None,
+            preview_hash,
             library: if declared.is_none() {
                 folder.as_ref().map(|p| p.join("library.json"))
             } else {

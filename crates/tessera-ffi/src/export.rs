@@ -877,7 +877,12 @@ impl Source {
             .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
             && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
         {
-            let mut proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng)?;
+            let profile = image_core::pipeline_adobe::dcp::read_embedded_profile(
+                &mut std::fs::File::open(path)?,
+            )
+            .map_err(failure)?;
+            let mut proxy =
+                pipeline_cpu::CameraLinearProxy::from_dng(dng)?.with_embedded_profile(profile);
             if let Some(orientation) = orientation {
                 proxy = proxy.with_catalog_orientation(orientation)?;
             }
