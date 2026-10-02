@@ -236,9 +236,10 @@ fn focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretati
 }
 
 #[test]
-fn untranslated_inputs_are_byte_identical_to_dcf07355() {
+fn untranslated_inputs_preserve_recipe_bytes_and_main_depth_warnings() {
     // Captured by compiling dcf07355 in a temporary detached checkout. Synthetic
     // source, complete recipe bytes and warning order; no normalization applied.
+    // LR-6f retains main's LR-2 wording for standalone/inactive depth warnings.
     let cases: serde_json::Value =
         serde_json::from_str(include_str!("data/lr6b-untranslated-baseline.json")).unwrap();
     for case in cases.as_array().unwrap() {
@@ -394,7 +395,7 @@ fn lr6e_duplicate_xmp_uses_final_active_state_for_depth_diagnostics() {
         assert_eq!(
             warnings
                 .iter()
-                .any(|w| w.starts_with("crs:DepthMapInfo: unsupported property")),
+                .any(|w| w == "DepthMapInfo: retained metadata, not a pixel adjustment; digest is not an Auto Tone recipe and depth metadata is not a depth raster; source preserved"),
             !active
         );
         assert_eq!(

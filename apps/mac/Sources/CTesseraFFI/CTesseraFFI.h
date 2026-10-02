@@ -334,6 +334,13 @@ typedef void (*UniffiCallbackInterfaceExportProgressListenerMethod0)(uint64_t, R
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_LRCAT_DEPTH_RESOLVER_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_LRCAT_DEPTH_RESOLVER_METHOD0
+typedef void (*UniffiCallbackInterfaceLrcatDepthResolverMethod0)(uint64_t, int64_t, RustBuffer, RustBuffer* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_LRCAT_PROGRESS_LISTENER_METHOD0
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_LRCAT_PROGRESS_LISTENER_METHOD0
 typedef void (*UniffiCallbackInterfaceLrcatProgressListenerMethod0)(uint64_t, RustBuffer, void* _Nonnull, 
@@ -429,6 +436,15 @@ typedef struct UniffiVTableCallbackInterfaceExportProgressListener {
     UniffiCallbackInterfaceClone _Nonnull uniffiClone;
     UniffiCallbackInterfaceExportProgressListenerMethod0 _Nonnull onProgress;
 } UniffiVTableCallbackInterfaceExportProgressListener;
+
+#endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_LRCAT_DEPTH_RESOLVER
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_LRCAT_DEPTH_RESOLVER
+typedef struct UniffiVTableCallbackInterfaceLrcatDepthResolver {
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+    UniffiCallbackInterfaceClone _Nonnull uniffiClone;
+    UniffiCallbackInterfaceLrcatDepthResolverMethod0 _Nonnull resolve;
+} UniffiVTableCallbackInterfaceLrcatDepthResolver;
 
 #endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_LRCAT_PROGRESS_LISTENER
@@ -2518,6 +2534,26 @@ void uniffi_tessera_ffi_fn_init_callback_vtable_exportprogresslistener(const Uni
 void uniffi_tessera_ffi_fn_method_exportprogresslistener_on_progress(uint64_t ptr, RustBuffer progress, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATDEPTHRESOLVER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATDEPTHRESOLVER
+uint64_t uniffi_tessera_ffi_fn_clone_lrcatdepthresolver(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_LRCATDEPTHRESOLVER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_LRCATDEPTHRESOLVER
+void uniffi_tessera_ffi_fn_free_lrcatdepthresolver(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_LRCATDEPTHRESOLVER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_LRCATDEPTHRESOLVER
+void uniffi_tessera_ffi_fn_init_callback_vtable_lrcatdepthresolver(const UniffiVTableCallbackInterfaceLrcatDepthResolver* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATDEPTHRESOLVER_RESOLVE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATDEPTHRESOLVER_RESOLVE
+RustBuffer uniffi_tessera_ffi_fn_method_lrcatdepthresolver_resolve(uint64_t ptr, int64_t catalog_image_id, RustBuffer resource_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATIMPORT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATIMPORT
 uint64_t uniffi_tessera_ffi_fn_clone_lrcatimport(uint64_t handle, RustCallStatus *_Nonnull out_status
@@ -2531,6 +2567,11 @@ void uniffi_tessera_ffi_fn_free_lrcatimport(uint64_t handle, RustCallStatus *_No
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_APPLY
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_APPLY
 RustBuffer uniffi_tessera_ffi_fn_method_lrcatimport_apply(uint64_t ptr, RustBuffer options, RustBuffer listener, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_APPLY_WITH_DEPTH_RESOLVER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_APPLY_WITH_DEPTH_RESOLVER
+RustBuffer uniffi_tessera_ffi_fn_method_lrcatimport_apply_with_depth_resolver(uint64_t ptr, RustBuffer options, RustBuffer listener, RustBuffer resolver, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_CANCEL
@@ -5767,9 +5808,21 @@ uint16_t uniffi_tessera_ffi_checksum_method_exportprogresslistener_on_progress(v
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATDEPTHRESOLVER_RESOLVE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATDEPTHRESOLVER_RESOLVE
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatdepthresolver_resolve(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_APPLY
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_APPLY
 uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_apply(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_APPLY_WITH_DEPTH_RESOLVER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_APPLY_WITH_DEPTH_RESOLVER
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_apply_with_depth_resolver(void
     
 );
 #endif
