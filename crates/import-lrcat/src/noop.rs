@@ -51,6 +51,10 @@ pub const RULES: &[(&str, Rule)] = &[
     ("Contrast", Rule::Legacy(25.)),
     ("Exposure", Rule::Legacy(0.)),
     ("Shadows", Rule::Legacy(5.)),
+    ("FillLight", Rule::Legacy(0.)),
+    ("HighlightRecovery", Rule::Legacy(0.)),
+    ("Recovery", Rule::Legacy(0.)),
+    ("Blacks", Rule::Legacy(5.)),
     ("IncrementalTemperature", Rule::Zero),
     ("IncrementalTint", Rule::Zero),
     ("SDRBlend", Rule::Sdr(0.)),
@@ -132,7 +136,9 @@ pub fn is_noop(key: &str, table: &LuaTable, version: &ProcessVersion) -> bool {
         return false;
     };
     match rule {
-        Rule::Provenance => true,
+        Rule::Provenance => {
+            key != "LensProfileIsEmbedded" || off(v) || off_or_absent(table, "LensProfileEnable")
+        }
         // This is a panel switch, not an instruction to run removal. Active
         // filter/resource payloads still take the unsupported path.
         Rule::DistractionPanel => {

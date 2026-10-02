@@ -92,6 +92,19 @@ pub fn push_ignored(recipe: &mut Recipe, adobe_key: &str, lane: &str, reason: &s
     push(recipe, adobe_key, entry);
 }
 
+/// Record visual content that requires Adobe cloud and is not rendered.
+pub fn push_cloud(recipe: &mut Recipe, adobe_key: &str, reason: &str) {
+    let entry = serde_json::to_value(Entry {
+        level: "warning".into(),
+        status: "cloud".into(),
+        lane: "LR-9c".into(),
+        field: None,
+        reason: reason.into(),
+    })
+    .expect("entry serializes");
+    push(recipe, adobe_key, entry);
+}
+
 fn push(recipe: &mut Recipe, adobe_key: &str, entry: Value) {
     let Value::Object(object) = recipe
         .unknown

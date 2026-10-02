@@ -163,10 +163,8 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
             ("CorrectionRangeMask", Field::Structure(n)) => range(*n)?,
             ("Dabs", Field::Structure(n)) if kind == "Mask/Paint" => scalar_sequence(*n)?,
             ("Radius" | "Flow" | "CenterWeight", Field::Scalar(_)) if kind == "Mask/Paint" => (),
-            (
-                "MaskID" | "MaskSyncID" | "MaskName" | "MaskVersion" | "Version",
-                Field::Scalar(_),
-            ) => (),
+            ("MaskID" | "MaskSyncID" | "MaskName" | "MaskVersion", Field::Scalar(_)) => (),
+            ("Version", Field::Scalar(_)) if kind == "Mask/CircularGradient" => (),
             ("MaskValue" | "Midpoint" | "Roundness", Field::Scalar(v)) => {
                 if !v.parse::<f64>().ok()?.is_finite() {
                     return None;

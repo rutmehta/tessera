@@ -64,12 +64,7 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         });
     }
     if cloud_present {
-        crate::diagnostics::push_ignored(
-            recipe,
-            "GenerativeRemove",
-            "LR-9b",
-            crate::residual::CLOUD_NOTE,
-        );
+        crate::diagnostics::push_cloud(recipe, "GenerativeRemove", crate::residual::CLOUD_NOTE);
     }
     if modern_present && legacy_present {
         warnings.retain(|w| !w.starts_with("RetouchInfo:") && !w.starts_with("crs:RetouchInfo:"));
@@ -89,6 +84,12 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         .flat_map(|(_, ops)| ops.iter().cloned())
         .collect();
     if ops.is_empty() {
+        if cloud_present {
+            warnings.push(format!(
+                "crs:GenerativeRemove: {}",
+                crate::residual::CLOUD_NOTE
+            ));
+        }
         return Ok(());
     }
     for (i, op) in ops.iter_mut().enumerate() {
@@ -114,6 +115,12 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
             "LR-3",
             "approximate: Adobe healing, feather and orientation conventions are unverified; coordinates use the Develop input frame before output lens distortion and crop",
         );
+    }
+    if cloud_present {
+        warnings.push(format!(
+            "crs:GenerativeRemove: {}",
+            crate::residual::CLOUD_NOTE
+        ));
     }
     Ok(())
 }
@@ -345,6 +352,12 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
         }]
     };
     let first = strokes.first()?.points.first()?;
+    if fields.contains_key("sourcey")
+        && fields.contains_key("offsety")
+        && number(&fields, "sourcey")? != number(&fields, "offsety")?
+    {
+        return None;
+    }
     let source = if fields.contains_key("sourcey") {
         point(&fields, "sourcex", "sourcey")?
     } else {
@@ -456,6 +469,11 @@ fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
             return None;
         }
     }
+    let feather = if fields.contains_key("centerweight") {
+        100. - percent(&fields, "centerweight", 0.5)?
+    } else {
+        feather
+    };
     let radius = bounded(number(&fields, "radius")?, 1e-6, 1.0)?;
     if fields.get("what")?.as_str()? == "Mask/Circle" {
         let center = point(&fields, "centerx", "centery")?;

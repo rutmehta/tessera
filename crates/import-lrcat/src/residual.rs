@@ -148,21 +148,13 @@ pub(crate) fn explain(recipe: &mut Recipe, warnings: &mut Vec<String>) {
         "GenerativeRemove",
         "GenerativeFill",
     ];
-    let cloud_warning = warnings.iter().any(|w| {
-        w.trim_start_matches("crs:")
-            .split_once(':')
-            .is_some_and(|(key, detail)| {
-                cloud_keys.contains(&key)
-                    && detail.contains("requires Adobe cloud; not translatable")
-            })
-    });
-    if cloud_warning {
-        crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", CLOUD_NOTE);
-        warnings.retain(|w| {
-            !w.trim_start_matches("crs:")
-                .split_once(':')
-                .is_some_and(|(key, _)| cloud_keys.contains(&key) || key == "FilterList")
-        });
+    for warning in warnings.iter() {
+        if let Some((key, detail)) = warning.trim_start_matches("crs:").split_once(':')
+            && cloud_keys.contains(&key)
+            && detail.contains("requires Adobe cloud; not translatable")
+        {
+            crate::diagnostics::push_cloud(recipe, key, CLOUD_NOTE);
+        }
     }
     for warning in warnings.iter_mut() {
         let Some((key, detail)) = warning.trim_start_matches("crs:").split_once(':') else {
@@ -185,9 +177,7 @@ pub(crate) fn explain(recipe: &mut Recipe, warnings: &mut Vec<String>) {
                 "crs:{key}: unselected cached Upright transform is not applied; selected transform is imported separately"
             );
         } else if detail.contains("number outside CRS range") {
-            *warning = format!(
-                "crs:{key}: tone or color control is outside its supported numeric range; unresolved Adobe auto-tone results cannot be reproduced"
-            );
+            *warning = format!("crs:{key}: {key} is outside its supported numeric range");
         }
     }
     let mut seen = std::collections::BTreeSet::new();
