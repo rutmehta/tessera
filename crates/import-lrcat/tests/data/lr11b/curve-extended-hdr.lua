@@ -1,0 +1,1 @@
+s={Sharpness=0,ColorNoiseReduction=0,HDREditMode=1,MaskGroupBasedCorrections={{MainCurve={0,0,255,127.5},ExtendedMainCurve={0,0,255,255,510,600},CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}}
