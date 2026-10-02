@@ -108,3 +108,22 @@ fn mixed_cloud_and_patch_removal_keeps_both_dispositions() {
     let notes: Vec<_>=diagnostics::entries(&r).into_values().flatten().filter(|e|e.reason.contains("requires Adobe cloud; not translatable")).collect();
     assert_eq!(notes.len(),1);
 }
+
+#[test]
+fn cloud_switches_are_info_notes_once_per_image() {
+    let (r,w)=lua_develop::parse("s={GenerativeRemove=true,GenerativeFill=true,EnableDistractionRemoval=true,FilterList={{What='synthetic-filter'}}}","15.4").unwrap();
+    assert!(!w.iter().any(|w|w.contains("GenerativeRemove:")||w.contains("GenerativeFill:")||w.contains("EnableDistractionRemoval:")),"{w:?}");
+    let notes: Vec<_>=diagnostics::entries(&r).into_values().flatten().filter(|e|e.reason.contains("requires Adobe cloud; not translatable")).collect();
+    assert_eq!(notes.len(),1);
+}
+#[test]
+fn legacy_fixture_byte_change_is_only_the_inactive_fill_light_note() {
+    let (mut r,_) = lua_develop::parse(include_str!("data/lrc155/legacy.lua"),"15.4").unwrap();
+    let notes = diagnostics::entries(&r);
+    assert_eq!(notes.len(),1);
+    assert_eq!(notes["FillLight"][0].status,"ignored");
+    r.unknown.remove(diagnostics::KEY);
+    let bytes=r.to_json().unwrap();
+    assert_eq!(bytes.len(),11633);
+    assert_eq!(engine_api::id::Digest::derive("LR-1 byte compatibility",&bytes).to_string(),"fe85a1a43d4268ab1aa6f24ba8add80325b3cd274d5b54e181f66bfbe6e438ce");
+}
