@@ -8,7 +8,7 @@
 //! Adding a feature (one line, plus a test in `v4_feature_predicates`):
 //!
 //! ```text
-//! ("point_colors", |r| r.settings.color.point_colors.is_some()),
+//! ("point_colors", |r| !r.settings.color.point_colors.is_empty()),
 //! ```
 //!
 //! and a test that calls `assert_bumped_only_when_present("point_colors", ..)`.
@@ -34,6 +34,9 @@ pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 
 /// Every schema 4 feature, by diagnostic name.
 const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
+    ("point_colors", |r| {
+        !r.settings.color.point_colors.is_empty()
+    }),
     ("upright_homography", |r| {
         r.settings.geometry.upright.homography.is_some()
     }),

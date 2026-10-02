@@ -227,14 +227,15 @@ pub(crate) fn parse_inner(
             == 1
         && !warnings.iter().any(|w| w.starts_with("crs:PointColors:"));
     if translated_points {
-        recipe.unknown.insert("tessera_import_info".into(), json!({
-            "PointColors": "Translated with an approximate gamma-encoded CPU HSL operator; Adobe pixel parity is not established"
-        }));
+        crate::diagnostics::push_approximate(
+            &mut recipe,
+            "PointColors",
+            "/settings/color/point_colors",
+            "LR-1",
+            "approximate: gamma-encoded CPU HSL operator; Adobe pixel parity is not established",
+        );
     }
     for p in &properties {
-        if p.namespace == CRS && p.name == "PointColors" && translated_points {
-            continue;
-        }
         if p.namespace == CRS
             && (crate::lua_develop::retain_source(p.name)
                 || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(p.name)))

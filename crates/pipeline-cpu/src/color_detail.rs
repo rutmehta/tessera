@@ -41,22 +41,26 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
         finite(&[
             b.red, b.orange, b.yellow, b.green, b.aqua, b.blue, b.purple, b.magenta,
         ])?;
-        if gray.enabled {
-            crate::map_rgb(tile, |rgb| grayscale(rgb, &gray.mixer))?;
-        }
-    }
-    let mut ordinary = s.clone();
-    ordinary.monochrome = None;
-    if ordinary == ColorSettings::default() {
-        return Ok(());
     }
     let mut base = s.clone();
     base.point_colors.clear();
+    base.monochrome = None;
     let only_points = base == ColorSettings::default();
+    if only_points
+        && s.point_colors.is_empty()
+        && !s.monochrome.as_ref().is_some_and(|gray| gray.enabled)
+    {
+        return Ok(());
+    }
     crate::map_rgb(tile, |mut rgb| {
         let original = rgb;
         for point in &s.point_colors {
             rgb = crate::point_color::apply(rgb, point, original);
+        }
+        if let Some(gray) = &s.monochrome
+            && gray.enabled
+        {
+            rgb = grayscale(rgb, &gray.mixer);
         }
         if only_points {
             return rgb;

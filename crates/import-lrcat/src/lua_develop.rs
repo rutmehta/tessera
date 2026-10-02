@@ -703,14 +703,6 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     // the exact Adobe spelling even for inactive or currently decoded values.
     recipe.unknown.remove("lrcat_develop_source");
     let mut source = Map::new();
-    let translated_points = crate::xmp::translated_point_colors(&recipe)
-        && table
-            .fields
-            .iter()
-            .filter(|(k, _)| matches!(k, LuaKey::Str(s) if s == "PointColors"))
-            .count()
-            == 1
-        && !warnings.iter().any(|w| w.starts_with("crs:PointColors:"));
     let mut kept = Map::new();
     let mut entries = Vec::new();
     if !table.items.is_empty() {
@@ -724,7 +716,6 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             && (retain_source(name)
                 || keep.contains(&i)
                 || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(name)))
-            && !(name == "PointColors" && translated_points && !keep.contains(&i))
         {
             source.insert(name.clone(), raw.clone());
         }

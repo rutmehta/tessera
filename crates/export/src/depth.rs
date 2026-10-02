@@ -454,15 +454,17 @@ mod tests {
             [0.75, 0.25, 0.25].map(|v| vec![linear(v); 48]).to_vec(),
         )
         .unwrap();
-        let mut settings = DevelopSettings::default();
-        settings.color = serde_json::from_value(serde_json::json!({
-            "monochrome":{"enabled":true},
-            "point_colors":[{"hue_shift":30.,"range":50.,"selection":{
-                "source_hsl":[0.,0.5,0.5],"hue":[0.,0.25,0.75,1.],
-                "saturation":[0.,0.25,0.75,1.],"luminance":[0.,0.25,0.75,1.]
-            }}]
-        }))
-        .unwrap();
+        let mut settings = DevelopSettings {
+            color: serde_json::from_value(serde_json::json!({
+                "monochrome":{"enabled":true},
+                "point_colors":[{"hue_shift":30.,"range":50.,"selection":{
+                    "source_hsl":[0.,0.5,0.5],"hue":[0.,0.25,0.75,1.],
+                    "saturation":[0.,0.25,0.75,1.],"luminance":[0.,0.25,0.75,1.]
+                }}]
+            }))
+            .unwrap(),
+            ..Default::default()
+        };
         settings.effects.lens_blur = Some(LensBlur::default());
         let provider = DepthProvider::from_map(
             ml_depth::DepthMap::from_prediction(8, 6, vec![0.; 48]).unwrap(),

@@ -48,10 +48,15 @@ pub struct DevelopSettings {
 }
 
 impl DevelopSettings {
-    /// B&W conversion precedes point curves; other colour adjustments follow.
+    /// Point Color selects on colour before B&W, then tone curves preserve toning.
     pub fn color_before_curves(&self) -> ColorSettings {
         ColorSettings {
             monochrome: self.color.monochrome.clone(),
+            point_colors: if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
+                self.color.point_colors.clone()
+            } else {
+                Vec::new()
+            },
             ..Default::default()
         }
     }
@@ -60,6 +65,11 @@ impl DevelopSettings {
     pub fn color_after_curves(&self) -> ColorSettings {
         ColorSettings {
             monochrome: None,
+            point_colors: if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
+                Vec::new()
+            } else {
+                self.color.point_colors.clone()
+            },
             ..self.color.clone()
         }
     }
@@ -80,7 +90,11 @@ impl DevelopSettings {
                 if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
                     ParamHash::chain(
                         self.tone.param_hash(),
-                        ParamHash::of(StageId::Tone, &self.color.monochrome),
+                        if self.color.point_colors.is_empty() {
+                            ParamHash::of(StageId::Tone, &self.color.monochrome)
+                        } else {
+                            ParamHash::of(StageId::Tone, &self.color_before_curves())
+                        },
                     )
                 } else {
                     self.tone.param_hash()
