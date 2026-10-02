@@ -38,3 +38,16 @@ fn retouch_brush_metadata_and_vertical_offset_translate() {
     assert_eq!(r.settings.locals.retouch.len(),1);
     assert!(matches!(r.settings.locals.retouch[0].kind,engine_api::recipe::mask::RetouchKind::Heal{..}));
 }
+
+#[test]
+fn active_local_curves_name_the_missing_feature() {
+    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=1}}}}}","15.4").unwrap();
+    assert!(w.iter().any(|w|w.contains("local tone curve")),"{w:?}");
+    assert!(!w.iter().any(|w|w.contains("mask source retained")));
+}
+#[test]
+fn ai_raster_metadata_does_not_block_regeneration() {
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalExposure2012=0.5,CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic',FullMaskSize='synthetic-size',LocalInputDigest='synthetic-digest',LocalInputDigestVersion=1}}}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.locals.adjustments.len(),1);
+}
