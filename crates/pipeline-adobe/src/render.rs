@@ -33,6 +33,27 @@ pub fn render_linear_scaled_with_profile_and_locals(
     profile: Option<&DcpProfile>,
     locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
 ) -> EngineResult<Image> {
+    let embedded;
+    let profile = if profile.is_none() {
+        embedded = match source {
+            RenderSource::CameraLinear(proxy) => proxy
+                .embedded_profile()
+                .map(DcpProfile::parse)
+                .transpose()
+                .map_err(|reason| EngineError::invalid("DCP profile", reason))?,
+            _ => None,
+        };
+        embedded.as_ref()
+    } else {
+        profile
+    };
+    let planned;
+    let settings = if let RenderSource::CameraLinear(proxy) = source {
+        planned = proxy.render_plan(settings, locals.is_some()).0;
+        &planned
+    } else {
+        settings
+    };
     if matches!(source, RenderSource::CameraLinear(proxy) if !proxy.is_external_dng()) {
         return Err(EngineError::Unsupported {
             what: "Adobe rendering: original required; camera-linear Smart Previews use Native revision 2".into(),

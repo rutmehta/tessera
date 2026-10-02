@@ -15,6 +15,13 @@ impl Renderer {
         settings: &DevelopSettings,
     ) -> EngineResult<()> {
         use engine_api::recipe::{MaskKind, ProcessFamily};
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            &planned
+        } else {
+            settings
+        };
         let external_dng = image
             .camera_linear_proxy()
             .is_some_and(|p| p.is_external_dng());
@@ -71,6 +78,13 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            &planned
+        } else {
+            settings
+        };
         if image.camera_linear_proxy().is_some() {
             self.validate_camera_linear_proxy(image, settings)?;
         } else {
@@ -135,8 +149,21 @@ impl Renderer {
                 // This scalar route develops at full active resolution and only
                 // then reduces. External rasters use that same oriented L0 frame.
                 let mask =
-                    self.mask_cache
-                        .rasterize(input, group, 0, upstream, Default::default())?;
+                    match self
+                        .mask_cache
+                        .rasterize(input, group, 0, upstream, Default::default())
+                    {
+                        Ok(mask) => mask,
+                        Err(EngineError::Cancelled) => return Err(EngineError::Cancelled),
+                        Err(_)
+                            if image
+                                .camera_linear_proxy()
+                                .is_some_and(|p| p.is_external_dng()) =>
+                        {
+                            continue;
+                        }
+                        Err(error) => return Err(error),
+                    };
                 let adjusted = pipeline_cpu::adjust_local(input, &group.params, group.amount)?;
                 let blended = pipeline_cpu::blend_local(input, &adjusted, &mask)?;
                 for ((out, original), changed) in
@@ -177,7 +204,25 @@ impl Renderer {
             }
             let mut tile = developed.tile(TileCoord::new(0, coord.x, coord.y), 0, 1)?;
             if let Some(op) = output.display_op(settings.output.gamut_mapping) {
-                tile = CpuStageOp.run(StageId::Output, &op, tile)?;
+                tile = if self.is_adobe() {
+                    match output {
+                        RenderOutput::Display => CpuStageOp::display_linear(tile)?,
+                        RenderOutput::DisplayLinear(headroom) => {
+                            let matrix = engine_api::color::WorkingSpace::LinearSrgb
+                                .to_xyz()
+                                .inverse()?
+                                * engine_api::color::WorkingSpace::LinearRec2020.to_xyz();
+                            pipeline_cpu::apply_matrix(&mut tile, matrix)?;
+                            pipeline_cpu::map_rgb(&mut tile, |v| {
+                                v.map(|c| c.clamp(0., headroom.get()))
+                            })?;
+                            tile
+                        }
+                        RenderOutput::SceneLinear => unreachable!(),
+                    }
+                } else {
+                    CpuStageOp.run(StageId::Output, &op, tile)?
+                };
                 tile = if op.is_encoded_display() {
                     Tile::from_samples(coord, tile.layout(), tile.samples::<u8>()?.to_vec())?
                 } else {
