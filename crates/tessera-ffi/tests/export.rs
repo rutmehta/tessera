@@ -1328,7 +1328,7 @@ fn protected_batch_destination_is_rejected_before_mkdir() {
 }
 
 #[test]
-fn lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai() {
+fn lr5c_ffi_print_and_file_export_without_model_fail_and_stored_rasters_render() {
     let f = fixture();
     let print = || {
         f.engine.render_for_print(
@@ -1343,6 +1343,23 @@ fn lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai() {
         )
     };
     let baseline = print().unwrap();
+    let export = |name: &str| {
+        let out = f.dir.path().join(name);
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(&out, serde_json::json!({})),
+                None,
+                None,
+            )
+            .unwrap();
+        (report, out)
+    };
+    let (report, plain_out) = export("plain-export");
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
     let mut recipe = engine_api::recipe::Recipe {
         image_id: Some(f.ids[0].parse().unwrap()),
         ..Default::default()
@@ -1366,21 +1383,14 @@ fn lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai() {
         },
     )
     .unwrap();
-    assert_eq!(print().unwrap().data, baseline.data);
-    let out = f.dir.path().join("ai-export");
-    let report = f
-        .engine
-        .export_batch(
-            ExportTarget::Images {
-                image_ids: vec![f.ids[0].clone()],
-            },
-            settings(&out, serde_json::json!({})),
-            None,
-            None,
-        )
-        .unwrap();
-    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
-    assert!(out.join("a.jpg").is_file());
+    // LR-5c ruling 1: with no model, print and file export are errors, never
+    // a silently different image. The model cannot be loaded from this
+    // support root (deterministic, no network).
+    std::fs::create_dir_all(Path::new(&f.support).join("models/models.toml")).unwrap();
+    assert!(print().is_err());
+    let (report, out) = export("ai-export");
+    assert_eq!((report.exported, report.failed), (0, 1), "{report:?}");
+    assert!(!out.join("a.jpg").exists());
     // Both entry points must read the engine's explicit app root. There is no
     // segmenter or process-global support override supplying this raster.
     let store =
@@ -1401,21 +1411,10 @@ fn lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai() {
     doc.recipe.history.base = doc.recipe.settings.clone();
     sidecar::Sidecar::write_recipe(&side, &doc).unwrap();
     assert_ne!(print().unwrap().data, baseline.data);
-    let resolved_out = f.dir.path().join("resolved-export");
-    let report = f
-        .engine
-        .export_batch(
-            ExportTarget::Images {
-                image_ids: vec![f.ids[0].clone()],
-            },
-            settings(&resolved_out, serde_json::json!({})),
-            None,
-            None,
-        )
-        .unwrap();
+    let (report, resolved_out) = export("resolved-export");
     assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
     assert_ne!(
-        image::open(out.join("a.jpg")).unwrap().to_rgb8(),
+        image::open(plain_out.join("a.jpg")).unwrap().to_rgb8(),
         image::open(resolved_out.join("a.jpg")).unwrap().to_rgb8()
     );
 }

@@ -541,3 +541,123 @@ fn lr5b_raw_import_extent_is_the_active_sensor_area() {
         );
     }
 }
+
+/// A catalog whose every develop row is `source`, opened on a fresh engine.
+fn catalog_with(
+    temp: &Path,
+    source: &str,
+) -> (Arc<Engine>, PathBuf, import_lrcat::fixture::Fixture) {
+    let fixture = import_lrcat::fixture::write(&temp.join("fixture")).unwrap();
+    set_develop_source(&fixture, source);
+    let support = temp.join("support");
+    let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+    (engine, support, fixture)
+}
+fn set_develop_source(fixture: &import_lrcat::fixture::Fixture, source: &str) {
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    db.execute(
+        "UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'",
+        [source],
+    )
+    .unwrap();
+}
+fn fixture_options(import: &LrcatImport, fixture: &import_lrcat::fixture::Fixture) -> LrcatOptions {
+    let mut options = import.default_options().unwrap();
+    let photos = fixture.photos.canonicalize().unwrap();
+    options.relocations[0].to = photos.to_string_lossy().into_owned();
+    options.library_folder = photos.to_string_lossy().into_owned();
+    options
+}
+const AI_MASK: &str = "MaskGroupBasedCorrections={{What='Correction',LocalExposure2012=1,CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskDigest='opaque-mask-id'}}}}";
+
+/// Stacked on LR-9c: one import report carries both the cloud group and
+/// LR-5b's regeneration note, on apply and on resume.
+#[test]
+fn lr5b_import_report_shows_cloud_group_and_regeneration_notes_together() {
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, _, fixture) = catalog_with(
+        temp.path(),
+        &format!("s={{GenerativeRemove=true,{AI_MASK}}}"),
+    );
+    let import = engine
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let options = fixture_options(&import, &fixture);
+    let report = import.apply(options.clone(), None).unwrap();
+    assert!(report.imported > 0);
+    let check = |report: &LrcatReport| {
+        assert_eq!(report.cloud.len(), 1, "{:?}", report.cloud);
+        assert_eq!(report.cloud[0].category, "GenerativeRemove");
+        assert!(
+            report.cloud[0]
+                .reason
+                .contains("requires Adobe cloud; not translatable")
+        );
+        let regenerated: Vec<_> = report
+            .approximate
+            .iter()
+            .filter(|i| i.reason.starts_with("regenerated:"))
+            .collect();
+        assert_eq!(regenerated.len(), 1, "{:?}", report.approximate);
+        assert_eq!(regenerated[0].count, report.cloud[0].count);
+    };
+    check(&report);
+    let resumed = import.apply(options, None).unwrap();
+    assert!(resumed.resumed > 0);
+    check(&resumed);
+}
+
+/// LR-5c ruling 4 on the production import path: images without AI masks
+/// make no mask-store call when they own no record, and a reimport without
+/// AI masks clears the stale record of an image that had them.
+#[test]
+fn lr5c_import_without_ai_masks_touches_no_store_and_clears_stale_records() {
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, support, fixture) = catalog_with(temp.path(), "s={Exposure2012=1}");
+    let apply = |pass: u32, resolver: Option<Arc<dyn LrcatMaskResolver>>| {
+        let import = engine
+            .clone()
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = fixture_options(&import, &fixture);
+        options.overwrite_existing_edits = pass > 0;
+        if pass > 0 {
+            // A new import bundle re-applies instead of resuming the last one.
+            options.library_folder = fixture
+                .photos
+                .canonicalize()
+                .unwrap()
+                .join(format!("library-{pass}"))
+                .to_string_lossy()
+                .into_owned();
+        }
+        let report = import
+            .apply_with_mask_resolver(options, None, resolver)
+            .unwrap();
+        assert!(report.imported > 0, "{report:?}");
+    };
+    apply(0, None);
+    assert!(
+        !support.join("imported-masks").exists(),
+        "no AI masks and no record: the mask store must not be touched"
+    );
+    struct AnySize;
+    impl LrcatMaskResolver for AnySize {
+        fn resolve(&self, _: i64, _: String) -> Option<Vec<u8>> {
+            // Opaque to the importer; the test fixture's originals share one size.
+            let mut png = Cursor::new(Vec::new());
+            image::GrayImage::from_pixel(900, 600, image::Luma([128]))
+                .write_to(&mut png, image::ImageFormat::Png)
+                .unwrap();
+            Some(png.into_inner())
+        }
+    }
+    set_develop_source(&fixture, &format!("s={{{AI_MASK}}}"));
+    apply(1, Some(Arc::new(AnySize)));
+    let owners = support.join("imported-masks/owners");
+    let records = || std::fs::read_dir(&owners).map_or(0, |d| d.count());
+    assert!(records() > 0, "resolved rasters are owned by their images");
+    set_develop_source(&fixture, "s={Exposure2012=1}");
+    apply(2, None);
+    assert_eq!(records(), 0, "stale ownership records are cleared");
+}

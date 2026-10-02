@@ -501,6 +501,55 @@ mod lr5b_tests {
         prune_missing(dir.path(), |_| true).unwrap();
         assert!(store.get(&new).is_none());
     }
+    /// LR-5c ruling 4: a reimport with no AI mask at all clears the image's
+    /// stale ownership record (one unlink of its own record, no listing), so
+    /// explicit pruning can reclaim the content while the image lives.
+    #[test]
+    fn lr5c_reimport_without_ai_masks_clears_the_stale_ownership_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+        let mut recipe = fixture();
+        apply(
+            &mut recipe,
+            ImageId(1),
+            (8, 4),
+            &store,
+            |_| Some(png(64)),
+            |_| Ok(()),
+        )
+        .unwrap();
+        let key = raster_key(&recipe);
+        assert!(owner_path(&store, ImageId(1)).exists());
+        let mut plain = import_lrcat::develop(1, "s={Exposure2012=1}", "15.4")
+            .unwrap()
+            .0;
+        // A failed publication keeps the record: the old recipe is still live.
+        assert!(
+            apply(
+                &mut plain,
+                ImageId(1),
+                (8, 4),
+                &store,
+                |_| panic!("resolver called"),
+                |_| Err(failure("publication failed")),
+            )
+            .is_err()
+        );
+        assert!(owner_path(&store, ImageId(1)).exists());
+        apply(
+            &mut plain,
+            ImageId(1),
+            (8, 4),
+            &store,
+            |_| panic!("resolver called"),
+            |_| Ok(()),
+        )
+        .unwrap();
+        assert!(!owner_path(&store, ImageId(1)).exists());
+        assert!(store.get(&key).is_some(), "import itself never deletes");
+        prune_missing(dir.path(), |_| true).unwrap();
+        assert!(store.get(&key).is_none());
+    }
     #[test]
     fn lr5b_no_ai_masks_do_not_access_store() {
         let dir = tempfile::tempdir().unwrap();

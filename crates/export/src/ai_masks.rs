@@ -417,14 +417,15 @@ mod lr5b_tests {
             );
         }
     }
+    /// LR-5c ruling 1: export never silently differs from what the user sees
+    /// once the model arrives. No model is an error; nothing is rendered.
     #[test]
-    fn lr5b_export_without_model_skips_inverted_and_subtract_adjustments() {
+    fn lr5c_export_without_model_is_an_error_for_inverted_and_subtract_adjustments() {
         let dir = tempfile::tempdir().unwrap();
+        // The model cannot be loaded from here: deterministic, no network.
+        std::fs::create_dir_all(dir.path().join("models/models.toml")).unwrap();
         let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
         let source = RenderSource::Rgb(&input);
-        let base =
-            render_with_support(&source, &DevelopSettings::default(), None, Some(dir.path()))
-                .unwrap();
         for subtract in [false, true] {
             let mut ai = MaskComponent::new(MaskKind::Subject { model: None });
             ai.invert = !subtract;
@@ -451,7 +452,7 @@ mod lr5b_tests {
             let mut settings = DevelopSettings::default();
             settings.locals.adjustments.push(group);
             let mut warnings = vec![];
-            let out = render_with_hooks(
+            let error = render_with_hooks(
                 &source,
                 &settings,
                 None,
@@ -460,9 +461,41 @@ mod lr5b_tests {
                 &mut warnings,
                 Some(dir.path()),
             )
-            .unwrap();
-            assert_eq!(out, base);
-            assert!(warnings.iter().any(|w| w.contains("unavailable")));
+            .unwrap_err();
+            assert!(error.to_string().contains("AI mask"), "{error}");
         }
+    }
+    /// A missing stored raster with no model to regenerate it is an error too.
+    #[test]
+    fn lr5c_missing_stored_raster_without_model_is_an_export_error() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("models/models.toml")).unwrap();
+        let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
+        let mut c = MaskComponent::new(MaskKind::Subject { model: None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some([45; 32]),
+            regenerate: false,
+        });
+        let mut group = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
+        group.params.exposure = 1.;
+        let mut settings = DevelopSettings::default();
+        settings.locals.adjustments.push(group);
+        assert!(
+            render_with_hooks(
+                &RenderSource::Rgb(&input),
+                &settings,
+                None,
+                None,
+                None,
+                &mut vec![],
+                Some(dir.path()),
+            )
+            .is_err()
+        );
     }
 }
