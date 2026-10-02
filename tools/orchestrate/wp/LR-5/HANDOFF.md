@@ -1,5 +1,106 @@
 # LR-5 — AI masks, Machine B
 
+## LR-5b rebase-only integration — 2026-10-02
+
+Current base: `origin/wp/LR-4-parametric-masks` at
+`5e0633e1217df25c22438b7d5f01cf1c01972f80`. Rebased with
+`git rebase --onto origin/wp/LR-4-parametric-masks 4ecf521d` after fetching.
+Exactly the three LR-5 commits were replayed, without squashing or duplicating
+LR-4 history:
+
+| Original | Rebased | Purpose |
+| --- | --- | --- |
+| `9f73a838` | `9a7f2382` | LR-5 tests |
+| `dc8df0a8` | `9026873f` | LR-5 implementation |
+| `ece8be49` | `25273c9b` | LR-5 documentation |
+
+### Conflicts and integration checks
+
+- `crates/engine-api/src/recipe/schema.rs`: retained both the predecessor's
+  `point_colors` predicate and LR-5's `adobe_ai_mask` predicate, together with
+  all existing predicates and tests. No schema constant or first-lane checklist
+  changes.
+- `crates/import-lrcat/README.md`: kept the complete LR-2e and LR-1 sections,
+  then appended the LR-5 resource-injection section.
+- `crates/export/src/depth.rs` merged automatically; its render hook retains
+  predecessor arguments and adds LR-5's explicit mask support root.
+- Translation matrix merged automatically. A row-by-row comparison confirms
+  all 118 base rows remain, with only six LR-5 rows changed. Main's shared
+  `approximate` guard is untouched.
+- All predecessor importer hooks remain. LR-7's `geometry::finish` still owns
+  the single Import entry. `diagnostics::Entry.field` remains `Option<String>`;
+  the new integration test reads it with `as_deref()` through `entries()`.
+
+### Combined synthetic integration test
+
+Integration-test and generated-bindings commit: `fecd699f`.
+
+`lr5b_combined_lanes_resolve_and_regenerate_in_one_import` in
+`crates/tessera-ffi/src/lrcat_mask_tests.rs` imports one invented Lua row with
+LR-1 Point Color, LR-2 monochrome/mixer, LR-4 display-domain luminance range,
+two LR-5 AI subject masks, and LR-7 Upright keys. The existing APPLY helper
+receives resolver bytes for one subject and no bytes for the other. The test
+checks the durable raster, pending regeneration, schema 4 serialization, one
+Import-authored history entry, undo/redo, JSON round trip, and diagnostics for
+all five lanes through `entries()`, including exactly one regenerated note.
+CPU export uses the stored raster and invokes an injected subject segmenter
+exactly once for the missing raster. Output must be finite and differ from a
+no-local-adjustments baseline; rendering must preserve diagnostics/history.
+No model inference or user catalog is needed.
+
+### LR-5b gate evidence
+
+Environment for all LR-5b gates:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-4-parametric-masks
+export CARGO_BUILD_JOBS=4
+export RAYON_NUM_THREADS=4
+cargo clean -p engine-api -p export -p import-lrcat -p mask-ai -p mask-store -p ml-depth -p pipeline-cpu -p pipeline-gpu -p sidecar -p tessera-ffi -p tessera-mcp
+cargo test --release -p import-lrcat -p engine-api -p mask-store -p mask-ai -p pipeline-cpu -p pipeline-gpu -p sidecar -p image-core -p merge -p export -p previews -p tessera-ffi -p tessera-mcp
+cargo clippy --release --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
+cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+```
+
+- **PASS:** full release Rust gate, 1,748 top-level test passes plus two
+  successful child-process tests; 59 existing ignored tests, zero failures.
+  The child-process harnesses internally filter nine tests each; the gate
+  command supplies no exclusions or filters. Repository RAW fixtures are
+  enabled, and model inference remains opt-in.
+- **PASS:** workspace release Clippy, all targets, `-D warnings` (21.16 s).
+  Existing LibRaw C/C++ build-script warnings do not represent Rust/Clippy
+  warnings and did not fail the gate.
+- **PASS:** `cargo fmt --all --check`.
+- **PASS:** `apps/mac/build-ffi.sh`; generated C and Swift bindings now expose
+  the existing LR-5 mask resolver and apply method. These generated artifacts
+  are included with the integration-test commit, with no new API implementation.
+- **PASS:** Swift gate printed `SWIFT GATE OK`; debug build completed in
+  38.66 s, XCTest executed 920 tests with three skipped and zero failures in
+  199.697 s, and Swift Testing passed five tests in two suites.
+- **PASS:** strict release `Tessera` build, complete concurrency checking and
+  Swift warnings-as-errors, exit 0 (144.29 s). The linker emitted a warning
+  that the bundled `blake3_neon.o` was built for macOS 26.2 while linking for
+  15.0; this is a linker deployment-target warning, not a Swift diagnostic.
+  This pass does not establish runtime compatibility on older macOS versions.
+- Generated C/Swift bindings byte-match the bindgen output. Handwritten-source
+  `git diff --check` passes; generated bindings retain bindgen's whitespace.
+
+The initial focused release test also passed. All fixtures added by this pass
+are synthetic. No GUI was opened, no real catalog was read, and nothing was
+pushed. No Cargo manifest, Cargo.lock, board.json, dependency, or main-owned
+first-lane checklist was changed. `LR-RULINGS-FROM-A.md` remains untracked.
+
+Local gate logs: `/tmp/lr5b-clean.log`, `/tmp/lr5b-focused.log`,
+`/tmp/lr5b-release-tests.log`, `/tmp/lr5b-clippy.log`, `/tmp/lr5b-fmt.log`,
+`/tmp/lr5b-swift-gate.log`, and `/tmp/lr5b-swift-strict.log`.
+
+---
+
+## Original LR-5 implementation record (historical)
+
 Branch `wp/LR-5-ai-masks`, local only. Base
 `4ecf521de9583f8bf3d962ec6ff4cbaa72591004` includes LR-4 through LR-4e and
 `origin/main` `486d069f` (including LR-SCHEMA, LR-DIAG and LR-7). The required
