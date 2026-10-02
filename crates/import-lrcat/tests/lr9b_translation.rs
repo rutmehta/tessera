@@ -68,3 +68,11 @@ fn generative_removal_has_one_cloud_note_per_image() {
     assert_eq!(notes.len(),1);
     assert_eq!(notes[0].status,"ignored");
 }
+
+#[test]
+fn saved_overlay_hue_with_zero_saturation_is_inactive() {
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalToningHue=80,LocalToningSaturation=0,LocalExposure2012=0.5,CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=1}}}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.locals.adjustments[0].params.color_overlay,None);
+    assert_eq!(r.settings.locals.adjustments[0].params.exposure,0.5);
+}
