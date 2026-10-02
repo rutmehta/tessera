@@ -1,3 +1,102 @@
+# ENG-3f — sweeps across the actual switch, restored grey boundaries
+
+Tests and docs only on top of `01138f75`; **no production code, golden,
+fingerprint, Cargo.lock or board.json change**. Test commit: `2d00acc10410cfa947204e35f1a4265bf6acd608`.
+Started by a Codex worker (items 2 and 3 and the test skeletons), completed
+and verified by Claude Opus 5.5 (shared sweep support, bounds, docs, gates).
+
+Machine A's four items:
+
+1. **Sweeps that cross the switch — done.** The switch is `D == |Y|`, i.e.
+   `rho* = k(1 - |Y|/epsilon)`. Shared support
+   `crates/pipeline-gpu/tests/support/eng3_switch.rs`; tests
+   `eng3f_curve_actual_switch_sweeps` (pipeline-gpu) and
+   `eng3f_photo_actual_switch_sweeps` (filters), each on CPU and Metal,
+   2001 samples per sweep, pixels `(r, g, 0)` with opposing red/green:
+   - rho sweep 0.10 → 0.15 at Y = 5e-4 (switch at rho* = 0.125, sample 1001);
+   - |Y| sweep 7.5e-4 → 8.5e-4 at rho = 0.05 (floor 8e-4, sample 1000).
+
+   Each sweep asserts, from an independent f64 evaluation of the actual f32
+   pixels, that it starts in the floor branch, ends in the ratio branch and
+   crosses exactly once inside the middle half. The existing ENG-3c sweeps
+   are kept and now commented as ratio-branch-only.
+2. **Neutral-grey boundaries restored — done.**
+   `eng3_curve_signed_floor_boundaries` is byte-identical to its `d824c09e`
+   version: extended curve, greys ±0.002, ±0.001001, ±0.000999, ±1e-6, CPU
+   versus the f64 mapped value and CPU versus Metal both at 1e-7. It sits
+   next to `eng3c_curve_cancelling_pixel_signed_floor_boundaries` and passes.
+3. **Floored count — done.** `eng3b_lifted_black_raw_monotone` now asserts
+   `assert_eq!(floored, 32)` (measured 32; max RGB oracle error 2.1297947e-7).
+4. **Docs — done.** `crates/pipeline-cpu/TONE_M2.md` and
+   `crates/filters/README.md` state the switch at `rho* = k(1-|Y|/epsilon)`.
+
+## Step bound and its derivation
+
+With target luminance T the output luminance is `T` in the ratio branch and
+`Y + (T - Y)|Y|/D` in the floor branch: continuous at `D = |Y|` and
+piecewise C1. By the mean value theorem each adjacent step must satisfy
+
+    |dYout| <= S_rho * |d rho| + S_y * |d Y| + R_i + R_(i-1)
+
+where `d rho`, `d Y` are the actual f32-rounded sample differences and
+`S_rho`, `S_y` are suprema of the partial derivatives over the sweep:
+
+| Operator | S_rho | S_y |
+| --- | --- | --- |
+| Curve, T = f(Y) | `(f - Y) eps / (k Y)` (floor: `(f-Y) Y eps/(k D^2)`, D >= Y; ratio: 0) | `f' + (f - Y)/Y` (floor: `1 + (f'-1)Y/D + (f-Y)/D`; ratio: f') |
+| Photo Filter, T = L(1.625 + 0.375/rho), q = 0.625 + 0.375/rho | `max(0.375 L/rho^2, q eps/k)` (opposite-signed floor terms; ratio: first term) | `1 + 2q` (floor: `1 + 2 q L/D`; ratio: `1 + q`) |
+
+evaluated at the least favourable corner (f at Y_max, Y_min and rho_min in
+denominators). The Photo Filter test uses colour (0.5, 0.8, 0.5), density 1,
+so the source is `(r/0.5, g/0.8, 0)` and T is its luminance.
+`R_i = 8 * 2^-24 * A_out,i` is the f32 rounding allowance with
+`A_out = sum w_c |out_c|`: 2 units for the cancelling input luminance
+(relative error 2u/rho amplified by the gain), 2 for rho → D, 3 for target
+and gain arithmetic, 1 for the final product. The bound was fixed before
+the first run and was not adjusted afterwards; every sweep passed first time.
+
+## Measured maximum adjacent output-luminance steps
+
+| Operator | Sweep | CPU max step | Metal max step | Asserted bound at that step | Step across the switch (CPU / Metal) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Curve | rho | 7.4683130e-6 | 7.4673057e-6 | 7.7527318e-6 | 3.3795833e-9 / 2.1755695e-9 |
+| Curve | \|Y\| | 2.4798989e-6 | 2.4798989e-6 | 3.3054691e-6 (Metal 3.3053339e-6) | 2.4041414e-6 / 2.4041414e-6 |
+| Photo Filter | rho | 3.0082874e-7 | 3.0076578e-7 | 4.8701565e-7 (Metal 4.8691402e-7) | 2.9896498e-7 / 2.9994361e-7 |
+| Photo Filter | \|Y\| | 8.7632537e-7 | 8.7582171e-7 | 1.0185267e-6 | 8.7026656e-7 / 8.6799264e-7 |
+
+Suprema used: curve rho sweep S_rho = 0.29823889, S_y = 75.648622; curve |Y|
+sweep S_y = 50.970623; Photo Filter rho sweep S_rho = 0.01875001; Photo
+Filter |Y| sweep S_y = 17.250014. Sample spacing: 2.5e-5 in rho, 5e-8 in |Y|.
+Curve output luminance runs 0.031566551 → 0.037779850 over the rho sweep
+(constant f(Y) after the switch, hence the ~3e-9 step there) and
+0.035719966 → 0.038159856 over the |Y| sweep. The largest steps are the
+smooth floor-branch slope next to the switch, not a jump: no discontinuity
+was found on either backend for either operator.
+
+## Gates (final test source `2d00acc10410cfa947204e35f1a4265bf6acd608`)
+
+Env: PATH with `$HOME/.cargo/bin`, target `$HOME/.cache/tessera-target/ENG-3`,
+`CARGO_BUILD_JOBS=5`, `RAYON_NUM_THREADS=5` (CLAUDE-COMMON values).
+
+```sh
+cargo clean --release -p filters -p pipeline-cpu -p pipeline-gpu   # 741 files, 1.7 GiB
+cargo clean -p filters -p pipeline-cpu -p pipeline-gpu             # 1462 files, 449.6 MiB
+cargo test --release -p filters -p pipeline-cpu -p pipeline-gpu --no-fail-fast -- --test-threads=1 --nocapture
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+git diff --check
+```
+
+All passed on the first attempt (one attempt each, serialized, while another
+lane's build was running): **101 suites, 535 passed, 0 failed, 23 ignored**
+(existing ignores) — filters 161 / 0 / 8, pipeline-cpu 203 / 0 / 3,
+pipeline-gpu 171 / 0 / 12. Workspace Clippy, fmt and diff checks exit 0.
+One earlier focused run failed before any measurement because the curve
+sweep used a single 2001-wide tile (`tile interior exceeds 256`); the test
+now feeds 256-sample tiles. No bound or assertion was changed for it.
+
+---
+
 # ENG-3e — reproducible Photo Filter one-ULP worst case
 
 Follow-up on `e200b4bc`; Machine A accepted the existing `1e-4` bound.

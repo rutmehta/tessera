@@ -303,6 +303,11 @@ and `A=0.2627|r|+0.678|g|+0.0593|b|` on filtered RGB, set
 `rho=abs(L)/A` and `D=max(abs(L),epsilon*clamp(1-rho/k,0,1))` with
 `k=0.25` (ENG-3c amended ruling). This continuously tapers the floor;
 same-sign colours have rho=1, including saturated-blue shadows.
+The branch switch is `D==abs(L)`, i.e. at `rho* = k*(1-abs(L)/epsilon)`,
+not at `rho=k`: for `abs(L)>=epsilon` the floor never applies, and at
+`L=5e-4` the switch is at `rho*=0.125`. Both branches give output luminance
+`f` there; `eng3f_photo_actual_switch_sweeps` crosses it in rho and in
+`abs(L)` on CPU and Metal (ENG-3f).
 When `D==abs(L)`, retain literal `channel*f/L` arithmetic. Otherwise CPU
 and WGSL use `gain=1+(f-L)/copysign(D,L)` and `channel*gain`.
 Exact zero retains the source-RGB fallback; identity controls and alpha are

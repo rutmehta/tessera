@@ -88,6 +88,11 @@ by segment endpoints, with monotonicity tested to f32 epsilon.
    When `D==abs(Y)`, retain literal `f(Y)/Y` arithmetic. Otherwise use
    `1+(f(Y)-Y)/copysign(D,Y)` identically on CPU and GPU. Same-sign
    colours have rho=1, including saturated blue, so retain the original ratio.
+   The branch switch is `D==abs(Y)`, i.e. at `rho* = k*(1-abs(Y)/epsilon)`,
+   not at `rho=k`: for `abs(Y)>=epsilon` the floor never applies, and at
+   `Y=5e-4` the switch is at `rho*=0.125`. Both branches give `f(Y)` there.
+   `eng3f_curve_actual_switch_sweeps` crosses it in rho and in `abs(Y)` on
+   CPU and Metal (ENG-3f).
    This differs from ENG-1 for negative Y. Output luminance interpolates
    from Y to f(Y) by abs(Y)/D; identity mapping has gain one.
    Exact-zero handling and neutral-black lift remain unchanged. A coloured
