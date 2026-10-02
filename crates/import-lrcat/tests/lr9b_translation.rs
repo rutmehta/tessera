@@ -304,6 +304,16 @@ fn unsupported_modern_retouch_does_not_apply_a_stale_legacy_alias() {
 fn malformed_modern_retouch_also_blocks_stale_legacy_fallback() {
     let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='clone',Opacity=0.5,opacity=0.8}},RetouchInfo={'spotType=clone,centerX=0.2,centerY=0.4,radius=0.03,sourceX=0.7,sourceY=0.6'}}","15.4").unwrap();
     assert!(r.settings.locals.retouch.is_empty());
-    assert!(w.iter().any(|w|w.contains("RetouchAreas")));
-    assert_eq!(diagnostics::entries(&r)["RetouchInfo"][0].status,"ignored");
+    assert!(w.iter().any(|w| w.contains("RetouchAreas")));
+    assert_eq!(diagnostics::entries(&r)["RetouchInfo"][0].status, "ignored");
+}
+
+#[test]
+fn retouch_brushes_may_cross_the_image_boundary_without_clamping() {
+    let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='clone',SourceX=0.3,SourceY=0.4,Masks={{What='Mask/Paint',Radius=0.03,Dabs={'d -0.05 0.4','d 0.1 0.4'}}}}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    let engine_api::recipe::mask::RetouchTarget::Area{components}=&r.settings.locals.retouch[0].target else {panic!("area required")};
+    let engine_api::recipe::MaskKind::Brush{strokes}=&components[0].kind else {panic!("brush required")};
+    assert_eq!(strokes[0].points[0][0],-0.05);
+    r.validate().unwrap();
 }
