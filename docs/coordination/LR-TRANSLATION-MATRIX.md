@@ -113,7 +113,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `MaskGroupBasedCorrections/Mask/Image` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Image', MaskSubType = 2, MaskDigest = 'synthetic-resource' } } } }` |
 | `MaskGroupBasedCorrections/Mask/Object` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Object', Left = 0.2, Top = 0.2, Right = 0.8, Bottom = 0.8 } } } }` |
 | `MaskGroupBasedCorrections/Mask/Paint` | `/settings/locals/adjustments/0/components/0/strokes` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Paint",Radius=0.1,Flow=0.5,CenterWeight=0.5,MaskValue=1,Dabs={"d 0.5 0.5"}}}}}` |
-| `MaskGroupBasedCorrections/Mask/People` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/People' } } } }` |
+| `MaskGroupBasedCorrections/Mask/People` | retained source + warning | LR-5 | unsupported-diagnostic | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/People' } } } }` |
 | `MaskGroupBasedCorrections/Mask/Sky` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Sky' } } } }` |
 | `MaskGroupBasedCorrections/Mask/Subject` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Subject' } } } }` |
 | `MaskGroupBasedCorrections/MaskActive` | `/settings/locals/adjustments/0/components/0/enabled` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0,MaskActive=false}}}}` |
@@ -212,12 +212,17 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   dab flow/hardness and sample colors remain approximations. Legacy flat envelopes
   preserve their pinned bytes and remain retained; new audited forms use the
   approximation contract. New nondefault fields conditionally write schema 4.
-- **LR-5:** `MaskComponent.adobe_ai` holds opaque resource identity, category,
-  regeneration state and an optional mask-store key. Apply resolves caller-owned
-  grayscale PNG/TIFF into bounded image-owned pins; preview/export read those pins.
-  Missing resources use the existing subject/sky/background/prompted backend.
-  Person sub-parts use subject with a per-part info limitation. Adobe conventions
-  remain approximate, with exact source retained. Unknown subtypes remain opaque.
+- **LR-5b:** **The app regenerates AI masks and does not read Adobe rasters**
+  from `.lrcat-data` or `.lrdata`. The optional resolver is only a caller-owned
+  grayscale injection interface; the app does not supply one. Subject, Sky,
+  Background and prompted Object descriptions remain approximate. Person parts
+  and specific People/person instances are unsupported, retained with warnings,
+  never broadened to whole Subject. Missing models leave the entire local
+  adjustment pending/unavailable with zero effect, including inversion/subtraction.
+  Resolved rasters use immutable content hashes, u16 storage and a session memory
+  cache. Missing rasters request regeneration with a diagnostic. Import apply
+  alone pushes the regeneration note after resolution; the diagnostics channel
+  remains push-only. See `crates/import-lrcat/README.md` for storage and pruning.
 - **LR-6e:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
   optional selection/resource provenance, mask-store key and deferred regeneration,
   exact source retention, and info-only diagnostics. Adobe units, enum order,

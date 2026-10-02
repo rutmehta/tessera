@@ -334,57 +334,65 @@ an unrendered generative item. Nonempty FilterList remains an unsupported warnin
 The pre-import summary and plan preview have no cloud group, so the same
 effects stay in their unsupported lists there. `ignored` is reserved for source values with no visual effect and is omitted
 from the report. This stack does not include LR-5 AI-mask regeneration.
-## LR-5 AI masks and resource injection
 
-Recognized AI masks inside `MaskGroupBasedCorrections` translate approximately,
-with the exact Lua/XMP source retained and info-only shared diagnostics. Explicit
-subject, sky, background, people/person and object forms are supported. Image
-masks accept named categories or numeric `MaskSubType` 1 (subject), 2 (sky), 3
-(people/sub-part); subtype 0 is treated as a prompted object only with an explicit
-reference point or box. Unknown subtypes, malformed prompts, and unknown structural
-fields retain the previous untranslated behavior. No Adobe render parity is claimed.
-Person parts retain their category (including unknown numeric sub-part IDs) and
-regenerate with subject segmentation, with a diagnostic naming the limitation.
-No person sub-part model interface was added.
+## LR-5b AI masks
 
-Adobe documents AI edit data in the companion **`.lrcat-data`** file, distinct
-from ordinary `.lrdata` previews. Public XMP examples carry `MaskDigest`, subtype,
-origin and image-area metadata rather than an independently usable alpha plane.
-No public Adobe binary codec or catalog-table association is assumed here; no
-real catalog was opened. Sources:
+**The app regenerates AI masks. It does not read Adobe mask rasters from
+`.lrcat-data` or `.lrdata`.** Imported Subject, Sky, Background and prompted
+Object descriptions use Tessera segmentation when an installed model is available.
+No Adobe render parity is claimed. Person sub-parts (including Hair, Lips and
+Teeth), People/person instances and unverified subtype/part IDs remain unsupported:
+exact source is retained with a warning, and they are never broadened to Subject.
+A nonzero `MaskSubCategoryID` is a part ID on any category, including masks named
+`Mask/Subject`, `Mask/Sky` or `Mask/Background`, and is unsupported the same way.
 
-- [Adobe catalog FAQ](https://helpx.adobe.com/in/lightroom-classic/desktop/technical-support/workflow-issues/catalog-issues/catalog-faq-lightroom.html)
-- [Public first-hand XMP/action examples for person sub-parts](https://community.adobe.com/questions-712/ai-camera-raw-masks-not-re-computed-when-used-in-an-action-1167094/index2.html)
-- [Public first-hand sky XMP example](https://community.adobe.com/bug-reports-674/p-select-sky-causes-export-to-be-larger-than-expected-663100/index1.html)
-- [JarvisArt authors' mask parameter examples](https://github.com/LYL1015/JarvisEvo/blob/main/prompts.py)
+The optional `apply_with_mask_resolver` / `apply_with_resolvers` bridge accepts
+independently decoded, caller-associated grayscale PNG/TIFF rasters. This is an
+injection interface, not an Adobe resource reader, and the app does not supply
+one. Resource IDs are opaque, never filenames. An injected raster must have the
+extent the renderer masks in, measured with the renderer's own recognizer and
+decoder: RGB sources after EXIF orientation, RAW sources by active sensor area
+(never a container preview or unrotated file dimensions). The source is only
+measured for an AI-masked image when a resolver is supplied.
+Invalid or absent resources receive a push-only info diagnostic during apply:
+`regenerated: no Adobe mask raster; Tessera re-segments at render`. This means
+regeneration is requested, not that inference has completed. Successful resolution
+never emits that note. Rendering never edits recipe history or import diagnostics.
 
-`import-lrcat` only decodes description and opaque identity. During APPLY,
-`tessera-ffi::LrcatImport::apply_with_mask_resolver` calls an optional caller-owned
-resolver with `(catalog image id, opaque resource id)`. The caller must return a
-full, pre-geometry sensor-aligned grayscale PNG/TIFF, already expanding any Adobe
-crop/origin. IDs are never interpreted as filenames. Invalid, wrong-size,
-proprietary or absent bytes leave `regenerate: true`, no reference key, and the
-reason `regenerated: no Adobe mask raster; Tessera re-segments at render`.
-Resolution clears only that pending LR-5 reason when all resources resolved;
-other diagnostics survive. Rendering does not rewrite diagnostics/history.
+If any enabled AI component is pending, failed or unavailable, its entire local
+adjustment has zero effect, including inverted, subtractive and nested masks.
+The mask UI exposes pending/failed state. Automatic rendering uses installed models
+only and does not download weights; models are installed from Settings. Missing,
+corrupt or wrong-extent stored rasters request regeneration with a diagnostic, and
+the regenerated plane renders in preview and export; unavailable regeneration
+leaves the adjustment skipped.
+A segmentation backend that runs and then fails, or returns an invalid raster, is
+an export error and nothing is published. MCP export rejects AI masks because its
+tool call has no inference/cache inputs.
 
-Resolved alpha lives in mask-store under Tessera support `imported-masks/pinned`;
-`MaskComponent.adobe_ai` stores only an optional key, opaque ID, original category
-and regeneration marker. This additive optional object requires schema 4 when
-present; ordinary recipes keep schema 3 and their prior representation. Native
-XMP and recipe JSON round-trip the object. Preview and export consume distinct
-component keys even when two components have the same AI category. Export can
-receive the explicit support root through `ExportSettings.mask_support` or
-`render_pixels_with_mask_support`; FFI supplies its engine root. No model is
-loaded for resolved masks; regeneration uses the existing injected segmenter seam.
+`MaskComponent.adobe_ai` is optional and round-trips through recipe JSON and native
+XMP. It retains category, resource identity, regeneration state and a content hash.
+Imported rasters use checksummed **u16** samples under the caller-owned app support
+root. Preview, file export, print and Open Developed Image receive that explicit
+root. A preview session
+keeps loaded planes in memory by immutable content key, so ordinary frames do not
+reopen raster files. Imports without AI masks make no mask-store calls.
 
-Pins are keyed by stable image ID plus resolved-raster slot, at most **256 rasters
-and 256 MiB including headers/checksums per image**. Re-import replaces the image's
-slots and removes obsolete ones, including when all resources are absent.
-Publication failure restores prior usable slots; atomic file replacement needs
-one additional raster-sized temporary file per writer. `Engine::forget_missing`
-removes pins with the image record and keeps them if the original still exists.
-Import attachment updates the existing single Import history entry, so later
-user edits preserve references. The inference LRU cannot evict imported pins.
-No file is written inside Lightroom-managed storage. Model inference tests remain
-opt-in; ordinary gates use synthetic alpha and the existing mock segmenter seam.
+Each apply accepts at most 256 resources and 256 MiB of stored rasters including
+headers/checksums; decoding is separately bounded. Content keys include dimensions
+and quantized samples, so reimports and interrupted publication cannot replace
+pixels referenced by an earlier recipe. A per-image ownership record lists the
+keys of the published recipe; during an apply it also holds the previous keys, and
+a failed publication restores it. Import never deletes or lists the store, so a
+raster superseded by a successful reimport becomes an orphan. Shared content
+survives removal of one owner. Explicit `Engine::prune_missing` collects missing
+owners and orphaned blobs; dry runs leave both untouched. Removing images drops
+their records and collects once per batch; images that never owned a raster cause
+no listing. Pin writes do not scan directories. A failed publication surfaces
+its original error even if ownership rollback also fails. An image reimported
+with no AI masks at all makes no mask-store call, so a record it already had is
+kept until the image is removed. LR-6's shared depth-pin
+functions and f32 depth representation remain unchanged.
+
+All committed fixtures and mask pixels are synthetic. No Lightroom-managed storage
+is written, no Adobe helper codec is claimed, and no import golden is re-pinned.
