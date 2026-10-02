@@ -1183,17 +1183,8 @@ impl LrcatImport {
                 .count() as u32,
             library_exists: library_path.is_file(),
             library_path: library_path.to_string_lossy().into_owned(),
-            unsupported: self
-                .summary
-                .unsupported
-                .iter()
-                .filter(|issue| {
-                    !issue
-                        .reason
-                        .contains("requires Adobe cloud; not translatable")
-                })
-                .cloned()
-                .collect(),
+            // The preview has no cloud group: cloud-only effects stay listed here.
+            unsupported: self.summary.unsupported.clone(),
             estimated_bytes: self.summary.estimated_bytes,
         })
     }
