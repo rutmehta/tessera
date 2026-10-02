@@ -44,3 +44,31 @@ fn absent_extensions_preserve_default_local_serialization() {
         assert!(v.get(field).is_none());
     }
 }
+
+/// LR-11b S9: a negative local defringe is a valid value. It protects the area
+/// from *global* defringe in Adobe; Tessera does not render that protection,
+/// so it adds no local defringe and leaves the pixels exactly unchanged.
+#[test]
+fn negative_local_defringe_is_valid_and_adds_no_defringe() {
+    // A purple fringe pixel next to a dark neighbour: positive defringe acts.
+    let input = Image::new(2, 1, vec![vec![1., 0.01], vec![0., 0.01], vec![1., 0.01]]).unwrap();
+    for value in [-100., -50., -0.5] {
+        let p = LocalParams {
+            defringe: value,
+            ..Default::default()
+        };
+        assert_eq!(
+            adjust_local(&input, &p, 100.).unwrap().planes(),
+            input.planes(),
+            "{value}"
+        );
+    }
+    let positive = LocalParams {
+        defringe: 100.,
+        ..Default::default()
+    };
+    assert_ne!(
+        adjust_local(&input, &positive, 100.).unwrap().planes(),
+        input.planes()
+    );
+}

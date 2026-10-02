@@ -120,7 +120,8 @@ fn malformed_local_payloads_retain_parent_atomically() {
         "LocalPointColors={{SrcHue=0,SrcSat=0.5,SrcLum=0.5,UnknownFutureField=1}}",
         "LocalToningHue=120,LocalToningSaturation=101",
         "LocalToningHue=361,LocalToningSaturation=50",
-        "LocalDefringe=-1",
+        // LR-11b S9: Adobe's range is -100..=100, so -1 is no longer malformed.
+        "LocalDefringe=-101",
         "LocalDefringe=101",
     ] {
         let row = format!("s={{MaskGroupBasedCorrections={{{{{source},{GRADIENT}}}}}}}");

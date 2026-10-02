@@ -252,3 +252,55 @@ fn b3_identity_legacy_and_malformed_extended_local_curves() {
     assert!(w[0].contains("local tone curve"), "{w:?}");
     assert!(r.settings.locals.adjustments.is_empty());
 }
+
+/// S9: local defringe accepts Adobe's signed -100..=100 range in both codecs.
+#[test]
+fn s9_local_defringe_accepts_the_signed_adobe_range() {
+    for value in [-100., -50., 100.] {
+        let lua =
+            format!("s={{MaskGroupBasedCorrections={{{{LocalDefringe={value},{GRADIENT}}}}}}}");
+        let xmp = format!(
+            "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:crs=\"http://ns.adobe.com/camera-raw-settings/1.0/\" crs:ProcessVersion=\"15.4\"><crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li rdf:parseType=\"Resource\"><crs:LocalDefringe>{value}</crs:LocalDefringe><crs:CorrectionMasks><rdf:Seq><rdf:li rdf:parseType=\"Resource\"><crs:What>Mask/Gradient</crs:What><crs:MaskID>synthetic</crs:MaskID><crs:FullX>0</crs:FullX><crs:FullY>0</crs:FullY><crs:ZeroX>1</crs:ZeroX><crs:ZeroY>0</crs:ZeroY></rdf:li></rdf:Seq></crs:CorrectionMasks></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections></rdf:Description></rdf:RDF></x:xmpmeta>"
+        );
+        let a = lua_develop::parse(&lua, "15.4").unwrap();
+        let b = import_lrcat::xmp::parse(&xmp, "15.4").unwrap();
+        assert_eq!(a.0.settings.locals, b.0.settings.locals, "{value}");
+        for (r, w) in [a, b] {
+            assert!(w.is_empty(), "{value}: {w:?}");
+            assert_eq!(r.settings.locals.adjustments[0].params.defringe, value);
+            assert!(retained(&r));
+            assert_eq!(engine_api::recipe::required_schema_version(&r), 4);
+            let notes: Vec<_> = diagnostics::entries(&r)
+                .values()
+                .flatten()
+                .filter(|d| {
+                    d.lane == "LR-11"
+                        && d.status == "approximate"
+                        && d.field.as_deref()
+                            == Some("/settings/locals/adjustments/0/params/defringe")
+                })
+                .map(|d| d.reason.clone())
+                .collect();
+            assert_eq!(notes.len(), 1, "{value}: {notes:?}");
+            // A negative value protects the area from global defringe; the
+            // note has to say that this protection is not rendered.
+            assert_eq!(notes[0].contains("not rendered"), value < 0., "{notes:?}");
+            let round = engine_api::recipe::Recipe::from_json(&r.to_json().unwrap()).unwrap();
+            assert_eq!(round.settings, r.settings);
+        }
+    }
+}
+
+/// S9: values outside -100..=100 are still retained with the named reason.
+#[test]
+fn s9_local_defringe_outside_the_adobe_range_is_retained() {
+    for value in ["-100.5", "-101", "100.5", "101"] {
+        let source =
+            format!("s={{MaskGroupBasedCorrections={{{{LocalDefringe={value},{GRADIENT}}}}}}}");
+        let (r, w) = lua_develop::parse(&source, "15.4").unwrap();
+        assert_eq!(w.len(), 1, "{value}: {w:?}");
+        assert!(w[0].contains("local defringe"), "{value}: {w:?}");
+        assert!(r.settings.locals.adjustments.is_empty(), "{value}");
+        assert!(retained(&r));
+    }
+}
