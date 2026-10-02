@@ -1263,7 +1263,29 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
             {
                 failures.push("Develop optional settings failed".into());
             }
-            assert!(!session.render_notices().unwrap().is_empty());
+            // The minimum visible notice: the existing Develop status line is
+            // driven by ignored_settings; render_notices names what was omitted.
+            let ignored = session.ignored_settings().unwrap();
+            for field in [
+                "/camera_profile/look",
+                "/lens/profile",
+                "/output/hdr",
+                "/effects/lens_blur",
+            ] {
+                assert!(ignored.iter().any(|f| f == field), "{field}: {ignored:?}");
+            }
+            let notices = session.render_notices().unwrap();
+            for sentence in [
+                "Creative look unavailable; shown without it.",
+                "Lens profile unavailable; shown without it.",
+                "Rendered using the available Smart Preview dynamic range.",
+                "Lens Blur is not rendered on Smart Preview yet.",
+            ] {
+                assert!(
+                    notices.iter().any(|n| n == sentence),
+                    "{sentence}: {notices:?}"
+                );
+            }
             session.set_listener(None);
             session.close().unwrap();
         }
