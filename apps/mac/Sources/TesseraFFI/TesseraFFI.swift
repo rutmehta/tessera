@@ -8495,6 +8495,12 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func forgetMissing(imageIds: [String]) throws  -> UInt32
     
     /**
+     * Explicit catalog maintenance also collects imported-mask owners and
+     * crash-orphaned content. Dry runs never modify the index or mask store.
+     */
+    func pruneMissing(dryRun: Bool) throws  -> UInt32
+    
+    /**
      * Opens (without creating) the library document at `path`, conventionally
      * `<folder>/library.json`, and aligns the catalog's keyword hierarchy.
      */
@@ -9081,6 +9087,20 @@ open func forgetMissing(imageIds: [String])throws  -> UInt32  {
     uniffi_tessera_ffi_fn_method_engine_forget_missing(
             self.uniffiCloneHandle(),
         FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Explicit catalog maintenance also collects imported-mask owners and
+     * crash-orphaned content. Dry runs never modify the index or mask store.
+     */
+open func pruneMissing(dryRun: Bool)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_prune_missing(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(dryRun),uniffiCallStatus
     )
 })
 }
@@ -11078,6 +11098,16 @@ public protocol LrcatImportProtocol: AnyObject, Sendable {
     func applyWithDepthResolver(options: LrcatOptions, listener: LrcatProgressListener?, resolver: LrcatDepthResolver?) throws  -> LrcatReport
     
     /**
+     * Apply with caller-associated AI mask resources.
+     */
+    func applyWithMaskResolver(options: LrcatOptions, listener: LrcatProgressListener?, resolver: LrcatMaskResolver?) throws  -> LrcatReport
+    
+    /**
+     * Apply both independent resource resolvers before publishing one recipe.
+     */
+    func applyWithResolvers(options: LrcatOptions, listener: LrcatProgressListener?, maskResolver: LrcatMaskResolver?, depthResolver: LrcatDepthResolver?) throws  -> LrcatReport
+    
+    /**
      * Stops a running `apply` or `fidelity_sample` at the next photo.
      */
     func cancel() 
@@ -11191,6 +11221,37 @@ open func applyWithDepthResolver(options: LrcatOptions, listener: LrcatProgressL
 }
     
     /**
+     * Apply with caller-associated AI mask resources.
+     */
+open func applyWithMaskResolver(options: LrcatOptions, listener: LrcatProgressListener?, resolver: LrcatMaskResolver?)throws  -> LrcatReport  {
+    return try  FfiConverterTypeLrcatReport_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_apply_with_mask_resolver(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLrcatOptions_lower(options),
+        FfiConverterOptionTypeLrcatProgressListener.lower(listener),
+        FfiConverterOptionTypeLrcatMaskResolver.lower(resolver),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Apply both independent resource resolvers before publishing one recipe.
+     */
+open func applyWithResolvers(options: LrcatOptions, listener: LrcatProgressListener?, maskResolver: LrcatMaskResolver?, depthResolver: LrcatDepthResolver?)throws  -> LrcatReport  {
+    return try  FfiConverterTypeLrcatReport_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_apply_with_resolvers(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLrcatOptions_lower(options),
+        FfiConverterOptionTypeLrcatProgressListener.lower(listener),
+        FfiConverterOptionTypeLrcatMaskResolver.lower(maskResolver),
+        FfiConverterOptionTypeLrcatDepthResolver.lower(depthResolver),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Stops a running `apply` or `fidelity_sample` at the next photo.
      */
 open func cancel()  {try! rustCall() {
@@ -11296,6 +11357,216 @@ public func FfiConverterTypeLrcatImport_lift(_ handle: UInt64) throws -> LrcatIm
 #endif
 public func FfiConverterTypeLrcatImport_lower(_ value: LrcatImport) -> UInt64 {
     return FfiConverterTypeLrcatImport.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Caller-owned opaque resource association. Supply a full sensor-aligned
+ * grayscale PNG/TIFF, including any Adobe crop/origin expansion.
+ */
+public protocol LrcatMaskResolver: AnyObject, Sendable {
+    
+    func resolve(catalogImageId: Int64, resourceId: String)  -> Data?
+    
+}
+/**
+ * Caller-owned opaque resource association. Supply a full sensor-aligned
+ * grayscale PNG/TIFF, including any Adobe crop/origin expansion.
+ */
+open class LrcatMaskResolverImpl: LrcatMaskResolver, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_lrcatmaskresolver(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_lrcatmaskresolver(handle, $0) }
+    }
+
+    
+
+    
+open func resolve(catalogImageId: Int64, resourceId: String) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatmaskresolver_resolve(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(catalogImageId),
+        FfiConverterString.lower(resourceId),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLrcatMaskResolver {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLrcatMaskResolver = UniffiVTableCallbackInterfaceLrcatMaskResolver(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeLrcatMaskResolver.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface LrcatMaskResolver: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeLrcatMaskResolver.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface LrcatMaskResolver: handle missing in uniffiClone")
+            }
+        },
+        resolve: { (
+            uniffiHandle: UInt64,
+            catalogImageId: Int64,
+            resourceId: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Data? in
+                guard let uniffiObj = try? FfiConverterTypeLrcatMaskResolver.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.resolve(
+                     catalogImageId: try FfiConverterInt64.lift(catalogImageId),
+                     resourceId: try FfiConverterString.lift(resourceId)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionData.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLrcatMaskResolver> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLrcatMaskResolver>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitLrcatMaskResolver() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_lrcatmaskresolver(UniffiCallbackInterfaceLrcatMaskResolver.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatMaskResolver: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LrcatMaskResolver>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = LrcatMaskResolver
+
+    public static func lift(_ handle: UInt64) throws -> LrcatMaskResolver {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LrcatMaskResolverImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: LrcatMaskResolver) -> UInt64 {
+         if let rustImpl = value as? LrcatMaskResolverImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatMaskResolver {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LrcatMaskResolver, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatMaskResolver_lift(_ handle: UInt64) throws -> LrcatMaskResolver {
+    return try FfiConverterTypeLrcatMaskResolver.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatMaskResolver_lower(_ value: LrcatMaskResolver) -> UInt64 {
+    return FfiConverterTypeLrcatMaskResolver.lower(value)
 }
 
 
@@ -33990,6 +34261,30 @@ fileprivate struct FfiConverterOptionTypeLrcatDepthResolver: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeLrcatMaskResolver: FfiConverterRustBuffer {
+    typealias SwiftType = LrcatMaskResolver?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeLrcatMaskResolver.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeLrcatMaskResolver.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeLrcatProgressListener: FfiConverterRustBuffer {
     typealias SwiftType = LrcatProgressListener?
 
@@ -37167,6 +37462,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_forget_missing() != 32169) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_prune_missing() != 42533) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -38238,6 +38536,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_apply_with_depth_resolver() != 48220) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_apply_with_mask_resolver() != 55727) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_apply_with_resolvers() != 52714) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_cancel() != 11947) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -38251,6 +38555,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_fidelity_sample() != 29247) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatmaskresolver_resolve() != 5601) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress() != 48396) {
@@ -38474,6 +38781,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitEngineEventListener()
     uniffiCallbackInitExportProgressListener()
     uniffiCallbackInitLrcatDepthResolver()
+    uniffiCallbackInitLrcatMaskResolver()
     uniffiCallbackInitLrcatProgressListener()
     uniffiCallbackInitMaskListener()
     uniffiCallbackInitModelDownloadListener()
