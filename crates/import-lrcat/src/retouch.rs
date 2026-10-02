@@ -24,7 +24,8 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
     };
     let lua = source["shape"] == "lua-values";
     let mut decoded = Vec::new();
-    for key in ["RetouchAreas", "RetouchInfo"] {
+    let mut cloud_keys = Vec::new();
+    for key in ["RetouchAreas", "RetouchInfo", "RemoveAreas"] {
         let Some(raw) = properties.get(key).and_then(Value::as_str) else {
             continue;
         };
@@ -38,9 +39,14 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
                 recipe.unknown.get("sidecar_xmp").and_then(Value::as_str),
             )
         };
-        if let Some(ops) = value.and_then(operations) {
+        if let Some((ops, cloud)) = value.and_then(operations) {
+            if cloud { cloud_keys.push(key); }
             decoded.push((key, ops));
         }
+    }
+    if !cloud_keys.is_empty() {
+        warnings.retain(|w| !cloud_keys.iter().any(|key| w.starts_with(&format!("{key}:")) || w.starts_with(&format!("crs:{key}:"))) && !w.starts_with("EnableDistractionRemoval:") && !w.starts_with("crs:EnableDistractionRemoval:"));
+        crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", "requires Adobe cloud; not translatable. Export rendered pixels from Lightroom to preserve generative removal.");
     }
     // Both names can describe the same edits. Prefer the modern nonempty list;
     // conflicting nonempty aliases remain opaque rather than applying twice.
@@ -177,13 +183,18 @@ fn xml_value(node: roxmltree::Node<'_, '_>) -> Option<Value> {
     }
 }
 
-fn operations(value: Value) -> Option<Vec<RetouchOperation>> {
-    value
-        .as_array()?
-        .iter()
-        .enumerate()
-        .map(|(i, item)| operation(item, i as u32 + 1))
-        .collect()
+fn operations(value: Value) -> Option<(Vec<RetouchOperation>, bool)> {
+    let mut operations = Vec::new();
+    let mut cloud = false;
+    for (i, item) in value.as_array()?.iter().enumerate() {
+        let f = fields(item)?;
+        if f.contains_key("pm_clio_model_version") || f.get("spottype").and_then(Value::as_str) == Some("generative") {
+            cloud = true;
+        } else {
+            operations.push(operation(item, i as u32 + 1)?);
+        }
+    }
+    Some((operations, cloud))
 }
 
 fn fields(value: &Value) -> Option<Map<String, Value>> {
