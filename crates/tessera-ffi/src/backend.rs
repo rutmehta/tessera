@@ -143,6 +143,7 @@ impl Backend {
     /// A renderer over the shared operators and memo cache.
     pub(crate) fn renderer(&self) -> Renderer {
         Renderer::with_ops(self.ops.clone(), self.cache.clone(), self.config.clone())
+            .with_retouch_renderer(Arc::new(brush::render_retouch))
     }
 }
 
@@ -250,6 +251,42 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn assembled_develop_backend_registers_brush_retouch() {
+        use super::*;
+        use engine_api::{
+            id::RetouchId,
+            recipe::mask::{RetouchKind, RetouchOperation, RetouchTarget},
+        };
+        let backend = Backend::new(
+            Arc::new(CpuStageOp),
+            RendererConfig::default(),
+            "CPU test".into(),
+        );
+        let image = common::synthetic(419, 48, 40, common::RGGB, [0, 0, 48, 40]);
+        let mut settings = DevelopSettings::default();
+        // Disabled unsupported operations are intentional identity operations;
+        // their presence still requires a registered renderer.
+        settings.locals.retouch.push(RetouchOperation {
+            id: RetouchId(1),
+            kind: RetouchKind::Remove { model: None },
+            target: RetouchTarget::Implicit,
+            opacity: 100.0,
+            feather: 0.0,
+            enabled: false,
+        });
+        let rect = PixelRect::full(image.active_extent());
+        assert!(
+            Renderer::new(Default::default())
+                .render_region(&image, &settings, 0, rect)
+                .is_err()
+        );
+        backend
+            .renderer()
+            .render_region(&image, &settings, 0, rect)
+            .unwrap();
+    }
+
     #[test]
     #[cfg(target_os = "macos")]
     fn adobe_gpu_backend_uses_host_barriers_at_preview_level() {

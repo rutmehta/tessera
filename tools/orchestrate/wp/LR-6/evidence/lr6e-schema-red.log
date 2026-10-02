@@ -1,0 +1,96 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling libm v0.2.16
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling autocfg v1.5.1
+   Compiling num-traits v0.2.19
+   Compiling serde_derive v1.0.229
+   Compiling arrayvec v0.7.8
+   Compiling cfg-if v1.0.5
+   Compiling version_check v0.9.5
+   Compiling libc v0.2.189
+   Compiling crc32fast v1.5.2
+   Compiling slotmap v1.1.1
+   Compiling core_maths v0.1.1
+   Compiling simd-adler32 v0.3.10
+   Compiling zmij v1.0.23
+   Compiling find-msvc-tools v0.1.14
+   Compiling memchr v2.8.3
+   Compiling euclid v0.22.14
+   Compiling smallvec v1.16.2
+   Compiling shlex v2.0.1
+   Compiling bytemuck v1.25.2
+   Compiling thiserror v2.0.21
+   Compiling log v0.4.34
+   Compiling adler2 v2.0.1
+   Compiling miniz_oxide v0.9.1
+   Compiling lyon_geom v1.0.19
+   Compiling cc v1.5.1
+   Compiling lyon_path v1.0.19
+   Compiling ttf-parser v0.25.1
+   Compiling thiserror-impl v2.0.21
+   Compiling i_float v1.16.0
+   Compiling syn v2.0.119
+   Compiling serde_json v1.0.151
+   Compiling zerocopy v0.8.59
+   Compiling float_next_after v1.0.0
+   Compiling arrayref v0.3.9
+   Compiling strict-num v0.1.1
+   Compiling tiny-skia-path v0.11.4
+   Compiling zerocopy-derive v0.8.59
+   Compiling lyon_tessellation v1.0.22
+   Compiling i_shape v1.18.0
+   Compiling flate2 v1.1.10
+   Compiling memmap2 v0.9.11
+   Compiling blake3 v1.8.7
+   Compiling lyon_algorithms v1.0.21
+   Compiling bitflags v2.13.2
+   Compiling itoa v1.0.18
+   Compiling tinyvec v1.13.3
+   Compiling unicode-properties v0.1.4
+   Compiling i_tree v0.18.0
+   Compiling i_key_sort v0.10.3
+   Compiling unicode-ccc v0.4.0
+   Compiling unicode-script v0.5.8
+   Compiling unicode-bidi-mirroring v0.4.0
+   Compiling i_overlay v4.5.2
+   Compiling fontdb v0.23.0
+   Compiling rustybuzz v0.20.1
+   Compiling lyon v1.0.19
+   Compiling psd v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/psd)
+   Compiling tiny-skia v0.11.4
+   Compiling kurbo v0.11.3
+   Compiling quick-xml v0.38.4
+   Compiling unicode-bidi v0.3.18
+   Compiling constant_time_eq v0.4.2
+   Compiling unicode-linebreak v0.1.5
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/typography)
+   Compiling vector v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/vector)
+   Compiling half v2.7.1
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/engine-api)
+    Finished `release` profile [optimized] target(s) in 1m 43s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/release/deps/engine_api-6761888d48b5dc80)
+
+running 1 test
+test recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present ... FAILED
+
+failures:
+
+---- recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present stdout ----
+
+thread 'recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present' (57338246) panicked at crates/engine-api/src/recipe/schema.rs:200:9:
+assertion `left == right` failed
+  left: 4
+ right: 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    recipe::schema::v4_feature_predicates::lens_blur_requires_v4_only_when_present
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 74 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p engine-api --lib`

@@ -19,11 +19,32 @@ pub fn cache_key(image: &image::RgbImage, version: &str) -> [u8; 32] {
     *hash.finalize().as_bytes()
 }
 impl DepthMap {
+    /// Content key for independently decoded or regenerated inverse depth.
+    pub fn resource_key(&self) -> [u8; 32] {
+        let mut hash = blake3::Hasher::new();
+        hash.update(b"tessera-normalized-inverse-depth-v1");
+        hash.update(&self.width().to_le_bytes());
+        hash.update(&self.height().to_le_bytes());
+        for value in self.inverse_depth() {
+            hash.update(&value.to_bits().to_le_bytes());
+        }
+        *hash.finalize().as_bytes()
+    }
+
+    /// Already normalized inverse depth; preserve absolute samples and flat maps.
+    pub fn from_normalized_inverse(width: u32, height: u32, data: Vec<f32>) -> Result<Self> {
+        Ok(Self(MaskRaster::new(width, height, data)?))
+    }
+
     pub fn refined(&self, guide: &image::RgbImage) -> Result<Self> {
         Ok(Self(ml_segment::refine(&self.0, guide, 8, 0.0001)?))
     }
     pub fn store(&self, store: &DepthStore, key: &[u8; 32]) -> Result<()> {
         Ok(store.put(key, &self.0)?)
+    }
+    /// Persist imported depth independently of preview-cache eviction.
+    pub fn store_pinned(&self, store: &DepthStore, key: &[u8; 32]) -> Result<()> {
+        Ok(store.put_pinned(key, &self.0)?)
     }
     pub fn cached(store: &DepthStore, key: &[u8; 32]) -> Option<Self> {
         store.get(key).map(Self)

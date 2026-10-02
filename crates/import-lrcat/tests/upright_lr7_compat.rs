@@ -11,7 +11,8 @@ fn unrelated_recipe_bytes_remain_identical() {
         (11420, 0x35b9bf7bfe270b28),
         (11199, 0x01729e71086f5d4d),
         (15228, 0x14af73e31df40bc7),
-        (18101, 0xbeb156c96528413e),
+        // LR-3f: structures.lua now translates its explicit-source heal.
+        (20442, 0x0c5aebc9285d9719),
     ]) {
         let (recipe, _) = import_lrcat::lua_develop::parse(row, "15.4").unwrap();
         let bytes = recipe.to_json().unwrap();

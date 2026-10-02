@@ -10851,6 +10851,216 @@ public func FfiConverterTypeLibraryStore_lower(_ value: LibraryStore) -> UInt64 
 
 
 /**
+ * Caller-owned association of opaque Adobe resource IDs with this catalog image.
+ * Return None for missing/proprietary resources; IDs are never filesystem paths.
+ */
+public protocol LrcatDepthResolver: AnyObject, Sendable {
+    
+    func resolve(catalogImageId: Int64, resourceId: String)  -> Data?
+    
+}
+/**
+ * Caller-owned association of opaque Adobe resource IDs with this catalog image.
+ * Return None for missing/proprietary resources; IDs are never filesystem paths.
+ */
+open class LrcatDepthResolverImpl: LrcatDepthResolver, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_lrcatdepthresolver(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_lrcatdepthresolver(handle, $0) }
+    }
+
+    
+
+    
+open func resolve(catalogImageId: Int64, resourceId: String) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatdepthresolver_resolve(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(catalogImageId),
+        FfiConverterString.lower(resourceId),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLrcatDepthResolver {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLrcatDepthResolver = UniffiVTableCallbackInterfaceLrcatDepthResolver(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeLrcatDepthResolver.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface LrcatDepthResolver: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeLrcatDepthResolver.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface LrcatDepthResolver: handle missing in uniffiClone")
+            }
+        },
+        resolve: { (
+            uniffiHandle: UInt64,
+            catalogImageId: Int64,
+            resourceId: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Data? in
+                guard let uniffiObj = try? FfiConverterTypeLrcatDepthResolver.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.resolve(
+                     catalogImageId: try FfiConverterInt64.lift(catalogImageId),
+                     resourceId: try FfiConverterString.lift(resourceId)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionData.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLrcatDepthResolver> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLrcatDepthResolver>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitLrcatDepthResolver() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_lrcatdepthresolver(UniffiCallbackInterfaceLrcatDepthResolver.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatDepthResolver: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LrcatDepthResolver>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = LrcatDepthResolver
+
+    public static func lift(_ handle: UInt64) throws -> LrcatDepthResolver {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LrcatDepthResolverImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: LrcatDepthResolver) -> UInt64 {
+         if let rustImpl = value as? LrcatDepthResolverImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatDepthResolver {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LrcatDepthResolver, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatDepthResolver_lift(_ handle: UInt64) throws -> LrcatDepthResolver {
+    return try FfiConverterTypeLrcatDepthResolver.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatDepthResolver_lower(_ value: LrcatDepthResolver) -> UInt64 {
+    return FfiConverterTypeLrcatDepthResolver.lower(value)
+}
+
+
+
+
+
+
+/**
  * A parsed catalog. Create with `Engine::open_lrcat`.
  */
 public protocol LrcatImportProtocol: AnyObject, Sendable {
@@ -10861,6 +11071,11 @@ public protocol LrcatImportProtocol: AnyObject, Sendable {
      * are skipped, and the library is merged once.
      */
     func apply(options: LrcatOptions, listener: LrcatProgressListener?) throws  -> LrcatReport
+    
+    /**
+     * Apply with caller-associated depth resources.
+     */
+    func applyWithDepthResolver(options: LrcatOptions, listener: LrcatProgressListener?, resolver: LrcatDepthResolver?) throws  -> LrcatReport
     
     /**
      * Stops a running `apply` or `fidelity_sample` at the next photo.
@@ -10956,6 +11171,21 @@ open func apply(options: LrcatOptions, listener: LrcatProgressListener?)throws  
             self.uniffiCloneHandle(),
         FfiConverterTypeLrcatOptions_lower(options),
         FfiConverterOptionTypeLrcatProgressListener.lower(listener),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Apply with caller-associated depth resources.
+     */
+open func applyWithDepthResolver(options: LrcatOptions, listener: LrcatProgressListener?, resolver: LrcatDepthResolver?)throws  -> LrcatReport  {
+    return try  FfiConverterTypeLrcatReport_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_apply_with_depth_resolver(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLrcatOptions_lower(options),
+        FfiConverterOptionTypeLrcatProgressListener.lower(listener),
+        FfiConverterOptionTypeLrcatDepthResolver.lower(resolver),uniffiCallStatus
     )
 })
 }
@@ -33726,6 +33956,30 @@ fileprivate struct FfiConverterOptionTypeExportProgressListener: FfiConverterRus
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeLrcatDepthResolver: FfiConverterRustBuffer {
+    typealias SwiftType = LrcatDepthResolver?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeLrcatDepthResolver.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeLrcatDepthResolver.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeLrcatProgressListener: FfiConverterRustBuffer {
     typealias SwiftType = LrcatProgressListener?
 
@@ -37965,7 +38219,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_exportprogresslistener_on_progress() != 45316) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_lrcatdepthresolver_resolve() != 32203) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_apply() != 64251) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_apply_with_depth_resolver() != 48220) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_cancel() != 11947) {
@@ -38203,6 +38463,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitDocumentListener()
     uniffiCallbackInitEngineEventListener()
     uniffiCallbackInitExportProgressListener()
+    uniffiCallbackInitLrcatDepthResolver()
     uniffiCallbackInitLrcatProgressListener()
     uniffiCallbackInitMaskListener()
     uniffiCallbackInitModelDownloadListener()

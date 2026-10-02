@@ -667,6 +667,67 @@ impl Stroke {
         }
     }
 
+    /// Union independently rasterized paths from one retouch spot. All paths
+    /// share the same base/source snapshot; opacity is applied only once.
+    pub(crate) fn union_retouch_mask(&mut self, other: &Self) {
+        if let Some(rect) = other.dirty {
+            for y in rect.y0..rect.y1 {
+                for x in rect.x0..rect.x1 {
+                    let coverage = other.mask.get(x, y);
+                    if coverage > self.mask.get(x, y) {
+                        *self.mask.get_mut(x, y) = coverage;
+                    }
+                }
+            }
+            self.dirty = Some(self.dirty.map_or(rect, |r| r.union(&rect)));
+        }
+    }
+
+    /// Solve a heal once over the union footprint, against the spot's immutable
+    /// destination and source. Clone spots need no solve.
+    pub(crate) fn finish_retouch(&mut self, heal: bool) -> Option<Rect> {
+        let rect = self.dirty?;
+        if !heal {
+            return Some(rect);
+        }
+        if let PaintMode::Clone(source) = &self.brush.mode {
+            self.brush.mode = PaintMode::Heal(source.clone());
+        }
+        let rr = rect.inflate(1).intersect(&self.canvas);
+        let (w, h) = (rr.width() as usize, rr.height() as usize);
+        let mut omega = vec![false; w * h];
+        let mut dest = vec![[0.0; 4]; w * h];
+        let mut guide = vec![[0.0; 4]; w * h];
+        let threshold = self.brush.opacity * 1e-3;
+        for y in rr.y0..rr.y1 {
+            for x in rr.x0..rr.x1 {
+                let i = (y - rr.y0) as usize * w + (x - rr.x0) as usize;
+                omega[i] = self.mask.get(x, y) > threshold;
+                dest[i] = rgba(self.base.get(x, y), self.channels);
+                guide[i] = self.source_rgba(x, y);
+            }
+        }
+        let channels = if self.channels == 1 { 1 } else { 3 };
+        poisson_blend(
+            &mut dest,
+            &guide,
+            &omega,
+            w,
+            h,
+            channels,
+            default_iterations(w, h),
+        );
+        for y in rr.y0..rr.y1 {
+            for x in rr.x0..rr.x1 {
+                let i = (y - rr.y0) as usize * w + (x - rr.x0) as usize;
+                if omega[i] {
+                    *self.heal.get_mut(x, y) = Some(dest[i]);
+                }
+            }
+        }
+        Some(rect)
+    }
+
     /// Writes the composited stroke over `rect` into `target` (which must
     /// be the raster the stroke started on, or one of its descendants).
     pub fn apply(&mut self, target: &mut Raster, rect: Rect, rev: u64) -> EngineResult<()> {

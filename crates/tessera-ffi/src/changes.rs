@@ -184,7 +184,22 @@ impl Engine {
             .iter()
             .map(|id| crate::parse_id(id))
             .collect::<Result<Vec<_>>>()?;
-        let removed = self.lock()?.index.forget_missing(&ids)?;
+        let mut state = self.lock()?;
+        let removed = state.index.forget_missing(&ids)?;
+        let depth_root = self.support_dir()?.join("previews/depth-cache");
+        sidecar::Sidecar::ensure_destination(&depth_root, "remove imported depth")?;
+        sidecar::Sidecar::ensure_destination(depth_root.join("pinned"), "remove imported depth")?;
+        let store = image_core::ml_depth::DepthStore::new(depth_root, 256 << 20)?;
+        for id in &ids {
+            // Removal is idempotent. Never delete depth for a retained image.
+            if matches!(
+                state.index.image_info(*id),
+                Err(engine_api::EngineError::NotFound { .. })
+            ) {
+                store.remove_pinned(&image_core::depth::imported_depth_key(*id))?;
+            }
+        }
+        drop(state);
         self.notify_changes();
         Ok(removed as u32)
     }

@@ -1,0 +1,89 @@
+{
+  "suites": 183,
+  "columns": [
+    "passed",
+    "failed",
+    "ignored",
+    "measured",
+    "filtered"
+  ],
+  "by_crate": {
+    "engine-api": [
+      115,
+      0,
+      0,
+      0,
+      0
+    ],
+    "image-core": [
+      126,
+      0,
+      3,
+      0,
+      0
+    ],
+    "import-lrcat": [
+      123,
+      0,
+      0,
+      0,
+      0
+    ],
+    "mask-store": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "merge": [
+      53,
+      0,
+      1,
+      0,
+      0
+    ],
+    "ml-depth": [
+      9,
+      0,
+      1,
+      0,
+      3
+    ],
+    "pipeline-cpu": [
+      173,
+      0,
+      3,
+      0,
+      0
+    ],
+    "sidecar": [
+      75,
+      0,
+      0,
+      0,
+      18
+    ],
+    "tessera-ffi": [
+      582,
+      0,
+      30,
+      0,
+      0
+    ]
+  },
+  "total": [
+    1256,
+    0,
+    38,
+    0,
+    21
+  ],
+  "liquify": [
+    "LIQUIFY 20MP (5472x3648, cell 16, proxy 1824x1216 /3): open 100 ms; brush+preview per event median 11.4 ms, p95 26.7 ms, max 61.1 ms (brush 0.3 ms, preview 11.1 ms median); full-res apply 101 ms"
+  ],
+  "golden": [
+    "golden digest: d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8"
+  ],
+  "counting_note": "Aggregated harness summaries, including nested subprocess checks; filtered counts in ml-depth and sidecar are from their internal exact-test subprocesses, not gate filters."
+}

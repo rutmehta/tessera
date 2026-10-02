@@ -51,6 +51,7 @@ impl PreviewCache {
                 ),
                 None => Renderer::new(config),
             }
+            .with_retouch_renderer(Arc::new(brush::render_retouch))
         })
     }
     fn source(&self, id: ImageId, path: &Path) -> EngineResult<Arc<Decoded>> {
@@ -83,12 +84,26 @@ impl PreviewCache {
         let rgb = match &*source {
             Decoded::Rgb { full, preview } => {
                 let input = if max.is_some() { preview } else { full };
-                pipeline_cpu::render(&recipe.settings, &RenderSource::Rgb(input))?
+                // Adding a spot must not change the preview sampling order.
+                // The CPU pipeline confines the reduced solve to retouch.
+                let scale = max.map_or(1, |max| {
+                    input
+                        .width()
+                        .max(input.height())
+                        .div_ceil(max.max(1))
+                        .max(1)
+                });
+                pipeline_cpu::render_scaled_with_context(
+                    &recipe.settings,
+                    &RenderSource::Rgb(input),
+                    scale,
+                    &retouch_context(),
+                )?
             }
             Decoded::Raw(raw) => {
                 let e = raw.active_extent();
-                let l = if max.is_some() {
-                    level(e.width, e.height, 1024)
+                let l = if let Some(max) = max {
+                    level(e.width, e.height, max.max(1))
                 } else {
                     0
                 };
@@ -141,9 +156,12 @@ impl PreviewCache {
     pub(crate) fn linear(&self, id: ImageId, path: &Path, recipe: &Recipe) -> EngineResult<Image> {
         let source = self.source(id, path)?;
         match &*source {
-            Decoded::Rgb { preview, .. } => {
-                pipeline_cpu::render_linear_scaled(&recipe.settings, &RenderSource::Rgb(preview), 1)
-            }
+            Decoded::Rgb { preview, .. } => pipeline_cpu::render_linear_scaled_with_lens(
+                &recipe.settings,
+                &RenderSource::Rgb(preview),
+                1,
+                &retouch_context(),
+            ),
             Decoded::Raw(raw) => {
                 let e = raw.active_extent();
                 let l = level(e.width, e.height, 1024);
@@ -172,5 +190,12 @@ impl PreviewCache {
                 Image::new(e.width, e.height, planes)
             }
         }
+    }
+}
+
+fn retouch_context() -> pipeline_cpu::LensContext<'static> {
+    pipeline_cpu::LensContext {
+        retouch: Some(Arc::new(brush::render_retouch)),
+        ..Default::default()
     }
 }

@@ -1,0 +1,37 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.12s
+     Running tests/translation_matrix.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/translation_matrix-b58196a35bc77828)
+
+running 4 tests
+test matrix_guard_rejects_a_retained_key_claimed_as_translated ... ok
+test translation_matrix_matches_synthetic_import ... FAILED
+test lr6c_field_guard_rejects_missing_reason_with_other_info_present ... FAILED
+test approximate_guard_requires_fields_source_info_and_zero_warnings ... FAILED
+
+failures:
+
+---- translation_matrix_matches_synthetic_import stdout ----
+
+thread 'translation_matrix_matches_synthetic_import' (54631060) panicked at crates/import-lrcat/tests/translation_matrix.rs:97:44:
+called `Result::unwrap()` on an `Err` value: "DepthMapInfo.DepthSource: requires one field info reason"
+
+---- lr6c_field_guard_rejects_missing_reason_with_other_info_present stdout ----
+
+thread 'lr6c_field_guard_rejects_missing_reason_with_other_info_present' (54631058) panicked at crates/import-lrcat/tests/translation_matrix.rs:227:61:
+called `Result::unwrap()` on an `Err` value: "LensBlur.Active: requires one field info reason"
+
+---- approximate_guard_requires_fields_source_info_and_zero_warnings stdout ----
+
+thread 'approximate_guard_requires_fields_source_info_and_zero_warnings' (54631057) panicked at crates/import-lrcat/tests/translation_matrix.rs:188:61:
+called `Result::unwrap()` on an `Err` value: "LensBlur.Active: requires one field info reason"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    approximate_guard_requires_fields_source_info_and_zero_warnings
+    lr6c_field_guard_rejects_missing_reason_with_other_info_present
+    translation_matrix_matches_synthetic_import
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test translation_matrix`

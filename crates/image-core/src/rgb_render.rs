@@ -112,10 +112,17 @@ impl Renderer {
         ] {
             let hash = match stage {
                 StageId::WhiteBalance => ParamHash::of(stage, &settings.white_balance),
+                StageId::Detail if !settings.locals.retouch.is_empty() => {
+                    ParamHash::of(stage, &(&settings.detail, &settings.locals.retouch))
+                }
                 StageId::Detail => ParamHash::of(stage, &settings.detail),
-                StageId::Tone => ParamHash::of(stage, &settings.tone),
+                StageId::Tone => settings.stage_hashes()[StageId::Tone as usize].1,
                 StageId::Color => ParamHash::of(stage, &settings.color),
-                StageId::Locals => ParamHash::of(stage, &settings.locals),
+                StageId::Locals => {
+                    let mut locals = settings.locals.clone();
+                    locals.retouch.clear();
+                    ParamHash::of(stage, &locals)
+                }
                 // Effects are anchored to the eventual crop.
                 StageId::Effects => ParamHash::of(
                     stage,
@@ -171,10 +178,15 @@ impl Renderer {
             );
             (rgb, correction)
         };
+        let ops: &dyn StageOp = if settings.locals.retouch.is_empty() {
+            self.ops.as_ref()
+        } else {
+            &CpuStageOp
+        };
         let extent = Extent::new(source.width(), source.height());
         for (stage, key) in keys.into_iter().skip(start) {
             cancel.check()?;
-            let run = |op| self.ops.run_image(stage, &op, (*rgb).clone(), cancel);
+            let run = |op| ops.run_image(stage, &op, (*rgb).clone(), cancel);
             let next = match stage {
                 StageId::WhiteBalance => {
                     let mut gain = neutral();
@@ -190,7 +202,14 @@ impl Renderer {
                         &correction,
                     )?
                 }
-                StageId::Detail => run(Op::Detail(&settings.detail))?,
+                StageId::Detail => {
+                    let corrected = pipeline_cpu::apply_retouch(
+                        (*rgb).clone(),
+                        &settings.locals.retouch,
+                        self.retouch.as_deref(),
+                    )?;
+                    ops.run_image(stage, &Op::Detail(&settings.detail), corrected, cancel)?
+                }
                 StageId::Tone => {
                     let toned = run(Op::Tone(&settings.tone))?;
                     let toned = if settings
@@ -199,7 +218,7 @@ impl Renderer {
                         .as_ref()
                         .is_some_and(|m| m.enabled)
                     {
-                        self.ops.run_image(
+                        ops.run_image(
                             stage,
                             &Op::Color(&settings.color_before_curves()),
                             toned,
@@ -208,8 +227,7 @@ impl Renderer {
                     } else {
                         toned
                     };
-                    self.ops
-                        .run_image(stage, &Op::ToneExtra(&settings.tone), toned, cancel)?
+                    ops.run_image(stage, &Op::ToneExtra(&settings.tone), toned, cancel)?
                 }
                 StageId::Color => run(Op::Color(&settings.color_after_curves()))?,
                 StageId::Locals => pipeline_cpu::locals_image(
@@ -224,7 +242,7 @@ impl Renderer {
                     } else {
                         let mut effects = settings.effects.clone();
                         effects.lens_blur = None;
-                        self.ops.run_image(
+                        ops.run_image(
                             stage,
                             &Op::EffectsInCrop(&effects, extent, &settings.geometry.crop),
                             developed,

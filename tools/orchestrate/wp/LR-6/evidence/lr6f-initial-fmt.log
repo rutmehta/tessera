@@ -1,0 +1,11 @@
+Diff in /Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat/tests/golden.rs:116:
+     }
+     let got = digest(images);
+     eprintln!("LR-6f active golden digest: {got}");
+-    assert_eq!(got, "141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0");
++    assert_eq!(
++        got,
++        "141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0"
++    );
+ }
+ 

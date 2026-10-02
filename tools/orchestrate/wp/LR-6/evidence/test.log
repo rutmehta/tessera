@@ -1,0 +1,333 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/engine-api)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 22.69s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/engine_api-e8b3c29821dbb807)
+
+running 63 tests
+test color::tests::adaptation_maps_white_to_white ... ok
+test color::tests::working_space_conversion_preserves_white ... ok
+test color::tests::inverse_round_trips ... ok
+test color::tests::rec2020_to_xyz_matches_reference ... ok
+test document::tests::blend_mode_names_are_stable ... ok
+test action::tests::registry_matches_tool_enums ... ok
+test error::tests::display_is_human_readable ... ok
+test color::tests::illuminant_exif_codes ... ok
+test id::tests::document_ids_are_transparent ... ok
+test color::tests::icc_handle_is_content_addressed ... ok
+test action::tests::descriptor_form_is_stable ... ok
+test id::tests::digest_hex_round_trip ... ok
+test error::tests::serializes_with_code_tag ... ok
+test id::tests::image_id_round_trip ... ok
+test document::tests::adjustment_minimal_json_is_neutral ... ok
+test document::tests::value_types_round_trip ... ok
+test id::tests::numeric_ids_are_transparent ... ok
+test document::tests::history_is_append_only_and_branches ... ok
+test jobs::tests::scheduler_runs_and_honours_cancellation ... ok
+test jobs::tests::cancellation_propagates_down_not_up ... ok
+test jobs::tests::priority_order ... ok
+test recipe::crs::tests::enhance_keys_are_informational_aux ... ok
+test action::tests::registry_effects_match_call_predicates ... ok
+test recipe::crs::tests::ranges ... ok
+test recipe::history::tests::diff_apply_round_trip ... ok
+test recipe::selection::tests::grade_serializes_as_number ... ok
+test recipe::selection::tests::invariant_is_kept ... ok
+test recipe::crs::tests::every_target_path_exists_in_the_recipe_schema ... ok
+test recipe::settings::tests::empty_object_is_default ... ok
+test recipe::settings::tests::schema_1_profile_ids_migrate ... ok
+test recipe::crs::tests::names_unique_and_round_trip ... ok
+test recipe::settings::tests::chain_changes_downstream_only ... ok
+test recipe::history::tests::replay_matches_recorded_states ... ok
+test recipe::tests::empty_and_partial_documents_load ... ok
+test recipe::tests::ids_are_never_reused ... ok
+test recipe::tests::hash_is_stable_across_releases ... ok
+test recipe::tests::native_exports_as_best_effort_pv6_with_companion ... ok
+test recipe::tests::newer_schema_is_read_only ... ok
+test recipe::tests::schema_1_documents_migrate_on_load ... ok
+test recipe::tests::hash_covers_render_state_only ... ok
+test stage::tests::canonical_json_is_order_independent ... ok
+test stage::tests::memo_key_digest_distinguishes_fields ... ok
+test stage::tests::node_memo_key_digest_distinguishes_fields ... ok
+test stage::tests::node_parts_are_stable ... ok
+test stage::tests::param_hash_is_stage_scoped_and_chained ... ok
+test recipe::tests::json_round_trip ... ok
+test stage::tests::stage_order_is_fixed ... ok
+test recipe::tests::undo_redo_branch_and_snapshots ... ok
+test tile::tests::coord_parent_children ... ok
+test tile::tests::copy_on_write ... ok
+test tile::tests::extent_levels ... ok
+test tile::tests::format_checks ... ok
+test tile::tests::halo_indexing ... ok
+test recipe::tests::stage_chain_seeded_by_process ... ok
+test tile::tests::premultiplied_flag ... ok
+test tile::tests::pyramid_deeper_levels ... ok
+test tile::tests::pyramid_defaults ... ok
+test tools::tests::document_envelopes ... ok
+test tools::tests::document_call_wire_form ... ok
+test tools::tests::every_call_round_trips_and_is_tagged_by_name ... ok
+test tools::tests::minimal_json_uses_defaults ... ok
+test tools::tests::request_and_response_envelopes ... ok
+test tools::tests::every_document_call_round_trips_and_is_tagged_by_name ... ok
+
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/channels-261a36f22bdb7e1a)
+
+running 4 tests
+test channel_edit_returns_allocated_identity_and_reads_old_outputs ... ok
+test channel_value_schema_fixtures ... ok
+test ordered_channels_survive_summary_round_trip ... ok
+test channel_calls_use_history_envelope_and_action_registry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/document_filters-d6654c7940dbb3c0)
+
+running 1 test
+test filter_calls_are_document_actions_with_default_destructive_mode ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/library_calls.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/library_calls-07033c7b6cb86e7f)
+
+running 2 tests
+test unconfirm_and_clear_name_are_explicit ... ok
+test library_calls_round_trip_and_register ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/m532_channels-fc6274204c016d43)
+
+running 1 test
+test explicit_alpha_display_and_channel_destination_are_additive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/people-d6af74c301a09804)
+
+running 2 tests
+test missing_people_options_are_safe ... ok
+test people_schema_fixtures ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/pinned_raw.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/pinned_raw-fd38665c5d1932f5)
+
+running 20 tests
+test duplicate_nested_key_is_rejected ... ok
+test distinct_recipe_owners_have_distinct_descriptors ... ok
+test outer_descriptor_duplicate_is_rejected_recursively ... ok
+test profile_legacy_and_canonical_forms_are_supported_but_extensions_reject ... ok
+test flattened_mask_arrays_and_nested_model_fields_are_checked ... ok
+test current_nondefault_settings_determine_recipe_hash_and_input_identity ... ok
+test explicit_schema_and_owner_are_required ... ok
+test negative_and_nested_array_float_overflow_reject ... ok
+test exact_recipe_bytes_include_whitespace_in_input_identity ... ok
+test opaque_history_does_not_override_current_settings_and_enum_extensions_reject ... ok
+test declarations_length_and_canonical_suffix_participate_in_identity ... ok
+test locator_does_not_affect_identity_but_asset_and_owner_do ... ok
+test nested_unknowns_and_extreme_numbers_reject ... ok
+test raw_snapshot_headers_and_default_geometry_are_required ... ok
+test exact_metadata_and_payload_identity_are_preserved ... ok
+test zero_length_bad_suffix_and_duplicate_keys_reject ... ok
+test descriptor_wire_and_current_headers_fail_closed ... ok
+test roundtrip_preserves_exact_recipe_and_identity ... ok
+test suffix_normalizes_and_recipe_history_is_opaque ... ok
+test default_settings_object_and_non_object_controls ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/source_kind.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/source_kind-885b01de37d45d2d)
+
+running 3 tests
+test source_kind_schema_and_invalid_values ... ok
+test source_kind_separates_render_caches ... ok
+test legacy_source_kind_is_promoted_and_normalized ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/text_vector-e41058caa64d2ea7)
+
+running 2 tests
+test legacy_layer_summary_defaults_editable_metadata ... ok
+test editable_commands_are_registered_and_replayable ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/import_lrcat-76ec97161251303a)
+
+running 20 tests
+test previews::tests::container_round_trip_and_truncation ... ok
+test lua::tests::rejects_malformed_or_executable_input ... ok
+test lua::tests::parses_rule ... ok
+test previews::tests::jpeg_header_parsing ... ok
+test lua::tests::scalar_forms_preserve_types ... ok
+test report_tests::lrcat_report_groups_all_but_unedited_and_duplicate_ids ... ok
+test lua::tests::parses_nested_lightroom_data ... ok
+test lua::tests::rejects_excessive_nesting_and_truncation_without_panicking ... ok
+test xmp::tests::malformed_duplicate_does_not_erase_previous_valid_choice ... ok
+test xmp::tests::curves_and_unsupported_payloads_are_not_dropped ... ok
+test xmp::tests::mask_groups_translate_supported_geometry_and_retain_source ... ok
+test xmp::tests::duplicate_properties_preserve_the_superseded_value ... ok
+test xmp::tests::foreign_namespace_and_opaque_structures_are_retained_not_applied ... ok
+test xmp::tests::unsupported_mask_prevents_partial_group_application ... ok
+test xmp::tests::scalar_attributes_use_mappings_and_history ... ok
+test xmp::tests::process_versions_and_legacy_warning ... ok
+test xmp::tests::shared_codec_imports_namespaced_profiles_aux_and_lens_blur ... ok
+test xmp::tests::invalid_scalars_and_curves_are_preserved_without_poisoning_settings ... ok
+test xmp::tests::catalog_version_fallback_disagreement_and_native_hash ... ok
+test xmp::tests::native_structures_and_renamed_namespaces_use_shared_codec ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+     Running tests/followups.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/followups-93cbfeb5851f15da)
+
+running 16 tests
+test xmp_source_fragments_preserve_attribute_spelling ... ok
+test identity_master_with_edited_channel_still_warns ... ok
+test xmp_extended_identity_is_silent_and_edits_use_named_limitation ... ok
+test upright_counts_are_ordinary_crs_properties ... ok
+test numeric_and_string_unknown_keys_cannot_collide ... ok
+test lua_rows_retain_only_unknown_key_source ... ok
+test pending_sources_are_exact_even_when_inactive_or_identity ... ok
+test duplicate_reports_follow_image_id_order_not_sqlite_row_order ... ok
+test retained_source_shapes_and_unedited_reasons_are_distinct ... ok
+test report_entries_are_grouped_per_message ... ok
+test oversized_history_is_omitted_explicitly_and_null_stays_null ... ok
+test develop_rows_are_ordered_and_orphans_and_null_ids_do_not_block ... ok
+test extended_tone_curves_are_one_named_limitation ... ok
+test bad_develop_rows_degrade_to_unedited_with_source_retained ... ok
+test every_unedited_image_is_individually_reported ... ok
+test oversized_cells_are_not_loaded ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.01s
+
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/golden-3c36f54cbb8f5557)
+
+running 2 tests
+test synthetic_catalog_output_including_retained_source ... ok
+test streaming_matches_import_and_plan_json_is_byte_identical ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.16s
+
+     Running tests/import.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/import-b91de320016a17b8)
+
+running 5 tests
+test missing_table_is_a_named_engine_error ... ok
+test committed_wal_and_lock_are_copied_without_touching_source ... ok
+test extra_columns_and_empty_folders_are_supported ... ok
+test synthetic_catalog_plan ... ok
+test all_selection_mappings_and_reject_precedence ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/lr6_lens_blur.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/lr6_lens_blur-3c11cbd2c98e8dd3)
+
+running 3 tests
+test lr6_missing_adobe_depth_records_regeneration_in_recipe ... FAILED
+test lr6_lua_lens_blur_translates_without_opaque_source ... FAILED
+test lr6_xmp_lens_blur_translates_without_opaque_source ... FAILED
+
+failures:
+
+---- lr6_missing_adobe_depth_records_regeneration_in_recipe stdout ----
+
+thread 'lr6_missing_adobe_depth_records_regeneration_in_recipe' (53829357) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:68:5:
+the regeneration marker must survive saving the recipe, not only an import report
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- lr6_lua_lens_blur_translates_without_opaque_source stdout ----
+
+thread 'lr6_lua_lens_blur_translates_without_opaque_source' (53829356) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:13:59:
+active Adobe LensBlur must populate the renderable recipe, not remain opaque source
+
+---- lr6_xmp_lens_blur_translates_without_opaque_source stdout ----
+
+thread 'lr6_xmp_lens_blur_translates_without_opaque_source' (53829358) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:13:59:
+active Adobe LensBlur must populate the renderable recipe, not remain opaque source
+
+
+failures:
+    lr6_lua_lens_blur_translates_without_opaque_source
+    lr6_missing_adobe_depth_records_regeneration_in_recipe
+    lr6_xmp_lens_blur_translates_without_opaque_source
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr6_lens_blur`
+     Running tests/lua_develop.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/lua_develop-cf6ad6bf043ebf08)
+
+running 10 tests
+test malformed_literals_are_decode_errors_naming_the_image ... ok
+test deep_nesting_is_rejected_without_overflowing_the_stack ... ok
+test lua_escapes_decode ... ok
+test format_is_detected_by_the_first_token ... ok
+test mapping_table_is_one_to_one_and_covers_every_crs_key ... ok
+test unknown_keys_are_reported_and_the_source_is_retained ... ok
+test the_same_edit_as_xmp_and_as_lua_yields_an_identical_recipe ... ok
+test structured_values_map_like_their_xmp_form ... ok
+test oversized_input_is_rejected_before_parsing ... ok
+test catalog_with_lua_develop_rows_imports ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.16s
+
+     Running tests/make_fixture.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/make_fixture-3f5ba5a5ac6d50e5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/oversized_memory.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/oversized_memory-f543ee4e6c3afb50)
+
+running 1 test
+test oversized_sqlite_cells_are_streamed_without_full_cell_allocations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.71s
+
+     Running tests/real_catalog_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/real_catalog_shapes-a672e06242b84e3e)
+
+running 6 tests
+test unnamed_root_keyword_is_the_tree_root ... ok
+test second_unnamed_root_keyword_is_reported ... ok
+test empty_develop_row_imports_as_unedited ... ok
+test collection_rows_with_missing_or_unknown_fields_degrade ... ok
+test untranslatable_smart_collection_is_reported_not_fatal ... ok
+test unnamed_non_root_keyword_is_skipped_with_a_diagnostic ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.01s
+
+     Running tests/scale.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/scale-ec971aba06a881d2)
+
+running 1 test
+test streaming_import_memory_is_flat_and_time_bounded ... ignored, timing and allocation bounds are for release builds
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/smart_rating.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/smart_rating-fb6807f86b74d05c)
+
+running 1 test
+test all_star_thresholds_operators_ranges_and_flags ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+     Running tests/translation_matrix.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/debug/deps/translation_matrix-b58196a35bc77828)
+
+running 2 tests
+test matrix_guard_rejects_a_retained_key_claimed_as_translated ... ok
+test translation_matrix_matches_synthetic_import ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests engine_api
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests import_lrcat
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: 1 target failed:
+    `-p import-lrcat --test lr6_lens_blur`

@@ -1,4 +1,7 @@
 //! Synthetic decoder checks for the coordination matrix; no catalog is opened.
+#[path = "lr6_fields/mod.rs"]
+mod lr6_fields;
+use lr6_fields::check_lr6_fields;
 use std::collections::BTreeSet;
 
 use engine_api::recipe::{CrsKey, Recipe};
@@ -9,7 +12,9 @@ type Import = dyn Fn(&str, &str) -> Result<(Recipe, Vec<String>), String>;
 
 /// The production synthetic import: one Lua row through `lua_develop::parse`.
 fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
-    let context = if key.starts_with("UprightTransform_") {
+    let context = if key == "DepthMapInfo" {
+        "LensBlur = { Active = true },".into()
+    } else if key.starts_with("UprightTransform_") {
         format!(
             "PerspectiveUpright = {},",
             key.trim_start_matches("UprightTransform_")
@@ -166,6 +171,9 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
                 return Err(format!(
                     "{key}: approximate diagnostics name no entry for field {path}: {notes:?}"
                 ));
+            }
+            if matches!(key, "LensBlur" | "DepthMapInfo") {
+                check_lr6_fields(&recipe, key, path)?;
             }
             counts.approximate += 1;
             continue;
@@ -424,4 +432,62 @@ fn lr7e_translated_row_can_carry_an_ignored_note() {
     let (counts, _) = check_rows(&row, &lane).unwrap();
     assert_eq!(counts.translated, 1);
     assert_eq!(counts.approximate, 0);
+}
+
+#[test]
+fn lr6d_field_guard_checks_falloff_and_each_reason() {
+    let (r, _) = lua_import(
+        "LensBlur",
+        "{ Active = true, BlurAmount = 37, FocalRange = '10 20 60 80' }",
+    )
+    .unwrap();
+    let path = "/settings/effects/lens_blur";
+    check_lr6_fields(&r, "LensBlur", path).unwrap();
+    let mut missing = r.clone();
+    missing
+        .settings
+        .effects
+        .lens_blur
+        .as_mut()
+        .unwrap()
+        .focus_falloff = None;
+    assert!(
+        check_lr6_fields(&missing, "LensBlur", path)
+            .unwrap_err()
+            .contains("FocalRange")
+    );
+    let mut missing = r.clone();
+    missing.unknown.get_mut(diagnostics::KEY).unwrap()["LensBlur"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|d| !d["reason"].as_str().unwrap().contains("BlurAmount"));
+    assert!(
+        check_lr6_fields(&missing, "LensBlur", path)
+            .unwrap_err()
+            .contains("BlurAmount")
+    );
+}
+
+#[test]
+fn lr6e_field_guard_rejects_duplicate_field_reasons() {
+    let (mut r, _) = lua_import("LensBlur", "{ Active = true, BlurAmount = 37 }").unwrap();
+    let entries = r.unknown.get_mut(diagnostics::KEY).unwrap()["LensBlur"]
+        .as_array_mut()
+        .unwrap();
+    let reason = entries
+        .iter()
+        .find(|d| {
+            d["reason"]
+                .as_str()
+                .unwrap()
+                .starts_with("approximate: BlurAmount:")
+        })
+        .unwrap()
+        .clone();
+    entries.push(reason);
+    assert!(
+        check_lr6_fields(&r, "LensBlur", "/settings/effects/lens_blur")
+            .unwrap_err()
+            .contains("requires one field info reason")
+    );
 }
