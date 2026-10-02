@@ -178,6 +178,26 @@ fn linear_raw_accepts_as_shot_white_xy_instead_of_neutral() {
         .unwrap()
         .unwrap();
     assert_eq!(metadata.as_shot_wb, decoded.metadata.as_shot_wb);
+    // Real DNGs commonly keep white balance in IFD0 and pixels in a SubIFD.
+    // Add a new root at EOF without moving any existing payload/offset.
+    let root = bytes.len() as u32;
+    bytes[4..8].copy_from_slice(&root.to_le_bytes());
+    bytes[entry..entry + 2].copy_from_slice(&65000u16.to_le_bytes());
+    bytes.extend(3u16.to_le_bytes());
+    for (tag, kind, count, value) in [
+        (254u16, 4u16, 1u32, 1u32),
+        (330, 4, 1, 38),
+        (50729, 5, 2, payload as u32),
+    ] {
+        bytes.extend(tag.to_le_bytes());
+        bytes.extend(kind.to_le_bytes());
+        bytes.extend(count.to_le_bytes());
+        bytes.extend(value.to_le_bytes());
+    }
+    bytes.extend(0u32.to_le_bytes());
+    let rooted = raw_decode::lossy_dng::read_metadata(&mut std::io::Cursor::new(&bytes))
+        .unwrap().unwrap();
+    assert_eq!(rooted.as_shot_wb, decoded.metadata.as_shot_wb);
     bytes[payload + 8..payload + 12].copy_from_slice(&0u32.to_le_bytes());
     assert!(raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes)).is_err());
 }
