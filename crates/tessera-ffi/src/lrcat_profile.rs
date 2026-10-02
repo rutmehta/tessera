@@ -707,13 +707,17 @@ fn pair_checked<T, E: std::fmt::Debug>(
     })
 }
 
-fn pair_pixels(path: &Path, app: &Path) -> SafeResult<image::RgbImage> {
+fn pair_pixels(path: &Path, app: &Path) -> SafeResult<(image::RgbImage, bool)> {
     use image_core::{PixelRect, Renderer, RendererConfig};
     let doc = pair_checked(app, 1, Sidecar::read_recipe(Sidecar::paths(path).recipe))?;
     let id = app_image_id(path).ok_or(())?;
     let source = pair_checked(app, 2, crate::catalog::open_image(id, path))?;
     // This is exactly the viewport's CPU Develop settings admission. Retained
     // unsupported edits stay in the sidecar; no rewritten/default recipe is saved.
+    let unavailable_lens = matches!(
+        doc.recipe.settings.lens.profile,
+        engine_api::recipe::settings::LensProfileSource::Database { .. }
+    );
     let mut settings = crate::develop::session_renderable(&doc.recipe.settings, true, false);
     settings.output.hdr = false;
     settings.output.hdr_headroom_stops = 0.;
@@ -747,7 +751,10 @@ fn pair_pixels(path: &Path, app: &Path) -> SafeResult<image::RgbImage> {
         renderer.render_region(&source, &settings, level, PixelRect::full(extent)),
     )?;
     let pixels = pair_checked(app, 7, crate::lrcat_fidelity::stitch(extent, &tiles))?;
-    Ok(image::imageops::thumbnail(&pixels, 1024, 1024))
+    Ok((
+        image::imageops::thumbnail(&pixels, 1024, 1024),
+        unavailable_lens,
+    ))
 }
 
 fn pair_measurement(a: &image::RgbImage, b: &image::RgbImage) -> Value {
@@ -884,6 +891,7 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
     }
     let step = (proxies.len() / 12).max(1);
     let mut pairs = Vec::new();
+    let mut unavailable_lens_profiles = 0usize;
     for (n, row) in proxies.iter().step_by(step).take(12).enumerate() {
         let id = import.plan.images[row.index].catalog_id;
         let jpeg = previews
@@ -892,7 +900,9 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
             .ok_or(70u32 + n as u32)?;
         let reference =
             crate::lrcat_fidelity::decode_preview(&jpeg).map_err(|_| 90u32 + n as u32)?;
-        let rendered = pair_pixels(&row.path, &app).map_err(|_| 110u32 + n as u32)?;
+        let (rendered, unavailable_lens) =
+            pair_pixels(&row.path, &app).map_err(|_| 110u32 + n as u32)?;
+        unavailable_lens_profiles += usize::from(unavailable_lens);
         safe(std::fs::write(
             contact.join(format!("{:02}-lightroom.jpg", n + 1)),
             jpeg,
@@ -902,11 +912,17 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
             .save(contact.join(format!("{:02}-tessera.png", n + 1)))
             .map_err(|_| 150u32 + n as u32)?;
         pairs.push(pair_measurement(&rendered, &reference));
+        safe(std::fs::write(
+            app.join("pairs-aggregate.json"),
+            json!({"pairs":pairs,"unavailable_lens_profiles":unavailable_lens_profiles})
+                .to_string(),
+        ))
+        .map_err(|_| 172u32)?;
         status(100 + n as u32).map_err(|_| 170u32)?;
     }
     status(5).map_err(|_| 171u32)?;
     Ok(
-        json!({"profile":profile,"comparable_proxies":proxies.len(),"sample_step":step,"pairs":pairs}),
+        json!({"profile":profile,"comparable_proxies":proxies.len(),"sample_step":step,"unavailable_lens_profiles":unavailable_lens_profiles,"pairs":pairs}),
     )
 }
 

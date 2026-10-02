@@ -84,21 +84,39 @@ fn all_catalog_orientations_survive_relink_and_export_without_double_rotation() 
 
 #[test]
 fn unavailable_named_lens_profile_is_retained_and_reported_without_blocking_proxy() {
-    use engine_api::recipe::{DevelopSettings, settings::{LensProfileRef, LensProfileSource}};
+    use engine_api::recipe::{
+        DevelopSettings,
+        settings::{LensProfileRef, LensProfileSource},
+    };
     use image_core::{PixelRect, Renderer};
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("synthetic.dng");
     std::fs::write(&path, encoded(0)).unwrap();
-    let image = image_core::RawImage::open_with_catalog_orientation(ImageId(901), &path, Some(6)).unwrap();
+    let image =
+        image_core::RawImage::open_with_catalog_orientation(ImageId(901), &path, Some(6)).unwrap();
     let mut settings = DevelopSettings::default();
-    settings.lens.profile = LensProfileSource::Database { profile: LensProfileRef::named("synthetic unavailable profile") };
+    settings.lens.profile = LensProfileSource::Database {
+        profile: LensProfileRef::named("synthetic unavailable profile"),
+    };
     settings.lens.manual_distortion = 0.1;
     let retained = settings.clone();
     let drawn = crate::develop::session_renderable(&settings, true, false);
     assert_eq!(drawn.lens.profile, LensProfileSource::None);
-    assert_eq!(drawn.lens.manual_distortion, settings.lens.manual_distortion);
+    assert_eq!(
+        drawn.lens.manual_distortion,
+        settings.lens.manual_distortion
+    );
     assert_eq!(settings, retained);
-    assert!(crate::develop::ignored_settings(&settings).iter().any(|p| p.starts_with("/lens/profile")));
+    assert!(
+        crate::develop::ignored_settings(&settings)
+            .iter()
+            .any(|p| p.starts_with("/lens/profile"))
+    );
     let extent = Renderer::output_extent(&image, &drawn, 0).unwrap();
-    assert!(!Renderer::new(Default::default()).render_region(&image, &drawn, 0, PixelRect::full(extent)).unwrap().is_empty());
+    assert!(
+        !Renderer::new(Default::default())
+            .render_region(&image, &drawn, 0, PixelRect::full(extent))
+            .unwrap()
+            .is_empty()
+    );
 }
