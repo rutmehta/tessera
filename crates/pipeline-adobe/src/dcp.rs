@@ -15,6 +15,9 @@ pub struct DcpProfile {
     hue2: Option<Table>,
     look: Option<Table>,
     tone: Option<Tone>,
+    baseline_exposure: f32,
+    exposure_offset: f32,
+    auto_black: bool,
 }
 
 struct Reader<'a> {
@@ -110,6 +113,9 @@ fn fields(bytes: &[u8]) -> Result<BTreeMap<u16, Field>, String> {
                 | 50982
                 | 51107
                 | 51108
+                | 50730
+                | 51109
+                | 51110
         ) {
             continue;
         }
@@ -126,6 +132,13 @@ fn fields(bytes: &[u8]) -> Result<BTreeMap<u16, Field>, String> {
             let v = match kind {
                 3 => r.u16(q)? as f64,
                 4 => r.u32(q)? as f64,
+                5 => {
+                    let d = r.u32(q + 4)?;
+                    if d == 0 {
+                        return Err("Zero rational denominator".into());
+                    }
+                    r.u32(q)? as f64 / d as f64
+                }
                 10 => {
                     let d = r.u32(q + 4)? as i32;
                     if d == 0 {
@@ -527,7 +540,30 @@ impl DcpProfile {
         };
         let look = Table::parse(&f, 50981, 50982, 51108)?;
         let tone = Tone::parse(&f)?;
+        let exposure = |tag| -> Result<f32, String> {
+            let Some(field) = f.get(&tag) else {
+                return Ok(0.);
+            };
+            if !matches!(field.kind, 5 | 10)
+                || field.values.len() != 1
+                || field.values[0].abs() > 32.
+            {
+                return Err(format!("Invalid exposure tag {tag}"));
+            }
+            Ok(field.values[0] as f32)
+        };
+        let black = if f.contains_key(&51110) {
+            required(&f, 51110, 4, 1)?[0]
+        } else {
+            0.
+        };
+        if black != 0. && black != 1. {
+            return Err("Unsupported DefaultBlackRender".into());
+        }
         Ok(Self {
+            baseline_exposure: exposure(50730)?,
+            exposure_offset: exposure(51109)?,
+            auto_black: black == 0.,
             color1: matrix(&f, 50721)?,
             temperature1,
             second,
@@ -546,7 +582,38 @@ impl DcpProfile {
     /// Convert normalized, un-white-balanced camera RGB to linear Rec.2020 D65.
     /// Temperature is Kelvin; invalid values use CalibrationIlluminant1.
     pub fn apply(&self, rgb: [f32; 3], temperature: f32) -> [f32; 3] {
-        self.apply_tone(self.apply_look(self.apply_without_tone(rgb, temperature)))
+        self.apply_tone(self.apply_look(self.apply_exposure(
+            self.apply_without_tone(rgb, temperature),
+            self.baseline_exposure,
+        )))
+    }
+
+    /// BaselineExposure + user exposure is supplied once by the source owner;
+    /// the profile adds BaselineExposureOffset. Run after HueSatMap, before Look.
+    /// Auto black uses the public SDK exposure ramp with shadows=5 and unit
+    /// ShadowScale/Stage3Gain (black=.005). This is an explicit approximation,
+    /// not Lightroom's image-dependent "shadows auto". DNG 1.7.1 pp. 62-63 leaves
+    /// the amount/method reader-dependent. None bypasses subtraction entirely.
+    pub fn apply_exposure(&self, rgb: [f32; 3], baseline_and_user: f32) -> [f32; 3] {
+        let gain = f64::from((baseline_and_user + self.exposure_offset).clamp(-32., 32.)).exp2();
+        if !self.auto_black {
+            return rgb.map(|v| (f64::from(v) * gain) as f32);
+        }
+        let white = 1. / gain;
+        let black = 0.005_f64.min(0.99 * white);
+        let slope = 1. / (white - black);
+        let radius = (0.5 * black).min(0.0625 / slope);
+        map_prophoto(rgb, |pro| {
+            pro.map(|x| {
+                if x <= black - radius {
+                    0.
+                } else if x >= black + radius {
+                    ((x - black) * slope).min(1.)
+                } else {
+                    slope / (4. * radius) * (x - black + radius).powi(2)
+                }
+            })
+        })
     }
 
     /// Profile curve or the public SDK ACR3 default, in ProPhoto D50.
@@ -804,6 +871,7 @@ mod tests {
     #[test]
     fn applies_huesat_then_look_then_tone_in_prophoto() {
         let mut e = base();
+        e.push((51110, 4, vec![1.]));
         e[1].2 = vec![23.];
         let plain = DcpProfile::parse(&fixture(false, 42, &e)).unwrap();
         e.extend([
@@ -836,6 +904,7 @@ mod tests {
     #[test]
     fn deferred_tone_matches_combined_apply() {
         let mut e = base();
+        e.push((51110, 4, vec![1.]));
         let plain = DcpProfile::parse(&fixture(false, 42, &e)).unwrap();
         e.push((50940, 11, vec![0., 0., 0.5, 0.25, 1., 1.]));
         let p = DcpProfile::parse(&fixture(false, 42, &e)).unwrap();

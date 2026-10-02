@@ -18,7 +18,7 @@ pub struct AdobeStageOp {
     native: Arc<dyn StageOp>,
     profile: Option<Arc<pipeline_adobe::dcp::DcpProfile>>,
     temperature: f32,
-    baseline_gain: f32,
+    baseline_exposure: f32,
     tint: engine_api::color::ColorMatrix3,
     counts: [AtomicU64; StageId::COUNT],
 }
@@ -29,7 +29,7 @@ impl AdobeStageOp {
             native,
             profile: None,
             temperature: 6504.,
-            baseline_gain: 1.,
+            baseline_exposure: 0.,
             tint: engine_api::color::ColorMatrix3::IDENTITY,
             counts: Default::default(),
         }
@@ -84,7 +84,7 @@ impl AdobeStageOp {
             ));
         }
         Ok(Self {
-            baseline_gain,
+            baseline_exposure: m.baseline_exposure,
             profile: Some(profile),
             temperature,
             tint,
@@ -122,14 +122,21 @@ impl StageOp for AdobeStageOp {
                 if let Some(legacy) = &s.legacy_pv2010 {
                     pipeline_cpu::legacy_pv2010::validate(legacy)?;
                 }
-                pipeline_cpu::map_rgb(&mut input, |p| pipeline_adobe::basic_tone(p, s))?;
+                let mut basic = (*s).clone();
+                if let Some(profile) = &self.profile {
+                    pipeline_cpu::map_rgb(&mut input, |p| {
+                        profile
+                            .apply_exposure(p, self.baseline_exposure + s.exposure.clamp(-10., 10.))
+                    })?;
+                    basic.exposure = 0.;
+                }
+                pipeline_cpu::map_rgb(&mut input, |p| pipeline_adobe::basic_tone(p, &basic))?;
                 return Ok(input);
             }
             if let Some(profile) = &self.profile {
                 if stage == StageId::CameraProfile {
                     pipeline_cpu::map_rgb(&mut input, |p| {
-                        profile
-                            .apply_without_tone(p.map(|v| v * self.baseline_gain), self.temperature)
+                        profile.apply_without_tone(p, self.temperature)
                     })?;
                     return Ok(input);
                 }
