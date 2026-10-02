@@ -423,6 +423,5 @@ fn lr4e_create_and_adjust_reject_ninth_mask_level_without_saving() {
         assert!(!matches!(result, ToolResponse::Ok(_)), "{result:?}");
         assert!(format!("{result:?}").contains("8 levels"));
         assert_eq!(std::fs::read(&recipe_path).unwrap(), before);
-
     }
 }

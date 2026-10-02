@@ -47,7 +47,6 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
                 }
             )
         })
-
     }),
     ("upright_homography", |r| {
         r.settings.geometry.upright.homography.is_some()
@@ -343,7 +342,6 @@ mod v4_feature_predicates {
             let r: Recipe = serde_json::from_value(value).unwrap();
             assert_eq!(required_schema_version(&r), 4, "{path}");
         }
-
     }
 
     #[test]

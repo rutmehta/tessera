@@ -66,7 +66,6 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
         version,
     )
     .map_err(|e| format!("{key}: {e}"))
-
 }
 
 /// A synthetic import of an empty develop row: every field at its default.
