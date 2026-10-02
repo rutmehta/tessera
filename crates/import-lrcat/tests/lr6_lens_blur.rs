@@ -382,3 +382,25 @@ fn lr6e_missing_depth_has_one_explicit_regeneration_reason() {
         r.validate().unwrap();
     }
 }
+
+#[test]
+fn lr6e_duplicate_xmp_uses_final_active_state_for_depth_diagnostics() {
+    for (first, last, active) in [("true", "false", false), ("false", "true", true)] {
+        let xml = format!(
+            "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'><rdf:Description><crs:LensBlur crs:Active='{first}'/><crs:LensBlur crs:Active='{last}'/><crs:DepthMapInfo crs:DepthSource='1'/></rdf:Description></rdf:RDF>"
+        );
+        let (recipe, warnings) = import_lrcat::develop(1, &xml, "15.4").unwrap();
+        assert_eq!(recipe.settings.effects.lens_blur.is_some(), active);
+        assert_eq!(
+            warnings
+                .iter()
+                .any(|w| w.starts_with("crs:DepthMapInfo: unsupported property")),
+            !active
+        );
+        assert_eq!(
+            diagnostics::entries(&recipe).contains_key("DepthMapInfo"),
+            active
+        );
+        recipe.validate().unwrap();
+    }
+}
