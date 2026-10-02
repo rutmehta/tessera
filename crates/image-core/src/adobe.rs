@@ -17,9 +17,8 @@ use std::sync::{
 pub struct AdobeStageOp {
     native: Arc<dyn StageOp>,
     profile: Option<Arc<pipeline_adobe::dcp::DcpProfile>>,
-    temperature: f32,
+    white_balance: Option<pipeline_adobe::dcp::DcpWhiteBalance>,
     baseline_exposure: f32,
-    tint: engine_api::color::ColorMatrix3,
     counts: [AtomicU64; StageId::COUNT],
 }
 impl AdobeStageOp {
@@ -28,9 +27,8 @@ impl AdobeStageOp {
         Self {
             native,
             profile: None,
-            temperature: 6504.,
+            white_balance: None,
             baseline_exposure: 0.,
-            tint: engine_api::color::ColorMatrix3::IDENTITY,
             counts: Default::default(),
         }
     }
@@ -40,42 +38,8 @@ impl AdobeStageOp {
         image: &crate::RawImage,
         settings: &engine_api::recipe::DevelopSettings,
     ) -> EngineResult<Self> {
-        use engine_api::{color::ColorMatrix3, recipe::settings::WhiteBalanceMode};
         let m = image.metadata();
-        let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
-            m.cam_xyz[r].map(f64::from)
-        })))?;
-        let wb = &settings.white_balance;
-        let (temperature, tint) = match wb.mode {
-            WhiteBalanceMode::AsShot => {
-                pipeline_cpu::as_shot_temperature_tint(camera_xyz, m.as_shot_wb)?
-            }
-            WhiteBalanceMode::Custom => (wb.temperature, wb.tint),
-            WhiteBalanceMode::Daylight | WhiteBalanceMode::Flash => (5503., 0.),
-            WhiteBalanceMode::Cloudy => (6504., 0.),
-            WhiteBalanceMode::Shade => (7504., 0.),
-            WhiteBalanceMode::Tungsten => (2856., 0.),
-            WhiteBalanceMode::Fluorescent => (4230., 0.),
-            WhiteBalanceMode::Auto => {
-                return Err(engine_api::EngineError::invalid(
-                    "white balance",
-                    "Auto is not implemented",
-                ));
-            }
-        };
-        let mut tinted = wb.clone();
-        tinted.mode = WhiteBalanceMode::Custom;
-        tinted.temperature = temperature;
-        tinted.tint = tint;
-        let mut neutral = tinted.clone();
-        neutral.tint = 0.;
-        let tint = if tint == 0. {
-            ColorMatrix3::IDENTITY
-        } else {
-            pipeline_cpu::white_balance_matrix(&tinted, camera_xyz, m.as_shot_wb)?
-                * pipeline_cpu::white_balance_matrix(&neutral, camera_xyz, m.as_shot_wb)?
-                    .inverse()?
-        };
+        let white_balance = profile.resolve_white_balance(&settings.white_balance, m.as_shot_wb)?;
         let baseline_gain = 2f32.powf(m.baseline_exposure);
         if !baseline_gain.is_finite() || baseline_gain <= 0. {
             return Err(engine_api::EngineError::invalid(
@@ -86,8 +50,7 @@ impl AdobeStageOp {
         Ok(Self {
             baseline_exposure: m.baseline_exposure,
             profile: Some(profile),
-            temperature,
-            tint,
+            white_balance: Some(white_balance),
             ..Self::new(native)
         })
     }
@@ -136,12 +99,16 @@ impl StageOp for AdobeStageOp {
             if let Some(profile) = &self.profile {
                 if stage == StageId::CameraProfile {
                     pipeline_cpu::map_rgb(&mut input, |p| {
-                        profile.apply_without_tone(p, self.temperature)
+                        profile.apply_camera(
+                            p,
+                            self.white_balance
+                                .as_ref()
+                                .expect("resolved profile white balance"),
+                        )
                     })?;
                     return Ok(input);
                 }
                 if stage == StageId::WhiteBalance {
-                    pipeline_cpu::apply_matrix(&mut input, self.tint)?;
                     return Ok(input);
                 }
             }

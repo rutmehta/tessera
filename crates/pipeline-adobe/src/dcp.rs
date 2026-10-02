@@ -3,6 +3,9 @@
 use std::collections::BTreeMap;
 #[path = "dcp_acr3.rs"]
 mod acr3;
+#[path = "dcp_embedded.rs"]
+mod embedded;
+pub use embedded::read_embedded_profile;
 
 type Matrix = [[f64; 3]; 3];
 #[derive(Debug, Clone)]
@@ -18,6 +21,13 @@ pub struct DcpProfile {
     baseline_exposure: f32,
     exposure_offset: f32,
     auto_black: bool,
+}
+
+/// Selected camera neutral and interpolation temperature, resolved once per render.
+#[derive(Clone, Copy)]
+pub struct DcpWhiteBalance {
+    temperature: f32,
+    neutral: [f64; 3],
 }
 
 struct Reader<'a> {
@@ -498,6 +508,14 @@ impl DcpProfile {
     /// tables, and a tone curve. See `DCP.md` for the rendering contract and limits.
     /// Malformed or unsupported structural/color data returns a descriptive error.
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
+        let extracted;
+        let bytes = if matches!(bytes.get(2..4), Some([42, 0] | [0, 42])) {
+            extracted = read_embedded_profile(&mut std::io::Cursor::new(bytes))?
+                .ok_or("No embedded camera profile")?;
+            extracted.as_slice()
+        } else {
+            bytes
+        };
         let f = fields(bytes)?;
         let temperature1 = illuminant(required(&f, 50778, 3, 1)?[0])?;
         let second = if f.contains_key(&50722) || f.contains_key(&50779) {
@@ -647,9 +665,124 @@ impl DcpProfile {
         })
     }
 
+    /// The as-shot neutral is authoritative even off the temperature/tint slider
+    /// locus. CCT is used only to interpolate profile calibrations and HueSatMaps.
+    /// Custom tint uses Tessera's documented Duv convention, not Adobe's slider.
+    pub fn resolve_white_balance(
+        &self,
+        settings: &engine_api::recipe::settings::WhiteBalanceSettings,
+        multipliers: [f32; 4],
+    ) -> engine_api::EngineResult<DcpWhiteBalance> {
+        use engine_api::{EngineError, recipe::settings::WhiteBalanceMode};
+        let normalize = |values: [f64; 3]| -> engine_api::EngineResult<[f64; 3]> {
+            if values.iter().any(|v| !v.is_finite() || *v <= 0.) {
+                return Err(EngineError::invalid(
+                    "camera neutral",
+                    "positive finite channels required",
+                ));
+            }
+            let max = values.into_iter().fold(0., f64::max);
+            Ok(values.map(|v| (v / max).clamp(0.001, 1.)))
+        };
+        if settings.mode == WhiteBalanceMode::AsShot {
+            let neutral = normalize(std::array::from_fn(|i| 1. / f64::from(multipliers[i])))?;
+            let mut temperature = self.temperature1;
+            // Invert interpolated ColorMatrix and solve the nearest locus white
+            // in CIE 1960 uv. DNG recommends iterative neutral-to-xy conversion;
+            // this bounded nearest-locus CCT estimate approximates SDK Robertson.
+            for _ in 0..12 {
+                let cm = self.second.map_or(self.color1, |(m, _)| {
+                    mix(self.color1, m, self.weight(temperature))
+                });
+                let xyz = mul(
+                    inverse(cm).unwrap_or_else(|| inverse(self.color1).unwrap()),
+                    neutral,
+                );
+                let uv = |v: [f64; 3]| {
+                    let d = v[0] + 15. * v[1] + 3. * v[2];
+                    [4. * v[0] / d, 6. * v[1] / d]
+                };
+                let target = uv(xyz);
+                let distance = |t| {
+                    let v = uv(white(t));
+                    (v[0] - target[0]).powi(2) + (v[1] - target[1]).powi(2)
+                };
+                let mut best = (f64::INFINITY, temperature);
+                for (low, high) in [(1667., 3999.999), (4000., 25000.)] {
+                    let (mut lo, mut hi) = (1. / high, 1. / low);
+                    for _ in 0..40 {
+                        let a = lo + (hi - lo) / 3.;
+                        let b = hi - (hi - lo) / 3.;
+                        if distance(1. / a) < distance(1. / b) {
+                            hi = b;
+                        } else {
+                            lo = a;
+                        }
+                    }
+                    let t = 2. / (lo + hi);
+                    let d = distance(t);
+                    if d < best.0 {
+                        best = (d, t);
+                    }
+                }
+                if (best.1 - temperature).abs() < 0.01 {
+                    temperature = best.1;
+                    break;
+                }
+                temperature = best.1;
+            }
+            return Ok(DcpWhiteBalance {
+                temperature: temperature as f32,
+                neutral,
+            });
+        }
+        let (temperature, tint) = match settings.mode {
+            WhiteBalanceMode::Custom => (settings.temperature, settings.tint),
+            WhiteBalanceMode::Daylight | WhiteBalanceMode::Flash => (5503., 0.),
+            WhiteBalanceMode::Cloudy => (6504., 0.),
+            WhiteBalanceMode::Shade => (7504., 0.),
+            WhiteBalanceMode::Tungsten => (2856., 0.),
+            WhiteBalanceMode::Fluorescent => (4230., 0.),
+            _ => {
+                return Err(EngineError::invalid(
+                    "white balance",
+                    "Auto is not implemented",
+                ));
+            }
+        };
+        let selected = if tint == 0. {
+            white(f64::from(temperature))
+        } else {
+            let xy = pipeline_cpu::temperature_white(temperature, tint)?;
+            [xy.x / xy.y, 1., (1. - xy.x - xy.y) / xy.y]
+        };
+        let cm = self.second.map_or(self.color1, |(m, _)| {
+            mix(self.color1, m, self.weight(f64::from(temperature)))
+        });
+        // SDK dng_color_spec::SetWhiteXY normalizes CameraWhite to max=1.
+        // https://android.googlesource.com/platform/external/dng_sdk/+/de700ad461e35af50b28b861943a0b0753b10929/source/dng_color_spec.cpp
+        Ok(DcpWhiteBalance {
+            temperature,
+            neutral: normalize(mul(cm, selected))?,
+        })
+    }
+
+    pub fn apply_camera(&self, rgb: [f32; 3], wb: &DcpWhiteBalance) -> [f32; 3] {
+        self.apply_camera_at(rgb, wb.temperature, Some(wb.neutral))
+    }
+
     /// Camera calibration, white balance and HueSatMap, before exposure,
     /// ProfileLookTable and ProfileToneCurve. Input is normalized unbalanced camera RGB.
     pub fn apply_without_tone(&self, rgb: [f32; 3], temperature: f32) -> [f32; 3] {
+        self.apply_camera_at(rgb, temperature, None)
+    }
+
+    fn apply_camera_at(
+        &self,
+        rgb: [f32; 3],
+        temperature: f32,
+        selected_neutral: Option<[f64; 3]>,
+    ) -> [f32; 3] {
         let t = if temperature.is_finite() && temperature > 0. {
             f64::from(temperature).clamp(1667., 25000.)
         } else {
@@ -670,13 +803,23 @@ impl DcpProfile {
             .unwrap()
         });
         let camera = rgb.map(|v| if v.is_finite() { f64::from(v) } else { 0. });
-        let mut xyz = adapt(mul(inv, camera), white(t), D50);
-        if let Some((one, two)) = self.forward {
-            let neutral = mul(cm, white(t));
-            if neutral.iter().all(|&v| v > 1e-12) {
-                let fm = two.map_or(one, |two| mix(one, two, w));
-                xyz = mul(fm, std::array::from_fn(|i| camera[i] / neutral[i]));
-            }
+        let neutral = selected_neutral.unwrap_or_else(|| mul(cm, white(t)));
+        let selected = mul(inv, neutral);
+        let scale = if selected[1] > 1e-12 {
+            1. / selected[1]
+        } else {
+            1.
+        };
+        let mut xyz = adapt(
+            mul(inv, camera).map(|v| v * scale),
+            selected.map(|v| v * scale),
+            D50,
+        );
+        if let Some((one, two)) = self.forward
+            && neutral.iter().all(|&v| v > 1e-12)
+        {
+            let fm = two.map_or(one, |two| mix(one, two, w));
+            xyz = mul(fm, std::array::from_fn(|i| camera[i] / neutral[i]));
         }
         if self.hue1.is_some() {
             let mut pro = mul(XYZ_TO_PROPHOTO, xyz);
@@ -818,6 +961,54 @@ mod tests {
         close(auto.apply(camera, 5003.), [0.015075377; 3], 0.00001);
         entries.last_mut().unwrap().2 = vec![2.];
         assert!(DcpProfile::parse(&fixture(false, 42, &entries)).is_err());
+    }
+
+    #[test]
+    fn lr10_camera_neutral_is_white_before_hue_tables_with_or_without_forward_matrix() {
+        for forward in [false, true] {
+            let mut entries = base();
+            if forward {
+                entries.push((
+                    50964,
+                    10,
+                    vec![0.96422, 0., 0., 0., 1., 0., 0., 0., 0.82521],
+                ));
+            }
+            let profile = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+            let wb = profile
+                .resolve_white_balance(&Default::default(), [2., 1., 1.5, 1.])
+                .unwrap();
+            close(
+                profile.apply_camera([0.1, 0.2, 0.13333334], &wb),
+                [0.2; 3],
+                0.00002,
+            );
+        }
+    }
+
+    #[test]
+    fn lr10_exposure_runs_after_hue_and_before_value_dependent_look() {
+        let mut entries = neutral_profile();
+        let plain = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let table = vec![0., 1., 1., 0., 1., 1., 0., 1., 1., 120., 1., 1.];
+        entries.extend([
+            (50730, 10, vec![1.]),
+            (51110, 4, vec![1.]),
+            (50937, 4, vec![1., 2., 2.]),
+            (50938, 11, table.clone()),
+            (50981, 4, vec![1., 2., 2.]),
+            (50982, 11, table),
+        ]);
+        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        // ProPhoto (.1,0,0): HueSat +12 degrees, exposure doubles V to .2,
+        // Look +24 degrees => HSV(36,1,.2) => ProPhoto (.2,.12,0).
+        let input = mul(PROPHOTO_TO_XYZ, [0.1, 0., 0.]).map(|v| v as f32);
+        let expected = mul(PROPHOTO_TO_XYZ, [0.2, 0.12, 0.]).map(|v| v as f32);
+        close(
+            p.apply(input, 5003.),
+            plain.apply_without_tone(expected, 5003.),
+            0.00002,
+        );
     }
 
     // Build actual TIFF IFDs, including out-of-line values, in either byte order.

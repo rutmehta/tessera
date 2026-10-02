@@ -743,6 +743,9 @@ pub fn renderable(s: &DevelopSettings) -> DevelopSettings {
 /// whole, unrotated frame and draws the crop over it).
 pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
     let mut r = DevelopSettings::default();
+    if image_core::pipeline_adobe::names_adobe_profile(s) {
+        r.camera_profile.profile = s.camera_profile.profile.clone();
+    }
     r.linearize.highlight_reconstruction = match s.linearize.highlight_reconstruction {
         m @ (HighlightReconstruction::Clip | HighlightReconstruction::ReconstructColor) => m,
         _ => r.linearize.highlight_reconstruction,

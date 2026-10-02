@@ -395,19 +395,30 @@ impl Renderer {
         image: &RawImage,
         settings: &DevelopSettings,
     ) -> EngineResult<Option<Self>> {
-        if !self.is_adobe() || self.dcp_resolved {
+        let named_adobe = pipeline_adobe::names_adobe_profile(settings);
+        if (!self.is_adobe() && !named_adobe) || self.dcp_resolved {
             return Ok(None);
         }
-        let Some((profile, _)) = &self.dcp else {
-            return Ok(None);
+        let mut next = if self.is_adobe() {
+            self.clone()
+        } else {
+            self.for_process_version(engine_api::recipe::ProcessVersion::adobe(6))
         };
-        let mut next = self.clone();
-        next.ops = Arc::new(crate::AdobeStageOp::with_profile(
-            self.native_ops.clone(),
-            profile.clone(),
-            image,
-            settings,
-        )?);
+        // An explicit resolved external DCP wins. Otherwise use the DNG's own
+        // profile, including when an Adobe-named binary profile isn't installed.
+        if next.dcp.is_none()
+            && let Some(bytes) = image.embedded_dcp()?
+        {
+            next = next.with_dcp_profile(bytes)?;
+        }
+        if let Some((profile, _)) = &next.dcp {
+            next.ops = Arc::new(crate::AdobeStageOp::with_profile(
+                self.native_ops.clone(),
+                profile.clone(),
+                image,
+                settings,
+            )?);
+        }
         next.dcp_resolved = true;
         Ok(Some(next))
     }
@@ -493,7 +504,7 @@ impl Renderer {
         let seed = if self.is_adobe() {
             ParamHash::chain(
                 seed,
-                ParamHash::of(StageId::CameraProfile, &"adobe-compat-v1"),
+                ParamHash::of(StageId::CameraProfile, &"adobe-compat-lr10-v2"),
             )
         } else {
             seed
@@ -572,6 +583,9 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_region_as(image, settings, level, rect, output);
+        }
         if image.camera_linear_proxy().is_some() {
             self.validate_camera_linear_proxy(image, settings)?;
         }
@@ -602,10 +616,10 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_tiles(image, settings, coords, output, cancel, sink);
+        }
         if image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some() {
-            if let Some(prepared) = self.prepare_dcp(image, settings)? {
-                return prepared.render_tiles(image, settings, coords, output, cancel, sink);
-            }
             return self.run_camera_linear_proxy(image, settings, coords, output, cancel, sink);
         }
         if Self::requires_cpu_chain(settings) {
@@ -617,9 +631,7 @@ impl Renderer {
         r.lens = lens.as_ref();
         r.cache_lens = true;
         let level = coords.first().map(|c| c.level);
-        if let Some(prepared) = self.prepare_dcp(image, settings)? {
-            return prepared.render_tiles(image, settings, coords, output, cancel, sink);
-        }
+
         if (lens.is_none() && !crate::resident_export_lens_supported(&settings.lens))
             || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
                 && !self.supports_resident(&r, level))
@@ -648,12 +660,12 @@ impl Renderer {
                 format!("need finest <= coarsest <= {MAX_LEVEL}"),
             ));
         }
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
+        }
         if image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some() {
             cancel.check()?;
-            if let Some(prepared) = self.prepare_dcp(image, settings)? {
-                return prepared
-                    .render_progressive(image, settings, viewport, output, cancel, sink);
-            }
+
             for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
                 let extent = Self::output_extent(image, settings, level)?;
                 let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
@@ -674,9 +686,7 @@ impl Renderer {
         let mut r = self.resolve(image, settings)?;
         r.lens = lens.as_ref();
         r.cache_lens = true;
-        if let Some(prepared) = self.prepare_dcp(image, settings)? {
-            return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
-        }
+
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
