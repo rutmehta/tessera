@@ -119,6 +119,31 @@ fn lr6e_apply_pins_depth_before_user_edit_reimports_and_deletes_with_image() {
             1
         );
     }
+    // A failure before recipe publication rolls back that image's depth slot.
+    let xmp_path = Sidecar::paths(&row.path).xmp;
+    let saved_xmp = std::fs::read(&xmp_path).unwrap();
+    std::fs::remove_file(&xmp_path).unwrap();
+    std::fs::create_dir(&xmp_path).unwrap();
+    options.overwrite_existing_edits = false;
+    let failed = import
+        .apply_with_depth_resolver(options.clone(), None, Some(make_resolver(255)))
+        .unwrap();
+    assert!(
+        failed
+            .skipped
+            .iter()
+            .any(|skip| skip.reason.contains("could not write sidecars"))
+    );
+    let store = DepthStore::new(support.join("previews/depth-cache"), 1).unwrap();
+    assert!(
+        (DepthMap::cached(&store, &key).unwrap().inverse_depth()[0] - 191. / 255.).abs() < 1e-6
+    );
+    std::fs::remove_dir(&xmp_path).unwrap();
+    std::fs::write(&xmp_path, saved_xmp).unwrap();
+    options.overwrite_existing_edits = true;
+    import
+        .apply_with_depth_resolver(options.clone(), None, Some(make_resolver(191)))
+        .unwrap();
     let resumed = import.apply(options, None).unwrap();
     assert!(resumed.resumed > 0);
     assert!(
