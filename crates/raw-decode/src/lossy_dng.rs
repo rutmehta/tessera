@@ -63,7 +63,7 @@ impl<R: Read + Seek> Tiff<'_, R> {
             let kind = self.u16(&e[2..]);
             // Only pixel-layout and calibration tags are retained. In particular,
             // embedded originals, maker notes, XMP and profile tables are never allocated.
-            if !matches!(id,254|256..=259|262|271..=274|277..=279|284|322..=325|330|339|50712..=50717|50719..=50722|50728|50730|50778|50779|50829|50964|50965|51008|51009|51022)
+            if !matches!(id,254|256..=259|262|271..=274|277..=279|284|322..=325|330|339|50712..=50717|50719..=50730|50778|50779|50829|50964|50965|51008|51009|51022)
             {
                 continue;
             }
@@ -487,9 +487,47 @@ fn read_impl<R: Read + Seek>(input: &mut R, decode_pixels: bool) -> io::Result<O
     }
     .ok_or_else(|| invalid("missing ColorMatrix"))?;
     let inverse = ColorMatrix3(cm).inverse().map_err(invalid)?;
-    let neutral = t.numbers(&tags, 50728)?;
-    if neutral.len() != 3 || neutral.iter().any(|v| *v <= 0.) {
-        return Err(invalid("positive AsShotNeutral required"));
+    let mut neutral = t.numbers(&tags, 50728)?;
+    let xy = t.numbers(&tags, 50729)?;
+    if !neutral.is_empty() && !xy.is_empty() {
+        return Err(invalid(
+            "AsShotNeutral and AsShotWhiteXY are mutually exclusive",
+        ));
+    }
+    if neutral.is_empty() && !xy.is_empty() {
+        if xy.len() != 2
+            || xy.iter().any(|v| !v.is_finite())
+            || xy[0] <= 0.
+            || xy[1] <= 0.
+            || xy[0] + xy[1] >= 1.
+        {
+            return Err(invalid("invalid AsShotWhiteXY"));
+        }
+        // DNG chapter 6: CameraNeutral = AB * CC * CM * XYZ (Y=1).
+        // This decoder's profile is the selected ColorMatrix, so only identity
+        // AB/CC is admitted here until those extra calibration stages exist.
+        for (id, identity) in [
+            (50727, vec![1.; 3]),
+            (50723, vec![1., 0., 0., 0., 1., 0., 0., 0., 1.]),
+            (50724, vec![1., 0., 0., 0., 1., 0., 0., 0., 1.]),
+        ] {
+            let values = t.numbers(&tags, id)?;
+            if !values.is_empty() && values != identity {
+                return Err(invalid(
+                    "AsShotWhiteXY with nonidentity camera calibration is unsupported",
+                ));
+            }
+        }
+        let xyz = [xy[0] / xy[1], 1., (1. - xy[0] - xy[1]) / xy[1]];
+        neutral = cm
+            .iter()
+            .map(|row| row.iter().zip(xyz).map(|(m, v)| m * v).sum())
+            .collect();
+    }
+    if neutral.len() != 3 || neutral.iter().any(|v| !v.is_finite() || *v <= 0.) {
+        return Err(invalid(
+            "positive AsShotNeutral or valid AsShotWhiteXY required",
+        ));
     }
     let wb = [
         (neutral[1] / neutral[0]) as f32,

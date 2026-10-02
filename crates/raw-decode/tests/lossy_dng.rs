@@ -171,10 +171,12 @@ fn linear_raw_accepts_as_shot_white_xy_instead_of_neutral() {
     // xy=(.25,.25) -> XYZ=(1,1,2). The synthetic ColorMatrix is identity,
     // so the reciprocal camera neutral is (1,1,.5), normalized to green.
     let decoded = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes))
-        .unwrap().unwrap();
+        .unwrap()
+        .unwrap();
     assert_eq!(decoded.metadata.as_shot_wb, [1., 1., 0.5, 1.]);
     let metadata = raw_decode::lossy_dng::read_metadata(&mut std::io::Cursor::new(&bytes))
-        .unwrap().unwrap();
+        .unwrap()
+        .unwrap();
     assert_eq!(metadata.as_shot_wb, decoded.metadata.as_shot_wb);
     bytes[payload + 8..payload + 12].copy_from_slice(&0u32.to_le_bytes());
     assert!(raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes)).is_err());
