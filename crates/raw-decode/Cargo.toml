@@ -8,6 +8,7 @@ license = "Apache-2.0"
 path = "src/lib.rs"
 
 [dependencies]
+zune-jpeg.workspace = true
 engine-api = { path = "../engine-api" }
 libraw-ffi = { path = "../libraw-ffi" }
 

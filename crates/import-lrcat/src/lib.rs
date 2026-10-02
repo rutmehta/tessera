@@ -14,6 +14,7 @@ pub mod previews;
 pub mod residual;
 mod retouch;
 mod search_map;
+pub mod smart_previews;
 pub mod xmp;
 pub use lua::SavedSearch;
 
