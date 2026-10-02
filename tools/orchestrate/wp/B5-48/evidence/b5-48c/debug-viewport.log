@@ -1,0 +1,15 @@
+Exit: 0
+Full local command log: /tmp/B5-48c-debug-viewport.log
+Build warning preamble omitted; test output below is complete.
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.43s
+     Running tests/document_viewport.rs (/Users/rutmehta/.cache/tessera-target/B5-48/debug/deps/document_viewport-47c56d9e508019aa)
+
+running 5 tests
+test edits_do_not_wait_for_frames_in_flight ... ignored, release-only latency bound: skipped in debug builds
+test composite_thumbnails_reuse_mips_across_edits ... ok
+test save_render_undo_races_keep_history_and_surfaces_valid ... ok
+test viewport_frames_composite_only_the_viewport_plus_halo ... ok
+test viewport_frames_equal_full_level_frames ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 20.57s

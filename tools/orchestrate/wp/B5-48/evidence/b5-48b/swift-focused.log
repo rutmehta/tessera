@@ -1,0 +1,18 @@
+Build complete! (270.95s)
+Test Suite 'Selected tests' started at 2026-10-01 20:32:57.033.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 20:32:57.033.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 20:32:57.033.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSnapshotExportCancelBeforeWorkerStartsKeepsDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSnapshotExportCancelBeforeWorkerStartsKeepsDestination]' passed (0.053 seconds).
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSnapshotExportSurvivesCloseBeforeWorkerStarts]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testSnapshotExportSurvivesCloseBeforeWorkerStarts]' passed (0.033 seconds).
+Test Suite 'DocumentExportFlatTests' passed at 2026-10-01 20:32:57.119.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.086 (0.086) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 20:32:57.120.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.086 (0.086) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 20:32:57.120.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.086 (0.087) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

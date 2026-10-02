@@ -249,6 +249,10 @@ fn export_is_a_snapshot_that_outlives_edits_and_close() {
 /// work is in `run`. Frames and edits continue while an export runs on
 /// another thread.
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "release-only latency bound: skipped in debug builds"
+)]
 fn begin_is_cheap_and_edits_continue_during_run() {
     let (dir, engine) = engine();
     let s = engine.adopt_document(document(4000, 3000), "cheap".into());

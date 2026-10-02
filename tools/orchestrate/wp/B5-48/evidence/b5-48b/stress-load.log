@@ -1,0 +1,7 @@
+Captured during the 200-iteration stress loop.
+PID ELAPSED CPU COMMAND (arguments truncated)
+ 4689       00:25  57.6 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc --crate-name export --edition=2024 crates/export/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,f
+ 4849       00:14  74.0 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc --crate-name hnsw_rs --edition=2024 /Users/rutmehta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hnsw_rs-0.3.4/src/
+ 5119       00:07  13.2 /Users/rutmehta/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc --crate-name rmcp --edition=2024 /Users/rutmehta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rmcp-3.4.1/src/lib.rs
+Parallel release build log: /tmp/B5-48b-build-ffi.log
+Parallel full-test build log: /tmp/B5-48b-rust-full.log

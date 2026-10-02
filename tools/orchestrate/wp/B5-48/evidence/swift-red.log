@@ -1,0 +1,26 @@
+Build complete! (375.39s)
+Test Suite 'Selected tests' started at 2026-10-01 19:14:53.828.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 19:14:53.828.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 19:14:53.828.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceSnapshotExcludesEditCommittedAfterConfirm]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/apps/mac/Tests/TesseraCoreTests/DocumentExportFlatTests.swift:99: error: -[TesseraCoreTests.DocumentExportFlatTests testWorkspaceSnapshotExcludesEditCommittedAfterConfirm] : XCTAssertEqual failed: ("0") is not equal to ("1") - Confirm must acquire the snapshot before returning
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/apps/mac/Tests/TesseraCoreTests/DocumentExportFlatTests.swift:109: error: -[TesseraCoreTests.DocumentExportFlatTests testWorkspaceSnapshotExcludesEditCommittedAfterConfirm] : XCTAssertEqual failed: ("3072 bytes") is not equal to ("3072 bytes")
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceSnapshotExcludesEditCommittedAfterConfirm]' failed (1.632 seconds).
+Test Suite 'DocumentExportFlatTests' failed at 2026-10-01 19:14:55.460.
+	 Executed 1 test, with 2 failures (0 unexpected) in 1.632 (1.632) seconds
+Test Suite 'FlatExportHUDTests' started at 2026-10-01 19:14:55.460.
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:111: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertEqual failed: ("0") is not equal to ("2")
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/apps/mac/Tests/TesseraCoreTests/FlatExportHUDTests.swift:113: error: -[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel] : XCTAssertEqual failed: ("0") is not equal to ("2")
+Test Case '-[TesseraCoreTests.FlatExportHUDTests testAccessibilityNotificationsForPhaseOnlyChangesAndCancel]' failed (0.079 seconds).
+Test Suite 'FlatExportHUDTests' failed at 2026-10-01 19:14:55.539.
+	 Executed 1 test, with 2 failures (0 unexpected) in 0.079 (0.079) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-01 19:14:55.539.
+	 Executed 2 tests, with 4 failures (0 unexpected) in 1.710 (1.711) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 19:14:55.539.
+	 Executed 2 tests, with 4 failures (0 unexpected) in 1.710 (1.712) seconds
+B5-48 confirm snapshot: 114.16664347052574 us (main=false)
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

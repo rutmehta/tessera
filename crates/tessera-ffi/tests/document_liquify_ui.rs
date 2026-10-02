@@ -994,6 +994,10 @@ fn cancel_during_a_full_resolution_apply_leaves_no_late_result() {
 
 /// Measured brush latency (points → mesh → preview surface) on a 20 MP layer.
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "release-only latency bound: skipped in debug builds"
+)]
 fn brush_latency_on_a_20_megapixel_layer() {
     let (_dir, engine) = engine();
     let s = engine

@@ -1,0 +1,8 @@
+Process exit: 0
+    Finished `release` profile [optimized] target(s) in 0.57s
+    Finished `release` profile [optimized] target(s) in 0.24s
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-48/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+Build complete! (62.89s)
+	 Executed 915 tests, with 3 tests skipped and 0 failures (0 unexpected) in 283.121 (283.212) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.029 seconds.
+SWIFT GATE OK

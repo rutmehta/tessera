@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 34s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/B5-48/debug/deps/tessera_ffi-b4ee34d40c032121)
+
+running 1 test
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 3, y1: 2 })
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 3, y1: 2 })
+test document::render::frame_cancellation_tests::frames_for_a_replaced_ring_are_dropped ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 0.41s

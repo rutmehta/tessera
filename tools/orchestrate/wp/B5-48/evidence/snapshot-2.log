@@ -1,0 +1,16 @@
+Test Suite 'Selected tests' started at 2026-10-01 19:20:54.358.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-01 19:20:54.359.
+Test Suite 'DocumentExportFlatTests' started at 2026-10-01 19:20:54.359.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceSnapshotExcludesEditCommittedAfterConfirm]' started.
+Test Case '-[TesseraCoreTests.DocumentExportFlatTests testWorkspaceSnapshotExcludesEditCommittedAfterConfirm]' passed (0.063 seconds).
+Test Suite 'DocumentExportFlatTests' passed at 2026-10-01 19:20:54.422.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.063 (0.063) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-10-01 19:20:54.422.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.063 (0.063) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 19:20:54.422.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.063 (0.064) seconds
+B5-48 confirm snapshot: 6.9999368861317635 us (main=true)
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,32 @@
+{
+  "source": "8d7fd05b",
+  "configuration": "SwiftPM release XCTest, instrumented export_flat_snapshot span",
+  "tiny_fixture": "32 x 24 solid fill; post-confirm visibility edit while worker paused",
+  "tiny_opt_in_microseconds": [
+    8.125090971589088,
+    6.9999368861317635,
+    7.500057108700275
+  ],
+  "large_fixture": "5212 x 3468 developed RAW, Gaussian smart-filter radius 8",
+  "large_snapshot_events": [
+    {
+      "mainThread": true,
+      "name": "export_flat_snapshot_start",
+      "residency": "unavailable",
+      "span": "89E5058F-16A3-4BF5-84E0-A70B62E79C0D",
+      "time": 620763.0203593335
+    },
+    {
+      "durationMs": 0.024291686713695526,
+      "mainThread": true,
+      "name": "export_flat_snapshot_end",
+      "residency": "unavailable",
+      "span": "89E5058F-16A3-4BF5-84E0-A70B62E79C0D",
+      "time": 620763.0203836252
+    }
+  ],
+  "large_trace_dropped": 0,
+  "timing_bound_ms": 20,
+  "timing_bound_requires": "TESSERA_FILTER_PERF",
+  "limits": "Includes tracing overhead; does not establish the whole-main-thread <8 ms target."
+}

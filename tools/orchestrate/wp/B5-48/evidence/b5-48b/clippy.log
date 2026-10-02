@@ -1,0 +1,13 @@
+    Checking uniffi_bindgen v0.32.2
+   Compiling uniffi_macros v0.32.2
+    Checking ml-embed v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/crates/ml-embed)
+    Checking style-profile v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/crates/style-profile)
+    Checking uniffi_core v0.32.2
+    Checking roxmltree v0.20.0
+    Checking import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/crates/import-lrcat)
+    Checking agent v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/crates/agent)
+    Checking ml-caption v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/crates/ml-caption)
+    Checking uniffi v0.32.2
+    Checking tessera-ffi v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/B5-48/crates/tessera-ffi)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 53s
+Exit: 0

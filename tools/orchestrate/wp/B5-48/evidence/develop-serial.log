@@ -1,0 +1,11 @@
+Process exit: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/B5-48/debug/deps/develop-ab434c2ebc74b2f6)
+
+running 1 test
+test export_batch_does_not_starve_slider_drag ... develop original L2 calibration [first, tone, WB] ms: CPU [16341.947874999998, 6314.421375, 11922.497792]; GPU [8061.924625, 22.823292, 402.189625]
+slider without export: render p50 2.6 ms p90 3.0 ms max 33.4 ms
+slider during export: 120 frames in 2.575767042s (120 at L2): render p50 2.4 ms p90 3.6 ms max 21.1 ms; set→frame p50 3.7 ms p90 5.9 ms max 24.3 ms; export 5 images in 40.148821458s, 0 completed during the drag
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 96.46s

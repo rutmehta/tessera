@@ -104,7 +104,13 @@ final class FlatExportHUDTests: XCTestCase {
             }
             notifications.removeAll()
         }
-        notifications.removeAll() // Ignore initial row publication.
+        expect([phase, progress])
+        hud.update([])
+        let preparing = FlatExportTask(fileName: "reused.png", documentTitle: "Reused", cancel: {})
+        hud.update([preparing])
+        expect([phase, progress]) // Same Preparing 0 %, new task identity.
+        hud.update([task])
+        expect([phase, progress])
         task.update(0.625, "Encoding")
         expect([phase, progress])
         task.update(0.625, "Writing")
@@ -125,7 +131,7 @@ final class FlatExportHUDTests: XCTestCase {
 
         let finishing = FlatExportTask(fileName: "finished.png", documentTitle: "Finished", cancel: {})
         hud.update([finishing]) // Exercise the reused row as well.
-        notifications.removeAll()
+        expect([phase, progress])
         finishing.update(1, "Encoding")
         expect([phase, progress])
         finishing.update(1, "Complete")

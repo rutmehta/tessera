@@ -1,0 +1,51 @@
+Exit: 0
+Full local command log: /tmp/B5-48c-release.log
+Build warning preamble omitted; test output below is complete.
+
+    Finished `release` profile [optimized] target(s) in 0.44s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/B5-48/release/deps/tessera_ffi-60f73e22abe9f1a5)
+
+running 1 test
+test document::render::frame_cancellation_tests::drafts_faster_than_frame_time_keep_publishing_latest_wins ... 27 frames for 100 drafts over 542.796833ms (want >= 13)
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 0.57s
+
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/B5-48/release/deps/develop-909c3c0dfe77ab7f)
+
+running 2 tests
+test export_batch_does_not_starve_slider_drag ... develop original L2 calibration [first, tone, WB] ms: CPU [796.888333, 435.190958, 501.32233299999996]; GPU [343.72033400000004, 1.457792, 40.844291]
+slider without export: render p50 1.6 ms p90 1.9 ms max 4.9 ms
+slider during export: 120 frames in 2.614216542s (120 at L2): render p50 1.5 ms p90 2.4 ms max 6.7 ms; set→frame p50 1.8 ms p90 2.9 ms max 7.2 ms; export 5 images in 5.096287167s, 0 completed during the drag
+ok
+test slow_interactive_frames_are_not_starved ... develop original L2 calibration [first, tone, WB] ms: CPU [436.833875, 195.30387499999998, 225.170875]; GPU [247.935625, 1.194416, 3.715042]
+39 frames during a 245.012833ms burst; final L1
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 17.09s
+
+     Running tests/document_export_flat.rs (/Users/rutmehta/.cache/tessera-target/B5-48/release/deps/document_export_flat-e7e94b9dcad902f8)
+
+running 1 test
+test begin_is_cheap_and_edits_continue_during_run ... begin 10.625µs; slowest edit during the export 152.875µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.38s
+
+     Running tests/document_liquify_ui.rs (/Users/rutmehta/.cache/tessera-target/B5-48/release/deps/document_liquify_ui-c1535177a4502ed5)
+
+running 1 test
+test brush_latency_on_a_20_megapixel_layer ... LIQUIFY 20MP (5472x3648, cell 16, proxy 1824x1216 /3): open 89 ms; brush+preview per event median 7.0 ms, p95 20.0 ms, max 38.4 ms (brush 0.2 ms, preview 6.8 ms median); full-res apply 51 ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 1.54s
+
+     Running tests/document_viewport.rs (/Users/rutmehta/.cache/tessera-target/B5-48/release/deps/document_viewport-bc5c1308b06227f9)
+
+running 1 test
+test edits_do_not_wait_for_frames_in_flight ... document: frames composited on the CPU (styles in the resident document program require CPU composition)
+document: frames on the Cpu path (L0, requested Rect { x0: 0, y0: 0, x1: 512, y1: 384 })
+styled frame median 383.3 ms; edit call median 0.007 ms, max 0.03 ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.86s

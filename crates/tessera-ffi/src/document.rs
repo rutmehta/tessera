@@ -876,6 +876,7 @@ impl State {
 /// Immutable session read view. The live draft is only an Arc<DocState>;
 /// holding this view never holds either the edit lock or the render backend.
 /// Keep the committed document separate from the live interactive draft.
+#[derive(Clone)]
 struct PublishedState {
     doc: Arc<Document>,
     live: Arc<DocState>,
@@ -1250,6 +1251,26 @@ impl DocumentSession {
         if let Ok(mut st) = self.shared.lock() {
             st.closed = true;
             st.view.surfaces.clear();
+        } else {
+            // Poison means an edit unwound before its publication was complete.
+            // Close the mutable session, but preserve the last valid reader model.
+            let mut st = self.shared.state.lock().unwrap_or_else(|e| e.into_inner());
+            st.closed = true;
+            st.view.surfaces.clear();
+            let previous = self
+                .shared
+                .published
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
+            let mut closed = (*previous).clone();
+            closed.closed = true;
+            closed.view.surface_size = None;
+            *self
+                .shared
+                .published
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Arc::new(closed);
         }
         self.shared.render.stop();
         self.shared.filters.stop();
@@ -2878,6 +2899,48 @@ mod publication_tests {
         );
         assert!(Arc::ptr_eq(&before, &session.document_state().unwrap()));
         assert_eq!(session.layer(id).unwrap().opacity, 1.0);
+    }
+
+    #[test]
+    fn b5_48_shutdown_closes_poisoned_session_without_publishing_partial_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.new_document(3, 2, DocDepth::U8, None).unwrap();
+        session.wait_idle();
+        let before = session.shared.read().unwrap();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut st = session.shared.lock().unwrap();
+            st.title = "partial edit".into();
+            panic!("injected poisoned session");
+        }));
+        assert!(panic.is_err());
+        session.shutdown();
+        assert!(
+            session
+                .shared
+                .state
+                .lock()
+                .err()
+                .unwrap()
+                .into_inner()
+                .closed
+        );
+        let after = session.shared.read().unwrap();
+        assert!(after.closed);
+        assert_eq!(after.title, before.title);
+        assert!(Arc::ptr_eq(&after.live, &before.live));
+        assert!(after.open().is_err());
+        assert!(
+            session
+                .begin_export_flat(
+                    "closed.png".into(),
+                    ExportFormat::Png,
+                    90,
+                    ExportColor::Srgb
+                )
+                .is_err()
+        );
+        session.shutdown(); // Idempotent even with the poison retained.
     }
 
     #[test]

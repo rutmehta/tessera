@@ -1,0 +1,10 @@
+running 2 tests
+
+thread 'document::publication_tests::b5_48_shutdown_closes_poisoned_session_without_publishing_partial_edit' (56133763) panicked at crates/tessera-ffi/src/document.rs:2914:13:
+injected poisoned session
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test document::publication_tests::b5_48_shutdown_closes_poisoned_session_without_publishing_partial_edit ... ok
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 3, y1: 2 })
+test document::render::frame_cancellation_tests::b5_48_frame_completion_changes_only_ring_cursor_without_publication ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 229 filtered out; finished in 0.25s
