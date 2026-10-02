@@ -562,25 +562,35 @@ fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) 
 }
 
 fn note_diagnostics(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path, status: &str) {
+    // A resource regeneration note is its own group: it must stay visible
+    // beside the same key's translation note, not hide behind its reason.
+    let regenerated = |reason: &str| reason.starts_with("regenerated");
     for (key, entries) in import_lrcat::diagnostics::entries(recipe) {
-        let Some(first) = entries.iter().find(|e| {
+        let mut seen = [false; 2];
+        for entry in entries.iter().filter(|e| {
             e.status == status && e.level == if status == "cloud" { "warning" } else { "info" }
-        }) else {
-            continue;
-        };
-        match issues.iter_mut().find(|i| i.category == key) {
-            Some(group) => {
-                group.count += 1;
-                if group.examples.len() < 5 {
-                    group.examples.push(display_path(path));
-                }
+        }) {
+            let class = regenerated(&entry.reason);
+            if std::mem::replace(&mut seen[usize::from(class)], true) {
+                continue;
             }
-            None => issues.push(issue(
-                &key,
-                first.reason.clone(),
-                1,
-                vec![display_path(path)],
-            )),
+            match issues
+                .iter_mut()
+                .find(|i| i.category == key && regenerated(&i.reason) == class)
+            {
+                Some(group) => {
+                    group.count += 1;
+                    if group.examples.len() < 5 {
+                        group.examples.push(display_path(path));
+                    }
+                }
+                None => issues.push(issue(
+                    &key,
+                    entry.reason.clone(),
+                    1,
+                    vec![display_path(path)],
+                )),
+            }
         }
     }
 }
@@ -1533,41 +1543,25 @@ impl LrcatImport {
                 if imported.is_some() {
                     clear_pending_depth_diagnostic(&mut image.recipe);
                 }
-                let result = (|| {
-                    if !crate::lrcat_masks::has_masks(&image.recipe) {
-                        return write_image(
-                            &r.path,
-                            id,
-                            &image.recipe,
-                            &selection,
-                            &keywords,
-                            &admission,
-                        );
-                    }
-                    let root = self.engine.support_dir()?.join("imported-masks");
-                    Sidecar::ensure_destination(&root, "imported masks")?;
-                    Sidecar::ensure_destination(root.join("pinned"), "imported masks")?;
-                    let store = ml_segment::MaskStore::new(root, 0)?;
-                    crate::lrcat_masks::apply(
-                        &mut image.recipe,
-                        id,
-                        // Only an injected raster is ever measured against it.
+                let result = crate::lrcat_masks::import(
+                    &mut image.recipe,
+                    id,
+                    &self.engine.support_dir()?.join("imported-masks"),
+                    // Only an injected raster is ever measured against it.
+                    || {
                         if mask_resolver.is_some() {
                             render_mask_extent(&r.path)
                         } else {
                             (0, 0)
-                        },
-                        &store,
-                        |resource| {
-                            mask_resolver.as_ref().and_then(|resolver| {
-                                resolver.resolve(image.catalog_id, resource.into())
-                            })
-                        },
-                        |recipe| {
-                            write_image(&r.path, id, recipe, &selection, &keywords, &admission)
-                        },
-                    )
-                })();
+                        }
+                    },
+                    |resource| {
+                        mask_resolver.as_ref().and_then(|resolver| {
+                            resolver.resolve(image.catalog_id, resource.into())
+                        })
+                    },
+                    |recipe| write_image(&r.path, id, recipe, &selection, &keywords, &admission),
+                );
                 if result.is_err() {
                     let key = image_core::depth::imported_depth_key(id);
                     if let Some(prior) = prior {

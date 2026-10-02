@@ -1145,6 +1145,7 @@ impl Engine {
                 });
             }
         };
+        let mut segmenter: Option<Box<dyn export::mask_ai::MaskSegmenter>> = None;
         let mut upscaler: Option<ml_enhance::SuperResolution> = None;
         // At most one owned output is encoding while the next source renders.
         // No queue of decoded RAWs, GPU transactions, or output frames grows
@@ -1218,6 +1219,12 @@ impl Engine {
                     date: &item.date,
                     metadata: packet.as_ref(),
                 };
+                if export::needs_segmenter(&recipe) && segmenter.is_none() {
+                    segmenter = Some(
+                        export::mask_ai::load_segmenter(self.support_dir()?)
+                            .map_err(|e| failure(format!("AI masks: {e}")))?,
+                    );
+                }
                 if options.upscale > 1 && upscaler.is_none() {
                     upscaler = Some(self.load_upscaler(usize::from(options.upscale))?);
                 }
@@ -1250,7 +1257,10 @@ impl Engine {
                     &settings,
                     &cancel,
                     upscaler.as_mut(),
-                    None,
+                    match segmenter.as_mut() {
+                        Some(s) => Some(s.as_mut()),
+                        None => None,
+                    },
                 )?;
                 Ok(rendered)
             });
@@ -1442,6 +1452,14 @@ impl Engine {
         let (recipe, _) = self.recipe_and_xmp(&item)?;
         let source = Source::open(&item.path, item.orientation)?;
         let crop = recipe.settings.geometry.crop.rect;
+        let mut segmenter = if export::needs_segmenter(&recipe) {
+            Some(
+                export::mask_ai::load_segmenter(self.support_dir()?)
+                    .map_err(|e| failure(format!("AI masks: {e}")))?,
+            )
+        } else {
+            None
+        };
         let scale = print_scale(
             source.display_size(),
             [crop.left, crop.top, crop.right, crop.bottom],
@@ -1474,7 +1492,10 @@ impl Engine {
                 scale,
             },
             &cancel,
-            None,
+            match segmenter.as_mut() {
+                Some(s) => Some(s.as_mut()),
+                None => None,
+            },
             Some(self.support_dir()?),
             Some(Arc::new(brush::render_retouch)),
         )?;

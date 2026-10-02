@@ -288,8 +288,7 @@ pub fn load_segmenter(support: &std::path::Path) -> anyhow::Result<Box<dyn MaskS
     let cache = std::env::var_os("TESSERA_SEGMENT_MODELS")
         .map(PathBuf::from)
         .unwrap_or_else(|| dir.join("cache"));
-    let registry =
-        ml_runtime::ModelRegistry::open(&manifest, &cache)?.with_downloads_allowed(false);
+    let registry = ml_runtime::ModelRegistry::open(&manifest, &cache)?;
     let store = ml_segment::MaskStore::new(support.join("mask-cache"), 256 << 20)?;
     Ok(Box::new(ml_segment::Segmenter::load(
         &registry,

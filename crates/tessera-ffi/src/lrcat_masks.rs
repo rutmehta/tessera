@@ -82,6 +82,42 @@ fn decode(bytes: &[u8], extent: (u32, u32)) -> Option<MaskRaster> {
     MaskRaster::new(extent.0, extent.1, decoded.to_luma32f().into_raw()).ok()
 }
 
+/// An image without AI masks never opens, creates or lists the mask store.
+/// Once its recipe is published it no longer references imported rasters, so
+/// its own ownership record (if a previous import left one) is unlinked by
+/// path. The content becomes an orphan for explicit pruning.
+fn publish_without_masks(
+    recipe: &Recipe,
+    id: ImageId,
+    root: &std::path::Path,
+    publish: impl FnOnce(&Recipe) -> Result<()>,
+) -> Result<()> {
+    publish(recipe)?;
+    // No record, or no store at all, is the common case. A record that cannot
+    // be removed is a harmless superset; the import itself has succeeded.
+    let _ = std::fs::remove_file(root.join("owners").join(id.to_string()));
+    Ok(())
+}
+
+/// The import path: the store under `root` is opened, and the source measured,
+/// only for an image that has AI masks.
+pub(crate) fn import(
+    recipe: &mut Recipe,
+    id: ImageId,
+    root: &std::path::Path,
+    extent: impl FnOnce() -> (u32, u32),
+    resolve: impl FnMut(&str) -> Option<Vec<u8>>,
+    publish: impl FnOnce(&Recipe) -> Result<()>,
+) -> Result<()> {
+    if !has_masks(recipe) {
+        return publish_without_masks(recipe, id, root, publish);
+    }
+    sidecar::Sidecar::ensure_destination(root, "imported masks")?;
+    sidecar::Sidecar::ensure_destination(root.join("pinned"), "imported masks")?;
+    let store = MaskStore::new(root, 0)?;
+    apply(recipe, id, extent(), &store, resolve, publish)
+}
+
 /// At most 256 rasters and 256 MiB per apply. Immutable content keys mean a
 /// failed or interrupted apply can never change pixels an existing recipe
 /// references. The owner record lists what the published recipe references.
@@ -94,7 +130,7 @@ pub(crate) fn apply(
     publish: impl FnOnce(&Recipe) -> Result<()>,
 ) -> Result<()> {
     if !has_masks(recipe) {
-        return publish(recipe);
+        return publish_without_masks(recipe, id, store.root(), publish);
     }
     let mut groups = recipe.settings.locals.adjustments.clone();
     let mut stack: Vec<_> = groups

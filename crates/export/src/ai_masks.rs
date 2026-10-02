@@ -34,17 +34,6 @@ impl MaskHooks for ReadyMasks {
         group: &LocalAdjustment,
         _level: u8,
     ) -> EngineResult<Vec<f32>> {
-        // Availability gates the whole adjustment before any inversion or
-        // subtraction, including groups mixing procedural and AI components.
-        if group
-            .components
-            .iter()
-            .flat_map(|c| c.active_leaves())
-            .filter(|c| c.kind.is_ai())
-            .any(|c| !self.0.iter().any(|(ready, _)| ready == c))
-        {
-            return Ok(vec![0.; (input.width() * input.height()) as usize]);
-        }
         mask_ai::compose_with_components(input, group, |component, w, h| {
             let (_, plane) = self
                 .0
@@ -161,14 +150,12 @@ pub(crate) fn render_with_hooks(
         .ok_or_else(|| error("segmentation input"))?;
     let support = || -> EngineResult<std::path::PathBuf> {
         mask_support
-            .map(std::path::Path::to_path_buf)
-            .or_else(|| std::env::var_os("TESSERA_APP_SUPPORT").map(std::path::PathBuf::from))
-            .ok_or_else(|| error("set TESSERA_APP_SUPPORT to the model support directory"))
+            .map(|root| Ok(root.to_path_buf()))
+            .unwrap_or_else(crate::depth::support)
     };
     let mut loaded = None;
     let mut supplied = segmenter;
     let mut rasters = Vec::new();
-    let mut load_failed = false;
     for (component, request) in requests {
         let request = match request {
             Some(request) => request,
@@ -191,26 +178,18 @@ pub(crate) fn render_with_hooks(
                 mask_ai::request(&component.kind, orientation).map_err(error)?
             }
         };
-        if supplied.is_none() && loaded.is_none() && !load_failed {
-            match support().and_then(|root| mask_ai::load_segmenter(&root).map_err(error)) {
-                Ok(model) => loaded = Some(model),
-                Err(e) => {
-                    warnings.push(format!(
-                        "AI mask pending/unavailable: {e}; local adjustment skipped"
-                    ));
-                    load_failed = true;
-                }
-            }
+        // Export never renders a different image than the one the user sees
+        // once the mask exists: a model that cannot be loaded, a backend that
+        // fails and an invalid raster are all errors, and nothing is published.
+        // The model is loaded only when a component actually needs inference.
+        if supplied.is_none() && loaded.is_none() {
+            loaded = Some(mask_ai::load_segmenter(&support()?).map_err(error)?);
         }
-        let segmenter = supplied.as_deref_mut().or_else(|| {
-            loaded
-                .as_mut()
-                .map(|s| s.as_mut() as &mut dyn MaskSegmenter)
-        });
-        let Some(segmenter) = segmenter else { continue };
-        // No model is "unavailable" and skips the adjustment above. A backend
-        // that ran and failed, or answered with an invalid raster, is an
-        // export error: nothing is published from a broken segmentation.
+        let segmenter = match (supplied.as_deref_mut(), loaded.as_mut()) {
+            (Some(segmenter), _) => segmenter,
+            (None, Some(segmenter)) => segmenter.as_mut(),
+            (None, None) => unreachable!("loaded above"),
+        };
         let alpha = segmenter.segment(&shown, &request).map_err(error)?;
         if alpha.len() != dw as usize * dh as usize
             || alpha.iter().any(|v| !(0.0..=1.0).contains(v))
